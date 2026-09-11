@@ -134,6 +134,66 @@ interface SpanData {
   attributes: Record<string, unknown>;
 }
 
+async function fetchEvaluationSpans({
+  limit,
+  command,
+}: {
+  limit: number;
+  command: "start" | "sessions";
+}): Promise<SpanData[] | undefined> {
+  try {
+    const result = await getSpans({
+      project: { projectName: PROJECT_NAME },
+      limit,
+    });
+    const spans = result.spans as unknown as SpanData[];
+    console.log(`   Found ${spans.length} spans`);
+    return spans;
+  } catch (error) {
+    console.error("❌ Failed to fetch spans:", error);
+    console.log("\n💡 Make sure:");
+    console.log("   1. Phoenix is running at http://localhost:6006");
+    console.log(`   2. You've run 'pnpm ${command}' to generate traces first`);
+    return undefined;
+  }
+}
+
+function getTraceEvaluationSpans(spans: SpanData[]) {
+  return {
+    toolSpans: spans.filter((span) => span.name === "ai.toolCall"),
+    llmSpans: spans.filter(
+      (span) =>
+        span.name === "ai.generateText" &&
+        String(span.attributes["input.value"] || "").includes(
+          "Answer the user's question using ONLY the information provided in the context below. Be friendly and concise."
+        )
+    ),
+  };
+}
+
+function hasTraceEvaluationSpans({
+  toolSpans,
+  llmSpans,
+}: {
+  toolSpans: SpanData[];
+  llmSpans: SpanData[];
+}): boolean {
+  return toolSpans.length > 0 || llmSpans.length > 0;
+}
+
+function groupSpansBySession(spans: SpanData[]): Map<string, SpanData[]> {
+  const groups = new Map<string, SpanData[]>();
+  for (const span of spans) {
+    if (span.name !== "support-agent") continue;
+    const sessionId = span.attributes[SemanticConventions.SESSION_ID] as string;
+    if (!sessionId) continue;
+    const sessionSpans = groups.get(sessionId) ?? [];
+    sessionSpans.push(span);
+    groups.set(sessionId, sessionSpans);
+  }
+  return groups;
+}
+
 async function evaluateTraces() {
   console.log("=".repeat(60));
   console.log("Phoenix Tracing Tutorial - Child Span Evaluation");
@@ -143,36 +203,16 @@ async function evaluateTraces() {
   console.log("\n📥 Fetching spans from Phoenix...");
   console.log(`   Project: ${PROJECT_NAME}`);
 
-  let spans: SpanData[];
-  try {
-    const result = await getSpans({
-      project: { projectName: PROJECT_NAME },
-      limit: 100,
-    });
-    spans = result.spans as unknown as SpanData[];
-    console.log(`   Found ${spans.length} spans`);
-  } catch (error) {
-    console.error("❌ Failed to fetch spans:", error);
-    console.log("\n💡 Make sure:");
-    console.log("   1. Phoenix is running at http://localhost:6006");
-    console.log("   2. You've run 'pnpm start' to generate traces first");
-    return;
-  }
+  const spans = await fetchEvaluationSpans({ limit: 100, command: "start" });
+  if (!spans) return;
 
   // Step 2: Filter spans by type
-  const toolSpans = spans.filter((span) => span.name === "ai.toolCall");
-  const llmSpans = spans.filter(
-    (span) =>
-      span.name === "ai.generateText" &&
-      String(span.attributes["input.value"] || "").includes(
-        "Answer the user's question using ONLY the information provided in the context below. Be friendly and concise."
-      )
-  );
+  const { toolSpans, llmSpans } = getTraceEvaluationSpans(spans);
 
   console.log(`   Found ${toolSpans.length} tool spans`);
   console.log(`   Found ${llmSpans.length} RAG generation spans`);
 
-  if (toolSpans.length === 0 && llmSpans.length === 0) {
+  if (!hasTraceEvaluationSpans({ toolSpans, llmSpans })) {
     console.log(
       "\n⚠️  No tool or RAG spans found. Run 'pnpm start' first to generate traces."
     );
@@ -338,39 +378,13 @@ async function evaluateSessions() {
   console.log("\n📥 Fetching spans from Phoenix...");
   console.log(`   Project: ${PROJECT_NAME}`);
 
-  let spans: SpanData[];
-  try {
-    const result = await getSpans({
-      project: { projectName: PROJECT_NAME },
-      limit: 200,
-    });
-    spans = result.spans as unknown as SpanData[];
-    console.log(`   Found ${spans.length} spans`);
-  } catch (error) {
-    console.error("❌ Failed to fetch spans:", error);
-    console.log("\n💡 Make sure:");
-    console.log("   1. Phoenix is running at http://localhost:6006");
-    console.log(
-      "   2. You've run 'pnpm sessions' to generate session traces first"
-    );
-    return;
-  }
+  const spans = await fetchEvaluationSpans({
+    limit: 200,
+    command: "sessions",
+  });
+  if (!spans) return;
 
-  // Step 2: Group spans by session ID
-  const agentSpans = spans.filter((span) => span.name === "support-agent");
-
-  // Group by session ID
-  const sessionGroups: Map<string, SpanData[]> = new Map();
-
-  for (const span of agentSpans) {
-    const sessionId = span.attributes[SemanticConventions.SESSION_ID] as string;
-    if (sessionId) {
-      if (!sessionGroups.has(sessionId)) {
-        sessionGroups.set(sessionId, []);
-      }
-      sessionGroups.get(sessionId)!.push(span);
-    }
-  }
+  const sessionGroups = groupSpansBySession(spans);
 
   console.log(`   Found ${sessionGroups.size} sessions with agent spans`);
 

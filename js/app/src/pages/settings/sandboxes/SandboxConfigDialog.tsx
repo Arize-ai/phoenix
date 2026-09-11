@@ -191,6 +191,7 @@ export function configToFormValues(config: SandboxConfig["config"]): {
   };
 }
 
+// oxlint-disable-next-line complexity -- Form orchestration is split across provider capabilities and create/edit mutations.
 function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
   const { mode, onClose } = props;
   const providers = mode === "create" ? props.providers : [];

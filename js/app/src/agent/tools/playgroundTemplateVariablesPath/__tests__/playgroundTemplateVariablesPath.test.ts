@@ -128,7 +128,7 @@ describe("playground template variables path agent tool", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: "Invalid set_template_variables_path input.",
+        error: "Invalid playground.variables.setPath input.",
       })
     );
     expect(playgroundStore.getState().stateByDatasetId).toEqual({});

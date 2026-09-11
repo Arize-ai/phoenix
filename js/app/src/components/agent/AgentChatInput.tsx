@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import { useState } from "react";
 
+import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { parseRequestedSkills } from "@phoenix/agent/skills/requestedSkills";
 import {
   parsePromptCommands,
@@ -16,7 +17,13 @@ import {
   PromptInputTools,
 } from "@phoenix/components/ai/prompt-input";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import type { AgentState } from "@phoenix/store/agentStore";
 
+import {
+  type AgentChatSuggestionContext,
+  getAgentChatPlaceholder,
+} from "./agentChatPlaceholder";
 import { AgentContextPills } from "./AgentContextPills";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
@@ -69,8 +76,34 @@ export type AgentChatInputProps = {
   onModelChange: (model: ModelMenuValue) => void;
   isInputDisabled?: boolean;
   isSubmitDisabled?: boolean;
+  hasMessages: boolean;
+  promptTokenCount: number | null;
   onStop: () => void;
 };
+
+function selectSuggestionContext(
+  state: AgentState
+): AgentChatSuggestionContext {
+  const contextTypes = new Set(
+    selectActiveContexts(state).map((context) => context.type)
+  );
+  if (contextTypes.has("span")) {
+    return "span";
+  }
+  if (contextTypes.has("trace")) {
+    return "trace";
+  }
+  if (contextTypes.has("code_evaluator")) {
+    return "code_evaluator";
+  }
+  if (contextTypes.has("llm_evaluator")) {
+    return "llm_evaluator";
+  }
+  if (contextTypes.has("playground")) {
+    return "playground";
+  }
+  return contextTypes.has("project") ? "project" : null;
+}
 
 /** Names of the local prompt commands, for the submit-time command parse. */
 const availableCommandNames: ReadonlySet<string> = new Set(
@@ -96,6 +129,8 @@ export function AgentChatInput({
   onModelChange,
   isInputDisabled,
   isSubmitDisabled,
+  hasMessages,
+  promptTokenCount,
   onStop,
 }: AgentChatInputProps) {
   const [slashMenuLayer, setSlashMenuLayer] = useState<HTMLDivElement | null>(
@@ -104,6 +139,16 @@ export function AgentChatInput({
   const [availableSkills, setAvailableSkills] = useState<AvailableAgentSkill[]>(
     []
   );
+  const suggestionContext = useAgentContext(selectSuggestionContext);
+  const availableSkillNames = new Set(
+    availableSkills.map((skill) => skill.name)
+  );
+  const placeholder = getAgentChatPlaceholder({
+    hasMessages,
+    promptTokenCount,
+    suggestionContext,
+    availableSkillNames,
+  });
 
   const handleSubmit = (text: string) => {
     if (isInputDisabled) {
@@ -144,7 +189,7 @@ export function AgentChatInput({
           <AgentContextPills />
           <PromptInputBody>
             <SkillPromptInputBoundary
-              placeholder="Send a message..."
+              placeholder={placeholder}
               commands={PROMPT_COMMANDS}
               onSkillsChange={setAvailableSkills}
               textareaRef={textareaRef}

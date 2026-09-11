@@ -197,40 +197,42 @@ export function SavePromptForm({
                 </TextField>
               )}
             />
-            {mode === "create" && (
-              <Controller
-                name="metadata"
-                control={control}
-                rules={{
-                  validate: (value) => {
-                    // Allow empty values (will be treated as null)
-                    if (!value || value.trim() === "") {
-                      return true;
-                    }
-                    if (!isJSONObjectString(value)) {
-                      return "metadata must be a valid JSON object";
-                    }
+            <Controller
+              name="metadata"
+              control={control}
+              rules={{
+                validate: (value) => {
+                  // Allow empty values (will be treated as null)
+                  if (!value || value.trim() === "") {
                     return true;
-                  },
-                }}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { error },
-                }) => (
-                  <CodeEditorFieldWrapper
-                    label={"Metadata"}
-                    errorMessage={error?.message}
-                    description="A JSON object containing metadata for the prompt (optional)"
-                  >
-                    <JSONEditor
-                      value={value}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                    />
-                  </CodeEditorFieldWrapper>
-                )}
-              />
-            )}
+                  }
+                  if (!isJSONObjectString(value)) {
+                    return "metadata must be a valid JSON object";
+                  }
+                  return true;
+                },
+              }}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { error },
+              }) => (
+                <CodeEditorFieldWrapper
+                  label={"Metadata"}
+                  errorMessage={error?.message}
+                  description={
+                    mode === "create"
+                      ? "A JSON object containing metadata for the prompt (optional)"
+                      : "A JSON object containing metadata for this version (optional)"
+                  }
+                >
+                  <JSONEditor
+                    value={value}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                  />
+                </CodeEditorFieldWrapper>
+              )}
+            />
           </Flex>
         </View>
 

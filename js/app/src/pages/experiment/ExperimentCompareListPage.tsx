@@ -38,6 +38,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  IDBadge,
   ProgressBar,
   Text,
   View,
@@ -58,6 +59,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components/core/tooltip";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
@@ -282,6 +284,7 @@ export function ExperimentCompareListPage({
                     }
                     example {
                       id
+                      externalId
                       revision {
                         input
                         referenceOutput: output
@@ -452,6 +455,7 @@ export function ExperimentCompareListPage({
         const tableData = {
           id: example.id,
           example: example.id,
+          externalId: example.externalId,
           repetitionNumber: baseExperimentRun.repetitionNumber,
           input: example.revision.input,
           referenceOutput: example.revision.referenceOutput,
@@ -518,11 +522,14 @@ export function ExperimentCompareListPage({
       header: "example",
       accessorKey: "example",
       size: 110,
-      cell: ({ getValue, row }) => {
-        const exampleId = getValue() as string;
+      cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <TextOverflow>{exampleId}</TextOverflow>
+            <IDBadge
+              id={row.original.externalId ?? row.original.example}
+              variant="quiet"
+              tooltipText="Copy example ID"
+            />
             <TooltipTrigger>
               <IconButton
                 size="S"
@@ -937,25 +944,35 @@ export function ExperimentCompareListPage({
             ) => {
               return (
                 <Flex direction="column" gap="size-100">
-                  <Flex direction="row" gap="size-100" alignItems="center">
+                  <Flex
+                    direction="row"
+                    gap="size-100"
+                    alignItems="center"
+                    minWidth={0}
+                  >
                     <AnnotationColorSwatch
                       annotationName={annotationSummary.annotationName}
                     />
                     <div
+                      css={css`
+                        flex: 1 1 auto;
+                        min-width: 0;
+                      `}
                       {...{
                         className: headerContext.column.getCanSort()
                           ? "sort"
                           : "",
                         onClick: headerContext.column.getToggleSortingHandler(),
-                        style: {
-                          left: headerContext.column.getStart(),
-                          width: headerContext.column.getSize(),
-                        },
                       }}
                     >
-                      <Text size="S" weight="heavy">
-                        {annotationSummary.annotationName}
-                      </Text>
+                      <Truncate
+                        maxWidth="100%"
+                        title={annotationSummary.annotationName}
+                      >
+                        <Text size="S" weight="heavy">
+                          {annotationSummary.annotationName}
+                        </Text>
+                      </Truncate>
                       {headerContext.column.getIsSorted() ? (
                         <Icon
                           className="sort-icon"
@@ -1305,6 +1322,9 @@ export function ExperimentCompareListPage({
                 datasetVersionId={baseExperiment?.datasetVersion?.id}
                 selectedExampleIndex={selectedExampleIndex}
                 selectedExampleId={rows[selectedExampleIndex].original.example}
+                selectedExampleExternalId={
+                  rows[selectedExampleIndex].original.externalId
+                }
                 baseExperimentId={baseExperiment?.id}
                 compareExperimentIds={compareExperimentIds}
                 exampleIds={exampleIds}

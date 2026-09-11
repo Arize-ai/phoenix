@@ -2798,8 +2798,8 @@ async def test_sandbox_backends_capability_flags(
 
 
 _AVAILABLE_AGENT_SKILLS_QUERY = """
-  query ($input: AvailableAgentSkillsInput) {
-    availableAgentSkills(input: $input) {
+  query {
+    availableAgentSkills {
       name
       description
       summary
@@ -2808,100 +2808,42 @@ _AVAILABLE_AGENT_SKILLS_QUERY = """
 """
 
 
-async def test_available_agent_skills_base_catalog(
+async def test_available_agent_skills_returns_the_whole_catalog(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     response = await gql_client.execute(query=_AVAILABLE_AGENT_SKILLS_QUERY)
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    # No context mounted: only the always-on skills, in catalog order, no gated ones.
-    assert names == ["debug-trace", "annotate-spans", "span-coding", "phoenix-graphql"]
+    # Every skill, in catalog order by name. The field takes no arguments: there
+    # is no UI state that can narrow this list, because `load_skill` will load
+    # any of them from any page.
+    assert names == [
+        "annotate-spans",
+        "datasets",
+        "debug-trace",
+        "evaluators",
+        "experiments",
+        "phoenix-graphql",
+        "playground",
+        "span-coding",
+    ]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
     assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
 
 
-async def test_available_agent_skills_playground_context(
+async def test_available_agent_skills_matches_what_the_agent_is_advertised(
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    response = await gql_client.execute(
-        query=_AVAILABLE_AGENT_SKILLS_QUERY,
-        variables={"input": {"hasPlaygroundContext": True}},
-    )
+    """The picker and the agent read the same catalog, so neither can drift."""
+    from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
+
+    response = await gql_client.execute(query=_AVAILABLE_AGENT_SKILLS_QUERY)
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    # Playground context adds the playground skill on top of the always-on base.
-    assert names == [
-        "debug-trace",
-        "annotate-spans",
-        "span-coding",
-        "phoenix-graphql",
-        "playground",
-    ]
-
-
-async def test_available_agent_skills_dataset_context(
-    gql_client: AsyncGraphQLClient,
-) -> None:
-    response = await gql_client.execute(
-        query=_AVAILABLE_AGENT_SKILLS_QUERY,
-        variables={"input": {"hasDatasetContext": True}},
-    )
-    assert not response.errors
-    assert response.data is not None
-    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    # Dataset context unlocks the dataset-backed trio: datasets, experiments, evaluators.
-    assert names == [
-        "debug-trace",
-        "annotate-spans",
-        "span-coding",
-        "phoenix-graphql",
-        "datasets",
-        "experiments",
-        "evaluators",
-    ]
-
-
-async def test_available_agent_skills_llm_evaluator_context(
-    gql_client: AsyncGraphQLClient,
-) -> None:
-    response = await gql_client.execute(
-        query=_AVAILABLE_AGENT_SKILLS_QUERY,
-        variables={"input": {"hasLlmEvaluatorContext": True}},
-    )
-    assert not response.errors
-    assert response.data is not None
-    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == [
-        "debug-trace",
-        "annotate-spans",
-        "span-coding",
-        "phoenix-graphql",
-        "evaluators",
-    ]
-
-
-async def test_available_agent_skills_code_evaluator_context(
-    gql_client: AsyncGraphQLClient,
-) -> None:
-    response = await gql_client.execute(
-        query=_AVAILABLE_AGENT_SKILLS_QUERY,
-        variables={"input": {"hasCodeEvaluatorContext": True}},
-    )
-    assert not response.errors
-    assert response.data is not None
-    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == [
-        "debug-trace",
-        "annotate-spans",
-        "span-coding",
-        "phoenix-graphql",
-        "evaluators",
-    ]
+    assert names == [skill.name for skill in load_skills(PXI_SKILLS_ROOTS)]
 
 
 async def test_node_with_noninteger_payload_returns_bad_request(

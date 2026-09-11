@@ -5,9 +5,9 @@ import {
   jsonObjectSchema,
 } from "@phoenix/agent/shared/datasetExampleSchema";
 
-// Must agree with the server-owned PARAMETERS (add_dataset_examples.py):
-// a non-empty `examples` array; each item has a required `input` object and
-// optional `output` / `metadata` objects.
+// The only schema for the `dataset.examples.add` operation input: a non-empty
+// `examples` array; each item has a required `input` object and optional
+// `output` / `metadata` objects.
 export const addDatasetExamplesInputSchema = z.object({
   examples: z.array(datasetExampleSchema).min(1),
 });

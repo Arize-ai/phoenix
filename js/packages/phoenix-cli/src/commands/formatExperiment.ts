@@ -144,100 +144,115 @@ export function formatExperimentJsonOutput({
 
 function formatExperimentJsonPretty(jsonData: string): string {
   try {
-    const data = JSON.parse(jsonData);
-    const lines: string[] = [];
-
-    // Handle array of experiment runs from the JSON endpoint
-    if (Array.isArray(data)) {
-      lines.push(`Experiment Runs (${data.length}):`);
-      lines.push("");
-
-      for (const run of data) {
-        const status = run.error ? "✗" : "✓";
-        const runId = run.id || run.run_id || "unknown";
-
-        lines.push(`┌─ ${status} Run: ${runId}`);
-
-        if (run.example_id || run.dataset_example_id) {
-          lines.push(
-            `│  Example ID: ${run.example_id || run.dataset_example_id}`
-          );
-        }
-
-        if (run.repetition_number) {
-          lines.push(`│  Repetition: ${run.repetition_number}`);
-        }
-
-        if (run.start_time && run.end_time) {
-          lines.push(
-            `│  Duration: ${formatDurationMs(run.start_time, run.end_time)}`
-          );
-        }
-
-        if (run.trace_id) {
-          lines.push(`│  Trace ID: ${run.trace_id}`);
-        }
-
-        if (run.error) {
-          lines.push(`│  Error: ${truncate(run.error, 100)}`);
-        }
-
-        if (run.output !== null && run.output !== undefined) {
-          const outputStr =
-            typeof run.output === "string"
-              ? run.output
-              : JSON.stringify(run.output);
-          lines.push(`│  Output: ${truncate(outputStr, 200)}`);
-        }
-
-        if (run.input !== null && run.input !== undefined) {
-          const inputStr =
-            typeof run.input === "string"
-              ? run.input
-              : JSON.stringify(run.input);
-          lines.push(`│  Input: ${truncate(inputStr, 200)}`);
-        }
-
-        if (run.expected_output !== null && run.expected_output !== undefined) {
-          const expectedStr =
-            typeof run.expected_output === "string"
-              ? run.expected_output
-              : JSON.stringify(run.expected_output);
-          lines.push(`│  Expected: ${truncate(expectedStr, 200)}`);
-        }
-
-        // Handle evaluations
-        if (run.evaluations && Object.keys(run.evaluations).length > 0) {
-          lines.push(`│  Evaluations:`);
-          for (const [name, result] of Object.entries(run.evaluations)) {
-            const evalResult = result as {
-              score?: number;
-              label?: string;
-              explanation?: string;
-            };
-            const parts: string[] = [];
-            if (evalResult.score !== undefined && evalResult.score !== null) {
-              parts.push(`score=${evalResult.score}`);
-            }
-            if (evalResult.label !== undefined && evalResult.label !== null) {
-              parts.push(`label="${evalResult.label}"`);
-            }
-            lines.push(`│    - ${name}: ${parts.join(", ")}`);
-          }
-        }
-
-        lines.push(`└─`);
-        lines.push("");
-      }
-
-      return lines.join("\n").trimEnd();
-    }
-
-    // Fallback for non-array data
-    return JSON.stringify(data, null, 2);
+    const data: unknown = JSON.parse(jsonData);
+    return Array.isArray(data)
+      ? formatExperimentRuns(data)
+      : JSON.stringify(data, null, 2);
   } catch {
     return jsonData;
   }
+}
+
+type RawExperimentRun = Record<string, unknown>;
+
+function formatExperimentRuns(runs: RawExperimentRun[]): string {
+  const lines = [`Experiment Runs (${runs.length}):`, ""];
+  for (const run of runs) {
+    lines.push(...formatExperimentRun(run), "");
+  }
+  return lines.join("\n").trimEnd();
+}
+
+function formatExperimentRun(run: RawExperimentRun): string[] {
+  const status = run.error ? "✗" : "✓";
+  const runId = run.id || run.run_id || "unknown";
+  const lines = [`┌─ ${status} Run: ${runId}`];
+
+  appendIdentifierFields({ lines, run });
+  appendExperimentValues({ lines, run });
+  appendEvaluations({ lines, evaluations: run.evaluations });
+  lines.push(`└─`);
+  return lines;
+}
+
+function appendIdentifierFields({
+  lines,
+  run,
+}: {
+  lines: string[];
+  run: RawExperimentRun;
+}): void {
+  const exampleId = run.example_id || run.dataset_example_id;
+  if (exampleId) lines.push(`│  Example ID: ${exampleId}`);
+  if (run.repetition_number)
+    lines.push(`│  Repetition: ${run.repetition_number}`);
+  if (typeof run.start_time === "string" && typeof run.end_time === "string") {
+    lines.push(
+      `│  Duration: ${formatDurationMs(run.start_time, run.end_time)}`
+    );
+  }
+  if (run.trace_id) lines.push(`│  Trace ID: ${run.trace_id}`);
+  if (run.error) lines.push(`│  Error: ${truncate(String(run.error), 100)}`);
+}
+
+function appendExperimentValues({
+  lines,
+  run,
+}: {
+  lines: string[];
+  run: RawExperimentRun;
+}): void {
+  appendExperimentValue({ lines, label: "Output", value: run.output });
+  appendExperimentValue({ lines, label: "Input", value: run.input });
+  appendExperimentValue({
+    lines,
+    label: "Expected",
+    value: run.expected_output,
+  });
+}
+
+function appendExperimentValue({
+  lines,
+  label,
+  value,
+}: {
+  lines: string[];
+  label: string;
+  value: unknown;
+}): void {
+  if (value === null || value === undefined) return;
+  const formatted = typeof value === "string" ? value : JSON.stringify(value);
+  lines.push(`│  ${label}: ${truncate(formatted, 200)}`);
+}
+
+function appendEvaluations({
+  lines,
+  evaluations,
+}: {
+  lines: string[];
+  evaluations: unknown;
+}): void {
+  if (!evaluations || typeof evaluations !== "object") return;
+  const entries = Object.entries(evaluations);
+  if (entries.length === 0) return;
+
+  lines.push(`│  Evaluations:`);
+  for (const [name, result] of entries) {
+    lines.push(`│    - ${name}: ${formatEvaluationResult(result)}`);
+  }
+}
+
+function formatEvaluationResult(result: unknown): string {
+  if (!result || typeof result !== "object") return "";
+  const evaluation = result as { score?: number; label?: string };
+  const parts: string[] = [];
+  if (evaluation.score !== undefined && evaluation.score !== null) {
+    parts.push(`score=${evaluation.score}`);
+  }
+  if (evaluation.label !== undefined && evaluation.label !== null) {
+    parts.push(`label="${evaluation.label}"`);
+  }
+  return parts.join(", ");
 }
 
 function formatDate(dateStr: string): string {

@@ -5,7 +5,7 @@ import {
 import { expect, test, waitForPersistedAssistantTurn } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
-import { getUiMessageToolNames } from "./utils";
+import { getUIMessageToolNames } from "./utils";
 
 const EXPERIMENT_EXAMPLE = PXI_EXPERIMENT_EXAMPLES.routeLinkSmoke;
 const USER_PROMPT = EXPERIMENT_EXAMPLE.prompt;
@@ -63,7 +63,7 @@ test.describe("PXI route link smoke", () => {
       requireTraceId: false,
     });
     const durationMs = Date.now() - startedAt;
-    const calledTools = getUiMessageToolNames(turn.parts);
+    const calledTools = getUIMessageToolNames(turn.parts);
 
     const outcome = await evaluatePxiOutcome({
       assertions: async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-evals",
-  "version": "2.3.0",
+  "version": "2.5.0",
   "description": "A library for running evaluations for AI use cases",
   "keywords": [
     "arize",
@@ -79,26 +79,26 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/otel": "^1.0.66",
-    "@arizeai/openinference-core": "^2.5.2",
+    "@ai-sdk/otel": "^1.0.93",
+    "@arizeai/openinference-core": "^2.6.2",
     "@opentelemetry/api": "^1.9.1",
-    "ai": "^7.0.66",
+    "ai": "^7.0.93",
     "jsonpath-plus": "^10.4.0",
     "mustache": "^4.2.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@ai-sdk/google": "^4.0.44",
-    "@ai-sdk/openai": "^4.0.42",
-    "@arizeai/openinference-instrumentation-openai": "^4.1.9",
-    "@opentelemetry/sdk-trace-node": "^2.10.0",
+    "@ai-sdk/google": "^4.0.64",
+    "@ai-sdk/openai": "^4.0.60",
+    "@arizeai/openinference-instrumentation-openai": "^4.2.4",
+    "@opentelemetry/sdk-trace-node": "^2.11.0",
     "@types/mustache": "^4.2.6",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.1",
     "msw": "^2.15.0",
     "nock": "^14.0.17",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typedoc": "^0.28.20",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=22.12"

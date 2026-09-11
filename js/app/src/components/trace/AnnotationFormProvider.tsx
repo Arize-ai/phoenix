@@ -37,6 +37,32 @@ type AnnotationFormProviderProps = {
   onError?: (annotation: Annotation, error: string) => void;
 };
 
+function getAnnotationAction({
+  annotation,
+  annotationType,
+  currentAnnotationIDs,
+}: {
+  annotation: Annotation;
+  annotationType: AnnotationConfig["annotationType"];
+  currentAnnotationIDs: Set<string>;
+}): "create" | "update" | "delete" {
+  const isEmptyStructuredAnnotation =
+    annotationType !== "FREEFORM" &&
+    (annotation.score == null || isNaN(annotation.score as number)) &&
+    !annotation.label;
+  const isEmptyFreeformAnnotation =
+    annotationType === "FREEFORM" && !annotation.explanation;
+  if (
+    annotation.id &&
+    (isEmptyStructuredAnnotation || isEmptyFreeformAnnotation)
+  ) {
+    return "delete";
+  }
+  return annotation.id && currentAnnotationIDs.has(annotation.id)
+    ? "update"
+    : "create";
+}
+
 export const AnnotationFormProvider = ({
   annotation,
   annotationConfig,
@@ -73,43 +99,16 @@ export const AnnotationFormProvider = ({
     async (payload: Record<string, Annotation>) => {
       const data = { ...payload[annotationConfigName], id: annotation?.id };
       if (!data) return;
-      let action: "create" | "update" | "delete" | undefined;
-      if (
-        // if the annotation has an id and is not a freeform annotation and has no score or label, delete it
-        (data.id &&
-          annotationConfigType !== "FREEFORM" &&
-          data.score == null &&
-          !data.label) ||
-        // if the annotation has an id and is not a freeform annotation and has a score that is not a number and has no label, delete it
-        (data.id &&
-          annotationConfigType !== "FREEFORM" &&
-          isNaN(data.score as number) &&
-          !data.label) ||
-        // if the annotation has an id and is a freeform annotation and has no explanation, delete it
-        (data.id && annotationConfigType === "FREEFORM" && !data.explanation)
-      ) {
-        action = "delete";
-      } else if (data.id && currentAnnotationIDs.has(data.id)) {
-        action = "update";
-      } else {
-        action = "create";
-      }
-
-      let result: AnnotationFormMutationResult;
-      switch (action) {
-        case "create": {
-          result = await onCreate(data);
-          break;
-        }
-        case "update": {
-          result = await onUpdate(data);
-          break;
-        }
-        case "delete": {
-          result = await onDelete(data);
-          break;
-        }
-      }
+      const action = getAnnotationAction({
+        annotation: data,
+        annotationType: annotationConfigType,
+        currentAnnotationIDs,
+      });
+      const result = await {
+        create: onCreate,
+        update: onUpdate,
+        delete: onDelete,
+      }[action](data);
 
       if (result.success) {
         onSuccess?.(data);

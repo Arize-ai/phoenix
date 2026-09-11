@@ -5,13 +5,12 @@ from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional
 
-from jinja2 import Template
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset
 from typing_extensions import Self, override
 
-from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.bearer_auth import PhoenixUser, bind_principal
 
 if TYPE_CHECKING:
@@ -33,8 +32,7 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
     Tools derive from the same OpenAPI spec as the mounted MCP server, so a new
     ``/v1`` endpoint needs no hand-written tool.
 
-    Scoped to a single agent run: the principal binding and the session's
-    tool-group reveals both end with the run.
+    Scoped to a single agent run: the principal binding ends with the run.
     """
 
     def __init__(
@@ -52,8 +50,8 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
 
     @override
     async def __aenter__(self) -> Self:
-        # Bound here rather than per call, and before the session opens; see
-        # `bind_principal` for why the placement is the only one that works.
+        # Bound before the session opens; see `bind_principal` for why that
+        # placement holds across transports.
         # Per enter rather than per instance: one instance is entered from
         # several tasks at once when a model response fans out two
         # `call_subagent` calls onto the subagent's single toolset, and a
@@ -84,14 +82,18 @@ class PhoenixMCPToolset(MCPToolset[AgentDepsT]):
 
 
 @dataclass
-class PhoenixMCPCapability(AbstractStaticCapability[AgentDepsT]):
-    """Pairs the Phoenix MCP toolset with its cacheable, session-stable guidance."""
+class PhoenixMCPCapability(AbstractCapability[AgentDepsT]):
+    """Pairs the Phoenix MCP toolset with its guidance text and the server's
+    own ``initialize`` instructions."""
 
     mcp_server: MCPToolset[AgentDepsT]
-    instructions: Template
+    instructions: str
+    initialize_instructions: Optional[str] = None
 
     def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
         return self.mcp_server
 
-    def get_static_instructions(self) -> str:
-        return self.instructions.render()
+    def get_instructions(self) -> str:
+        if not self.initialize_instructions:
+            return self.instructions
+        return f"{self.instructions}\n{self.initialize_instructions}"

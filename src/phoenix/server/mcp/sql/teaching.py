@@ -55,8 +55,8 @@ def _describe_sql_schema(
     # when one is TIMESTAMP and the other TIMESTAMP WITH TIME ZONE).
     #
     # Validated before it is returned. A generator can emit text that reads like
-    # DDL and is not -- a comment swallowing the comma after it did exactly that
-    # here -- and the caller cannot tell, because it is prose to them.
+    # DDL and is not -- a trailing comment swallowing the comma after it is
+    # enough -- and the caller cannot tell, because it is prose to them.
     schema_ddl = render_schema_ddl(
         area=area, tables=tables, detail=detail, search=search, dialect=dialect
     )

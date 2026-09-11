@@ -1,12 +1,20 @@
 ---
 title: "AG2"
 sidebarTitle: "Overview"
-description: AG2 (formerly AutoGen) is an open-source Python framework for building multi-agent LLM applications with conversable agents, tool use, and group chat orchestration
+description: AG2 is an open-source Python framework for building multi-agent LLM applications, with agents, tools, middleware, and multi-agent networks
 ---
 
 <Card title="AG2" href="https://github.com/ag2ai/ag2" icon="globe" horizontal>
   [](https://github.com/ag2ai/ag2)
 </Card>
+
+AG2 1.x is a ground-up redesign of the framework, built around an `Agent` primitive, a
+middleware pipeline, and multi-agent networks. It ships as the `ag2` package and is imported as
+`ag2`.
+
+The 0.x line — imported as `autogen` — is maintained as **[AG2 Classic](https://github.com/ag2ai/ag2classic)** and uses a different
+API built around `ConversableAgent`. Both lines can be traced in Phoenix, through different
+mechanisms; see the tracing guide below.
 
 <Columns cols={2}>
   <Card horizontal title="AG2 Tracing" href="/docs/phoenix/integrations/python/ag2/ag2-tracing" />

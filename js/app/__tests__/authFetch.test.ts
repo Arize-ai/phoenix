@@ -1,4 +1,4 @@
-import { authFetch } from "@phoenix/authFetch";
+import { authFetch, isRedirectingToLoginError } from "@phoenix/authFetch";
 vi.mock("@phoenix/config");
 
 describe("authFetch", () => {
@@ -55,5 +55,34 @@ describe("authFetch", () => {
     expect(global.fetch.mock.calls[1][0]).toBe("http://localhost/auth/refresh");
     // @ts-expect-error mock global fetch
     expect(global.fetch.mock.calls[2][0]).toBe("/test");
+  });
+  it("rejects with a RedirectingToLoginError during the login handoff", async () => {
+    // Every request 401s: the original request triggers a refresh, and the
+    // refresh itself fails, so the browser is pointed at the login page.
+    // @ts-expect-error mock global fetch
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        status: 401,
+        ok: false,
+      })
+    );
+    await expect(authFetch("/test")).rejects.toSatisfy(
+      isRedirectingToLoginError
+    );
+    // @ts-expect-error mock global fetch
+    expect(global.fetch.mock.calls[1][0]).toBe("http://localhost/auth/refresh");
+
+    // Fetches interrupted by the login navigation reject with a generic
+    // TypeError in some browsers (e.g. Firefox's "NetworkError when
+    // attempting to fetch resource."); during the handoff these must not
+    // surface as generic errors either.
+    global.fetch = vi.fn(() =>
+      Promise.reject(
+        new TypeError("NetworkError when attempting to fetch resource.")
+      )
+    );
+    await expect(authFetch("/test")).rejects.toSatisfy(
+      isRedirectingToLoginError
+    );
   });
 });

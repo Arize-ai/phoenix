@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from phoenix.evals import create_evaluator
@@ -49,8 +50,103 @@ def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+# execute_browser_action scripts invoke catalog operations as `ui.<name>(...)`.
+# Datasets assert on those invocations natively via `expected.ui_operations`
+# (required/forbidden operation names) and `expected.ui_operation_args`
+# (per-operation argument expectations matched against the script's argument
+# source). The helpers below extract the invocations from observed scripts.
+_UI_OPERATION_CALL_RE = re.compile(r"\bui\.((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*\(")
+
+
+def _execute_browser_action_scripts(calls: list[dict[str, Any]]) -> list[str]:
+    """Return the script source of every observed execute_browser_action call."""
+    scripts: list[str] = []
+    for call in calls:
+        if _tool_name(call) != "execute_browser_action":
+            continue
+        script = _tool_args(call).get("script")
+        if isinstance(script, str):
+            scripts.append(script)
+    return scripts
+
+
+def _invoked_ui_operation_names(scripts: list[str]) -> list[str]:
+    """Return every `ui.<operation>(` invocation found across scripts, in order."""
+    names: list[str] = []
+    for script in scripts:
+        names.extend(match.group(1) for match in _UI_OPERATION_CALL_RE.finditer(script))
+    return names
+
+
+def _extract_ui_operation_arguments(script: str, operation_name: str) -> list[str]:
+    """Return argument source for calls to one ``ui.<operation>`` in a script."""
+    marker = f"ui.{operation_name}"
+    arguments: list[str] = []
+    search_start = 0
+    while (marker_index := script.find(marker, search_start)) >= 0:
+        marker_end = marker_index + len(marker)
+        opening_parenthesis = script.find("(", marker_end)
+        if opening_parenthesis < 0:
+            break
+        if script[marker_end:opening_parenthesis].strip():
+            search_start = marker_end
+            continue
+        cursor = opening_parenthesis + 1
+        depth = 1
+        quote: str | None = None
+        is_escaped = False
+        while cursor < len(script):
+            character = script[cursor]
+            if quote is not None:
+                if is_escaped:
+                    is_escaped = False
+                elif character == "\\":
+                    is_escaped = True
+                elif character == quote:
+                    quote = None
+            elif character in {"'", '"', "`"}:
+                quote = character
+            elif character == "(":
+                depth += 1
+            elif character == ")":
+                depth -= 1
+                if depth == 0:
+                    arguments.append(script[opening_parenthesis + 1 : cursor])
+                    search_start = cursor + 1
+                    break
+            cursor += 1
+        else:
+            break
+        if depth != 0:
+            break
+    return arguments
+
+
+def _ui_operation_arguments(scripts: list[str], operation_name: str) -> list[tuple[str, str]]:
+    """Return ``(script, argument_source)`` for every invocation of one operation.
+
+    The enclosing script travels with each argument source so value matchers
+    can follow hoisted variables (see :func:`_source_pair_passes`).
+    """
+    arguments: list[tuple[str, str]] = []
+    for script in scripts:
+        arguments.extend(
+            (script, argument_source)
+            for argument_source in _extract_ui_operation_arguments(script, operation_name)
+        )
+    return arguments
+
+
 def _expected_tools(expected: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(expected).get("tools", {}))
+
+
+def _expected_ui_operations(expected: Any) -> dict[str, Any]:
+    return _as_dict(_as_dict(expected).get("ui_operations", {}))
+
+
+def _expected_ui_operation_args(expected: Any) -> dict[str, Any]:
+    return _as_dict(_as_dict(expected).get("ui_operation_args", {}))
 
 
 def _expected_tool_call_args(expected: Any) -> dict[str, Any]:
@@ -77,18 +173,28 @@ def _success() -> dict[str, Any]:
 
 
 def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
-    """Evaluate observed tool calls against required/forbidden/exact_match expectations.
+    """Evaluate observed tool calls and UI operation invocations.
 
-    Reads strictness from ``expected.tools.exact_match`` (defaulting to False).
+    Reads tool-level expectations from ``expected.tools``
+    (``required``/``forbidden``/``exact_match``) and UI-operation
+    expectations from ``expected.ui_operations``
+    (``required``/``forbidden``). Tool names match observed tool calls
+    verbatim; operation names match ``ui.<name>(...)`` invocations inside
+    observed ``execute_browser_action`` scripts.
+
     Returns a dict with one of the labels:
 
-    - ``correct``: all required tools were called, no forbidden tools, and (when
-      ``exact_match`` is true) the observed sequence equals the required sequence.
-    - ``called_forbidden``: at least one forbidden tool was called.
-    - ``missing_required``: at least one required tool was not called.
+    - ``correct``: all required tools/operations were called, no forbidden
+      ones, and (when ``exact_match`` is true) the observed tool sequence
+      equals the required sequence.
+    - ``called_forbidden``: at least one forbidden tool or operation was
+      called.
+    - ``missing_required``: at least one required tool or operation was not
+      called.
     - ``not_exact_match``: ``exact_match`` is true, all required tools were
-      called, and the observed sequence does not equal the required sequence
-      (extra calls, duplicates, or different ordering).
+      called, and the observed tool sequence does not equal the required
+      sequence (extra calls, duplicates, or different ordering).
+      ``exact_match`` applies to tool calls only.
 
     Precedence (most specific first): ``called_forbidden`` >
     ``missing_required`` > ``not_exact_match`` > ``correct``.
@@ -97,27 +203,43 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     required = list(tool_expectation.get("required") or [])
     forbidden = list(tool_expectation.get("forbidden") or [])
     exact_match = bool(tool_expectation.get("exact_match", False))
+    operation_expectation = _expected_ui_operations(expected)
+    required_operations = list(operation_expectation.get("required") or [])
+    forbidden_operations = list(operation_expectation.get("forbidden") or [])
 
-    observed = [
-        name for call in tool_calls_from_output(output) if (name := _tool_name(call)) is not None
-    ]
+    calls = tool_calls_from_output(output)
+    observed = [name for call in calls if (name := _tool_name(call)) is not None]
+    observed_operations = _invoked_ui_operation_names(_execute_browser_action_scripts(calls))
+    metadata = {
+        "observed_tools": observed,
+        "observed_ui_operations": observed_operations,
+    }
 
     forbidden_observed = [name for name in forbidden if name in observed]
-    if forbidden_observed:
+    forbidden_operations_observed = [
+        name for name in forbidden_operations if name in observed_operations
+    ]
+    if forbidden_observed or forbidden_operations_observed:
         return {
             "score": 0.0,
             "label": "called_forbidden",
-            "explanation": f"Forbidden tools were called: {forbidden_observed}",
-            "metadata": {"observed_tools": observed},
+            "explanation": (
+                "Forbidden tools or UI operations were called: "
+                f"{forbidden_observed + forbidden_operations_observed}"
+            ),
+            "metadata": metadata,
         }
 
     missing = [name for name in required if name not in observed]
-    if missing:
+    missing_operations = [name for name in required_operations if name not in observed_operations]
+    if missing or missing_operations:
         return {
             "score": 0.0,
             "label": "missing_required",
-            "explanation": f"Required tools were not called: {missing}",
-            "metadata": {"observed_tools": observed},
+            "explanation": (
+                f"Required tools or UI operations were not called: {missing + missing_operations}"
+            ),
+            "metadata": metadata,
         }
 
     if exact_match and observed != required:
@@ -125,7 +247,7 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
             "score": 0.0,
             "label": "not_exact_match",
             "explanation": f"Expected exact tool sequence {required}, observed {observed}",
-            "metadata": {"observed_tools": observed},
+            "metadata": metadata,
         }
 
     return {"score": 1.0, "label": "correct"}
@@ -159,10 +281,13 @@ def evaluate_tool_call_count(output: Any, expected: Any) -> dict[str, Any]:
 
 @create_evaluator(name="correct_tools_called", kind="code")
 def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
-    """Phoenix evaluator entrypoint for tool-selection correctness.
+    """Phoenix evaluator entrypoint for tool- and UI-operation-selection correctness.
 
     Delegates to :func:`evaluate_tools_called`; see that function for label
-    semantics and precedence. Strictness is read from
+    semantics and precedence. Tool expectations live in ``expected.tools``;
+    UI operation expectations (matched against ``ui.<name>(...)`` invocations
+    inside ``execute_browser_action`` scripts) live in
+    ``expected.ui_operations``. Strictness is read from
     ``expected.tools.exact_match`` so it can be controlled per-example via
     the dataset YAML.
     """
@@ -456,6 +581,97 @@ def _invalid_arg_expectation_reason(expected_for_tool: Any) -> str | None:
     return "expected tool arguments must be an object or a non-empty list of objects"
 
 
+def _source_has_key(source: str, key: str) -> bool:
+    quoted_key = re.escape(key)
+    # Longhand (`key: value`, bare or quoted) or ES6 shorthand (`{key}` /
+    # `{key, ...}`), where the property value is a same-named variable.
+    return bool(
+        re.search(rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:", source)
+        or re.search(rf"[{{,]\s*{quoted_key}\s*[,}}]", source)
+    )
+
+
+def _source_has_literal(source: str, value: Any) -> bool:
+    if isinstance(value, dict):
+        return all(
+            _source_has_key(source, key) and _source_has_literal(source, item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return all(_source_has_literal(source, item) for item in value)
+    if isinstance(value, str):
+        return value in source
+    if value is True:
+        return "true" in source
+    if value is False:
+        return "false" in source
+    if value is None:
+        return "null" in source
+    return str(value) in source
+
+
+def _source_has_longhand_key(source: str, key: str) -> bool:
+    quoted_key = re.escape(key)
+    return bool(re.search(rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*:", source))
+
+
+def _source_pair_passes(source: str, key: str, expected_value: Any, script: str = "") -> bool:
+    """Check one ``(key, expected_value)`` pair against an invocation's argument source.
+
+    Key presence/absence is always judged on the argument source alone, so
+    subset and ``absent`` semantics stay scoped to the invocation. Value
+    evidence is judged on the argument source when the key is written
+    longhand (``key: value``); when the key is an ES6 shorthand property
+    (``{ key }``) the value is a hoisted variable whose text lives elsewhere
+    in the script, so value checks fall back to the whole ``script``.
+    """
+    has_key = _source_has_key(source, key)
+    # Where the value's text lives: the argument source for longhand, the
+    # whole script for shorthand (hoisted `const key = ...`).
+    value_scope = source if _source_has_longhand_key(source, key) or not script else script
+    if not _is_matcher_dict(expected_value):
+        return has_key and _source_has_literal(value_scope, expected_value)
+    if "absent" in expected_value:
+        return not has_key
+    quoted_key = re.escape(key)
+    # `key: value` in an object literal, or a hoisted `key = value` binding.
+    key_binding = rf"(?:\b{quoted_key}\b|['\"]{quoted_key}['\"])\s*[:=]"
+    if "empty_or_absent" in expected_value:
+        if not has_key:
+            return True
+        return bool(re.search(rf"{key_binding}\s*(?:''|\"\"|\[\s*\]|\{{\s*\}})", value_scope))
+    if not has_key:
+        return False
+    if "non_empty" in expected_value:
+        if not re.search(rf"{key_binding}\s*(['\"])(?:(?!\1).)+\1", value_scope):
+            return False
+    if "equals" in expected_value and not _source_has_literal(
+        value_scope, expected_value["equals"]
+    ):
+        return False
+    if "has_keys" in expected_value and not all(
+        _source_has_key(value_scope, nested_key) for nested_key in expected_value["has_keys"]
+    ):
+        return False
+    if "contains_all" in expected_value and not all(
+        needle in value_scope for needle in expected_value["contains_all"]
+    ):
+        return False
+    if "contains_any" in expected_value and not any(
+        needle in value_scope for needle in expected_value["contains_any"]
+    ):
+        return False
+    if "not_contains" in expected_value and any(
+        needle in value_scope for needle in expected_value["not_contains"]
+    ):
+        return False
+    return True
+
+
+def _ui_operation_variant_passes(source: str, variant: dict[str, Any], script: str = "") -> bool:
+    return all(_source_pair_passes(source, key, value, script) for key, value in variant.items())
+
+
 def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
     """Pure-Python implementation of :func:`tool_call_args_match`.
 
@@ -464,6 +680,16 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
     tool satisfies one of the acceptable arg variants. Per-pair semantics are
     delegated to :func:`_pair_passes` so literal values use equality and
     matcher dicts (``contains_all``, ``any``, etc.) use matcher semantics.
+
+    Additionally iterates ``expected.ui_operation_args`` the same way, but
+    against UI operation invocations found inside observed
+    ``execute_browser_action`` scripts: for each ``(operation_name,
+    expected_args)`` pair, at least one ``ui.<operation>(...)`` invocation's
+    argument source must satisfy one variant. Because scripts pass arguments
+    as JavaScript source (not parsed JSON), matching is textual — literal
+    values assert the key and value appear in the argument source, and the
+    same matcher vocabulary applies with source-level semantics (see
+    :func:`_source_pair_passes`).
 
     Matching is permissive in three ways:
 
@@ -511,6 +737,44 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
             "observed": [dict(_tool_args(call)) for call in matching_calls],
         }
 
+    expected_args_by_operation = _expected_ui_operation_args(expected)
+    scripts = _execute_browser_action_scripts(observed_calls)
+    for operation_name, expected_for_operation in expected_args_by_operation.items():
+        if not isinstance(operation_name, str):
+            continue
+        invalid_reason = _invalid_arg_expectation_reason(expected_for_operation)
+        if invalid_reason:
+            failures[operation_name] = {
+                "reason": invalid_reason,
+                "expected": expected_for_operation,
+            }
+            continue
+        variants = _expected_arg_variants(expected_for_operation)
+        matcher_errors = _matcher_validation_failures(variants)
+        if matcher_errors:
+            failures[operation_name] = {
+                "reason": "expected arg matcher is malformed",
+                "matcher_errors": matcher_errors,
+            }
+            continue
+        invocations = _ui_operation_arguments(scripts, operation_name)
+        if not invocations:
+            failures[operation_name] = {
+                "reason": "UI operation was not invoked by any execute_browser_action script"
+            }
+            continue
+        # Pass if ANY (variant, invocation) pair matches the argument source.
+        if any(
+            _ui_operation_variant_passes(source, variant, script)
+            for variant in variants
+            for script, source in invocations
+        ):
+            continue
+        failures[operation_name] = {
+            "expected": ([dict(v) for v in variants] if len(variants) > 1 else dict(variants[0])),
+            "observed_argument_sources": [source for _, source in invocations],
+        }
+
     if failures:
         return _failure("Tool call arguments did not match expected values", metadata=failures)
     return _success()
@@ -525,15 +789,27 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
     :func:`evaluate_tool_call_args`). Passes vacuously when the section is
     absent or empty.
 
+    Also reads ``expected.forbidden_ui_operation_args[operation_name] ->
+    {key: value}`` the same way, matched against the argument source of
+    ``ui.<operation>(...)`` invocations inside observed
+    ``execute_browser_action`` scripts (source-level semantics, see
+    :func:`_source_pair_passes`).
+
     This is the inverse of :func:`evaluate_tool_call_args`: instead of
     asserting a call DID happen with certain args, it asserts a call did NOT.
-    The primary use case is checking that a specific skill was not triggered --
-    e.g. ``forbidden_tool_call_args: {load_skill: {skill_name: debug-trace}}``
-    -- without forbidding *all* ``load_skill`` calls (the agent may legitimately
-    load a different skill in the same turn).
+    The primary use cases are checking that a specific skill was not
+    triggered -- e.g. ``forbidden_tool_call_args: {load_skill: {skill_name:
+    debug-trace}}`` -- without forbidding *all* ``load_skill`` calls, and
+    forbidding only the harmful direction of an idempotent UI write -- e.g.
+    ``forbidden_ui_operation_args: {playground.experiment.setRecording:
+    {recordExperiments: false}}`` while a redundant re-assert of the current
+    value stays acceptable.
     """
     forbidden_args_by_tool = _as_dict(_as_dict(expected).get("forbidden_tool_call_args", {}))
-    if not forbidden_args_by_tool:
+    forbidden_args_by_operation = _as_dict(
+        _as_dict(expected).get("forbidden_ui_operation_args", {})
+    )
+    if not forbidden_args_by_tool and not forbidden_args_by_operation:
         return _success()
 
     observed_calls = tool_calls_from_output(output)
@@ -560,6 +836,24 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
                 }
                 break
 
+    scripts = _execute_browser_action_scripts(observed_calls)
+    for operation_name, forbidden_for_operation in forbidden_args_by_operation.items():
+        if not isinstance(operation_name, str):
+            continue
+        if not isinstance(forbidden_for_operation, dict):
+            violations[operation_name] = {
+                "reason": "forbidden_ui_operation_args entry must be an object",
+                "value": forbidden_for_operation,
+            }
+            continue
+        for script, source in _ui_operation_arguments(scripts, operation_name):
+            if _ui_operation_variant_passes(source, forbidden_for_operation, script):
+                violations[operation_name] = {
+                    "forbidden_args": dict(forbidden_for_operation),
+                    "observed_argument_source": source,
+                }
+                break
+
     if violations:
         return _failure(
             "Forbidden tool+args combination was called",
@@ -572,9 +866,11 @@ def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, A
 def forbidden_tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     """Evaluator entrypoint: assert a specific tool+args combination was NOT called.
 
-    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}``.
-    Fails if any observed call to the named tool matches ALL specified arg
-    pairs. Passes vacuously when the section is absent.
+    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}`` and
+    ``expected.forbidden_ui_operation_args[operation_name] -> {key: value}``.
+    Fails if any observed call to the named tool (or any ``ui.<operation>``
+    invocation inside an observed ``execute_browser_action`` script) matches
+    ALL specified arg pairs. Passes vacuously when both sections are absent.
 
     Use this instead of (or alongside) ``expected.tools.forbidden`` when the
     tool may legitimately be called with *different* args in the same turn --
@@ -589,12 +885,15 @@ def forbidden_tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]
 
 @create_evaluator(name="tool_call_args_match", kind="code")
 def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
-    """Generic tool-call arg matcher used by every PXI dataset.
+    """Generic tool-call and UI-operation arg matcher used by every PXI dataset.
 
     The expected shape is
     ``expected.tool_call_args[tool_name] -> {key: value}`` (a single
     acceptable arg dict) OR ``... -> [{key: value}, ...]`` (a list of
-    independently-acceptable variants). Three intentional permissive
+    independently-acceptable variants). The same shapes apply to
+    ``expected.ui_operation_args[operation_name]``, which matches against the
+    argument source of ``ui.<operation>(...)`` invocations inside observed
+    ``execute_browser_action`` scripts. Three intentional permissive
     properties:
 
     - **Subset match.** A call passes the per-tool check when *all* expected

@@ -173,243 +173,257 @@ export function ExperimentCompareMetricsPage({
     costMetrics,
     performanceMetrics,
     tokenCountMetrics,
-  } = useMemo(() => {
-    const experimentIdToExperiment: Record<string, Experiment> = {};
-    data.dataset.experiments?.edges.forEach((edge) => {
-      const experiment = edge.experiment;
-      experimentIdToExperiment[experiment.id] = experiment;
-    });
-    const baseExperiment = experimentIdToExperiment[baseExperimentId];
-    if (!baseExperiment) {
-      return {
-        annotationMetrics: [],
-        costMetrics: [],
-        performanceMetrics: [],
-        tokenCountMetrics: [],
+  } = useMemo(
+    // oxlint-disable-next-line complexity -- Metric assembly spans performance, cost, tokens, and dynamic annotations.
+    () => {
+      const experimentIdToExperiment: Record<string, Experiment> = {};
+      data.dataset.experiments?.edges.forEach((edge) => {
+        const experiment = edge.experiment;
+        experimentIdToExperiment[experiment.id] = experiment;
+      });
+      const baseExperiment = experimentIdToExperiment[baseExperimentId];
+      if (!baseExperiment) {
+        return {
+          annotationMetrics: [],
+          costMetrics: [],
+          performanceMetrics: [],
+          tokenCountMetrics: [],
+        };
+      }
+      const compareExperiments = compareExperimentIds
+        .map((experimentId) => {
+          return experimentIdToExperiment[experimentId];
+        })
+        // if a new experiment was just added, data may not be fully loaded yet
+        .filter((experiment) => experiment != null);
+
+      const comparisons = data.experimentRunMetricComparisons;
+      const latencyMetric: MetricCardProps = {
+        icon: <Icon svg={<Icons.Clock />} />,
+        title: "Latency",
+        baseExperimentValue: baseExperiment.averageRunLatencyMs,
+        comparison: {
+          numImprovements: comparisons?.latency.numRunsImproved ?? 0,
+          numRegressions: comparisons?.latency.numRunsRegressed ?? 0,
+          numEqual: comparisons?.latency.numRunsEqual ?? 0,
+          optimizationDirection: "MAXIMIZE",
+        },
+        compareExperiments: [],
+        formatter: latencyMsFormatter,
       };
-    }
-    const compareExperiments = compareExperimentIds
-      .map((experimentId) => {
-        return experimentIdToExperiment[experimentId];
-      })
-      // if a new experiment was just added, data may not be fully loaded yet
-      .filter((experiment) => experiment != null);
-
-    const comparisons = data.experimentRunMetricComparisons;
-    const latencyMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.Clock />} />,
-      title: "Latency",
-      baseExperimentValue: baseExperiment.averageRunLatencyMs,
-      comparison: {
-        numImprovements: comparisons?.latency.numRunsImproved ?? 0,
-        numRegressions: comparisons?.latency.numRunsRegressed ?? 0,
-        numEqual: comparisons?.latency.numRunsEqual ?? 0,
-        optimizationDirection: "MAXIMIZE",
-      },
-      compareExperiments: [],
-      formatter: latencyMsFormatter,
-    };
-    const totalTokensMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.Tokens />} />,
-      title: "Total Tokens",
-      baseExperimentValue: baseExperiment.costSummary.total.tokens,
-      comparison: {
-        numImprovements: comparisons?.totalTokenCount.numRunsImproved ?? 0,
-        numRegressions: comparisons?.totalTokenCount.numRunsRegressed ?? 0,
-        numEqual: comparisons?.totalTokenCount.numRunsEqual ?? 0,
-        optimizationDirection: "MINIMIZE",
-      },
-      compareExperiments: [],
-    };
-    const promptTokensMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.Tokens />} />,
-      title: "Prompt Tokens",
-      baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
-      comparison: {
-        numImprovements: comparisons?.promptTokenCount.numRunsImproved ?? 0,
-        numRegressions: comparisons?.promptTokenCount.numRunsRegressed ?? 0,
-        numEqual: comparisons?.promptTokenCount.numRunsEqual ?? 0,
-        optimizationDirection: "MINIMIZE",
-      },
-      compareExperiments: [],
-    };
-    const completionTokensMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.Tokens />} />,
-      title: "Completion Tokens",
-      baseExperimentValue: baseExperiment.costSummary.completion.tokens,
-      comparison: {
-        numImprovements: comparisons?.completionTokenCount.numRunsImproved ?? 0,
-        numRegressions: comparisons?.completionTokenCount.numRunsRegressed ?? 0,
-        numEqual: comparisons?.completionTokenCount.numRunsEqual ?? 0,
-        optimizationDirection: "MINIMIZE",
-      },
-      compareExperiments: [],
-    };
-    const totalCostMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.PriceTags />} />,
-      title: "Total Cost",
-      baseExperimentValue: baseExperiment.costSummary.total.cost,
-      comparison: {
-        numImprovements: comparisons?.totalCost.numRunsImproved ?? 0,
-        numRegressions: comparisons?.totalCost.numRunsRegressed ?? 0,
-        numEqual: comparisons?.totalCost.numRunsEqual ?? 0,
-        optimizationDirection: "MINIMIZE",
-      },
-      compareExperiments: [],
-      formatter: costFormatter,
-    };
-    const promptCostMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.PriceTags />} />,
-      title: "Prompt Cost",
-      baseExperimentValue: baseExperiment.costSummary.prompt.cost,
-      comparison: {
-        numImprovements: comparisons?.promptCost.numRunsImproved ?? 0,
-        numRegressions: comparisons?.promptCost.numRunsRegressed ?? 0,
-        numEqual: comparisons?.promptCost.numRunsEqual ?? 0,
-        optimizationDirection: "MINIMIZE",
-      },
-      compareExperiments: [],
-      formatter: costFormatter,
-    };
-    const completionCostMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.PriceTags />} />,
-      title: "Completion Cost",
-      baseExperimentValue: baseExperiment.costSummary.completion.cost,
-      comparison: {
-        numImprovements: comparisons?.completionCost.numRunsImproved ?? 0,
-        numRegressions: comparisons?.completionCost.numRunsRegressed ?? 0,
-        numEqual: comparisons?.completionCost.numRunsEqual ?? 0,
-        optimizationDirection: "MINIMIZE",
-      },
-      compareExperiments: [],
-      formatter: costFormatter,
-    };
-    compareExperiments.forEach((experiment, experimentIndex) => {
-      const experimentColor = getExperimentColor(experimentIndex);
-      latencyMetric.compareExperiments.push({
-        id: experiment.id,
-        value: experiment.averageRunLatencyMs,
-        color: experimentColor,
-      });
-      promptTokensMetric.compareExperiments.push({
-        id: experiment.id,
-        value: experiment.costSummary.prompt.tokens,
-        color: experimentColor,
-      });
-      completionTokensMetric.compareExperiments.push({
-        id: experiment.id,
-        value: experiment.costSummary.completion.tokens,
-        color: experimentColor,
-      });
-      totalTokensMetric.compareExperiments.push({
-        id: experiment.id,
-        value: experiment.costSummary.total.tokens,
-        color: experimentColor,
-      });
-      totalCostMetric.compareExperiments.push({
-        id: experiment.id,
-        value: experiment.costSummary.total.cost,
-        color: experimentColor,
-      });
-      promptCostMetric.compareExperiments.push({
-        id: experiment.id,
-        value: experiment.costSummary.prompt.cost,
-        color: experimentColor,
-      });
-      completionCostMetric.compareExperiments.push({
-        id: experiment.id,
-        value: experiment.costSummary.completion.cost,
-        color: experimentColor,
-      });
-    });
-    const performanceMetrics = [latencyMetric];
-    const costMetrics = [
-      totalCostMetric,
-      promptCostMetric,
-      completionCostMetric,
-    ];
-    const tokenCountMetrics = [
-      totalTokensMetric,
-      promptTokensMetric,
-      completionTokensMetric,
-    ];
-
-    const annotationNameToBaseExperimentMeanScore: Record<string, number> = {};
-    baseExperiment.annotationSummaries?.forEach((annotation) => {
-      if (annotation.meanScore != null) {
-        annotationNameToBaseExperimentMeanScore[annotation.annotationName] =
-          annotation.meanScore;
-      }
-    });
-    const annotationNameToCompareExperimentIdToMeanScore: Record<
-      string,
-      Record<string, number>
-    > = {};
-    compareExperiments.forEach((experiment) => {
-      experiment.annotationSummaries?.forEach((annotationSummary) => {
-        const annotationName = annotationSummary.annotationName;
-        const experimentId = experiment.id;
-        const meanScore = annotationSummary.meanScore;
-        if (experimentId != null && meanScore != null) {
-          if (
-            !(annotationName in annotationNameToCompareExperimentIdToMeanScore)
-          ) {
-            annotationNameToCompareExperimentIdToMeanScore[annotationName] = {};
-          }
-          annotationNameToCompareExperimentIdToMeanScore[annotationName][
-            experimentId
-          ] = meanScore;
-        }
-      });
-    });
-    const annotationMetrics: MetricCardProps[] = [];
-    for (const annotationName in annotationNameToBaseExperimentMeanScore) {
-      const baseExperimentMeanScore =
-        annotationNameToBaseExperimentMeanScore[annotationName];
-      if (!(annotationName in annotationNameToCompareExperimentIdToMeanScore)) {
-        continue;
-      }
-      const annotationMetricComparisons: CompareExperiment[] = [];
+      const totalTokensMetric: MetricCardProps = {
+        icon: <Icon svg={<Icons.Tokens />} />,
+        title: "Total Tokens",
+        baseExperimentValue: baseExperiment.costSummary.total.tokens,
+        comparison: {
+          numImprovements: comparisons?.totalTokenCount.numRunsImproved ?? 0,
+          numRegressions: comparisons?.totalTokenCount.numRunsRegressed ?? 0,
+          numEqual: comparisons?.totalTokenCount.numRunsEqual ?? 0,
+          optimizationDirection: "MINIMIZE",
+        },
+        compareExperiments: [],
+      };
+      const promptTokensMetric: MetricCardProps = {
+        icon: <Icon svg={<Icons.Tokens />} />,
+        title: "Prompt Tokens",
+        baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
+        comparison: {
+          numImprovements: comparisons?.promptTokenCount.numRunsImproved ?? 0,
+          numRegressions: comparisons?.promptTokenCount.numRunsRegressed ?? 0,
+          numEqual: comparisons?.promptTokenCount.numRunsEqual ?? 0,
+          optimizationDirection: "MINIMIZE",
+        },
+        compareExperiments: [],
+      };
+      const completionTokensMetric: MetricCardProps = {
+        icon: <Icon svg={<Icons.Tokens />} />,
+        title: "Completion Tokens",
+        baseExperimentValue: baseExperiment.costSummary.completion.tokens,
+        comparison: {
+          numImprovements:
+            comparisons?.completionTokenCount.numRunsImproved ?? 0,
+          numRegressions:
+            comparisons?.completionTokenCount.numRunsRegressed ?? 0,
+          numEqual: comparisons?.completionTokenCount.numRunsEqual ?? 0,
+          optimizationDirection: "MINIMIZE",
+        },
+        compareExperiments: [],
+      };
+      const totalCostMetric: MetricCardProps = {
+        icon: <Icon svg={<Icons.PriceTags />} />,
+        title: "Total Cost",
+        baseExperimentValue: baseExperiment.costSummary.total.cost,
+        comparison: {
+          numImprovements: comparisons?.totalCost.numRunsImproved ?? 0,
+          numRegressions: comparisons?.totalCost.numRunsRegressed ?? 0,
+          numEqual: comparisons?.totalCost.numRunsEqual ?? 0,
+          optimizationDirection: "MINIMIZE",
+        },
+        compareExperiments: [],
+        formatter: costFormatter,
+      };
+      const promptCostMetric: MetricCardProps = {
+        icon: <Icon svg={<Icons.PriceTags />} />,
+        title: "Prompt Cost",
+        baseExperimentValue: baseExperiment.costSummary.prompt.cost,
+        comparison: {
+          numImprovements: comparisons?.promptCost.numRunsImproved ?? 0,
+          numRegressions: comparisons?.promptCost.numRunsRegressed ?? 0,
+          numEqual: comparisons?.promptCost.numRunsEqual ?? 0,
+          optimizationDirection: "MINIMIZE",
+        },
+        compareExperiments: [],
+        formatter: costFormatter,
+      };
+      const completionCostMetric: MetricCardProps = {
+        icon: <Icon svg={<Icons.PriceTags />} />,
+        title: "Completion Cost",
+        baseExperimentValue: baseExperiment.costSummary.completion.cost,
+        comparison: {
+          numImprovements: comparisons?.completionCost.numRunsImproved ?? 0,
+          numRegressions: comparisons?.completionCost.numRunsRegressed ?? 0,
+          numEqual: comparisons?.completionCost.numRunsEqual ?? 0,
+          optimizationDirection: "MINIMIZE",
+        },
+        compareExperiments: [],
+        formatter: costFormatter,
+      };
       compareExperiments.forEach((experiment, experimentIndex) => {
-        const compareExperimentId = experiment.id;
-        const compareExperimentColor = getExperimentColor(experimentIndex);
-        let compareExperimentMeanScore: MetricValue = null;
-        if (
-          compareExperimentId == null ||
-          !(
-            compareExperimentId in
-            annotationNameToCompareExperimentIdToMeanScore[annotationName]
-          )
-        ) {
-          compareExperimentMeanScore = null;
-        } else {
-          compareExperimentMeanScore =
-            annotationNameToCompareExperimentIdToMeanScore[annotationName][
-              compareExperimentId
-            ];
-        }
-        annotationMetricComparisons.push({
-          id: compareExperimentId,
-          value: compareExperimentMeanScore,
-          color: compareExperimentColor,
+        const experimentColor = getExperimentColor(experimentIndex);
+        latencyMetric.compareExperiments.push({
+          id: experiment.id,
+          value: experiment.averageRunLatencyMs,
+          color: experimentColor,
+        });
+        promptTokensMetric.compareExperiments.push({
+          id: experiment.id,
+          value: experiment.costSummary.prompt.tokens,
+          color: experimentColor,
+        });
+        completionTokensMetric.compareExperiments.push({
+          id: experiment.id,
+          value: experiment.costSummary.completion.tokens,
+          color: experimentColor,
+        });
+        totalTokensMetric.compareExperiments.push({
+          id: experiment.id,
+          value: experiment.costSummary.total.tokens,
+          color: experimentColor,
+        });
+        totalCostMetric.compareExperiments.push({
+          id: experiment.id,
+          value: experiment.costSummary.total.cost,
+          color: experimentColor,
+        });
+        promptCostMetric.compareExperiments.push({
+          id: experiment.id,
+          value: experiment.costSummary.prompt.cost,
+          color: experimentColor,
+        });
+        completionCostMetric.compareExperiments.push({
+          id: experiment.id,
+          value: experiment.costSummary.completion.cost,
+          color: experimentColor,
         });
       });
-      annotationMetrics.push({
-        icon: (
-          <ColorSwatch color={getWordColor({ word: annotationName, theme })} />
-        ),
-        title: annotationName,
-        baseExperimentValue: baseExperimentMeanScore,
-        compareExperiments: annotationMetricComparisons,
+      const performanceMetrics = [latencyMetric];
+      const costMetrics = [
+        totalCostMetric,
+        promptCostMetric,
+        completionCostMetric,
+      ];
+      const tokenCountMetrics = [
+        totalTokensMetric,
+        promptTokensMetric,
+        completionTokensMetric,
+      ];
+
+      const annotationNameToBaseExperimentMeanScore: Record<string, number> =
+        {};
+      baseExperiment.annotationSummaries?.forEach((annotation) => {
+        if (annotation.meanScore != null) {
+          annotationNameToBaseExperimentMeanScore[annotation.annotationName] =
+            annotation.meanScore;
+        }
       });
-    }
-    return {
-      annotationMetrics,
-      costMetrics,
-      performanceMetrics,
-      tokenCountMetrics,
-    };
-  }, [baseExperimentId, compareExperimentIds, data, getExperimentColor, theme]);
+      const annotationNameToCompareExperimentIdToMeanScore: Record<
+        string,
+        Record<string, number>
+      > = {};
+      compareExperiments.forEach((experiment) => {
+        experiment.annotationSummaries?.forEach((annotationSummary) => {
+          const annotationName = annotationSummary.annotationName;
+          const experimentId = experiment.id;
+          const meanScore = annotationSummary.meanScore;
+          if (experimentId != null && meanScore != null) {
+            if (
+              !(
+                annotationName in annotationNameToCompareExperimentIdToMeanScore
+              )
+            ) {
+              annotationNameToCompareExperimentIdToMeanScore[annotationName] =
+                {};
+            }
+            annotationNameToCompareExperimentIdToMeanScore[annotationName][
+              experimentId
+            ] = meanScore;
+          }
+        });
+      });
+      const annotationMetrics: MetricCardProps[] = [];
+      for (const annotationName in annotationNameToBaseExperimentMeanScore) {
+        const baseExperimentMeanScore =
+          annotationNameToBaseExperimentMeanScore[annotationName];
+        if (
+          !(annotationName in annotationNameToCompareExperimentIdToMeanScore)
+        ) {
+          continue;
+        }
+        const annotationMetricComparisons: CompareExperiment[] = [];
+        compareExperiments.forEach((experiment, experimentIndex) => {
+          const compareExperimentId = experiment.id;
+          const compareExperimentColor = getExperimentColor(experimentIndex);
+          let compareExperimentMeanScore: MetricValue = null;
+          if (
+            compareExperimentId == null ||
+            !(
+              compareExperimentId in
+              annotationNameToCompareExperimentIdToMeanScore[annotationName]
+            )
+          ) {
+            compareExperimentMeanScore = null;
+          } else {
+            compareExperimentMeanScore =
+              annotationNameToCompareExperimentIdToMeanScore[annotationName][
+                compareExperimentId
+              ];
+          }
+          annotationMetricComparisons.push({
+            id: compareExperimentId,
+            value: compareExperimentMeanScore,
+            color: compareExperimentColor,
+          });
+        });
+        annotationMetrics.push({
+          icon: (
+            <ColorSwatch
+              color={getWordColor({ word: annotationName, theme })}
+            />
+          ),
+          title: annotationName,
+          baseExperimentValue: baseExperimentMeanScore,
+          compareExperiments: annotationMetricComparisons,
+        });
+      }
+      return {
+        annotationMetrics,
+        costMetrics,
+        performanceMetrics,
+        tokenCountMetrics,
+      };
+    },
+    [baseExperimentId, compareExperimentIds, data, getExperimentColor, theme]
+  );
 
   return (
     <div

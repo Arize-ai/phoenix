@@ -136,6 +136,7 @@ def _render_boot_message(
             force_tracing=agents_env.force_tracing,
             web_access_enabled=agents_env.web_access_enabled,
             server_bash_enabled=agents_env.server_bash_enabled,
+            github_enabled=agents_env.allows_github(system_settings.agent_github),
         ),
     ).render()
 

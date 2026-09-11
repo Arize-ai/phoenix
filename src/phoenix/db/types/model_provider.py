@@ -135,8 +135,11 @@ class ModelProvider(Enum):
     FIREWORKS = "FIREWORKS"
     GROQ = "GROQ"
     MOONSHOT = "MOONSHOT"
+    MINIMAX = "MINIMAX"
     PERPLEXITY = "PERPLEXITY"
     TOGETHER = "TOGETHER"
+    ZAI = "ZAI"
+    META = "META"
 
 
 def is_sdk_compatible_with_model_provider(
@@ -161,8 +164,11 @@ def is_sdk_compatible_with_model_provider(
             ModelProvider.FIREWORKS,
             ModelProvider.GROQ,
             ModelProvider.MOONSHOT,
+            ModelProvider.MINIMAX,
             ModelProvider.PERPLEXITY,
             ModelProvider.TOGETHER,
+            ModelProvider.ZAI,
+            ModelProvider.META,
         )
     if sdk == "anthropic":
         return model_provider is ModelProvider.ANTHROPIC

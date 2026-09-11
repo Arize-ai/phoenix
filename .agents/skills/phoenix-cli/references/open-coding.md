@@ -31,7 +31,7 @@ The unit is about **where the failure modes you're investigating actually live**
      '
    ```
 
-   `with_session: 0` → sessions not wired; trace is the grain. `median_traces_per_session: 1` → single-trace sessions; still trace. `median_traces_per_session: 5+` → sessions are meaningful; session is plausibly right.
+   `with_session: 0` → sessions not wired; annotate at the trace level. `median_traces_per_session: 1` → single-trace sessions; still trace level. `median_traces_per_session: 5+` → sessions are meaningful; session level is plausibly right.
 
 3. **System type.** Open one recent trace and inspect the root span's input. A single user message → one turn or one shot. A message *array* (`[{role: user}, {role: assistant}, ...]`) → that's a turn within a longer dialogue; the dialogue lives at the session level.
 
@@ -218,23 +218,23 @@ The local sidecar is the handoff record for notes written this run. Inspect it d
 
 ## Wrapping up
 
-When the run is done, share the Phoenix UI link with the user. The link filters the project's **spans** page by the `coding_session_id` annotation written alongside each note. Three details the UI legislates:
+When the run is done, share the Phoenix UI link with the user. The link filters the project's **spans** page by the `coding_session_id` annotation written alongside each note. Three details the UI enforces:
 
 - **The search param is `spanFilterCondition`.** An unrecognized param is dropped silently and the user lands on an unfiltered table.
-- **Link to the `/spans` tab, not `/traces`.** The traces tab now compiles a *trace* filter that lives in component state with no URL param of its own. A link that carries `spanFilterCondition` to `/traces` leaves that table unfiltered and pops a "Traces now use trace-level filters" notice; the condition only takes effect once the user switches to Spans.
-- **The spans tab compiles a *span* filter**, so the annotation accessor has to match the grain the annotation was written at — `trace_annotations['coding_session_id']` for a trace-grain run (`px trace annotate`), `annotations['coding_session_id']` for a span-grain run (`px span annotate`). A grain mismatch joins the wrong annotation table and matches nothing, silently.
+- **Link to the `/spans` tab, not `/traces`.** The traces tab now compiles a *trace* filter that lives in component state with no URL param of its own. A link that carries `spanFilterCondition` to `/traces` leaves that table unfiltered and shows a "Traces now use trace-level filters" notice; the condition only takes effect once the user switches to Spans.
+- **The spans tab compiles a *span* filter**, so the annotation accessor has to match the level the annotation was written at — `trace_annotations['coding_session_id']` for a trace-level run (`px trace annotate`), `annotations['coding_session_id']` for a span-level run (`px span annotate`). A level mismatch silently joins the wrong annotation table and matches nothing.
 
 The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
 
 ```bash
 project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
-# Trace-grain run. For a span-grain run swap in annotations[...].
+# Trace-level run (px trace annotate). For a span-level run (px span annotate), swap in annotations[...].
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
   "trace_annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
 echo "Phoenix UI: $PHOENIX_ENDPOINT/projects/$project_id/spans?spanFilterCondition=$encoded"
 ```
 
-A session-grain run has no equivalent link: the sessions tab keeps its filter in
+A session-level run has no equivalent link: the sessions tab keeps its filter in
 component state rather than the URL, so share the plain project link and, if the
 user wants the selection reproduced, the `sessionFilterCondition` GraphQL query.
 

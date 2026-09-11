@@ -17,38 +17,6 @@ describe("playground run agent tool", () => {
     _resetMessageId();
   });
 
-  it("starts a playground run for all current instances", async () => {
-    const playgroundStore = createPlaygroundStore({
-      datasetId: null,
-      modelConfigByProvider: {},
-    });
-    playgroundStore.getState().addInstance();
-    const action = createRunPlaygroundClientAction({ playgroundStore });
-
-    const result = await action({});
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const output = JSON.parse(result.output ?? "") as {
-      status: string;
-      instances: { instanceId: number; label: string }[];
-    };
-    expect(output).toEqual(
-      expect.objectContaining({
-        status: "started",
-        instances: [
-          { instanceId: 0, label: "A" },
-          { instanceId: 1, label: "B" },
-        ],
-      })
-    );
-    expect(
-      playgroundStore
-        .getState()
-        .instances.every((instance) => instance.activeRunId != null)
-    ).toBe(true);
-  });
-
   it("rejects run requests while the playground is already running", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
@@ -75,42 +43,71 @@ describe("playground run agent tool", () => {
     playgroundStore.getState().addInstance();
     const action = createRunPlaygroundClientAction({ playgroundStore });
 
-    const result = await action({ instanceId: 0 });
+    const resultPromise = action({ instanceId: 0 });
+    for (const instance of playgroundStore.getState().instances) {
+      playgroundStore.getState().markPlaygroundInstanceComplete(instance.id);
+    }
 
+    const result = await resultPromise;
     expect(result.ok).toBe(true);
   });
 
-  it("cancels an active playground run", async () => {
+  it("resolves only once every instance finishes its run", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
       modelConfigByProvider: {},
     });
     playgroundStore.getState().addInstance();
-    playgroundStore.getState().runPlaygroundInstances();
-    const action = createCancelPlaygroundRunClientAction({ playgroundStore });
+    const action = createRunPlaygroundClientAction({ playgroundStore });
 
-    const result = await action({});
+    let isResolved = false;
+    const resultPromise = action({}).then((result) => {
+      isResolved = true;
+      return result;
+    });
+    // Flush microtasks: the run has started but no instance has finished.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isResolved).toBe(false);
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const output = JSON.parse(result.output ?? "") as {
-      status: string;
-      instances: { instanceId: number; label: string }[];
-    };
-    expect(output).toEqual(
-      expect.objectContaining({
-        status: "cancelled",
-        instances: [
-          { instanceId: 0, label: "A" },
-          { instanceId: 1, label: "B" },
-        ],
-      })
-    );
-    expect(
-      playgroundStore
-        .getState()
-        .instances.every((instance) => instance.activeRunId == null)
-    ).toBe(true);
+    // Two instances (the default plus addInstance): finishing only the first
+    // must not resolve the run.
+    const [first, ...rest] = playgroundStore.getState().instances;
+    expect(rest.length).toBeGreaterThan(0);
+    playgroundStore.getState().markPlaygroundInstanceComplete(first.id);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isResolved).toBe(false);
+    for (const instance of rest) {
+      playgroundStore.getState().markPlaygroundInstanceComplete(instance.id);
+    }
+
+    const result = await resultPromise;
+    expect(result).toMatchObject({
+      ok: true,
+      output: expect.objectContaining({
+        status: "completed",
+        message: expect.stringContaining("finished"),
+      }),
+    });
+  });
+
+  it("resolves when the user cancels the run", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const action = createRunPlaygroundClientAction({ playgroundStore });
+
+    const resultPromise = action({});
+    await Promise.resolve();
+    playgroundStore.getState().cancelPlaygroundInstances();
+
+    const result = await resultPromise;
+    expect(result).toMatchObject({
+      ok: true,
+      output: expect.objectContaining({ status: "completed" }),
+    });
   });
 
   it("rejects cancel requests when the playground is not running", async () => {

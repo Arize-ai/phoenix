@@ -13,7 +13,7 @@ from strawberry.relay import GlobalID
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.types.ProjectSessionAnnotation import (
     ProjectSessionAnnotation as SessionAnnotationNodeType,
 )
@@ -45,8 +45,8 @@ router = APIRouter(tags=["annotations"])
 
 class Annotation(V1RoutesBaseModel):
     id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
     source: Literal["API", "APP"]
     user_id: Optional[str]
 

@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { SessionTokenCountDetailsQuery } from "./__generated__/SessionTokenCountDetailsQuery.graphql";
-import { TokenCountDetails } from "./TokenCountDetails";
+import {
+  getTokenCountDetailsFromCostDetails,
+  TokenCountDetails,
+} from "./TokenCountDetails";
 
 export function SessionTokenCountDetails(props: { sessionNodeId: string }) {
   const data = useLazyLoadQuery<SessionTokenCountDetailsQuery>(
@@ -15,6 +18,13 @@ export function SessionTokenCountDetails(props: { sessionNodeId: string }) {
               prompt
               completion
             }
+            costDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                tokens
+              }
+            }
           }
         }
       }
@@ -26,10 +36,15 @@ export function SessionTokenCountDetails(props: { sessionNodeId: string }) {
     if (data.node.__typename === "ProjectSession") {
       const sessionPrompt = data.node.tokenUsage.prompt;
       const sessionCompletion = data.node.tokenUsage.completion;
+      const { promptDetails, completionDetails } =
+        getTokenCountDetailsFromCostDetails(data.node.costDetailSummaryEntries);
+
       return {
         total: sessionPrompt + sessionCompletion,
         prompt: sessionPrompt,
         completion: sessionCompletion,
+        promptDetails,
+        completionDetails,
       };
     }
 

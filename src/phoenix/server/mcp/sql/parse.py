@@ -89,7 +89,8 @@ _RECURSIVE_CTE_MESSAGE = (
 
 
 def parse_sql(sql: str, *, dialect: SupportedSQLDialectName) -> exp.Expression:
-    # SQLGlot folds quoted `"char"` to CHAR (bpchar). PostgreSQL's `"char"` is
+    # Workaround for https://github.com/tobymao/sqlglot/issues/8280, open
+    # upstream: quoted `"char"` folds to CHAR (bpchar). PostgreSQL's `"char"` is
     # a 1-byte type; CAST(65 AS "char") is 'A' and CAST(65 AS CHAR) is '6'.
     if dialect == "postgresql" and _QUOTED_CHAR_TYPE.search(sql):
         raise AnalyticsSqlError(
@@ -176,6 +177,9 @@ def _grouping_limit_parse_message(sql: str) -> Optional[str]:
     postgres parser does not; ``FETCH FIRST n ROWS ONLY`` and wrapping the
     aggregation in a subquery both parse. The generic parse error names a
     token the caller cannot act on.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8279, open
+    upstream.
     """
     folded = sql.casefold()
     if "limit" not in folded and "offset" not in folded:
@@ -223,6 +227,9 @@ def _recover_grouping_limit_parse(
     trailing clause, parsing the rest, and putting Limit/Offset back preserves
     the statement the caller wrote rather than refusing a query the engine
     would run.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8279, open
+    upstream.
     """
     if _grouping_limit_parse_message(sql) is None:
         return None
@@ -276,8 +283,8 @@ def _lambda_parameter_document(parameter: exp.Expression) -> Optional[exp.Expres
 def _json_path_from_string(text: str) -> exp.JSONPath:
     """A JSON path for a ``->`` key or a ``$.a.b`` path literal.
 
-    A lambda body is a bare string, so ``'$.a.b'`` used to become one key
-    named ``$.a.b``. SQLite then looks up that name and answers NULL.
+    A lambda body is a bare string, so treating ``'$.a.b'`` as a single key
+    yields one named ``$.a.b``, which SQLite looks up and answers NULL.
     Asking the parser how it reads the same literal as a bare accessor
     reuses the split it already gets right outside a call.
     """
@@ -340,14 +347,17 @@ def _repair_lambda_json_accessor(
 
     ``jsonb_typeof(attributes -> 'llm')`` is a JSON accessor the engines
     execute once parenthesised. The parser reads the arrow as ``x -> body``
-    instead, so admission used to refuse it and name ``->>`` / ``json_extract``,
-    neither of which is valid input to ``jsonb_typeof``. Reconstructing the
+    instead, and admission judging that lambda refuses it while naming ``->>``
+    or ``json_extract``, neither of which is valid input to ``jsonb_typeof``. Reconstructing the
     accessor is the same request the caller wrote.
 
     The reconstructed node is the operator on both backends, matching a bare
     ``->`` outside a call. SQLite's ``->`` returns JSON text; ``json_extract``
-    and ``->>`` return the SQL value. Rebuilding as the function used to
-    change that answer inside MIN/MAX.
+    and ``->>`` return the SQL value, so rebuilding as the function changes
+    what MIN/MAX compares.
+
+    Workaround for https://github.com/tobymao/sqlglot/issues/8074, which
+    upstream closed as not planned.
     """
     # Innermost first: a three-hop chain nests JSONExtract inside JSONExtract.
     for node in reversed(list(root.find_all(exp.Lambda))):
@@ -375,11 +385,10 @@ def _promote_lateral_table_references(
 ) -> exp.Expression:
     """Turn ``LATERAL traces t`` into a plain table join.
 
-    SQLGlot stores the relation as an Identifier inside Lateral and emits
-    ``LATERAL traces AS t`` or ``LATERAL schema.traces AS t``. PostgreSQL
-    rejects that ``AS``: LATERAL is for subqueries and set-returning
-    functions, not base tables. A LATERAL table join is the same request as
-    an ordinary join, which schema qualification already knows how to emit.
+    PostgreSQL rejects ``LATERAL traces t`` outright: LATERAL is for
+    subqueries and set-returning functions, not base tables. The parser
+    accepts it, and a LATERAL table join is the same request as an ordinary
+    join, which schema qualification already knows how to emit.
 
     SQLite has no LATERAL. ``json_each`` does not need it -- a table-valued
     function there may refer to earlier FROM items -- so ``LATERAL json_each``
@@ -681,7 +690,14 @@ def _rewrite_sqlite_interval_arithmetic(
             node.replace(
                 exp.Anonymous(
                     this="datetime",
-                    expressions=[left.copy(), exp.Literal.string(modifier)],
+                    expressions=[
+                        left.copy(),
+                        exp.Literal.string(modifier),
+                        # Storage carries microseconds and `datetime` truncates
+                        # to whole seconds, so without this the shifted value
+                        # loses the fraction the comparison turns on.
+                        exp.Literal.string("subsec"),
+                    ],
                 )
             )
         elif (
@@ -696,7 +712,11 @@ def _rewrite_sqlite_interval_arithmetic(
             node.replace(
                 exp.Anonymous(
                     this="datetime",
-                    expressions=[right.copy(), exp.Literal.string(modifier)],
+                    expressions=[
+                        right.copy(),
+                        exp.Literal.string(modifier),
+                        exp.Literal.string("subsec"),
+                    ],
                 )
             )
     return root
@@ -746,13 +766,19 @@ def _repair_row_constructor(
     # `(1,)` is a one-field row. A one-element Tuple renders as `(1)`, a
     # scalar. ROW(1) is the spelling PostgreSQL still treats as a record.
     # VALUES (1) is a one-column row, not a record constructor — leave it.
+    # The excluded parents spell a parenthesised list that is grammar rather
+    # than a constructor: a grouping key, or the `DISTINCT ON (expr)` key list,
+    # where `ROW` is a syntax error.
     for tuple_node in list(root.find_all(exp.Tuple)):
         items = list(tuple_node.expressions)
         if len(items) != 1:
             continue
         if tuple_node.find_ancestor(exp.Values) is not None:
             continue
-        if isinstance(tuple_node.parent, (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group)):
+        if isinstance(
+            tuple_node.parent,
+            (exp.GroupingSets, exp.Cube, exp.Rollup, exp.Group, exp.Distinct),
+        ):
             continue
         tuple_node.replace(exp.Anonymous(this="row", expressions=[items[0].copy()]))
     return root
@@ -811,8 +837,8 @@ def _tree_depth(root: exp.Expression) -> int:
     nested subqueries, which alternate node types, break above 258.
 
     Same-type descent is the rule rather than a list of operator classes,
-    because a list of node classes kept in agreement by hand is how this file
-    has produced defects before.
+    because a list of node classes kept in agreement by hand drifts from the
+    node types that actually exist.
     """
     deepest = 0
     stack: list[tuple[exp.Expression, int]] = [(root, 0)]
@@ -837,9 +863,8 @@ def _tree_depth(root: exp.Expression) -> int:
 _REFUSED_NODE_CLASSES: dict[type[exp.Expr], str] = {
     # OPERATOR(schema.op) invokes an operator by name, and exp.Operator is not an
     # exp.Func either -- so `name ~ 'x'` is refused as regexp_like while
-    # `name OPERATOR(pg_catalog.~) 'x'` was admitted and rendered verbatim. Same
-    # capability, two spellings, opposite verdicts, which means the function
-    # allowlist did not mean what it claimed.
+    # `name OPERATOR(pg_catalog.~) 'x'` bypasses the function allowlist entirely
+    # and renders verbatim. Same capability, two spellings, opposite verdicts.
     exp.Operator: (
         "OPERATOR(...) names an operator directly and bypasses the function "
         "allowlist. Use the operator's ordinary spelling."
@@ -1100,6 +1125,8 @@ def _check_lossy_shapes(
         # Carried on the options node under `FETCH`, not on `Limit`. Rendered as
         # a plain LIMIT on SQLite, which drops the ties and returns an arbitrary
         # subset of the tied rows -- a different answer, silently.
+        # Workaround for https://github.com/tobymao/sqlglot/issues/8077, which
+        # upstream closed as not planned.
         if options.args.get("with_ties"):
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -1115,9 +1142,9 @@ def _check_lossy_shapes(
                 "many rows. Write an explicit row count instead.",
             )
     for select in root.find_all(exp.Select):
-        # PostgreSQL accepts an empty select list. SQLAlchemy will not stream
-        # a zero-column cursor, so execution used to fail with "does not
-        # return rows" after EXPLAIN had already succeeded.
+        # PostgreSQL accepts an empty select list. SQLAlchemy will not stream a
+        # zero-column cursor, so admitting one fails at execution with "does
+        # not return rows" -- after EXPLAIN has already succeeded.
         if not select.expressions:
             return AdmissionResult(
                 AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -1242,6 +1269,8 @@ def _check_lossy_shapes(
         # this refuses the blob spelling too, which is the price of not
         # answering an integer comparison with a blob. Withdrawable once the
         # tokenizer records which was written.
+        # Workaround for https://github.com/tobymao/sqlglot/issues/8075, which
+        # upstream closed as not planned.
         del literal
         return AdmissionResult(
             AdmissionOutcome.UNSUPPORTED_SYNTAX,
@@ -1371,9 +1400,9 @@ def _check_collate(
 
 #: Structural classes a SELECT may contain. Everything the parser can build
 #: that is neither an `exp.Func` (its own allowlist) nor a table source (its
-#: own check) falls here, and until this existed the seam between those two
-#: policies was governed by a five-entry denylist -- so a class nobody had
-#: considered was admitted by default.
+#: own check) falls here. The seam between those two policies is closed-world
+#: for the same reason they are: a denylist admits by default, so any class
+#: nobody has considered is accepted.
 #:
 #: Two provenances, and they are not equally strong. Most entries were produced
 #: by parsing statements this surface ships, tests or teaches -- the admission
@@ -1487,11 +1516,11 @@ def _refused_cast_target(target: exp.Expression) -> Optional[str]:
     scanned relation, so the plan gate cannot see it.
 
     An array of an allowed type is allowed, because it reaches nothing the
-    element type does not. Refusing it made the surface reject its own output:
+    element type does not. Refusing it makes the surface reject its own output:
     `pg_get_indexdef` renders the operand of `#>>` as `'{a,b}'::text[]`, so
-    `describeSqlSchema` published an index spelling under a heading telling the
-    caller to reproduce it exactly, and admission then refused it. Nothing
-    protective was lost -- `regclass[]` does not parse, and an array whose
+    `describeSqlSchema` publishes an index spelling under a heading telling the
+    caller to reproduce it exactly, which admission then refuses. Nothing
+    protective is lost -- `regclass[]` does not parse, and an array whose
     element type is disallowed is still caught by the recursion.
     """
     name = _cast_type_name(target)
@@ -2345,6 +2374,32 @@ def _ancestor_scopes(scope: Any) -> Iterable[Any]:
         current = getattr(current, "parent", None)
 
 
+def _scope_relation_keys(scope: Any, *, dialect: SupportedSQLDialectName) -> frozenset[str]:
+    """Dialect keys of the relations this scope introduces, enclosing ones excluded.
+
+    Physical tables, the tables SQLGlot files under a LATERAL rather than under
+    `sources`, and query-local aliases. A qualifier absent from this set is
+    correlated: it names a relation an enclosing scope introduced, and belongs
+    to that scope rather than to this one.
+    """
+    keys: set[str] = set()
+    for source in scope.sources.values():
+        table = _table_from_scope_source(source)
+        if table is not None:
+            keys |= _relation_identifier_keys(table, dialect=dialect)
+    for table in _lateral_tables_in_scope(scope):
+        keys |= _relation_identifier_keys(table, dialect=dialect)
+    for ident in _derived_alias_identifiers(scope):
+        keys.add(
+            _identifier_key(
+                ident.this or "",
+                quoted=bool(ident.args.get("quoted")),
+                dialect=dialect,
+            )
+        )
+    return frozenset(keys)
+
+
 def _scope_exposes_qualifier(
     scope: Any,
     qualifier: str,
@@ -2354,25 +2409,10 @@ def _scope_exposes_qualifier(
 ) -> bool:
     """Whether `qualifier` names a relation this scope or an enclosing one exposes."""
     want = _identifier_key(qualifier, quoted=quoted, dialect=dialect)
-    for current in _ancestor_scopes(scope):
-        for source in current.sources.values():
-            table = _table_from_scope_source(source)
-            if table is not None and want in _relation_identifier_keys(table, dialect=dialect):
-                return True
-        for table in _lateral_tables_in_scope(current):
-            if want in _relation_identifier_keys(table, dialect=dialect):
-                return True
-        for ident in _derived_alias_identifiers(current):
-            if (
-                _identifier_key(
-                    ident.this or "",
-                    quoted=bool(ident.args.get("quoted")),
-                    dialect=dialect,
-                )
-                == want
-            ):
-                return True
-    return False
+    return any(
+        want in _scope_relation_keys(current, dialect=dialect)
+        for current in _ancestor_scopes(scope)
+    )
 
 
 def _allowlisted_table_for_qualifier(
@@ -2625,11 +2665,11 @@ def _check_base_tables(
     # an empty map and move on.
     #
     # Refused rather than resolved. PostgreSQL rejects the statement outright
-    # ("table name specified more than once"), so accepting it on SQLite was a
+    # ("table name specified more than once"), so accepting it on SQLite is a
     # divergence as well as a hole, and there is no reading a caller needs.
-    # Stated as the invariant rather than as the shape that broke it. Every real
-    # table must appear in some scope's sources, because that map is what every
-    # later check reads; a table missing from it is skipped rather than refused.
+    # Every real table must appear in some scope's sources, because that map is
+    # what every later check reads; a table missing from it is skipped rather
+    # than refused.
     #
     # Naming the cause instead -- a table alias equal to a CTE name -- would
     # refuse ordinary SQL: in `WITH t AS (...) SELECT ... FROM (SELECT ... FROM
@@ -2637,10 +2677,10 @@ def _check_base_tables(
     # both engines, and `t` is the commonest spelling of each. The invariant
     # refuses only when a table has actually been lost, whatever the cause.
     # Checked per scope, not across the statement. A flat set of every resolved
-    # name let one occurrence mask another: with `projects` read normally in one
-    # subquery and shadowed in a second, the shadowed one passed because the
-    # name appeared somewhere. That admitted a statement SQLite runs and
-    # PostgreSQL rejects outright -- the divergence this refusal exists to
+    # name lets one occurrence mask another: with `projects` read normally in
+    # one subquery and shadowed in a second, the shadowed one passes because the
+    # name appears somewhere, admitting a statement SQLite runs and PostgreSQL
+    # rejects outright -- the divergence this refusal exists to
     # prevent -- while `scope.tables` answers the question actually being asked,
     # which is whether *this* scope resolved the table it names.
     declared = {cte.alias for cte in root.find_all(exp.CTE) if cte.alias}
@@ -2671,6 +2711,134 @@ def _check_base_tables(
                     f"{name!r} is shadowed by another relation of the same name in this "
                     "statement, so it cannot be resolved. Rename one of them.",
                 )
+    return None
+
+
+#: Names an engine binds implicitly, so a foreign source in the FROM clause is
+#: not evidence that a relation in the statement projects them. PostgreSQL
+#: system columns; SQLite's rowid aliases. Each binds to a base table, so it
+#: resolves only where one is in scope, which is why membership here is read
+#: against the relations a statement reads.
+_RESERVED_IMPLICIT_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
+    "postgresql": frozenset({"ctid", "xmin", "xmax", "cmin", "cmax", "tableoid"}),
+    "sqlite": frozenset({"rowid", "oid", "_rowid_"}),
+}
+
+#: Names that return who the connection is. PostgreSQL spells these as niladic
+#: keywords, which SQLGlot parses as a bare column rather than as a function, so
+#: the function allowlist never sees them. They are reserved words: unquoted is
+#: always the keyword, and quoted is an ordinary column reference. They bind to
+#: the session, so no relation has to be in scope for one to resolve.
+#: Workaround for an unfiled sqlglot defect.
+_SESSION_IDENTITY_NAMES: dict[SupportedSQLDialectName, frozenset[str]] = {
+    "postgresql": frozenset({"user", "current_role", "system_user"}),
+    "sqlite": frozenset(),
+}
+
+
+def _check_session_identity(
+    root: exp.Expression, *, dialect: SupportedSQLDialectName
+) -> Optional[AdmissionResult]:
+    """Refuse the session identity wherever it appears.
+
+    This is the whole tree rather than a walk over the relations in scope: the
+    keyword needs no FROM clause, so a statement that reads nothing allowlisted
+    still evaluates it, and neither the plan gate nor the SQLite authorizer
+    inspects column expressions.
+    """
+    names = _SESSION_IDENTITY_NAMES[dialect]
+    if not names:
+        return None
+    for column in root.find_all(exp.Column):
+        if column.table:
+            continue
+        identifier = column.this
+        if isinstance(identifier, exp.Identifier) and identifier.args.get("quoted"):
+            continue
+        name = column.name or ""
+        if name.casefold() in names:
+            subject = f"{name} is reserved."
+            return AdmissionResult(
+                AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                subject,
+                message=(
+                    f"{subject} Unquoted, it returns the identity the connection "
+                    "authenticated as rather than a column of any relation. Quote it "
+                    "to name a column spelled that way."
+                ),
+            )
+    return None
+
+
+def _json_each_column_failure(
+    scope: Any,
+    *,
+    localities: Any,
+    by_reference: dict[str, str],
+    allowlist: Allowlist,
+    dialect: SupportedSQLDialectName,
+) -> Optional[AdmissionResult]:
+    """Refuse a column `json_each` does not project.
+
+    SQLite reads a quoted unknown identifier as a string, so `"nope"` beside
+    `json_each` returns that word as data rather than "no such column".
+
+    The names `json_each` projects are fixed, so this resolves against the
+    function alone. It is asked of every scope holding one, including a scope
+    that reads no allowlisted table and therefore has nothing else to check
+    a column against.
+    """
+    if dialect != "sqlite":
+        return None
+    json_each_by_alias = _json_each_bindings(scope)
+    if not json_each_by_alias:
+        return None
+    # A source whose columns nobody can enumerate could have projected the
+    # name, so an unqualified reference is no longer evidence about json_each.
+    has_opaque_foreign = any(
+        not (
+            isinstance(source, exp.Table)
+            and (
+                _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect) is not None
+                or _json_each_columns_for_relation(source) is not None
+            )
+        )
+        for source in scope.sources.values()
+    )
+    json_each_names = frozenset().union(*json_each_by_alias.values())
+    candidates = list(dict.fromkeys(by_reference.values()))
+    for column in _scope_columns(scope.expression):
+        if localities.is_structurally_local(column) or isinstance(column.this, exp.Star):
+            continue
+        if localities.is_alias_bound(column):
+            continue
+        qualifier = column.table or ""
+        if qualifier:
+            if qualifier.casefold() not in json_each_by_alias:
+                continue
+            offered = json_each_by_alias[qualifier.casefold()]
+        else:
+            if has_opaque_foreign:
+                continue
+            offered = json_each_names
+        name = column.name or ""
+        if name.casefold() in offered:
+            continue
+        if not qualifier and any(
+            _offers_column(allowlist, table_name, column, dialect) for table_name in candidates
+        ):
+            continue
+        listed = ", ".join(_JSON_EACH_COLUMNS)
+        subject = (
+            f"Column {qualifier}.{name} is not projected by json_each."
+            if qualifier
+            else f"Column {name} is not projected by json_each."
+        )
+        return AdmissionResult(
+            AdmissionOutcome.UNSUPPORTED_SYNTAX,
+            subject,
+            message=f"{subject} json_each columns are {listed}.",
+        )
     return None
 
 
@@ -2734,6 +2902,17 @@ def _check_column_references(
             if table_name is not None:
                 by_reference.setdefault(node.alias or node.name, table_name)
                 by_reference.setdefault(node.name, table_name)
+        # Ahead of the early-out: json_each names its own columns, so this one
+        # resolves without an allowlisted table to check against.
+        json_each_failure = _json_each_column_failure(
+            scope,
+            localities=localities,
+            by_reference=by_reference,
+            allowlist=allowlist,
+            dialect=dialect,
+        )
+        if json_each_failure is not None:
+            return json_each_failure
         if not by_reference:
             continue
         columns = _scope_columns(scope.expression)
@@ -2846,17 +3025,6 @@ def _check_column_references(
             )
             for source in scope.sources.values()
         )
-        has_opaque_foreign = any(
-            not (
-                isinstance(source, exp.Table)
-                and (
-                    _allowlisted_table_name(source, allowlist=allowlist, dialect=dialect)
-                    is not None
-                    or _json_each_columns_for_relation(source) is not None
-                )
-            )
-            for source in scope.sources.values()
-        )
         for column in columns:
             if localities.is_structurally_local(column) or isinstance(column.this, exp.Star):
                 continue
@@ -2907,26 +3075,6 @@ def _check_column_references(
             )
             if json_each_columns is not None and name.casefold() in json_each_columns:
                 continue
-            # SQLite treats a quoted unknown identifier as a string, so
-            # `"nope"` from json_each is a silent wrong answer rather than
-            # "no such column". Name the columns json_each actually projects.
-            if (
-                dialect == "sqlite"
-                and json_each_by_alias
-                and (qualifier.casefold() in json_each_by_alias or not qualifier)
-                and not (not qualifier and has_opaque_foreign)
-            ):
-                offered = ", ".join(_JSON_EACH_COLUMNS)
-                subject = (
-                    f"Column {qualifier}.{name} is not projected by json_each."
-                    if qualifier
-                    else f"Column {name} is not projected by json_each."
-                )
-                return AdmissionResult(
-                    AdmissionOutcome.UNSUPPORTED_SYNTAX,
-                    subject,
-                    message=f"{subject} json_each columns are {offered}.",
-                )
             if not candidates:
                 continue
             # Unknown to the manifest. That is a refusal when the allowlisted
@@ -2935,7 +3083,23 @@ def _check_column_references(
             # the manifest has never heard of, and `json_each(attributes)`
             # projecting `key` is a shape the schema teaches.
             #
+            # Reserved names are excepted. The engine binds them to the base
+            # table rather than to the foreign source, so admitting them on the
+            # chance the source projects them hands over a system column. A
+            # caller who does mean a projected column of that name can qualify
+            # it.
             if not qualifier and foreign_source:
+                if name.casefold() in _RESERVED_IMPLICIT_NAMES[dialect]:
+                    subject = f"{name} is reserved."
+                    return AdmissionResult(
+                        AdmissionOutcome.UNSUPPORTED_SYNTAX,
+                        subject,
+                        message=(
+                            f"{subject} Unqualified, it binds to the table or the session "
+                            "rather than to a relation this statement introduces. Qualify it "
+                            "with the relation that projects it if that is what you mean."
+                        ),
+                    )
                 continue
             # Not a column of any table in scope -- a misspelling, most often.
             # Name nearby physical or virtual columns so a misspelling is
@@ -3078,6 +3242,9 @@ def admit(
         or _check_collate(root, dialect=dialect)
         or _check_functions(root, allowlist=allowlist, dialect=dialect)
         or _check_base_tables(root, allowlist=allowlist, dialect=dialect)
+        # Before the column check, whose generic "no such column" wording would
+        # describe a keyword that resolves as neither a column nor a misspelling.
+        or _check_session_identity(root, dialect=dialect)
         or _check_column_references(root, allowlist=allowlist, dialect=dialect)
         or _check_timestamp_literals(root, allowlist=allowlist, dialect=dialect)
     )

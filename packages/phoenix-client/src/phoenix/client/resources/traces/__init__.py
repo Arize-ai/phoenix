@@ -14,7 +14,10 @@ from typing import (
 import httpx
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.constants.server_requirements import LIST_PROJECT_TRACES
+from phoenix.client.constants.server_requirements import (
+    GET_TRACES_FILTERS,
+    LIST_PROJECT_TRACES,
+)
 from phoenix.client.utils.annotation_helpers import (
     _chunk_trace_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
     _create_trace_annotation,  # pyright: ignore[reportPrivateUsage]
@@ -32,6 +35,66 @@ InsertedTraceAnnotation = v1.InsertedTraceAnnotation
 TraceAnnotationData = v1.TraceAnnotationData
 AnnotateTracesRequestBody = v1.AnnotateTracesRequestBody
 AnnotateTracesResponseBody = v1.AnnotateTracesResponseBody
+
+_TraceQueryParams = dict[str, Union[int, float, str, bool, Sequence[str]]]
+
+
+def _validate_latency_bounds(
+    min_latency_ms: Optional[float],
+    max_latency_ms: Optional[float],
+) -> None:
+    """Reject latency bounds the server would reject or that select nothing."""
+    if min_latency_ms is not None and min_latency_ms < 0:
+        raise ValueError(f"min_latency_ms must be non-negative, got {min_latency_ms}")
+    if max_latency_ms is not None and max_latency_ms < 0:
+        raise ValueError(f"max_latency_ms must be non-negative, got {max_latency_ms}")
+    if (
+        min_latency_ms is not None
+        and max_latency_ms is not None
+        and min_latency_ms > max_latency_ms
+    ):
+        raise ValueError(
+            f"min_latency_ms ({min_latency_ms}) must not exceed max_latency_ms ({max_latency_ms})"
+        )
+
+
+def _build_trace_query_params(
+    *,
+    start_time: Optional[datetime],
+    end_time: Optional[datetime],
+    sort: Optional[str],
+    order: Optional[str],
+    include_spans: bool,
+    session_id: Optional[Union[str, Sequence[str]]],
+    error: Optional[bool],
+    min_latency_ms: Optional[float],
+    max_latency_ms: Optional[float],
+) -> _TraceQueryParams:
+    """Build the query params shared by every page of a ``get_traces`` request."""
+    params: _TraceQueryParams = {}
+    if start_time:
+        params["start_time"] = start_time.isoformat()
+    if end_time:
+        params["end_time"] = end_time.isoformat()
+    if sort:
+        params["sort"] = sort
+    if order:
+        params["order"] = order
+    if include_spans:
+        params["include_spans"] = True
+    if session_id:
+        params["session_identifier"] = (
+            [session_id] if isinstance(session_id, str) else list(session_id)
+        )
+    # `error=False` is a meaningful filter (traces with no errored spans), so send
+    # the parameter whenever it was set rather than only when truthy.
+    if error is not None:
+        params["error"] = error
+    if min_latency_ms is not None:
+        params["min_latency_ms"] = min_latency_ms
+    if max_latency_ms is not None:
+        params["max_latency_ms"] = max_latency_ms
+    return params
 
 
 class Traces:
@@ -346,6 +409,9 @@ class Traces:
         order: Optional[Literal["asc", "desc"]] = None,
         include_spans: bool = False,
         session_id: Optional[Union[str, Sequence[str]]] = None,
+        error: Optional[bool] = None,
+        min_latency_ms: Optional[float] = None,
+        max_latency_ms: Optional[float] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.TraceData]:
@@ -365,6 +431,14 @@ class Traces:
                 If you experience performance issues, consider fetching spans separately.
             session_id (Optional[Union[str, Sequence[str]]]): Filter by one or more
                 session IDs or GlobalIDs. Can be a single string or a sequence of strings.
+            error (Optional[bool]): If True, only return traces containing at least one
+                errored span. If False, only return traces with no errored spans. If
+                None (default), traces are not filtered by error status.
+                Requires Phoenix server >= 20.8.0.
+            min_latency_ms (Optional[float]): Inclusive lower bound on trace latency in
+                milliseconds. Requires Phoenix server >= 20.8.0.
+            max_latency_ms (Optional[float]): Inclusive upper bound on trace latency in
+                milliseconds. Requires Phoenix server >= 20.8.0.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 
@@ -373,6 +447,8 @@ class Traces:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
+            ValueError: If ``min_latency_ms`` or ``max_latency_ms`` is negative, or if
+                ``min_latency_ms`` exceeds ``max_latency_ms``.
 
         Example::
 
@@ -383,27 +459,33 @@ class Traces:
                 project_identifier="my-project",
                 limit=50,
             )
+
+            # Only slow traces that errored
+            slow_failures = client.traces.get_traces(
+                project_identifier="my-project",
+                error=True,
+                min_latency_ms=1000,
+            )
         """
+        _validate_latency_bounds(min_latency_ms, max_latency_ms)
         self._guard.require(LIST_PROJECT_TRACES)
+        if error is not None or min_latency_ms is not None or max_latency_ms is not None:
+            self._guard.require(GET_TRACES_FILTERS)
         all_traces: list[v1.TraceData] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
 
-        base_params: dict[str, Union[int, str, bool, Sequence[str]]] = {}
-        if start_time:
-            base_params["start_time"] = start_time.isoformat()
-        if end_time:
-            base_params["end_time"] = end_time.isoformat()
-        if sort:
-            base_params["sort"] = sort
-        if order:
-            base_params["order"] = order
-        if include_spans:
-            base_params["include_spans"] = True
-        if session_id:
-            base_params["session_identifier"] = (
-                [session_id] if isinstance(session_id, str) else list(session_id)
-            )
+        base_params = _build_trace_query_params(
+            start_time=start_time,
+            end_time=end_time,
+            sort=sort,
+            order=order,
+            include_spans=include_spans,
+            session_id=session_id,
+            error=error,
+            min_latency_ms=min_latency_ms,
+            max_latency_ms=max_latency_ms,
+        )
 
         while len(all_traces) < limit:
             remaining = limit - len(all_traces)
@@ -742,6 +824,9 @@ class AsyncTraces:
         order: Optional[Literal["asc", "desc"]] = None,
         include_spans: bool = False,
         session_id: Optional[Union[str, Sequence[str]]] = None,
+        error: Optional[bool] = None,
+        min_latency_ms: Optional[float] = None,
+        max_latency_ms: Optional[float] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.TraceData]:
@@ -761,6 +846,14 @@ class AsyncTraces:
                 If you experience performance issues, consider fetching spans separately.
             session_id (Optional[Union[str, Sequence[str]]]): Filter by one or more
                 session IDs or GlobalIDs. Can be a single string or a sequence of strings.
+            error (Optional[bool]): If True, only return traces containing at least one
+                errored span. If False, only return traces with no errored spans. If
+                None (default), traces are not filtered by error status.
+                Requires Phoenix server >= 20.8.0.
+            min_latency_ms (Optional[float]): Inclusive lower bound on trace latency in
+                milliseconds. Requires Phoenix server >= 20.8.0.
+            max_latency_ms (Optional[float]): Inclusive upper bound on trace latency in
+                milliseconds. Requires Phoenix server >= 20.8.0.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 
@@ -769,6 +862,8 @@ class AsyncTraces:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
+            ValueError: If ``min_latency_ms`` or ``max_latency_ms`` is negative, or if
+                ``min_latency_ms`` exceeds ``max_latency_ms``.
 
         Example::
 
@@ -779,27 +874,33 @@ class AsyncTraces:
                 project_identifier="my-project",
                 limit=50,
             )
+
+            # Only slow traces that errored
+            slow_failures = await client.traces.get_traces(
+                project_identifier="my-project",
+                error=True,
+                min_latency_ms=1000,
+            )
         """
+        _validate_latency_bounds(min_latency_ms, max_latency_ms)
         await self._guard.require(LIST_PROJECT_TRACES)
+        if error is not None or min_latency_ms is not None or max_latency_ms is not None:
+            await self._guard.require(GET_TRACES_FILTERS)
         all_traces: list[v1.TraceData] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
 
-        base_params: dict[str, Union[int, str, bool, Sequence[str]]] = {}
-        if start_time:
-            base_params["start_time"] = start_time.isoformat()
-        if end_time:
-            base_params["end_time"] = end_time.isoformat()
-        if sort:
-            base_params["sort"] = sort
-        if order:
-            base_params["order"] = order
-        if include_spans:
-            base_params["include_spans"] = True
-        if session_id:
-            base_params["session_identifier"] = (
-                [session_id] if isinstance(session_id, str) else list(session_id)
-            )
+        base_params = _build_trace_query_params(
+            start_time=start_time,
+            end_time=end_time,
+            sort=sort,
+            order=order,
+            include_spans=include_spans,
+            session_id=session_id,
+            error=error,
+            min_latency_ms=min_latency_ms,
+            max_latency_ms=max_latency_ms,
+        )
 
         while len(all_traces) < limit:
             remaining = limit - len(all_traces)

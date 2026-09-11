@@ -1,5 +1,55 @@
 # @arizeai/phoenix-client
 
+## 7.11.0
+
+### Minor Changes
+
+- 2b73847: Accept `metadata` in `promptVersion()` so prompt versions can carry arbitrary JSON metadata.
+
+## 7.10.0
+
+### Minor Changes
+
+- c839254: Add `error`, `minLatencyMs`, and `maxLatencyMs` filters to `getTraces`, matching the query parameters on `GET /v1/projects/{id}/traces` (requires Phoenix server >= 20.8.0).
+
+## 7.9.0
+
+### Minor Changes
+
+- bf047af: Add Meta (Muse Spark models) as a built-in OpenAI-compatible model provider (`META`).
+
+## 7.8.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+## 7.7.1
+
+### Patch Changes
+
+- 1cdff14: Expose cumulative prompt, completion, and total token counts on the high-level `Session` objects returned by `getSession` and `listSessions`.
+
+## 7.7.0
+
+### Minor Changes
+
+- 37916d7: Add `setProjectRetentionPolicy` to the projects entry point for assigning an existing retention policy by GlobalID or resetting a project to the default policy.
+- c48e50e: Add `transferTraces` to the traces subpath for moving traces between Phoenix projects.
+- 773c5e5: Add a typed `getCurrentUser` helper through the `@arizeai/phoenix-client/users` entrypoint.
+
+### Patch Changes
+
+- b27561d: Widen the optional `openai` peer dependency range to `^6.10.0 || ^7.0.0` so apps already on the OpenAI SDK v7 can install the client without a peer conflict.
+
+## 7.6.0
+
+### Minor Changes
+
+- d328c3e: Add a `deletePrompt` helper to the `prompts` subpath. It takes a `prompt` selector — `{ name }` or `{ promptId }` — matching the selector style `getPrompt` already uses, and calls `DELETE /v1/prompts/{prompt_identifier}` (Phoenix server >= 13.20.0). Version-level selectors (`{ versionId }`, `{ name, tag }`) are rejected rather than widened to the whole prompt. Deletion cascades to every version of the prompt along with its version tags and labels.
+  
+  Also exports a `PromptIdentifier` type from `types/prompts` for the prompt-level selector union.
+
 ## 7.5.0
 
 ### Minor Changes

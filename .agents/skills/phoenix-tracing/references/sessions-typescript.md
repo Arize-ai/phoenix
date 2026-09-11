@@ -101,6 +101,42 @@ npx @arizeai/phoenix-cli traces \
   jq '.[] | select(.spans[0].attributes["session.id"] == "YOUR-SESSION-ID")'
 ```
 
+### Reading Sessions Back Programmatically
+
+`@arizeai/phoenix-client` exposes a `sessions` subpath export. `getSession`
+fetches one session; `listSessions` pages through a whole project for you. Both
+require Phoenix server >= 13.5.0.
+
+```typescript
+import { getSession, listSessions } from "@arizeai/phoenix-client/sessions";
+
+const session = await getSession({ sessionId: "my-session-id" });
+console.log(session.traces.length);
+
+const sessions = await listSessions({ project: "your-app" });
+```
+
+`getSession` takes the GlobalID *or* the user-provided `session.id` string you
+set on the root span, so the value you generated at startup works directly.
+
+The returned `Session` carries cumulative token counts across every span in the
+session — use them to find the expensive conversations without walking traces:
+
+```typescript
+const expensive = sessions
+  .filter((s) => (s.tokenCountTotal ?? 0) > 100_000)
+  .sort((a, b) => (b.tokenCountTotal ?? 0) - (a.tokenCountTotal ?? 0));
+```
+
+| Field | Meaning |
+| ----- | ------- |
+| `tokenCountPrompt` | Cumulative prompt tokens across all spans in the session |
+| `tokenCountCompletion` | Cumulative completion tokens across all spans in the session |
+| `tokenCountTotal` | Cumulative total tokens across all spans in the session |
+
+All three are optional (`number | undefined`) — a server that predates them
+returns nothing, so read them with `?? 0` rather than assuming a number.
+
 ## Dependencies
 
 ```json

@@ -32,7 +32,6 @@ export const AnnotationInputExplanation = ({
   return (
     <DialogTrigger>
       <AriaButton
-        excludeFromTabOrder
         type="button"
         isDisabled={!annotation?.id}
         className="annotation-input-explanation"

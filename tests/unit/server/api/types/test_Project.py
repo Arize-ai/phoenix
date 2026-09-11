@@ -2344,6 +2344,28 @@ class TestProject:
             projects=projects,
         )
 
+    async def test_unsorted_sessions_pagination_advances(
+        self,
+        _data: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _data.projects[0]
+        unpaged = await self._node("sessions(first:50){edges{node{id}}}", project, httpx_client)
+        expected = [edge["node"]["id"] for edge in unpaged["edges"]]
+
+        seen: list[str] = []
+        cursor = ""
+        while True:
+            field = f'sessions(first:2,after:"{cursor}"){{edges{{node{{id}}cursor}}}}'
+            result = await self._node(field, project, httpx_client)
+            edges = result["edges"]
+            if not edges:
+                break
+            seen.extend(edge["node"]["id"] for edge in edges)
+            cursor = edges[-1]["cursor"]
+            assert len(seen) <= len(expected), "pagination did not advance"
+        assert seen == expected
+
     async def test_sessions_sort_token_count_total(
         self,
         _data: _Data,
@@ -5645,9 +5667,9 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
         llm_span_session = await _add_project_session(
             session, project, session_id="latency-llm-session"
         )
+        start_time = datetime.now(timezone.utc).replace(microsecond=0)
         llm_span_latencies_ms = [100, 200, 300]
         for latency_ms in llm_span_latencies_ms:
-            start_time = datetime.now(timezone.utc)
             trace = await _add_trace(
                 session,
                 project,
@@ -5669,7 +5691,6 @@ async def test_latency_quantile_with_filters_returns_accurate_percentiles(
         )
         chain_span_latencies_ms = [400, 500, 600]
         for latency_ms in chain_span_latencies_ms:
-            start_time = datetime.now(timezone.utc)
             trace = await _add_trace(
                 session,
                 project,

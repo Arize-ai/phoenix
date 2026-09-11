@@ -89,6 +89,9 @@ from .span_cost_detail_summary_entries_by_model_and_scope import (
     SpanCostDetailSummaryEntriesByModelAndScopeDataLoader,
 )
 from .span_cost_detail_summary_entries_by_span import SpanCostDetailSummaryEntriesBySpanDataLoader
+from .span_cost_detail_summary_entries_by_span_cumulative import (
+    SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader,
+)
 from .span_cost_detail_summary_entries_by_trace import SpanCostDetailSummaryEntriesByTraceDataLoader
 from .span_cost_details_by_span_cost import SpanCostDetailsBySpanCostDataLoader
 from .span_cost_summary_by_experiment import SpanCostSummaryByExperimentDataLoader
@@ -264,6 +267,9 @@ class DataLoaders:
         SpanCostDetailSummaryEntriesByProjectSessionDataLoader
     )
     span_cost_detail_summary_entries_by_span: SpanCostDetailSummaryEntriesBySpanDataLoader
+    span_cost_detail_summary_entries_by_span_cumulative: (
+        SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader
+    )
     span_cost_detail_summary_entries_by_trace: SpanCostDetailSummaryEntriesByTraceDataLoader
     span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
     span_cost_fields: TableFieldsDataLoader
@@ -447,6 +453,9 @@ def build_data_loaders(
             db
         ),
         span_cost_detail_summary_entries_by_span=SpanCostDetailSummaryEntriesBySpanDataLoader(db),
+        span_cost_detail_summary_entries_by_span_cumulative=(
+            SpanCostDetailSummaryEntriesBySpanCumulativeDataLoader(db)
+        ),
         span_cost_detail_summary_entries_by_trace=SpanCostDetailSummaryEntriesByTraceDataLoader(db),
         span_cost_details_by_span_cost=SpanCostDetailsBySpanCostDataLoader(db),
         span_cost_detail_fields=TableFieldsDataLoader(db, models.SpanCostDetail),

@@ -12,6 +12,9 @@ export const cardCSS = (style?: CSSProperties) => css`
   border: 1px solid var(--global-card-border-color);
   overflow: hidden;
   box-sizing: border-box;
+  /* dividers drawn by disclosures inside the card match the card's edge, so a
+     tinted card is ruled in its own color rather than the default gray */
+  --global-disclosure-border-color: var(--global-card-border-color);
 
   /* Card Header Styles */
   & > header {

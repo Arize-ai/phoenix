@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
 from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -16,7 +15,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.session_aggregates import SESSION_ROWID, token_counts_by_session
 from phoenix.server.api.helpers.annotations import get_note_identifier
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -100,16 +99,16 @@ class CreateSessionNoteResponseBody(ResponseBody[InsertedSessionAnnotation]):
 class SessionTraceData(V1RoutesBaseModel):
     id: str
     trace_id: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
 
 
 class SessionData(V1RoutesBaseModel):
     id: str
     session_id: str
     project_id: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
     traces: list[SessionTraceData]
     token_count_prompt: int = Field(
         default=0,

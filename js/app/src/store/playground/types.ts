@@ -483,7 +483,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
 
   /**
    * Per-tool revision bumped only by external programmatic edits (e.g. PXI's
-   * write_prompt_tools) that need to reset the uncontrolled tool editor. Normal
+   * playground.prompt.tools.write) that need to reset the uncontrolled tool editor. Normal
    * typing in the editor does not update it.
    */
   externallyUpdatedToolRevisionById: Record<number, number>;

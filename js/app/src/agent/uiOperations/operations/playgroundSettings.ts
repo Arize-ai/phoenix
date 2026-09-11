@@ -1,0 +1,133 @@
+import { setAppendedMessagesPathInputSchema } from "@phoenix/agent/tools/playgroundAppendedMessagesPath/schemas";
+import { setPlaygroundExperimentRecordingInputSchema } from "@phoenix/agent/tools/playgroundExperimentRecording/schemas";
+import { setPlaygroundRepetitionsInputSchema } from "@phoenix/agent/tools/playgroundRepetitions/schemas";
+import { setTemplateVariablesPathInputSchema } from "@phoenix/agent/tools/playgroundTemplateVariablesPath/schemas";
+import { setVariableValuesInputSchema } from "@phoenix/agent/tools/playgroundVariableValues/schemas";
+
+import type { UIOperationDescriptor } from "../types";
+import { defineUIOperation } from "../types";
+
+/** Route hint shared by every playground operation. */
+const PLAYGROUND_ROUTE_HINT =
+  "the Prompt Playground page (a /playground route)";
+
+/**
+ * The catalog entry replacing the `set_variable_values` client-action tool.
+ * The input schema is reused from the existing tool module; the description
+ * moves here verbatim from the Python `DESCRIPTION`.
+ */
+export const setVariableValuesOperation = defineUIOperation({
+  name: "playground.variables.set",
+  description:
+    "Set manual input values for template variables in the currently mounted " +
+    "playground. Use this when the user asks to fill, provide, change, or set " +
+    "playground variables before running or comparing prompts. This only updates " +
+    "variable values in browser UI state; it does not edit prompt messages, change " +
+    "dataset mappings, or run the playground.",
+  inputSchema: setVariableValuesInputSchema,
+  operationKind: "write",
+  defaultSuccessOutput: "Variable values updated.",
+  availability: {
+    routeHint: PLAYGROUND_ROUTE_HINT,
+  },
+});
+
+/**
+ * The catalog entry replacing the `set_template_variables_path`
+ * client-action tool.
+ */
+export const setTemplateVariablesPathOperation = defineUIOperation({
+  name: "playground.variables.setPath",
+  description:
+    "Set the dataset field path that playground template variables resolve against, " +
+    "when a prompt references dataset fields outside the default `input` root. The " +
+    "path resolves against the whole example context `{input, reference, metadata}` " +
+    "— e.g. `metadata` binds variables to each example's metadata. (Note this base " +
+    "differs from `playground.messages.setPath`, which resolves inside the example's " +
+    "`input`.) This only updates browser UI state; it does not edit prompt messages " +
+    "or run the playground.",
+  inputSchema: setTemplateVariablesPathInputSchema,
+  operationKind: "write",
+  defaultSuccessOutput: "Template variables path updated.",
+  availability: {
+    routeHint: PLAYGROUND_ROUTE_HINT,
+  },
+});
+
+/**
+ * The catalog entry replacing the `set_appended_messages_path` client-action
+ * tool.
+ */
+export const setAppendedMessagesPathOperation = defineUIOperation({
+  name: "playground.messages.setPath",
+  description:
+    "Set the dataset message-list path appended to playground runs for the currently " +
+    "mounted playground. Use this when the user asks to append, set, or clear the " +
+    "conversational message history for message-based dataset re-runs. The path " +
+    "resolves against each example's `input` object ONLY: for examples shaped " +
+    "`{input: {messages: [...]}}` pass `messages`, NOT `input.messages`. (Note this " +
+    "base differs from `playground.variables.setPath`, which resolves against the " +
+    "whole example context.) The path is validated against the loaded dataset's " +
+    "first example, so a wrong path fails here instead of failing the run. This only " +
+    "updates browser UI state; it does not edit prompt messages or run the playground.",
+  inputSchema: setAppendedMessagesPathInputSchema,
+  operationKind: "write",
+  defaultSuccessOutput: "Appended messages path updated.",
+  availability: {
+    routeHint: PLAYGROUND_ROUTE_HINT,
+  },
+});
+
+/**
+ * The catalog entry replacing the `set_playground_experiment_recording`
+ * client-action tool.
+ */
+export const setPlaygroundExperimentRecordingOperation = defineUIOperation({
+  name: "playground.experiment.setRecording",
+  description:
+    "Set whether future dataset-backed playground runs in the currently mounted " +
+    "playground are recorded as persistent experiments or created as temporary " +
+    "unrecorded runs, and optionally stage a name, description, and metadata for the " +
+    "experiments the next run produces. Use this before running when the user asks to " +
+    "record, persist, save the run as an experiment, run without recording, or label " +
+    "the next experiment with notes such as a hypothesis. Stage structured notes " +
+    "(a hypothesis, the variable being changed, a baseline experiment id) as keys on " +
+    "`experimentMetadata` rather than as description prose, so later reads can find " +
+    "them programmatically.",
+  inputSchema: setPlaygroundExperimentRecordingInputSchema,
+  operationKind: "write",
+  defaultSuccessOutput: "Experiment recording settings updated.",
+  availability: {
+    routeHint: PLAYGROUND_ROUTE_HINT,
+  },
+});
+
+/**
+ * The catalog entry replacing the `set_playground_repetitions` client-action
+ * tool.
+ */
+export const setPlaygroundRepetitionsOperation = defineUIOperation({
+  name: "playground.repetitions.set",
+  description:
+    "Set the playground-wide repetitions count in the currently mounted playground. " +
+    "Use this before running when the user wants more confidence across repeated " +
+    "LLM calls, is investigating flaky outputs, or wants to validate structured " +
+    "output or tool-call behavior before saving a prompt. `repetitions` must be " +
+    "between 1 and 30; do not stage a count outside that range — tell the user " +
+    "the limit instead.",
+  inputSchema: setPlaygroundRepetitionsInputSchema,
+  operationKind: "write",
+  defaultSuccessOutput: "Playground repetitions updated.",
+  availability: {
+    routeHint: PLAYGROUND_ROUTE_HINT,
+  },
+});
+
+/** All playground settings operations, for catalog assembly. */
+export const playgroundSettingsOperations: UIOperationDescriptor[] = [
+  setVariableValuesOperation,
+  setTemplateVariablesPathOperation,
+  setAppendedMessagesPathOperation,
+  setPlaygroundExperimentRecordingOperation,
+  setPlaygroundRepetitionsOperation,
+];

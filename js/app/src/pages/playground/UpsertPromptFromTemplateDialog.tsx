@@ -27,6 +27,16 @@ type UpsertPromptFromTemplateProps = {
   selectedPromptId?: string;
 };
 
+/**
+ * Parses the form's metadata JSON, treating an empty editor as no metadata.
+ */
+function parseMetadata(metadata: string | undefined): unknown {
+  if (!metadata || metadata.trim() === "") {
+    return null;
+  }
+  return JSON.parse(metadata);
+}
+
 export const UpsertPromptFromTemplateDialog = ({
   instanceId,
   selectedPromptId,
@@ -99,15 +109,12 @@ export const UpsertPromptFromTemplateDialog = ({
         instanceId,
         store
       );
-      // Parse metadata, or set to null to clear if empty
-      let metadata: unknown = null;
-      if (params.metadata && params.metadata.trim() !== "") {
-        try {
-          metadata = JSON.parse(params.metadata);
-        } catch (_error) {
-          setError("Failed to parse metadata as JSON");
-          return;
-        }
+      let metadata: unknown;
+      try {
+        metadata = parseMetadata(params.metadata);
+      } catch (_error) {
+        setError("Failed to parse metadata as JSON");
+        return;
       }
 
       const tags = params.tags ?? [];
@@ -159,6 +166,14 @@ export const UpsertPromptFromTemplateDialog = ({
         instanceId,
         store
       );
+      let metadata: unknown;
+      try {
+        metadata = parseMetadata(params.metadata);
+      } catch (_error) {
+        setError("Failed to parse metadata as JSON");
+        return;
+      }
+
       const tags = params.tags ?? [];
       updatePrompt({
         variables: {
@@ -167,6 +182,7 @@ export const UpsertPromptFromTemplateDialog = ({
             promptVersion: {
               ...promptInput,
               description: params.description,
+              metadata,
             },
             tags: toPromptVersionTagInputs(tags),
           },

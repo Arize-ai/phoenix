@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d9f5beaefb08addb04988ec81a588959>>
+ * @generated SignedSource<<98d6b9bdd0cee5874bd57e96807617fc>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,7 @@ import { FragmentRefs } from "relay-runtime";
 export type EditLLMDatasetEvaluatorSlideover_evaluator$data = {
   readonly evaluator: {
     readonly description: string | null;
+    readonly id: string;
     readonly kind: EvaluatorKind;
     readonly name: string;
     readonly outputConfigs?: ReadonlyArray<{
@@ -297,6 +298,7 @@ return {
       "name": "evaluator",
       "plural": false,
       "selections": [
+        (v0/*:: as any*/),
         (v4/*:: as any*/),
         {
           "alias": null,
@@ -932,6 +934,6 @@ return {
 };
 })();
 
-(node as any).hash = "07d5f86d39f9ad1008d1cd5b86cbd3b2";
+(node as any).hash = "5d7cfaaeef344a5a7bad59b1a3cddb93";
 
 export default node;

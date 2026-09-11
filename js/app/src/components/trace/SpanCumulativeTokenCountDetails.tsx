@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { SpanCumulativeTokenCountDetailsQuery } from "./__generated__/SpanCumulativeTokenCountDetailsQuery.graphql";
-import { TokenCountDetails } from "./TokenCountDetails";
+import {
+  getTokenCountDetailsFromCostDetails,
+  TokenCountDetails,
+} from "./TokenCountDetails";
 
 export function SpanCumulativeTokenCountDetails(props: { spanNodeId: string }) {
   const data = useLazyLoadQuery<SpanCumulativeTokenCountDetailsQuery>(
@@ -14,6 +17,13 @@ export function SpanCumulativeTokenCountDetails(props: { spanNodeId: string }) {
             cumulativeTokenCountTotal
             cumulativeTokenCountPrompt
             cumulativeTokenCountCompletion
+            cumulativeCostDetailSummaryEntries {
+              tokenType
+              isPrompt
+              value {
+                tokens
+              }
+            }
           }
         }
       }
@@ -26,10 +36,18 @@ export function SpanCumulativeTokenCountDetails(props: { spanNodeId: string }) {
       const prompt = data.node.cumulativeTokenCountPrompt ?? 0;
       const completion = data.node.cumulativeTokenCountCompletion ?? 0;
       const total = data.node.cumulativeTokenCountTotal ?? 0;
+
+      const { promptDetails, completionDetails } =
+        getTokenCountDetailsFromCostDetails(
+          data.node.cumulativeCostDetailSummaryEntries
+        );
+
       return {
         total,
         prompt,
         completion,
+        promptDetails,
+        completionDetails,
       };
     }
 

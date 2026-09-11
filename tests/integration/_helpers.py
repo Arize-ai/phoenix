@@ -761,7 +761,22 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
     command = f"{sys.executable} -m phoenix.server.main serve --debug"
     env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
+    # The server's stdio and this pipe's reader must agree on an encoding, and
+    # the reader must never die on a byte it cannot decode: it is the only
+    # thing draining the pipe, and a server whose pipe is full blocks on its
+    # next log write and stops answering requests. The locale encoding that
+    # Popen(text=True) would otherwise use is cp1252 on Windows, which cannot
+    # decode the box-drawing glyphs Rich puts around a logged traceback.
+    env["PYTHONIOENCODING"] = "utf-8"
+    process = Popen(
+        command.split(),
+        stdout=PIPE,
+        stderr=STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
     log: list[str] = []
     lock: Lock = Lock()
     Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
@@ -2247,6 +2262,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
+    (422, "PATCH", "v1/projects/fake-id-{}/retention"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
     (200, "GET", "v1/system/api_keys"),
@@ -2270,6 +2286,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/projects"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompts/fake-id-{}/versions"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
     (422, "POST", "v1/session_notes"),
@@ -2292,6 +2309,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "PATCH", "v1/prompts/fake-id-{}"),
     (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
+    (422, "DELETE", "v1/projects/fake-id-{}/traces"),
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
     (422, "DELETE", "v1/dataset_labels/fake-id-{}"),

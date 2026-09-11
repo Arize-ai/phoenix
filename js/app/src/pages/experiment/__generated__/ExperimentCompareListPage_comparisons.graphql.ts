@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<50c44e993dded17dbdf48e9a7203e12d>>
+ * @generated SignedSource<<d576d4554912a03f9deff64b8d7efc30>>
  * @lightSyntaxTransform
  */
 
@@ -59,6 +59,7 @@ export type ExperimentCompareListPage_comparisons$data = {
                 readonly startTime: string;
               }>;
             }>;
+            readonly externalId: string | null;
             readonly id: string;
             readonly revision: {
               readonly input: any;
@@ -368,6 +369,13 @@ return {
                             {
                               "alias": null,
                               "args": null,
+                              "kind": "ScalarField",
+                              "name": "externalId",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
                               "concreteType": "DatasetExampleRevision",
                               "kind": "LinkedField",
                               "name": "revision",
@@ -501,6 +509,6 @@ return {
 };
 })();
 
-(node as any).hash = "9ccda00d27d4d8a3fb4233f2ffadb778";
+(node as any).hash = "b33e00b71abed5d648960ee5c84e0b3a";
 
 export default node;

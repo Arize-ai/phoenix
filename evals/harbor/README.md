@@ -1,4 +1,4 @@
-# Phoenix ServerAgent Harbor evaluation
+# Phoenix headless agent Harbor evaluation
 
 ## Run
 
@@ -20,7 +20,7 @@ Validate with the bundled oracle:
 make harbor-oracle
 ```
 
-Run the real ServerAgent adapter:
+Run the real headless-agent adapter:
 
 ```bash
 make harbor-run
@@ -89,18 +89,6 @@ make harbor-run HARBOR_TASK=evals/harbor/tasks/regression-triage \
   HARBOR_ENV=docker \
   HARBOR_ATTEMPTS=1
 ```
-
-Run the Phoenix plugin end-to-end matrix with:
-
-```bash
-make harbor-plugin-e2e
-```
-
-The command requires Docker. It builds the current client wheel, starts an isolated Phoenix
-server, and exercises dataset snapshots, experiment runs, repetitions, multiple agents, resume,
-and startup failures with Harbor 0.21.0. Successful runs remove their temporary workspace. Failed
-runs print and retain the workspace path for investigation. Set `HARBOR_E2E_KEEP=1` to retain a
-successful run as well.
 
 Browse job results in a local web viewer:
 

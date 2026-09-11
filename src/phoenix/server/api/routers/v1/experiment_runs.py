@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,6 +12,7 @@ from phoenix.db.helpers import get_runs_with_incomplete_evaluations_query
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.routers.v1.datasets import DatasetExample
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentRunInsertEvent
@@ -29,8 +29,8 @@ class ExperimentRunData(V1RoutesBaseModel):
     )
     output: Any = Field(description="The output of the experiment task")
     repetition_number: int = Field(description="The repetition number of the experiment run", gt=0)
-    start_time: datetime = Field(description="The start time of the experiment run")
-    end_time: datetime = Field(description="The end time of the experiment run")
+    start_time: IsoDatetime = Field(description="The start time of the experiment run")
+    end_time: IsoDatetime = Field(description="The end time of the experiment run")
     trace_id: Optional[str] = Field(
         default=None, description="The ID of the corresponding trace (if one exists)"
     )

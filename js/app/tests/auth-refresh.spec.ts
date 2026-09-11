@@ -7,6 +7,58 @@ import { expect, test, type Page } from "@playwright/test";
 // without this, all tests take exponentially longer as they hit expiring auth sessions
 test.use({ storageState: { cookies: [], origins: [] } });
 
+/**
+ * Watches every document the page loads for the error boundary's
+ * "Something went wrong" surface, including transient flashes that an
+ * end-state assertion would miss (see #15774). Returns a handle whose
+ * `seen` flag flips if the error boundary ever painted.
+ */
+async function trackErrorBoundaryFlash(page: Page) {
+  const state = { seen: false };
+  await page.exposeFunction("__phoenixReportErrorBoundary__", () => {
+    state.seen = true;
+  });
+  await page.addInitScript(() => {
+    const report = () => {
+      if (document.body?.textContent?.includes("Something went wrong")) {
+        (
+          window as Window & { __phoenixReportErrorBoundary__?: () => void }
+        ).__phoenixReportErrorBoundary__?.();
+      }
+    };
+    const observe = () => {
+      report();
+      new MutationObserver(report).observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    };
+    if (document.body) {
+      observe();
+    } else {
+      document.addEventListener("DOMContentLoaded", observe);
+    }
+  });
+  return state;
+}
+
+/**
+ * Delays the login page's document response. `window.location.href` navigation
+ * is asynchronous — the current document keeps running (and rendering) until
+ * the login page's document replaces it. On localhost that handoff is nearly
+ * instant, which would mask the regression the flash assertions guard against:
+ * the error boundary painting during the gap (#15774).
+ */
+async function delayLoginDocument(page: Page) {
+  await page.route("**/login*", async (route) => {
+    if (route.request().resourceType() === "document") {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    await route.continue();
+  });
+}
+
 async function loginAsMember(page: Page) {
   await page.goto("/login");
   await page.getByLabel("Email").fill("member@localhost.com");
@@ -56,6 +108,21 @@ test("recovers from an expired session by refreshing auth", async ({
   await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
   await expect.poll(() => refreshRequests).toBeGreaterThan(0);
   expect(graphqlFailures).toBe(1);
+});
+
+test("visiting unauthenticated redirects to login without flashing the error boundary", async ({
+  page,
+}) => {
+  const errorBoundary = await trackErrorBoundaryFlash(page);
+  await delayLoginDocument(page);
+
+  // With no cookies (storage state is cleared above), the app's first GraphQL
+  // request 401s, the token refresh fails, and the app must hand off to the
+  // login page without ever painting the error boundary.
+  await page.goto("/projects");
+  await page.waitForURL(/\/login\?returnUrl=%2Fprojects/);
+
+  expect(errorBoundary.seen).toBe(false);
 });
 
 test("redirects to login when session refresh fails", async ({ page }) => {

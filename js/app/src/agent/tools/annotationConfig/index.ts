@@ -1,7 +1,7 @@
 export {
-  createAnnotationConfigAgentTool,
-  updateAnnotationConfigAgentTool,
-} from "./agentTools";
+  createCreateAnnotationConfigClientAction,
+  createUpdateAnnotationConfigClientAction,
+} from "./clientActions";
 export {
   ANNOTATION_CONFIG_WRITE_REJECTED_MESSAGE,
   CREATE_ANNOTATION_CONFIG_TOOL_NAME,

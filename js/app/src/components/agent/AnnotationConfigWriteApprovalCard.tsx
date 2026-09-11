@@ -2,14 +2,12 @@ import type {
   AnnotationConfigDraft,
   PendingAnnotationConfigWrite,
 } from "@phoenix/agent/tools/annotationConfig";
-import { Flex } from "@phoenix/components";
 
 import {
-  ToolPartApprovalActions,
-  ToolPartCodeBlock,
-  ToolPartLabel,
-} from "./ToolPartPrimitives";
-import { stringifyToolValue } from "./toolPartTypes";
+  ApprovalCard,
+  type ApprovalPreview,
+  payloadToApprovalSummaryRows,
+} from "./ApprovalCard";
 
 /**
  * Reduce a config draft to the fields relevant to its type, dropping empties so
@@ -38,16 +36,14 @@ function describeDraft(draft: AnnotationConfigDraft): Record<string, unknown> {
 }
 
 /**
- * Inline Accept/Reject card for an annotation-config write awaiting approval in
- * manual edit mode. Mirrors {@link DatasetWriteApprovalCard} for the
- * annotation-config domain (create + optional project association, or full replace).
+ * Normalize a pending annotation-config write to the shared
+ * {@link ApprovalPreview}, for both the standalone-tool card below and the
+ * script-child approval cards `ExecuteBrowserActionToolDetails` renders for
+ * `ui.annotationConfig.*` operations.
  */
-export function AnnotationConfigWriteApprovalCard({
-  pending,
-}: {
-  pending: PendingAnnotationConfigWrite;
-}) {
-  const canRespond = Boolean(pending.accept && pending.reject);
+export function annotationConfigWriteApprovalPreview(
+  pending: PendingAnnotationConfigWrite
+): ApprovalPreview {
   const { preview } = pending;
   const label =
     preview.kind === "create"
@@ -64,19 +60,30 @@ export function AnnotationConfigWriteApprovalCard({
     preview.kind === "update"
       ? "Replaces the entire config. Any existing label not included here is removed."
       : null;
+  return {
+    title: label,
+    danger: note,
+    body: { kind: "summary", rows: payloadToApprovalSummaryRows(payload) },
+  };
+}
+
+/**
+ * Inline Accept/Reject card for an annotation-config write awaiting approval in
+ * manual edit mode. Mirrors {@link DatasetWriteApprovalCard} for the
+ * annotation-config domain (create + optional project association, or full replace).
+ */
+export function AnnotationConfigWriteApprovalCard({
+  pending,
+}: {
+  pending: PendingAnnotationConfigWrite;
+}) {
   return (
-    <Flex direction="column" gap="size-100" minHeight="0">
-      <ToolPartLabel variant={note ? "danger" : undefined}>
-        {label}
-      </ToolPartLabel>
-      <ToolPartCodeBlock>{stringifyToolValue(payload)}</ToolPartCodeBlock>
-      {note ? <ToolPartLabel variant="danger">{note}</ToolPartLabel> : null}
-      <ToolPartApprovalActions
-        onAccept={() => void pending.accept?.()}
-        onReject={() => void pending.reject?.()}
-        isDisabled={!canRespond}
-        staleMessage="This proposal was made in an earlier session and can't be applied here. Re-run your request to have the assistant propose it again."
-      />
-    </Flex>
+    <ApprovalCard
+      preview={annotationConfigWriteApprovalPreview(pending)}
+      onAccept={() => void pending.accept?.()}
+      onReject={() => void pending.reject?.()}
+      isDisabled={!(pending.accept && pending.reject)}
+      staleMessage="This proposal was made in an earlier session and can't be applied here. Re-run your request to have the assistant propose it again."
+    />
   );
 }

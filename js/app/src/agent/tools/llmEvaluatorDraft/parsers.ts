@@ -1,11 +1,9 @@
 import {
-  editLlmEvaluatorDraftActionContextSchema,
   editLlmEvaluatorDraftInputSchema,
   readLlmEvaluatorDraftInputSchema,
   testLlmEvaluatorDraftInputSchema,
 } from "./schemas";
 import type {
-  EditLlmEvaluatorDraftActionContext,
   EditLlmEvaluatorDraftInput,
   ReadLlmEvaluatorDraftInput,
   TestLlmEvaluatorDraftInput,
@@ -27,10 +25,4 @@ export function parseEditLlmEvaluatorDraftInput(
   input: unknown
 ): EditLlmEvaluatorDraftInput | null {
   return editLlmEvaluatorDraftInputSchema.safeParse(input).data ?? null;
-}
-
-export function parseEditLlmEvaluatorDraftActionContext(
-  input: unknown
-): EditLlmEvaluatorDraftActionContext | null {
-  return editLlmEvaluatorDraftActionContextSchema.safeParse(input).data ?? null;
 }

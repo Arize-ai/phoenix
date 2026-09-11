@@ -131,6 +131,7 @@ async def upsert_prompt_version_tag(
     prompt_version_id: int,
     name: Identifier,
     description: Optional[str] = None,
+    user_id: Optional[int] = None,
 ) -> models.PromptVersionTag:
     existing_tag = await session.scalar(
         select(models.PromptVersionTag).where(
@@ -150,6 +151,7 @@ async def upsert_prompt_version_tag(
             description=description,
             prompt_id=prompt_id,
             prompt_version_id=prompt_version_id,
+            user_id=user_id,
         )
         session.add(new_tag)
         return new_tag

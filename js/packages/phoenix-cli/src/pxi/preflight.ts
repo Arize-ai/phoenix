@@ -95,6 +95,7 @@ export type PxiModelPreflightData = {
 };
 
 const RECOMMENDED_PXI_MODELS = [
+  { provider: "ANTHROPIC", modelName: "claude-fable-5-1" },
   { provider: "ANTHROPIC", modelName: "claude-fable-5" },
   { provider: "ANTHROPIC", modelName: "claude-opus-5" },
   { provider: "ANTHROPIC", modelName: "claude-opus-4-8" },

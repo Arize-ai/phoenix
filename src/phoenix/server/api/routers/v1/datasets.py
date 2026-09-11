@@ -9,7 +9,6 @@ from asyncio import QueueFull
 from collections import Counter
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 from functools import partial
 from typing import Any, Optional, Union, cast
@@ -47,6 +46,7 @@ from phoenix.db.insertion.dataset import (
     add_dataset_examples,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
 from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
@@ -91,8 +91,8 @@ class Dataset(V1RoutesBaseModel):
     name: str
     description: Optional[str]
     metadata: dict[str, Any]
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
     example_count: int
 
 
@@ -268,7 +268,7 @@ class DatasetVersion(V1RoutesBaseModel):
     version_id: str
     description: Optional[str]
     metadata: dict[str, Any]
-    created_at: datetime
+    created_at: IsoDatetime
 
 
 class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
@@ -1312,7 +1312,7 @@ class DatasetExample(V1RoutesBaseModel):
     input: dict[str, Any]
     output: dict[str, Any]
     metadata: dict[str, Any]
-    updated_at: datetime
+    updated_at: IsoDatetime
     source: Optional[DatasetExampleSource] = None
 
 
@@ -1509,8 +1509,8 @@ class DatasetSplit(V1RoutesBaseModel):
     color: str
     metadata: dict[str, Any]
     example_count: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
 
 
 class CreateDatasetSplitRequestBody(V1RoutesBaseModel):

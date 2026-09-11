@@ -954,6 +954,7 @@ function StatusSpinnerLine({ text }: { text: string }) {
  * `initialMessages` props exist mainly so tests can drive the UI with a fake
  * client and seeded history.
  */
+// oxlint-disable-next-line complexity -- Root terminal app orchestration owns the full session lifecycle.
 export function PxiApp({
   options,
   client,
@@ -1814,6 +1815,7 @@ export function PxiApp({
     };
   }, [inputEventEmitter]);
 
+  // oxlint-disable-next-line complexity -- Keyboard routing covers mutually exclusive picker and editor modes.
   useInput((input, key) => {
     if ((key.ctrl && input === "c") || (key.ctrl && input === "d")) {
       handleExit();

@@ -34,6 +34,12 @@ jobs:
       - name: Snapshot base schema
         run: |
           cp schemas/openapi.json base.json
+      # Adding a response enum value (e.g. a new ModelProvider) is compatible per our API
+      # policy; openapi-diff treats it as breaking unless this check is disabled.
       - uses: docker://openapitools/openapi-diff@sha256:82291446e5554742d9c0725d7b315d18e93958c5526f9a663e8885227bdd6cb6 # latest
         with:
-          args: --fail-on-incompatible base.json head.json
+          args: >-
+            --fail-on-incompatible
+            --config-prop incompatible.response.enum.increased:false
+            base.json
+            head.json

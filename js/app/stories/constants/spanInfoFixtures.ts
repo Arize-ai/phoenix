@@ -1182,6 +1182,216 @@ export const spanWithoutIOSpan: SpanInfoFixture = {
 };
 
 /**
+ * A reasoning model (o4-mini via the OpenAI Responses API) traced with
+ * `reasoning.summary: "detailed"`. The replayed assistant turn in the input
+ * carries a reasoning part with both its summary text and the encrypted
+ * payload; the output carries a reasoning part with only the encrypted
+ * payload, followed by the answer.
+ */
+export const llmReasoningSpan: SpanInfoFixture = {
+  id: "U3BhbjpyZWFzb25pbmc=",
+  name: "Responses.create",
+  spanKind: "llm",
+  statusMessage: "",
+  attributes: JSON.stringify({
+    openinference: {
+      span: {
+        kind: "LLM",
+      },
+    },
+    llm: {
+      system: "openai",
+      model_name: "o4-mini-2025-04-16",
+      invocation_parameters:
+        '{"model": "o4-mini-2025-04-16", "temperature": 1.0, "top_p": 1.0, "reasoning": {"effort": "medium", "summary": "detailed"}, "text": {"format": {"type": "text"}, "verbosity": "medium"}, "store": true}',
+      input_messages: [
+        {
+          message: {
+            role: "system",
+            content:
+              "You solve math word problems. Think step by step before giving the final numeric answer.",
+          },
+        },
+        {
+          message: {
+            role: "user",
+            content:
+              "A train leaves Chicago at 60 mph. Two hours later a second train leaves the same station on the same track at 90 mph. How long after the first train departs does the second train catch up?",
+          },
+        },
+        {
+          message: {
+            role: "assistant",
+            contents: [
+              {
+                message_content: {
+                  type: "reasoning",
+                  id: "rs_05adbc9464d80cf8006a9b13e3760487d198f1e0f8c010edd6",
+                  encrypted_content:
+                    "gAAAAABqmxPpvCVcArWWTGBFOpCB2mW1owPGWS_cY7D9UX0Bu7fXmu4DXuIDJ_uFUtkOH91dFsNN3uiAcwJMnNuf0xKNHrmCLUR2m9JHVTPoNMP1TPDG9dRaMsA8ISHiYVziaN4Tbr2_YLiiUDmjj6FtP9ae9HYpJPmvzGk-UNl94DocLgsgW6OqRU8tdhDDsWlLjRh7MXv1g4jsqgjXQ0RccIyyO0pCFqIRVQQlu-GoM4wO0ZTl3ndi0QZd6ABP1mENSSzdl1VGadh5dQdUUocL88RvJd4CkiT1Ds5BYZ5Mek3s7XYHCu06IdsDkdFeH0vBzhqUOqae86OrrlKUIKoWZzyKKMhgvrhQMp2aZNNdMeZYf0aBhJ22fQm-EGw-cIMz65adpFmOKVlzXpJKruTSwAk5uTLnbfRzvOb-JWDh4ugC363hV6heJaT7bUU_zt1qbAy4p406fbNCDkLQBCljQi5k9MsqJztHKJEPgTS5ftodY1lvQFmZHL1125cTHMdKhVXLXwCHHXJmjCbJzpjRmb7yHQ68FkhMvkg6fOSNHFCxXzB8_73lG2kPlmOZkEJhWO2iJjtgWlxAVDRviFCZH9eX8nciAxBFHf4nhJUi-0kHoFplgWJ02yeMoc3l_dn6SqT2F6ShrWMBW86NLGOs63Ugl4vVeifMUccYjyDANGR47xHeHFln0DOpL5YWMcrhHe31Lei5W9ZEW_hbbWWSPfP0OcQ86-NQ6kaesjOFBAgrkgADgo-MZ_MFIFQkwpywWUHENRX6zJ1KipoRZxEzQ0i8n7dlqDF3m4Fdgjp8P2NJ1Q20NMPfUFMgYVPdaUcphDTcwQ3FqJWlgCJowvIg8Keft-aVrG8tfpjz53OEcQ_nDg5yh9p6rfqGKNHEVCw0-bYiXpMxVmowWqWbZhHmVY69E9vsIWGzpL1fbEt94dp4GdHMr6EkCKOxh4USYNcP-1FF1PdWoLoN_xJwljGWxj5CHbWAO2U6ltDwMMRW2GXY4LVrjY8tj9sfliqEmSHc03aEMU8Utrm_t0jkE-55BrAXY3ysQtCszSuJv8P1qtzkHK7Nj3mUiQBPIjROL_tMDK4Ect7TrNAJY0hzQ_bzwM4MF-QZ14WdDCmuSVq31VJgXFMP68CvFBCoc3JQIrJ_WllPX1DiRIQoolmDbdUwhDaR0t2Mxa92BEintzDyozDZBvDF7Lh9VLfft6vVYdG_z6TKsjiHrOXXDKLZ0Y3L-QVAjBkzwr_zWySJt0ZJsttavm9kj_Wgn-CvC5l0e3bjRA6EVrijuhFD-72vW9WizRsa5BBJ6qlQ4BmcrxxlvrsHKtWDN0l9vImJyKsd25Kc8iPqQ7IWhOtJ4J2K44XK9q7jkbaoe7y7XP0k57_KUiMaAhtvSJDxAjFjc3QIWBhmtxnOg7S_Hvg9YFKXa8TyS7DEKGpsShNrWMEz1jmTV2HCfTM1fGefCeNHlNRRYFhddfnb4sB2EkDDHnhEjveAu_vNWzUq_T5_zOet14K0IrbM6uhPoWkxPPDChm3niSyQCDTZ076i4lQ7eEyJGd4QTMIZEdRL7x_0Wos4J8yzQfm6vBOxDRq5wuR2_SAyH4JKBJp5fYdisFd8dJ8GyafK8v6CcjdPfi4xSJtADKEZwlZBMVwvBbfJ9lECIvFhW5J9gFbevOyLPFe3ELHgvU6Yj3qFpcpmY91MwE_-SqoIQGluvK8f1EHM_lfvioVE1SRYHn6El1Q7v5uMJG0evdciutkJyxryHS1UcVTwE59ZweYUVjA6J_m8sCKAiDKV1nKFbrK_EFwc0-5nHZg16RHfDDTtQJRT5XckZATXaL_l1veK0-MFZr7kNLopTUzH94kbaONT9pTUX2JnOIZTojcpP3hRyHOQza8lrTsLg8vC1F_s6t4IYTvbIn1fuhqYucTHVIKtmEotIB0LE-3D3kSM7yO1p__pIHeQbLp08wDGGkDuz358bfDnD2ChkxdGgqHNi5Z3_WEp_NR9nTAjJLesbBlorrp6pAAAEWjsHNhvIPRFgaxR1ecJFhS3YU5z7whkAE8h3jQWPV1XXBfJmARFIVjrJc9ARKcxhpAQKnADmWRByAhIkNgY7FoG6nIQ6sz9AurQkw56OsAKb7dhUB5JBchbkvVZkTw-btqry0Y0Ll7yYsFd1-NmeOAuqT2moG0nYvX2BD8cVLuPWqjhiwe9mlvoXBodykvLtavG3xjVGftZa8Ja4IPVHSVaj3VUBHgGZAWeCljKonPcZhvXSmqqRrNTxZiZXQPTI4ylbYPRfTNIWP4A7K4YPjGK9hS_REoSvhlPL0IilPJ7tCN23SsM5fYO_H8C_5nFI2mBVzNmvBtEWtCjFWANKEBnIEbjG-83W1UJII3w4w6PT5un3xAZtjSLAEZTte4sIjjEYNNr3nAZZOTkMSxCV1RwhpHbFy_pdq4tnz_WS9y3WyK1TyWXsOV3M9nGaqAD-mZVdcg_N7s-JpxDOklBAyMQqADjyOO6cPqdg8nzNd17oqqDXHQEDMAKeLqN2A9F6R3MWzHBdEWYgEZjTT7wVmAqGn_b4PR4mjMkLWjonY3cIA98zm1-YEoNbzMJKe-GJobpxyK1CdcFNSCYQeYdGaY0WD_6aN0n9-iMS2WO5pbo7dTQGpegieY_2n_kZ2vBBEBAowMjrJdaqlZ-ihDuN_yKNXedNR0bGoW4CvE6VAOlNDoEpTZDNDXP-u8ayBXRBlfpr8Wf_quzpJyKNTg=",
+                  text: "**Analyzing train speeds and catch-up time**\n\nOkay, let’s break this down: we have two trains. The first train travels at 60 mph, and the second at 90 mph, leaving 2 hours later. To find the time after the first train departs until they meet, I'll let t be the time since the first train left. The first train will have traveled 60t, while the second will have traveled 90(t-2). Setting these equal, I can solve for t. \n\nAfter solving, I find that t equals 6 hours, meaning they catch up 6 hours after the first train leaves, or 4 hours after the second train departs.\n\n**Finding catch-up time**\n\nI need to define t as the number of hours after the first train departs. The first train's distance is expressed as 60t. The second train departs 2 hours later, meaning it travels for t-2 hours at 90 mph, giving a distance of 90(t-2). To find when they meet, I set the distances equal: 60t = 90(t-2). \n\nSolving this gives me t = 6 hours. So, they catch up 6 hours after the first train leaves. That's my final answer!",
+                },
+              },
+            ],
+          },
+        },
+        {
+          message: {
+            role: "assistant",
+            contents: [
+              {
+                message_content: {
+                  type: "text",
+                  text: "Let t = time (in hours) after the first train departs when the second train catches up.\n\n1. Distance traveled by the first train in t hours = 60·t miles.  \n2. The second train leaves 2 hours later, so it runs for (t – 2) hours. Its distance = 90·(t – 2) miles.  \n3. At the catch-up point these distances are equal:  \n   60·t = 90·(t – 2)  \n4. Solve for t:  \n   60t = 90t – 180  \n   180 = 90t – 60t  \n   180 = 30t  \n   t = 6  \n\nAnswer: The second train catches up 6 hours after the first train departs.",
+                },
+              },
+            ],
+          },
+        },
+        {
+          message: {
+            role: "user",
+            content: "Restate the answer in minutes.",
+          },
+        },
+      ],
+      output_messages: [
+        {
+          message: {
+            role: "assistant",
+            contents: [
+              {
+                message_content: {
+                  type: "reasoning",
+                  id: "rs_05adbc9464d80cf8006a9b13ec2eb887d1afa01719eb1114e7",
+                  encrypted_content:
+                    "gAAAAABqmxPvAH5lozSRfQgLaqQ6-e9nbGDCbEZGlyA_nuAfH_voLcMQm6X8lr1nJqa6EApeclcYQ4U72FG6CT3xCprt7ocWKyB9ADoDRns3dz7CmtYDtbpRT486IW6y4QDbTccZPtp5eO_8cFRY4tIZD3dYAjWk9mmXpgG3NE4r4iZkkzsB6awrIDyKVMZCUikeVBcx2f6ycxKiGTCuOMi8-rGWXtezk0-RXprrUSfHCFmb2v0fXwmKVjjV_JgcDe4ylLjqLetXunxQTANfic5RY205Ylj_d-9HbHza-Q7uoxtUpnUfWxvU_JR9hBBozRNif--ZnHhmCd7sA-RNExY_4G4nKo0jtbG7hrxHeIGj2N_hbLV-d_2N01YAEN_vI3MiKVKtGJ-E-BFvHkZl9Y7QPHCPH2qlQ_hDE3XGKsJtYPmQ87Ng2jI8SJZFNz1kWNtyxEY7VDTqhER5gTwhRxuSKwkctqZcE9scoO6YWWBNizS6TwMIt7OsctlrxHvqqWdQwAU-HggQwykHhbhIk1IXKhjgZoD9R_5O1N1GuD8vhy0qwqC7EbNc5DCTt50KsEiXigLvb_sT8trAfrjVxeoQl848ZCvB8YLTlHwzoZAKUL1wt1YCx3MEEftKVXNzvrEvQPpANK9stFMQkiijnSENjVTdUfXk2FP8aDkgC0lVbGLYI0PQqDNHI89AaiEgH2tYP-KDoOHCJMFE39KTRZXeXMLf38mZygXSFlXPW-zVtJAp1Q4Dfaiky0pR63igB43hVlFuOg2cxdVpeWRe0IIR9R95HM4H0F-g2mTYmF9sZ-sr3UZNKHpsnO3Be8fD3XiwDzzkRwyA34mk79DVx-DS7v-IeqsXBUfUJzd21UC71MUImVCc6uRsya1dHiA5xvFqp6SdK0sYcIlCVar4NoeObDSaOda7-vIKJ6nPGa5zJQ3povVqXJ4W1TCFpRxGzkh93siNDbIOPsAbaYXmZDI55jaLlC4TXfbGhZaWJnv1--plLf0VnL7o7sqR1mKQOenvP-eVpcz-N1vBWm1eHYT9Xw0CVS5xxaDiyAuapGc09EOz_Rp_Hz7RRhql10Y-x3Ur94O3LlZPZquEMq8h3Jdm-aJdnTluFDdI3Tg1fMAX8j20EScSw8x_nDU5WuaxucKgf6S-Jmwn8mrTimPQ_HRrtMgPZU2ZZyc78Vqzq_TNd37GWyaJF68KBxKR1Zlam7S32eeHSljxAgu-hG4sa-weWYz6FIIW882ROKDcB5rEHPNljYCJu1LqJAz0dyyp6guugP1J-5a0vmdW_hRXiRbjlB33uGEf2Nr2XGIXmepRh6vZYSLkg3BADozkVPcZKTCSXRoZ6Ypx8_BS_3xer0hK9_wb5Z2hH0TLvRMkgMHZcRBWJq-LYMpIogKPol-YNZRxkHAbuw4T71rdglvu-Tos6LzUaASLRTSsoOFJFCfZV628xXEsldInzIYGF3LigrmgFXgfjOtUiYrLVq3kaBF9RZnaZ-YEoEK0qdRgcQdOQOQFM6Sd2FWY7spIQ8OKkIUPyt-8bg8_TU_Q1IhG6UTlTj_ur7RqzlZUnS7GaeNB4th4VrRFR6mfRXDepMBMgbM7BSzo03H47kKuqkfoKHGRUqEPO4Q2hhmLrPaaLemhJi_S9YOz0ymAYedUtbKZXC_JjszWIsfVbhnmv4PA0gcADcRW9gePNFRPWhyze5VJnPKODVkYNaGyxuBB5K4CGvDXlvmtVmgtqIYVtkf9QgFVoCPmcOvBDifkwYgC8YcFuHqgjlgTZxqb4uwUI5IwSGui_-4y3sZmgQVFo5cisw2J-4Rg6PGLCFeMY-gQNP6NM0tcrJAbKUsCyfSdeoZOi7rtRJmQziiBFntNzj-DwsDhDF7O19uyA34DbOBt1aihwd79g0KOC-U2CbB7Oz7dQTsQRDIDeLW-pPZcDk2tXydvCEjOG5habW8nSO67uk6hs65ZnX3d1kqPvRDbvczkv8s_mZn1Ii-4RzUJgJXe_Ch5Of2HyHuopeAEN47UE5uQxqtMAeoW21aAGaQxlLxikTj7_sMGvVMwMHoE1GwY8-X5f0A7IecXEi5ozD0S5QWBFzRUag58x-xrmvzx1R0CrARPeJRbF8btajiivFEEBlBAGxDAWLuAHSIPqL3bOLrYuNRGMUyg6tLUGpzhV5S-u1lXKND9h7qt-UWNmFbVUWP8JG7M7QAOoXUUSFvvOny7pu2cNiBGQUYfNY1tY3dRUGFqvJx4yGejjW9wLV5BX-ZI3EY_Jqn-Xy5p0b3-DaEmU-rovKbNir9wUpuBhX_YLVZ8KlVeE9UILq7M_sGFBr-uli4m7iEJlMJiypCFTHXFduFAntUk13R0eDWM5tELohzLAueMVDWy0RPO3JAgZbgwPteJEjDxBJyBDgWZL2LoVhOuIg9uWesNgwfXIP-atNnN_FoQUkCx_BqUm1LWx6oPOk9nMc8vRXGEkpmSzgCCyqxhBJ5TSAF9CI_sopLn7zpNEgeuUs09ZdGABH_FyiOluWqKp0F_3A==",
+                },
+              },
+            ],
+          },
+        },
+        {
+          message: {
+            role: "assistant",
+            content:
+              "First convert 6 hours to minutes:\n\n1. 1 hour = 60 minutes  \n2. 6 hours = 6 × 60 = 360 minutes  \n\nAnswer: 360 minutes after the first train departs.",
+            contents: [
+              {
+                message_content: {
+                  type: "text",
+                  text: "First convert 6 hours to minutes:\n\n1. 1 hour = 60 minutes  \n2. 6 hours = 6 × 60 = 360 minutes  \n\nAnswer: 360 minutes after the first train departs.",
+                },
+              },
+            ],
+          },
+        },
+      ],
+      finish_reason: "stop",
+      token_count: {
+        prompt: 256,
+        completion: 291,
+        total: 547,
+        prompt_details: {
+          cache_read: 0,
+        },
+        completion_details: {
+          reasoning: 192,
+        },
+      },
+    },
+  }),
+  input: {
+    value: JSON.stringify([
+      {
+        role: "user",
+        content:
+          "A train leaves Chicago at 60 mph. Two hours later a second train leaves the same station on the same track at 90 mph. How long after the first train departs does the second train catch up?",
+      },
+      {
+        id: "rs_05adbc9464d80cf8006a9b13e3760487d198f1e0f8c010edd6",
+        type: "reasoning",
+        summary: [
+          {
+            type: "summary_text",
+            text: "**Analyzing train speeds and catch-up time**\n\nOkay, let’s break this down: we have two trains. The first train travels at 60 mph, and the second at 90 mph, leaving 2 hours later. To find the time after the first train departs until they meet, I'll let t be the time since the first train left. The first train will have traveled 60t, while the second will have traveled 90(t-2). Setting these equal, I can solve for t. \n\nAfter solving, I find that t equals 6 hours, meaning they catch up 6 hours after the first train leaves, or 4 hours after the second train departs.\n\n**Finding catch-up time**\n\nI need to define t as the number of hours after the first train departs. The first train's distance is expressed as 60t. The second train departs 2 hours later, meaning it travels for t-2 hours at 90 mph, giving a distance of 90(t-2). To find when they meet, I set the distances equal: 60t = 90(t-2). \n\nSolving this gives me t = 6 hours. So, they catch up 6 hours after the first train leaves. That's my final answer!",
+          },
+        ],
+        content: [],
+        encrypted_content:
+          "gAAAAABqmxPpvCVcArWWTGBFOpCB2mW1owPGWS_cY7D9UX0Bu7fXmu4DXuIDJ_uFUtkOH91dFsNN3uiAcwJMnNuf0xKNHrmCLUR2m9JHVTPoNMP1TPDG9dRaMsA8ISHiYVziaN4Tbr2_YLiiUDmjj6FtP9ae9HYpJPmvzGk-UNl94DocLgsgW6OqRU8tdhDDsWlLjRh7MXv1g4jsqgjXQ0RccIyyO0pCFqIRVQQlu-GoM4wO0ZTl3ndi0QZd6ABP1mENSSzdl1VGadh5dQdUUocL88RvJd4CkiT1Ds5BYZ5Mek3s7XYHCu06IdsDkdFeH0vBzhqUOqae86OrrlKUIKoWZzyKKMhgvrhQMp2aZNNdMeZYf0aBhJ22fQm-EGw-cIMz65adpFmOKVlzXpJKruTSwAk5uTLnbfRzvOb-JWDh4ugC363hV6heJaT7bUU_zt1qbAy4p406fbNCDkLQBCljQi5k9MsqJztHKJEPgTS5ftodY1lvQFmZHL1125cTHMdKhVXLXwCHHXJmjCbJzpjRmb7yHQ68FkhMvkg6fOSNHFCxXzB8_73lG2kPlmOZkEJhWO2iJjtgWlxAVDRviFCZH9eX8nciAxBFHf4nhJUi-0kHoFplgWJ02yeMoc3l_dn6SqT2F6ShrWMBW86NLGOs63Ugl4vVeifMUccYjyDANGR47xHeHFln0DOpL5YWMcrhHe31Lei5W9ZEW_hbbWWSPfP0OcQ86-NQ6kaesjOFBAgrkgADgo-MZ_MFIFQkwpywWUHENRX6zJ1KipoRZxEzQ0i8n7dlqDF3m4Fdgjp8P2NJ1Q20NMPfUFMgYVPdaUcphDTcwQ3FqJWlgCJowvIg8Keft-aVrG8tfpjz53OEcQ_nDg5yh9p6rfqGKNHEVCw0-bYiXpMxVmowWqWbZhHmVY69E9vsIWGzpL1fbEt94dp4GdHMr6EkCKOxh4USYNcP-1FF1PdWoLoN_xJwljGWxj5CHbWAO2U6ltDwMMRW2GXY4LVrjY8tj9sfliqEmSHc03aEMU8Utrm_t0jkE-55BrAXY3ysQtCszSuJv8P1qtzkHK7Nj3mUiQBPIjROL_tMDK4Ect7TrNAJY0hzQ_bzwM4MF-QZ14WdDCmuSVq31VJgXFMP68CvFBCoc3JQIrJ_WllPX1DiRIQoolmDbdUwhDaR0t2Mxa92BEintzDyozDZBvDF7Lh9VLfft6vVYdG_z6TKsjiHrOXXDKLZ0Y3L-QVAjBkzwr_zWySJt0ZJsttavm9kj_Wgn-CvC5l0e3bjRA6EVrijuhFD-72vW9WizRsa5BBJ6qlQ4BmcrxxlvrsHKtWDN0l9vImJyKsd25Kc8iPqQ7IWhOtJ4J2K44XK9q7jkbaoe7y7XP0k57_KUiMaAhtvSJDxAjFjc3QIWBhmtxnOg7S_Hvg9YFKXa8TyS7DEKGpsShNrWMEz1jmTV2HCfTM1fGefCeNHlNRRYFhddfnb4sB2EkDDHnhEjveAu_vNWzUq_T5_zOet14K0IrbM6uhPoWkxPPDChm3niSyQCDTZ076i4lQ7eEyJGd4QTMIZEdRL7x_0Wos4J8yzQfm6vBOxDRq5wuR2_SAyH4JKBJp5fYdisFd8dJ8GyafK8v6CcjdPfi4xSJtADKEZwlZBMVwvBbfJ9lECIvFhW5J9gFbevOyLPFe3ELHgvU6Yj3qFpcpmY91MwE_-SqoIQGluvK8f1EHM_lfvioVE1SRYHn6El1Q7v5uMJG0evdciutkJyxryHS1UcVTwE59ZweYUVjA6J_m8sCKAiDKV1nKFbrK_EFwc0-5nHZg16RHfDDTtQJRT5XckZATXaL_l1veK0-MFZr7kNLopTUzH94kbaONT9pTUX2JnOIZTojcpP3hRyHOQza8lrTsLg8vC1F_s6t4IYTvbIn1fuhqYucTHVIKtmEotIB0LE-3D3kSM7yO1p__pIHeQbLp08wDGGkDuz358bfDnD2ChkxdGgqHNi5Z3_WEp_NR9nTAjJLesbBlorrp6pAAAEWjsHNhvIPRFgaxR1ecJFhS3YU5z7whkAE8h3jQWPV1XXBfJmARFIVjrJc9ARKcxhpAQKnADmWRByAhIkNgY7FoG6nIQ6sz9AurQkw56OsAKb7dhUB5JBchbkvVZkTw-btqry0Y0Ll7yYsFd1-NmeOAuqT2moG0nYvX2BD8cVLuPWqjhiwe9mlvoXBodykvLtavG3xjVGftZa8Ja4IPVHSVaj3VUBHgGZAWeCljKonPcZhvXSmqqRrNTxZiZXQPTI4ylbYPRfTNIWP4A7K4YPjGK9hS_REoSvhlPL0IilPJ7tCN23SsM5fYO_H8C_5nFI2mBVzNmvBtEWtCjFWANKEBnIEbjG-83W1UJII3w4w6PT5un3xAZtjSLAEZTte4sIjjEYNNr3nAZZOTkMSxCV1RwhpHbFy_pdq4tnz_WS9y3WyK1TyWXsOV3M9nGaqAD-mZVdcg_N7s-JpxDOklBAyMQqADjyOO6cPqdg8nzNd17oqqDXHQEDMAKeLqN2A9F6R3MWzHBdEWYgEZjTT7wVmAqGn_b4PR4mjMkLWjonY3cIA98zm1-YEoNbzMJKe-GJobpxyK1CdcFNSCYQeYdGaY0WD_6aN0n9-iMS2WO5pbo7dTQGpegieY_2n_kZ2vBBEBAowMjrJdaqlZ-ihDuN_yKNXedNR0bGoW4CvE6VAOlNDoEpTZDNDXP-u8ayBXRBlfpr8Wf_quzpJyKNTg=",
+      },
+      {
+        id: "msg_05adbc9464d80cf8006a9b13e8676c87d1911c12723a8eb213",
+        type: "message",
+        role: "assistant",
+        status: "completed",
+        content: [
+          {
+            type: "output_text",
+            text: "Let t = time (in hours) after the first train departs when the second train catches up.\n\n1. Distance traveled by the first train in t hours = 60·t miles.  \n2. The second train leaves 2 hours later, so it runs for (t – 2) hours. Its distance = 90·(t – 2) miles.  \n3. At the catch-up point these distances are equal:  \n   60·t = 90·(t – 2)  \n4. Solve for t:  \n   60t = 90t – 180  \n   180 = 90t – 60t  \n   180 = 30t  \n   t = 6  \n\nAnswer: The second train catches up 6 hours after the first train departs.",
+            annotations: [],
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: "Restate the answer in minutes.",
+      },
+    ]),
+    mimeType: "json",
+  },
+  output: {
+    value: JSON.stringify({
+      id: "resp_05adbc9464d80cf8006a9b13e981c887d1bcd8610d17b2b64e",
+      object: "response",
+      model: "o4-mini-2025-04-16",
+      status: "completed",
+      instructions:
+        "You solve math word problems. Think step by step before giving the final numeric answer.",
+      output: [
+        {
+          id: "rs_05adbc9464d80cf8006a9b13ec2eb887d1afa01719eb1114e7",
+          type: "reasoning",
+          summary: [],
+          content: [],
+          encrypted_content:
+            "gAAAAABqmxPvAH5lozSRfQgLaqQ6-e9nbGDCbEZGlyA_nuAfH_voLcMQm6X8lr1nJqa6EApeclcYQ4U72FG6CT3xCprt7ocWKyB9ADoDRns3dz7CmtYDtbpRT486IW6y4QDbTccZPtp5eO_8cFRY4tIZD3dYAjWk9mmXpgG3NE4r4iZkkzsB6awrIDyKVMZCUikeVBcx2f6ycxKiGTCuOMi8-rGWXtezk0-RXprrUSfHCFmb2v0fXwmKVjjV_JgcDe4ylLjqLetXunxQTANfic5RY205Ylj_d-9HbHza-Q7uoxtUpnUfWxvU_JR9hBBozRNif--ZnHhmCd7sA-RNExY_4G4nKo0jtbG7hrxHeIGj2N_hbLV-d_2N01YAEN_vI3MiKVKtGJ-E-BFvHkZl9Y7QPHCPH2qlQ_hDE3XGKsJtYPmQ87Ng2jI8SJZFNz1kWNtyxEY7VDTqhER5gTwhRxuSKwkctqZcE9scoO6YWWBNizS6TwMIt7OsctlrxHvqqWdQwAU-HggQwykHhbhIk1IXKhjgZoD9R_5O1N1GuD8vhy0qwqC7EbNc5DCTt50KsEiXigLvb_sT8trAfrjVxeoQl848ZCvB8YLTlHwzoZAKUL1wt1YCx3MEEftKVXNzvrEvQPpANK9stFMQkiijnSENjVTdUfXk2FP8aDkgC0lVbGLYI0PQqDNHI89AaiEgH2tYP-KDoOHCJMFE39KTRZXeXMLf38mZygXSFlXPW-zVtJAp1Q4Dfaiky0pR63igB43hVlFuOg2cxdVpeWRe0IIR9R95HM4H0F-g2mTYmF9sZ-sr3UZNKHpsnO3Be8fD3XiwDzzkRwyA34mk79DVx-DS7v-IeqsXBUfUJzd21UC71MUImVCc6uRsya1dHiA5xvFqp6SdK0sYcIlCVar4NoeObDSaOda7-vIKJ6nPGa5zJQ3povVqXJ4W1TCFpRxGzkh93siNDbIOPsAbaYXmZDI55jaLlC4TXfbGhZaWJnv1--plLf0VnL7o7sqR1mKQOenvP-eVpcz-N1vBWm1eHYT9Xw0CVS5xxaDiyAuapGc09EOz_Rp_Hz7RRhql10Y-x3Ur94O3LlZPZquEMq8h3Jdm-aJdnTluFDdI3Tg1fMAX8j20EScSw8x_nDU5WuaxucKgf6S-Jmwn8mrTimPQ_HRrtMgPZU2ZZyc78Vqzq_TNd37GWyaJF68KBxKR1Zlam7S32eeHSljxAgu-hG4sa-weWYz6FIIW882ROKDcB5rEHPNljYCJu1LqJAz0dyyp6guugP1J-5a0vmdW_hRXiRbjlB33uGEf2Nr2XGIXmepRh6vZYSLkg3BADozkVPcZKTCSXRoZ6Ypx8_BS_3xer0hK9_wb5Z2hH0TLvRMkgMHZcRBWJq-LYMpIogKPol-YNZRxkHAbuw4T71rdglvu-Tos6LzUaASLRTSsoOFJFCfZV628xXEsldInzIYGF3LigrmgFXgfjOtUiYrLVq3kaBF9RZnaZ-YEoEK0qdRgcQdOQOQFM6Sd2FWY7spIQ8OKkIUPyt-8bg8_TU_Q1IhG6UTlTj_ur7RqzlZUnS7GaeNB4th4VrRFR6mfRXDepMBMgbM7BSzo03H47kKuqkfoKHGRUqEPO4Q2hhmLrPaaLemhJi_S9YOz0ymAYedUtbKZXC_JjszWIsfVbhnmv4PA0gcADcRW9gePNFRPWhyze5VJnPKODVkYNaGyxuBB5K4CGvDXlvmtVmgtqIYVtkf9QgFVoCPmcOvBDifkwYgC8YcFuHqgjlgTZxqb4uwUI5IwSGui_-4y3sZmgQVFo5cisw2J-4Rg6PGLCFeMY-gQNP6NM0tcrJAbKUsCyfSdeoZOi7rtRJmQziiBFntNzj-DwsDhDF7O19uyA34DbOBt1aihwd79g0KOC-U2CbB7Oz7dQTsQRDIDeLW-pPZcDk2tXydvCEjOG5habW8nSO67uk6hs65ZnX3d1kqPvRDbvczkv8s_mZn1Ii-4RzUJgJXe_Ch5Of2HyHuopeAEN47UE5uQxqtMAeoW21aAGaQxlLxikTj7_sMGvVMwMHoE1GwY8-X5f0A7IecXEi5ozD0S5QWBFzRUag58x-xrmvzx1R0CrARPeJRbF8btajiivFEEBlBAGxDAWLuAHSIPqL3bOLrYuNRGMUyg6tLUGpzhV5S-u1lXKND9h7qt-UWNmFbVUWP8JG7M7QAOoXUUSFvvOny7pu2cNiBGQUYfNY1tY3dRUGFqvJx4yGejjW9wLV5BX-ZI3EY_Jqn-Xy5p0b3-DaEmU-rovKbNir9wUpuBhX_YLVZ8KlVeE9UILq7M_sGFBr-uli4m7iEJlMJiypCFTHXFduFAntUk13R0eDWM5tELohzLAueMVDWy0RPO3JAgZbgwPteJEjDxBJyBDgWZL2LoVhOuIg9uWesNgwfXIP-atNnN_FoQUkCx_BqUm1LWx6oPOk9nMc8vRXGEkpmSzgCCyqxhBJ5TSAF9CI_sopLn7zpNEgeuUs09ZdGABH_FyiOluWqKp0F_3A==",
+        },
+        {
+          id: "msg_05adbc9464d80cf8006a9b13eeb89087d1bc1cc5ec5cfde02d",
+          type: "message",
+          role: "assistant",
+          status: "completed",
+          content: [
+            {
+              type: "output_text",
+              text: "First convert 6 hours to minutes:\n\n1. 1 hour = 60 minutes  \n2. 6 hours = 6 × 60 = 360 minutes  \n\nAnswer: 360 minutes after the first train departs.",
+              annotations: [],
+            },
+          ],
+        },
+      ],
+      reasoning: {
+        effort: "medium",
+        summary: "detailed",
+      },
+      usage: {
+        input_tokens: 256,
+        output_tokens: 291,
+        output_tokens_details: {
+          reasoning_tokens: 192,
+        },
+        total_tokens: 547,
+      },
+    }),
+    mimeType: "json",
+  },
+  documentRetrievalMetrics: [],
+  documentEvaluations: [],
+};
+
+/**
  * A span whose attributes payload is not valid JSON — renders the
  * un-parsable attributes warning.
  */

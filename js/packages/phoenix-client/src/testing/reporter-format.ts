@@ -322,7 +322,8 @@ interface AcceptanceBar {
  * reused as a per-run heuristic (the suite-level acceptance block still reports
  * the true aggregate verdict). `passRate` criteria decide passing with an
  * arbitrary `passFn` predicate — there is no static numeric bar to highlight
- * against — so their rows fall back to the default miss heuristic.
+ * against — so those annotations are ignored for per-run misses when any
+ * `average` bar exists.
  */
 function buildAcceptanceBars(suite: SuiteSummary): Map<string, AcceptanceBar> {
   const bars = new Map<string, AcceptanceBar>();
@@ -339,13 +340,22 @@ function buildAcceptanceBars(suite: SuiteSummary): Map<string, AcceptanceBar> {
 /**
  * Whether a passing test's evaluator scores fall short. When maximizing, a
  * boolean `false` or a numeric score below its bar is a miss; when minimizing,
- * a boolean `true` or a score above its bar is a miss. With no criterion for an
- * annotation, only a non-positive score counts (keeps zero-config suites quiet).
+ * a boolean `true` or a score above its bar is a miss.
+ *
+ * When the suite has `average` acceptance criteria, only those gated
+ * annotations decide per-run misses. That way a minimize metric whose desired
+ * value is 0 (e.g. `no_pii_detected`) is not listed as a miss on a correctly
+ * classified row. With no average criterion, a non-positive score still counts
+ * (keeps zero-config suites quiet).
  */
 function isMiss(result: TestResult, bars: Map<string, AcceptanceBar>): boolean {
+  const hasAverageBars = bars.size > 0;
   for (const ann of result.annotations) {
     if (ann.name === "pass") continue;
     const acceptanceBar = bars.get(ann.name);
+    if (hasAverageBars && acceptanceBar === undefined) {
+      continue;
+    }
     const minimizing = acceptanceBar?.direction === "minimize";
     if (typeof ann.score === "boolean") {
       if (minimizing ? ann.score : !ann.score) return true;

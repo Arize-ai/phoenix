@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
+from starlette.types import ASGIApp
 
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
@@ -28,6 +29,10 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionRule,
 )
 from phoenix.server.types import DbSessionFactory
+
+# These tests exercise seeding from an empty database, so they opt out of the
+# seeded template every other test's database comes from.
+pytestmark = pytest.mark.pristine_db
 
 
 class _MockWelcomeEmailSender:
@@ -749,6 +754,35 @@ class TestEnsureModelCosts:
         await _ensure_model_costs(db)
         input_price = await _get_input_price(db)
         assert input_price.customization is None
+
+
+async def _count_built_in_models(db: DbSessionFactory) -> int:
+    async with db() as session:
+        count = await session.scalar(
+            select(sa.func.count())
+            .select_from(models.GenerativeModel)
+            .where(models.GenerativeModel.is_built_in.is_(True))
+        )
+    return int(count or 0)
+
+
+async def test_unit_test_apps_skip_model_cost_seeding(
+    db: DbSessionFactory,
+    asgi_app: ASGIApp,
+) -> None:
+    """The suite-wide stub is in force: app startup leaves the built-in model
+    table empty."""
+    assert await _count_built_in_models(db) == 0
+
+
+@pytest.mark.seeded_model_costs
+async def test_marker_seeds_model_costs_during_startup(
+    db: DbSessionFactory,
+    asgi_app: ASGIApp,
+) -> None:
+    """Opting in leaves the real step in the Facilitator, so app startup seeds
+    the manifest's built-in models."""
+    assert await _count_built_in_models(db) > 0
 
 
 class TestEnsureBuiltinEvaluators:

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
-import httpx
+import httpx2
 import jmespath
 import pytest
 from authlib.integrations.base_client import OAuthError
@@ -1686,7 +1686,7 @@ class TestClientAssertionJWT:
             client_kwargs={
                 "token_endpoint_auth_method": auth_method,
                 "revocation_endpoint_auth_method": auth_method,
-                "transport": httpx.MockTransport(handler),
+                "transport": httpx2.MockTransport(handler),
             },
         )
 
@@ -1700,9 +1700,9 @@ class TestClientAssertionJWT:
         assertion_file.write_text("header.payload.sig")
         captured: dict[str, str] = {}
 
-        def handler(request: httpx.Request) -> httpx.Response:
+        def handler(request: httpx2.Request) -> httpx2.Response:
             captured["body"] = request.content.decode()
-            return httpx.Response(200, json={"access_token": "at", "token_type": "Bearer"})
+            return httpx2.Response(200, json={"access_token": "at", "token_type": "Bearer"})
 
         client = self._client_through_base_app(assertion_file, handler)
         await client.fetch_access_token(
@@ -1727,9 +1727,9 @@ class TestClientAssertionJWT:
         assertion_file.write_text("header.payload.sig")
         captured: dict[str, str] = {}
 
-        def handler(request: httpx.Request) -> httpx.Response:
+        def handler(request: httpx2.Request) -> httpx2.Response:
             captured["body"] = request.content.decode()
-            return httpx.Response(200, json={})
+            return httpx2.Response(200, json={})
 
         client = self._client_through_base_app(assertion_file, handler)
         async with client._get_oauth_client() as session:

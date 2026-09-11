@@ -761,7 +761,11 @@ export interface paths {
         get: operations["listProjectTraces"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete traces from a project
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
+         */
+        delete: operations["deleteProjectTraces"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1006,7 +1010,11 @@ export interface paths {
          */
         get: operations["listPromptVersions"];
         put?: never;
-        post?: never;
+        /**
+         * Create prompt version
+         * @description Create a new version for an existing prompt by identifier.
+         */
+        post: operations["createPromptVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1191,6 +1199,26 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set a project's trace retention policy
+         * @description Assign an existing trace retention policy to a project, or reset the project to the default policy with a null `policy_id`. Retention policies are standalone, reusable entities: this endpoint only changes which policy the project points at, and never creates, edits, or deletes a policy.
+         */
+        patch: operations["setProjectRetentionPolicy"];
         trace?: never;
     };
     "/v1/model_providers": {
@@ -1552,7 +1580,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions
-         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
          *
          *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
          */
@@ -1728,7 +1756,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Run Server Agent
+         * Run Headless Agent
          * @deprecated
          */
         post: operations["legacyServerAgentChat"];
@@ -2030,27 +2058,6 @@ export interface components {
             updated_at: string;
             /** Is Ephemeral */
             is_ephemeral: boolean;
-        };
-        /**
-         * AgentSpanContext
-         * @description Span the user has selected.
-         *
-         *     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
-         *     hex) must be set. ``project_node_id`` is optional because a span can be
-         *     selected from views outside a project route.
-         */
-        AgentSpanContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "span";
-            /** Projectnodeid */
-            projectNodeId?: string | null;
-            /** Spannodeid */
-            spanNodeId?: string | null;
-            /** Otelspanid */
-            otelSpanId?: string | null;
         };
         /** AnnotateSessionsRequestBody */
         AnnotateSessionsRequestBody: {
@@ -2378,7 +2385,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectUIContext"] | components["schemas"]["TraceUIContext"] | components["schemas"]["SessionUIContext"] | components["schemas"]["PromptUIContext"] | components["schemas"]["PromptVersionUIContext"] | components["schemas"]["SpanUIContext"] | components["schemas"]["PlaygroundUIContext"] | components["schemas"]["CodeEvaluatorUIContext"] | components["schemas"]["LlmEvaluatorUIContext"] | components["schemas"]["DatasetUIContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
          * ChatRequestBody
          * @description Assistant chat submit request payload.
@@ -2430,6 +2437,11 @@ export interface components {
              */
             lastMessageId?: string | null;
             /**
+             * Credentials
+             * @description Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected.
+             */
+            credentials?: components["schemas"]["ChatRequestCredential"][];
+            /**
              * Recordlocaltraces
              * @default false
              */
@@ -2447,10 +2459,29 @@ export interface components {
             instrumentUserId?: boolean;
         };
         /**
-         * CodeEvaluatorContext
-         * @description Code-evaluator create/edit form mounted in the current browser route.
+         * ChatRequestCredential
+         * @description One client-held credential riding the request for the duration of a turn.
+         *
+         *     The value is ephemeral: it is injected server-side as transport auth for
+         *     the matching integration and is never persisted, traced, or echoed. It is
+         *     top-level on the request body — never part of the message — so it cannot
+         *     reach the session transcript.
          */
-        CodeEvaluatorContext: {
+        ChatRequestCredential: {
+            /**
+             * Key
+             * @description The credential's secret-key name.
+             * @constant
+             */
+            key: "GITHUB_PERSONAL_ACCESS_TOKEN";
+            /**
+             * Value
+             * Format: password
+             */
+            value: string;
+        };
+        /** CodeEvaluatorUIContext */
+        CodeEvaluatorUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -2569,7 +2600,7 @@ export interface components {
         CreateChatCompletionRequestBody: {
             /**
              * Model
-             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
              */
             model: string;
             /** Messages */
@@ -2778,6 +2809,16 @@ export interface components {
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
         };
+        /** CreatePromptVersionRequestBody */
+        CreatePromptVersionRequestBody: {
+            version: components["schemas"]["PromptVersionData"];
+            /** Tags */
+            tags?: components["schemas"]["PromptVersionTagData"][] | null;
+        };
+        /** CreatePromptVersionResponseBody */
+        CreatePromptVersionResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
         /** CreateSessionNoteRequestBody */
         CreateSessionNoteRequestBody: {
             data: components["schemas"]["SessionNoteData"];
@@ -2957,26 +2998,6 @@ export interface components {
             /** Example Count */
             example_count: number;
         };
-        /**
-         * DatasetContext
-         * @description Dataset the user is currently viewing or has bound to a workflow.
-         *
-         *     Carries the dataset's relay node id and, when known, the active version
-         *     node id. These IDs scope the create-form handoff link and the sampling of
-         *     active dataset examples used as prompt context; the dataset schema itself
-         *     is open.
-         */
-        DatasetContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "dataset";
-            /** Datasetnodeid */
-            datasetNodeId: string;
-            /** Datasetversionnodeid */
-            datasetVersionNodeId?: string | null;
-        };
         /** DatasetExample */
         DatasetExample: {
             /** Id */
@@ -3046,6 +3067,18 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DatasetUIContext */
+        DatasetUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dataset";
+            /** Datasetnodeid */
+            datasetNodeId: string;
+            /** Datasetversionnodeid */
+            datasetVersionNodeId?: string | null;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -3992,11 +4025,8 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * LlmEvaluatorContext
-         * @description LLM-evaluator create/edit form mounted in the current browser route.
-         */
-        LlmEvaluatorContext: {
+        /** LlmEvaluatorUIContext */
+        LlmEvaluatorUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4070,7 +4100,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "PERPLEXITY" | "TOGETHER";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -4430,12 +4460,16 @@ export interface components {
              * @default false
              */
             isCompactionMessage?: boolean;
+            uiContexts?: components["schemas"]["UIContexts"] | null;
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
         };
-        /**
-         * PlaygroundBuiltinModelContext
-         * @description Built-in playground model selection.
-         */
-        PlaygroundBuiltinModelContext: {
+        /** PlaygroundBuiltinModelUIContext */
+        PlaygroundBuiltinModelUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4446,11 +4480,61 @@ export interface components {
             /** Modelname */
             modelName: string;
         };
-        /**
-         * PlaygroundContext
-         * @description Playground prompt editor state mounted in the current browser route.
-         */
-        PlaygroundContext: {
+        /** PlaygroundCustomProviderModelUIContext */
+        PlaygroundCustomProviderModelUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custom";
+            /** Customproviderid */
+            customProviderId: string;
+            /** Customprovidername */
+            customProviderName: string;
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /** PlaygroundEvaluatorUIContext */
+        PlaygroundEvaluatorUIContext: {
+            /** Datasetevaluatorid */
+            datasetEvaluatorId: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "LLM" | "CODE" | "BUILTIN";
+            /** Isbuiltin */
+            isBuiltin: boolean;
+            /** Isapplied */
+            isApplied: boolean;
+        };
+        /** PlaygroundExperimentScaffoldUIContext */
+        PlaygroundExperimentScaffoldUIContext: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Hasmetadata
+             * @default false
+             */
+            hasMetadata?: boolean;
+        };
+        /** PlaygroundInstanceUIContext */
+        PlaygroundInstanceUIContext: {
+            /** Instanceid */
+            instanceId: number;
+            /** Model */
+            model?: (components["schemas"]["PlaygroundBuiltinModelUIContext"] | components["schemas"]["PlaygroundCustomProviderModelUIContext"]) | null;
+            /** Experimentid */
+            experimentId?: string | null;
+        };
+        /** PlaygroundUIContext */
+        PlaygroundUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4466,98 +4550,11 @@ export interface components {
              * @default 1
              */
             repetitions?: number;
-            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldContext"] | null;
+            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldUIContext"] | null;
             /** Instances */
-            instances?: components["schemas"]["PlaygroundInstanceContext"][];
+            instances?: components["schemas"]["PlaygroundInstanceUIContext"][];
             /** Evaluators */
-            evaluators?: components["schemas"]["PlaygroundEvaluatorContext"][];
-        };
-        /**
-         * PlaygroundCustomProviderModelContext
-         * @description Custom-provider playground model selection.
-         */
-        PlaygroundCustomProviderModelContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "custom";
-            /** Customproviderid */
-            customProviderId: string;
-            /** Customprovidername */
-            customProviderName: string;
-            /** Provider */
-            provider: string;
-            /** Modelname */
-            modelName: string;
-        };
-        /**
-         * PlaygroundEvaluatorContext
-         * @description One dataset evaluator on the mounted playground's roster. ``name`` is
-         *     user-controlled; sanitize at every model-visible boundary.
-         */
-        PlaygroundEvaluatorContext: {
-            /** Datasetevaluatorid */
-            datasetEvaluatorId: string;
-            /** Name */
-            name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "LLM" | "CODE" | "BUILTIN";
-            /** Isbuiltin */
-            isBuiltin: boolean;
-            /** Isapplied */
-            isApplied: boolean;
-        };
-        /**
-         * PlaygroundExperimentScaffoldContext
-         * @description Experiment name/description/metadata the user has staged for the playground's
-         *     *next* dataset-backed run, before that run has started.
-         *
-         *     The playground UI lets the user pre-set how the next recorded run's experiment
-         *     will be named, described, and tagged (via the ``set_playground_experiment_recording``
-         *     tool or the recording form). That staged state is surfaced here so the agent can
-         *     see what is already set and avoid re-staging it.
-         *
-         *     Field semantics:
-         *     - ``name`` / ``description``: the staged values, surfaced to the model verbatim,
-         *       or ``None`` when the user has not staged them.
-         *     - ``has_metadata``: a presence flag, not the value. Only *whether* metadata has
-         *       been staged is model-relevant (so the agent knows not to re-attach it); the
-         *       metadata object itself is deliberately kept out of the prompt.
-         *
-         *     A field left unstaged (``None`` / ``False``) falls back to the server default when
-         *     the run starts. The scaffold is consumed once that next run begins.
-         */
-        PlaygroundExperimentScaffoldContext: {
-            /** Name */
-            name?: string | null;
-            /** Description */
-            description?: string | null;
-            /**
-             * Hasmetadata
-             * @default false
-             */
-            hasMetadata?: boolean;
-        };
-        /**
-         * PlaygroundInstanceContext
-         * @description One mounted playground instance and its current model selection.
-         *
-         *     ``experiment_id`` carries the relay node id of the experiment produced by
-         *     this instance's last dataset-backed run, or ``None`` when the instance has
-         *     not produced one. Ephemeral experiments are included: they remain queryable
-         *     until the server sweeps them ~24h after their last update.
-         */
-        PlaygroundInstanceContext: {
-            /** Instanceid */
-            instanceId: number;
-            /** Model */
-            model?: (components["schemas"]["PlaygroundBuiltinModelContext"] | components["schemas"]["PlaygroundCustomProviderModelContext"]) | null;
-            /** Experimentid */
-            experimentId?: string | null;
+            evaluators?: components["schemas"]["PlaygroundEvaluatorUIContext"][];
         };
         /** Project */
         Project: {
@@ -4568,17 +4565,18 @@ export interface components {
             /** Id */
             id: string;
         };
-        /**
-         * ProjectContext
-         * @description Project the user is currently viewing.
-         *
-         *     ``span_filter`` carries the project-scoped span filter expression when the
-         *     span filter field is mounted — empty string when the field is mounted with
-         *     no condition applied, ``None`` when the field is not present at all. It
-         *     describes the view in full, root-span scoping included (which is expressed
-         *     within the filter DSL as ``parent_id is None``).
-         */
-        ProjectContext: {
+        /** ProjectRetentionPolicyData */
+        ProjectRetentionPolicyData: {
+            /** Project Id */
+            project_id: string;
+            /**
+             * Policy Id
+             * @description The retention policy the project now uses, or null when the project falls back to the default policy.
+             */
+            policy_id: string | null;
+        };
+        /** ProjectUIContext */
+        ProjectUIContext: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -4778,19 +4776,6 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
         };
-        /**
-         * PromptContext
-         * @description Prompt the user is currently viewing.
-         */
-        PromptContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "prompt";
-            /** Promptnodeid */
-            promptNodeId: string;
-        };
         /** PromptData */
         PromptData: {
             name: components["schemas"]["Identifier"];
@@ -4962,6 +4947,43 @@ export interface components {
             role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
             /** Content */
             content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+        };
+        /** PromptMetaInvocationParameters */
+        PromptMetaInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "meta";
+            meta: components["schemas"]["PromptMetaInvocationParametersContent"];
+        };
+        /** PromptMetaInvocationParametersContent */
+        PromptMetaInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /** Stop */
+            stop?: string[];
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptMoonshotInvocationParameters */
         PromptMoonshotInvocationParameters: {
@@ -5272,10 +5294,27 @@ export interface components {
             /** Disable Parallel Tool Calls */
             disable_parallel_tool_calls?: boolean;
         };
+        /** PromptUIContext */
+        PromptUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt";
+            /** Promptnodeid */
+            promptNodeId: string;
+        };
         /** PromptVersion */
         PromptVersion: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5284,32 +5323,24 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"] | components["schemas"]["PromptMetaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
         };
-        /**
-         * PromptVersionContext
-         * @description Prompt version the user is currently viewing.
-         */
-        PromptVersionContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "prompt_version";
-            /** Promptnodeid */
-            promptNodeId: string;
-            /** Promptversionnodeid */
-            promptVersionNodeId: string;
-        };
         /** PromptVersionData */
         PromptVersionData: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5318,7 +5349,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"] | components["schemas"]["PromptDeepSeekInvocationParameters"] | components["schemas"]["PromptXAIInvocationParameters"] | components["schemas"]["PromptOllamaInvocationParameters"] | components["schemas"]["PromptAwsInvocationParameters"] | components["schemas"]["PromptCerebrasInvocationParameters"] | components["schemas"]["PromptFireworksInvocationParameters"] | components["schemas"]["PromptGroqInvocationParameters"] | components["schemas"]["PromptMoonshotInvocationParameters"] | components["schemas"]["PromptPerplexityInvocationParameters"] | components["schemas"]["PromptTogetherInvocationParameters"] | components["schemas"]["PromptZAIInvocationParameters"] | components["schemas"]["PromptMetaInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -5337,6 +5368,18 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** PromptVersionUIContext */
+        PromptVersionUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt_version";
+            /** Promptnodeid */
+            promptNodeId: string;
+            /** Promptversionnodeid */
+            promptVersionNodeId: string;
+        };
         /** PromptXAIInvocationParameters */
         PromptXAIInvocationParameters: {
             /**
@@ -5348,6 +5391,43 @@ export interface components {
         };
         /** PromptXAIInvocationParametersContent */
         PromptXAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /** Stop */
+            stop?: string[];
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PromptZAIInvocationParameters */
+        PromptZAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "zai";
+            zai: components["schemas"]["PromptZAIInvocationParametersContent"];
+        };
+        /** PromptZAIInvocationParametersContent */
+        PromptZAIInvocationParametersContent: {
             /** Temperature */
             temperature?: number;
             /** Max Tokens */
@@ -5395,6 +5475,8 @@ export interface components {
              * @constant
              */
             type?: "reasoning";
+            /** Id */
+            id?: string | null;
             /** Text */
             text: string;
             /** State */
@@ -5517,21 +5599,6 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * SessionContext
-         * @description Session the user is currently viewing.
-         */
-        SessionContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "session";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Sessionnodeid */
-            sessionNodeId: string;
-        };
         /** SessionData */
         SessionData: {
             /** Id */
@@ -5607,6 +5674,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** SessionUIContext */
+        SessionUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "session";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Sessionnodeid */
+            sessionNodeId: string;
+        };
         /** SetDatasetLabelsForDatasetResponseBody */
         SetDatasetLabelsForDatasetResponseBody: {
             /** Data */
@@ -5648,6 +5727,18 @@ export interface components {
             data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** SetProjectRetentionPolicyRequestBody */
+        SetProjectRetentionPolicyRequestBody: {
+            /**
+             * Policy Id
+             * @description The ID (GlobalID) of an existing trace retention policy to assign, or null to reset the project to the default policy.
+             */
+            policy_id: string | null;
+        };
+        /** SetProjectRetentionPolicyResponseBody */
+        SetProjectRetentionPolicyResponseBody: {
+            data: components["schemas"]["ProjectRetentionPolicyData"];
         };
         /**
          * SourceDocumentUIPart
@@ -5980,6 +6071,20 @@ export interface components {
              * @default
              */
             identifier?: string;
+        };
+        /** SpanUIContext */
+        SpanUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "span";
+            /** Projectnodeid */
+            projectNodeId?: string | null;
+            /** Spannodeid */
+            spanNodeId?: string | null;
+            /** Otelspanid */
+            otelSpanId?: string | null;
         };
         /** SpansResponseBody */
         SpansResponseBody: {
@@ -6406,18 +6511,6 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /** TraceContext */
-        TraceContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "trace";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Oteltraceid */
-            otelTraceId: string;
-        };
         /** TraceData */
         TraceData: {
             /** Id */
@@ -6501,6 +6594,18 @@ export interface components {
              */
             end_time: string;
         };
+        /** TraceUIContext */
+        TraceUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "trace";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Oteltraceid */
+            otelTraceId: string;
+        };
         /** TransferTracesData */
         TransferTracesData: {
             /**
@@ -6545,6 +6650,19 @@ export interface components {
              * Format: date-time
              */
             startedAt: string;
+        };
+        /** UIContexts */
+        UIContexts: {
+            project?: components["schemas"]["ProjectUIContext"] | null;
+            trace?: components["schemas"]["TraceUIContext"] | null;
+            session?: components["schemas"]["SessionUIContext"] | null;
+            span?: components["schemas"]["SpanUIContext"] | null;
+            prompt?: components["schemas"]["PromptUIContext"] | null;
+            promptVersion?: components["schemas"]["PromptVersionUIContext"] | null;
+            dataset?: components["schemas"]["DatasetUIContext"] | null;
+            playground?: components["schemas"]["PlaygroundUIContext"] | null;
+            codeEvaluator?: components["schemas"]["CodeEvaluatorUIContext"] | null;
+            llmEvaluator?: components["schemas"]["LlmEvaluatorUIContext"] | null;
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -10000,12 +10118,18 @@ export interface operations {
                 order?: "asc" | "desc";
                 /** @description Maximum number of traces to return */
                 limit?: number;
-                /** @description Pagination cursor (Trace GlobalID) */
+                /** @description Pagination cursor returned by a previous request */
                 cursor?: string | null;
                 /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
+                /** @description Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI. */
+                error?: boolean | null;
+                /** @description Inclusive lower bound on trace latency in milliseconds. */
+                min_latency_ms?: number | null;
+                /** @description Inclusive upper bound on trace latency in milliseconds. */
+                max_latency_ms?: number | null;
             };
             header?: never;
             path: {
@@ -10024,6 +10148,59 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteProjectTraces: {
+        parameters: {
+            query: {
+                /** @description Required inclusive lower bound on trace start time (ISO 8601). */
+                start_time: string;
+                /** @description Required exclusive upper bound on trace start time (ISO 8601). */
+                end_time: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned after the matching traces are deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {
@@ -10808,6 +10985,60 @@ export interface operations {
             };
         };
     };
+    createPromptVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromptVersionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The created prompt version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     getPromptVersionByPromptVersionId: {
         parameters: {
             query?: never;
@@ -11432,6 +11663,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setProjectRetentionPolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectRetentionPolicyRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The project's retention policy assignment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetProjectRetentionPolicyResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {

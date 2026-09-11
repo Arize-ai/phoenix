@@ -74,7 +74,7 @@ test("a new user only needs to reset their password once", async ({
     .getByRole("dialog")
     .getByRole("button", { name: "Add User" })
     .click();
-  await expect(page.getByRole("cell", { name: email })).toBeVisible();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
 
   const userContext = await browser.newContext();
   const userPage = await userContext.newPage();

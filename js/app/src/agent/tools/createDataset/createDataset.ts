@@ -64,11 +64,11 @@ export async function commitCreateDataset({
     });
     if (!added.ok) {
       // The dataset was created; only seeding failed. Report success with a
-      // caveat so the model does not retry create_dataset with the same (now
-      // taken) name — it should add the rows via add_dataset_examples instead.
+      // caveat so the model does not retry the create with the same (now
+      // taken) name — it should add the rows via dataset.examples.add instead.
       return {
         ok: true,
-        output: `Created dataset "${created.name}" (it now exists), but adding the starting rows failed: ${added.error}. Add the rows with add_dataset_examples rather than creating the dataset again.`,
+        output: `Created dataset "${created.name}" (it now exists), but adding the starting rows failed: ${added.error}. Add the rows with the ui.dataset.examples.add operation rather than creating the dataset again.`,
       };
     }
     return {

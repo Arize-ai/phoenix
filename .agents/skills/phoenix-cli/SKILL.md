@@ -451,9 +451,8 @@ Key root fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`
 
 `Project.spans` takes a `filterCondition` — a Python expression over per-span
 values, the same language the UI's **spans** filter bar compiles. (The traces
-tab compiles the separate trace-grain language below; the two are siblings, not
-the same expression at different scopes.) Annotations are reached through three
-subscript accessors, and **the accessor picks the grain**:
+tab compiles the separate trace-level language described below.) Annotations are reached through three
+subscript accessors, and **the accessor picks the level**:
 
 | Accessor | Matches annotations on | Written by |
 | -------- | ---------------------- | ---------- |
@@ -476,10 +475,10 @@ px api graphql '{
 ```
 
 Picking the wrong accessor fails silently rather than erroring: filtering with
-`annotations[...]` for an annotation that was written at the trace grain joins
+`annotations[...]` for an annotation that was written at the trace level joins
 against span annotations and matches nothing.
 
-Accessors are scoped per grain, and only the span filter accepts more than one:
+Which accessors a filter accepts depends on the filter, and only the span filter accepts more than one:
 
 | Filter | Accepted annotation accessors |
 | ------ | ----------------------------- |
@@ -487,16 +486,16 @@ Accessors are scoped per grain, and only the span filter accepts more than one:
 | `traceFilterCondition` (trace) | `trace_annotations[...]` |
 | `sessionFilterCondition` (session) | `session_annotations[...]` |
 
-An accessor used at the wrong grain is a compile error, not a silent miss —
+An accessor used at the wrong level is a compile error, not a silent miss —
 e.g. `annotations[...]` in a trace filter fails with `` `annotations[...]` is
 not available in the trace filter; use `trace_annotations[...]` for trace
 annotations, or iterate `span_annotations` for span-level annotations ``.
 
 ### Trace filter expressions
 
-`Project.spans` also takes a `traceFilterCondition` — a trace-grain expression
+`Project.spans` also takes a `traceFilterCondition` — a trace-level expression
 that keeps spans whose **trace** matches. It is the language the UI's traces
-table compiles, and it is the grain to reach for when the question is about
+table compiles, and it is the filter to reach for when the question is about
 whole traces ("which traces errored and took over a second") rather than
 individual spans. Pair it with `rootSpansOnly: true` for one row per trace:
 
@@ -510,7 +509,7 @@ px api graphql '{
 }' | jq '.data.projects.edges[0].node.spans.edges[].node'
 ```
 
-`traceFilterCondition` and the span-grain `filterCondition` are **not** mutually
+`traceFilterCondition` and the span-level `filterCondition` are **not** mutually
 exclusive on `spans` — passing both narrows to matching spans inside matching
 traces.
 
@@ -546,17 +545,17 @@ any(span.parent_span.span_kind == "LLM" and span.span_kind == "TOOL" for span in
 any(annotation.label == "hallucinated" for annotation in span_annotations)
 ```
 
-Four rules the trace grain legislates, the first two of which differ from the
-span grain:
+Four rules the trace filter enforces, the first two of which differ from the
+span filter:
 
 - **Unknown names are rejected**, with a `did you mean "…"?` suggestion. Span
   filters instead read an unknown name as an attribute path, so a typo there
-  matches nothing silently; here it fails loudly.
+  matches nothing; here a typo is an explicit error.
 - **Rollups are `0`, never null.** `error_count == 0` matches traces with no
   errors; there is no missing case to test with `is None`.
 - **Datetime literals need an explicit offset** — `start_time >=
-  "2026-07-01T00:00:00Z"`. A naive literal is rejected, as at every grain.
-- **Root-grain reads follow the displayed root.** `input`, `output`,
+  "2026-07-01T00:00:00Z"`. A naive literal is rejected, as in every filter.
+- **Root-span reads follow the displayed root.** `input`, `output`,
   `attributes[...]`, `user.id`, and `metadata[...]` bind to the same
   representative span the traces table shows, so a predicate matches what you
   see. A trace with no root candidate has no values for these.
@@ -565,8 +564,7 @@ span grain:
 
 `px session list` has no filter flag, so selecting sessions by shape means going
 through GraphQL. `Project.sessions` takes a `sessionFilterCondition` — a Python
-expression over per-session values, the session-grain sibling of the span filter
-language:
+expression over per-session values, analogous to the span filter language:
 
 ```bash
 px api graphql '{
@@ -577,9 +575,9 @@ px api graphql '{
 }' | jq '.data.projects.edges[0].node.sessions.edges[].node'
 ```
 
-Discover the bindable names for a project rather than guessing — the vocabulary
-is generated from the compiler's own bindings, so it cannot drift from what
-compiles:
+Discover the bindable names for a project with the vocabulary query. The
+vocabulary is generated from the compiler's own bindings, so it always matches
+what compiles:
 
 ```bash
 px api graphql '{ projects(first: 1) { edges { node { sessionFilterVocabulary {
@@ -602,18 +600,18 @@ Commonly bound names: `session_id`, `start_time`, `end_time`, `duration_ms`,
 `spans`, `traces`, `session_annotations`, and `span_annotations` for
 comprehensions (`any(...)` / `all(...)` / `len([...])`), and
 `session_annotations["name"].score|.label` for session annotations. Three rules
-the DSL legislates and an agent will otherwise get wrong:
+the DSL enforces and an agent will otherwise get wrong:
 
 - **A missing value fails every comparison, in both directions.** A session with
   no recorded input matches neither `'x' in first_input` nor its negation. Target
   the missing case explicitly with `is None`.
 - **`in` against a string ignores case; `==` matches exactly.** This holds at
-  every grain, so the same query gives the same answer in the spans view.
+  every filter, so the same query gives the same answer in the spans view.
 - **`any_input` / `any_output` are containment tests, not values.** Write
   `'refund' in any_input`, never `any_input == 'refund'`.
 
-On fields that accept both grains (e.g. `Project.recordCount`),
-`sessionFilterCondition` and the span-grain `filterCondition` are mutually
+On fields that accept both filter levels (e.g. `Project.recordCount`),
+`sessionFilterCondition` and the span-level `filterCondition` are mutually
 exclusive — passing both is a request error.
 
 ## Docs

@@ -1,4 +1,5 @@
 # pyright: reportMissingImports=false, reportMissingTypeStubs=false
+# Harbor cannot be installed on the client's Python 3.10 and 3.11 CI jobs.
 # pyright: reportUnknownVariableType=false, reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false, reportUnknownParameterType=false
 """Harbor job records used by the Phoenix plugin."""
@@ -9,7 +10,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from harbor.models.job.config import JobConfig
 from harbor.models.job.lock import TaskLock
@@ -21,6 +22,7 @@ __all__ = [
     "JobPlan",
     "StepRecord",
     "TaskRecord",
+    "TraceMode",
     "TrialSlot",
     "canonical_digest",
     "short_digest",
@@ -28,6 +30,9 @@ __all__ = [
 
 _DIGEST_PREFIX = "sha256:"
 _SHORT_DIGEST_LENGTH = 12
+
+TraceMode = Literal["atif"]
+"""Trace recording modes. ``None`` disables tracing."""
 
 
 def canonical_digest(payload: Any) -> str:
@@ -60,6 +65,7 @@ class TaskRecord:
     name: str
     instruction: str
     steps: tuple[StepRecord, ...] = ()
+    multi_step_reward_strategy: Literal["mean", "final"] | None = None
     config: Mapping[str, Any] = field(default_factory=dict)
 
     @property
@@ -177,3 +183,9 @@ class JobPlan:
             if trial.trial_name == trial_name:
                 return trial
         raise KeyError(trial_name)
+
+    def task_for(self, task_id: str) -> TaskRecord:
+        for task in self.tasks:
+            if task.task_id == task_id:
+                return task
+        raise KeyError(task_id)

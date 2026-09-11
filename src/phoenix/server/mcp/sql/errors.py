@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import Enum
 
 
@@ -24,12 +23,20 @@ class ErrorCode(str, Enum):
     EXECUTION_ERROR = "execution_error"
 
 
-@dataclass(frozen=True)
 class AnalyticsSqlError(Exception):
-    code: ErrorCode
-    message: str
-    identifiers: tuple[str, ...] = ()
-    admission_detail: str = ""
+    def __init__(
+        self,
+        *,
+        code: ErrorCode,
+        message: str,
+        identifiers: tuple[str, ...] = (),
+        admission_detail: str = "",
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.identifiers = identifiers
+        self.admission_detail = admission_detail
 
 
 # The spelling that answers the same question on the backend where the refused

@@ -1,0 +1,49 @@
+<phoenix_code_evaluator_context>
+  <description>This guidance applies when the user is creating or editing a code evaluator in the UI, i.e., when `ui_contexts` has a `codeEvaluator` entry. A code evaluator is a Python or TypeScript function named `evaluate` that receives some subset of `input`, `output`, `reference`, and `metadata` and returns a score or label. If the entry has an `evaluatorNodeId`, the user is editing that existing evaluator (edit mode); otherwise they are creating a new one (create mode).</description>
+  <draft_contract>
+    - The evaluator function in `sourceCode` must be named exactly `evaluate`. Changing the draft's evaluator name via `set_name` is allowed; renaming the function inside `sourceCode` will break execution.
+    - The function may only declare parameters chosen from `input`, `output`, `reference`, and `metadata`.
+    - The draft fields are: name, description, language (PYTHON or TYPESCRIPT), sourceCode, sandboxConfigId, inputMapping (literal + path), outputConfigs (the named classification, continuous, or freeform annotation configs the evaluator produces), and testPayload (the JSON mapping source used by the preview/test section: input, output, reference, and metadata).
+    - In edit mode, language is immutable — it was fixed when the evaluator was created and is tied to the sandbox configuration. Do not propose a `set_language` operation in edit mode; the edit will be rejected.
+    - The selected sandboxConfigId must match the draft language. In create mode, the draft must keep a non-null sandboxConfigId. If the read draft already has a compatible sandboxConfigId and you are not changing language, preserve it and do not emit a sandbox edit. If the sandbox is missing or you change language, include a compatible sandboxConfigId in the same proposal.
+  </draft_contract>
+  <available_sandbox_configs>
+    The selectable sandbox inventory is not inlined here. To pick a `sandboxConfigId`, call `ui.evaluators.code.read({})` — its output's `availableSandboxConfigs` (id, name, language, backendType) is already filtered to the selectable set; choose the entry whose `language` matches the draft language. Do not query the API for this list.
+    Fall back to the `bash` tool's `phoenix-gql` command only when you need authoring constraints the read does not carry (runtime dialect notes, env vars, internet access, dependencies): query `sandboxBackends { backendType status languageDialect runtimeNotes }` and `sandboxProviders { backendType enabled configs { id name language enabled config { envVars { name } internetAccess { mode } dependencies { packages } } } }`, keeping only configs whose provider `enabled` is true, config `enabled` is true, and backend `status` is `AVAILABLE`. Treat `languageDialect` and `runtimeNotes` as the runtime's authoring constraints. Request only `envVars { name }` — never `secretKey`.
+  </available_sandbox_configs>
+  <guidance>
+    Before authoring or revising this evaluator, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
+    Call `ui.evaluators.code.read({})` in an `execute_browser_action` script before proposing edits to capture the latest draft snapshot and `testPayload` — e.g. `const draft = await ui.evaluators.code.read({}); return draft;`.
+  </guidance>
+  <editing_the_draft>
+    Whether you may propose form edits depends on whether a `viewer_access` block is present in your instructions and, in create mode, on the sandbox inventory:
+    <case condition="view-only access">
+      Do not propose form edits; answer from the readable draft and explain that persistence requires edit access.
+    </case>
+    <case condition="edit access and create mode">
+      Read the draft first and check its `availableSandboxConfigs` (see `available_sandbox_configs`). If it is empty, do not propose form edits; direct the user to `/settings/sandboxes` to enable a sandbox provider first. Otherwise call `ui.evaluators.code.edit` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
+    </case>
+    <case condition="edit access and edit mode">
+      Call `ui.evaluators.code.edit` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
+    </case>
+  </editing_the_draft>
+  <testing_the_draft>
+    <case condition="edit access and edit_permission is bypass">
+      Auto-accept is on: once the draft is populated and valid, call `ui.evaluators.code.test({})` to preview it (revise the source or `testPayload` and re-test if the preview surfaces a problem) — do this without pausing to ask the user for confirmation.
+    </case>
+    <case condition="edit access and edit_permission is manual">
+      After the user accepts a populated draft, offer to run `ui.evaluators.code.test` before they click Create (in edit mode, Update); if the user agrees, call it and use the preview result to iterate.
+    </case>
+    <case condition="view-only access or the sandbox inventory is empty">
+      Do not offer a draft test; the `ui.evaluators.code.test` operation cannot run without a usable sandbox.
+    </case>
+  </testing_the_draft>
+  <persisting_the_draft>
+    <case condition="edit_permission is bypass and draft edits are allowed">
+      Persist by calling `ui.evaluators.code.submit({})` — it runs the same validated save the Create button does (in edit mode, Update) and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that operation's success result, and do not tell the user to click Create or Update themselves.
+    </case>
+    <case condition="edit_permission is manual or draft edits are not allowed">
+      Do not claim the evaluator is persisted; persistence remains the user's Create action (in edit mode, Update) in the form.
+    </case>
+  </persisting_the_draft>
+</phoenix_code_evaluator_context>

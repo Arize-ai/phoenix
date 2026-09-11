@@ -13,7 +13,7 @@ import type {
   AgentUIMessage,
   AgentUIMessagePart,
 } from "@phoenix/agent/chat/types";
-import { CREATE_ANNOTATION_CONFIG_TOOL_NAME } from "@phoenix/agent/tools/annotationConfig";
+import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -186,28 +186,72 @@ describe("createAgentSessionChat rehydration", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("re-stages a seeded pending approval so a page refresh restores the Accept/Reject card", async () => {
+  it("leaves a pending call untouched while its handler is still in flight in this client", async () => {
+    const store = createAgentStore();
+    const chat = createAgentSessionChat({
+      sessionId: "test-session",
+      seedMessages: [],
+      store,
+      relayEnvironment: createRelayEnvironment(),
+      onTranscriptSynced: () => undefined,
+    });
+    await flushMicrotasks();
+
+    const pendingMessages: AgentUIMessage[] = [
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "input-available",
+            input: { edits: [] },
+            callProviderMetadata: CLIENT_EXECUTION_METADATA,
+          } as AgentUIMessagePart,
+        ],
+      },
+    ];
+    const turnClientState = getTurnClientState(chat);
+    // Simulate the dispatch bracket a live client tool run holds open, then a
+    // transcript sync replacing the messages while the approval is pending.
+    turnClientState?.toolTimings.recordStart("tool-call-1");
+    chat.messages = pendingMessages;
+    turnClientState?.recoverPendingToolCalls();
+    expect(chat.messages.at(-1)?.parts[0]).toMatchObject({
+      state: "input-available",
+    });
+
+    // Once the run resolves (output recorded), a later sync that resurrects
+    // the pending part treats it as stale again.
+    turnClientState?.toolTimings.recordEnd("tool-call-1");
+    chat.messages = pendingMessages;
+    turnClientState?.recoverPendingToolCalls();
+    expect(chat.messages.at(-1)?.parts[0]).toMatchObject({
+      state: "output-error",
+      errorText: PENDING_TOOL_CALL_NOT_RESTORED_ERROR,
+    });
+  });
+
+  it("re-stages a seeded pending approval so a page refresh restores the answer card", async () => {
     const store = createAgentStore();
     const seedMessages: AgentUIMessage[] = [
       {
         id: "user-1",
         role: "user",
-        parts: [{ type: "text", text: "propose an annotation config" }],
+        parts: [{ type: "text", text: "ask me something" }],
       },
       {
         id: "assistant-1",
         role: "assistant",
         parts: [
           {
-            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
+            type: `tool-${ASK_USER_TOOL_NAME}`,
             toolCallId: "tool-call-1",
             state: "input-available",
             input: {
-              type: "categorical",
-              name: "quality",
-              values: [
-                { label: "good", score: 1 },
-                { label: "bad", score: 0 },
+              questions: [
+                { id: "q1", prompt: "Which dataset?", type: "freeform" },
               ],
             },
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
@@ -226,11 +270,10 @@ describe("createAgentSessionChat rehydration", () => {
     await flushMicrotasks();
 
     const pending =
-      store.getState().pendingAnnotationConfigWritesByToolCallId["tool-call-1"];
+      store.getState().pendingElicitationBySessionId["test-session"];
     expect(pending).toBeDefined();
-    expect(pending?.preview.kind).toBe("create");
-    expect(pending?.accept).toBeDefined();
-    expect(pending?.reject).toBeDefined();
+    expect(pending?.toolCallId).toBe("tool-call-1");
+    expect(pending?.questions).toHaveLength(1);
   });
 
   it("does not stage anything when the seeded tail has no pending client tool calls", async () => {
@@ -241,14 +284,14 @@ describe("createAgentSessionChat rehydration", () => {
         role: "assistant",
         parts: [
           {
-            type: `tool-${CREATE_ANNOTATION_CONFIG_TOOL_NAME}`,
+            type: `tool-${ASK_USER_TOOL_NAME}`,
             toolCallId: "tool-call-1",
             state: "output-available",
             input: {},
-            output: { status: "accepted" },
+            output: { status: "answered" },
             callProviderMetadata: CLIENT_EXECUTION_METADATA,
           } as AgentUIMessagePart,
-          { type: "text", text: "Created the config." },
+          { type: "text", text: "Thanks for answering." },
         ],
       },
     ];

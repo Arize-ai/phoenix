@@ -137,6 +137,24 @@ describe("toolSchemas", () => {
       };
       expect(anthropicToolDefinitionSchema.safeParse(tool).success).toBe(false);
     });
+
+    it("should parse an Anthropic tool with strict", () => {
+      const tool = {
+        name: "get_weather",
+        description: "Get weather",
+        input_schema: {
+          type: "object",
+          properties: { city: { type: "string" } },
+          required: ["city"],
+        },
+        strict: true,
+      };
+      const result = anthropicToolDefinitionSchema.safeParse(tool);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.strict).toBe(true);
+      }
+    });
   });
 
   describe("geminiToolDefinitionSchema", () => {
@@ -192,6 +210,28 @@ describe("toolSchemas", () => {
         expect(result.data.toolSpec.inputSchema.json).toEqual({
           type: "object",
         });
+      }
+    });
+
+    it("should parse an AWS tool with strict", () => {
+      const tool = {
+        toolSpec: {
+          name: "get_weather",
+          description: "Get weather",
+          inputSchema: {
+            json: {
+              type: "object",
+              properties: { city: { type: "string" } },
+              required: ["city"],
+            },
+          },
+          strict: true,
+        },
+      };
+      const result = awsToolDefinitionSchema.safeParse(tool);
+      expect(result.success).toBe(true);
+      if (result.success && "toolSpec" in result.data) {
+        expect(result.data.toolSpec.strict).toBe(true);
       }
     });
 

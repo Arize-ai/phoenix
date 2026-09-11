@@ -775,7 +775,7 @@ class Project(Node):
                         )
                     )
             else:
-                stmt = stmt.where(table.id < cursor.rowid)
+                stmt = stmt.where(table.id > cursor.rowid)
         stmt = stmt.order_by(cursor_rowid_column)
         stmt = stmt.limit(
             first + 1  # over-fetch by one to determine whether there's a next page

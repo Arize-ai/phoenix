@@ -7,20 +7,19 @@ from phoenix.server.api.dataloaders.user_credential_counts import (
     UserCredentialCountsDataLoader,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _user_role_id
 
 
 async def test_user_credential_counts_batches_active_credentials(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
-        member_role = models.UserRole(name="MEMBER")
-        session.add(member_role)
-        await session.flush()
+        member_role_id = await _user_role_id(session, "MEMBER")
         users = [
             models.OAuth2User(
                 email=f"{token_hex(8)}@example.com",
                 username=token_hex(8),
-                user_role_id=member_role.id,
+                user_role_id=member_role_id,
             )
             for _ in range(2)
         ]

@@ -112,7 +112,7 @@ export function createReadPlaygroundOutputClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseReadPlaygroundOutputInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid read_playground_output input." };
+      return { ok: false, error: "Invalid playground.run.readOutput input." };
     }
 
     const state = playgroundStore.getState();
@@ -127,6 +127,7 @@ export function createReadPlaygroundOutputClientAction({
       return {
         ok: false,
         error: `Playground instance ${parsed.instanceId} was not found.`,
+        code: "NOT_FOUND",
       };
     }
 
@@ -146,7 +147,8 @@ export function createReadPlaygroundOutputClientAction({
       return {
         ok: false,
         error:
-          "No playground run output is available. Call run_playground first, then read the output after the run starts or finishes.",
+          "No playground run output is available. Call ui.playground.run first, then read the output after the run starts or finishes.",
+        code: "NO_RUN_OUTPUT",
       };
     }
 
@@ -160,9 +162,6 @@ export function createReadPlaygroundOutputClientAction({
           : "Playground output read.",
     };
 
-    return {
-      ok: true,
-      output: JSON.stringify(output, null, 2),
-    };
+    return { ok: true, output };
   };
 }

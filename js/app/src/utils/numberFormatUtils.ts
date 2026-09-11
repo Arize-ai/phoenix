@@ -10,6 +10,14 @@ type NumberFormatFn = (number: number) => string;
 type MaybeNumber = number | null | undefined;
 type MaybeNumberFormatFn = (maybeNumber: MaybeNumber) => string;
 
+// d3's format() regex-parses the specifier on every call, so the shared
+// specifiers are compiled once at module load.
+const commaFormat = format(",");
+const siPrefixFormat = format("0.2s");
+const twoDecimalFormat = format("0.2f");
+const exponentFormat = format(".2e");
+const percentDecimalFormat = format(".2f");
+
 /**
  * Formats ints cleanly across different sizes.
  * NB: this may not work for every type of int but can be used when you want to display a int
@@ -19,8 +27,8 @@ type MaybeNumberFormatFn = (maybeNumber: MaybeNumber) => string;
  */
 export function formatInt(int: number): string {
   const absInt = Math.abs(int);
-  if (absInt < 1000000) return format(",")(int);
-  return format("0.2s")(int).replace("G", "B").replace("k", "K");
+  if (absInt < 1000000) return commaFormat(int);
+  return siPrefixFormat(int).replace("G", "B").replace("k", "K");
 }
 
 /**
@@ -31,8 +39,8 @@ export function formatInt(int: number): string {
 export function formatIntShort(int: number): string {
   const absInt = Math.abs(int);
   // "0.2s" pads small ints with a misleading decimal (3 -> "3.0")
-  if (absInt < 1000) return format(",")(int);
-  return format("0.2s")(int).replace("G", "B").replace("k", "K");
+  if (absInt < 1000) return commaFormat(int);
+  return siPrefixFormat(int).replace("G", "B").replace("k", "K");
 }
 
 /**
@@ -45,26 +53,26 @@ export function formatIntShort(int: number): string {
 export function formatFloat(float: number): string {
   const absValue = Math.abs(float);
   if (absValue === 0.0) return "0.00";
-  else if (absValue < 0.01) return format(".2e")(float);
+  else if (absValue < 0.01) return exponentFormat(float);
   else if (absValue < 1) {
     // truncate instead of rounding to avoid displaying misleading values for averages
     // and draw attention to outliers (e.g. showing "0.99" instead of "1.00" when the actual value is 0.9999)
     const truncatedFloat = truncate(float, 2);
-    return format("0.2f")(truncatedFloat);
-  } else if (absValue < 1000) return format("0.2f")(float);
-  return format("0.2s")(float);
+    return twoDecimalFormat(truncatedFloat);
+  } else if (absValue < 1000) return twoDecimalFormat(float);
+  return siPrefixFormat(float);
 }
 
 export function formatFloatShort(float: number): string {
   const absValue = Math.abs(float);
   if (absValue === 0.0) return "0.00";
-  else if (absValue < 0.01) return format(".2e")(float);
-  else if (absValue < 1000) return format("0.2f")(float);
-  return format("0.2s")(float).replace("G", "B").replace("k", "K");
+  else if (absValue < 0.01) return exponentFormat(float);
+  else if (absValue < 1000) return twoDecimalFormat(float);
+  return siPrefixFormat(float).replace("G", "B").replace("k", "K");
 }
 
 export function formatPercent(float: number): string {
-  return format(".2f")(float) + "%";
+  return percentDecimalFormat(float) + "%";
 }
 
 /**
@@ -93,9 +101,9 @@ export function formatCost(cost: number): string {
     return "<$0.01";
   }
   // Show 2 decimal places for small costs under 100
-  if (cost < 100) return `$${format("0.2f")(cost)}`;
-  if (cost < 10000) return `$${format(",")(cost)}`;
-  return `$${format("0.2s")(cost).replace("G", "B").replace("k", "K")}`;
+  if (cost < 100) return `$${twoDecimalFormat(cost)}`;
+  if (cost < 10000) return `$${commaFormat(cost)}`;
+  return `$${siPrefixFormat(cost).replace("G", "B").replace("k", "K")}`;
 }
 
 /**

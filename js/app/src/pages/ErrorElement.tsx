@@ -2,7 +2,11 @@ import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { isRouteErrorResponse, useRouteError } from "react-router";
 
-import { Button, ExternalLink, Flex } from "@phoenix/components";
+import {
+  isRedirectingToLogin,
+  isRedirectingToLoginError,
+} from "@phoenix/authFetch";
+import { Button, ExternalLink, Flex, Loading } from "@phoenix/components";
 import { isConnectionTimeoutError } from "@phoenix/components/exception/isConnectionTimeoutError";
 
 import { NotFoundContent, ProjectOnboardingNotFound } from "./NotFound";
@@ -41,6 +45,15 @@ export function ErrorElement() {
     }
     return <ErrorContent error={error} />;
   }, [error, is404, notFoundData]);
+
+  if (isRedirectingToLoginError(error) || isRedirectingToLogin()) {
+    // The browser is already navigating to the login page; show a single
+    // neutral pending state instead of an error page while the handoff
+    // completes. The flag check also covers errors from fetches interrupted
+    // by that navigation, which some browsers reject with a generic error
+    // rather than an AbortError.
+    return <Loading />;
+  }
 
   if (notFoundData?.kind === "project-onboarding") {
     return (

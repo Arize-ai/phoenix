@@ -144,6 +144,12 @@ export function LoginForm(props: LoginFormProps) {
                     onChange={onChange}
                     value={value}
                     autoComplete="current-password"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleSubmit(onSubmit)();
+                      }
+                    }}
                   >
                     <Label>Password</Label>
                     <Input placeholder="your password" />

@@ -15,13 +15,11 @@ vi.mock("react-relay", () => ({
 vi.mock("@phoenix/RelayEnvironment", () => ({ default: {} }));
 
 import {
-  bindPendingPatchExperimentActions,
   buildPatchExperimentProposal,
   commitPatchExperiment,
   fetchExperimentSnapshot,
   parsePatchExperimentInput,
   type ExperimentSnapshot,
-  type PendingPatchExperiment,
 } from "@phoenix/agent/tools/patchExperiment";
 
 function experimentId(rowId: string): string {
@@ -152,82 +150,6 @@ describe("fetchExperimentSnapshot", () => {
     });
     await expect(fetchExperimentSnapshot(experimentId("1"))).rejects.toThrow(
       "Could not resolve experimentId to an experiment."
-    );
-  });
-});
-
-describe("bindPendingPatchExperimentActions accept", () => {
-  function makePending(): PendingPatchExperiment {
-    return {
-      toolCallId: "tool-call-1",
-      sessionId: "session-1",
-      experimentId: experimentId("1"),
-      experimentName: "baseline",
-      expectedUpdatedAt: SNAPSHOT.updatedAt,
-      payload: { metadata: { observations: [{ at: "t", by: "pxi" }] } },
-      diff: [
-        {
-          field: "metadata",
-          previous: "{}",
-          next: '{"observations":[{"at":"t","by":"pxi"}]}',
-        },
-      ],
-    };
-  }
-
-  it("commits the stored payload verbatim when updatedAt is unchanged", async () => {
-    const commitPatch = vi.fn().mockResolvedValue(undefined);
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const setPending = vi.fn();
-    const pending = bindPendingPatchExperimentActions({
-      pendingPatch: makePending(),
-      fetchExperimentSnapshot: async () => SNAPSHOT,
-      commitPatchExperiment: commitPatch,
-      addToolOutput,
-      setPendingPatchExperiment: setPending,
-    });
-
-    await pending.accept?.({ approvalSource: "auto" });
-
-    expect(setPending).toHaveBeenCalledWith("tool-call-1", null);
-    expect(commitPatch).toHaveBeenCalledWith({
-      experimentId: experimentId("1"),
-      payload: { metadata: { observations: [{ at: "t", by: "pxi" }] } },
-    });
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-available",
-        output: expect.objectContaining({
-          status: "applied",
-          acceptedBy: "auto",
-          experimentName: "baseline",
-        }),
-      })
-    );
-  });
-
-  it("rejects without committing when the experiment changed after propose", async () => {
-    const commitPatch = vi.fn().mockResolvedValue(undefined);
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const pending = bindPendingPatchExperimentActions({
-      pendingPatch: makePending(),
-      fetchExperimentSnapshot: async () => ({
-        ...SNAPSHOT,
-        updatedAt: "2026-06-11T00:00:00Z",
-      }),
-      commitPatchExperiment: commitPatch,
-      addToolOutput,
-      setPendingPatchExperiment: vi.fn(),
-    });
-
-    await pending.accept?.();
-
-    expect(commitPatch).not.toHaveBeenCalled();
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-error",
-        errorText: expect.stringContaining("changed after this edit"),
-      })
     );
   });
 });

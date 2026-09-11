@@ -4,16 +4,10 @@ packages:
   - examples/apps/*
   - benchmarks/*
 
-managePackageManagerVersions: true
-
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
   - "@arizeai/*"
-  # Adopt the native Vite/Oxc React Compiler releases immediately.
-  - "@vitejs/plugin-react@6.1.0"
-  # These packages and their platform bindings were published together on
-  # August 18, 2026.
-  - "oxlint@1.79.0"
+  - oxlint@1.79.0
   - "@oxlint/binding-android-arm-eabi@1.79.0"
   - "@oxlint/binding-android-arm64@1.79.0"
   - "@oxlint/binding-darwin-arm64@1.79.0"
@@ -33,7 +27,7 @@ minimumReleaseAgeExclude:
   - "@oxlint/binding-win32-arm64-msvc@1.79.0"
   - "@oxlint/binding-win32-ia32-msvc@1.79.0"
   - "@oxlint/binding-win32-x64-msvc@1.79.0"
-  - "oxc-transform-react@0.145.0"
+  - oxc-transform-react@0.145.0
   - "@oxc-transform-react/binding-android-arm-eabi@0.145.0"
   - "@oxc-transform-react/binding-android-arm64@0.145.0"
   - "@oxc-transform-react/binding-darwin-arm64@0.145.0"
@@ -53,6 +47,24 @@ minimumReleaseAgeExclude:
   - "@oxc-transform-react/binding-win32-arm64-msvc@0.145.0"
   - "@oxc-transform-react/binding-win32-ia32-msvc@0.145.0"
   - "@oxc-transform-react/binding-win32-x64-msvc@0.145.0"
+  # Vitest 5.0.0 and the @vitest/* packages it version-locks were all
+  # published together on September 3, 2026.
+  - "vitest@5.0.0"
+  - "@vitest/browser@5.0.0"
+  - "@vitest/browser-playwright@5.0.0"
+  - "@vitest/coverage-v8@5.0.0"
+  - "@vitest/mocker@5.0.0"
+  - "@vitest/pretty-format@5.0.0"
+  - "@vitest/spy@5.0.0"
+  - "@vitest/ui@5.0.0"
+  - "@vitest/utils@5.0.0"
+  # React 19.3.0 and the packages released alongside it were all published
+  # together on September 9, 2026.
+  - "react@19.3.0"
+  - "react-dom@19.3.0"
+  - "scheduler@0.28.0"
+  - "@types/react@19.3.0"
+  - "@types/react-dom@19.3.0"
 minimumReleaseAgeExcludePrune: true
 
 # @browser-ai/core imports @ai-sdk/provider at runtime without declaring it,
@@ -65,6 +77,9 @@ packageExtensions:
 
 allowBuilds:
   "@mongodb-js/zstd": false
+  # Prebuilt platform binaries ship as optional deps; the install script is
+  # only a node-gyp build-from-source fallback.
+  "@parcel/watcher": false
   # Only has a "use pnpm" preinstall guard; no build output needed.
   autoevals: false
   esbuild: true

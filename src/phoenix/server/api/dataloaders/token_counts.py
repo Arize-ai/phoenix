@@ -3,7 +3,8 @@ from datetime import datetime
 from typing import Any, Literal, Optional
 
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, select
+from sqlalchemy import ColumnElement, Select, func, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -94,6 +95,17 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
         return results
 
 
+def _has_llm_child() -> ColumnElement[bool]:
+    child = aliased(models.Span, name="child_span")
+    # Span IDs are unique across traces, so parent_id alone identifies the parent.
+    return (
+        select(1)
+        .where(child.parent_id == models.Span.span_id)
+        .where(func.upper(child.span_kind) == "LLM")
+        .exists()
+    )
+
+
 def _get_stmt(
     segment: Segment,
     *params: Param,
@@ -111,11 +123,9 @@ def _get_stmt(
             total.label("total"),
         )
         .join_from(models.Trace, models.Span)
-        # Aggregate only leaf LLM spans.  Frameworks like smolagents
-        # propagate token counts up through wrapping agent/tool spans,
-        # so summing every span multi-counts the same tokens (e.g. the
-        # dashboard reported 3x the detailed-trace total in #12768).
+        # Wrapping spans can repeat their children's token counts (#12768).
         .where(func.upper(models.Span.span_kind) == "LLM")
+        .where(~_has_llm_child())
         .group_by(pid)
     )
     if start_time:

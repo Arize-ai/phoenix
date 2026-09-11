@@ -303,6 +303,7 @@ examples:
         assert len(dataset.examples) == 6
         assert dataset.evaluators == [
             "correct_tools_called",
+            "forbidden_tool_call_args_match",
             "tool_call_args_match",
             "tool_call_count_within_limit",
         ]
@@ -323,7 +324,7 @@ examples:
         preserve = next(
             e for e in dataset.examples if e["id"] == "preserve-scaffold-when-appending"
         )
-        has_keys = preserve["expected"]["tool_call_args"]["patch_experiment"]["metadata"][
+        has_keys = preserve["expected"]["ui_operation_args"]["experiment.patch"]["metadata"][
             "has_keys"
         ]
         assert set(has_keys) == {
@@ -339,21 +340,21 @@ examples:
         assert "tool_call_args_match" in dataset.evaluators
         for example in dataset.examples:
             expected = example["expected"]
-            save_prompt_args = expected.get("tool_call_args", {}).get("save_prompt")
+            save_prompt_args = expected.get("ui_operation_args", {}).get("playground.prompt.save")
             if save_prompt_args is None:
                 continue
-            # `save_prompt` may be a single arg-matcher dict or a list of
-            # independently-acceptable variants; every variant must require a
-            # non-empty description.
+            # `playground.prompt.save` may be a single arg-matcher dict or a
+            # list of independently-acceptable variants; every variant must
+            # require a non-empty description.
             variants = (
                 save_prompt_args if isinstance(save_prompt_args, list) else [save_prompt_args]
             )
             for variant in variants:
                 description = variant.get("description")
                 assert description is not None, (
-                    f"{example['id']} must assert save_prompt.description"
+                    f"{example['id']} must assert playground.prompt.save description"
                 )
                 assert isinstance(description, dict)
                 assert description.get("non_empty") is True, (
-                    f"{example['id']} must reject empty save_prompt.description"
+                    f"{example['id']} must reject an empty playground.prompt.save description"
                 )

@@ -6,6 +6,7 @@ import type { components } from "@phoenix/api/__generated__/v1";
 import {
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
+  GITHUB_PAT_CREDENTIAL_KEY,
   type AgentObservabilitySettings,
   type AgentPermissions,
   type AgentServerConfig,
@@ -48,6 +49,12 @@ type BuildAgentChatRequestBodyOptions = {
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
   modelSelection: AgentModelSelection;
+  /**
+   * Client-held integration credentials keyed by secret-key name. Matching
+   * credentials ride the request ephemerally when the integration is enabled;
+   * the server never persists them.
+   */
+  integrationCredentials?: Record<string, string>;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
   /** Tool calls this client resolved as interrupted. */
@@ -138,6 +145,7 @@ export function buildAgentChatRequestBody({
   permissions,
   contexts,
   modelSelection,
+  integrationCredentials = {},
   toolTimings = null,
   locallyInterruptedToolCallIds = {},
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
@@ -150,10 +158,21 @@ export function buildAgentChatRequestBody({
     buildSubagentsContext(capabilities),
     ...contexts,
   ];
+  // The user's personal GitHub token rides the request ephemerally while the
+  // GitHub tools are enabled; it takes precedence server-side over the
+  // workspace token, so issues are filed as the user.
+  const githubToken = agentsConfig.githubEnabled
+    ? integrationCredentials[GITHUB_PAT_CREDENTIAL_KEY]
+    : undefined;
   const base = {
     ...body,
     id,
     headless: false,
+    ...(githubToken
+      ? {
+          credentials: [{ key: GITHUB_PAT_CREDENTIAL_KEY, value: githubToken }],
+        }
+      : {}),
     recordLocalTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     instrumentUserId: getEffectiveAttachUserId({ agentsConfig, observability }),

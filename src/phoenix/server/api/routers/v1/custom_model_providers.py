@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -10,7 +9,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.models import GenerativeModelSDK
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     add_errors_to_responses,
@@ -41,8 +40,10 @@ class CustomModelProvider(V1RoutesBaseModel):
         ...,
         description="The SDK used to communicate with the custom provider.",
     )
-    created_at: datetime = Field(..., description="The time the custom provider was created.")
-    updated_at: datetime = Field(..., description="The time the custom provider was last updated.")
+    created_at: IsoDatetime = Field(..., description="The time the custom provider was created.")
+    updated_at: IsoDatetime = Field(
+        ..., description="The time the custom provider was last updated."
+    )
 
 
 class GetCustomModelProvidersResponseBody(PaginatedResponseBody[CustomModelProvider]):

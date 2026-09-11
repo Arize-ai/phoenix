@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from random import getrandbits
 from typing import Any, Optional
 
@@ -23,6 +22,7 @@ from phoenix.db.helpers import (
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
@@ -66,8 +66,8 @@ class Experiment(V1RoutesBaseModel):
     project_name: Optional[str] = Field(
         description="The name of the project associated with the experiment"
     )
-    created_at: datetime = Field(description="The creation timestamp of the experiment")
-    updated_at: datetime = Field(description="The last update timestamp of the experiment")
+    created_at: IsoDatetime = Field(description="The creation timestamp of the experiment")
+    updated_at: IsoDatetime = Field(description="The last update timestamp of the experiment")
     example_count: int = Field(description="Number of examples in the experiment")
     successful_run_count: int = Field(description="Number of successful runs in the experiment")
     failed_run_count: int = Field(description="Number of failed runs in the experiment")

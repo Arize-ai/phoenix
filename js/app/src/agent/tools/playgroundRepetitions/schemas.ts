@@ -11,6 +11,12 @@ export const setPlaygroundRepetitionsInputSchema = z
       .number()
       .int()
       .min(NUM_MIN_PLAYGROUND_REPETITIONS)
-      .max(NUM_MAX_PLAYGROUND_REPETITIONS),
+      .max(NUM_MAX_PLAYGROUND_REPETITIONS)
+      .describe(
+        // The zod min/max do not survive into the rendered catalog signature,
+        // so the bounds the retired set_playground_repetitions tool schema
+        // advertised are restated here for the model.
+        `The number of times each playground task should run, between ${NUM_MIN_PLAYGROUND_REPETITIONS} and ${NUM_MAX_PLAYGROUND_REPETITIONS}.`
+      ),
   })
   .strict();

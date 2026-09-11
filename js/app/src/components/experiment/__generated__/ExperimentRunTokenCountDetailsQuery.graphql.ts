@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<48dd81db09c56dfa91de6643c9666c4d>>
+ * @generated SignedSource<<eb074a12bda7466bc2c0547ff7062e61>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,13 @@ export type ExperimentRunTokenCountDetailsQuery$variables = {
 export type ExperimentRunTokenCountDetailsQuery$data = {
   readonly node: {
     readonly __typename: "ExperimentRun";
+    readonly costDetailSummaryEntries: ReadonlyArray<{
+      readonly isPrompt: boolean;
+      readonly tokenType: string;
+      readonly value: {
+        readonly tokens: number | null;
+      };
+    }>;
     readonly costSummary: {
       readonly completion: {
         readonly tokens: number | null;
@@ -110,6 +117,41 @@ v4 = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostDetailSummaryEntry",
+      "kind": "LinkedField",
+      "name": "costDetailSummaryEntries",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokenType",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isPrompt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "CostBreakdown",
+          "kind": "LinkedField",
+          "name": "value",
+          "plural": false,
+          "selections": (v3/*:: as any*/),
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "ExperimentRun",
@@ -168,16 +210,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bb25f38a892f4b257794b8e43b04f835",
+    "cacheID": "19c94d87d491348a68db758550266527",
     "id": null,
     "metadata": {},
     "name": "ExperimentRunTokenCountDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentRunTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ExperimentRun {\n      costSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentRunTokenCountDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on ExperimentRun {\n      costSummary {\n        total {\n          tokens\n        }\n        prompt {\n          tokens\n        }\n        completion {\n          tokens\n        }\n      }\n      costDetailSummaryEntries {\n        tokenType\n        isPrompt\n        value {\n          tokens\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0de1caa674a484b1e5d1449743805823";
+(node as any).hash = "ca98ea0f60bfb0a27978d70906ebba48";
 
 export default node;

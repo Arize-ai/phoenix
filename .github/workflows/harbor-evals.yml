@@ -15,11 +15,10 @@ concurrency:
 
 jobs:
   harbor-eval:
-    name: ServerAgent regression triage (Daytona)
+    name: Headless agent regression triage (Daytona)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      UV_VERSION: "0.12.1"
       HARBOR_ENV: daytona
       # Two attempts, gated on the mean: a one-off agent slip passes while a
       # consistent regression still fails.
@@ -31,9 +30,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: ${{ env.UV_VERSION }}
+          version-file: "pyproject.toml"
 
       - name: Build the Phoenix wheel and stage the Harbor task environments
         run: make harbor-stage-environments
@@ -47,7 +46,7 @@ jobs:
 
       # The agent is nondeterministic; require 3 of 4 steps rather than
       # perfection. Tighten once there's a pass-rate history.
-      - name: Run ServerAgent trial
+      - name: Run headless-agent trial
         run: |
           make harbor-run
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75

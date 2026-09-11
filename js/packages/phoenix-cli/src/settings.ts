@@ -71,6 +71,12 @@ export const ProfileEntrySchema = z.object({
   oauthTokens: OAuthTokensSchema.optional().describe(
     "OAuth token pair created by `px auth login`. Tokens are secrets and are stored in the settings file with mode 0600."
   ),
+  githubPersonalAccessToken: z
+    .string()
+    .optional()
+    .describe(
+      "GitHub personal access token sent with pxi chat requests so the agent's GitHub tools act as you (requires the Phoenix deployment to enable GitHub tools). Prefer a fine-grained token scoped to Issues read/write. Treat as a secret — the profiles file should be user-readable only (mode 0600)."
+    ),
 });
 
 export const SettingsFileSchema = z.object({

@@ -1,7 +1,7 @@
 # 3-stage build with frontend assets for production mode (no-vite)
 # This Dockerfile is used when vite-dev service is disabled
 ARG PYTHON_VERSION=3.13
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
 
 # Stage 1: Frontend Builder
 FROM node:${NODE_VERSION}-slim AS frontend-builder
@@ -24,7 +24,7 @@ FROM python:${PYTHON_VERSION}-slim-bullseye AS backend-builder
 WORKDIR /phoenix
 
 # Install uv - pin version to match pyproject.toml [tool.uv] required-version
-RUN pip install uv==0.12.1
+RUN pip install uv==0.12.7
 
 # Copy dependency files first for better layer caching
 COPY ./pyproject.toml ./uv.lock ./LICENSE ./IP_NOTICE ./README.md ./

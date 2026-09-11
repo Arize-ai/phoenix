@@ -58,9 +58,12 @@ class ModelCostManifest(BaseModel):
 PROVIDER_PREFIXES: dict[str, str | None] = {
     "cerebras/": "cerebras",
     "groq/": "groq",
+    "minimax/": "minimax",
     "moonshot/": None,
     "perplexity/": None,
     "together_ai/": "together",
+    "zai/": "zai",
+    "meta/": "meta",
 }
 
 
@@ -177,6 +180,31 @@ def _tier_customization(
     )
 
 
+OUTPUT_RATE_FIELDS: tuple[str, ...] = (
+    "output_cost_per_token",
+    "output_cost_per_image_token",
+)
+
+
+def _output_rate_field(model_info: dict[str, Any]) -> Optional[str]:
+    """
+    Resolve which LiteLLM field prices Phoenix's ``output`` token type.
+
+    Phoenix bills every completion token that has no more specific price at the ``output``
+    rate, and the cost calculator requires that rate whenever any completion price is
+    configured. LiteLLM publishes a text rate (``output_cost_per_token``) for chat models,
+    but image generation models such as gpt-image-2 emit only image tokens and carry just
+    ``output_cost_per_image_token``. Prefer the text rate when published and fall back to
+    the image-token rate otherwise. The image-token rate is always emitted as an explicit
+    ``image`` price as well, so instrumentation that reports image tokens separately bills
+    them exactly regardless of which field backs ``output``.
+    """
+    for field in OUTPUT_RATE_FIELDS:
+        if _is_positive_number(model_info.get(field)):
+            return field
+    return None
+
+
 def _is_positive_number(value: Any) -> bool:
     try:
         return float(value) > 0
@@ -187,9 +215,8 @@ def _is_positive_number(value: Any) -> bool:
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
-        if (
-            "input_cost_per_token" in model_info and "output_cost_per_token" in model_info
-        ):  # both are required for pricing
+        # Both an input and an output rate are required for pricing.
+        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -216,13 +243,13 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 )
             )
 
-        if output_cost := float(model_info.get("output_cost_per_token", 0)):
+        if (output_field := _output_rate_field(model_info)) is not None:
             token_prices.append(
                 TokenPrice(
                     token_type="output",
-                    base_rate=output_cost,
+                    base_rate=float(model_info[output_field]),
                     is_prompt=False,
-                    customization=_tier_customization(model_info, "output_cost_per_token"),
+                    customization=_tier_customization(model_info, output_field),
                 )
             )
 
@@ -262,6 +289,33 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 TokenPrice(
                     token_type="audio",
                     base_rate=output_audio_cost,
+                    is_prompt=False,
+                )
+            )
+
+        if input_image_cost := float(model_info.get("input_cost_per_image_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="image",
+                    base_rate=input_image_cost,
+                    is_prompt=True,
+                )
+            )
+
+        if output_image_cost := float(model_info.get("output_cost_per_image_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="image",
+                    base_rate=output_image_cost,
+                    is_prompt=False,
+                )
+            )
+
+        if reasoning_cost := float(model_info.get("output_cost_per_reasoning_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="reasoning",
+                    base_rate=reasoning_cost,
                     is_prompt=False,
                 )
             )

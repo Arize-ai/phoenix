@@ -10,7 +10,7 @@ from phoenix.config import (
     get_env_scarf_sh_pixel_id,
 )
 from phoenix.logging import setup_logging
-from phoenix.server.cli.commands import db, serve
+from phoenix.server.cli.commands import datagen, db, serve
 from phoenix.settings import Settings
 
 
@@ -24,6 +24,7 @@ def main() -> None:
 
     serve.register(subparsers)
     db.register(subparsers)
+    datagen.register(subparsers)
 
     args = parser.parse_args()
     args.func(args)

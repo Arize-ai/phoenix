@@ -3,6 +3,8 @@ import {
   type ApprovalOutcome,
   type ApprovalSource,
 } from "@phoenix/agent/shared/pendingApproval";
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
+import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 export type { ApprovalSource };
@@ -77,7 +79,10 @@ export function createEvaluatorSubmitClientAction<
   notMountedError: string;
   shouldAutoAccept?: () => boolean;
 }) {
-  return async (input: unknown): Promise<AgentClientActionResult> => {
+  return async (
+    input: unknown,
+    context?: unknown
+  ): Promise<AgentClientActionResult> => {
     if (parseInput(input) == null) {
       return { ok: false, error: invalidInputError };
     }
@@ -85,14 +90,22 @@ export function createEvaluatorSubmitClientAction<
     if (!host) {
       return { ok: false, error: notMountedError };
     }
-    if (!shouldAutoAccept()) {
+    // A script-level approval grant (the user accepted the enclosing
+    // script's write_description) covers the submit, exactly like bypass
+    // edit mode does.
+    const callContext = parseUIOperationCallContext(context);
+    const isSubmitApproved =
+      shouldAutoAccept() ||
+      (callContext != null &&
+        isOperationCallApprovalGranted(callContext.callId));
+    if (!isSubmitApproved) {
       const output: EvaluatorSubmitToolOutput = {
         status: "awaiting_user",
         persisted: false,
         requiresUserAction: true,
         message: AWAITING_USER_MESSAGE,
       };
-      return { ok: true, output: JSON.stringify(output) };
+      return { ok: true, output };
     }
     const result = await host.submit({ approvalSource: "auto" });
     if (!result.ok) {
@@ -105,6 +118,6 @@ export function createEvaluatorSubmitClientAction<
       evaluator: result.evaluator,
       ...approvalOutcome({ decision: "accepted", source: "auto" }),
     };
-    return { ok: true, output: JSON.stringify(output) };
+    return { ok: true, output };
   };
 }

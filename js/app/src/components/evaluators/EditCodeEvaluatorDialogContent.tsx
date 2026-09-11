@@ -22,15 +22,18 @@ import {
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
   createSubmitCodeEvaluatorDraftClientAction,
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type EditCodeEvaluatorDraftOperation,
   type EvaluatorSubmitResult,
   fromOutputConfigDraft,
-  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type SandboxConfigIndex,
-  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import {
+  editCodeEvaluatorDraftOperation,
+  readCodeEvaluatorDraftOperation,
+  submitCodeEvaluatorDraftOperation,
+} from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -266,6 +269,10 @@ export const EditCodeEvaluatorDialogContent = ({
   useEffect(() => {
     sandboxConfigIndexRef.current = sandboxConfigIndex;
   }, [sandboxConfigIndex]);
+  const sandboxConfigsRef = useRef(sandboxConfigs);
+  useEffect(() => {
+    sandboxConfigsRef.current = sandboxConfigs;
+  }, [sandboxConfigs]);
 
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
   const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
@@ -294,6 +301,12 @@ export const EditCodeEvaluatorDialogContent = ({
         inputMapping: state.evaluator.inputMapping,
         testPayload: state.evaluatorMappingSource,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
+        availableSandboxConfigs: sandboxConfigsRef.current.map((config) => ({
+          id: config.id,
+          name: config.name,
+          language: config.language,
+          backendType: config.backendType,
+        })),
       };
     };
 
@@ -384,39 +397,38 @@ export const EditCodeEvaluatorDialogContent = ({
     };
     draftHostRef.current = host;
 
-    const {
-      registerClientAction,
-      unregisterClientAction,
-      setPendingCodeEvaluatorEdit,
-    } = agentStore.getState();
+    const { setPendingCodeEvaluatorEdit } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
-    registerClientAction(
-      READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createReadCodeEvaluatorDraftClientAction({ getDraftHost })
-    );
-    registerClientAction(
-      EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createEditCodeEvaluatorDraftClientAction({
-        getDraftHost,
-        setPendingCodeEvaluatorEdit,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      })
-    );
-    registerClientAction(
-      SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createSubmitCodeEvaluatorDraftClientAction({
-        getDraftHost,
-        shouldAutoAccept: () =>
-          agentStore.getState().permissions.edits === "bypass",
-      })
-    );
+    const unregister = registerUIOperations({
+      agentStore,
+      operations: [
+        {
+          descriptor: readCodeEvaluatorDraftOperation,
+          handler: createReadCodeEvaluatorDraftClientAction({ getDraftHost }),
+        },
+        {
+          descriptor: editCodeEvaluatorDraftOperation,
+          handler: createEditCodeEvaluatorDraftClientAction({
+            getDraftHost,
+            setPendingCodeEvaluatorEdit,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+        {
+          descriptor: submitCodeEvaluatorDraftOperation,
+          handler: createSubmitCodeEvaluatorDraftClientAction({
+            getDraftHost,
+            shouldAutoAccept: () =>
+              agentStore.getState().permissions.edits === "bypass",
+          }),
+        },
+      ],
+    });
     return () => {
       draftHostRef.current = null;
       handleSubmitRef.current = null;
-      unregisterClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME);
-      unregisterClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
-      unregisterClientAction(SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregister();
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
       )) {

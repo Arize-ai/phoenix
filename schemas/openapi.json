@@ -4704,10 +4704,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Trace GlobalID)",
+              "description": "Pagination cursor returned by a previous request",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Trace GlobalID)"
+            "description": "Pagination cursor returned by a previous request"
           },
           {
             "name": "include_spans",
@@ -4741,6 +4741,62 @@
               "title": "Session Identifier"
             },
             "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned."
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "title": "Error"
+            },
+            "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI."
+          },
+          {
+            "name": "min_latency_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound on trace latency in milliseconds.",
+              "title": "Min Latency Ms"
+            },
+            "description": "Inclusive lower bound on trace latency in milliseconds."
+          },
+          {
+            "name": "max_latency_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive upper bound on trace latency in milliseconds.",
+              "title": "Max Latency Ms"
+            },
+            "description": "Inclusive upper bound on trace latency in milliseconds."
           }
         ],
         "responses": {
@@ -4753,6 +4809,86 @@
                 }
               }
             }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Delete traces from a project",
+        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.",
+        "operationId": "deleteProjectTraces",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Required inclusive lower bound on trace start time (ISO 8601).",
+              "title": "Start Time"
+            },
+            "description": "Required inclusive lower bound on trace start time (ISO 8601)."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Required exclusive upper bound on trace start time (ISO 8601).",
+              "title": "End Time"
+            },
+            "description": "Required exclusive upper bound on trace start time (ISO 8601)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned after the matching traces are deleted"
           },
           "403": {
             "content": {
@@ -6141,6 +6277,79 @@
             "description": "Not Found"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Create prompt version",
+        "description": "Create a new version for an existing prompt by identifier.",
+        "operationId": "createPromptVersion",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptVersionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created prompt version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptVersionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
       }
     },
     "/v1/prompt_versions/{prompt_version_id}": {
@@ -7038,6 +7247,81 @@
         "responses": {
           "204": {
             "description": "No content returned on successful deletion"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/retention": {
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Set a project's trace retention policy",
+        "description": "Assign an existing trace retention policy to a project, or reset the project to the default policy with a null `policy_id`. Retention policies are standalone, reusable entities: this endpoint only changes which policy the project points at, and never creates, edits, or deletes a policy.",
+        "operationId": "setProjectRetentionPolicy",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectRetentionPolicyRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project's retention policy assignment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetProjectRetentionPolicyResponseBody"
+                }
+              }
+            }
           },
           "403": {
             "content": {
@@ -8420,7 +8704,7 @@
           "chat_completions"
         ],
         "summary": "OpenAI-compatible chat completions",
-        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
         "operationId": "createChatCompletion",
         "requestBody": {
           "content": {
@@ -8831,7 +9115,7 @@
         "tags": [
           "chat"
         ],
-        "summary": "Run Server Agent",
+        "summary": "Run Headless Agent",
         "operationId": "legacyServerAgentChat",
         "deprecated": true,
         "parameters": [
@@ -10064,54 +10348,6 @@
         ],
         "title": "AgentSessionSummary"
       },
-      "AgentSpanContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "span",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Projectnodeid"
-          },
-          "spanNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Spannodeid"
-          },
-          "otelSpanId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Otelspanid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "AgentSpanContext",
-        "description": "Span the user has selected.\n\nExactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry\nhex) must be set. ``project_node_id`` is optional because a span can be\nselected from views outside a project route."
-      },
       "AnnotateSessionsRequestBody": {
         "properties": {
           "data": {
@@ -10429,6 +10665,7 @@
             "title": "Timezone"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -10942,34 +11179,34 @@
             "$ref": "#/components/schemas/AppContext"
           },
           {
-            "$ref": "#/components/schemas/ProjectContext"
+            "$ref": "#/components/schemas/ProjectUIContext"
           },
           {
-            "$ref": "#/components/schemas/TraceContext"
+            "$ref": "#/components/schemas/TraceUIContext"
           },
           {
-            "$ref": "#/components/schemas/SessionContext"
+            "$ref": "#/components/schemas/SessionUIContext"
           },
           {
-            "$ref": "#/components/schemas/PromptContext"
+            "$ref": "#/components/schemas/PromptUIContext"
           },
           {
-            "$ref": "#/components/schemas/PromptVersionContext"
+            "$ref": "#/components/schemas/PromptVersionUIContext"
           },
           {
-            "$ref": "#/components/schemas/AgentSpanContext"
+            "$ref": "#/components/schemas/SpanUIContext"
           },
           {
-            "$ref": "#/components/schemas/PlaygroundContext"
+            "$ref": "#/components/schemas/PlaygroundUIContext"
           },
           {
-            "$ref": "#/components/schemas/CodeEvaluatorContext"
+            "$ref": "#/components/schemas/CodeEvaluatorUIContext"
           },
           {
-            "$ref": "#/components/schemas/LlmEvaluatorContext"
+            "$ref": "#/components/schemas/LlmEvaluatorUIContext"
           },
           {
-            "$ref": "#/components/schemas/DatasetContext"
+            "$ref": "#/components/schemas/DatasetUIContext"
           },
           {
             "$ref": "#/components/schemas/GraphQLContext"
@@ -10987,18 +11224,18 @@
           "propertyName": "type",
           "mapping": {
             "app": "#/components/schemas/AppContext",
-            "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
-            "dataset": "#/components/schemas/DatasetContext",
+            "code_evaluator": "#/components/schemas/CodeEvaluatorUIContext",
+            "dataset": "#/components/schemas/DatasetUIContext",
             "graphql": "#/components/schemas/GraphQLContext",
-            "llm_evaluator": "#/components/schemas/LlmEvaluatorContext",
-            "playground": "#/components/schemas/PlaygroundContext",
-            "project": "#/components/schemas/ProjectContext",
-            "prompt": "#/components/schemas/PromptContext",
-            "prompt_version": "#/components/schemas/PromptVersionContext",
-            "session": "#/components/schemas/SessionContext",
-            "span": "#/components/schemas/AgentSpanContext",
+            "llm_evaluator": "#/components/schemas/LlmEvaluatorUIContext",
+            "playground": "#/components/schemas/PlaygroundUIContext",
+            "project": "#/components/schemas/ProjectUIContext",
+            "prompt": "#/components/schemas/PromptUIContext",
+            "prompt_version": "#/components/schemas/PromptVersionUIContext",
+            "session": "#/components/schemas/SessionUIContext",
+            "span": "#/components/schemas/SpanUIContext",
             "subagents": "#/components/schemas/SubagentsContext",
-            "trace": "#/components/schemas/TraceContext",
+            "trace": "#/components/schemas/TraceUIContext",
             "web_access": "#/components/schemas/WebAccessContext"
           }
         }
@@ -11100,6 +11337,14 @@
             "title": "Lastmessageid",
             "description": "The id of the last transcript message the client has rendered, used for optimistic concurrency. Omit when the session has no messages; required (and validated against the persisted transcript) once it does. On mismatch the server rejects the send with HTTP 409 and code ``agent_session_messages_stale`` \u2014 the client should refetch the session before retrying."
           },
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/ChatRequestCredential"
+            },
+            "type": "array",
+            "title": "Credentials",
+            "description": "Client-held credentials for optional integrations (e.g. the user's own GitHub personal access token under the key ``GITHUB_PERSONAL_ACCESS_TOKEN``), used only for the duration of the turn and never persisted. Unknown keys are rejected."
+          },
           "recordLocalTraces": {
             "type": "boolean",
             "title": "Recordlocaltraces",
@@ -11126,7 +11371,30 @@
         "title": "ChatRequestBody",
         "description": "Assistant chat submit request payload."
       },
-      "CodeEvaluatorContext": {
+      "ChatRequestCredential": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "const": "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "title": "Key",
+            "description": "The credential's secret-key name."
+          },
+          "value": {
+            "type": "string",
+            "format": "password",
+            "title": "Value",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "ChatRequestCredential",
+        "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
+      },
+      "CodeEvaluatorUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -11145,12 +11413,12 @@
             "title": "Evaluatornodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
         ],
-        "title": "CodeEvaluatorContext",
-        "description": "Code-evaluator create/edit form mounted in the current browser route."
+        "title": "CodeEvaluatorUIContext"
       },
       "CompactAgentSessionRequestBody": {
         "properties": {
@@ -11416,7 +11684,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, moonshot, ollama, openai, perplexity, together, xai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
           },
           "messages": {
             "items": {
@@ -11956,6 +12224,44 @@
         ],
         "title": "CreatePromptResponseBody"
       },
+      "CreatePromptVersionRequestBody": {
+        "properties": {
+          "version": {
+            "$ref": "#/components/schemas/PromptVersionData"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PromptVersionTagData"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "CreatePromptVersionRequestBody"
+      },
+      "CreatePromptVersionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatePromptVersionResponseBody"
+      },
       "CreateSessionNoteRequestBody": {
         "properties": {
           "data": {
@@ -12372,37 +12678,6 @@
         ],
         "title": "Dataset"
       },
-      "DatasetContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dataset",
-            "title": "Type"
-          },
-          "datasetNodeId": {
-            "type": "string",
-            "title": "Datasetnodeid"
-          },
-          "datasetVersionNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Datasetversionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "datasetNodeId"
-        ],
-        "title": "DatasetContext",
-        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. These IDs scope the create-form handoff link and the sampling of\nactive dataset examples used as prompt context; the dataset schema itself\nis open."
-      },
       "DatasetExample": {
         "properties": {
           "id": {
@@ -12565,6 +12840,37 @@
           "updated_at"
         ],
         "title": "DatasetSplit"
+      },
+      "DatasetUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dataset",
+            "title": "Type"
+          },
+          "datasetNodeId": {
+            "type": "string",
+            "title": "Datasetnodeid"
+          },
+          "datasetVersionNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetversionnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "datasetNodeId"
+        ],
+        "title": "DatasetUIContext"
       },
       "DatasetVersion": {
         "properties": {
@@ -14260,6 +14566,7 @@
             "title": "Mutationsenabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -15055,7 +15362,7 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
-      "LlmEvaluatorContext": {
+      "LlmEvaluatorUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -15074,12 +15381,12 @@
             "title": "Evaluatornodeid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"
         ],
-        "title": "LlmEvaluatorContext",
-        "description": "LLM-evaluator create/edit form mounted in the current browser route."
+        "title": "LlmEvaluatorUIContext"
       },
       "LocalUser": {
         "properties": {
@@ -15239,8 +15546,11 @@
           "FIREWORKS",
           "GROQ",
           "MOONSHOT",
+          "MINIMAX",
           "PERPLEXITY",
-          "TOGETHER"
+          "TOGETHER",
+          "ZAI",
+          "META"
         ],
         "title": "ModelProvider"
       },
@@ -16113,6 +16423,25 @@
             "type": "boolean",
             "title": "Iscompactionmessage",
             "default": false
+          },
+          "uiContexts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UIContexts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
           }
         },
         "additionalProperties": false,
@@ -16125,7 +16454,7 @@
         "title": "PhoenixUserMessageMetadata",
         "description": "The ``phoenix`` metadata namespace the browser attaches to outgoing\nuser messages."
       },
-      "PlaygroundBuiltinModelContext": {
+      "PlaygroundBuiltinModelUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -16142,64 +16471,15 @@
             "title": "Modelname"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "provider",
           "modelName"
         ],
-        "title": "PlaygroundBuiltinModelContext",
-        "description": "Built-in playground model selection."
+        "title": "PlaygroundBuiltinModelUIContext"
       },
-      "PlaygroundContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "playground",
-            "title": "Type"
-          },
-          "recordExperiments": {
-            "type": "boolean",
-            "title": "Recordexperiments",
-            "default": true
-          },
-          "repetitions": {
-            "type": "integer",
-            "title": "Repetitions",
-            "default": 1
-          },
-          "nextExperimentScaffold": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PlaygroundExperimentScaffoldContext"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "instances": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundInstanceContext"
-            },
-            "type": "array",
-            "title": "Instances"
-          },
-          "evaluators": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundEvaluatorContext"
-            },
-            "type": "array",
-            "title": "Evaluators"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "PlaygroundContext",
-        "description": "Playground prompt editor state mounted in the current browser route."
-      },
-      "PlaygroundCustomProviderModelContext": {
+      "PlaygroundCustomProviderModelUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -16224,6 +16504,7 @@
             "title": "Modelname"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "customProviderId",
@@ -16231,10 +16512,9 @@
           "provider",
           "modelName"
         ],
-        "title": "PlaygroundCustomProviderModelContext",
-        "description": "Custom-provider playground model selection."
+        "title": "PlaygroundCustomProviderModelUIContext"
       },
-      "PlaygroundEvaluatorContext": {
+      "PlaygroundEvaluatorUIContext": {
         "properties": {
           "datasetEvaluatorId": {
             "type": "string",
@@ -16262,6 +16542,7 @@
             "title": "Isapplied"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "datasetEvaluatorId",
@@ -16270,10 +16551,9 @@
           "isBuiltin",
           "isApplied"
         ],
-        "title": "PlaygroundEvaluatorContext",
-        "description": "One dataset evaluator on the mounted playground's roster. ``name`` is\nuser-controlled; sanitize at every model-visible boundary."
+        "title": "PlaygroundEvaluatorUIContext"
       },
-      "PlaygroundExperimentScaffoldContext": {
+      "PlaygroundExperimentScaffoldUIContext": {
         "properties": {
           "name": {
             "anyOf": [
@@ -16303,11 +16583,11 @@
             "default": false
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "PlaygroundExperimentScaffoldContext",
-        "description": "Experiment name/description/metadata the user has staged for the playground's\n*next* dataset-backed run, before that run has started.\n\nThe playground UI lets the user pre-set how the next recorded run's experiment\nwill be named, described, and tagged (via the ``set_playground_experiment_recording``\ntool or the recording form). That staged state is surfaced here so the agent can\nsee what is already set and avoid re-staging it.\n\nField semantics:\n- ``name`` / ``description``: the staged values, surfaced to the model verbatim,\n  or ``None`` when the user has not staged them.\n- ``has_metadata``: a presence flag, not the value. Only *whether* metadata has\n  been staged is model-relevant (so the agent knows not to re-attach it); the\n  metadata object itself is deliberately kept out of the prompt.\n\nA field left unstaged (``None`` / ``False``) falls back to the server default when\nthe run starts. The scaffold is consumed once that next run begins."
+        "title": "PlaygroundExperimentScaffoldUIContext"
       },
-      "PlaygroundInstanceContext": {
+      "PlaygroundInstanceUIContext": {
         "properties": {
           "instanceId": {
             "type": "integer",
@@ -16318,17 +16598,17 @@
               {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/PlaygroundBuiltinModelContext"
+                    "$ref": "#/components/schemas/PlaygroundBuiltinModelUIContext"
                   },
                   {
-                    "$ref": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                    "$ref": "#/components/schemas/PlaygroundCustomProviderModelUIContext"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
-                    "builtin": "#/components/schemas/PlaygroundBuiltinModelContext",
-                    "custom": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                    "builtin": "#/components/schemas/PlaygroundBuiltinModelUIContext",
+                    "custom": "#/components/schemas/PlaygroundCustomProviderModelUIContext"
                   }
                 }
               },
@@ -16350,12 +16630,61 @@
             "title": "Experimentid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "instanceId"
         ],
-        "title": "PlaygroundInstanceContext",
-        "description": "One mounted playground instance and its current model selection.\n\n``experiment_id`` carries the relay node id of the experiment produced by\nthis instance's last dataset-backed run, or ``None`` when the instance has\nnot produced one. Ephemeral experiments are included: they remain queryable\nuntil the server sweeps them ~24h after their last update."
+        "title": "PlaygroundInstanceUIContext"
+      },
+      "PlaygroundUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "playground",
+            "title": "Type"
+          },
+          "recordExperiments": {
+            "type": "boolean",
+            "title": "Recordexperiments",
+            "default": true
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions",
+            "default": 1
+          },
+          "nextExperimentScaffold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundExperimentScaffoldUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instances": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundInstanceUIContext"
+            },
+            "type": "array",
+            "title": "Instances"
+          },
+          "evaluators": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundEvaluatorUIContext"
+            },
+            "type": "array",
+            "title": "Evaluators"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PlaygroundUIContext"
       },
       "Project": {
         "properties": {
@@ -16387,7 +16716,33 @@
         ],
         "title": "Project"
       },
-      "ProjectContext": {
+      "ProjectRetentionPolicyData": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "The retention policy the project now uses, or null when the project falls back to the default policy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "policy_id"
+        ],
+        "title": "ProjectRetentionPolicyData"
+      },
+      "ProjectUIContext": {
         "properties": {
           "type": {
             "type": "string",
@@ -16410,13 +16765,13 @@
             "title": "Spanfilter"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
           "projectNodeId"
         ],
-        "title": "ProjectContext",
-        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all. It\ndescribes the view in full, root-span scoping included (which is expressed\nwithin the filter DSL as ``parent_id is None``)."
+        "title": "ProjectUIContext"
       },
       "Prompt": {
         "properties": {
@@ -16856,26 +17211,6 @@
         ],
         "title": "PromptChatTemplate"
       },
-      "PromptContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "prompt",
-            "title": "Type"
-          },
-          "promptNodeId": {
-            "type": "string",
-            "title": "Promptnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "promptNodeId"
-        ],
-        "title": "PromptContext",
-        "description": "Prompt the user is currently viewing."
-      },
       "PromptData": {
         "properties": {
           "name": {
@@ -17297,6 +17632,84 @@
           "content"
         ],
         "title": "PromptMessage"
+      },
+      "PromptMetaInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "meta",
+            "title": "Type"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PromptMetaInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "meta"
+        ],
+        "title": "PromptMetaInvocationParameters"
+      },
+      "PromptMetaInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptMetaInvocationParametersContent"
       },
       "PromptMoonshotInvocationParameters": {
         "properties": {
@@ -17971,6 +18384,26 @@
         ],
         "title": "PromptTools"
       },
+      "PromptUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId"
+        ],
+        "title": "PromptUIContext"
+      },
       "PromptVersion": {
         "properties": {
           "description": {
@@ -17983,6 +18416,12 @@
               }
             ],
             "title": "Description"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Arbitrary JSON metadata for the prompt version."
           },
           "model_provider": {
             "$ref": "#/components/schemas/ModelProvider"
@@ -18058,6 +18497,12 @@
               },
               {
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptZAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptMetaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18072,12 +18517,14 @@
                 "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "groq": "#/components/schemas/PromptGroqInvocationParameters",
+                "meta": "#/components/schemas/PromptMetaInvocationParameters",
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "together": "#/components/schemas/PromptTogetherInvocationParameters",
-                "xai": "#/components/schemas/PromptXAIInvocationParameters"
+                "xai": "#/components/schemas/PromptXAIInvocationParameters",
+                "zai": "#/components/schemas/PromptZAIInvocationParameters"
               }
             }
           },
@@ -18129,31 +18576,6 @@
         ],
         "title": "PromptVersion"
       },
-      "PromptVersionContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "prompt_version",
-            "title": "Type"
-          },
-          "promptNodeId": {
-            "type": "string",
-            "title": "Promptnodeid"
-          },
-          "promptVersionNodeId": {
-            "type": "string",
-            "title": "Promptversionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "promptNodeId",
-          "promptVersionNodeId"
-        ],
-        "title": "PromptVersionContext",
-        "description": "Prompt version the user is currently viewing."
-      },
       "PromptVersionData": {
         "properties": {
           "description": {
@@ -18166,6 +18588,12 @@
               }
             ],
             "title": "Description"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Arbitrary JSON metadata for the prompt version."
           },
           "model_provider": {
             "$ref": "#/components/schemas/ModelProvider"
@@ -18241,6 +18669,12 @@
               },
               {
                 "$ref": "#/components/schemas/PromptTogetherInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptZAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptMetaInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -18255,12 +18689,14 @@
                 "fireworks": "#/components/schemas/PromptFireworksInvocationParameters",
                 "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "groq": "#/components/schemas/PromptGroqInvocationParameters",
+                "meta": "#/components/schemas/PromptMetaInvocationParameters",
                 "moonshot": "#/components/schemas/PromptMoonshotInvocationParameters",
                 "ollama": "#/components/schemas/PromptOllamaInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters",
                 "perplexity": "#/components/schemas/PromptPerplexityInvocationParameters",
                 "together": "#/components/schemas/PromptTogetherInvocationParameters",
-                "xai": "#/components/schemas/PromptXAIInvocationParameters"
+                "xai": "#/components/schemas/PromptXAIInvocationParameters",
+                "zai": "#/components/schemas/PromptZAIInvocationParameters"
               }
             }
           },
@@ -18358,6 +18794,31 @@
         ],
         "title": "PromptVersionTagData"
       },
+      "PromptVersionUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt_version",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          },
+          "promptVersionNodeId": {
+            "type": "string",
+            "title": "Promptversionnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId",
+          "promptVersionNodeId"
+        ],
+        "title": "PromptVersionUIContext"
+      },
       "PromptXAIInvocationParameters": {
         "properties": {
           "type": {
@@ -18436,6 +18897,84 @@
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
       },
+      "PromptZAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "zai",
+            "title": "Type"
+          },
+          "zai": {
+            "$ref": "#/components/schemas/PromptZAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "zai"
+        ],
+        "title": "PromptZAIInvocationParameters"
+      },
+      "PromptZAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptZAIInvocationParametersContent"
+      },
       "PydanticAIMessageMetadata": {
         "properties": {
           "timestamp": {
@@ -18463,6 +19002,17 @@
             "const": "reasoning",
             "title": "Type",
             "default": "reasoning"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
           },
           "text": {
             "type": "string",
@@ -18734,31 +19284,6 @@
         ],
         "title": "SessionAnnotationsResponseBody"
       },
-      "SessionContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "session",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "type": "string",
-            "title": "Projectnodeid"
-          },
-          "sessionNodeId": {
-            "type": "string",
-            "title": "Sessionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "projectNodeId",
-          "sessionNodeId"
-        ],
-        "title": "SessionContext",
-        "description": "Session the user is currently viewing."
-      },
       "SessionData": {
         "properties": {
           "id": {
@@ -18877,6 +19402,31 @@
           "end_time"
         ],
         "title": "SessionTraceData"
+      },
+      "SessionUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "session",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "sessionNodeId": {
+            "type": "string",
+            "title": "Sessionnodeid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "sessionNodeId"
+        ],
+        "title": "SessionUIContext"
       },
       "SetDatasetLabelsForDatasetResponseBody": {
         "properties": {
@@ -19007,6 +19557,39 @@
           "next_cursor"
         ],
         "title": "SetProjectAnnotationConfigsResponseBody"
+      },
+      "SetProjectRetentionPolicyRequestBody": {
+        "properties": {
+          "policy_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Id",
+            "description": "The ID (GlobalID) of an existing trace retention policy to assign, or null to reset the project to the default policy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "policy_id"
+        ],
+        "title": "SetProjectRetentionPolicyRequestBody"
+      },
+      "SetProjectRetentionPolicyResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectRetentionPolicyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetProjectRetentionPolicyResponseBody"
       },
       "SourceDocumentUIPart": {
         "properties": {
@@ -19565,6 +20148,55 @@
         ],
         "title": "SpanNoteData"
       },
+      "SpanUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "span",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectnodeid"
+          },
+          "spanNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spannodeid"
+          },
+          "otelSpanId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{16}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otelspanid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "SpanUIContext"
+      },
       "SpansResponseBody": {
         "properties": {
           "data": {
@@ -19619,6 +20251,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -20585,30 +21218,6 @@
         ],
         "title": "TraceAnnotationsResponseBody"
       },
-      "TraceContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "trace",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "type": "string",
-            "title": "Projectnodeid"
-          },
-          "otelTraceId": {
-            "type": "string",
-            "title": "Oteltraceid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "projectNodeId",
-          "otelTraceId"
-        ],
-        "title": "TraceContext"
-      },
       "TraceData": {
         "properties": {
           "id": {
@@ -20761,6 +21370,32 @@
         ],
         "title": "TraceSpanData"
       },
+      "TraceUIContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "trace",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "otelTraceId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Oteltraceid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "otelTraceId"
+        ],
+        "title": "TraceUIContext"
+      },
       "TransferTracesData": {
         "properties": {
           "transferred_trace_count": {
@@ -20844,6 +21479,113 @@
         ],
         "title": "TurnTraceContext",
         "description": "The trace identity a turn's spans are parented to."
+      },
+      "UIContexts": {
+        "properties": {
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "span": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "promptVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dataset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DatasetUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playground": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "codeEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeEvaluatorUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "llmEvaluator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LlmEvaluatorUIContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UIContexts"
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {
@@ -21411,6 +22153,7 @@
             "title": "Enabled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",

@@ -95,6 +95,7 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   Force tracing       {{ enabled if assistant_config.force_tracing else disabled }}
   Web access          {{ enabled if assistant_config.web_access_enabled else disabled }}
   Server-side bash    {{ enabled if assistant_config.server_bash_enabled else disabled }}
+  GitHub tools        {{ enabled if assistant_config.github_enabled else disabled }}
 
 {% endif %}
 {% if dev_mode or debug_logging or dev_vite_url or debugpy_url %}
@@ -166,6 +167,7 @@ class AssistantConfig:
     force_tracing: bool
     web_access_enabled: bool
     server_bash_enabled: bool
+    github_enabled: bool
 
     @property
     def printable_collector_endpoint(self) -> Optional[str]:

@@ -155,6 +155,7 @@ function ModalOverlay({
   return (
     <AriaModalOverlay
       {...props}
+      data-overlay-container="modal"
       data-testid="modal-overlay"
       css={modalBackdropCSS}
       // default to true, but allow for override

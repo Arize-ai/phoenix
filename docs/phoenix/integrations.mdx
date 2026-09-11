@@ -29,8 +29,8 @@ Phoenix offers several types of integrations to support your AI development work
   <Card title="Eval Model Integrations" icon="brain" href="#eval-model-integrations">
     Use any LLM provider to power Phoenix's evaluation capabilities for scoring and classifying your traces.
   </Card>
-  <Card title="Eval Library Integrations" icon="clipboard-check" href="#eval-library-integrations">
-    Integrate with external evaluation libraries like Ragas, Cleanlab, and MLflow to visualize results in Phoenix.
+  <Card title="Evaluation Integrations" icon="clipboard-check" href="#evaluation-integrations">
+    Record results from evaluation frameworks and libraries such as Harbor, Ragas, Cleanlab, and MLflow.
   </Card>
   <Card title="Span Processors" icon="arrows-rotate" href="#span-processors">
     Convert traces from other instrumentation libraries to the OpenInference format.
@@ -88,6 +88,7 @@ Phoenix captures detailed traces from your AI applications, giving you visibilit
       <Card title="LlamaIndex" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/386f0e97-image.avif" href="/docs/phoenix/integrations/python/llamaindex" />
       <Card title="LangGraph" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/f1e5c9e9-image.avif" href="/docs/phoenix/integrations/python/langgraph" />
       <Card title="CrewAI" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/23915314-image.avif" href="/docs/phoenix/integrations/python/crewai" />
+      <Card title="AG2" href="/docs/phoenix/integrations/python/ag2" />
       <Card title="AutoGen" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/1946e18f-image.avif" href="/docs/phoenix/integrations/python/autogen" />
       <Card title="DSPy" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/b765e387-image.avif" href="/docs/phoenix/integrations/python/dspy" />
       <Card title="Haystack" img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/98eefc93-image.avif" href="/docs/phoenix/integrations/python/haystack" />
@@ -184,11 +185,12 @@ Phoenix's evaluation library (`phoenix-evals`) can use any LLM provider to power
 
 ---
 
-## Eval Library Integrations
+## Evaluation Integrations
 
-Use external evaluation libraries alongside Phoenix to get the best of both worlds:
+Connect external evaluation frameworks and libraries to Phoenix:
 
 <CardGroup cols={4}>
+  <Card title="Harbor" href="/docs/phoenix/integrations/evaluation-integrations/harbor" icon="anchor" description="Sandboxed agent evaluation tracking"/>
   <Card title="Ragas" href="/docs/phoenix/integrations/evaluation-integrations/ragas" icon="clipboard-check" description="RAG evaluation library"/>
   <Card title="Cleanlab" href="/docs/phoenix/integrations/evaluation-integrations/cleanlab" icon="check-circle" description="Model quality diagnostics"/>
   <Card title="Pydantic Evals" href="/docs/phoenix/integrations/python/pydantic/pydantic-evals" icon="code" description="Pydantic-based evals"/>
@@ -218,4 +220,3 @@ Run Phoenix [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluat
   <Card title="Vercel Sandbox" href="/docs/phoenix/integrations/sandboxes/vercel" icon="cube" description="Ephemeral compute on Vercel infrastructure"/>
   <Card title="Modal" href="/docs/phoenix/integrations/sandboxes/modal" icon="cube" description="Serverless containers, Python-first"/>
 </CardGroup>
-

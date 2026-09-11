@@ -84,6 +84,16 @@ const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
       value: getSemConvProvider("XAI"),
       label: getProviderName("XAI"),
     },
+    {
+      key: "ZAI",
+      value: getSemConvProvider("ZAI"),
+      label: getProviderName("ZAI"),
+    },
+    {
+      key: "META",
+      value: getSemConvProvider("META"),
+      label: getProviderName("META"),
+    },
   ];
 
 function ModelProviderComboBox({

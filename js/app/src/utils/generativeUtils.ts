@@ -20,8 +20,11 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "FIREWORKS" ||
     provider === "GROQ" ||
     provider === "MOONSHOT" ||
+    provider === "MINIMAX" ||
     provider === "PERPLEXITY" ||
-    provider === "TOGETHER"
+    provider === "TOGETHER" ||
+    provider === "ZAI" ||
+    provider === "META"
   );
 }
 
@@ -60,10 +63,16 @@ export function getProviderName(provider: ModelProvider): string {
       return "Groq";
     case "MOONSHOT":
       return "Moonshot";
+    case "MINIMAX":
+      return "MiniMax";
     case "PERPLEXITY":
       return "Perplexity";
     case "TOGETHER":
       return "Together";
+    case "ZAI":
+      return "Z.ai";
+    case "META":
+      return "Meta";
     default:
       return assertUnreachable(provider);
   }
@@ -100,10 +109,16 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "groq"; // TODO: Add support for Groq to semantic conventions
     case "MOONSHOT":
       return "moonshot"; // TODO: Add support for Moonshot to semantic conventions
+    case "MINIMAX":
+      return "minimax";
     case "PERPLEXITY":
       return "perplexity"; // TODO: Add support for Perplexity to semantic conventions
     case "TOGETHER":
       return "together"; // TODO: Add support for Together to semantic conventions
+    case "ZAI":
+      return "zai"; // TODO: Add support for Z.ai to semantic conventions
+    case "META":
+      return "meta"; // TODO: Add support for Meta to semantic conventions
     default:
       return assertUnreachable(provider);
   }

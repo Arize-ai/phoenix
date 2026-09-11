@@ -17,11 +17,32 @@ import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { ProjectStats_project$key } from "./__generated__/ProjectStats_project.graphql";
+import type {
+  ProjectStats_project$data,
+  ProjectStats_project$key,
+} from "./__generated__/ProjectStats_project.graphql";
 import type { ProjectStatsQuery } from "./__generated__/ProjectStatsQuery.graphql";
 import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
+
+function getProjectStatsValues(
+  data: ProjectStats_project$data | null | undefined
+) {
+  const costSummary = data?.costSummary;
+  return {
+    completionCost: costSummary?.completion?.cost ?? 0,
+    documentEvaluationNames: data?.documentEvaluationNames ?? [],
+    latencyMsP50: data?.latencyMsP50,
+    latencyMsP99: data?.latencyMsP99,
+    promptCost: costSummary?.prompt?.cost ?? 0,
+    spanAnnotationNames: getNonNoteAnnotationNames(
+      data?.spanAnnotationNames ?? []
+    ),
+    totalCost: costSummary?.total?.cost ?? 0,
+    traceCount: data?.timeRangeTraceCount,
+  };
+}
 
 export function ProjectStats(props: { project: ProjectStats_project$key }) {
   const { fetchKey } = useStreamState();
@@ -70,12 +91,16 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
     });
   }, [fetchKey, refetch]);
 
-  const latencyMsP50 = data?.latencyMsP50;
-  const latencyMsP99 = data?.latencyMsP99;
-  const spanAnnotationNames = getNonNoteAnnotationNames(
-    data?.spanAnnotationNames ?? []
-  );
-  const documentEvaluationNames = data?.documentEvaluationNames;
+  const {
+    completionCost,
+    documentEvaluationNames,
+    latencyMsP50,
+    latencyMsP99,
+    promptCost,
+    spanAnnotationNames,
+    totalCost,
+    traceCount,
+  } = getProjectStatsValues(data);
 
   return (
     <Flex direction="row" gap="size-400" alignItems="center">
@@ -84,7 +109,7 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
           Total Traces
         </Text>
         <Text size="L" fontFamily="mono">
-          {intFormatter(data?.timeRangeTraceCount)}
+          {intFormatter(traceCount)}
         </Text>
       </Flex>
       <Flex direction="column" flex="none">
@@ -94,16 +119,16 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
         <TooltipTrigger delay={0}>
           <Focusable>
             <Text size="L" role="button" fontFamily="mono">
-              {costFormatter(data?.costSummary?.total?.cost ?? 0)}
+              {costFormatter(totalCost)}
             </Text>
           </Focusable>
           <RichTooltip placement="bottom">
             <TooltipArrow />
             <View width="size-3600">
               <TokenCostsDetails
-                total={data?.costSummary?.total?.cost ?? 0}
-                prompt={data?.costSummary?.prompt?.cost ?? 0}
-                completion={data?.costSummary?.completion?.cost ?? 0}
+                total={totalCost}
+                prompt={promptCost}
+                completion={completionCost}
               />
             </View>
           </RichTooltip>

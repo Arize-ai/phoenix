@@ -1,3 +1,5 @@
+import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
+import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
@@ -6,7 +8,6 @@ import {
   computePromptToolsWriteSummary,
 } from "./diffSummary";
 import {
-  parsePromptToolsActionContext,
   parseReadPromptToolsInput,
   parseWritePromptToolsInput,
 } from "./parsers";
@@ -17,7 +18,7 @@ import {
 } from "./promptToolsStore";
 import type { PendingPromptToolWrite } from "./types";
 
-/** Returns the current prompt tool list snapshot as JSON. */
+/** Returns the current prompt tool list snapshot as a structured object. */
 export function createReadPromptToolsClientAction({
   playgroundStore,
 }: {
@@ -26,14 +27,16 @@ export function createReadPromptToolsClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseReadPromptToolsInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid read_prompt_tools input." };
+      return {
+        ok: false,
+        error: "Invalid playground.prompt.tools.read input.",
+      };
     }
     const snapshot = getPromptToolsSnapshot({
       playgroundStore,
       instanceId: parsed.instanceId,
     });
-    if (!snapshot.ok) return snapshot;
-    return { ok: true, output: JSON.stringify(snapshot.output, null, 2) };
+    return snapshot;
   };
 }
 
@@ -62,16 +65,20 @@ export function createWritePromptToolsClientAction({
     input: unknown,
     context?: unknown
   ): Promise<AgentClientActionResult> => {
-    const writeContext = parsePromptToolsActionContext(context);
-    if (!writeContext) {
+    const callContext = parseUIOperationCallContext(context);
+    if (!callContext) {
       return {
         ok: false,
-        error: "Cannot propose prompt tool changes without tool call context.",
+        error:
+          "Cannot propose prompt tool changes without an operation call context.",
       };
     }
     const parsed = parseWritePromptToolsInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid write_prompt_tools input." };
+      return {
+        ok: false,
+        error: "Invalid playground.prompt.tools.write input.",
+      };
     }
     const plan = planWritePromptTools({ playgroundStore, input: parsed });
     if (!plan.ok) return plan;
@@ -92,29 +99,35 @@ export function createWritePromptToolsClientAction({
     });
     const summary = computePromptToolsWriteSummary(plan.output);
 
-    const pendingWrite = bindPendingPromptToolWriteActions({
-      pendingWrite: {
-        toolCallId: writeContext.toolCallId,
-        sessionId: writeContext.sessionId,
-        instanceId,
-        expectedRevision: parsed.expectedRevision,
-        provider,
-        input: parsed,
-        before,
-        after,
-        summary,
-      },
-      playgroundStore,
-      addToolOutput: writeContext.addToolOutput,
-      setPendingPromptToolWrite,
+    // The returned promise resolves when the user (or bypass mode) decides;
+    // the awaiting execute_browser_action script sits parked on it until then.
+    return new Promise((resolve) => {
+      const pendingWrite = bindPendingPromptToolWriteActions({
+        pendingWrite: {
+          toolCallId: callContext.callId,
+          sessionId: callContext.sessionId ?? "",
+          instanceId,
+          expectedRevision: parsed.expectedRevision,
+          provider,
+          input: parsed,
+          before,
+          after,
+          summary,
+        },
+        playgroundStore,
+        emitResult: resolve,
+        setPendingPromptToolWrite,
+      });
+
+      if (
+        shouldAutoAccept() ||
+        isOperationCallApprovalGranted(callContext.callId)
+      ) {
+        void pendingWrite.accept?.({ approvalSource: "auto" });
+        return;
+      }
+
+      setPendingPromptToolWrite(callContext.callId, pendingWrite);
     });
-
-    if (shouldAutoAccept()) {
-      await pendingWrite.accept?.({ approvalSource: "auto" });
-      return { ok: true };
-    }
-
-    setPendingPromptToolWrite(writeContext.toolCallId, pendingWrite);
-    return { ok: true };
   };
 }

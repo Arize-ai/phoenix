@@ -13,7 +13,6 @@ import {
   useState,
 } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { useStickToBottom } from "use-stick-to-bottom";
 
 import {
   getCompactionSummary,
@@ -62,6 +61,7 @@ import {
   UserMessage,
 } from "./ChatMessage";
 import { ChatScrollContext } from "./ChatScrollContext";
+import { getConversationUsage } from "./ChatSessionUsage";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -77,6 +77,7 @@ import { useScrollAnchor } from "./scrollAnchor";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
 import type { AgentChatOperationError } from "./useAgentChat";
+import { useChatFollowScroll } from "./useChatFollowScroll";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -204,6 +205,11 @@ const chatCSS = css`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* The transcript does its own scroll management (follow-bottom via
+       useChatFollowScroll, expand/collapse anchoring via useScrollAnchor).
+       Native scroll anchoring is a second, invisible compensator that
+       double-adjusts on the same layout changes and fights those writers. */
+    overflow-anchor: none;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -446,6 +452,7 @@ function ChatCompactionStatus({ children }: { children: string }) {
  * Pure chat view used both by the legacy mounted panel and by the headless
  * controller path that keeps streaming alive while the panel is hidden.
  */
+// oxlint-disable-next-line complexity -- The view coordinates session, elicitation, rewind, and compaction state.
 export function ChatView({
   sessionId,
   messages,
@@ -503,19 +510,19 @@ export function ChatView({
 }>) {
   const { theme } = useTheme();
   const { contentRef, scrollRef, scrollToBottom, stopScroll } =
-    useStickToBottom({
-      initial: "instant",
-      resize: "instant",
-    });
-  const chatScrollContextValue = useMemo(() => ({ stopScroll }), [stopScroll]);
+    useChatFollowScroll();
+  const chatScrollContextValue = useMemo(
+    () => ({ stopScroll, scrollToBottom }),
+    [stopScroll, scrollToBottom]
+  );
   const handleScrollRef = useCallback(
     (element: HTMLElement | null) => {
       scrollRef(element);
       if (!element) {
         return;
       }
-      // Align restored chat history before first paint; useStickToBottom handles later
-      // resize/follow behavior once its observers are attached.
+      // Align restored chat history before first paint; useChatFollowScroll
+      // handles later resize/follow behavior once its observers are attached.
       element.scrollTop = element.scrollHeight - element.clientHeight;
     },
     [scrollRef]
@@ -585,6 +592,7 @@ export function ChatView({
   }, [sessionId, sendMessage, store]);
 
   const showsEmptyState = messages.length === 0 && !isBusyElsewhere;
+  const conversationUsage = getConversationUsage({ messages });
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
@@ -718,7 +726,7 @@ export function ChatView({
       if (restoredInput == null) {
         return;
       }
-      void scrollToBottom();
+      scrollToBottom();
       sendMessage({ text: messageText });
     } catch (error) {
       setHistoryActionError({
@@ -963,7 +971,7 @@ export function ChatView({
                       pendingElicitation.questions.length - 1
                     ),
                   });
-                  void scrollToBottom();
+                  scrollToBottom();
                   handleElicitationSubmit(output);
                 }}
                 onCancel={() => {
@@ -997,7 +1005,7 @@ export function ChatView({
                 if (!text) {
                   return;
                 }
-                void scrollToBottom();
+                scrollToBottom();
                 sendMessage(
                   { text },
                   requestedSkills.length > 0
@@ -1010,6 +1018,8 @@ export function ChatView({
               onModelChange={onModelChange}
               isInputDisabled={isCompacting || isBusyElsewhere}
               isSubmitDisabled={isSubmitDisabled}
+              hasMessages={messages.length > 0}
+              promptTokenCount={conversationUsage?.tokenCount.prompt ?? null}
               onStop={() => {
                 void stop();
               }}

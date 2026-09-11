@@ -29,6 +29,7 @@ import type {
 } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptVersionDiffView } from "./PromptVersionDiffView";
+import { PromptVersionMetadataCard } from "./PromptVersionMetadataCard";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
 
 export function PromptVersionDetailsPage() {
@@ -117,6 +118,7 @@ function PromptVersionDetailsPageContent({
             )}
           </Card>
           <PromptModelConfigurationCard promptVersion={promptVersion} />
+          <PromptVersionMetadataCard promptVersion={promptVersion} />
           <PromptCodeExportCard promptVersion={promptVersion} />
         </Flex>
       </View>

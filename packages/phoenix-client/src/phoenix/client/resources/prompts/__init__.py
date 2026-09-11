@@ -8,7 +8,11 @@ import httpx
 from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.constants.server_requirements import PATCH_PROMPT
+from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_VERSION_METADATA,
+    DELETE_PROMPT,
+    PATCH_PROMPT,
+)
 from phoenix.client.types.prompts import PromptVersion
 from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.encode_path_param import encode_path_param
@@ -38,7 +42,7 @@ def _build_patch_prompt_body(
 class Prompts:
     """Provides methods for interacting with prompt resources.
 
-    This class allows you to retrieve, create, and update prompts and prompt versions.
+    This class allows you to retrieve, create, update, and delete prompts and prompt versions.
 
     Examples:
         Basic prompt operations::
@@ -182,6 +186,8 @@ class Prompts:
             prompt["description"] = prompt_description
         if prompt_metadata:
             prompt["metadata"] = prompt_metadata
+        if version.metadata:
+            self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
@@ -247,6 +253,37 @@ class Prompts:
                 raise ValueError(f"Prompt not found: {prompt_identifier}") from e
             raise
         return cast(v1.PatchPromptResponseBody, response.json())["data"]
+
+    def delete(self, *, prompt_identifier: str) -> None:
+        """Delete a prompt by name or GlobalID.
+
+        Warning:
+            Deleting a prompt also deletes all of its versions, tags, and labels.
+
+        Args:
+            prompt_identifier (str): The prompt name or GlobalID.
+
+        Raises:
+            ValueError: If the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned another unsuccessful
+                status code, including a permission error.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            client.prompts.delete(prompt_identifier="my-prompt")
+        """
+        self._guard.require(DELETE_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = self._client.delete(url)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
 
 
 class PromptVersionTags:
@@ -388,7 +425,7 @@ class AsyncPrompts:
     """
     Provides asynchronous methods for interacting with prompt resources.
 
-    This class allows you to retrieve, create, and update prompts and prompt
+    This class allows you to retrieve, create, update, and delete prompts and prompt
     versions asynchronously.
 
     Examples:
@@ -533,6 +570,8 @@ class AsyncPrompts:
             prompt["description"] = prompt_description
         if prompt_metadata:
             prompt["metadata"] = prompt_metadata
+        if version.metadata:
+            await self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
@@ -598,6 +637,37 @@ class AsyncPrompts:
                 raise ValueError(f"Prompt not found: {prompt_identifier}") from e
             raise
         return cast(v1.PatchPromptResponseBody, response.json())["data"]
+
+    async def delete(self, *, prompt_identifier: str) -> None:
+        """Asynchronously delete a prompt by name or GlobalID.
+
+        Warning:
+            Deleting a prompt also deletes all of its versions, tags, and labels.
+
+        Args:
+            prompt_identifier (str): The prompt name or GlobalID.
+
+        Raises:
+            ValueError: If the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned another unsuccessful
+                status code, including a permission error.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            await async_client.prompts.delete(prompt_identifier="my-prompt")
+        """
+        await self._guard.require(DELETE_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = await self._client.delete(url)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
 
 
 class AsyncPromptVersionTags:

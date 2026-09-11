@@ -95,6 +95,8 @@ from typing import (
 
 import anyio
 from anyio import Semaphore
+from anyio.abc import TaskGroup
+from anyio.lowlevel import checkpoint
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from cachetools import LRUCache
 from opentelemetry.context import Context as OtelContext
@@ -1189,6 +1191,9 @@ class RunningExperiment:
         self._retry_heap: list[RetryItem] = []
         self._in_flight: set[WorkItem] = set()
         self._cancel_scopes: dict[WorkItem, anyio.CancelScope] = {}
+        # Items dispatched to a worker task that has not started yet, mapped to the
+        # callback that puts them back where they came from. See undispatch().
+        self._dispatch_undo: dict[WorkItem, Callable[[], None]] = {}
 
         # UI subscribers for streaming
         self._subscribers: list[MemoryObjectSendStream[ChatCompletionSubscriptionPayload]] = []
@@ -1337,7 +1342,7 @@ class RunningExperiment:
             return None
 
         # Peek at next work item without popping
-        work_item, pop = self._peek_next_work_item()
+        work_item, pop, unpop = self._peek_next_work_item()
         if work_item is None:
             logger.debug(
                 f"Experiment {self._experiment.id}: try_get_ready_work_item() -> None "
@@ -1358,34 +1363,92 @@ class RunningExperiment:
             )
             return None
 
-        # Allowed - pop and return (update fairness so we're served last next time)
-        self.last_served_at = datetime.now(timezone.utc)
+        # Allowed: hand the item over. Ownership moves from its queue to the worker in
+        # one synchronous step with no await in between. The daemon starts the worker
+        # task with start_soon(), which only begins on a later event-loop turn, so
+        # everything the rest of the runner needs to know about the item must already
+        # be in place before this method returns:
+        #   - it is in _in_flight, so a completion check triggered by another task
+        #     finishing before the worker starts still sees pending work;
+        #   - it has its cancel scope, so stop() can cancel it before the worker has
+        #     entered the scope (the worker checkpoints right after entering, so a
+        #     stopped item does no work);
+        #   - it has an undo callback, so a hand-off that fails can put it back where
+        #     it came from (see undispatch()).
+        # The scope is created before the pop so a failure here leaves the queue intact.
+        scope = anyio.CancelScope()
+        self.last_served_at = datetime.now(timezone.utc)  # served last next time
         pop()
+        self._cancel_scopes[work_item] = scope
+        self._in_flight.add(work_item)
+        self._dispatch_undo[work_item] = unpop
         return work_item
 
-    def _peek_next_work_item(self) -> tuple[WorkItem | None, Callable[[], Any]]:
-        """Peek at the next work item in priority order without removing it."""
+    def _peek_next_work_item(
+        self,
+    ) -> tuple[WorkItem | None, Callable[[], Any], Callable[[], None]]:
+        """Peek at the next work item in priority order without removing it.
+
+        Returns the item, a callback that removes it from its source, and a callback
+        that puts it back exactly where it was. A retry is restored as its original
+        RetryItem, so it keeps its ready time and its place in the ordering.
+        """
         # Priority 1: Evals
         if self._eval_queue:
-            return self._eval_queue[0], lambda: self._eval_queue.popleft()
+            eval_item = self._eval_queue[0]
+            return (
+                eval_item,
+                lambda: self._eval_queue.popleft(),
+                lambda: self._eval_queue.appendleft(eval_item),
+            )
 
         # Priority 2: Ready retries
         if self._has_ready_retries():
-            return self._retry_heap[0].work_item, lambda: heapq.heappop(self._retry_heap)
+            retry_item = self._retry_heap[0]
+            return (
+                retry_item.work_item,
+                lambda: heapq.heappop(self._retry_heap),
+                lambda: heapq.heappush(self._retry_heap, retry_item),
+            )
 
         # Priority 3: Tasks
         if self._task_queue:
-            return self._task_queue[0], lambda: self._task_queue.popleft()
+            task_item = self._task_queue[0]
+            return (
+                task_item,
+                lambda: self._task_queue.popleft(),
+                lambda: self._task_queue.appendleft(task_item),
+            )
 
-        return None, lambda: None
+        return None, lambda: None, lambda: None
 
-    def register_cancel_scope(self, work_item: WorkItem, scope: anyio.CancelScope) -> None:
-        """Register a cancel scope for an in-flight work item.
+    def start_execution(self, work_item: WorkItem) -> anyio.CancelScope:
+        """Hand a dispatched item's cancel scope to the worker task about to run it.
 
-        Called by Runner when execution starts.
+        Called by the daemon's worker task as its first step. The scope was created at
+        dispatch, so stop() may already have cancelled it; the worker checkpoints right
+        after entering it, so a stopped item is cancelled before doing any work. From
+        here on the dispatch can no longer be undone, so the undo callback is dropped.
         """
-        self._cancel_scopes[work_item] = scope
-        self._in_flight.add(work_item)
+        self._dispatch_undo.pop(work_item, None)
+        return self._cancel_scopes[work_item]
+
+    def undispatch(self, work_item: WorkItem) -> None:
+        """Reverse a dispatch whose worker task could not be started.
+
+        The item stops counting as in-flight, so the experiment can still complete or
+        drain, and goes back to the front of the source it was taken from, so it is
+        dispatched again on the next pass. If the experiment has been stopped in the
+        meantime its queues are already cleared, and the item is simply dropped along
+        with the rest of the transient queue state.
+        """
+        self._cancel_scopes.pop(work_item, None)
+        self._in_flight.discard(work_item)
+        undo = self._dispatch_undo.pop(work_item, None)
+        if undo is not None and self._active:
+            undo()
+        if not self._active and not self._in_flight:
+            self._drained.set()
 
     async def unregister_cancel_scope(self, work_item: WorkItem) -> None:
         """Unregister a cancel scope when work item completes.
@@ -1393,6 +1456,7 @@ class RunningExperiment:
         Called by Runner when execution ends.
         """
         self._cancel_scopes.pop(work_item, None)
+        self._dispatch_undo.pop(work_item, None)
         self._in_flight.discard(work_item)
         if not self._active and not self._in_flight:
             self._drained.set()
@@ -2248,8 +2312,7 @@ class ExperimentRunner(DaemonTask):
                         work_item = await self._try_get_ready_work_item()
 
                         if work_item:
-                            logger.debug(f"Dispatching work item: {work_item.debug_identifier}")
-                            tg.start_soon(self._run_and_release, work_item)
+                            self._hand_off(tg, work_item)
                             acquired = False  # Ownership transferred to work item
                         else:
                             self._seats.release()
@@ -2348,12 +2411,33 @@ class ExperimentRunner(DaemonTask):
         )
         return None
 
+    def _hand_off(self, tg: TaskGroup, work_item: WorkItem) -> None:
+        """Start the worker task for a dispatched item, undoing the dispatch if that fails.
+
+        Dispatch already moved the item out of its queue and into the experiment's
+        in-flight set. If no worker task gets created (a task group refuses new tasks
+        once it is shutting down), nothing would ever take the item out of that set:
+        the experiment could not complete, and a stop would wait for a drain that
+        never comes. So put the item back where it came from before the error
+        propagates to the dispatch loop, which releases the seat and backs off.
+        """
+        try:
+            logger.debug(f"Dispatching work item: {work_item.debug_identifier}")
+            tg.start_soon(self._run_and_release, work_item)
+        except BaseException:
+            work_item.running_experiment.undispatch(work_item)
+            raise
+
     async def _run_and_release(self, work_item: WorkItem) -> None:
         """Execute work item and release semaphore."""
         try:
-            # Create cancel scope so experiment can cancel this work item
-            with anyio.CancelScope() as scope:
-                work_item.running_experiment.register_cancel_scope(work_item, scope)
+            with work_item.running_experiment.start_execution(work_item):
+                # The scope was created at dispatch, so stop() may have cancelled it
+                # before this task ever ran. That cancellation is delivered at the next
+                # checkpoint, and execute() can do real work before reaching one: format
+                # a template, run a synchronous evaluator, then persist the result under
+                # a shield. Checkpoint first so a stopped item does no work at all.
+                await checkpoint()
                 await work_item.execute()
         except anyio.get_cancelled_exc_class():
             logger.debug(f"Work item {work_item.debug_identifier} was cancelled")
