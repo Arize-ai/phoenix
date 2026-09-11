@@ -94,10 +94,15 @@ Every attempt gets a new writable Phoenix database, seeded and checked before th
 agent starts. The containers have separate filesystems, so the agent cannot read
 the target's database, seed files, or reference answers.
 
-Harbor's native egress sidecar gives these containers a shared localhost network.
-The agent reaches MCP or the installed `px` CLI's target at `http://127.0.0.1:6006`.
-Only the selected provider host is on the external network allowlist. Claude
-Code's `WebSearch` and `WebFetch` tools and Codex web search are disabled.
+The agent connects directly to Phoenix at `http://127.0.0.1:6006` through MCP or
+the installed `px` CLI. Harbor gives the two containers a shared localhost network;
+Phoenix requests stay inside the trial and need no external network access.
+
+During an attempt, the only allowed external destination is the selected LLM
+provider: `api.openai.com` for Codex or `api.anthropic.com` for Claude Code.
+Harbor's native network policy enforces this allowlist. Claude Code's `WebSearch`
+and `WebFetch` tools and Codex web search are disabled. Image builds and seed
+downloads happen beforehand on the host.
 
 Harbor's built-in agent receives the selected provider key. Results credentials
 stay on the host. The CLI image contains the real `px` binary; direct Phoenix
