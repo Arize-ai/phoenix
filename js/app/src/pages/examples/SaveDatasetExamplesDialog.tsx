@@ -32,11 +32,62 @@ import { EDITABLE_TABLE_CHANGE_KINDS } from "@phoenix/components/table";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getEditableTableChangeCounts } from "@phoenix/store/editableTableStore";
-import type { EditableTableStore } from "@phoenix/types/table";
+import type {
+  EditableTableDiff,
+  EditableTableStore,
+} from "@phoenix/types/table";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import type { SaveDatasetExamplesDialogMutation } from "./__generated__/SaveDatasetExamplesDialogMutation.graphql";
+import type {
+  DatasetExampleField,
+  DatasetExampleOperation,
+  SaveDatasetExamplesDialogMutation,
+} from "./__generated__/SaveDatasetExamplesDialogMutation.graphql";
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
+
+/** The editable columns and the GraphQL field each one replaces. */
+const REPLACEABLE_FIELDS = [
+  ["input", "INPUT"],
+  ["output", "OUTPUT"],
+  ["metadata", "METADATA"],
+] as const satisfies ReadonlyArray<
+  readonly [keyof DatasetExampleTableRow, DatasetExampleField]
+>;
+
+/**
+ * Turns the edit session's diff into the mutation's operation list: one
+ * `replace` per changed cell, one `remove` per deleted row, and one `add` per
+ * new row. The store never holds a change to a deleted row, so the order
+ * carries no conflicts for the server to resolve.
+ */
+function toDatasetExampleOperations(
+  diff: EditableTableDiff<DatasetExampleTableRow>
+): DatasetExampleOperation[] {
+  return [
+    ...diff.updatedRows.flatMap(({ rowId, changes }) =>
+      REPLACEABLE_FIELDS.flatMap(([columnId, field]) =>
+        changes[columnId] === undefined
+          ? []
+          : [{ replace: { exampleId: rowId, field, value: changes[columnId] } }]
+      )
+    ),
+    ...diff.deletedRowIds.map((exampleId) => ({ remove: { exampleId } })),
+    ...diff.addedRows.map((row) => {
+      const externalId = row.externalId?.trim();
+      return {
+        add: {
+          value: {
+            input: row.input,
+            output: row.output,
+            metadata: row.metadata,
+            // Omit when blank so the server generates the ID.
+            ...(externalId ? { externalId } : {}),
+          },
+        },
+      };
+    }),
+  ];
+}
 
 const changeSummaryCSS = css`
   display: grid;
@@ -104,25 +155,7 @@ export function SaveDatasetExamplesDialog({
       variables: {
         input: {
           datasetId,
-          additions: diff.addedRows.map((row) => {
-            const externalId = row.externalId?.trim();
-            return {
-              input: row.input,
-              output: row.output,
-              metadata: row.metadata,
-              // Omit when blank so the server generates the ID.
-              ...(externalId ? { externalId } : {}),
-            };
-          }),
-          patches: diff.updatedRows.map(({ rowId, changes }) => ({
-            exampleId: rowId,
-            ...(changes.input !== undefined ? { input: changes.input } : {}),
-            ...(changes.output !== undefined ? { output: changes.output } : {}),
-            ...(changes.metadata !== undefined
-              ? { metadata: changes.metadata }
-              : {}),
-          })),
-          exampleIdsToDelete: diff.deletedRowIds,
+          operations: toDatasetExampleOperations(diff),
           ...(versionDescription.trim()
             ? { versionDescription: versionDescription.trim() }
             : {}),

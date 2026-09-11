@@ -63,7 +63,7 @@ Relay cursor pages                  Local edit session
 
 ### 1. Sparse edit-session store
 
-Location: `app/src/components/table/editing/`
+Location: `app/src/components/table/edit/`, with the store in `app/src/store/`
 
 The reusable store is created once per table instance and is not a global
 store. It contains:
@@ -156,20 +156,30 @@ rows referenced by local patches until the edit session is saved or cancelled.
 ### 5. Atomic dataset save
 
 The add and delete mutations each create their own version. The dataset examples
-editor therefore commits its whole diff through a single GraphQL mutation, named
-for the HTTP verb it mirrors:
+editor therefore commits its whole diff through a single GraphQL mutation whose
+input is an ordered operation list in the vocabulary of JSON Patch (RFC 6902):
 
 ```graphql
 patchDatasetExamples(
   input: {
     datasetId
-    additions
-    patches
-    exampleIdsToDelete
+    operations: [
+      { add: { value: { input, output, metadata, externalId } } }
+      { replace: { exampleId, field: INPUT | OUTPUT | METADATA, value } }
+      { remove: { exampleId } }
+    ]
     versionDescription
   }
 )
 ```
+
+`DatasetExampleOperation` is a `@oneOf` input, so each entry sets exactly one of
+`add`, `replace`, or `remove` and the schema rejects anything else. Operations
+apply in order and commit together or not at all: replacing a field twice keeps
+the last value, removing an example discards its replacements, and targeting an
+example after it was removed is an error. The edit store's diff maps onto this
+directly — one `replace` per changed cell, one `remove` per deleted row, one
+`add` per new row.
 
 The resolver validates all existing example IDs against the target dataset,
 creates one `DatasetVersion`, and inserts CREATE, PATCH, and DELETE revisions in

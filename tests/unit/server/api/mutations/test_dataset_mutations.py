@@ -291,40 +291,72 @@ class TestPatchDatasetExamples:
       }
     """
 
-    async def test_applies_mixed_changes_as_one_version(
+    @staticmethod
+    def _example_id(rowid: str) -> str:
+        return str(GlobalID(DatasetExample.__name__, rowid))
+
+    @staticmethod
+    def _add(input: Any, output: Any = None, metadata: Any = None, **rest: Any) -> dict[str, Any]:
+        return {
+            "add": {
+                "value": {
+                    "input": input,
+                    "output": {} if output is None else output,
+                    "metadata": {} if metadata is None else metadata,
+                    **rest,
+                }
+            }
+        }
+
+    @classmethod
+    def _replace(cls, rowid: str, field: str, value: Any) -> dict[str, Any]:
+        return {"replace": {"exampleId": cls._example_id(rowid), "field": field, "value": value}}
+
+    @classmethod
+    def _remove(cls, rowid: str) -> dict[str, Any]:
+        return {"remove": {"exampleId": cls._example_id(rowid)}}
+
+    async def _patch(
+        self,
+        gql_client: AsyncGraphQLClient,
+        operations: list[dict[str, Any]],
+        **rest: Any,
+    ) -> Any:
+        return await gql_client.execute(
+            query=self._MUTATION,
+            variables={
+                "input": {
+                    "datasetId": str(GlobalID("Dataset", "1")),
+                    "operations": operations,
+                    **rest,
+                }
+            },
+        )
+
+    async def test_applies_mixed_operations_as_one_version(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         dataset_with_revisions: None,
     ) -> None:
-        response = await gql_client.execute(
-            query=self._MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", "1")),
-                    "additions": [
-                        {
-                            "input": {"input": "added-input"},
-                            "output": {"output": "added-output"},
-                            "metadata": {"metadata": "added-metadata"},
-                        }
-                    ],
-                    "patches": [
-                        {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
-                            "input": {"input": "edited-input"},
-                        }
-                    ],
-                    "exampleIdsToDelete": [str(GlobalID(DatasetExample.__name__, "2"))],
-                    "versionDescription": "Edited examples in the table",
-                    "versionMetadata": {"source": "editable-table"},
-                }
-            },
+        response = await self._patch(
+            gql_client,
+            [
+                self._add(
+                    {"input": "added-input"},
+                    {"output": "added-output"},
+                    {"metadata": "added-metadata"},
+                ),
+                self._replace("1", "INPUT", {"input": "edited-input"}),
+                self._remove("2"),
+            ],
+            versionDescription="Edited examples in the table",
+            versionMetadata={"source": "editable-table"},
         )
 
         assert response.data and not response.errors
         # The fixture starts with 2 live examples, and this change set adds one and
-        # deletes one — so the count alone proves nothing. Assert which examples
+        # removes one — so the count alone proves nothing. Assert which examples
         # survive, and that the added one is a genuinely new row.
         assert response.data["patchDatasetExamples"]["dataset"]["exampleCount"] == 2
         async with db() as session:
@@ -350,7 +382,7 @@ class TestPatchDatasetExamples:
         revision_kind_by_example_id = {
             revision.dataset_example_id: revision.revision_kind for revision in revisions
         }
-        # Example 1 was patched, example 2 deleted, and a brand-new example created.
+        # Example 1 was replaced, example 2 removed, and a brand-new example created.
         assert revision_kind_by_example_id[1] == "PATCH"
         assert revision_kind_by_example_id[2] == "DELETE"
         created_example_ids = [
@@ -367,46 +399,23 @@ class TestPatchDatasetExamples:
         assert patched_revision.output == {"output": "original-example-1-version-1-output"}
         assert patched_revision.metadata_ == {"metadata": "original-example-1-version-1-metadata"}
 
-    async def test_pairs_each_change_with_its_own_example(
+    async def test_pairs_each_operation_with_its_own_example(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         dataset_with_revisions: None,
     ) -> None:
-        # Patches are supplied in descending example-ID order, and there is more
-        # than one of everything, so a resolver that lines changes up positionally
-        # against a sorted or re-queried list would swap their payloads.
-        response = await gql_client.execute(
-            query=self._MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", "1")),
-                    "additions": [
-                        {
-                            "input": {"input": "first-added-input"},
-                            "output": {},
-                            "metadata": {},
-                            "externalId": "first-added",
-                        },
-                        {
-                            "input": {"input": "second-added-input"},
-                            "output": {},
-                            "metadata": {},
-                            "externalId": "second-added",
-                        },
-                    ],
-                    "patches": [
-                        {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "2")),
-                            "input": {"input": "patched-example-2-input"},
-                        },
-                        {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
-                            "input": {"input": "patched-example-1-input"},
-                        },
-                    ],
-                }
-            },
+        # Replacements are supplied in descending example-ID order, and there is
+        # more than one of everything, so a resolver that lines changes up
+        # positionally against a sorted or re-queried list would swap their payloads.
+        response = await self._patch(
+            gql_client,
+            [
+                self._add({"input": "first-added-input"}, externalId="first-added"),
+                self._add({"input": "second-added-input"}, externalId="second-added"),
+                self._replace("2", "INPUT", {"input": "patched-example-2-input"}),
+                self._replace("1", "INPUT", {"input": "patched-example-1-input"}),
+            ],
         )
 
         assert response.data and not response.errors
@@ -432,7 +441,7 @@ class TestPatchDatasetExamples:
         }
         external_id_by_example_id = {example.id: example.external_id for example in examples}
 
-        # Each patched example carries its own new input, not its neighbor's.
+        # Each replaced example carries its own new input, not its neighbor's.
         assert latest_input_by_example_id[1] == {"input": "patched-example-1-input"}
         assert latest_input_by_example_id[2] == {"input": "patched-example-2-input"}
         # Each added example carries the payload that came with its custom ID.
@@ -446,31 +455,87 @@ class TestPatchDatasetExamples:
             "second-added": {"input": "second-added-input"},
         }
 
-    async def test_a_deleted_examples_custom_id_stays_taken(
+    async def test_folds_replacements_of_one_example_into_one_revision(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         dataset_with_revisions: None,
     ) -> None:
-        # Deleting an example writes a DELETE revision; the row — and its custom ID
+        # Two fields replaced, then one of them replaced again: the example gets a
+        # single PATCH revision carrying the last value of each field.
+        response = await self._patch(
+            gql_client,
+            [
+                self._replace("1", "INPUT", {"input": "first"}),
+                self._replace("1", "OUTPUT", {"output": "edited-output"}),
+                self._replace("1", "INPUT", {"input": "last"}),
+            ],
+        )
+
+        assert response.data and not response.errors
+        async with db() as session:
+            latest_version_id = await session.scalar(
+                select(func.max(models.DatasetVersion.id)).where(
+                    models.DatasetVersion.dataset_id == 1
+                )
+            )
+            revisions = (
+                await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.dataset_version_id == latest_version_id
+                    )
+                )
+            ).all()
+        assert len(revisions) == 1
+        revision = revisions[0]
+        assert revision.dataset_example_id == 1
+        assert revision.revision_kind == "PATCH"
+        assert revision.input == {"input": "last"}
+        assert revision.output == {"output": "edited-output"}
+        assert revision.metadata_ == {"metadata": "original-example-1-version-1-metadata"}
+
+    async def test_a_removal_discards_earlier_replacements_of_the_example(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        response = await self._patch(
+            gql_client,
+            [
+                self._replace("1", "INPUT", {"input": "edited-then-removed"}),
+                self._remove("1"),
+            ],
+        )
+
+        assert response.data and not response.errors
+        async with db() as session:
+            latest_version_id = await session.scalar(
+                select(func.max(models.DatasetVersion.id)).where(
+                    models.DatasetVersion.dataset_id == 1
+                )
+            )
+            revisions = (
+                await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.dataset_version_id == latest_version_id
+                    )
+                )
+            ).all()
+        assert [
+            (revision.dataset_example_id, revision.revision_kind) for revision in revisions
+        ] == [(1, "DELETE")]
+
+    async def test_a_removed_examples_custom_id_stays_taken(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        dataset_with_revisions: None,
+    ) -> None:
+        # Removing an example writes a DELETE revision; the row — and its custom ID
         # — survives. Reusing that ID is therefore a conflict, and the message has
         # to say so, or the user sees a collision with an example they cannot find.
-        add = await gql_client.execute(
-            query=self._MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", "1")),
-                    "additions": [
-                        {
-                            "input": {"input": "value"},
-                            "output": {},
-                            "metadata": {},
-                            "externalId": "case-42",
-                        }
-                    ],
-                }
-            },
-        )
+        add = await self._patch(gql_client, [self._add({"input": "value"}, externalId="case-42")])
         assert add.data and not add.errors
 
         async with db() as session:
@@ -481,24 +546,12 @@ class TestPatchDatasetExamples:
             )
         assert reused_example_id is not None
 
-        response = await gql_client.execute(
-            query=self._MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", "1")),
-                    "exampleIdsToDelete": [
-                        str(GlobalID(DatasetExample.__name__, str(reused_example_id)))
-                    ],
-                    "additions": [
-                        {
-                            "input": {"input": "replacement"},
-                            "output": {},
-                            "metadata": {},
-                            "externalId": "case-42",
-                        }
-                    ],
-                }
-            },
+        response = await self._patch(
+            gql_client,
+            [
+                self._remove(str(reused_example_id)),
+                self._add({"input": "replacement"}, externalId="case-42"),
+            ],
         )
 
         assert response.errors
@@ -512,21 +565,8 @@ class TestPatchDatasetExamples:
         db: DbSessionFactory,
         dataset_with_revisions: None,
     ) -> None:
-        response = await gql_client.execute(
-            query=self._MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", "1")),
-                    "additions": [
-                        {
-                            "input": {"input": "added-input"},
-                            "output": {},
-                            "metadata": {},
-                            "externalId": "my-custom-id",
-                        }
-                    ],
-                }
-            },
+        response = await self._patch(
+            gql_client, [self._add({"input": "added-input"}, externalId="my-custom-id")]
         )
 
         assert response.data and not response.errors
@@ -546,19 +586,8 @@ class TestPatchDatasetExamples:
         db: DbSessionFactory,
         dataset_with_revisions: None,
     ) -> None:
-        addition = {
-            "input": {"input": "added-input"},
-            "output": {},
-            "metadata": {},
-            "externalId": "my-custom-id",
-        }
-        variables = {
-            "input": {
-                "datasetId": str(GlobalID("Dataset", "1")),
-                "additions": [addition],
-            }
-        }
-        first_response = await gql_client.execute(query=self._MUTATION, variables=variables)
+        operations = [self._add({"input": "added-input"}, externalId="my-custom-id")]
+        first_response = await self._patch(gql_client, operations)
         assert first_response.data and not first_response.errors
 
         async with db() as session:
@@ -569,7 +598,7 @@ class TestPatchDatasetExamples:
                 select(func.count(models.DatasetExample.id))
             )
 
-        response = await gql_client.execute(query=self._MUTATION, variables=variables)
+        response = await self._patch(gql_client, operations)
 
         assert response.errors
         assert "my-custom-id" in response.errors[0].message
@@ -579,58 +608,28 @@ class TestPatchDatasetExamples:
         assert version_count_after == version_count_before
         assert example_count_after == example_count_before
 
-    async def test_rejects_patching_and_deleting_the_same_example(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        dataset_with_revisions: None,
-    ) -> None:
-        example_id = str(GlobalID(DatasetExample.__name__, "1"))
-        async with db() as session:
-            version_count_before = await session.scalar(
-                select(func.count(models.DatasetVersion.id))
-            )
-
-        response = await gql_client.execute(
-            query=self._MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", "1")),
-                    "patches": [{"exampleId": example_id, "input": {"should": "fail"}}],
-                    "exampleIdsToDelete": [example_id],
-                }
-            },
-        )
-
-        assert response.errors
-        assert "patch and delete" in response.errors[0].message
-        async with db() as session:
-            version_count_after = await session.scalar(select(func.count(models.DatasetVersion.id)))
-        assert version_count_after == version_count_before
-
     @pytest.mark.parametrize(
-        "cross_dataset_change",
+        "cross_dataset_operation",
         [
             pytest.param(
                 {
-                    "patches": [
-                        {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "4")),
-                            "input": {"should": "fail"},
-                        }
-                    ]
+                    "replace": {
+                        "exampleId": str(GlobalID(DatasetExample.__name__, "4")),
+                        "field": "INPUT",
+                        "value": {"should": "fail"},
+                    }
                 },
-                id="patched-example-in-another-dataset",
+                id="replaced-example-in-another-dataset",
             ),
             pytest.param(
-                {"exampleIdsToDelete": [str(GlobalID(DatasetExample.__name__, "4"))]},
-                id="deleted-example-in-another-dataset",
+                {"remove": {"exampleId": str(GlobalID(DatasetExample.__name__, "4"))}},
+                id="removed-example-in-another-dataset",
             ),
         ],
     )
     async def test_rejects_cross_dataset_ids_without_partial_writes(
         self,
-        cross_dataset_change: dict[str, Any],
+        cross_dataset_operation: dict[str, Any],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         dataset_with_revisions: None,
@@ -644,15 +643,8 @@ class TestPatchDatasetExamples:
                 select(func.count(models.DatasetExample.id))
             )
 
-        response = await gql_client.execute(
-            query=self._MUTATION,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", "1")),
-                    "additions": [{"input": {"new": True}, "output": {}, "metadata": {}}],
-                    **cross_dataset_change,
-                }
-            },
+        response = await self._patch(
+            gql_client, [self._add({"new": True}), cross_dataset_operation]
         )
 
         assert response.errors
@@ -668,78 +660,80 @@ class TestPatchDatasetExamples:
         "changes, expected_error_message",
         [
             pytest.param(
-                {},
-                "Must provide at least one dataset example change.",
-                id="empty-change-set",
+                {"operations": []},
+                "Must provide at least one operation.",
+                id="empty-operation-list",
             ),
             pytest.param(
                 {
-                    "patches": [
+                    "operations": [
+                        {"remove": {"exampleId": str(GlobalID(DatasetExample.__name__, "1"))}},
+                        {"remove": {"exampleId": str(GlobalID(DatasetExample.__name__, "1"))}},
+                    ]
+                },
+                (
+                    f"operations[1] removes example {GlobalID(DatasetExample.__name__, '1')}, "
+                    "which an earlier operation already removed."
+                ),
+                id="same-example-removed-twice",
+            ),
+            pytest.param(
+                {
+                    "operations": [
+                        {"remove": {"exampleId": str(GlobalID(DatasetExample.__name__, "1"))}},
                         {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
-                            "input": {"input": "value"},
-                        },
-                        {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
-                            "input": {"input": "value"},
+                            "replace": {
+                                "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                                "field": "INPUT",
+                                "value": {"input": "value"},
+                            }
                         },
                     ]
                 },
-                "Cannot patch the same example more than once per mutation.",
-                id="same-example-patched-twice",
+                (
+                    f"operations[1] replaces example {GlobalID(DatasetExample.__name__, '1')}, "
+                    "which an earlier operation removed."
+                ),
+                id="replace-after-remove",
             ),
             pytest.param(
                 {
-                    "exampleIdsToDelete": [
-                        str(GlobalID(DatasetExample.__name__, "1")),
-                        str(GlobalID(DatasetExample.__name__, "1")),
+                    "operations": [
+                        {"add": {"value": {"input": "not-an-object", "output": {}, "metadata": {}}}}
                     ]
                 },
-                "Cannot delete the same example more than once per mutation.",
-                id="same-example-deleted-twice",
-            ),
-            pytest.param(
-                {"patches": [{"exampleId": str(GlobalID(DatasetExample.__name__, "1"))}]},
-                "Received one or more empty patches that contain no fields to update.",
-                id="patch-with-nothing-to-update",
-            ),
-            pytest.param(
-                {"additions": [{"input": "not-an-object", "output": {}, "metadata": {}}]},
-                "Added example input, output, and metadata must be JSON objects.",
-                id="addition-with-non-object-input",
+                "operations[0].add.value: input, output, and metadata must be JSON objects.",
+                id="add-with-non-object-input",
             ),
             pytest.param(
                 {
-                    "patches": [
+                    "operations": [
                         {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
-                            "input": "not-an-object",
+                            "replace": {
+                                "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                                "field": "INPUT",
+                                "value": "not-an-object",
+                            }
                         }
                     ]
                 },
-                "Patched example input, output, and metadata must be JSON objects.",
-                id="patch-with-non-object-input",
+                "operations[0].replace.value must be a JSON object.",
+                id="replace-with-non-object-value",
             ),
             pytest.param(
-                {
-                    "patches": [
-                        {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
-                            "output": None,
-                        }
-                    ]
-                },
-                "Patched example input, output, and metadata must be JSON objects.",
-                id="patch-with-null-output",
-            ),
-            pytest.param(
-                {"exampleIdsToDelete": [str(GlobalID("Dataset", "1"))]},
-                "Received one or more invalid dataset example IDs.",
+                {"operations": [{"remove": {"exampleId": str(GlobalID("Dataset", "1"))}}]},
+                "operations[0].remove.exampleId is not a dataset example ID.",
                 id="example-id-of-the-wrong-type",
             ),
             pytest.param(
                 {
-                    "additions": [{"input": {"input": "value"}, "output": {}, "metadata": {}}],
+                    "operations": [
+                        {
+                            "add": {
+                                "value": {"input": {"input": "value"}, "output": {}, "metadata": {}}
+                            }
+                        }
+                    ],
                     "versionMetadata": ["not", "an", "object"],
                 },
                 "Version metadata must be a JSON object.",
@@ -747,30 +741,41 @@ class TestPatchDatasetExamples:
             ),
             pytest.param(
                 {
-                    "additions": [
+                    "operations": [
                         {
-                            "input": {"input": "value"},
-                            "output": {},
-                            "metadata": {},
-                            "externalId": "duplicate-custom-id",
+                            "add": {
+                                "value": {
+                                    "input": {"input": "value"},
+                                    "output": {},
+                                    "metadata": {},
+                                    "externalId": "duplicate-custom-id",
+                                }
+                            }
                         },
                         {
-                            "input": {"input": "value"},
-                            "output": {},
-                            "metadata": {},
-                            "externalId": "duplicate-custom-id",
+                            "add": {
+                                "value": {
+                                    "input": {"input": "value"},
+                                    "output": {},
+                                    "metadata": {},
+                                    "externalId": "duplicate-custom-id",
+                                }
+                            }
                         },
                     ]
                 },
                 "Custom ID 'duplicate-custom-id' appears more than once in the input.",
-                id="duplicate-custom-ids-within-the-change-set",
+                id="duplicate-custom-ids-within-the-operation-list",
             ),
             pytest.param(
                 {
-                    "patches": [
+                    "operations": [
                         {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "500")),
-                            "input": {"input": "value"},
+                            "replace": {
+                                "exampleId": str(GlobalID(DatasetExample.__name__, "500")),
+                                "field": "INPUT",
+                                "value": {"input": "value"},
+                            }
                         }
                     ]
                 },
@@ -782,10 +787,13 @@ class TestPatchDatasetExamples:
             ),
             pytest.param(
                 {
-                    "patches": [
+                    "operations": [
                         {
-                            "exampleId": str(GlobalID(DatasetExample.__name__, "3")),
-                            "input": {"input": "value"},
+                            "replace": {
+                                "exampleId": str(GlobalID(DatasetExample.__name__, "3")),
+                                "field": "INPUT",
+                                "value": {"input": "value"},
+                            }
                         }
                     ]
                 },
@@ -794,7 +802,7 @@ class TestPatchDatasetExamples:
             ),
         ],
     )
-    async def test_rejects_invalid_change_sets(
+    async def test_rejects_invalid_operation_lists(
         self,
         changes: dict[str, Any],
         expected_error_message: str,
@@ -809,6 +817,35 @@ class TestPatchDatasetExamples:
         assert len(errors) == 1
         assert errors[0].message == expected_error_message
 
+    @pytest.mark.parametrize(
+        "operation",
+        [
+            pytest.param({}, id="no-variant"),
+            pytest.param(
+                {
+                    "remove": {"exampleId": str(GlobalID(DatasetExample.__name__, "1"))},
+                    "replace": {
+                        "exampleId": str(GlobalID(DatasetExample.__name__, "1")),
+                        "field": "INPUT",
+                        "value": {},
+                    },
+                },
+                id="two-variants",
+            ),
+        ],
+    )
+    async def test_the_schema_requires_exactly_one_variant_per_operation(
+        self,
+        operation: dict[str, Any],
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        # `DatasetExampleOperation` is a @oneOf input, so GraphQL validation rejects
+        # a malformed operation before the resolver runs.
+        response = await self._patch(gql_client, [operation])
+        assert response.errors
+        assert "DatasetExampleOperation" in response.errors[0].message
+
     async def test_rejects_an_unknown_dataset(
         self,
         gql_client: AsyncGraphQLClient,
@@ -819,7 +856,7 @@ class TestPatchDatasetExamples:
             variables={
                 "input": {
                     "datasetId": str(GlobalID("Dataset", "999")),
-                    "additions": [{"input": {"input": "value"}, "output": {}, "metadata": {}}],
+                    "operations": [self._add({"input": "value"})],
                 }
             },
         )

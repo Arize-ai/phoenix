@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dfa38c295c26d5c5d6ba6051f5dbe92a>>
+ * @generated SignedSource<<b328660733b6ab24df54d90c2f6248b7>>
  * @lightSyntaxTransform
  */
 
@@ -8,25 +8,42 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type DatasetExampleField = "INPUT" | "METADATA" | "OUTPUT";
 export type PatchDatasetExamplesInput = {
-  additions?: ReadonlyArray<DatasetExampleAddition>;
   datasetId: string;
-  exampleIdsToDelete?: ReadonlyArray<string>;
-  patches?: ReadonlyArray<DatasetExamplePatch>;
+  operations: ReadonlyArray<DatasetExampleOperation>;
   versionDescription?: string | null;
   versionMetadata?: any | null;
 };
-export type DatasetExampleAddition = {
+export type DatasetExampleOperation = {
+  add: AddDatasetExampleOperation;
+  remove?: never;
+  replace?: never;
+} | {
+  add?: never;
+  remove?: never;
+  replace: ReplaceDatasetExampleFieldOperation;
+} | {
+  add?: never;
+  remove: RemoveDatasetExampleOperation;
+  replace?: never;
+};
+export type AddDatasetExampleOperation = {
+  value: DatasetExampleValueInput;
+};
+export type DatasetExampleValueInput = {
   externalId?: string | null;
   input: any;
   metadata: any;
   output: any;
 };
-export type DatasetExamplePatch = {
+export type ReplaceDatasetExampleFieldOperation = {
   exampleId: string;
-  input?: any | null;
-  metadata?: any | null;
-  output?: any | null;
+  field: DatasetExampleField;
+  value: any;
+};
+export type RemoveDatasetExampleOperation = {
+  exampleId: string;
 };
 export type SaveDatasetExamplesDialogMutation$variables = {
   input: PatchDatasetExamplesInput;

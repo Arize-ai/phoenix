@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional, cast
 
@@ -35,7 +36,8 @@ from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
 from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
-    DatasetExamplePatch,
+    DatasetExampleOperation,
+    DatasetExampleValueInput,
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
@@ -507,13 +509,12 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: PatchDatasetExamplesInput,
     ) -> DatasetMutationPayload:
-        """Commit additions, patches, and deletions as one dataset version."""
-        additions = input.additions
-        patches = input.patches
-        example_ids_to_delete = input.example_ids_to_delete
-        if not (additions or patches or example_ids_to_delete):
-            raise BadRequest("Must provide at least one dataset example change.")
-
+        """
+        Applies add, replace, and remove operations to a dataset's examples in
+        order and commits them as one new dataset version, or not at all.
+        """
+        if not input.operations:
+            raise BadRequest("Must provide at least one operation.")
         try:
             dataset_id = from_global_id_with_expected_type(
                 global_id=input.dataset_id,
@@ -521,46 +522,10 @@ class DatasetMutationMixin:
             )
         except ValueError:
             raise BadRequest(f"Invalid dataset ID: {input.dataset_id}")
-        try:
-            patch_ids = [
-                from_global_id_with_expected_type(
-                    global_id=patch.example_id,
-                    expected_type_name=DatasetExample.__name__,
-                )
-                for patch in patches
-            ]
-            delete_ids = [
-                from_global_id_with_expected_type(
-                    global_id=example_id,
-                    expected_type_name=DatasetExample.__name__,
-                )
-                for example_id in example_ids_to_delete
-            ]
-        except ValueError:
-            raise BadRequest("Received one or more invalid dataset example IDs.")
-        if len(set(patch_ids)) != len(patch_ids):
-            raise BadRequest("Cannot patch the same example more than once per mutation.")
-        if len(set(delete_ids)) != len(delete_ids):
-            raise BadRequest("Cannot delete the same example more than once per mutation.")
-        if set(patch_ids) & set(delete_ids):
-            raise BadRequest("Cannot patch and delete the same example in one mutation.")
-        if any(patch.is_empty() for patch in patches):
-            raise BadRequest("Received one or more empty patches that contain no fields to update.")
-        if any(
-            not isinstance(value, dict)
-            for patch in patches
-            for value in (patch.input, patch.output, patch.metadata)
-            if value is not UNSET
-        ):
-            raise BadRequest("Patched example input, output, and metadata must be JSON objects.")
-        if any(
-            not all(
-                isinstance(value, dict)
-                for value in (addition.input, addition.output, addition.metadata)
-            )
-            for addition in additions
-        ):
-            raise BadRequest("Added example input, output, and metadata must be JSON objects.")
+        change_set = _resolve_example_operations(input.operations)
+        additions = change_set.additions
+        replacements = change_set.replacements
+        removals = change_set.removals
 
         # Normalized once so the conflict check and the insert below agree.
         external_id_by_addition = [_blank_to_none(addition.external_id) for addition in additions]
@@ -581,7 +546,7 @@ class DatasetMutationMixin:
         version_metadata: dict[str, Any] = (
             input.version_metadata if isinstance(input.version_metadata, dict) else {}
         )
-        existing_example_ids = patch_ids + delete_ids
+        existing_example_ids = [*replacements, *removals]
 
         async with info.context.db() as session:
             dataset = await session.scalar(
@@ -691,21 +656,21 @@ class DatasetMutationMixin:
                     ],
                 )
 
-            if patches:
+            if replacements:
                 await session.execute(
                     insert(models.DatasetExampleRevision),
                     [
                         _to_orm_revision(
                             existing_revision=latest_revisions_by_example_id[example_id],
-                            patch=patch,
+                            replaced_fields=replaced_fields,
                             example_id=example_id,
                             version_id=version_id,
                         )
-                        for example_id, patch in zip(patch_ids, patches)
+                        for example_id, replaced_fields in replacements.items()
                     ],
                 )
 
-            if delete_ids:
+            if removals:
                 await session.execute(
                     insert(models.DatasetExampleRevision),
                     [
@@ -717,7 +682,7 @@ class DatasetMutationMixin:
                             models.DatasetExampleRevision.metadata_.key: {},
                             models.DatasetExampleRevision.revision_kind.key: "DELETE",
                         }
-                        for example_id in delete_ids
+                        for example_id in removals
                     ],
                 )
 
@@ -844,22 +809,22 @@ def _span_attribute(semconv: str) -> Any:
 def _to_orm_revision(
     *,
     existing_revision: models.DatasetExampleRevision,
-    patch: DatasetExamplePatch,
+    replaced_fields: dict[str, Any],
     example_id: int,
     version_id: int,
 ) -> dict[str, Any]:
     """
-    Creates a new revision from an existing revision and a patch. The output is a
-    dictionary suitable for insertion into the database using the sqlalchemy
-    bulk insertion API.
+    Creates a new revision from an existing revision and the fields the operations
+    replaced. The output is a dictionary suitable for insertion into the database
+    using the sqlalchemy bulk insertion API.
     """
 
     db_rev = models.DatasetExampleRevision
-    # A field the caller left out falls back to the existing revision. Values that
-    # were sent are validated up front, so anything present here is a JSON object.
-    input = existing_revision.input if patch.input is UNSET else patch.input
-    output = existing_revision.output if patch.output is UNSET else patch.output
-    metadata = existing_revision.metadata_ if patch.metadata is UNSET else patch.metadata
+    # A field the operations never replaced carries over from the existing revision.
+    # Replaced values were validated up front, so anything present is a JSON object.
+    input = replaced_fields.get("input", existing_revision.input)
+    output = replaced_fields.get("output", existing_revision.output)
+    metadata = replaced_fields.get("metadata", existing_revision.metadata_)
     return {
         str(db_column.key): patch_value
         for db_column, patch_value in (
@@ -871,6 +836,84 @@ def _to_orm_revision(
             (db_rev.revision_kind, "PATCH"),
         )
     }
+
+
+@dataclass(frozen=True)
+class _ExampleChangeSet:
+    """The net effect of an operation list, in the shape the revision writes want."""
+
+    additions: list[DatasetExampleValueInput]
+    """Values to create examples from, in operation order."""
+    replacements: dict[int, dict[str, Any]]
+    """Example row ID to the fields replaced on it, keyed by revision column."""
+    removals: list[int]
+    """Example row IDs to delete, in operation order."""
+
+
+def _parse_example_id(global_id: GlobalID, location: str) -> int:
+    try:
+        return from_global_id_with_expected_type(
+            global_id=global_id,
+            expected_type_name=DatasetExample.__name__,
+        )
+    except ValueError:
+        raise BadRequest(f"{location} is not a dataset example ID.")
+
+
+def _resolve_example_operations(
+    operations: Sequence[DatasetExampleOperation],
+) -> _ExampleChangeSet:
+    """
+    Folds an ordered operation list into additions, per-example field
+    replacements, and removals. Later operations see the effect of earlier
+    ones: replacing a field twice keeps the last value, removing an example
+    discards its replacements, and targeting an example after it was removed is
+    an error, as in JSON Patch. Every error names the operation by its index.
+    """
+    additions: list[DatasetExampleValueInput] = []
+    replacements: dict[int, dict[str, Any]] = {}
+    removals: list[int] = []
+    for index, operation in enumerate(operations):
+        if operation.add is not UNSET and operation.add is not None:
+            value = operation.add.value
+            if not all(
+                isinstance(field, dict) for field in (value.input, value.output, value.metadata)
+            ):
+                raise BadRequest(
+                    f"operations[{index}].add.value: input, output, and metadata must be "
+                    "JSON objects."
+                )
+            additions.append(value)
+        elif operation.replace is not UNSET and operation.replace is not None:
+            replace = operation.replace
+            example_id = _parse_example_id(
+                replace.example_id, f"operations[{index}].replace.exampleId"
+            )
+            if example_id in removals:
+                raise BadRequest(
+                    f"operations[{index}] replaces example {replace.example_id}, which an "
+                    "earlier operation removed."
+                )
+            if not isinstance(replace.value, dict):
+                raise BadRequest(f"operations[{index}].replace.value must be a JSON object.")
+            replacements.setdefault(example_id, {})[replace.field.value] = replace.value
+        elif operation.remove is not UNSET and operation.remove is not None:
+            remove = operation.remove
+            example_id = _parse_example_id(
+                remove.example_id, f"operations[{index}].remove.exampleId"
+            )
+            if example_id in removals:
+                raise BadRequest(
+                    f"operations[{index}] removes example {remove.example_id}, which an "
+                    "earlier operation already removed."
+                )
+            removals.append(example_id)
+            replacements.pop(example_id, None)
+        else:
+            raise BadRequest(
+                f"operations[{index}] must set exactly one of add, replace, or remove."
+            )
+    return _ExampleChangeSet(additions=additions, replacements=replacements, removals=removals)
 
 
 def _gather_span_annotations_by_name(
