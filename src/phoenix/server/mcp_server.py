@@ -246,6 +246,26 @@ class _InternalIdentityDispatch:
         await self._app(scope, receive, send)
 
 
+class _LifespanStateDispatch:
+    """ASGI wrapper that gives in-process requests the app's lifespan state.
+
+    A server copies the state the lifespan yields into every request scope,
+    which is what ``request.state`` reads. ``httpx.ASGITransport`` builds its
+    scope from scratch, so a tool call would reach ``/v1`` with an empty
+    ``request.state``. The lifespan publishes the same dict on
+    ``app.state.lifespan_state`` for this hop to copy.
+    """
+
+    def __init__(self, app: "FastAPI") -> None:
+        self._app = app
+
+    async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
+        if scope["type"] == "http":
+            lifespan_state = getattr(self._app.state, "lifespan_state", None) or {}
+            scope = {**scope, "state": {**lifespan_state, **scope.get("state", {})}}
+        await self._app(scope, receive, send)
+
+
 def _read_only(
     factory: "Callable[[GetToolCatalog], Tool]",
 ) -> "Callable[[GetToolCatalog], Tool]":
@@ -468,7 +488,7 @@ def build_phoenix_mcp_server(
     # Tool dispatch authenticates by principal passing, not token replay — see
     # ``_InternalIdentityDispatch``.
     client = httpx2.AsyncClient(
-        transport=httpx2.ASGITransport(app=_InternalIdentityDispatch(app)),
+        transport=httpx2.ASGITransport(app=_InternalIdentityDispatch(_LifespanStateDispatch(app))),
         base_url=_INTERNAL_BASE_URL,
     )
     openapi_spec = app.openapi()

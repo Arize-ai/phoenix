@@ -751,13 +751,17 @@ def _lifespan(
                     print(welcome_message(system_settings), flush=True)
                 except Exception:
                     logger.exception("Failed to render the startup banner")
-            yield {
+            lifespan_state: dict[str, Any] = {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
                 "enqueue_span": enqueue_span,
                 "enqueue_operation": enqueue_operation,
                 "experiment_runner": experiment_runner,
             }
+            # Read by the in-process MCP dispatch, which has no server to copy
+            # the yielded state into its request scopes.
+            app.state.lifespan_state = lifespan_state
+            yield lifespan_state
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res

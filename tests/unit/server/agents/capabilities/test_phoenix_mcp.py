@@ -7,6 +7,7 @@ caller's identity and the session's tool visibility itself.
 from __future__ import annotations
 
 from contextlib import AsyncExitStack
+from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
 import pytest
@@ -15,7 +16,9 @@ from fastapi import FastAPI, Request
 from fastmcp import FastMCP
 from pydantic import SecretStr
 from pydantic_ai import ModelRetry
+from sqlalchemy import insert, select
 
+from phoenix.db import models
 from phoenix.db.models import UserRoleName
 from phoenix.server.agents.capabilities import PhoenixMCPToolset
 from phoenix.server.app import create_app
@@ -492,3 +495,80 @@ class TestBoundPrincipalAgainstRealV1Auth:
                 await toolset.direct_call_tool(
                     "execute", {"code": "return await call_tool('getProjects', {})"}
                 )
+
+
+class TestLifespanStateReachesV1:
+    """``/v1`` handlers read ``request.state`` for what the lifespan yields.
+
+    A server copies that state into every request scope. The in-process
+    dispatch builds its own scope, so it must copy the state itself or a
+    mutating tool fails after its database write has committed.
+    """
+
+    async def test_dispatch_injects_the_published_lifespan_state(self) -> None:
+        app = FastAPI()
+
+        @app.get("/v1/marker", tags=["projects"], summary="Report a lifespan value.")
+        async def read_marker(request: Request) -> dict[str, Any]:
+            return {"marker": request.state.marker}
+
+        app.state.lifespan_state = {"marker": "from-lifespan"}
+        mcp, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=True, db=_unused_db())
+
+        async with PhoenixMCPToolset[None](mcp) as toolset:
+            result = await toolset.direct_call_tool("read_marker_v1_marker_get", {})
+
+        assert result == {"marker": "from-lifespan"}
+
+    async def test_a_note_written_through_the_in_process_client_lands(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        trace_id = "82c6c9c33ccc586e0d3bdf46b20db309"
+        async with db() as session:
+            project_rowid = await session.scalar(
+                insert(models.Project).values(name="project").returning(models.Project.id)
+            )
+            await session.execute(
+                insert(models.Trace).values(
+                    trace_id=trace_id,
+                    project_rowid=project_rowid,
+                    start_time=datetime(2021, 1, 1, tzinfo=timezone.utc),
+                    end_time=datetime(2021, 1, 1, 0, 1, tzinfo=timezone.utc),
+                )
+            )
+
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_grpc_server())
+            app = create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+            await stack.enter_async_context(LifespanManager(app))
+            mcp, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=False, db=db)
+
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                result = await toolset.direct_call_tool(
+                    "createTraceNote",
+                    {
+                        "data": {
+                            "trace_id": trace_id,
+                            "note": "written in-process",
+                            "identifier": "coding-run:test",
+                        }
+                    },
+                )
+
+        assert isinstance(result, dict) and "id" in result["data"]
+        async with db() as session:
+            note = await session.scalar(
+                select(models.TraceAnnotation).where(
+                    models.TraceAnnotation.identifier == "coding-run:test"
+                )
+            )
+        assert note is not None
+        assert note.name == "note"
+        assert note.explanation == "written in-process"
