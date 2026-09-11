@@ -43,7 +43,8 @@ export function useEvaluatorWorkspaceOperations(state: {
   saveReview: (
     example: CalibrationExample,
     slot: SlotId,
-    output: ExpectedOutput | null
+    output: ExpectedOutput | null,
+    options?: { immediate?: boolean }
   ) => Promise<UIOperationResult>;
 }) {
   const latest = useRef(state);
@@ -312,6 +313,7 @@ export function useEvaluatorWorkspaceOperations(state: {
           error:
             "Expected label must be one of this evaluator's selected output labels.",
         };
+      // PXI needs the outcome now, so its annotation skips the batching window.
       return current.saveReview(
         example,
         input.slot,
@@ -321,7 +323,8 @@ export function useEvaluatorWorkspaceOperations(state: {
               label: input.label,
               score: input.score,
               explanation: input.explanation,
-            }
+            },
+        { immediate: true }
       );
     },
   });

@@ -60,6 +60,7 @@ import { CalibrationResultsTable } from "./CalibrationResultsTable";
 import { CalibrationSelect } from "./CalibrationSelect";
 import type { SlotId, SlotOutput, SlotSnapshot } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
+import type { ExpectedOutputSaveStatus } from "./expectedOutputQueue";
 
 const NO_VALUE = "—";
 
@@ -80,6 +81,8 @@ export function CalibrationResults(
     staleSlots: props.staleSlots,
     isRunning: props.isRunning,
     runnableSlots: props.runnableSlots,
+    saveStatus: props.saveStatus,
+    pendingCount: props.pendingCount,
   };
   const [snapshot, setSnapshot] = useState(nextSnapshot);
   if (!props.isLoading && !shallow(snapshot, nextSnapshot)) {
@@ -145,7 +148,8 @@ function CalibrationResultsContent({
   runnableSlots,
   onRunSlot,
   onRunExample,
-  savingId,
+  saveStatus,
+  pendingCount,
   reviewError,
   staleSlots,
   onRetryReview,
@@ -173,7 +177,9 @@ function CalibrationResultsContent({
   onRunSlot: (slot: SlotId) => void;
   /** Run every evaluator on one example (the row's play button). */
   onRunExample: (exampleId: string) => void;
-  savingId: string | null;
+  /** Where the annotation queue stands, for the header's save indicator. */
+  saveStatus: ExpectedOutputSaveStatus;
+  pendingCount: number;
   reviewError: string | null;
   staleSlots: string[];
   onRetryReview: () => void;
@@ -275,13 +281,19 @@ function CalibrationResultsContent({
           gap="size-200"
           wrap
         >
-          <Text size="S" color="text-500">
-            {isLoading && !examples.length
-              ? "Loading sample…"
-              : examples.length < sampleSize
-                ? `All ${examples.length} examples`
-                : `First ${sampleSize} examples`}
-          </Text>
+          <Flex direction="row" gap="size-200" alignItems="center">
+            <Text size="S" color="text-500">
+              {isLoading && !examples.length
+                ? "Loading sample…"
+                : examples.length < sampleSize
+                  ? `All ${examples.length} examples`
+                  : `First ${sampleSize} examples`}
+            </Text>
+            <ExpectedOutputSaveIndicator
+              status={saveStatus}
+              pendingCount={pendingCount}
+            />
+          </Flex>
           <SegmentedControl
             aria-label="Show results"
             size="S"
@@ -313,19 +325,19 @@ function CalibrationResultsContent({
         <Alert
           variant="danger"
           banner
-          title="Could not save expected output"
+          title="Could not save annotations"
           extra={
             <Flex direction="row" gap="size-100">
               <Button
                 size="S"
-                isDisabled={savingId != null}
+                isDisabled={saveStatus === "saving"}
                 onPress={onRetryReview}
               >
                 Retry
               </Button>
               <Button
                 size="S"
-                isDisabled={savingId != null}
+                isDisabled={saveStatus === "saving"}
                 onPress={onReloadSample}
               >
                 Load latest sample
@@ -407,11 +419,8 @@ function CalibrationResultsContent({
                           output={selectedOutput(slot)}
                           slotRevision={slots[slot]?.revision}
                           isDisabled={
-                            isLoading ||
-                            savingId != null ||
-                            !slots[slot]?.selectedOutputName
+                            isLoading || !slots[slot]?.selectedOutputName
                           }
-                          isSaving={savingId === example.id}
                           onSave={(output) => onReview(example, slot, output)}
                         />
                       </td>
@@ -442,6 +451,56 @@ const visuallyHiddenCSS = css`
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+`;
+
+/**
+ * Where queued annotations stand. Annotations show as recorded the moment they are
+ * made and are written a couple of seconds later in one batch, so this is the
+ * only sign that a write is pending, happening, or done. Errors get the banner.
+ */
+function ExpectedOutputSaveIndicator({
+  status,
+  pendingCount,
+}: {
+  status: ExpectedOutputSaveStatus;
+  pendingCount: number;
+}) {
+  if (status === "pending")
+    return (
+      <Text size="S" color="text-500" role="status">
+        {pendingCount} unsaved{" "}
+        {pendingCount === 1 ? "annotation" : "annotations"}
+      </Text>
+    );
+  if (status === "saving")
+    return (
+      <span css={saveIndicatorCSS} role="status">
+        <ProgressCircle
+          isIndeterminate
+          size="S"
+          aria-label="Saving annotations"
+        />
+        <Text size="S" color="text-500">
+          Saving annotations…
+        </Text>
+      </span>
+    );
+  if (status === "saved")
+    return (
+      <span css={saveIndicatorCSS} role="status">
+        <Icon svg={<Icons.Checkmark />} color="success" />
+        <Text size="S" color="success">
+          Annotations saved
+        </Text>
+      </span>
+    );
+  return null;
+}
+
+const saveIndicatorCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-75);
 `;
 
 /**
@@ -539,10 +598,10 @@ function EvaluatorColumnHeader({
       output,
     })
   );
-  const graded = verdicts.filter((verdict) => verdict !== "invalid");
-  const matches = graded.filter((verdict) => verdict === "match").length;
+  const comparable = verdicts.filter((verdict) => verdict !== "invalid");
+  const matches = comparable.filter((verdict) => verdict === "match").length;
   const agreement =
-    run && graded.length ? `${matches}/${graded.length} agree` : null;
+    run && comparable.length ? `${matches}/${comparable.length} agree` : null;
   return (
     <Flex
       direction="row"
@@ -589,7 +648,7 @@ function EvaluatorColumnHeader({
  * One evaluator's result for one example, rendered the way experiment rows
  * render annotations: a quiet label · score value with the details in a rich
  * tooltip and the explanation beneath, then the expected output as a band
- * along the bottom. Grading happens against the result: thumbs up records it
+ * along the bottom. Annotating happens against the result: thumbs up records it
  * as the expected output, thumbs down opens the form to record what it should
  * have been. The band shows what is recorded and, when it disagrees with the
  * result, says so; pressing it opens the same form.
@@ -605,7 +664,6 @@ function EvaluatorCell({
   output,
   slotRevision,
   isDisabled,
-  isSaving,
   onSave,
 }: {
   slot: SlotId;
@@ -620,7 +678,6 @@ function EvaluatorCell({
   /** The slot's current draft revision, to tell whether the result is stale. */
   slotRevision?: string;
   isDisabled: boolean;
-  isSaving: boolean;
   onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -629,7 +686,7 @@ function EvaluatorCell({
   const verdict = getExpectedVerdict({ prediction: result, expected, output });
   const issue = expected ? getExpectedOutputIssue({ expected, output }) : null;
   const isStale = !!result && result.revision !== slotRevision;
-  const canGrade = !!prediction && !isDisabled;
+  const canAnnotate = !!prediction && !isDisabled;
   const value = (
     <span
       css={valueCSS}
@@ -674,7 +731,7 @@ function EvaluatorCell({
           ) : (
             value
           )}
-          {/* Grade the result. Both stay in place and read their state from
+          {/* Annotate the result. Both stay in place and read their state from
               the expected output, so agreeing twice clears it — an easy undo. */}
           <Flex direction="row" gap="size-25" alignItems="center" flex="none">
             <TooltipTrigger>
@@ -682,7 +739,7 @@ function EvaluatorCell({
                 size="S"
                 color={verdict === "match" ? "success" : "text-500"}
                 aria-pressed={verdict === "match"}
-                isDisabled={!canGrade}
+                isDisabled={!canAnnotate}
                 aria-label={
                   verdict === "match"
                     ? `Clear expected output for evaluator ${slot}, example ${position}`
@@ -712,7 +769,7 @@ function EvaluatorCell({
                 size="S"
                 color={verdict === "mismatch" ? "danger" : "text-500"}
                 aria-pressed={verdict === "mismatch"}
-                isDisabled={!canGrade}
+                isDisabled={!canAnnotate}
                 aria-label={`Disagree with evaluator ${slot}'s result for example ${position}`}
                 onPress={() => setIsEditing(true)}
               >
@@ -773,11 +830,7 @@ function EvaluatorCell({
                 </Text>
               )}
             </Flex>
-            {isSaving ? (
-              <ProgressCircle isIndeterminate size="S" aria-label="Saving" />
-            ) : (
-              <ExpectedBandStatus verdict={verdict} issue={issue} />
-            )}
+            <ExpectedBandStatus verdict={verdict} issue={issue} />
           </button>
         </Pressable>
         <Popover placement="bottom start">
