@@ -350,6 +350,7 @@ int pysqlite_connection_init(pysqlite_Connection* self, PyObject* args, PyObject
     self->in_sqlite = 0;
     self->in_stmt_teardown = 0;
     self->in_prepare = 0;
+    self->backup_target = 0;
 
     /* The database handle is live from here on; the isolation-level
        setter below may go through commit(), which requires an
@@ -776,9 +777,15 @@ int pysqlite_check_connection(pysqlite_Connection* con)
     if (!con->db) {
         PyErr_SetString(pysqlite_ProgrammingError, "Cannot operate on a closed database.");
         return 0;
-    } else {
-        return 1;
     }
+
+    if (con->backup_target > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Cannot operate on the destination of a backup in progress.");
+        return 0;
+    }
+
+    return 1;
 }
 
 PyObject* _pysqlite_connection_begin(pysqlite_Connection* self)
@@ -2350,6 +2357,7 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
 
     pysqlite_enter_sqlite(self);
     pysqlite_enter_sqlite((pysqlite_Connection *)target);
+    ((pysqlite_Connection *)target)->backup_target++;
 
     Py_BEGIN_ALLOW_THREADS
     bck_handle = sqlite3_backup_init(bck_conn, "main", self->db, name);
@@ -2404,6 +2412,7 @@ pysqlite_connection_backup(pysqlite_Connection *self, PyObject *args, PyObject *
         }
     }
 
+    ((pysqlite_Connection *)target)->backup_target--;
     pysqlite_leave_sqlite((pysqlite_Connection *)target);
     pysqlite_leave_sqlite(self);
 

@@ -121,6 +121,14 @@ typedef struct
        connection, so a nested compile is refused. */
     int in_prepare;
 
+    /* Non-zero while this connection is the destination of an
+       in-progress backup(). SQLite forbids any use of the destination
+       until the backup finishes: even a read from the progress
+       callback left every later backup_step returning SQLITE_BUSY, and
+       the retry loop never exits. check_connection refuses every
+       method while it is set. */
+    int backup_target;
+
     /* Exception objects */
     PyObject* Warning;
     PyObject* Error;

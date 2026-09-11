@@ -1230,6 +1230,39 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_backup_target_is_unusable_during_backup(self):
+        # SQLite forbids using the destination connection while a backup
+        # is in progress. From the progress callback, a read on it saw a
+        # half-copied schema ("malformed database schema") and a write
+        # segfaulted. The target now refuses every method for the
+        # duration; the source stays readable, as SQLite allows.
+        self._run(
+            """
+            src = sqlite.connect(":memory:")
+            src.execute("create table t(x)")
+            src.executemany("insert into t values (?)", [(i,) for i in range(2000)])
+            src.commit()
+            dst = sqlite.connect(":memory:")
+            seen = set()
+            def attempt(name, fn):
+                try:
+                    fn()
+                    seen.add(name + " allowed")
+                except sqlite.ProgrammingError:
+                    seen.add(name + " refused")
+            def progress(status, remaining, total):
+                attempt("write", lambda: dst.execute("create table if not exists u(y)"))
+                attempt("read", lambda: dst.execute("select 1").fetchone())
+                attempt("close", dst.close)
+                seen.add(("src", src.execute("select count(*) from t").fetchone()[0]))
+            src.backup(dst, pages=1, progress=progress)
+            assert seen == {"write refused", "read refused", "close refused", ("src", 2000)}, seen
+            assert dst.execute("select count(*) from t").fetchone() == (2000,)
+            dst.close()
+            src.close()
+            """
+        )
+
     def test_open_blob_from_function_destructor(self):
         self._run(
             """
