@@ -14,14 +14,16 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 // Ground-truth vs predicted labels across cases, scored by the trailing
 // aggregate-metrics test.
 const labels = createLabelAccumulator();
 
-const toolResponseHandlingEvaluator = createToolResponseHandlingEvaluator({
-  model: evalModel,
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "tool_response_handling",
+  createEvaluator: createToolResponseHandlingEvaluator,
 });
 
 // ============================================================================
@@ -806,7 +808,7 @@ px.describe(
     px.test.each(cases)(
       (row) => `[${String(row.metadata?.category)}] ${String(row.input.input)}`,
       async ({ input, expected }) => {
-        const result = await toolResponseHandlingEvaluator.evaluate({
+        const result = await evaluate({
           input: input.input,
           toolCall: input.toolCall,
           toolResult: input.toolResult,

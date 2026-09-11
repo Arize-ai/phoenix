@@ -13,14 +13,16 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 // Ground-truth vs predicted labels across cases, scored by the trailing
 // aggregate-metrics test.
 const labels = createLabelAccumulator();
 
-const refusalEvaluator = createRefusalEvaluator({
-  model: evalModel,
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "refusal",
+  createEvaluator: createRefusalEvaluator,
 });
 
 const examplesByCategory = {
@@ -329,7 +331,7 @@ px.describe(
       (row) =>
         `[${String(row.metadata?.category)}] ${String(row.input.question)}`,
       async ({ input, expected }) => {
-        const result = await refusalEvaluator.evaluate({
+        const result = await evaluate({
           input: input.question,
           output: input.answer,
         });

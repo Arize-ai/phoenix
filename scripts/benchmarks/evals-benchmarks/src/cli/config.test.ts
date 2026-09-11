@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_EVAL_MODEL } from "../resolveEvalModel.js";
 import {
   assertDataFormats,
-  assertFormatWiring,
   assertPromptTechniques,
   buildExperimentName,
   buildSweepCoordinates,
@@ -108,7 +107,7 @@ describe("listEvaluators / resolveEvalFile", () => {
   });
 });
 
-describe("assertDataFormats / assertFormatWiring", () => {
+describe("assertDataFormats", () => {
   it("allows omitted, default, json, and messages", () => {
     expect(() => assertDataFormats({ formats: [] })).not.toThrow();
     expect(() =>
@@ -120,15 +119,6 @@ describe("assertDataFormats / assertFormatWiring", () => {
     expect(() => assertDataFormats({ formats: ["raw"] })).toThrow(
       /Unknown data format/
     );
-  });
-
-  it("rejects non-default formats on evals that are not wired", () => {
-    expect(() =>
-      assertFormatWiring({ evaluator: "hallucination", formats: ["json"] })
-    ).toThrow(/not wired yet/);
-    expect(() =>
-      assertFormatWiring({ evaluator: "toxicity", formats: ["json"] })
-    ).not.toThrow();
   });
 });
 
@@ -282,18 +272,21 @@ describe("resolveSweepPlans", () => {
     ).toThrow(/Unknown data format/);
   });
 
-  it("errors when a non-default format is requested for an unwired evaluator", () => {
+  it("plans non-default formats for any evaluator", () => {
     const srcDir = writeEvalFiles({ ids: ["hallucination"] });
-    expect(() =>
-      resolveSweepPlans({
-        flags: {
-          help: false,
-          evaluator: "hallucination",
-          formats: "json",
-        },
-        srcDir,
-      })
-    ).toThrow(/not wired yet/);
+    const plans = resolveSweepPlans({
+      flags: {
+        help: false,
+        evaluator: "hallucination",
+        formats: "default,json",
+      },
+      srcDir,
+      evalModelName: "gpt-4o-mini",
+    });
+    expect(plans.map((plan) => plan.experimentName)).toEqual([
+      "hallucination / gpt-4o-mini / default / default",
+      "hallucination / gpt-4o-mini / default / json",
+    ]);
   });
 
   it("errors when few-shot is requested for another evaluator", () => {

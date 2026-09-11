@@ -14,10 +14,14 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { evalModel, evalModelName } from "./model.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 const labels = createLabelAccumulator();
-const evaluator = createRetrievalRelevanceEvaluator({ model: evalModel });
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "retrieval_relevance",
+  createEvaluator: createRetrievalRelevanceEvaluator,
+});
 
 type RetrievalRelevanceLabel = "relevant" | "irrelevant";
 type Example = {
@@ -263,7 +267,7 @@ px.describe(
       (row) =>
         `[${String(row.metadata?.category)}] ${row.input.input.slice(0, 60)}`,
       async ({ input, expected }) => {
-        const result = await evaluator.evaluate(input);
+        const result = await evaluate(input);
         px.logOutput(result);
         px.logAnnotation({
           name: "retrieval_relevance",

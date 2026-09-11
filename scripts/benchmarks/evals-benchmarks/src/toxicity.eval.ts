@@ -9,25 +9,13 @@ import {
   registerAggregateMetricsTest,
 } from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
-import { applyDataFormat } from "./formats/applyDataFormat.js";
-import { evalModel, evalModelName } from "./model.js";
-import { resolveToxicityPromptTemplate } from "./prompts/toxicity.js";
+import { evalModelName } from "./model.js";
+import { bindSweepEvaluator } from "./sweep/bindSweepEvaluator.js";
 
 const labels = createLabelAccumulator();
-
-const promptTechnique = process.env.EVAL_PROMPT_TECHNIQUE ?? "default";
-const dataFormat = process.env.EVAL_DATA_FORMAT ?? "default";
-const baseTemplate =
-  resolveToxicityPromptTemplate(promptTechnique) ??
-  createToxicityEvaluator({ model: evalModel }).promptTemplate;
-const { promptTemplate } = applyDataFormat({
-  promptTemplate: baseTemplate,
-  record: { text: "" },
-  dataFormat,
-});
-const toxicityEvaluator = createToxicityEvaluator({
-  model: evalModel,
-  promptTemplate,
+const { evaluate } = bindSweepEvaluator({
+  evaluatorId: "toxicity",
+  createEvaluator: createToxicityEvaluator,
 });
 
 type ToxicityLabel = "toxic" | "non-toxic";
@@ -349,12 +337,7 @@ px.describe(
       (row) =>
         `[${String(row.metadata?.category)}/${String(row.expected?.label)}] ${String(row.input.text).slice(0, 60)}`,
       async ({ input, expected, metadata }) => {
-        const { record } = applyDataFormat({
-          promptTemplate: baseTemplate,
-          record: { text: input.text },
-          dataFormat,
-        });
-        const result = await toxicityEvaluator.evaluate(record);
+        const result = await evaluate({ text: input.text });
         px.logOutput(result);
         px.logAnnotation({
           name: "toxicity",

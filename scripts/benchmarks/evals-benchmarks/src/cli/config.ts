@@ -14,6 +14,7 @@ const EVAL_FILE_SUFFIX = ".eval.ts";
 /** Techniques available for every evaluator. Extra techniques are per-evaluator. */
 const UNIVERSAL_PROMPT_TECHNIQUES = [DEFAULT_PROMPT_TECHNIQUE] as const;
 
+/** Per-evaluator extras beyond `default`. Must match `resolvePromptTemplate` in src/prompts/index.ts. */
 const EXTRA_PROMPT_TECHNIQUES: Partial<Record<string, readonly string[]>> = {
   toxicity: [FEW_SHOT_PROMPT_TECHNIQUE],
 };
@@ -24,9 +25,6 @@ export const UNIVERSAL_DATA_FORMATS = [
   JSON_DATA_FORMAT,
   MESSAGES_DATA_FORMAT,
 ] as const;
-
-/** Eval files that read EVAL_DATA_FORMAT and call applyDataFormat. */
-export const FORMAT_WIRED_EVALUATORS = ["toxicity"] as const;
 
 export class SweepCliError extends Error {
   readonly exitCode: number;
@@ -50,12 +48,14 @@ Options:
                      Use provider:model when the id is ambiguous (e.g. anthropic:claude-sonnet-4-5).
   --prompts <list>   Prompt techniques (default: default). default is always valid;
                      few-shot is currently only implemented for toxicity.
+                     See README.md for adding techniques.
   --formats <list>   Input formats: default, json, messages (default: default).
-                     Non-default formats are currently wired only for toxicity.
+                     Applies to every evaluator.
   -h, --help         Show this help.
 
 Examples:
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity
+  pnpm --filter evals-benchmarks sweep -- --evaluator hallucination --formats default,json
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --models gpt-4o-mini,gpt-4o
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --prompts default,few-shot
   pnpm --filter evals-benchmarks sweep -- --evaluator toxicity --formats default,json,messages
@@ -150,36 +150,6 @@ export function assertDataFormats({ formats }: { formats: string[] }): void {
     [
       `Unknown data format(s): ${unknown.join(", ")}.`,
       `Known: ${UNIVERSAL_DATA_FORMATS.join(", ")}.`,
-    ].join(" ")
-  );
-}
-
-/**
- * Non-default formats require the eval file to call applyDataFormat.
- */
-export function assertFormatWiring({
-  evaluator,
-  formats,
-}: {
-  evaluator: string;
-  formats: string[];
-}): void {
-  const requestsNonDefault = formats.some(
-    (dataFormat) => dataFormat !== DEFAULT_DATA_FORMAT
-  );
-  if (!requestsNonDefault) {
-    return;
-  }
-  const isWired = (FORMAT_WIRED_EVALUATORS as readonly string[]).includes(
-    evaluator
-  );
-  if (isWired) {
-    return;
-  }
-  throw new SweepCliError(
-    [
-      `Data format sweeps are not wired yet for ${JSON.stringify(evaluator)}.`,
-      `Non-default --formats currently work for: ${FORMAT_WIRED_EVALUATORS.join(", ")}.`,
     ].join(" ")
   );
 }
@@ -311,7 +281,6 @@ export function resolveSweepPlans({
   assertDataFormats({ formats });
   const evalFile = resolveEvalFile({ evaluator, srcDir });
   assertPromptTechniques({ evaluator, prompts });
-  assertFormatWiring({ evaluator, formats });
   const modelNames = models.length > 0 ? models : [evalModelName];
   const promptTechniques =
     prompts.length > 0 ? prompts : [DEFAULT_PROMPT_TECHNIQUE];

@@ -6,6 +6,7 @@ export default defineConfig({
       "src/cli/**/*.test.ts",
       "src/formats/**/*.test.ts",
       "src/prompts/**/*.test.ts",
+      "src/sweep/**/*.test.ts",
       "src/resolveEvalModel.test.ts",
     ],
   },
