@@ -32,6 +32,10 @@ from phoenix.server.api.evaluators import (
     infer_input_schema_from_prompt_template,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.code_evaluator_schema import (
+    infer_python_evaluate_input_schema,
+    infer_typescript_evaluate_input_schema,
+)
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import (
@@ -366,19 +370,14 @@ async def _infer_code_evaluator_input_schema(
     code_evaluator_id: int,
     source_code: str,
 ) -> JSON:
-    from phoenix.server.api.evaluators import (
-        _infer_python_evaluate_input_schema,
-        _infer_typescript_evaluate_input_schema,
-    )
-
     language_value = await info.context.data_loaders.code_evaluator_fields.load(
         (code_evaluator_id, models.CodeEvaluator.language)
     )
     language = Language(language_value)
     if language is Language.PYTHON:
-        schema, _ = _infer_python_evaluate_input_schema(source_code)
+        schema, _ = infer_python_evaluate_input_schema(source_code)
     elif language is Language.TYPESCRIPT:
-        schema, _ = _infer_typescript_evaluate_input_schema(source_code)
+        schema, _ = infer_typescript_evaluate_input_schema(source_code)
     else:
         assert_never(language)
     return JSON(schema)

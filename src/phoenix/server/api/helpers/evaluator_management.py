@@ -20,11 +20,11 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
-from phoenix.server.api.evaluators import (
-    _infer_python_evaluate_input_schema,
-    _infer_typescript_evaluate_input_schema,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.code_evaluator_schema import (
+    infer_python_evaluate_input_schema,
+    infer_typescript_evaluate_input_schema,
+)
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
 )
@@ -110,9 +110,9 @@ def convert_output_config_inputs_to_pydantic(
 
 def raise_on_uninferable_evaluate_signature(source_code: str, language: Language) -> None:
     if language is Language.PYTHON:
-        _, error_message = _infer_python_evaluate_input_schema(source_code)
+        _, error_message = infer_python_evaluate_input_schema(source_code)
     elif language is Language.TYPESCRIPT:
-        _, error_message = _infer_typescript_evaluate_input_schema(source_code)
+        _, error_message = infer_typescript_evaluate_input_schema(source_code)
     else:
         error_message = f"Unsupported code evaluator language: {language.value}"
     if error_message is not None:
