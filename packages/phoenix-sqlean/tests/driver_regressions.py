@@ -1005,12 +1005,101 @@ class CallbackCloseRegressionTests(unittest.TestCase):
                         con.execute("COMMIT--x")
                     except sqlite.ProgrammingError:
                         pass
+                    try:
+                        con.execute(" \vCOMMIT")
+                    except sqlite.ProgrammingError:
+                        pass
+                    try:
+                        con.execute(";COMMIT")
+                    except sqlite.ProgrammingError:
+                        pass
                     return 1
             con.create_window_function("w", 1, Win)
             cur = con.execute("select w(x) over (order by x) from t")
             cur.fetchone()
             con.rollback()
             assert con.execute("select count(*) from t").fetchone()[0] == 3
+            con.close()
+            """
+        )
+
+    def test_refused_execute_preserves_pending_row(self):
+        # pysqlite_refuse_txn_sql used to run after execute() had already
+        # cleared next_row, so a refused COMMIT on another cursor dropped
+        # a fetched-but-unconsumed row.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            con.commit()
+            cur_b = con.execute("select x from t")
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        cur_b.execute("COMMIT")
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur_a = con.execute("select w(x) over (order by x) from t")
+            cur_a.fetchone()
+            cur_a.execute("select 1")
+            assert cur_b.fetchone() == (0,)
+            con.close()
+            """
+        )
+
+    def test_refused_execute_preserves_reset_after_rollback(self):
+        # The same early mutation cleared reset, so fetchone after a
+        # refused execute on a rolled-back cursor returned None instead
+        # of InterfaceError.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            con.commit()
+            con.execute("insert into t values (4)")
+            cur_b = con.execute("select x from t")
+            con.rollback()
+            try:
+                cur_b.fetchone()
+            except sqlite.InterfaceError:
+                pass
+            else:
+                raise AssertionError("expected InterfaceError after rollback")
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        cur_b.execute("COMMIT")
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur_a = con.execute("select w(x) over (order by x) from t")
+            cur_a.fetchone()
+            cur_a.execute("select 1")
+            try:
+                cur_b.fetchone()
+            except sqlite.InterfaceError:
+                pass
+            else:
+                raise AssertionError(
+                    "refused execute must not clear reset after rollback"
+                )
             con.close()
             """
         )
@@ -1040,6 +1129,30 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             cur.execute("select w(x) over (order by x) from t")
             cur.fetchone()
             con.rollback()
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_refused_reexecute_does_not_drop_outer_lock(self):
+        # check_cursor failure used to fall through to execute's error
+        # path, which cleared locked even though this call never set it.
+        # A later fetch then re-entered reset of the live statement.
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            cur = con.cursor()
+            def callback():
+                try:
+                    cur.execute("select 1")
+                except sqlite.ProgrammingError:
+                    pass
+                return 1
+            con.create_function("f", 0, callback)
+            cur.execute("select f() union all select f()")
+            assert cur.fetchone() == (1,)
+            assert cur.fetchone() == (1,)
+            assert cur.fetchone() is None
             assert con.execute("select 1").fetchone() == (1,)
             con.close()
             """

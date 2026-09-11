@@ -419,13 +419,10 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
     sqlite_int64 lastrowid;
 
     if (!check_cursor(self)) {
-        goto error;
+        return NULL;
     }
 
     self->locked = 1;
-    self->reset = 0;
-
-    Py_CLEAR(self->next_row);
 
     if (multiple) {
         /* executemany() */
@@ -478,6 +475,9 @@ _pysqlite_query_execute(pysqlite_Cursor* self, int multiple, PyObject* args)
     if (pysqlite_refuse_txn_sql(self->connection, operation)) {
         goto error;
     }
+
+    self->reset = 0;
+    Py_CLEAR(self->next_row);
 
     if (self->statement != NULL) {
         /* There is an active statement */
@@ -702,8 +702,6 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
         return NULL;
     }
 
-    self->reset = 0;
-
     if (PyUnicode_Check(script_obj)) {
         script_cstr = PyUnicode_AsUTF8(script_obj);
         if (!script_cstr) {
@@ -720,6 +718,8 @@ pysqlite_cursor_executescript(pysqlite_Cursor* self, PyObject* args)
         goto error;
     }
     Py_DECREF(result);
+
+    self->reset = 0;
 
     while (1) {
         pysqlite_enter_sqlite(self->connection);

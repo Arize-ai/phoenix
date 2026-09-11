@@ -122,13 +122,16 @@ pysqlite_is_ident_cont(unsigned char c)
 }
 
 /* Skip the trivia SQLite's tokenizer skips before the first keyword:
-   space/tab/CR/LF/FF, UTF-8 BOM, -- line comments, and C-style comments. */
+   space/tab/CR/LF/FF/VT (sqlite3Isspace, including VT after a space-run;
+   a leading VT is an unrecognized token), empty statements (semicolons),
+   UTF-8 BOM, -- line comments, and C-style comments. */
 static const char *
 pysqlite_skip_sql_trivia(const char *p)
 {
     for (;;) {
         unsigned char c = (unsigned char)*p;
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f') {
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f'
+            || c == '\v' || c == ';') {
             p++;
             continue;
         }
