@@ -84,6 +84,18 @@ def _rest_app(seen: list[Any]) -> FastAPI:
     async def mutate() -> dict[str, bool]:
         return {"ok": True}
 
+    @app.post("/v1/span_notes", tags=["spans"], summary="Create a span note.")
+    async def create_span_note() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.delete(
+        "/v1/projects/{project_identifier}/span_annotations",
+        tags=["spans"],
+        summary="Delete span annotations.",
+    )
+    async def delete_span_annotations(project_identifier: str) -> None:
+        return None
+
     return app
 
 
@@ -276,7 +288,7 @@ class TestInMemoryTransportContract:
 
 class TestReadOnlySurface:
     """Mutations belong to the agent's editing tools, which route approval
-    through the user; this surface cannot express one."""
+    through the user; this surface expresses none of them except note writes."""
 
     async def test_only_get_routes_become_tools(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
@@ -288,6 +300,23 @@ class TestReadOnlySurface:
 
         assert any("whoami" in name for name in names)
         assert not any("mutate" in name for name in names)
+
+    async def test_note_writes_are_the_exception(self) -> None:
+        """Notes are what error analysis records, so creating and sweeping
+        them stays reachable on the otherwise read-only surface."""
+        mcp, _ = build_phoenix_mcp_server(
+            _rest_app([]), code_mode=False, read_only=True, db=_unused_db()
+        )
+
+        async with PhoenixMCPToolset[None](mcp) as toolset:
+            tools = {tool.name: tool for tool in await toolset.list_tools()}
+
+        create = next(name for name in tools if "span_note" in name)
+        delete = next(name for name in tools if "span_annotations" in name)
+        assert tools[create].annotations is not None
+        assert tools[create].annotations.read_only_hint is False
+        assert tools[delete].annotations is not None
+        assert tools[delete].annotations.destructive_hint is True
 
     async def test_mutating_routes_are_tools_when_not_read_only(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
@@ -370,6 +399,17 @@ class TestCodeMode:
         assert "whoami" in catalog
         assert "mutate" not in catalog
 
+    async def test_the_catalog_keeps_the_note_writes(self) -> None:
+        mcp, runtime = self._code_mode_server([])
+        try:
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                catalog = str(await toolset.direct_call_tool("list_tools", {}))
+        finally:
+            await runtime.aclose()
+
+        assert "span_note" in catalog
+        assert "span_annotations" in catalog
+
 
 def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     """Instructions that name a tool the surface lacks cost a failed call to
@@ -381,6 +421,15 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     for tool in ("execute", "call_tool", "search", "get_schema", "tags"):
         assert tool in rendered
     assert "read-only" in rendered.lower()
+    for tool in (
+        "createSpanNote",
+        "createTraceNote",
+        "createSessionNote",
+        "deleteSpanAnnotations",
+        "deleteTraceAnnotations",
+        "deleteSessionAnnotations",
+    ):
+        assert tool in rendered
     assert "not through `call_tool` inside `execute`" in rendered
     assert 'detail="detailed"' in rendered
     assert 'detail="full"' in rendered

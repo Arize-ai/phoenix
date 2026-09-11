@@ -17,6 +17,10 @@
     These endpoints read the same data as the workspace tools, but they cannot change what the user is looking at. When a tool that updates the UI would answer the request, prefer it; reach here to read, to cover ground it does not, or when no such tool exists.
   </precedence>
   <constraints>
-    This surface is read-only, so `call_tool` reaches no endpoint that writes. To create or modify anything, use the workspace tools, which route the change through the user's approval.
+    This surface is read-only except for notes: `call_tool` reaches no endpoint that writes other than `createSpanNote`, `createTraceNote`, `createSessionNote`, and the note deletes below. To create or modify anything else, use the workspace tools, which route the change through the user's approval.
   </constraints>
+  <notes>
+    Notes are free-text annotations named `note`; they are what error analysis records. Write one with `createSpanNote`, `createTraceNote`, or `createSessionNote`, passing the entity's OpenTelemetry id (or the session id), the note text, and an `identifier` so a repeated call with the same identifier overwrites the note instead of appending another.
+    Deleting notes goes through `deleteSpanAnnotations`, `deleteTraceAnnotations`, and `deleteSessionAnnotations`, which sweep a project's annotations by filter. Always pass `name="note"` together with the `identifier` of the notes to remove, and either `delete_all=true` or a time bound; the server rejects a request with neither. These deletes are destructive and unfiltered calls remove every annotation in the project, so delete only what the user has explicitly asked to remove.
+  </notes>
 </tool_group>
