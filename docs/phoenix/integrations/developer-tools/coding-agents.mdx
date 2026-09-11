@@ -36,6 +36,17 @@ For agents with a plugin system, the Phoenix repository is also a plugin marketp
   </Card>
 </CardGroup>
 
+### Find Your Phoenix Endpoint
+
+Every setup on this page needs the **endpoint** of your Phoenix instance: the base URL you open Phoenix at in the browser, with no trailing slash and no path such as `/mcp` or `/v1`. Go to the **Settings** page in your Phoenix instance to find your endpoint and, if auth is enabled, to create an **API key**.
+
+| Deployment | Endpoint | MCP server URL the tools derive from it |
+| ---------- | -------- | --------------------------------------- |
+| Local (`phoenix serve`, Docker, notebook) | `http://localhost:6006` | `http://localhost:6006/mcp` |
+| Self-hosted | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
+
+Enter the endpoint column, never the `/mcp` column — the plugins and the `px` CLI append `/mcp` themselves. A local Phoenix works with the defaults everywhere below; the API key is only required when auth is enabled.
+
 ## Claude Code
 
 The Phoenix repository is a [Claude Code plugin marketplace](https://code.claude.com/docs/en/discover-plugins). The `arize-phoenix` plugin registers the Phoenix MCP server and the Phoenix skills in one install, and because the marketplace is versioned in the repository, Claude Code updates both as new versions land.
@@ -58,7 +69,14 @@ The Phoenix repository is a [Claude Code plugin marketplace](https://code.claude
     Claude Code asks for a scope: **user** for all your projects, **project** to share it with collaborators through `.claude/settings.json`, or **local** for this repository only.
   </Step>
   <Step title="Set your Phoenix endpoint">
-    Claude Code prompts for the **Phoenix endpoint** as it enables the plugin. Enter your Phoenix base URL with no trailing slash — for example `https://phoenix.example.com` — or keep the default `http://localhost:6006` for a local Phoenix. The plugin appends `/mcp`.
+    Claude Code prompts for one setting, **Phoenix endpoint**, as it enables the plugin. Enter [your Phoenix endpoint](#find-your-phoenix-endpoint) — the base URL only, with no trailing slash — or keep the default `http://localhost:6006` for a local Phoenix. The plugin appends `/mcp` itself:
+
+    | You enter | The plugin connects to |
+    | --------- | ---------------------- |
+    | `http://localhost:6006` (default) | `http://localhost:6006/mcp` |
+    | `https://phoenix.example.com` | `https://phoenix.example.com/mcp` |
+
+    A trailing slash or a pasted `/mcp` produces a wrong URL (`…//mcp` or `…/mcp/mcp`), so trim those off. This setting is stored in your user settings and applies to every project; see [Change the Endpoint](#change-the-endpoint) to update it later.
   </Step>
   <Step title="Verify">
     Run `/mcp`, select **phoenix**, and complete the browser login. `claude plugin details arize-phoenix@arize-phoenix` lists everything the plugin registered and what it adds to your context window.
@@ -140,15 +158,15 @@ The same repository is a [Codex plugin marketplace](https://developers.openai.co
 
     Codex caches the plugin under `~/.codex/plugins/cache/arize-phoenix/arize-phoenix/<version>` and enables it in `~/.codex/config.toml`. You can also browse and install from the `/plugins` browser inside Codex.
   </Step>
-  <Step title="Export your Phoenix environment">
-    In the shell you launch Codex from, export the same variables the `px` CLI reads:
+  <Step title="Export your Phoenix endpoint">
+    The Codex plugin has no settings dialog; it reads [your Phoenix endpoint](#find-your-phoenix-endpoint) from `PHOENIX_ENDPOINT` — the same variable the `px` CLI reads. Export it, and your API key if auth is enabled, in the shell you launch Codex from:
 
     ```bash
-    export PHOENIX_ENDPOINT=https://phoenix.example.com   # defaults to http://localhost:6006
+    export PHOENIX_ENDPOINT=https://phoenix.example.com   # base URL only; the plugin appends /mcp
     export PHOENIX_API_KEY=your-api-key                   # only if auth is enabled
     ```
 
-    Codex forwards to a plugin only the variables it declares, and this plugin declares exactly these two.
+    Leave `PHOENIX_ENDPOINT` unset for a local Phoenix; it defaults to `http://localhost:6006`. Codex forwards to a plugin only the variables it declares, and this plugin declares exactly these two — so variables set anywhere other than Codex's own environment are not seen.
   </Step>
   <Step title="Verify">
     ```bash
@@ -165,7 +183,7 @@ Codex plugin MCP entries cannot contain environment variables in the URL, so ins
 
 | Variable | Effect |
 | -------- | ------ |
-| `PHOENIX_ENDPOINT` | Base URL of your Phoenix instance, with or without a trailing slash. Defaults to `http://localhost:6006`. |
+| `PHOENIX_ENDPOINT` | [Your Phoenix endpoint](#find-your-phoenix-endpoint). The launcher strips a trailing slash and appends `/mcp`, and leaves a value that already ends in `/mcp` alone, so `https://phoenix.example.com`, `https://phoenix.example.com/`, and `https://phoenix.example.com/mcp` all connect to the same server. Defaults to `http://localhost:6006`. |
 | `PHOENIX_API_KEY` | Optional. When set, requests carry it as a bearer token and no browser login is needed. The launcher passes `mcp-remote` an unexpanded `${PHOENIX_API_KEY}` reference that it resolves from its own environment, so the key never appears in process arguments. |
 
 Requires Node.js, and Phoenix 19.0.0 or later, which serves `/mcp`.
@@ -189,7 +207,7 @@ To work on the plugin itself, add the marketplace from a checkout with `codex pl
 
 ## Shared Environment Configuration
 
-Set environment variables to connect to your Phoenix instance:
+Set environment variables to connect to your Phoenix instance. `PHOENIX_ENDPOINT` is [your Phoenix endpoint](#find-your-phoenix-endpoint) — the base URL, with no path:
 
 ```bash
 export PHOENIX_ENDPOINT=http://localhost:6006    # Your Phoenix endpoint
