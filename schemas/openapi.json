@@ -3475,7 +3475,8 @@
                 {
                   "enum": [
                     "llm",
-                    "code"
+                    "code",
+                    "builtin"
                   ],
                   "type": "string"
                 },
@@ -3665,7 +3666,7 @@
           "evaluators"
         ],
         "summary": "Get Evaluator",
-        "description": "Read a definition, including its current code or the prompt version it runs.",
+        "description": "Read a definition, including its current code or the prompt version it runs.\n\nBuilt-in definitions are read-only.",
         "operationId": "getEvaluator",
         "parameters": [
           {
@@ -4092,6 +4093,473 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreatedCodeEvaluatorVersionResponseBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/evaluators": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Dataset Evaluator",
+        "description": "Create a definition and binding atomically, or bind an existing code or built-in evaluator.\n\nThe dataset identifier is decoded as a GlobalID first and otherwise treated as a name.\nBinding descriptions and output configurations override the shared definition; null\ninherits it. Input mappings are always dataset-specific. This registers an evaluator and\ndoes not run an experiment.",
+        "operationId": "createDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Dataset Evaluators",
+        "description": "List dataset bindings with their stored overrides and an opaque pagination cursor.",
+        "operationId": "getDatasetEvaluators",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Identifier"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dataset_evaluators/{dataset_evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Dataset Evaluator",
+        "description": "Fetch binding settings. Null description/output configs inherit the shared definition.",
+        "operationId": "getDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Dataset Evaluator",
+        "description": "Update only the binding. Dataset and evaluator references are immutable.\n\nLLM output overrides must remain consistent with the prompt the evaluator runs, and a\nlater change to that prompt is refused while it would invalidate them. Use\n/evaluators/{evaluator_id} to modify a shared definition instead.",
+        "operationId": "patchDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchDatasetEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Dataset Evaluator",
+        "description": "Delete a binding and its evaluator trace project. Missing bindings are ignored.\n\nA definition no other binding references is deleted with its last binding; built-in\ndefinitions are never deleted.",
+        "operationId": "deleteDatasetEvaluator",
+        "parameters": [
+          {
+            "name": "dataset_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Evaluator Id"
+            }
+          },
+          {
+            "name": "delete_associated_prompt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also delete the LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default.",
+              "default": false,
+              "title": "Delete Associated Prompt"
+            },
+            "description": "Also delete the LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dataset_evaluators/delete": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Dataset Evaluators",
+        "description": "Delete up to 1000 bindings atomically; the whole batch is validated before any change.\n\nDefinitions no remaining binding references are deleted with the batch; built-in\ndefinitions are never deleted. Missing bindings are ignored for idempotency.",
+        "operationId": "deleteDatasetEvaluators",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteDatasetEvaluatorsRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -11404,6 +11872,78 @@
         ],
         "title": "AssistantMessageMetadataUsageTokens"
       },
+      "BuiltInEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "builtin",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "key",
+          "input_schema",
+          "output_configs"
+        ],
+        "title": "BuiltInEvaluatorDefinition"
+      },
       "BuiltInModelProvider": {
         "properties": {
           "provider": {
@@ -12829,6 +13369,92 @@
         ],
         "title": "CreateCodeEvaluatorRequest"
       },
+      "CreateDatasetEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Binding override. Null inherits the shared description."
+          },
+          "output_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Configs",
+            "description": "Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema."
+          },
+          "evaluator": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NewLLMEvaluator"
+              },
+              {
+                "$ref": "#/components/schemas/NewCodeEvaluator"
+              },
+              {
+                "$ref": "#/components/schemas/ExistingEvaluator"
+              }
+            ],
+            "title": "Evaluator",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "code": "#/components/schemas/NewCodeEvaluator",
+                "llm": "#/components/schemas/NewLLMEvaluator",
+                "reference": "#/components/schemas/ExistingEvaluator"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "input_mapping",
+          "evaluator"
+        ],
+        "title": "CreateDatasetEvaluatorRequest"
+      },
       "CreateDatasetLabelRequestBody": {
         "properties": {
           "name": {
@@ -13684,6 +14310,140 @@
         ],
         "title": "Dataset"
       },
+      "DatasetEvaluator": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "evaluator_type": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "code",
+              "builtin"
+            ],
+            "title": "Evaluator Type"
+          },
+          "trace_project_id": {
+            "type": "string",
+            "title": "Trace Project Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "This binding's description override; null means it inherits the evaluator's description."
+          },
+          "output_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Configs",
+            "description": "This binding's output config override; null means it inherits the evaluator's output configs."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_id",
+          "evaluator_id",
+          "evaluator_type",
+          "trace_project_id",
+          "name",
+          "input_mapping",
+          "description",
+          "output_configs"
+        ],
+        "title": "DatasetEvaluator"
+      },
+      "DatasetEvaluatorResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetEvaluator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "DatasetEvaluatorResponseBody"
+      },
+      "DatasetEvaluatorsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetEvaluator"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "DatasetEvaluatorsResponseBody"
+      },
       "DatasetExample": {
         "properties": {
           "id": {
@@ -13998,6 +14758,31 @@
           "data"
         ],
         "title": "DeleteAnnotationConfigResponseBody"
+      },
+      "DeleteDatasetEvaluatorsRequestBody": {
+        "properties": {
+          "dataset_evaluator_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Dataset Evaluator Ids",
+            "description": "GlobalIDs of the bindings to delete. Missing bindings are ignored."
+          },
+          "delete_associated_prompt": {
+            "type": "boolean",
+            "title": "Delete Associated Prompt",
+            "description": "Also delete each LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_evaluator_ids"
+        ],
+        "title": "DeleteDatasetEvaluatorsRequestBody"
       },
       "DeleteSessionsRequestBody": {
         "properties": {
@@ -14465,12 +15250,16 @@
               },
               {
                 "$ref": "#/components/schemas/LLMEvaluatorDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
               }
             ],
             "title": "Data",
             "discriminator": {
               "propertyName": "type",
               "mapping": {
+                "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
                 "code": "#/components/schemas/CodeEvaluatorDefinition",
                 "llm": "#/components/schemas/LLMEvaluatorDefinition"
               }
@@ -14493,11 +15282,15 @@
                 },
                 {
                   "$ref": "#/components/schemas/LLMEvaluatorDefinition"
+                },
+                {
+                  "$ref": "#/components/schemas/BuiltInEvaluatorDefinition"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
+                  "builtin": "#/components/schemas/BuiltInEvaluatorDefinition",
                   "code": "#/components/schemas/CodeEvaluatorDefinition",
                   "llm": "#/components/schemas/LLMEvaluatorDefinition"
                 }
@@ -14524,6 +15317,28 @@
           "next_cursor"
         ],
         "title": "EvaluatorDefinitionsResponseBody"
+      },
+      "ExistingEvaluator": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reference",
+            "title": "Type"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id",
+            "description": "GlobalID of an existing evaluator definition. Datasets accept code and built-in evaluators; projects accept code evaluators. LLM definitions belong to the binding that created them and cannot be referenced."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "evaluator_id"
+        ],
+        "title": "ExistingEvaluator",
+        "description": "Attach an evaluator definition that already exists instead of creating one."
       },
       "Experiment": {
         "properties": {
@@ -16708,6 +17523,137 @@
         ],
         "title": "ModelProvider"
       },
+      "NewCodeEvaluator": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageName"
+          },
+          "sandbox_config_id": {
+            "type": "string",
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs",
+            "description": "Outputs the code produces."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "source_code",
+          "language",
+          "sandbox_config_id",
+          "input_mapping",
+          "output_configs"
+        ],
+        "title": "NewCodeEvaluator"
+      },
+      "NewLLMEvaluator": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Must equal the description of the prompt's tool function."
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionData"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Chat prompt content for a new prompt created for this evaluator. Content only: a version id inside this object is rejected. Exactly one of prompt_version and prompt_version_id is required."
+          },
+          "prompt_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Id",
+            "description": "GlobalID of an existing prompt version for the evaluator to run; the evaluator attaches to that version's prompt. New content for an existing prompt is created through the prompts API first. Exactly one of prompt_version and prompt_version_id is required."
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "output_configs"
+        ],
+        "title": "NewLLMEvaluator"
+      },
       "OAuth2User": {
         "properties": {
           "id": {
@@ -17435,6 +18381,66 @@
           "type"
         ],
         "title": "PatchCodeEvaluatorRequest"
+      },
+      "PatchDatasetEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Omit to preserve; null restores inheritance."
+          },
+          "output_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Configs",
+            "description": "Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 1,
+        "title": "PatchDatasetEvaluatorRequest"
       },
       "PatchLLMEvaluatorRequest": {
         "properties": {

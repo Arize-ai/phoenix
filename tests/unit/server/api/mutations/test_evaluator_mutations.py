@@ -12,6 +12,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
+    ContinuousOutputConfig,
     FreeformAnnotationConfig,
     OptimizationDirection,
 )
@@ -409,6 +410,75 @@ class TestDatasetLLMEvaluatorMutations:
             ],
         )
         assert result.errors
+
+    async def test_create_dataset_llm_evaluator_without_description(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        """An omitted description is no description: the tool's is not checked against it,
+        and the evaluator, its prompt, and its binding store none."""
+        result = await self._create(
+            gql_client,
+            datasetId=str(GlobalID("Dataset", str(empty_dataset.id))),
+            name="no-description",
+            promptVersion=dict(
+                templateFormat="MUSTACHE",
+                template=dict(
+                    messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
+                ),
+                invocationParameters=dict(openai=dict(temperature=0.0)),
+                tools=_canonical_tools(
+                    name="correctness",
+                    description="judges correctness",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
+                    ),
+                    tool_choice_name="correctness",
+                ),
+                modelProvider="OPENAI",
+                modelName="gpt-4",
+            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="correctness",
+                        optimizationDirection="MAXIMIZE",
+                        values=[
+                            dict(label="correct", score=1),
+                            dict(label="incorrect", score=0),
+                        ],
+                    )
+                )
+            ],
+        )
+        assert result.data and not result.errors
+        dataset_evaluator = result.data["createDatasetLlmEvaluator"]["evaluator"]
+        assert dataset_evaluator["description"] is None
+        assert dataset_evaluator["evaluator"]["description"] is None
+
+        dataset_evaluator_id = int(GlobalID.from_id(dataset_evaluator["id"]).node_id)
+        async with db() as session:
+            db_dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert db_dataset_evaluator is not None
+            assert db_dataset_evaluator.description is None
+            llm_evaluator = await session.get(
+                models.LLMEvaluator, db_dataset_evaluator.evaluator_id
+            )
+            assert llm_evaluator is not None
+            assert llm_evaluator.description is None
+            prompt = await session.get(models.Prompt, llm_evaluator.prompt_id)
+            assert prompt is not None
+            assert prompt.description is None
 
     async def test_create_dataset_llm_evaluator_with_existing_prompt_version(
         self,
@@ -3704,7 +3774,12 @@ class TestDeleteDatasetEvaluators:
 
         result = await gql_client.execute(
             self._DELETE_MUTATION,
-            {"input": {"datasetEvaluatorIds": [dataset_evaluator_gid]}},
+            {
+                "input": {
+                    "datasetEvaluatorIds": [dataset_evaluator_gid],
+                    "deleteAssociatedPrompt": True,
+                }
+            },
         )
 
         assert result.data and not result.errors
@@ -4681,3 +4756,115 @@ class TestUpdateDatasetCodeEvaluatorMutation:
         assert evaluator["description"] == "override"
         assert evaluator["inputMapping"]["literalMapping"] == {"k": "v"}
         assert evaluator["updatedAt"]
+
+
+class TestDatasetBindingOutputConfigOverrides:
+    """Code and built-in bindings store null to inherit output configs, never an empty list."""
+
+    _CREATE_CODE = """
+      mutation($input: CreateDatasetCodeEvaluatorInput!) {
+        createDatasetCodeEvaluator(input: $input) { evaluator { id } }
+      }
+    """
+    _UPDATE_CODE = """
+      mutation($input: UpdateDatasetCodeEvaluatorInput!) {
+        updateDatasetCodeEvaluator(input: $input) { evaluator { id } }
+      }
+    """
+    _CREATE_BUILTIN = """
+      mutation($input: CreateDatasetBuiltinEvaluatorInput!) {
+        createDatasetBuiltinEvaluator(input: $input) { evaluator { id } }
+      }
+    """
+    _UPDATE_BUILTIN = """
+      mutation($input: UpdateDatasetBuiltinEvaluatorInput!) {
+        updateDatasetBuiltinEvaluator(input: $input) { evaluator { id } }
+      }
+    """
+    _MAPPING: dict[str, dict[str, str]] = {"literalMapping": {}, "pathMapping": {}}
+
+    async def test_code_and_builtin_bindings_reject_an_empty_override(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        sandbox_config: models.SandboxConfig,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        async with db() as session:
+            code_evaluator = models.CodeEvaluator(
+                name=IdentifierModel.model_validate(f"code-{token_hex(4)}"),
+                description="code evaluator",
+                metadata_={},
+                language=sandbox_config.language,
+                sandbox_config_id=sandbox_config.id,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                    )
+                ],
+                versions=[
+                    models.CodeEvaluatorVersion(
+                        source_code="def evaluate(output):\n    return {'score': 1.0}"
+                    )
+                ],
+            )
+            session.add(code_evaluator)
+            await session.flush()
+            builtin_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_id is not None
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        creates = [
+            (self._CREATE_CODE, "createDatasetCodeEvaluator", self._UPDATE_CODE),
+            (self._CREATE_BUILTIN, "createDatasetBuiltinEvaluator", self._UPDATE_BUILTIN),
+        ]
+        evaluator_ids = [
+            str(GlobalID("CodeEvaluator", str(code_evaluator.id))),
+            str(GlobalID("BuiltInEvaluator", str(builtin_id))),
+        ]
+        for (create, field, update), evaluator_id in zip(creates, evaluator_ids):
+            create_input = {
+                "datasetId": dataset_id,
+                "evaluatorId": evaluator_id,
+                "name": f"binding-{token_hex(4)}",
+                "inputMapping": self._MAPPING,
+            }
+            rejected = await gql_client.execute(
+                create, {"input": {**create_input, "outputConfigs": []}}
+            )
+            assert rejected.errors
+            assert rejected.errors[0].message == "At least one output config is required."
+
+            created = await gql_client.execute(create, {"input": create_input})
+            assert created.data and not created.errors, created.errors
+            binding_id = created.data[field]["evaluator"]["id"]
+            rejected = await gql_client.execute(
+                update,
+                {
+                    "input": {
+                        "datasetEvaluatorId": binding_id,
+                        "name": create_input["name"],
+                        "inputMapping": self._MAPPING,
+                        "outputConfigs": [],
+                    }
+                },
+            )
+            assert rejected.errors
+            assert rejected.errors[0].message == "At least one output config is required."
+            async with db() as session:
+                binding = await session.get(
+                    models.DatasetEvaluators, int(GlobalID.from_id(binding_id).node_id)
+                )
+            assert binding is not None
+            assert binding.output_configs is None
+
+        async with db() as session:
+            count = await session.scalar(
+                select(sa.func.count(models.DatasetEvaluators.id)).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id
+                )
+            )
+        assert count == 2

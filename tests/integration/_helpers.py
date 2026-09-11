@@ -2177,6 +2177,8 @@ def _randomize_casing(email: str) -> str:
 
 # GET endpoints that all roles can read with expected status codes
 _COMMON_RESOURCE_ENDPOINTS = (
+    (404, "GET", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "GET", "v1/dataset_evaluators/fake-id-{}"),
     (422, "GET", "v1/evaluators/fake-id-{}"),
     (200, "GET", "v1/evaluators"),
     (422, "GET", "v1/evaluators/fake-id-{}/versions"),
@@ -2260,6 +2262,10 @@ _ADMIN_ONLY_ENDPOINTS = (
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/evaluators"),
+    (422, "POST", "v1/datasets/fake-id-{}/evaluators"),
+    (422, "PATCH", "v1/dataset_evaluators/fake-id-{}"),
+    (422, "DELETE", "v1/dataset_evaluators/fake-id-{}"),
+    (422, "POST", "v1/dataset_evaluators/delete"),
     (422, "PATCH", "v1/evaluators/fake-id-{}"),
     (422, "DELETE", "v1/evaluators/fake-id-{}"),
     (422, "POST", "v1/evaluators/fake-id-{}/versions"),

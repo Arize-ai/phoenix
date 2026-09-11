@@ -787,3 +787,106 @@ class TestConcurrentWrites:
         async with db() as session:
             evaluator = await session.get(models.LLMEvaluator, evaluator_id)
             assert evaluator is not None and evaluator.description is None
+
+    async def test_binding_patch_behind_a_tag_move_checks_the_moved_version(
+        self,
+        gql_client: AsyncGraphQLClient,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        evaluator_id, _, update_input = await _undescribed_evaluator(gql_client, db, "dataset")
+        tag_id, _, moved_to_id = await _add_grading_version(db, evaluator_id)
+        binding_gid = update_input["datasetEvaluatorId"]
+        response = await _behind(
+            db,
+            _move_tag(tag_id, moved_to_id),
+            lambda: httpx_client.patch(
+                f"v1/dataset_evaluators/{quote_plus(binding_gid)}",
+                json={"description": "correctness"},
+            ),
+        )
+        assert response.status_code == 422, response.text
+        assert (await _state(db, evaluator_id)).tag_target == moved_to_id
+        async with db() as session:
+            binding = await session.get(
+                models.DatasetEvaluators, int(GlobalID.from_id(binding_gid).node_id)
+            )
+            assert binding is not None and binding.description is None
+
+    async def test_tag_move_behind_a_binding_patch_checks_the_override_it_committed(
+        self, gql_client: AsyncGraphQLClient, db: DbSessionFactory
+    ) -> None:
+        evaluator_id, _, update_input = await _undescribed_evaluator(gql_client, db, "dataset")
+        tag_id, started_from_id, moved_to_id = await _add_grading_version(db, evaluator_id)
+        binding_id = int(GlobalID.from_id(update_input["datasetEvaluatorId"]).node_id)
+        async with db() as session:
+            tag = await session.get(models.PromptVersionTag, tag_id)
+            assert tag is not None
+            tag_name = tag.name.root
+
+        async def override_description(session: AsyncSession) -> None:
+            await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
+            binding = await session.get(models.DatasetEvaluators, binding_id)
+            assert binding is not None
+            binding.description = "correctness"
+
+        result = await _behind(
+            db,
+            override_description,
+            lambda: gql_client.execute(
+                TestGraphQLMutations._SET_TAG,
+                {
+                    "input": {
+                        "promptVersionId": str(GlobalID("PromptVersion", str(moved_to_id))),
+                        "name": tag_name,
+                    }
+                },
+            ),
+        )
+        assert result.errors and update_input["datasetEvaluatorId"] in result.errors[0].message
+        assert (await _state(db, evaluator_id)).tag_target == started_from_id
+
+    async def test_binding_patch_behind_an_edit_checks_the_overrides_the_edit_left(
+        self,
+        gql_client: AsyncGraphQLClient,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """The patch keeps the binding's outputs, which the edit it waited on reset to inherit
+        new labels, so the patch is checked against those labels rather than the old override."""
+        evaluator_id, _, update_input = await _undescribed_evaluator(gql_client, db, "dataset")
+        binding_gid = update_input["datasetEvaluatorId"]
+        binding_id = int(GlobalID.from_id(binding_gid).node_id)
+        async with db() as session:
+            evaluator = await session.get(models.LLMEvaluator, evaluator_id)
+            binding = await session.get(models.DatasetEvaluators, binding_id)
+            assert evaluator is not None and binding is not None
+            binding.output_configs = [_output_config(_EVALUATOR_LABELS)]
+            relabeled = _prompt_version("Rate {{output}}", labels=("good", "bad"))
+            relabeled.prompt_id = evaluator.prompt_id
+            session.add(relabeled)
+            await session.flush()
+            tag_id, relabeled_id = evaluator.prompt_version_tag_id, relabeled.id
+
+        async def relabel(session: AsyncSession) -> None:
+            evaluator = await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
+            tag = await session.get(models.PromptVersionTag, tag_id)
+            binding = await session.get(models.DatasetEvaluators, binding_id)
+            assert evaluator is not None and tag is not None and binding is not None
+            evaluator.output_configs = [_output_config(("good", "bad"))]
+            tag.prompt_version_id = relabeled_id
+            binding.output_configs = None
+
+        response = await _behind(
+            db,
+            relabel,
+            lambda: httpx_client.patch(
+                f"v1/dataset_evaluators/{quote_plus(binding_gid)}",
+                json={"description": "correctness"},
+            ),
+        )
+        assert response.status_code == 200, response.text
+        async with db() as session:
+            binding = await session.get(models.DatasetEvaluators, binding_id)
+            assert binding is not None
+            assert binding.description == "correctness" and binding.output_configs is None
