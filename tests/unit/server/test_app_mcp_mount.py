@@ -362,7 +362,7 @@ class TestAgentMCPServerIsIndependentOfTheMount:
 
         assert app.state.pxi_mcp_server is None
 
-    async def test_surface_is_read_only_except_note_writes(
+    async def test_surface_is_read_only_except_note_creation(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Through the server ``create_app`` wires, so the read-only derivation is
@@ -382,22 +382,15 @@ class TestAgentMCPServerIsIndependentOfTheMount:
             result = await client.call_tool("list_tools", {"detail": "full"})
         catalog = {tool["name"] for tool in json.loads(result.structured_content["result"])}
 
-        note_writes = {
-            "createSpanNote",
-            "createTraceNote",
-            "createSessionNote",
-            "deleteSpanAnnotations",
-            "deleteTraceAnnotations",
-            "deleteSessionAnnotations",
-        }
+        note_creates = {"createSpanNote", "createTraceNote", "createSessionNote"}
         reads: set[str] = set()
         writes: set[str] = set()
         for operations in app.openapi()["paths"].values():
             for method, operation in operations.items():
                 (reads if method == "get" else writes).add(operation["operationId"])
-        assert note_writes <= writes
-        assert reads | note_writes <= catalog
-        assert catalog.isdisjoint(writes - note_writes), catalog & writes
+        assert note_creates <= writes
+        assert reads | note_creates <= catalog
+        assert catalog.isdisjoint(writes - note_creates), catalog & writes
 
 
 async def test_mcp_code_mode_replaces_tool_surface(
