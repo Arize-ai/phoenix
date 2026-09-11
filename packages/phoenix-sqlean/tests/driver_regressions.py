@@ -121,11 +121,96 @@ class BlobRegressionTests(unittest.TestCase):
         self.assertIsNone(ref())
 
 
+class ConnectionLifecycleRegressionTests(unittest.TestCase):
+    def test_uninitialized_connection_close(self):
+        # Connection.__new__ without __init__ used to crash close() on
+        # its NULL internal lists.
+        cx = sqlite.Connection.__new__(sqlite.Connection)
+        with self.assertRaises(sqlite.ProgrammingError):
+            cx.close()
+
+    def test_uninitialized_connection_isolation_level(self):
+        cx = sqlite.Connection.__new__(sqlite.Connection)
+        with self.assertRaises(sqlite.ProgrammingError):
+            cx.isolation_level
+
+    def test_failed_reinit_preserves_connection(self):
+        # A failed re-open used to leave a half-initialized connection
+        # (NULL statement cache) that crashed on the next execute();
+        # the new database is now opened before any existing state is
+        # replaced, so the original connection survives untouched.
+        cx = sqlite.connect(":memory:")
+        try:
+            cx.execute("create table t(i int)")
+            cx.execute("insert into t values (1)")
+            with self.assertRaises(sqlite.OperationalError):
+                cx.__init__("/nonexistent-directory/no-such.db")
+            self.assertEqual(cx.execute("select i from t").fetchone(), (1,))
+        finally:
+            cx.close()
+
+    def test_failed_reinit_preserves_open_blob(self):
+        cx = sqlite.connect(":memory:")
+        try:
+            cx.execute("create table t(b blob)")
+            cx.execute("insert into t values (?)", (b"0123456789",))
+            blob = cx.open_blob("t", "b", 1)
+            with self.assertRaises(sqlite.OperationalError):
+                cx.__init__("/nonexistent-directory/no-such.db")
+            self.assertEqual(blob.read(2), b"01")
+            blob.close()
+        finally:
+            cx.close()
+
+    def test_reinit_produces_working_connection(self):
+        # Re-initialization used to leak the previous database handle.
+        cx = sqlite.connect(":memory:")
+        cx.execute("create table one(i int)")
+        cx.__init__(":memory:")
+        try:
+            # The new database is empty; the old handle was closed.
+            rows = cx.execute(
+                "select name from sqlite_master where type = 'table'"
+            ).fetchall()
+            self.assertEqual(rows, [])
+        finally:
+            cx.close()
+
+    def test_reinit_with_open_blob(self):
+        # A blob that outlives a re-initialization must close cleanly:
+        # the old database handle stays alive until its last blob
+        # handle is closed (sqlite3_close_v2 semantics).
+        cx = sqlite.connect(":memory:")
+        cx.execute("create table t(b blob)")
+        cx.execute("insert into t values (?)", (b"0123456789",))
+        blob = cx.open_blob("t", "b", 1)
+        cx.__init__(":memory:")
+        try:
+            blob.close()
+            with self.assertRaises(sqlite.ProgrammingError):
+                blob.read(1)
+        finally:
+            cx.close()
+
+    def test_backup_from_closed_source(self):
+        # backup() validated only the target connection; a closed
+        # source dereferenced a NULL sqlite3 handle.
+        source = sqlite.connect(":memory:")
+        target = sqlite.connect(":memory:")
+        source.close()
+        try:
+            with self.assertRaises(sqlite.ProgrammingError):
+                source.backup(target)
+        finally:
+            target.close()
+
+
 def suite():
     loader = unittest.TestLoader()
     return unittest.TestSuite(
         (
             loader.loadTestsFromTestCase(BlobRegressionTests),
+            loader.loadTestsFromTestCase(ConnectionLifecycleRegressionTests),
         )
     )
 

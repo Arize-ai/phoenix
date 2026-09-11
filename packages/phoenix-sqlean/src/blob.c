@@ -33,6 +33,13 @@ static void remove_blob_from_connection_blob_list(pysqlite_Blob *self)
 {
     Py_ssize_t i = 0;
 
+    /* The blob list is gone when the connection failed a
+       re-initialization (and there is no connection at all on a Blob
+       constructed without __init__). */
+    if (self->connection == NULL || self->connection->blobs == NULL) {
+        return;
+    }
+
     while (i < PyList_GET_SIZE(self->connection->blobs)) {
         PyObject *item = PyList_GET_ITEM(self->connection->blobs, i);
 #if PY_VERSION_HEX < 0x030D0000
