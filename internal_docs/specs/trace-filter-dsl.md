@@ -75,6 +75,24 @@ The cumulative fields on a span are ingestion-time subtree rollups:
 "Below" follows stored parent edges within the same trace. It does not infer ancestry across
 traces when OpenTelemetry span IDs collide or an orphan points at a span stored elsewhere.
 
+`span.total_cost`, `span.prompt_cost`, and `span.completion_cost` are that span's own cost
+scalars, read from its `span_costs` row:
+
+```
+any(span.total_cost > 0.1 for span in spans)
+sum(span.total_cost for span in spans) > 1.0
+```
+
+A span with no cost row, or with the column recorded as null, reads `0` rather than dropping
+out of the comprehension, so `all(span.total_cost > 0 for span in spans)` is false for a trace
+that holds an uncosted span. Each name is correlated to its own element, so
+`any(span.prompt_cost == 0.75 and span.total_cost == 0.1 for span in spans)` requires one span
+to satisfy both, and is not answered by two different spans.
+
+The trace-level `total_cost`, `prompt_cost`, and `completion_cost` are unchanged and still
+describe totals across the whole trace. A trace whose spans cost 1.00 and 0.10 has
+`total_cost > 1.05`, while `any(span.total_cost > 1.05 for span in spans)` is false.
+
 ## Parent and Nested Relationships
 
 `span.parent_span` traverses to the direct stored parent in the same trace. It is missing for
