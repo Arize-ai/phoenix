@@ -5,7 +5,6 @@ import { Button as UnstyledButton } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import {
-  Alert,
   Button,
   Dialog,
   Icon,
@@ -14,7 +13,7 @@ import {
   Modal,
   ModalOverlay,
   Text,
-  View,
+  ValidationBadge,
   VisuallyHidden,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
@@ -28,6 +27,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { truncateSingleCSS } from "@phoenix/components/core/utility/Truncate";
+import { useDebouncedChange } from "@phoenix/hooks/useDebouncedChange";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { isPlainObject, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -72,12 +72,23 @@ const editorContainerCSS = css`
   }
 `;
 
-const footerHintCSS = css`
+// The footer's leading slot: the keyboard hint while the text is valid, the
+// validation badge once it has settled invalid. One slot, so swapping them
+// never moves the buttons.
+const footerStatusCSS = css`
   margin-right: auto;
   display: flex;
   align-items: center;
   gap: var(--global-dimension-size-75);
+  min-width: 0;
 `;
+
+/**
+ * How long typing has to pause before an invalid document is flagged in the
+ * footer. The editor's own lint marks the offending text immediately; the
+ * badge waits so it does not flash on every half-typed keystroke.
+ */
+const VALIDATION_BADGE_SETTLE_MS = 400;
 
 // The nearest block box around the text draws the ellipsis. The trigger
 // button is a flex container, so the text's own span clamps it to one line.
@@ -87,6 +98,28 @@ const cellTextCSS = css`
   ${truncateSingleCSS};
   font-family: var(--global-font-family-mono);
 `;
+
+type JSONEditorError = {
+  /** Short enough for the footer badge, e.g. "Invalid JSON". */
+  message: string;
+  /** The full story, shown in the badge's tooltip. */
+  detail: string;
+};
+
+type JSONEditorValidation =
+  | { error: JSONEditorError }
+  | { error: null; json: unknown };
+
+/**
+ * The parser's own message, e.g. `Unexpected token 's', "{ sdf }" is not
+ * valid JSON`, with its trailing "is not valid JSON" clause dropped since
+ * the badge already says so.
+ */
+function describeParseError(parseError: unknown): string {
+  const raw = parseError instanceof Error ? parseError.message : "";
+  const message = raw.replace(/\s*is not valid JSON\.?$/, "").trim();
+  return message || "The text could not be parsed as JSON.";
+}
 
 export type EditableJSONCellProps<
   Row extends object,
@@ -129,36 +162,80 @@ export function EditableJSONCell<
   const [editorValue, setEditorValue] = useState("");
   // Read once when the editor mounts, so it only ever places the opening cursor.
   const [editorSelection, setEditorSelection] = useState({ anchor: 0 });
-  const [editorError, setEditorError] = useState<string | null>(null);
+  // The current text's problem, updated on every keystroke; gates Done.
+  const [editorError, setEditorError] = useState<JSONEditorError | null>(null);
+  // The problem shown in the footer: follows `editorError` once typing pauses.
+  const [settledError, setSettledError] = useState<JSONEditorError | null>(
+    null
+  );
   const modifierKey = useModifierKey();
 
-  const validateEditorValue = (value: string) => {
+  const validateEditorValue = (value: string): JSONEditorValidation => {
     const result = safelyParseJSON(value);
     if (result.parseError) {
-      return { error: "Enter valid JSON before saving this cell." };
+      return {
+        error: {
+          message: "Invalid JSON",
+          detail: describeParseError(result.parseError),
+        },
+      };
     }
     if (requireObject && !isPlainObject(result.json)) {
-      return { error: "This cell must contain a JSON object." };
+      return {
+        error: {
+          message: "Must be a JSON object",
+          detail: "Wrap the value in an object with named fields.",
+        },
+      };
     }
     return { error: null, json: result.json };
   };
 
+  const settleError = useDebouncedChange<string>({
+    onChange: (value) => setSettledError(validateEditorValue(value).error),
+    debounceMs: VALIDATION_BADGE_SETTLE_MS,
+  });
+
+  // Applies a fresh text to every piece of editor state at once. The footer
+  // badge follows immediately when the text was not typed (opening, undo) and
+  // after a pause when it was.
+  const replaceEditorText = (text: string, { typed }: { typed: boolean }) => {
+    const { error } = validateEditorValue(text);
+    setEditorValue(text);
+    setEditorError(error);
+    settleError.cancel();
+    if (typed) {
+      setSettledError(null);
+      settleError(text);
+    } else {
+      setSettledError(error);
+    }
+  };
+
   const openEditor = () => {
     const text = formatJSONEditorValue(cell.value);
-    setEditorValue(text);
     setEditorSelection({ anchor: getJSONEditorInitialCursor(text) });
-    setEditorError(validateEditorValue(text).error);
+    replaceEditorText(text, { typed: false });
     setIsOpen(true);
   };
 
+  const closeEditor = () => {
+    settleError.cancel();
+    setEditorError(null);
+    setSettledError(null);
+    setIsOpen(false);
+  };
+
   const saveEditorValue = () => {
-    const { error, json } = validateEditorValue(editorValue);
-    setEditorError(error);
-    if (error !== null) {
+    const validation = validateEditorValue(editorValue);
+    if (validation.error !== null) {
+      // Flag it at once: the person asked to apply, so there is nothing to wait for.
+      setEditorError(validation.error);
+      setSettledError(validation.error);
       return;
     }
-    cell.updateValue(json as Row[ColumnId]);
-    setIsOpen(false);
+    cell.updateValue(validation.json as Row[ColumnId]);
+    closeEditor();
   };
 
   // Something to undo: a pending change already applied to the cell, or text
@@ -173,9 +250,9 @@ export function EditableJSONCell<
     if (cell.canRevert) {
       cell.revertValue();
     }
-    const text = formatJSONEditorValue(cell.originalValue);
-    setEditorValue(text);
-    setEditorError(validateEditorValue(text).error);
+    replaceEditorText(formatJSONEditorValue(cell.originalValue), {
+      typed: false,
+    });
   };
 
   // Cmd+Enter commits the cell. Scoped to this cell's open dialog — every other
@@ -222,10 +299,11 @@ export function EditableJSONCell<
       <ModalOverlay
         isOpen={isOpen}
         onOpenChange={(nextIsOpen) => {
-          if (!nextIsOpen) {
-            setEditorError(null);
+          if (nextIsOpen) {
+            setIsOpen(true);
+          } else {
+            closeEditor();
           }
-          setIsOpen(nextIsOpen);
         }}
         isDismissable
       >
@@ -238,13 +316,6 @@ export function EditableJSONCell<
                   <DialogCloseButton />
                 </DialogTitleExtra>
               </DialogHeader>
-              {editorError ? (
-                <View paddingX="size-200" paddingTop="size-100">
-                  <Alert variant="danger" banner>
-                    {editorError}
-                  </Alert>
-                </View>
-              ) : null}
               <div css={editorContainerCSS}>
                 <JSONEditor
                   value={editorValue}
@@ -252,25 +323,38 @@ export function EditableJSONCell<
                   autoFocus
                   minHeight="240px"
                   maxHeight="60vh"
-                  onChange={(nextValue) => {
-                    setEditorValue(nextValue);
-                    setEditorError(validateEditorValue(nextValue).error);
-                  }}
+                  onChange={(nextValue) =>
+                    replaceEditorText(nextValue, { typed: true })
+                  }
                 />
               </div>
               <DialogFooter>
-                <span css={footerHintCSS}>
-                  <KeyboardToken variant="quiet">
-                    <VisuallyHidden>{modifierKey}</VisuallyHidden>
-                    <span aria-hidden="true">
-                      {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
-                    </span>{" "}
-                    <VisuallyHidden>enter</VisuallyHidden>
-                    <span aria-hidden="true">⏎</span>
-                  </KeyboardToken>
-                  <Text size="XS" color="text-500">
-                    to apply
-                  </Text>
+                <span css={footerStatusCSS}>
+                  {settledError ? (
+                    <ValidationBadge
+                      ariaLabel="Validation error"
+                      message={settledError.message}
+                      title={settledError.message}
+                    >
+                      <Text size="S" color="text-700">
+                        {settledError.detail}
+                      </Text>
+                    </ValidationBadge>
+                  ) : (
+                    <>
+                      <KeyboardToken variant="quiet">
+                        <VisuallyHidden>{modifierKey}</VisuallyHidden>
+                        <span aria-hidden="true">
+                          {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
+                        </span>{" "}
+                        <VisuallyHidden>enter</VisuallyHidden>
+                        <span aria-hidden="true">⏎</span>
+                      </KeyboardToken>
+                      <Text size="XS" color="text-500">
+                        to apply
+                      </Text>
+                    </>
+                  )}
                 </span>
                 <Button
                   variant="quiet"

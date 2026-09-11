@@ -1,77 +1,12 @@
 import isEqual from "lodash/isEqual";
-import type { StoreApi } from "zustand";
 import { createStore } from "zustand";
 
-export type EditableTableMode = "read" | "editing" | "saving";
-
-export type EditableTableDiff<Row extends object> = {
-  /** New rows, oldest first, with their pending cell edits applied. */
-  addedRows: Row[];
-  /** Existing rows whose cells changed, excluding rows marked for deletion. */
-  updatedRows: Array<{
-    rowId: string;
-    changes: Partial<Row>;
-  }>;
-  deletedRowIds: string[];
-};
-
-type EditableTableUpdatedRows<Row extends object> = Partial<
-  Record<string, Partial<Row> | undefined>
->;
-
-export type EditableTableStoreState<Row extends object> = {
-  mode: EditableTableMode;
-  /**
-   * New rows, newest first, so a table can show them at the top. Each holds
-   * the values the row started with; cell edits to a new row live in
-   * `updatedRows` like edits to any other row.
-   */
-  addedRows: Row[];
-  addedRowIds: Set<string>;
-  /** Sparse `rowId -> columnId -> value` patches for existing and new rows. */
-  updatedRows: EditableTableUpdatedRows<Row>;
-  deletedRowIds: Set<string>;
-  /** Opens an edit session. */
-  beginEditing: () => void;
-  /** Ends the session and drops every pending change. */
-  cancelEditing: () => void;
-  /**
-   * Holds the table in "saving" while the diff is committed and the rows are
-   * reloaded: controls are disabled and pending changes stay visible. The
-   * store never leaves "saving" on its own — whoever starts a save must end
-   * it with `finishSaving` or `resumeEditing`.
-   */
-  startSaving: () => void;
-  /**
-   * The save failed. Returns to "editing" with every pending change kept so
-   * the save can be retried.
-   */
-  resumeEditing: () => void;
-  /**
-   * The save succeeded and the reloaded rows have rendered. Ends the session
-   * and drops the now-committed changes.
-   */
-  finishSaving: () => void;
-  addRow: (row: Row) => void;
-  deleteRow: (rowId: string) => void;
-  restoreRow: (rowId: string) => void;
-  /**
-   * Records a cell's value. A value equal to `originalValue` clears the
-   * cell's pending change instead. Calls that change nothing leave the state
-   * untouched, so subscribers are not notified.
-   */
-  updateCell: <ColumnId extends keyof Row & string>(args: {
-    rowId: string;
-    columnId: ColumnId;
-    value: Row[ColumnId];
-    originalValue: Row[ColumnId];
-  }) => void;
-  getDiff: () => EditableTableDiff<Row>;
-};
-
-export type EditableTableStore<Row extends object> = StoreApi<
-  EditableTableStoreState<Row>
->;
+import type {
+  EditableTableChangeCounts,
+  EditableTableSession,
+  EditableTableState,
+  EditableTableStore,
+} from "@phoenix/types/editableTable";
 
 export type CreateEditableTableStoreOptions<Row extends object> = {
   /**
@@ -86,25 +21,29 @@ export type CreateEditableTableStoreOptions<Row extends object> = {
  * The pristine edit state. Built fresh on every reset so no two stores — and
  * no two editing sessions — ever share a collection instance.
  */
-const createEmptyEditState = <Row extends object>() => ({
-  mode: "read" as const,
-  addedRows: [] as Row[],
+const createEmptyEditState = <
+  Row extends object,
+>(): EditableTableState<Row> => ({
+  mode: "read",
+  addedRows: [],
   addedRowIds: new Set<string>(),
-  updatedRows: {} as EditableTableUpdatedRows<Row>,
+  updatedRows: {},
   deletedRowIds: new Set<string>(),
 });
 
 /**
- * Creates a table-scoped sparse edit store.
+ * Creates a table-scoped sparse edit store backed by zustand.
  *
  * Server rows remain outside this store. Only additions, changed cells, and
- * deletions are retained here.
+ * deletions are retained here. The result is typed as the
+ * `EditableTableStore` interface, so consumers depend on the contract rather
+ * than on zustand.
  */
 export function createEditableTableStore<Row extends object>({
   getRowId,
   areValuesEqual = isEqual,
 }: CreateEditableTableStoreOptions<Row>): EditableTableStore<Row> {
-  return createStore<EditableTableStoreState<Row>>()((set, get) => {
+  return createStore<EditableTableSession<Row>>()((set, get) => {
     // Ending a session — whether the changes were discarded or committed — drops
     // every pending change and returns the table to read mode.
     const endSession = () => {
@@ -241,7 +180,7 @@ export function getEditableTableCellValue<
   columnId,
   originalValue,
 }: {
-  state: EditableTableStoreState<Row>;
+  state: EditableTableState<Row>;
   rowId: string;
   columnId: ColumnId;
   originalValue: Row[ColumnId];
@@ -252,18 +191,12 @@ export function getEditableTableCellValue<
     : originalValue;
 }
 
-export type EditableTableChangeCounts = {
-  added: number;
-  updated: number;
-  deleted: number;
-};
-
 /**
  * How many rows each kind of change touches. Edits to a new row count toward
  * "added", not "updated"; edits to a row marked for deletion are not counted.
  */
 export function getEditableTableChangeCounts<Row extends object>(
-  state: EditableTableStoreState<Row>
+  state: EditableTableState<Row>
 ): EditableTableChangeCounts {
   const updated = Object.keys(state.updatedRows).filter(
     (rowId) => !state.addedRowIds.has(rowId) && !state.deletedRowIds.has(rowId)
@@ -275,8 +208,39 @@ export function getEditableTableChangeCounts<Row extends object>(
   };
 }
 
+/**
+ * How many changed existing rows are absent from `loadedRowIds`, the rows the
+ * table currently holds. Changes are keyed by row ID, so a row that a search
+ * or a page boundary hides keeps its pending update or deletion; this count
+ * lets the table say so. New rows are never hidden, so they are not counted.
+ */
+export function getEditableTableHiddenChangeCount<Row extends object>({
+  state,
+  loadedRowIds,
+}: {
+  state: EditableTableState<Row>;
+  loadedRowIds: ReadonlySet<string>;
+}): number {
+  let hidden = 0;
+  for (const rowId of state.deletedRowIds) {
+    if (!loadedRowIds.has(rowId)) {
+      hidden += 1;
+    }
+  }
+  for (const rowId of Object.keys(state.updatedRows)) {
+    if (
+      !state.addedRowIds.has(rowId) &&
+      !state.deletedRowIds.has(rowId) &&
+      !loadedRowIds.has(rowId)
+    ) {
+      hidden += 1;
+    }
+  }
+  return hidden;
+}
+
 export function getEditableTableChangeCount<Row extends object>(
-  state: EditableTableStoreState<Row>
+  state: EditableTableState<Row>
 ): number {
   const { added, updated, deleted } = getEditableTableChangeCounts(state);
   return added + updated + deleted;
@@ -288,7 +252,7 @@ export function getEditableTableChangeCount<Row extends object>(
  * outside "saving" mode.
  */
 export function hasEditableTableUnsavedChanges<Row extends object>(
-  state: EditableTableStoreState<Row>
+  state: EditableTableState<Row>
 ): boolean {
   return state.mode !== "saving" && getEditableTableChangeCount(state) > 0;
 }

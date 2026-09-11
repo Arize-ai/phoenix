@@ -5,16 +5,16 @@ import { useStore } from "zustand";
 
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import {
-  createEditableTableStore,
-  getEditableTableChangeCount,
-  hasEditableTableUnsavedChanges,
-} from "@phoenix/components/table";
-import {
   useOwnedPreloadedQuery,
   useUnsavedChangesBlocker,
 } from "@phoenix/hooks";
 import { ExamplesFilterBar } from "@phoenix/pages/examples/ExamplesFilterBar";
 import { ExamplesFilterProvider } from "@phoenix/pages/examples/ExamplesFilterContext";
+import {
+  createEditableTableStore,
+  getEditableTableChangeCount,
+  hasEditableTableUnsavedChanges,
+} from "@phoenix/store/editableTableStore";
 
 import type { examplesLoaderQuery } from "./__generated__/examplesLoaderQuery.graphql";
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";

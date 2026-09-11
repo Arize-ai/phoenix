@@ -1,7 +1,6 @@
 import { Text } from "@phoenix/components";
 import type { ColorValue } from "@phoenix/components/core/types";
-
-import type { EditableTableChangeCounts } from "./editableTableStore";
+import type { EditableTableChangeCounts } from "@phoenix/types/editableTable";
 
 /**
  * Each kind of pending change, with the label and color used wherever the

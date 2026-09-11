@@ -1,4 +1,5 @@
-import { fetchQuery, graphql } from "react-relay";
+import { commitLocalUpdate, fetchQuery, graphql } from "react-relay";
+import { ConnectionHandler } from "relay-runtime";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
@@ -76,6 +77,12 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
               const newVersion = await fetchLatestVersion({
                 datasetId: dataset.datasetId,
               });
+              if (newVersion) {
+                prependVersionToHistory({
+                  datasetId: dataset.datasetId,
+                  versionId: newVersion.id,
+                });
+              }
               set(
                 { latestVersion: newVersion, isRefreshingLatestVersion: false },
                 false,
@@ -165,4 +172,55 @@ async function fetchLatestVersion({
   const latestVersion =
     (versions && versions.length && versions[0].version) || null;
   return latestVersion;
+}
+
+/**
+ * The `@connection` key of the versions table on the dataset's Versions tab.
+ * Kept in sync with `DatasetHistoryTable_versions` in `DatasetHistoryTable`.
+ */
+const HISTORY_CONNECTION_KEY = "DatasetHistoryTable_versions";
+
+/**
+ * Adds a newly created version to the top of the Versions tab's list.
+ *
+ * The Versions tab is its own route, and its loader renders from the Relay
+ * store when the list is already cached, so a version created from another
+ * tab would otherwise stay missing until a full reload. The list is sorted
+ * newest first, matching where the version is inserted. Nothing happens when
+ * the list has never been loaded or already holds the version.
+ */
+function prependVersionToHistory({
+  datasetId,
+  versionId,
+}: {
+  datasetId: string;
+  versionId: string;
+}) {
+  commitLocalUpdate(RelayEnvironment, (store) => {
+    const dataset = store.get(datasetId);
+    const version = store.get(versionId);
+    if (!dataset || !version) {
+      return;
+    }
+    const connection = ConnectionHandler.getConnection(
+      dataset,
+      HISTORY_CONNECTION_KEY
+    );
+    if (!connection) {
+      return;
+    }
+    const isListed = (connection.getLinkedRecords("edges") ?? []).some(
+      (edge) => edge?.getLinkedRecord("node")?.getDataID() === versionId
+    );
+    if (isListed) {
+      return;
+    }
+    const edge = ConnectionHandler.createEdge(
+      store,
+      connection,
+      version,
+      "DatasetVersionEdge"
+    );
+    ConnectionHandler.insertEdgeBefore(connection, edge);
+  });
 }

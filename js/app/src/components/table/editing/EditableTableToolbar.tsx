@@ -29,10 +29,10 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
+import { getEditableTableChangeCounts } from "@phoenix/store/editableTableStore";
+import type { EditableTableStore } from "@phoenix/types/editableTable";
 
 import { EditableTableChangeSummary } from "./EditableTableChangeSummary";
-import type { EditableTableStore } from "./editableTableStore";
-import { getEditableTableChangeCounts } from "./editableTableStore";
 
 // The reserved width fits all three summary segments, so the bar keeps its
 // size as segments appear and disappear; tabular figures keep the counts from

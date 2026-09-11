@@ -27,6 +27,7 @@ type ExamplesSplitsMenuProps = {
   onSelectionChange: (splitIds: string[]) => void;
   selectedSplitIds: string[];
   size?: ButtonProps["size"];
+  isDisabled?: boolean;
 };
 
 /**
@@ -36,10 +37,15 @@ export const ExamplesSplitsMenu = ({
   onSelectionChange,
   selectedSplitIds,
   size,
+  isDisabled,
 }: ExamplesSplitsMenuProps) => {
   return (
     <MenuTrigger>
-      <Button leadingVisual={<Icon svg={<Icons.PieChart />} />} size={size}>
+      <Button
+        leadingVisual={<Icon svg={<Icons.PieChart />} />}
+        size={size}
+        isDisabled={isDisabled}
+      >
         Splits
         {selectedSplitIds.length > 0 ? ` (${selectedSplitIds.length})` : ""}
       </Button>
