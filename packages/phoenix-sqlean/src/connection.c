@@ -308,6 +308,37 @@ void pysqlite_do_all_statements(pysqlite_Connection* self, int action, int reset
     PyObject* weakref;
     PyObject* statement;
     pysqlite_Cursor* cursor;
+    PyObject* locked = NULL;
+
+    /* Hold every live cursor locked so window xFinal cannot re-enter
+       execute() on the statement currently being reset/finalized.
+
+       The locked set is snapshotted with strong references. A callback
+       run by the reset may create cursors (appending to self->cursors)
+       or trigger the periodic rebuild of that list; unlocking by
+       re-walking the live list would then decrement a cursor that was
+       never locked and leave it permanently "in use". Under OOM the
+       lock is skipped rather than half-applied. */
+    if (self->cursors) {
+        PyObject *exc_type, *exc_value, *exc_tb;
+        PyErr_Fetch(&exc_type, &exc_value, &exc_tb);
+        locked = PyList_New(0);
+        if (!locked) {
+            PyErr_Clear();
+        }
+        PyErr_Restore(exc_type, exc_value, exc_tb);
+        for (i = 0; locked && i < PyList_Size(self->cursors); i++) {
+            weakref = PyList_GetItem(self->cursors, i);
+            if (PyWeakref_GetRef(weakref, (PyObject**)&cursor) == 1) {
+                if (PyList_Append(locked, (PyObject*)cursor) == 0) {
+                    cursor->locked++;
+                } else {
+                    PyErr_Clear();
+                }
+                Py_DECREF(cursor);
+            }
+        }
+    }
 
     for (i = 0; i < PyList_Size(self->statements); i++) {
         weakref = PyList_GetItem(self->statements, i);
@@ -321,7 +352,15 @@ void pysqlite_do_all_statements(pysqlite_Connection* self, int action, int reset
         }
     }
 
-    if (reset_cursors) {
+    if (locked) {
+        for (i = 0; i < PyList_Size(locked); i++) {
+            cursor = (pysqlite_Cursor*)PyList_GetItem(locked, i);
+            cursor->locked--;
+        }
+        Py_DECREF(locked);
+    }
+
+    if (reset_cursors && self->cursors) {
         for (i = 0; i < PyList_Size(self->cursors); i++) {
             weakref = PyList_GetItem(self->cursors, i);
             if (PyWeakref_GetRef(weakref, (PyObject**)&cursor) == 1) {

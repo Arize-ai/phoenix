@@ -585,6 +585,33 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             """
         )
 
+    def test_reexecute_in_window_finalize(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            cur = con.cursor()
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        cur.execute("select 1")
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            list(cur.execute("select w(x) over (order by x) from t"))
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
     def test_gc_in_window_finalize(self):
         self._run(
             """
@@ -804,6 +831,68 @@ class CallbackCloseRegressionTests(unittest.TestCase):
             else:
                 raise AssertionError("expected execute to fail after a refused cursor __init__")
             assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_same_cursor_execute_in_window_finalize_during_rollback(self):
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            con.commit()
+            cur = con.cursor()
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    try:
+                        cur.execute("select 1")
+                    except sqlite.ProgrammingError:
+                        pass
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur.execute("select w(x) over (order by x) from t")
+            cur.fetchone()
+            con.rollback()
+            assert con.execute("select 1").fetchone() == (1,)
+            con.close()
+            """
+        )
+
+    def test_cursor_created_in_finalize_stays_usable(self):
+        # rollback() locks every live cursor around the reset so a window
+        # finalize cannot re-enter execute() on the statement being
+        # reset. A cursor the finalize creates used to receive the
+        # matching unlock without ever being locked, leaving it stuck
+        # with "Recursive use of cursors not allowed".
+        self._run(
+            """
+            con = sqlite.connect(":memory:")
+            con.execute("create table t(x integer)")
+            con.executemany("insert into t values (?)", [(i,) for i in range(3)])
+            created = []
+            class Win:
+                def step(self, value):
+                    pass
+                def inverse(self, value):
+                    pass
+                def value(self):
+                    return 1
+                def finalize(self):
+                    created.append(con.cursor())
+                    return 1
+            con.create_window_function("w", 1, Win)
+            cur = con.execute("select w(x) over (order by x) from t")
+            cur.fetchone()
+            con.rollback()
+            assert len(created) == 1, created
+            assert created[0].execute("select 1").fetchone() == (1,)
             con.close()
             """
         )

@@ -94,8 +94,11 @@ static void pysqlite_cursor_dealloc(pysqlite_Cursor* self)
 {
     /* Reset the statement if the user has not closed the cursor */
     if (self->statement) {
+        self->locked = 1;
         pysqlite_statement_reset(self->statement);
+        self->locked = 0;
         Py_DECREF(self->statement);
+        self->statement = NULL;
     }
 
     Py_XDECREF(self->connection);
@@ -793,7 +796,9 @@ PyObject* pysqlite_cursor_iternext(pysqlite_Cursor *self)
 
     if (!self->next_row) {
          if (self->statement) {
+            self->locked = 1;
             (void)pysqlite_statement_reset(self->statement);
+            self->locked = 0;
             Py_CLEAR(self->statement);
         }
         return NULL;
@@ -944,7 +949,8 @@ PyObject* pysqlite_cursor_close(pysqlite_Cursor* self, PyObject* args)
     }
 
     /* GH-80254: converters and row factories used to close the cursor
-       while fetch still held the statement. */
+       while fetch still held the statement. Window xFinal can also
+       close a cursor during sqlite3_reset of a different statement. */
     if (self->locked) {
         PyErr_SetString(pysqlite_ProgrammingError,
                         "Recursive use of cursors not allowed.");
@@ -957,7 +963,9 @@ PyObject* pysqlite_cursor_close(pysqlite_Cursor* self, PyObject* args)
     }
 
     if (self->statement) {
+        self->locked = 1;
         (void)pysqlite_statement_reset(self->statement);
+        self->locked = 0;
         Py_CLEAR(self->statement);
     }
 
