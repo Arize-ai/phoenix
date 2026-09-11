@@ -1,5 +1,6 @@
 import {
   formatMatrixSubtitle,
+  getComparedOutputName,
   getKappaGloss,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
@@ -48,6 +49,27 @@ describe("project evaluator compare utils", () => {
     [0.81, "almost perfect"],
   ] as const)("glosses kappa %s as %s", (value, expected) => {
     expect(getKappaGloss(value)).toBe(expected);
+  });
+
+  it("only adds output identity for multi-output annotations", () => {
+    expect(
+      getComparedOutputName({
+        evaluatorName: "response-quality",
+        annotationName: "response-quality",
+      })
+    ).toBeNull();
+    expect(
+      getComparedOutputName({
+        evaluatorName: "response-quality",
+        annotationName: "response-quality.relevance",
+      })
+    ).toBe("relevance");
+    expect(
+      getComparedOutputName({
+        evaluatorName: "response-quality",
+        annotationName: "legacy-relevance",
+      })
+    ).toBe("legacy-relevance");
   });
 
   it("formats matrix thresholds", () => {
