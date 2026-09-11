@@ -989,6 +989,60 @@ async def _update_llm_definition(
 
 
 @dataclass(kw_only=True)
+class ProjectEvaluatorPatch:
+    name: Optional[Identifier] = UNSET
+    sampling_rate: Optional[float] = UNSET
+    filter_condition: Optional[str] = UNSET
+    enabled: Optional[bool] = UNSET
+    input_mapping: Optional[InputMapping] = UNSET
+    evaluation_delay_seconds: Optional[int] = UNSET
+
+
+async def patch_project_evaluator(
+    context: EvaluatorServiceContext,
+    project_evaluator_id: GlobalID,
+    patch: ProjectEvaluatorPatch,
+) -> models.ProjectEvaluator:
+    """Update binding settings without modifying the shared evaluator definition."""
+    row_id = from_global_id_with_expected_type(project_evaluator_id, "ProjectEvaluator")
+    try:
+        async with context.db() as session:
+            row = await session.get(models.ProjectEvaluator, row_id)
+            if row is None:
+                raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
+            target = row.evaluation_target
+            if patch.name is not UNSET:
+                row.name = IdentifierModel.model_validate(patch.name)
+            if patch.sampling_rate is not UNSET:
+                assert patch.sampling_rate is not None
+                validate_project_evaluator_sampling_rate(patch.sampling_rate)
+                row.sampling_rate = patch.sampling_rate
+            if patch.filter_condition is not UNSET:
+                assert patch.filter_condition is not None
+                validate_project_evaluator_filter(patch.filter_condition, target)
+                row.filter_condition = patch.filter_condition
+            if patch.enabled is not UNSET:
+                assert patch.enabled is not None
+                row.enabled = patch.enabled
+            if patch.input_mapping is not UNSET:
+                if patch.input_mapping is None:
+                    kind = await session.scalar(
+                        select(models.Evaluator.kind).where(models.Evaluator.id == row.evaluator_id)
+                    )
+                    if kind != "CODE":
+                        raise BadRequest("input_mapping cannot be null for LLM evaluators")
+                row.input_mapping = patch.input_mapping
+            if patch.evaluation_delay_seconds is not UNSET:
+                row.evaluation_delay_seconds = materialize_project_evaluator_evaluation_delay(
+                    patch.evaluation_delay_seconds, target
+                )
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+        raise Conflict("A project evaluator with this name already exists for this project")
+    return row
+
+
+@dataclass(kw_only=True)
 class LLMEvaluatorPatch:
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET

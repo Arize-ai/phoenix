@@ -275,6 +275,11 @@ class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
 
 
+class ExistingCodeEvaluator(TypedDict):
+    type: Literal["reference"]
+    evaluator_id: str
+
+
 class ExistingDatasetEvaluator(TypedDict):
     type: Literal["reference"]
     evaluator_id: str
@@ -468,6 +473,15 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PatchProjectEvaluatorRequest(TypedDict):
+    name: NotRequired[str]
+    sampling_rate: NotRequired[float]
+    filter_condition: NotRequired[str]
+    enabled: NotRequired[bool]
+    input_mapping: NotRequired[InputMapping]
+    evaluation_delay_seconds: NotRequired[int]
+
+
 class PatchPromptRequestBody(TypedDict):
     description: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
@@ -522,6 +536,21 @@ class Project(TypedDict):
     name: str
     id: str
     description: NotRequired[str]
+
+
+class ProjectEvaluator(TypedDict):
+    project_evaluator_id: str
+    project_id: str
+    evaluator_id: str
+    evaluator_kind: Literal["LLM", "CODE", "BUILTIN"]
+    trace_project_id: str
+    name: str
+    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+    sampling_rate: float
+    filter_condition: str
+    enabled: bool
+    input_mapping: Optional[InputMapping]
+    evaluation_delay_seconds: int
 
 
 class ProjectRetentionPolicyData(TypedDict):
@@ -809,6 +838,10 @@ class ReasoningUIPart(TypedDict):
 
 class ResponseBodyCodeEvaluatorVersion(TypedDict):
     data: CodeEvaluatorVersion
+
+
+class ResponseBodyProjectEvaluator(TypedDict):
+    data: ProjectEvaluator
 
 
 class SecretKeyValue(TypedDict):
@@ -1782,6 +1815,11 @@ class NewCodeEvaluator(TypedDict):
     ]
 
 
+class PaginatedResponseBodyProjectEvaluator(TypedDict):
+    data: Sequence[ProjectEvaluator]
+    next_cursor: Optional[str]
+
+
 class PatchCodeEvaluatorRequest(TypedDict):
     type: Literal["code"]
     name: NotRequired[str]
@@ -2519,6 +2557,17 @@ class CreateDatasetEvaluatorRequest(TypedDict):
             Union[CategoricalAnnotationConfigData, ContinuousOutputConfig, FreeformOutputConfig]
         ]
     ]
+
+
+class CreateProjectEvaluatorRequest(TypedDict):
+    name: str
+    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+    sampling_rate: float
+    evaluator: Union[NewLLMEvaluator, NewCodeEvaluator, ExistingCodeEvaluator]
+    filter_condition: NotRequired[str]
+    enabled: NotRequired[bool]
+    input_mapping: NotRequired[InputMapping]
+    evaluation_delay_seconds: NotRequired[int]
 
 
 class EvaluatorDefinitionResponseBody(TypedDict):

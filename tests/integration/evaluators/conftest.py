@@ -1,7 +1,7 @@
 """Shared server and resource fixtures for evaluator integration tests."""
 
 from secrets import token_hex
-from typing import Iterator, Mapping
+from typing import Any, Iterator, Mapping
 
 import httpx
 import pytest
@@ -82,3 +82,14 @@ def dataset_id(client: httpx.Client, _app: _AppInfo) -> Iterator[str]:
         yield dataset["id"]
     finally:
         client.delete(f"v1/datasets/{dataset['id']}")
+
+
+@pytest.fixture
+def project(client: httpx.Client) -> Iterator[dict[str, Any]]:
+    response = client.post("v1/projects", json={"name": f"eval-{token_hex(8)}"})
+    response.raise_for_status()
+    project = response.json()["data"]
+    try:
+        yield project
+    finally:
+        client.delete(f"v1/projects/{project['id']}")

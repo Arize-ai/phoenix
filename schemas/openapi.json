@@ -3457,6 +3457,457 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/evaluators": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Project Evaluator",
+        "description": "Create an evaluator and binding atomically, or bind an existing code evaluator.\n\nSPAN runs on matching sampled spans. SESSION evaluates once after its first quiet\nperiod. TRACE configurations are stored but are not scheduled.",
+        "operationId": "createProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_ProjectEvaluator_"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Project Evaluators",
+        "description": "List evaluator bindings in a project, accepting its name or GlobalID.",
+        "operationId": "getProjectEvaluators",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Identifier"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseBody_ProjectEvaluator_"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/project_evaluators/{project_evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Project Evaluator",
+        "description": "Fetch binding settings. Use evaluator_id to retrieve the shared definition.",
+        "operationId": "getProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_ProjectEvaluator_"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Project Evaluator",
+        "description": "Update only binding settings. Evaluation target and evaluator kind are immutable.",
+        "operationId": "patchProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchProjectEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_ProjectEvaluator_"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Project Evaluator",
+        "description": "Delete a binding and its evaluator traces, collecting unreferenced definitions.",
+        "operationId": "deleteProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          },
+          {
+            "name": "delete_associated_prompt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Delete Associated Prompt"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/project_evaluators": {
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Project Evaluators",
+        "description": "Delete explicit bindings atomically. Repeat the project_evaluator_ids query parameter.\n\nAssociated trace projects are deleted. Shared definitions remain while referenced\nby any project or dataset. Missing bindings are ignored for idempotency.",
+        "operationId": "deleteProjectEvaluators",
+        "parameters": [
+          {
+            "name": "project_evaluator_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 1000,
+              "title": "Project Evaluator Ids"
+            }
+          },
+          {
+            "name": "delete_associated_prompt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Delete Associated Prompt"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/evaluators/{evaluator_id}": {
       "get": {
         "tags": [
@@ -13209,6 +13660,87 @@
         ],
         "title": "CreateExperimentRunResponseBodyData"
       },
+      "CreateProjectEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "evaluation_target": {
+            "$ref": "#/components/schemas/EvaluationTarget"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation_delay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Delay Seconds",
+            "description": "Session quiet-period delay in seconds. Null uses the server default. SPAN rejects a non-null delay. TRACE evaluators are stored but not scheduled."
+          },
+          "evaluator": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NewLLMEvaluator"
+              },
+              {
+                "$ref": "#/components/schemas/NewCodeEvaluator"
+              },
+              {
+                "$ref": "#/components/schemas/ExistingCodeEvaluator"
+              }
+            ],
+            "title": "Evaluator",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "code": "#/components/schemas/NewCodeEvaluator",
+                "llm": "#/components/schemas/NewLLMEvaluator",
+                "reference": "#/components/schemas/ExistingCodeEvaluator"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "evaluation_target",
+          "sampling_rate",
+          "evaluator"
+        ],
+        "title": "CreateProjectEvaluatorRequest"
+      },
       "CreateProjectRequestBody": {
         "properties": {
           "name": {
@@ -14591,6 +15123,15 @@
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
       },
+      "EvaluationTarget": {
+        "type": "string",
+        "enum": [
+          "SPAN",
+          "TRACE",
+          "SESSION"
+        ],
+        "title": "EvaluationTarget"
+      },
       "EvaluatorDefinitionResponseBody": {
         "properties": {
           "data": {
@@ -14621,6 +15162,26 @@
           "data"
         ],
         "title": "EvaluatorDefinitionResponseBody"
+      },
+      "ExistingCodeEvaluator": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reference",
+            "title": "Type"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "evaluator_id"
+        ],
+        "title": "ExistingCodeEvaluator"
       },
       "ExistingDatasetEvaluator": {
         "properties": {
@@ -17684,6 +18245,34 @@
         ],
         "title": "PaginatedResponseBody[DatasetEvaluator]"
       },
+      "PaginatedResponseBody_ProjectEvaluator_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectEvaluator"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "PaginatedResponseBody[ProjectEvaluator]"
+      },
       "PatchAgentSessionRequestBody": {
         "properties": {
           "title": {
@@ -17882,6 +18471,55 @@
           "type"
         ],
         "title": "PatchLLMEvaluatorRequest"
+      },
+      "PatchProjectEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit to preserve. Null restores inheritance for code bindings."
+          },
+          "evaluation_delay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Delay Seconds",
+            "description": "Omit to preserve. Null resets to the server's session delay default."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PatchProjectEvaluatorRequest"
       },
       "PatchPromptRequestBody": {
         "properties": {
@@ -18386,6 +19024,83 @@
           "id"
         ],
         "title": "Project"
+      },
+      "ProjectEvaluator": {
+        "properties": {
+          "project_evaluator_id": {
+            "type": "string",
+            "title": "Project Evaluator Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "evaluator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "BUILTIN"
+            ],
+            "title": "Evaluator Kind"
+          },
+          "trace_project_id": {
+            "type": "string",
+            "title": "Trace Project Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "evaluation_target": {
+            "$ref": "#/components/schemas/EvaluationTarget"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluation_delay_seconds": {
+            "type": "integer",
+            "title": "Evaluation Delay Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_evaluator_id",
+          "project_id",
+          "evaluator_id",
+          "evaluator_kind",
+          "trace_project_id",
+          "name",
+          "evaluation_target",
+          "sampling_rate",
+          "filter_condition",
+          "enabled",
+          "input_mapping",
+          "evaluation_delay_seconds"
+        ],
+        "title": "ProjectEvaluator"
       },
       "ProjectRetentionPolicyData": {
         "properties": {
@@ -20676,6 +21391,18 @@
           "data"
         ],
         "title": "ResponseBody[DatasetEvaluator]"
+      },
+      "ResponseBody_ProjectEvaluator_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectEvaluator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseBody[ProjectEvaluator]"
       },
       "ResponseBody_UpsertOrDeleteSecretsResult_": {
         "properties": {

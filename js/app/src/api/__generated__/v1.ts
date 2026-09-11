@@ -526,6 +526,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Evaluators
+         * @description List evaluator bindings in a project, accepting its name or GlobalID.
+         */
+        get: operations["getProjectEvaluators"];
+        put?: never;
+        /**
+         * Create Project Evaluator
+         * @description Create an evaluator and binding atomically, or bind an existing code evaluator.
+         *
+         *     SPAN runs on matching sampled spans. SESSION evaluates once after its first quiet
+         *     period. TRACE configurations are stored but are not scheduled.
+         */
+        post: operations["createProjectEvaluator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/project_evaluators/{project_evaluator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Evaluator
+         * @description Fetch binding settings. Use evaluator_id to retrieve the shared definition.
+         */
+        get: operations["getProjectEvaluator"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Project Evaluator
+         * @description Delete a binding and its evaluator traces, collecting unreferenced definitions.
+         */
+        delete: operations["deleteProjectEvaluator"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Project Evaluator
+         * @description Update only binding settings. Evaluation target and evaluator kind are immutable.
+         */
+        patch: operations["patchProjectEvaluator"];
+        trace?: never;
+    };
+    "/v1/project_evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Project Evaluators
+         * @description Delete explicit bindings atomically. Repeat the project_evaluator_ids query parameter.
+         *
+         *     Associated trace projects are deleted. Shared definitions remain while referenced
+         *     by any project or dataset. Missing bindings are ignored for idempotency.
+         */
+        delete: operations["deleteProjectEvaluators"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/evaluators/{evaluator_id}": {
         parameters: {
             query?: never;
@@ -3003,6 +3081,31 @@ export interface components {
              */
             id: string;
         };
+        /** CreateProjectEvaluatorRequest */
+        CreateProjectEvaluatorRequest: {
+            name: components["schemas"]["Identifier"];
+            evaluation_target: components["schemas"]["EvaluationTarget"];
+            /** Sampling Rate */
+            sampling_rate: number;
+            /**
+             * Filter Condition
+             * @default
+             */
+            filter_condition?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled?: boolean;
+            input_mapping?: components["schemas"]["InputMapping"] | null;
+            /**
+             * Evaluation Delay Seconds
+             * @description Session quiet-period delay in seconds. Null uses the server default. SPAN rejects a non-null delay. TRACE evaluators are stored but not scheduled.
+             */
+            evaluation_delay_seconds?: number | null;
+            /** Evaluator */
+            evaluator: components["schemas"]["NewLLMEvaluator"] | components["schemas"]["NewCodeEvaluator"] | components["schemas"]["ExistingCodeEvaluator"];
+        };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
             /** Name */
@@ -3550,10 +3653,25 @@ export interface components {
             /** Approval */
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
+        /**
+         * EvaluationTarget
+         * @enum {string}
+         */
+        EvaluationTarget: "SPAN" | "TRACE" | "SESSION";
         /** EvaluatorDefinitionResponseBody */
         EvaluatorDefinitionResponseBody: {
             /** Data */
             data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"];
+        };
+        /** ExistingCodeEvaluator */
+        ExistingCodeEvaluator: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "reference";
+            /** Evaluator Id */
+            evaluator_id: string;
         };
         /** ExistingDatasetEvaluator */
         ExistingDatasetEvaluator: {
@@ -4708,6 +4826,13 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** PaginatedResponseBody[ProjectEvaluator] */
+        PaginatedResponseBody_ProjectEvaluator_: {
+            /** Data */
+            data: components["schemas"]["ProjectEvaluator"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /**
          * PatchAgentSessionRequestBody
          * @description Fields to update on a persisted session. Omit a field to leave it unchanged.
@@ -4771,6 +4896,23 @@ export interface components {
             prompt_version_id?: string;
             /** Output Configs */
             output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][];
+        };
+        /** PatchProjectEvaluatorRequest */
+        PatchProjectEvaluatorRequest: {
+            name?: components["schemas"]["Identifier"];
+            /** Sampling Rate */
+            sampling_rate?: number;
+            /** Filter Condition */
+            filter_condition?: string;
+            /** Enabled */
+            enabled?: boolean;
+            /** @description Omit to preserve. Null restores inheritance for code bindings. */
+            input_mapping?: components["schemas"]["InputMapping"] | null;
+            /**
+             * Evaluation Delay Seconds
+             * @description Omit to preserve. Null resets to the server's session delay default.
+             */
+            evaluation_delay_seconds?: number | null;
         };
         /**
          * PatchPromptRequestBody
@@ -4954,6 +5096,33 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /** ProjectEvaluator */
+        ProjectEvaluator: {
+            /** Project Evaluator Id */
+            project_evaluator_id: string;
+            /** Project Id */
+            project_id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /**
+             * Evaluator Kind
+             * @enum {string}
+             */
+            evaluator_kind: "LLM" | "CODE" | "BUILTIN";
+            /** Trace Project Id */
+            trace_project_id: string;
+            name: components["schemas"]["Identifier"];
+            evaluation_target: components["schemas"]["EvaluationTarget"];
+            /** Sampling Rate */
+            sampling_rate: number;
+            /** Filter Condition */
+            filter_condition: string;
+            /** Enabled */
+            enabled: boolean;
+            input_mapping: components["schemas"]["InputMapping"] | null;
+            /** Evaluation Delay Seconds */
+            evaluation_delay_seconds: number;
         };
         /** ProjectRetentionPolicyData */
         ProjectRetentionPolicyData: {
@@ -5841,6 +6010,10 @@ export interface components {
         /** ResponseBody[DatasetEvaluator] */
         ResponseBody_DatasetEvaluator_: {
             data: components["schemas"]["DatasetEvaluator"];
+        };
+        /** ResponseBody[ProjectEvaluator] */
+        ResponseBody_ProjectEvaluator_: {
+            data: components["schemas"]["ProjectEvaluator"];
         };
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
@@ -9669,6 +9842,328 @@ export interface operations {
                 };
             };
             /** @description Invalid dataset or version ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getProjectEvaluators: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedResponseBody_ProjectEvaluator_"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createProjectEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseBody_ProjectEvaluator_"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getProjectEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseBody_ProjectEvaluator_"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteProjectEvaluator: {
+        parameters: {
+            query?: {
+                delete_associated_prompt?: boolean;
+            };
+            header?: never;
+            path: {
+                project_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    patchProjectEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchProjectEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseBody_ProjectEvaluator_"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteProjectEvaluators: {
+        parameters: {
+            query: {
+                project_evaluator_ids: string[];
+                delete_associated_prompt?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
