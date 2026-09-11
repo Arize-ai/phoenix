@@ -97,12 +97,28 @@ export function EditExampleForm({
       variables: {
         input: {
           datasetId,
-          patches: [
+          // The form edits every field, so each one is replaced.
+          operations: [
             {
-              exampleId,
-              input: JSON.parse(updatedExample.input),
-              output: JSON.parse(updatedExample.output),
-              metadata: JSON.parse(updatedExample.metadata),
+              replace: {
+                exampleId,
+                field: "INPUT",
+                value: JSON.parse(updatedExample.input),
+              },
+            },
+            {
+              replace: {
+                exampleId,
+                field: "OUTPUT",
+                value: JSON.parse(updatedExample.output),
+              },
+            },
+            {
+              replace: {
+                exampleId,
+                field: "METADATA",
+                value: JSON.parse(updatedExample.metadata),
+              },
             },
           ],
           versionDescription: updatedExample.description,
