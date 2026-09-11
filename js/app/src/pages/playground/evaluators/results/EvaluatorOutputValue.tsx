@@ -12,7 +12,7 @@ const NO_VALUE = "—";
  * A label · score pair in the annotation value style: the label in the body
  * font, the score in mono, a hairline divider between them.
  */
-export function CalibrationValue({
+export function EvaluatorOutputValue({
   label,
   score,
   size,

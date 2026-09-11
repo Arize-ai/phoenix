@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb8ef1c4c204b9057d6c53a55a474746>>
+ * @generated SignedSource<<1fef9adc2230261815e020521232f45c>>
  * @lightSyntaxTransform
  */
 
@@ -8,13 +8,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type CalibrationDatasetQuery$variables = {
+export type EvaluatorPlaygroundSampleQuery$variables = {
   datasetId: string;
   first: number;
   splitIds: ReadonlyArray<string>;
   versionId?: string | null;
 };
-export type CalibrationDatasetQuery$data = {
+export type EvaluatorPlaygroundSampleQuery$data = {
   readonly node: {
     readonly examples?: {
       readonly edges: ReadonlyArray<{
@@ -37,9 +37,9 @@ export type CalibrationDatasetQuery$data = {
     };
   };
 };
-export type CalibrationDatasetQuery = {
-  response: CalibrationDatasetQuery$data;
-  variables: CalibrationDatasetQuery$variables;
+export type EvaluatorPlaygroundSampleQuery = {
+  response: EvaluatorPlaygroundSampleQuery$data;
+  variables: EvaluatorPlaygroundSampleQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -222,7 +222,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "CalibrationDatasetQuery",
+    "name": "EvaluatorPlaygroundSampleQuery",
     "selections": [
       {
         "alias": null,
@@ -249,7 +249,7 @@ return {
       (v1/*:: as any*/)
     ],
     "kind": "Operation",
-    "name": "CalibrationDatasetQuery",
+    "name": "EvaluatorPlaygroundSampleQuery",
     "selections": [
       {
         "alias": null,
@@ -274,16 +274,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c4f248501b550c24835f9d346b4089db",
+    "cacheID": "63767a367fc9686ae11fa342005aa9cd",
     "id": null,
     "metadata": {},
-    "name": "CalibrationDatasetQuery",
+    "name": "EvaluatorPlaygroundSampleQuery",
     "operationKind": "query",
-    "text": "query CalibrationDatasetQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]!\n  $versionId: ID\n  $first: Int!\n) {\n  node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      examples(first: $first, splitIds: $splitIds, datasetVersionId: $versionId) {\n        edges {\n          node {\n            id\n            revision {\n              revisionId\n              input\n              output\n              metadata\n              calibrationLabels {\n                annotationName\n                score\n                explanation\n                label\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorPlaygroundSampleQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]!\n  $versionId: ID\n  $first: Int!\n) {\n  node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      examples(first: $first, splitIds: $splitIds, datasetVersionId: $versionId) {\n        edges {\n          node {\n            id\n            revision {\n              revisionId\n              input\n              output\n              metadata\n              calibrationLabels {\n                annotationName\n                score\n                explanation\n                label\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "943208fcb36db506c59d1ac88c0b60c3";
+(node as any).hash = "55002781e99d4ebfdf5b24a09ca0daf4";
 
 export default node;

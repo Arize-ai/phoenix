@@ -2,7 +2,7 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 import type { SlotId, SlotOutput } from "./evaluatorSlotTypes";
 
-export type CalibrationExample = {
+export type SampleExample = {
   id: string;
   revisionId: string;
   input: unknown;
@@ -11,7 +11,7 @@ export type CalibrationExample = {
   calibrationLabels: ReadonlyArray<ExpectedOutput & { annotationName: string }>;
 };
 
-export type CalibrationPrediction =
+export type EvaluatorPrediction =
   | {
       status: "success";
       label: string | null;
@@ -23,13 +23,13 @@ export type CalibrationPrediction =
 /** A prediction plus the slot revision that produced it, so a cell can tell
  * whether its result still describes the evaluator as currently drafted. Rows
  * can be run one at a time, so this is per result rather than per run. */
-export type CalibrationResult = CalibrationPrediction & { revision: string };
+export type EvaluatorResult = EvaluatorPrediction & { revision: string };
 
-export type CalibrationRun = {
+export type EvaluatorRun = {
   /** The slot revision of the most recent run request. */
   revision: string;
   sampleKey: string;
-  predictions: Partial<Record<string, CalibrationResult>>;
+  predictions: Partial<Record<string, EvaluatorResult>>;
   /** Example ids awaiting a result from the current run. */
   queued: readonly string[];
   isRunning: boolean;
@@ -40,8 +40,8 @@ export type CalibrationRun = {
  * Expected outputs live in the example's annotations alongside any annotations
  * carried over from a span, and none of them should inform the judge.
  */
-export function createCalibrationContext(
-  example: Pick<CalibrationExample, "input" | "output" | "metadata">
+export function createEvaluatorContext(
+  example: Pick<SampleExample, "input" | "output" | "metadata">
 ) {
   const metadata = isStringKeyedObject(example.metadata)
     ? { ...example.metadata }
@@ -59,7 +59,7 @@ export function createCalibrationContext(
 
 /** Single-output evaluators name annotations after the evaluator; multi-output
  * evaluators prefix the configured output name with the evaluator name. */
-export function getCalibrationAnnotationName({
+export function getEvaluatorAnnotationName({
   evaluatorName,
   outputName,
   outputCount,
@@ -75,7 +75,7 @@ export function getCalibrationAnnotationName({
  * One request per example preserves identity despite flattened preview results.
  * Aborting `signal` stops scheduling; results that land afterwards are dropped.
  */
-export async function runCalibrationSample<T>({
+export async function runEvaluatorSample<T>({
   items,
   concurrency = 3,
   signal,
@@ -85,15 +85,15 @@ export async function runCalibrationSample<T>({
   items: readonly T[];
   concurrency?: number;
   signal?: AbortSignal;
-  execute: (item: T) => Promise<CalibrationPrediction>;
-  onResult: (item: T, result: CalibrationPrediction) => void;
+  execute: (item: T) => Promise<EvaluatorPrediction>;
+  onResult: (item: T, result: EvaluatorPrediction) => void;
 }) {
   let nextIndex = 0;
 
   async function worker() {
     while (!signal?.aborted && nextIndex < items.length) {
       const item = items[nextIndex++];
-      let result: CalibrationPrediction;
+      let result: EvaluatorPrediction;
 
       try {
         result = await execute(item);
@@ -127,7 +127,7 @@ export type SlotExpectations = Partial<
 >;
 
 export function matchesExpectedOutput(
-  prediction: CalibrationPrediction | undefined,
+  prediction: EvaluatorPrediction | undefined,
   expected: ExpectedOutput
 ) {
   return (
@@ -182,7 +182,7 @@ export function getExpectedVerdict({
   expected,
   output,
 }: {
-  prediction: CalibrationPrediction | undefined;
+  prediction: EvaluatorPrediction | undefined;
   expected: ExpectedOutput | undefined;
   output: SlotOutput | undefined;
 }): ExpectedVerdict {

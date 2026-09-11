@@ -33,7 +33,7 @@ export function parseSampleSize(value: string | null): number {
  * holds one scope control (the dataset) rather than a row of look-alike
  * dropdowns. Mirrors the prompt playground's experiment settings button.
  */
-export function CalibrationSettingsButton({
+export function EvaluatorPlaygroundSettingsButton({
   sampleSize,
   onSampleSizeChange,
   hideExpectedAnnotations,

@@ -5,13 +5,13 @@ import { useSearchParams } from "react-router";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 
+import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
 import type {
-  CalibrationExample,
-  CalibrationRun,
+  SampleExample,
+  EvaluatorRun,
   ExpectedOutput,
   SlotExpectations,
-} from "./calibration";
-import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
+} from "./evaluatorResults";
 import {
   EVALUATOR_SLOT_IDS,
   setVisibleEvaluatorSlots,
@@ -33,9 +33,9 @@ type EvaluatorWorkspaceState = {
   sampleKey: string;
   sampleLoaded: boolean;
   visibleSlotIds: SlotId[];
-  examples: CalibrationExample[];
+  examples: SampleExample[];
   slots: Partial<Record<SlotId, SlotSnapshot>>;
-  runs: Partial<Record<SlotId, CalibrationRun>>;
+  runs: Partial<Record<SlotId, EvaluatorRun>>;
   expected: SlotExpectations;
   staleSlots: string[];
   isRunning: boolean;
@@ -43,7 +43,7 @@ type EvaluatorWorkspaceState = {
   runSlots: (slots: SlotId[], exampleIds?: readonly string[]) => Promise<void>;
   stop: () => void;
   saveExpectedOutput: (
-    example: CalibrationExample,
+    example: SampleExample,
     slot: SlotId,
     output: ExpectedOutput | null,
     options?: { immediate?: boolean }
