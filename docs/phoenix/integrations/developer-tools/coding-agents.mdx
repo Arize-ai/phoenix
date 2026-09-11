@@ -42,7 +42,7 @@ Every setup on this page needs the **endpoint** of your Phoenix instance: the ba
 
 | Deployment | Endpoint | MCP server URL the tools derive from it |
 | ---------- | -------- | --------------------------------------- |
-| Local (`phoenix serve`, Docker, notebook) | `http://localhost:6006` | `http://localhost:6006/mcp` |
+| Local (`phoenix serve` or Docker) | `http://localhost:6006` | `http://localhost:6006/mcp` |
 | Self-hosted | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
 
 Enter the endpoint column, never the `/mcp` column — the plugins and the `px` CLI append `/mcp` themselves. A local Phoenix works with the defaults everywhere below; the API key is only required when auth is enabled.
