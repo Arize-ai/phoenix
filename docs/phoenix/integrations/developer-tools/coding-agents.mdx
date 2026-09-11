@@ -25,6 +25,62 @@ Most users should set up all three:
   </Card>
 </CardGroup>
 
+## Claude Code Plugin
+
+The Phoenix repository doubles as a [Claude Code plugin marketplace](https://code.claude.com/docs/en/discover-plugins), so Claude Code users can get the MCP server and the skills below in one install instead of wiring each up by hand. Because the marketplace lives in the repository, Claude Code can update the plugin as new versions land.
+
+Add the marketplace, then install the plugin:
+
+```bash
+/plugin marketplace add Arize-ai/phoenix
+/plugin install arize-phoenix@arize-phoenix
+```
+
+The `owner/repo` shorthand and the full `https://github.com/Arize-ai/phoenix` URL both work. Outside a session, the same steps are `claude plugin marketplace add Arize-ai/phoenix` and `claude plugin install arize-phoenix@arize-phoenix`, which installs to user scope unless you pass `--scope project` or `--scope local`.
+
+### What the Plugin Installs
+
+| Component | What it is |
+| --------- | ---------- |
+| `phoenix` MCP server | Streamable HTTP to `<your-endpoint>/mcp` — the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) built into Phoenix 19.0.0 and later. |
+| `phoenix-cli`, `phoenix-evals`, `phoenix-tracing` skills | The same [skills](#skills) published in this repository, bundled with the plugin. |
+
+### Configure Your Phoenix Endpoint
+
+The plugin has one setting, **Phoenix endpoint** — the base URL of your Phoenix instance with no trailing slash, for example `https://phoenix.example.com`. Claude Code prompts for it when you enable the plugin and appends `/mcp`. Leave the default, `http://localhost:6006`, for a local Phoenix.
+
+To set it at install time instead:
+
+```bash
+claude plugin install arize-phoenix@arize-phoenix --config endpoint=https://phoenix.example.com
+```
+
+To change it later, run `/plugin configure` inside Claude Code, or edit `pluginConfigs` in your user settings (`~/.claude/settings.json`):
+
+```json
+{
+  "pluginConfigs": {
+    "arize-phoenix@arize-phoenix": {
+      "options": { "endpoint": "https://phoenix.example.com" }
+    }
+  }
+}
+```
+
+Then run `/mcp` inside Claude Code, select **phoenix**, and complete the browser login to confirm the server is connected.
+
+<Note>
+This setting configures the MCP server only. The `px` CLI that the `phoenix-cli` skill drives reads `PHOENIX_ENDPOINT` and `PHOENIX_API_KEY` from your shell, so export those as well — see [Shared Environment Configuration](#shared-environment-configuration).
+</Note>
+
+The MCP server signs in with OAuth and has no slot for an API key. For headless use, register the server yourself instead:
+
+```bash
+px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
+```
+
+To work on the plugin, add the marketplace from a checkout with `/plugin marketplace add .` at the repository root. The catalog is [`.claude-plugin/marketplace.json`](https://github.com/Arize-ai/phoenix/blob/main/.claude-plugin/marketplace.json) and the plugin itself lives in [`plugins/claude/arize-phoenix`](https://github.com/Arize-ai/phoenix/tree/main/plugins/claude/arize-phoenix).
+
 ## Shared Environment Configuration
 
 Set environment variables to connect to your Phoenix instance:
@@ -178,7 +234,7 @@ Install Phoenix skills using [skills add](https://github.com/vercel-labs/skills)
 npx skills add Arize-ai/phoenix
 ```
 
-This installs skills into the project's agent directory (for example, `.claude/skills/`, `.cursor/skills/`, or `.github/skills/`).
+This installs skills into the project's agent directory (for example, `.claude/skills/`, `.cursor/skills/`, or `.github/skills/`). In Claude Code, the [Phoenix plugin](#claude-code-plugin) already ships the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so installing it covers those.
 
 ### Available Skills
 
