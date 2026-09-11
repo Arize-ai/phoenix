@@ -82,16 +82,7 @@ Inspect experiments, scores, and linked ATIF traces in Phoenix.
 
 ## Inside each attempt
 
-```mermaid
-flowchart LR
-    A[Harbor coding agent] --> G[Gateway]
-    G --> P[Fresh Phoenix with TRAIL]
-    G --> M[Model inference]
-    P -->|References and operation logs| V[Separate verifier]
-    A -->|Answer and ATIF| V
-    V -->|Reward and measurements| H[Host Harbor plugin]
-    H --> R[Your Phoenix results server]
-```
+[![Harbor runs a coding agent against a fresh Phoenix target through a gateway, then collects artifacts for offline verification and records results in a separate Phoenix service.](assets/architecture.png)](assets/architecture.svg)
 
 [Compose](environment/docker-compose.yaml) defines the services and networks.
 Every attempt gets a new writable Phoenix database, seeded and checked before the
