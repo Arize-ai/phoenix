@@ -526,6 +526,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/evaluators/{evaluator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evaluator
+         * @description Read the shared definition, including its current code or pinned prompt version.
+         */
+        get: operations["getEvaluator"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Evaluator
+         * @description Edit a shared definition; changes apply to every project and dataset binding.
+         *
+         *     Use the versions endpoint to append code. Omitted fields retain their values.
+         */
+        patch: operations["patchEvaluator"];
+        trace?: never;
+    };
+    "/v1/evaluators/{evaluator_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Evaluator Version
+         * @description Append immutable code, returning 200 when it matches the current version.
+         */
+        post: operations["createEvaluatorVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets/{dataset_id}/experiments": {
         parameters: {
             query?: never;
@@ -2472,6 +2518,29 @@ export interface components {
              */
             value: string;
         };
+        /** CodeEvaluatorDefinition */
+        CodeEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            /** Evaluator Id */
+            evaluator_id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            language: components["schemas"]["Language"];
+            /** Sandbox Config Id */
+            sandbox_config_id: string | null;
+            input_mapping: components["schemas"]["InputMapping"] | null;
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousOutputConfig"] | components["schemas"]["FreeformOutputConfig"])[];
+            /** Evaluator Version Id */
+            evaluator_version_id: string | null;
+            /** Source Code */
+            source_code: string | null;
+        };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {
             /**
@@ -2481,6 +2550,22 @@ export interface components {
             type: "code_evaluator";
             /** Evaluatornodeid */
             evaluatorNodeId?: string | null;
+        };
+        /** CodeEvaluatorVersion */
+        CodeEvaluatorVersion: {
+            /** Evaluator Id */
+            evaluator_id: string;
+            /** Evaluator Version Id */
+            evaluator_version_id: string;
+            /** Source Code */
+            source_code: string;
+            /** Was Created */
+            was_created: boolean;
+        };
+        /** CodeEvaluatorVersionRequest */
+        CodeEvaluatorVersionRequest: {
+            /** Source Code */
+            source_code: string;
         };
         /**
          * CompactAgentSessionRequestBody
@@ -2529,6 +2614,23 @@ export interface components {
             type: "CONTINUOUS";
             /** Description */
             description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+        };
+        /** ContinuousOutputConfig */
+        ContinuousOutputConfig: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CONTINUOUS";
             optimization_direction: components["schemas"]["OptimizationDirection"];
             /** Lower Bound */
             lower_bound?: number | null;
@@ -3306,6 +3408,11 @@ export interface components {
             /** Approval */
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
+        /** EvaluatorDefinitionResponseBody */
+        EvaluatorDefinitionResponseBody: {
+            /** Data */
+            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"];
+        };
         /** Experiment */
         Experiment: {
             /**
@@ -3533,6 +3640,25 @@ export interface components {
             /** Upper Bound */
             upper_bound?: number | null;
         };
+        /** FreeformOutputConfig */
+        FreeformOutputConfig: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "FREEFORM";
+            optimization_direction?: components["schemas"]["OptimizationDirection"] | null;
+            /** Thresholds */
+            thresholds?: number[] | null;
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+        };
         /** GetAgentSessionResponseBody */
         GetAgentSessionResponseBody: {
             data: components["schemas"]["AgentSessionData"];
@@ -3728,6 +3854,17 @@ export interface components {
              */
             repetition_numbers: number[];
         };
+        /** InputMapping */
+        InputMapping: {
+            /** Literal Mapping */
+            literal_mapping: {
+                [key: string]: unknown;
+            };
+            /** Path Mapping */
+            path_mapping: {
+                [key: string]: string;
+            };
+        };
         /** InsertedSessionAnnotation */
         InsertedSessionAnnotation: {
             /**
@@ -3806,6 +3943,29 @@ export interface components {
              */
             auth_method: "LDAP";
         };
+        /** LLMEvaluatorDefinition */
+        LLMEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            /** Evaluator Id */
+            evaluator_id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            /** Prompt Version Id */
+            prompt_version_id: string | null;
+            prompt_version: components["schemas"]["PromptVersionData"] | null;
+            /** Output Configs */
+            output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
+        };
+        /**
+         * Language
+         * @enum {string}
+         */
+        Language: "PYTHON" | "TYPESCRIPT";
         /**
          * LegacyAssistantMessageMetadata
          * @description Legacy transcripts predate the ``type`` discriminator, so default it here.
@@ -4369,6 +4529,38 @@ export interface components {
         /** PatchAgentSessionResponseBody */
         PatchAgentSessionResponseBody: {
             data: components["schemas"]["AgentSessionData"];
+        };
+        /** PatchCodeEvaluatorRequest */
+        PatchCodeEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            name?: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Sandbox Config Id */
+            sandbox_config_id?: string | null;
+            input_mapping?: components["schemas"]["InputMapping"];
+            /** Output Configs */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousOutputConfig"] | components["schemas"]["FreeformOutputConfig"])[];
+        };
+        /** PatchLLMEvaluatorRequest */
+        PatchLLMEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            name?: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            prompt_version?: components["schemas"]["PromptVersionData"];
+            /** Prompt Version Id */
+            prompt_version_id?: string;
+            /** Output Configs */
+            output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][];
         };
         /**
          * PatchPromptRequestBody
@@ -5431,6 +5623,10 @@ export interface components {
                     [key: string]: unknown;
                 };
             } | null;
+        };
+        /** ResponseBody[CodeEvaluatorVersion] */
+        ResponseBody_CodeEvaluatorVersion_: {
+            data: components["schemas"]["CodeEvaluatorVersion"];
         };
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
@@ -9260,6 +9456,206 @@ export interface operations {
             };
             /** @description Invalid dataset or version ID */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    patchEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchLLMEvaluatorRequest"] | components["schemas"]["PatchCodeEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createEvaluatorVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeEvaluatorVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Source matches the current version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseBody_CodeEvaluatorVersion_"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseBody_CodeEvaluatorVersion_"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
                 headers: {
                     [name: string]: unknown;
                 };
