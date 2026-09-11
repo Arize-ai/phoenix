@@ -5028,6 +5028,43 @@ async def test_list_dataset_splits_excludes_soft_deleted_examples_from_counts(
         assert member_count == 3
 
 
+async def test_list_dataset_splits_all_examples_soft_deleted(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """When every in-dataset example of a split is soft-deleted, the split is still
+    listed -- membership, not example_count, decides inclusion -- but its count
+    drops to 0 rather than the split being hidden entirely."""
+    dataset_id, example_ids = await _create_dataset_with_examples(
+        httpx_client, "ds_all_soft_deleted", 1
+    )
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "all_gone", "example_ids": example_ids},
+    )
+    assert created.status_code == 201
+
+    async with db() as session:
+        version = models.DatasetVersion(
+            dataset_id=int(GlobalID.from_id(dataset_id).node_id), metadata_={}
+        )
+        session.add(version)
+        await session.flush()
+        session.add(
+            models.DatasetExampleRevision(
+                dataset_example_id=int(GlobalID.from_id(example_ids[0]).node_id),
+                dataset_version_id=version.id,
+                input={},
+                output={},
+                metadata_={},
+                revision_kind="DELETE",
+            )
+        )
+
+    body = (await httpx_client.get(f"/v1/datasets/{dataset_id}/splits")).json()
+    assert {s["name"]: s["example_count"] for s in body["data"]} == {"all_gone": 0}
+
+
 async def test_list_dataset_splits_paginates(
     httpx_client: httpx.AsyncClient,
 ) -> None:
