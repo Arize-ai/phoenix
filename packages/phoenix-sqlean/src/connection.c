@@ -1286,6 +1286,16 @@ static int _progress_handler(void* user_arg)
     } else {
         rc = (int)PyObject_IsTrue(ret);
         Py_DECREF(ret);
+        if (rc == -1) {
+            if (_pysqlite_enable_callback_tracebacks) {
+                PyErr_Print();
+            } else {
+                PyErr_Clear();
+            }
+
+            /* abort query if error occurred */
+            rc = 1;
+        }
     }
 
     PyGILState_Release(gilstate);
@@ -1310,10 +1320,20 @@ static int _busy_handler(void* user_arg, int n)
         rc = 0;
     }
     else {
-        if (PyLong_Check(ret))
+        if (PyLong_Check(ret)) {
             rc = PyLong_AsInt(ret);
-        else
+            if (rc == -1 && PyErr_Occurred()) {
+                if (_pysqlite_enable_callback_tracebacks)
+                    PyErr_Print();
+                else
+                    PyErr_Clear();
+
+                rc = 0;
+            }
+        }
+        else {
             rc = 0;
+        }
 
         Py_DECREF(ret);
     }

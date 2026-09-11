@@ -296,6 +296,23 @@ class CursorRegressionTests(unittest.TestCase):
         # Argument direction: the full value reaches Python.
         self.assertEqual(self.cx.execute("select echo(gen())").fetchone()[0], "a\x00b")
 
+    def test_progress_handler_bad_return(self):
+        # A progress-handler return value that fails truth-testing used
+        # to leave the exception set across PyGILState_Release,
+        # surfacing at an arbitrary later point.
+        class BadBool:
+            def __bool__(self):
+                raise RuntimeError("boom")
+
+        self.cx.set_progress_handler(lambda: BadBool(), 1)
+        try:
+            with self.assertRaises(sqlite.OperationalError):
+                self.cx.execute("select 1")
+        finally:
+            self.cx.set_progress_handler(None, 1)
+        # The handler's exception must not leak into unrelated calls.
+        self.assertEqual(self.cx.execute("select 2").fetchone()[0], 2)
+
 
 def suite():
     loader = unittest.TestLoader()
