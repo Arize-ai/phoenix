@@ -118,6 +118,17 @@ class CodeEvaluatorUIContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CodeEvaluatorVersion(TypedDict):
+    evaluator_id: str
+    evaluator_version_id: str
+    source_code: str
+    was_created: bool
+
+
+class CodeEvaluatorVersionRequest(TypedDict):
+    source_code: str
+
+
 class CreateApiKeyRequestBody(TypedDict):
     data: ApiKeyData
 
@@ -342,6 +353,11 @@ class GetExperimentResponseBody(TypedDict):
 class GraphQLContext(TypedDict):
     type: Literal["graphql"]
     mutationsEnabled: bool
+
+
+class InputMapping(TypedDict):
+    literal_mapping: Mapping[str, Any]
+    path_mapping: Mapping[str, str]
 
 
 class InsertedSessionAnnotation(TypedDict):
@@ -784,6 +800,10 @@ class ReasoningUIPart(TypedDict):
     id: NotRequired[str]
     state: NotRequired[Literal["streaming", "done"]]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class ResponseBodyCodeEvaluatorVersion(TypedDict):
+    data: CodeEvaluatorVersion
 
 
 class SecretKeyValue(TypedDict):
@@ -1471,6 +1491,15 @@ class ContinuousAnnotationConfig(ContinuousAnnotationConfigData):
     id: str
 
 
+class ContinuousOutputConfig(TypedDict):
+    type: Literal["CONTINUOUS"]
+    name: str
+    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
+    description: NotRequired[str]
+    lower_bound: NotRequired[float]
+    upper_bound: NotRequired[float]
+
+
 class CreateAgentSessionResponseBody(TypedDict):
     data: CreatedAgentSession
 
@@ -1635,6 +1664,16 @@ class FreeformAnnotationConfig(FreeformAnnotationConfigData):
     id: str
 
 
+class FreeformOutputConfig(TypedDict):
+    type: Literal["FREEFORM"]
+    name: str
+    description: NotRequired[str]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
+    thresholds: NotRequired[Sequence[float]]
+    lower_bound: NotRequired[float]
+    upper_bound: NotRequired[float]
+
+
 class GetAllUserApiKeysResponseBody(TypedDict):
     data: Sequence[UserApiKey]
     next_cursor: Optional[str]
@@ -1722,6 +1761,19 @@ class ListDatasetExamplesData(TypedDict):
 
 class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
+
+
+class PatchCodeEvaluatorRequest(TypedDict):
+    type: Literal["code"]
+    name: NotRequired[str]
+    description: NotRequired[str]
+    sandbox_config_id: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    output_configs: NotRequired[
+        Sequence[
+            Union[CategoricalAnnotationConfigData, ContinuousOutputConfig, FreeformOutputConfig]
+        ]
+    ]
 
 
 class PatchPromptResponseBody(TypedDict):
@@ -1993,6 +2045,21 @@ class ChatCompletion(TypedDict):
     choices: Sequence[ChatCompletionChoice]
     usage: ChatCompletionUsage
     object: NotRequired[Literal["chat.completion"]]
+
+
+class CodeEvaluatorDefinition(TypedDict):
+    type: Literal["code"]
+    evaluator_id: str
+    name: str
+    description: Optional[str]
+    language: Literal["PYTHON", "TYPESCRIPT"]
+    sandbox_config_id: Optional[str]
+    input_mapping: Optional[InputMapping]
+    output_configs: Sequence[
+        Union[CategoricalAnnotationConfigData, ContinuousOutputConfig, FreeformOutputConfig]
+    ]
+    evaluator_version_id: Optional[str]
+    source_code: Optional[str]
 
 
 class CompactAgentSessionRequestBody(TypedDict):
@@ -2346,6 +2413,29 @@ class GetPromptResponseBody(TypedDict):
 class GetPromptVersionsResponseBody(TypedDict):
     data: Sequence[PromptVersion]
     next_cursor: Optional[str]
+
+
+class LLMEvaluatorDefinition(TypedDict):
+    type: Literal["llm"]
+    evaluator_id: str
+    name: str
+    description: Optional[str]
+    prompt_version_id: Optional[str]
+    prompt_version: Optional[PromptVersionData]
+    output_configs: Sequence[CategoricalAnnotationConfigData]
+
+
+class PatchLLMEvaluatorRequest(TypedDict):
+    type: Literal["llm"]
+    name: NotRequired[str]
+    description: NotRequired[str]
+    prompt_version: NotRequired[PromptVersionData]
+    prompt_version_id: NotRequired[str]
+    output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
+
+
+class EvaluatorDefinitionResponseBody(TypedDict):
+    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition]
 
 
 class OtlpAnyValue(TypedDict):

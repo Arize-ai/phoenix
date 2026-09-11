@@ -986,3 +986,78 @@ async def _update_llm_definition(
     if shared_evaluator_changed:
         evaluator.user_id = user_id
         evaluator.updated_at = datetime.now(timezone.utc)
+
+
+@dataclass(kw_only=True)
+class LLMEvaluatorPatch:
+    name: Optional[Identifier] = UNSET
+    description: Optional[str] = UNSET
+    prompt_version: Optional[models.PromptVersion] = UNSET
+    prompt_version_id: Optional[GlobalID] = UNSET
+    output_configs: Optional[list[OutputConfigType]] = UNSET
+
+
+async def patch_llm_evaluator(
+    context: EvaluatorServiceContext,
+    evaluator_id: GlobalID,
+    patch: LLMEvaluatorPatch,
+) -> models.LLMEvaluator:
+    """Update a shared LLM definition and its pinned prompt version atomically."""
+    row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
+    try:
+        async with context.db() as session:
+            row = await session.get(models.LLMEvaluator, row_id)
+            if row is None:
+                raise NotFound(f"LLM evaluator not found: {evaluator_id}")
+            if (
+                patch.prompt_version is not UNSET
+                and patch.prompt_version is not None
+                and (custom_provider_id := patch.prompt_version.custom_provider_id) is not None
+            ):
+                provider = await session.get(
+                    models.GenerativeModelCustomProvider,
+                    custom_provider_id,
+                    with_for_update={"read": True},
+                )
+                if provider is None:
+                    provider_id = GlobalID("GenerativeModelCustomProvider", str(custom_provider_id))
+                    raise NotFound(f"Custom provider not found: {provider_id}")
+            if patch.name is not UNSET:
+                row.name = IdentifierModel.model_validate(patch.name)
+            prompt_version = patch.prompt_version
+            if prompt_version is UNSET:
+                if patch.prompt_version_id is not UNSET and patch.prompt_version_id is not None:
+                    version_id = from_global_id_with_expected_type(
+                        patch.prompt_version_id, "PromptVersion"
+                    )
+                    prompt_version = await session.get(models.PromptVersion, version_id)
+                else:
+                    prompt_version = await session.scalar(
+                        select(models.PromptVersion)
+                        .join(
+                            models.PromptVersionTag,
+                            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
+                        )
+                        .where(models.PromptVersionTag.id == row.prompt_version_tag_id)
+                    )
+            if prompt_version is None:
+                raise NotFound("Prompt version not found")
+            configs = row.output_configs if patch.output_configs is UNSET else patch.output_configs
+            output_configs = LLMEvaluatorOutputConfigs.model_validate({"configs": configs}).configs
+            if patch.prompt_version is not UNSET:
+                prompt_version.user_id = context.user_id
+            await _update_llm_definition(
+                session,
+                row,
+                prompt_version=prompt_version,
+                output_configs=output_configs,
+                description=patch.description,
+                prompt_version_id=patch.prompt_version_id,
+                name=row.name,
+                user_id=context.user_id,
+                shared_evaluator_changed=True,
+            )
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+        raise Conflict("An evaluator with this name already exists")
+    return row

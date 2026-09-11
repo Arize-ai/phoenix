@@ -3457,6 +3457,278 @@
         }
       }
     },
+    "/v1/evaluators/{evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Evaluator",
+        "description": "Read the shared definition, including its current code or pinned prompt version.",
+        "operationId": "getEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Evaluator",
+        "description": "Edit a shared definition; changes apply to every project and dataset binding.\n\nUse the versions endpoint to append code. Omitted fields retain their values.",
+        "operationId": "patchEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PatchLLMEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "llm": "#/components/schemas/PatchLLMEvaluatorRequest",
+                    "code": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      }
+    },
+    "/v1/evaluators/{evaluator_id}/versions": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Evaluator Version",
+        "description": "Append immutable code, returning 200 when it matches the current version.",
+        "operationId": "createEvaluatorVersion",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeEvaluatorVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_CodeEvaluatorVersion_"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "200": {
+            "description": "Source matches the current version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_CodeEvaluatorVersion_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/datasets/{dataset_id}/experiments": {
       "post": {
         "tags": [
@@ -11353,6 +11625,118 @@
         "title": "ChatRequestCredential",
         "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
       },
+      "CodeEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousOutputConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformOutputConfig"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousOutputConfig",
+                  "FREEFORM": "#/components/schemas/FreeformOutputConfig"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          },
+          "evaluator_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluator Version Id"
+          },
+          "source_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "evaluator_id",
+          "name",
+          "description",
+          "language",
+          "sandbox_config_id",
+          "input_mapping",
+          "output_configs",
+          "evaluator_version_id",
+          "source_code"
+        ],
+        "title": "CodeEvaluatorDefinition"
+      },
       "CodeEvaluatorUIContext": {
         "properties": {
           "type": {
@@ -11378,6 +11762,48 @@
           "type"
         ],
         "title": "CodeEvaluatorUIContext"
+      },
+      "CodeEvaluatorVersion": {
+        "properties": {
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "evaluator_version_id": {
+            "type": "string",
+            "title": "Evaluator Version Id"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "was_created": {
+            "type": "boolean",
+            "title": "Was Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evaluator_id",
+          "evaluator_version_id",
+          "source_code",
+          "was_created"
+        ],
+        "title": "CodeEvaluatorVersion"
+      },
+      "CodeEvaluatorVersionRequest": {
+        "properties": {
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_code"
+        ],
+        "title": "CodeEvaluatorVersionRequest"
       },
       "CompactAgentSessionRequestBody": {
         "properties": {
@@ -11522,6 +11948,63 @@
           "optimization_direction"
         ],
         "title": "ContinuousAnnotationConfigData"
+      },
+      "ContinuousOutputConfig": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "type": {
+            "type": "string",
+            "const": "CONTINUOUS",
+            "title": "Type"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction"
+        ],
+        "title": "ContinuousOutputConfig"
       },
       "CreateAgentSessionRequestBody": {
         "properties": {
@@ -13409,6 +13892,33 @@
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
       },
+      "EvaluatorDefinitionResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CodeEvaluatorDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/LLMEvaluatorDefinition"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "code": "#/components/schemas/CodeEvaluatorDefinition",
+                "llm": "#/components/schemas/LLMEvaluatorDefinition"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "EvaluatorDefinitionResponseBody"
+      },
       "Experiment": {
         "properties": {
           "id": {
@@ -13872,6 +14382,83 @@
           "type"
         ],
         "title": "FreeformAnnotationConfigData"
+      },
+      "FreeformOutputConfig": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "type": {
+            "type": "string",
+            "const": "FREEFORM",
+            "title": "Type"
+          },
+          "optimization_direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptimizationDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "thresholds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thresholds"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "FreeformOutputConfig"
       },
       "GetAgentSessionResponseBody": {
         "properties": {
@@ -14592,6 +15179,29 @@
         "title": "IncompleteExperimentRun",
         "description": "Information about incomplete runs for a dataset example"
       },
+      "InputMapping": {
+        "properties": {
+          "literal_mapping": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Literal Mapping"
+          },
+          "path_mapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Path Mapping"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "literal_mapping",
+          "path_mapping"
+        ],
+        "title": "InputMapping"
+      },
       "InsertedSessionAnnotation": {
         "properties": {
           "id": {
@@ -14734,6 +15344,80 @@
           "auth_method"
         ],
         "title": "LDAPUserData"
+      },
+      "LLMEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "prompt_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version Id"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersionData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "evaluator_id",
+          "name",
+          "description",
+          "prompt_version_id",
+          "prompt_version",
+          "output_configs"
+        ],
+        "title": "LLMEvaluatorDefinition"
+      },
+      "Language": {
+        "type": "string",
+        "enum": [
+          "PYTHON",
+          "TYPESCRIPT"
+        ],
+        "title": "Language"
       },
       "LegacyAssistantMessageMetadata": {
         "properties": {
@@ -16157,6 +16841,118 @@
           "data"
         ],
         "title": "PatchAgentSessionResponseBody"
+      },
+      "PatchCodeEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousOutputConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformOutputConfig"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousOutputConfig",
+                  "FREEFORM": "#/components/schemas/FreeformOutputConfig"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PatchCodeEvaluatorRequest"
+      },
+      "PatchLLMEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "prompt_version": {
+            "$ref": "#/components/schemas/PromptVersionData"
+          },
+          "prompt_version_id": {
+            "type": "string",
+            "title": "Prompt Version Id"
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PatchLLMEvaluatorRequest"
       },
       "PatchPromptRequestBody": {
         "properties": {
@@ -18927,6 +19723,18 @@
         ],
         "title": "ReasoningUIPart",
         "description": "A reasoning part of a message."
+      },
+      "ResponseBody_CodeEvaluatorVersion_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CodeEvaluatorVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseBody[CodeEvaluatorVersion]"
       },
       "ResponseBody_UpsertOrDeleteSecretsResult_": {
         "properties": {
