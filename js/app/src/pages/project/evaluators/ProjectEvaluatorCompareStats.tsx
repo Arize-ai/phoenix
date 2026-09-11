@@ -1,11 +1,12 @@
 import { css } from "@emotion/react";
 import { graphql, useFragment } from "react-relay";
 
-import { ColorSwatch, Text } from "@phoenix/components";
+import { ColorSwatch, Flex, Text } from "@phoenix/components";
 import { ChartPanel, ChartPanelStrip } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareStats_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_comparison.graphql";
 import {
   EVALUATOR_COMPARE_COLORS,
+  getComparedOutputName,
   getKappaGloss,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 import {
@@ -87,24 +88,37 @@ function StatValueWithDetail({
 
 function SideBySideRow({
   name,
+  annotationName,
   color,
   flaggedCount,
   flagRate,
   meanScore,
 }: {
   name: string;
+  annotationName: string;
   color: string;
   flaggedCount: number | null;
   flagRate: number | null;
   meanScore: number | null;
 }) {
+  const outputName = getComparedOutputName({
+    evaluatorName: name,
+    annotationName,
+  });
   return (
     <>
       <div css={evaluatorNameCSS}>
         <ColorSwatch color={color} size="M" />
-        <Text size="S" title={name}>
-          {name}
-        </Text>
+        <Flex direction="column" minWidth={0}>
+          <Text size="S" title={name}>
+            {name}
+          </Text>
+          {outputName ? (
+            <Text size="XS" color="text-700" title={annotationName}>
+              output: {outputName}
+            </Text>
+          ) : null}
+        </Flex>
       </div>
       <Text size="S" css={sideMetricCSS}>
         {formatNullableInt(flaggedCount)}
@@ -139,11 +153,13 @@ export function ProjectEvaluatorCompareStats({
           totalInRange
         }
         sideA {
+          annotationName
           flaggedCount
           flagRate
           meanScore
         }
         sideB {
+          annotationName
           flaggedCount
           flagRate
           meanScore
@@ -283,6 +299,7 @@ export function ProjectEvaluatorCompareStats({
             </Text>
             <SideBySideRow
               name={evaluatorAName}
+              annotationName={comparison.sideA.annotationName}
               color={EVALUATOR_COMPARE_COLORS.a}
               flaggedCount={comparison.sideA.flaggedCount}
               flagRate={comparison.sideA.flagRate}
@@ -290,6 +307,7 @@ export function ProjectEvaluatorCompareStats({
             />
             <SideBySideRow
               name={evaluatorBName}
+              annotationName={comparison.sideB.annotationName}
               color={EVALUATOR_COMPARE_COLORS.b}
               flaggedCount={comparison.sideB.flaggedCount}
               flagRate={comparison.sideB.flagRate}

@@ -42,8 +42,31 @@ export function getKappaGloss(kappa: number | null): string | null {
   return "almost perfect";
 }
 
+/**
+ * Returns the compared output's concise name when an evaluator has multiple
+ * outputs. Single-output annotations are stored under the evaluator name and
+ * need no extra label.
+ */
+export function getComparedOutputName({
+  evaluatorName,
+  annotationName,
+}: {
+  evaluatorName: string;
+  annotationName: string;
+}): string | null {
+  if (annotationName === evaluatorName) {
+    return null;
+  }
+  const multiOutputPrefix = `${evaluatorName}.`;
+  return annotationName.startsWith(multiOutputPrefix)
+    ? annotationName.slice(multiOutputPrefix.length)
+    : annotationName;
+}
+
 const formatThreshold = (threshold: number) => `${threshold}`;
 
+// Flagged is the non-positive side of getPositiveOptimization: MAXIMIZE uses
+// > for positive, so scores at or below the threshold are flagged (and vice versa).
 const getFlaggedThresholdOperator = (
   optimizationDirection: EvaluatorOptimizationDirection | null
 ) => (optimizationDirection === "MAXIMIZE" ? "≤" : "≥");

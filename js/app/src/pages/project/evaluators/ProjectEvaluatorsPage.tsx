@@ -28,6 +28,8 @@ export function ProjectEvaluatorsPage() {
   // shared or reloaded link restores the search; the route loader preloads
   // the first page with the same param.
   const [filter, setFilter] = useState(urlFilter);
+  // Page-owned so selected rows survive table filtering and refetches while
+  // the floating selection toolbar is active.
   const [selection, setSelection] = useState<ProjectEvaluatorSelection>({});
   const handleFilterChange = useCallback(
     (nextFilter: string) => {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f4b77535ba8d462213315d03f86e6522>>
+ * @generated SignedSource<<d5188c9285156ddc4a29c8a30442dfb3>>
  * @lightSyntaxTransform
  */
 
@@ -19,11 +19,13 @@ export type ProjectEvaluatorCompareStats_comparison$data = {
   };
   readonly evaluationTarget: EvaluationTarget;
   readonly sideA: {
+    readonly annotationName: string;
     readonly flagRate: number | null;
     readonly flaggedCount: number | null;
     readonly meanScore: number | null;
   };
   readonly sideB: {
+    readonly annotationName: string;
     readonly flagRate: number | null;
     readonly flaggedCount: number | null;
     readonly meanScore: number | null;
@@ -43,6 +45,13 @@ export type ProjectEvaluatorCompareStats_comparison$key = {
 
 const node: ReaderFragment = (function(){
 var v0 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "annotationName",
+    "storageKey": null
+  },
   {
     "alias": null,
     "args": null,
@@ -182,6 +191,6 @@ return {
 };
 })();
 
-(node as any).hash = "a3dc9ac9af4e63472dfc18b0b4db8804";
+(node as any).hash = "a973f5fc5ff48b774e75a26eafdcd602";
 
 export default node;
