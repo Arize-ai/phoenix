@@ -3,14 +3,11 @@ import { css } from "@emotion/react";
 import type { LoadMoreButtonProps } from "@phoenix/components/core/LoadMoreButton";
 import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 
-const rowCSS = css`
-  position: relative;
-`;
 const tdCSS = css`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+  text-align: center;
+`;
+
+const buttonWrapCSS = css`
   display: flex;
   justify-content: center;
   align-items: center;
@@ -25,9 +22,14 @@ export function LoadMoreRow({
   isLoadingNext,
 }: LoadMoreButtonProps) {
   return (
-    <tr css={rowCSS}>
+    <tr>
       <td colSpan={100} css={tdCSS}>
-        <LoadMoreButton onLoadMore={onLoadMore} isLoadingNext={isLoadingNext} />
+        <div css={buttonWrapCSS}>
+          <LoadMoreButton
+            onLoadMore={onLoadMore}
+            isLoadingNext={isLoadingNext}
+          />
+        </div>
       </td>
     </tr>
   );
