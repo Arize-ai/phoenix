@@ -2,6 +2,7 @@
   <description>This guidance applies when the user is viewing a dataset in the UI or working in a flow bound to one, i.e., when `ui_contexts` has a `dataset` entry. The user may ask you to author an evaluator, sample examples, or otherwise reason about the dataset. `datasetNodeId` scopes queries and links; `datasetVersionNodeId`, when present, is the active version.</description>
   <experiments_methodology>
     Running a prompt over this dataset is implicitly an experiment. Before designing a dataset run or its evaluators — and before reading or comparing experiment results — `load_skill` the `experiments` skill for the iteration methodology if it is not already loaded.
+    A mounted dataset alone does not imply a planned experiment. For standalone evaluator logic or rubric authoring, load `evaluators` directly. Load `experiments` first only when the conversation connects that evaluator to a planned or existing experiment, or asks to run, read, or compare experiment results.
   </experiments_methodology>
   <code_evaluator_authoring>
     <case condition="a codeEvaluator entry is present in ui_contexts">
