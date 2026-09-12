@@ -5123,6 +5123,69 @@
       }
     },
     "/v1/traces/{trace_identifier}": {
+      "get": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Get a single trace by identifier",
+        "description": "Fetch a single trace by its identifier, without requiring a project. The identifier can be either:\n1. A Relay node ID (base64-encoded GlobalID)\n2. An OpenTelemetry trace_id (hex string)\n\nReturns the same trace shape as the project traces list endpoint, including cumulative token counts and the owning `project_id`. Span details are not included; use `GET /projects/{project_identifier}/spans?trace_id=...` to retrieve spans.",
+        "operationId": "getTrace",
+        "parameters": [
+          {
+            "name": "trace_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id",
+              "title": "Trace Identifier"
+            },
+            "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTraceResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "traces"
@@ -14369,6 +14432,18 @@
           "next_cursor"
         ],
         "title": "GetSessionsResponseBody"
+      },
+      "GetTraceResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TraceData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetTraceResponseBody"
       },
       "GetTracesResponseBody": {
         "properties": {
