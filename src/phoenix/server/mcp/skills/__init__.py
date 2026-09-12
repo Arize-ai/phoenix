@@ -203,7 +203,13 @@ def register_skill_tools(mcp: FastMCP, skills: Sequence[Skill]) -> None:
     async def load_skill(
         skill_name: Annotated[str, Field(description="Exact name of the skill to load.")],
     ) -> str:
-        return _skill(skill_name).text
+        skill = _skill(skill_name)
+        references = ", ".join(reference.name for reference in skill.references) or "none"
+        return (
+            f"{skill.text}\n\nReferences for {skill.name}: {references}.\n"
+            "Only request references listed for this skill. References from another skill "
+            "require that skill's name, even when the filename matches this skill's topic."
+        )
 
     async def load_skill_reference(
         skill_name: Annotated[str, Field(description="Skill the reference belongs to.")],
