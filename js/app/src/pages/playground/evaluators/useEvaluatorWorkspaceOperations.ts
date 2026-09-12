@@ -6,29 +6,34 @@ import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAge
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 
 import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
+import type { EvaluatorPlaygroundSource } from "./evaluatorPlaygroundSource";
+import {
+  clearSlotBindingParams,
+  getSlotBindingParam,
+  writeEvaluatorPlaygroundSource,
+} from "./evaluatorPlaygroundSource";
 import type {
   SampleExample,
   EvaluatorRun,
   ExpectedOutput,
   SlotExpectations,
 } from "./evaluatorResults";
-import {
-  EVALUATOR_SLOT_IDS,
-  setVisibleEvaluatorSlots,
-} from "./evaluatorSlotTypes";
+import { setVisibleEvaluatorSlots } from "./evaluatorSlotTypes";
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 import { createLatestValue } from "./latestValue";
 import { useEvaluatorPlaygroundAgent } from "./useEvaluatorPlaygroundAgent";
-import type { EvaluatorWorkspaceRead } from "./useEvaluatorPlaygroundAgent";
+import type {
+  ConfigureEvaluatorWorkspace,
+  EvaluatorWorkspaceRead,
+  EvaluatorWorkspaceReadSource,
+} from "./useEvaluatorPlaygroundAgent";
 
 /** How long an operation waits for the page to reflect a change it made. */
 const SETTLE_TIMEOUT_MS = 15_000;
 
 /** The page state the PXI operations act on, as of the latest render. */
 type EvaluatorWorkspaceState = {
-  datasetId: string | null;
-  versionId: string | null;
-  splitIds: string[];
+  source: EvaluatorPlaygroundSource | null;
   sampleSize: number;
   sampleKey: string;
   sampleLoaded: boolean;
@@ -79,14 +84,22 @@ export function useEvaluatorWorkspaceOperations(
       isRunning: state.runs[slot]?.isRunning ?? false,
     })),
   });
+  // The source is advertised the way its own page advertises it, so the
+  // dataset or project tools mount alongside the playground ones.
   useAdvertiseAgentContext(
-    state.datasetId
+    state.source?.kind === "dataset"
       ? {
           type: "dataset",
-          datasetNodeId: state.datasetId,
-          datasetVersionNodeId: state.versionId,
+          datasetNodeId: state.source.datasetId,
+          datasetVersionNodeId: state.source.versionId,
         }
-      : null
+      : state.source?.kind === "project"
+        ? {
+            type: "project",
+            projectNodeId: state.source.projectId,
+            spanFilter: state.source.filterCondition,
+          }
+        : null
   );
 
   const isBusy = state.isRunning || state.isSavingExpectedOutputs;
@@ -103,9 +116,7 @@ export function useEvaluatorWorkspaceOperations(
 
     return {
       mode: "evaluators",
-      datasetId: current.datasetId,
-      splitIds: current.splitIds,
-      datasetVersionId: current.versionId,
+      source: toReadSource(current.source),
       sampleSize: current.sampleSize,
       sampleLoaded: current.sampleLoaded,
       totalExamples: current.examples.length,
@@ -126,6 +137,7 @@ export function useEvaluatorWorkspaceOperations(
         .map((example) => ({
           id: example.id,
           revisionId: example.revisionId,
+          ...(example.name != null ? { name: example.name } : {}),
           input: example.input,
           output: example.output,
           expectedOutputs: Object.fromEntries(
@@ -174,29 +186,14 @@ export function useEvaluatorWorkspaceOperations(
           error:
             "A removed slot has unsaved changes. Save it or explicitly set discardChanges.",
         };
+      const nextSource = getConfiguredSource(state.source, input);
+
+      if (!nextSource.ok) return nextSource;
       allowNavigation.current = input.discardChanges;
       flushSync(() =>
         setSearchParams((previous) => {
           const next = new URLSearchParams(previous);
-
-          if (input.datasetId !== undefined) {
-            next.delete("datasetId");
-            next.delete("datasetVersionId");
-            next.delete("splitId");
-
-            if (input.datasetId) next.set("datasetId", input.datasetId);
-
-            if (input.datasetId !== state.datasetId) {
-              EVALUATOR_SLOT_IDS.forEach((slot) =>
-                next.delete(`datasetEvaluator${slot}`)
-              );
-            }
-          }
-
-          if (input.splitIds) {
-            next.delete("splitId");
-            input.splitIds.forEach((id) => next.append("splitId", id));
-          }
+          writeEvaluatorPlaygroundSource(next, nextSource.source, state.source);
 
           if (input.sampleSize != null)
             next.set("sampleSize", String(input.sampleSize));
@@ -212,7 +209,7 @@ export function useEvaluatorWorkspaceOperations(
       // A changed sample loads through Suspense; report the workspace once the
       // render that carries it has committed.
       const settled = await latest.waitFor(
-        (current) => !current.datasetId || current.sampleLoaded,
+        (current) => !current.source || current.sampleLoaded,
         SETTLE_TIMEOUT_MS
       );
 
@@ -251,14 +248,16 @@ export function useEvaluatorWorkspaceOperations(
 
       const key =
         input.source.type === "datasetEvaluator"
-          ? `datasetEvaluator${input.slot}`
-          : `evaluator${input.slot}`;
+          ? getSlotBindingParam("dataset", input.slot)
+          : input.source.type === "projectEvaluator"
+            ? getSlotBindingParam("project", input.slot)
+            : `evaluator${input.slot}`;
 
       flushSync(() =>
         setSearchParams((previous) => {
           const next = new URLSearchParams(previous);
           next.delete(`evaluator${input.slot}`);
-          next.delete(`datasetEvaluator${input.slot}`);
+          clearSlotBindingParams(next, input.slot);
           next.set(key, source);
 
           return next;
@@ -296,7 +295,8 @@ export function useEvaluatorWorkspaceOperations(
       if (!current.examples.length)
         return {
           ok: false,
-          error: "Select a dataset and wait for a nonempty sample to load.",
+          error:
+            "Select a dataset or project and wait for a nonempty sample to load.",
         };
 
       if (
@@ -307,7 +307,7 @@ export function useEvaluatorWorkspaceOperations(
         return {
           ok: false,
           error:
-            "Every exampleId must be in the loaded sample. Read the workspace for the current example ids.",
+            "Every exampleId must be in the loaded sample. Read the workspace for the current row ids.",
         };
 
       for (const slot of targets) {
@@ -392,7 +392,107 @@ export function useEvaluatorWorkspaceOperations(
     },
   });
 
-  return { allowNavigation, registerAgentSlot: slotHosts.register };
+  return {
+    allowNavigation,
+    registerAgentSlot: slotHosts.register,
+    getSlotHost: slotHosts.get,
+  };
+}
+
+function toReadSource(
+  source: EvaluatorPlaygroundSource | null
+): EvaluatorWorkspaceReadSource | null {
+  if (!source) return null;
+
+  return source.kind === "dataset"
+    ? {
+        kind: "dataset",
+        datasetId: source.datasetId,
+        splitIds: source.splitIds,
+        datasetVersionId: source.versionId,
+      }
+    : {
+        kind: "project",
+        projectId: source.projectId,
+        filterCondition: source.filterCondition,
+        timeWindow: source.window,
+        evaluationTarget: "SPAN",
+      };
+}
+
+/**
+ * The source `configure` asks for. Naming a project replaces a dataset and
+ * vice versa; the other fields refine the source of their own kind and are
+ * rejected against the other kind rather than silently dropped.
+ */
+function getConfiguredSource(
+  current: EvaluatorPlaygroundSource | null,
+  input: ConfigureEvaluatorWorkspace
+):
+  | { ok: true; source: EvaluatorPlaygroundSource | null }
+  | { ok: false; error: string } {
+  let source = getConfiguredRoot(current, input);
+
+  if (input.splitIds) {
+    if (source?.kind !== "dataset")
+      return { ok: false, error: "splitIds apply to a dataset source." };
+    source = { ...source, splitIds: input.splitIds };
+  }
+
+  if (input.filterCondition !== undefined || input.timeWindow) {
+    if (source?.kind !== "project")
+      return {
+        ok: false,
+        error: "filterCondition and timeWindow apply to a project source.",
+      };
+    source = {
+      ...source,
+      filterCondition: input.filterCondition ?? source.filterCondition,
+      window: input.timeWindow ?? source.window,
+    };
+  }
+
+  return { ok: true, source };
+}
+
+/** The dataset or project `configure` names, keeping the same record's settings. */
+function getConfiguredRoot(
+  current: EvaluatorPlaygroundSource | null,
+  input: ConfigureEvaluatorWorkspace
+): EvaluatorPlaygroundSource | null {
+  if (input.projectId !== undefined) {
+    if (!input.projectId) return null;
+
+    const same =
+      current?.kind === "project" && current.projectId === input.projectId
+        ? current
+        : null;
+
+    return {
+      kind: "project",
+      projectId: input.projectId,
+      filterCondition: same?.filterCondition ?? "",
+      window: same?.window ?? "7d",
+    };
+  }
+
+  if (input.datasetId !== undefined) {
+    if (!input.datasetId) return null;
+
+    const same =
+      current?.kind === "dataset" && current.datasetId === input.datasetId
+        ? current
+        : null;
+
+    return {
+      kind: "dataset",
+      datasetId: input.datasetId,
+      splitIds: same?.splitIds ?? [],
+      versionId: null,
+    };
+  }
+
+  return current;
 }
 
 /**

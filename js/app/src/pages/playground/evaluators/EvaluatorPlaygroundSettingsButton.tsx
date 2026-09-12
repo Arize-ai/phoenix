@@ -6,9 +6,6 @@ import {
   Flex,
   Icon,
   Icons,
-  Input,
-  Label,
-  NumberField,
   Popover,
   PopoverArrow,
   Text,
@@ -29,19 +26,15 @@ export function parseSampleSize(value: string | null): number {
 }
 
 /**
- * Run settings for the results panel, kept behind a gear so the panel header
- * holds one scope control (the dataset) rather than a row of look-alike
- * dropdowns. Mirrors the prompt playground's experiment settings button.
+ * Display settings for the results panel, behind a gear like the prompt
+ * playground's experiment settings. The sample's scope controls live in the
+ * Results strip itself.
  */
 export function EvaluatorPlaygroundSettingsButton({
-  sampleSize,
-  onSampleSizeChange,
   hideExpectedAnnotations,
   onHideExpectedAnnotationsChange,
   isDisabled,
 }: {
-  sampleSize: number;
-  onSampleSizeChange: (sampleSize: number) => void;
   /** Leave the `annotations` key out of the metadata cells. */
   hideExpectedAnnotations: boolean;
   onHideExpectedAnnotationsChange: (hide: boolean) => void;
@@ -51,7 +44,7 @@ export function EvaluatorPlaygroundSettingsButton({
     <DialogTrigger>
       <Button
         size="S"
-        aria-label="Run settings"
+        aria-label="Results settings"
         leadingVisual={<Icon svg={<Icons.Options />} />}
         isDisabled={isDisabled}
       />
@@ -59,38 +52,18 @@ export function EvaluatorPlaygroundSettingsButton({
         <PopoverArrow />
         <Dialog>
           <View padding="size-200">
-            <Flex direction="column" gap="size-200">
-              <NumberField
-                size="S"
-                value={sampleSize}
-                minValue={1}
-                maxValue={MAX_SAMPLE_SIZE}
-                step={1}
-                onChange={(value) => {
-                  if (Number.isInteger(value) && value >= 1)
-                    onSampleSizeChange(Math.min(value, MAX_SAMPLE_SIZE));
-                }}
+            <Flex direction="column" gap="size-50">
+              <Checkbox
+                isSelected={hideExpectedAnnotations}
+                onChange={onHideExpectedAnnotationsChange}
               >
-                <Label>Sample size</Label>
-                <Input />
-                <Text slot="description">
-                  Evaluators run over the first examples of the selected dataset
-                  and splits. Every run re-evaluates the whole sample.
-                </Text>
-              </NumberField>
-              <Flex direction="column" gap="size-50">
-                <Checkbox
-                  isSelected={hideExpectedAnnotations}
-                  onChange={onHideExpectedAnnotationsChange}
-                >
-                  Hide expected annotations in metadata cells
-                </Checkbox>
-                <Text size="XS" color="text-500">
-                  Expected outputs are stored under the example&apos;s
-                  &quot;annotations&quot; key and already show in each
-                  evaluator&apos;s expected band.
-                </Text>
-              </Flex>
+                Hide expected annotations in metadata cells
+              </Checkbox>
+              <Text size="XS" color="text-500">
+                Expected outputs are stored under the row&apos;s
+                &quot;annotations&quot; key and already show in each
+                evaluator&apos;s expected band.
+              </Text>
             </Flex>
           </View>
         </Dialog>

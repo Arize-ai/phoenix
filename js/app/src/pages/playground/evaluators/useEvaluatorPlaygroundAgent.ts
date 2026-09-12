@@ -38,11 +38,25 @@ export type SetExpectedOutputInput = z.infer<
  * page of examples at a time. Predictions and expected outputs are keyed by
  * slot so an agent can compare evaluators without knowing the table layout.
  */
+export type EvaluatorWorkspaceReadSource =
+  | {
+      kind: "dataset";
+      datasetId: string;
+      splitIds: string[];
+      datasetVersionId: string | null;
+    }
+  | {
+      kind: "project";
+      projectId: string;
+      filterCondition: string;
+      timeWindow: string;
+      evaluationTarget: "SPAN";
+    };
+
 export type EvaluatorWorkspaceRead = {
   mode: "evaluators";
-  datasetId: string | null;
-  splitIds: string[];
-  datasetVersionId: string | null;
+  /** Where the rows come from; null until a dataset or project is selected. */
+  source: EvaluatorWorkspaceReadSource | null;
   sampleSize: number;
   sampleLoaded: boolean;
   totalExamples: number;
@@ -58,9 +72,11 @@ export type EvaluatorWorkspaceRead = {
     isRunning: boolean;
     completed: number;
   }[];
+  /** Dataset examples or spans; a span's id and revisionId are the span id. */
   examples: {
     id: string;
     revisionId: string;
+    name?: string;
     input: unknown;
     output: unknown;
     expectedOutputs: Partial<Record<SlotId, ExpectedOutput | null>>;

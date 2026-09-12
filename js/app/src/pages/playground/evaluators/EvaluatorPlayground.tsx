@@ -16,25 +16,41 @@ import {
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
-import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { CredentialsDropdown } from "@phoenix/pages/playground/PlaygroundCredentialsDropdown";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
+import {
+  DEFAULT_TIME_WINDOW_PRESET_ID,
+  makeTimeWindow,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTimeWindow";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import type { EvaluatorPlaygroundExpectedOutputsMutation } from "./__generated__/EvaluatorPlaygroundExpectedOutputsMutation.graphql";
 import type { EvaluatorPlaygroundPreviewMutation } from "./__generated__/EvaluatorPlaygroundPreviewMutation.graphql";
 import { EvaluatorPlaygroundFrame } from "./EvaluatorPlaygroundFrame";
+import { EvaluatorPlaygroundProjectSample } from "./EvaluatorPlaygroundProjectSample";
 import { EvaluatorPlaygroundRunButton } from "./EvaluatorPlaygroundRunButton";
 import { EvaluatorPlaygroundSample } from "./EvaluatorPlaygroundSample";
+import { EvaluatorPlaygroundSaveFilterMenu } from "./EvaluatorPlaygroundSaveFilterMenu";
 import {
   EvaluatorPlaygroundSettingsButton,
   DEFAULT_SAMPLE_SIZE,
   parseSampleSize,
 } from "./EvaluatorPlaygroundSettingsButton";
+import type {
+  EvaluatorPlaygroundSource,
+  EvaluatorPlaygroundSourceKind,
+} from "./evaluatorPlaygroundSource";
+import {
+  clearSlotBindingParams,
+  getSlotBindingParam,
+  readEvaluatorPlaygroundSource,
+  toEvaluatorSlotSource,
+  writeEvaluatorPlaygroundSource,
+} from "./evaluatorPlaygroundSource";
+import { EvaluatorPlaygroundSourceStrip } from "./EvaluatorPlaygroundSourceStrip";
 import type {
   SampleExample,
   EvaluatorPrediction,
@@ -53,18 +69,18 @@ import {
   getVisibleEvaluatorSlots,
   setVisibleEvaluatorSlots,
 } from "./evaluatorSlotTypes";
-import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
-import type { PendingExpectedOutputs } from "./expectedOutputQueue";
+import type {
+  EvaluatorSlotSampleContext,
+  EvaluatorSlotSelection,
+  SlotId,
+  SlotSnapshot,
+} from "./evaluatorSlotTypes";
 import { useExpectedOutputQueue } from "./expectedOutputQueue";
 import { EvaluatorPlaygroundResults } from "./results";
+import { useEvaluatorPlaygroundExpectedOutputs } from "./useEvaluatorPlaygroundExpectedOutputs";
 import { useEvaluatorWorkspaceOperations } from "./useEvaluatorWorkspaceOperations";
 
-const EMPTY_CONTEXT = { input: {}, output: {}, reference: {}, metadata: {} };
-
-type ExpectedOutputLabelInput =
-  EvaluatorPlaygroundExpectedOutputsMutation["variables"]["input"]["labels"][number];
-
-/** One evaluator × example request of a run, with the frozen draft it evaluates. */
+/** One evaluator × row request of a run, with the frozen draft it evaluates. */
 type SlotRequest = {
   slotId: SlotId;
   slot: SlotSnapshot;
@@ -110,53 +126,71 @@ export default function EvaluatorPlayground() {
     (state) => state.setHideExpectedAnnotationsInMetadata
   );
 
-  const datasetId = searchParams.get("datasetId");
-  const splitIds = searchParams.getAll("splitId");
-  const versionId = searchParams.get("datasetVersionId");
+  const source = readEvaluatorPlaygroundSource(searchParams);
+  // The segmented control's choice before a dataset or project is picked.
+  const [pendingKind, setPendingKind] =
+    useState<EvaluatorPlaygroundSourceKind>("dataset");
+  const { sourceKind, filterCondition, windowPreset } = readPlaygroundScope(
+    source,
+    pendingKind
+  );
+  const slotSource = toEvaluatorSlotSource(source);
+  const [isFilterValid, setIsFilterValid] = useState(true);
   const visibleSlotIds = getVisibleEvaluatorSlots(searchParams);
   const hasComparison = visibleSlotIds.length > 1;
   const sampleSize = parseSampleSize(searchParams.get("sampleSize"));
   const [sampleGeneration, setSampleGeneration] = useState(0);
 
+  // The window's start is fixed when the preset is chosen (or the sample
+  // reloaded) so re-renders do not shift it and refetch. A dataset ignores it.
+  const [timeWindow, setTimeWindow] = useState(() =>
+    makeTimeWindow(windowPreset)
+  );
+
+  if (timeWindow.presetId !== windowPreset)
+    setTimeWindow(makeTimeWindow(windowPreset));
+
   const sampleScope = JSON.stringify([
     sampleGeneration,
-    datasetId,
-    splitIds,
-    versionId,
+    source,
+    timeWindow.startIso,
   ]);
 
   const sampleKey = JSON.stringify([sampleScope, sampleSize]);
+  const [sample, setSample] = useState<LoadedSample | null>(null);
 
-  const [sample, setSample] = useState<{
-    key: string;
-    scope: string;
-    examples: SampleExample[];
-  } | null>(null);
+  const { isSampleLoading, displayedExamples, examples } = getSampleState({
+    source,
+    sample,
+    sampleKey,
+    sampleScope,
+  });
 
-  const isSampleLoading = datasetId != null && sample?.key !== sampleKey;
-
-  // Keep the displayed sample mounted while a size change loads. Execution and
-  // review still require the requested sample, and a different dataset/split/
-  // version must never display rows from the previous scope.
-  const displayedExamples =
-    sample?.scope === sampleScope ? sample.examples : EMPTY_EXAMPLES;
-
-  const examples = isSampleLoading ? EMPTY_EXAMPLES : displayedExamples;
-
-  const sampleContext = displayedExamples[0]
-    ? createEvaluatorContext(displayedExamples[0])
-    : EMPTY_CONTEXT;
+  const sampleContext = getSampleContext(sourceKind, displayedExamples);
 
   const [slots, setSlots] = useState<Partial<Record<SlotId, SlotSnapshot>>>({});
   const [runs, setRuns] = useState<Partial<Record<SlotId, EvaluatorRun>>>({});
   const controllers = useRef<Partial<Record<SlotId, AbortController>>>({});
   // Annotations are written in batches (see expectedOutputQueue). The flush reads
   // the sample through this ref so a timer firing later still resolves each
-  // example's current revision, not the one it had when annotated.
-  const latestSample = useRef({ datasetId, examples: displayedExamples });
+  // row's current revision or annotation ids, not the ones it had when annotated.
+  const latestSample = useRef({ source, rows: displayedExamples });
   useEffect(() => {
-    latestSample.current = { datasetId, examples: displayedExamples };
+    latestSample.current = { source, rows: displayedExamples };
   });
+
+  const { flush: flushExpectedOutputs } = useEvaluatorPlaygroundExpectedOutputs(
+    {
+      getLatest: () => latestSample.current,
+      updateRows: (update) =>
+        setSample((previous) =>
+          previous
+            ? { ...previous, examples: update(previous.examples) }
+            : previous
+        ),
+    }
+  );
+
   const expectedOutputQueue = useExpectedOutputQueue(flushExpectedOutputs);
   const isRunning = visibleSlotIds.some((slotId) => runs[slotId]?.isRunning);
 
@@ -169,11 +203,9 @@ export default function EvaluatorPlayground() {
     overlay: expectedOutputQueue.overlay,
   });
 
-  const { registerAgentSlot, allowNavigation } =
+  const { registerAgentSlot, getSlotHost, allowNavigation } =
     useEvaluatorWorkspaceOperations({
-      datasetId,
-      versionId,
-      splitIds,
+      source,
       sampleSize,
       sampleKey,
       sampleLoaded: sample?.key === sampleKey,
@@ -233,8 +265,21 @@ export default function EvaluatorPlayground() {
     });
   }
 
+  /** Moves to another source. Annotations are resolved against the sample they
+   * were made on, so they are written before it goes away. */
+  function changeSource(next: EvaluatorPlaygroundSource | null) {
+    stop();
+    void expectedOutputQueue.flushNow();
+    setSearchParams((previous) => {
+      const params = new URLSearchParams(previous);
+      writeEvaluatorPlaygroundSource(params, next, source);
+
+      return params;
+    });
+  }
+
   /**
-   * Run the given slots over the sample, or over just the given examples. A
+   * Run the given slots over the sample, or over just the given rows. A
    * whole-column run starts that column over; a row run keeps the column's
    * other results and replaces only the targeted rows.
    */
@@ -284,6 +329,10 @@ export default function EvaluatorPlayground() {
         requests.push({ slotId, slot, preview, controller, example });
     }
 
+    // Span rows stand in for a scheduled online run, so they fail wherever the
+    // live one would; dataset rows keep the preview's plain limits.
+    const applyOnlineEvaluationLimits = source?.kind === "project";
+
     await runEvaluatorSample({
       items: requests,
       execute: async ({ slot, preview, controller, example }) => {
@@ -316,6 +365,7 @@ export default function EvaluatorPlayground() {
                     evaluator: preview,
                     context: createEvaluatorContext(example),
                     inputMapping: slot.inputMapping,
+                    applyOnlineEvaluationLimits,
                   },
                 ],
                 credentials: toGqlCredentials(credentials),
@@ -331,49 +381,13 @@ export default function EvaluatorPlayground() {
                 return;
               }
 
-              const results = response.evaluatorPreviews.results;
-
-              const outputCount =
-                preview.inlineLlmEvaluator?.outputConfigs.length ??
-                preview.inlineCodeEvaluator?.outputConfigs.length ??
-                1;
-
-              const annotationName = getEvaluatorAnnotationName({
-                evaluatorName: slot.name,
-                outputName: slot.selectedOutputName,
-                outputCount,
-              });
-
-              const result = results.find(
-                (item) => item.annotation?.name === annotationName
+              resolve(
+                readPrediction(
+                  slot,
+                  preview,
+                  response.evaluatorPreviews.results
+                )
               );
-
-              const annotation = result?.annotation;
-
-              const validLabels =
-                slot.outputNames.find(
-                  (output) => output.name === slot.selectedOutputName
-                )?.labels ?? [];
-
-              if (
-                !annotation ||
-                (validLabels.length > 0 &&
-                  !validLabels.includes(annotation.label ?? ""))
-              ) {
-                resolve({
-                  status: "error",
-                  error:
-                    result?.error ??
-                    results.find((item) => item.error)?.error ??
-                    "Evaluator did not return a label from the selected output.",
-                });
-              } else
-                resolve({
-                  status: "success",
-                  label: annotation.label,
-                  explanation: annotation.explanation,
-                  score: annotation.score,
-                });
             },
             onError(error) {
               resolve({
@@ -463,138 +477,24 @@ export default function EvaluatorPlayground() {
         })
       : null;
 
-    if (!datasetId || !labelName || isSampleLoading)
+    if (!source || !labelName || isSampleLoading)
       return {
         ok: false,
-        error: "Wait for the dataset and output to load before annotating.",
+        error: "Wait for the sample and output to load before annotating.",
       };
 
     if (!examples.some((current) => current.id === example.id))
       return {
         ok: false,
         error:
-          "This example is no longer in the current sample. Load it again before annotating.",
+          "This row is no longer in the current sample. Load it again before annotating.",
       };
     expectedOutputQueue.enqueue(example.id, labelName, output);
 
     return immediate ? expectedOutputQueue.flushNow() : { ok: true };
   }
 
-  /** One mutation, one dataset version, for every annotation in the batch. */
-  function flushExpectedOutputs(
-    batch: PendingExpectedOutputs
-  ): Promise<UIOperationResult> {
-    const { datasetId: currentDatasetId, examples: currentExamples } =
-      latestSample.current;
-
-    if (!currentDatasetId)
-      return Promise.resolve({ ok: false, error: "No dataset is selected." });
-    const labels: ExpectedOutputLabelInput[] = [];
-
-    for (const [exampleId, byName] of Object.entries(batch)) {
-      const example = currentExamples.find((item) => item.id === exampleId);
-
-      if (!example)
-        return Promise.resolve({
-          ok: false,
-          error:
-            "An annotated example is no longer in the sample. Load the latest sample and try again.",
-        });
-
-      for (const [annotationName, output] of Object.entries(byName))
-        labels.push({
-          exampleId,
-          expectedRevisionId: example.revisionId,
-          annotationName,
-          label: output?.label ?? null,
-          score: output?.score ?? null,
-          explanation: output?.explanation ?? null,
-        });
-    }
-
-    if (!labels.length) return Promise.resolve({ ok: true });
-
-    return new Promise((resolve) => {
-      commitMutation<EvaluatorPlaygroundExpectedOutputsMutation>(environment, {
-        mutation: graphql`
-          mutation EvaluatorPlaygroundExpectedOutputsMutation(
-            $input: SetDatasetExampleCalibrationLabelsInput!
-          ) {
-            setDatasetExampleCalibrationLabels(input: $input) {
-              examples {
-                id
-                revision {
-                  revisionId
-                  calibrationLabels {
-                    annotationName
-                    score
-                    explanation
-                    label
-                  }
-                }
-              }
-            }
-          }
-        `,
-        variables: { input: { datasetId: currentDatasetId, labels } },
-        onCompleted(response, errors) {
-          if (errors?.length) {
-            resolve({
-              ok: false,
-              error: errors.map((error) => error.message).join("\n"),
-            });
-
-            return;
-          }
-
-          const saved = new Map(
-            response.setDatasetExampleCalibrationLabels.examples.map((item) => [
-              item.id,
-              item.revision,
-            ])
-          );
-
-          // Fold the new revisions into the sample so later annotations on these
-          // examples carry the right expected revision.
-          setSample((previous) =>
-            previous
-              ? {
-                  ...previous,
-                  examples: previous.examples.map((item) => {
-                    const revision = saved.get(item.id);
-
-                    return revision ? { ...item, ...revision } : item;
-                  }),
-                }
-              : previous
-          );
-          resolve({ ok: true, output: { saved: saved.size } });
-        },
-        onError(error) {
-          resolve({
-            ok: false,
-            error:
-              getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
-              error.message,
-          });
-        },
-      });
-    });
-  }
-
-  // The providers the LLM slots are configured to call, so the API Keys
-  // dropdown offers exactly the credential fields those runs will need.
-  const providers = Array.from(
-    new Set(
-      visibleSlotIds.flatMap((slotId) => {
-        const provider =
-          slots[slotId]?.preview?.inlineLlmEvaluator?.promptVersion
-            .modelProvider;
-
-        return provider != null && isModelProvider(provider) ? [provider] : [];
-      })
-    )
-  );
+  const providers = getConfiguredProviders(slots, visibleSlotIds);
 
   // Slots whose draft is complete enough to execute. Run all and a row's play
   // button need every visible slot ready; a column's play needs only its own.
@@ -604,6 +504,14 @@ export default function EvaluatorPlayground() {
 
   const canRun =
     !!examples.length && runnableSlots.length === visibleSlotIds.length;
+
+  function reloadSample() {
+    stop();
+
+    if (source?.kind === "dataset") changeParam("datasetVersionId", null);
+    else setTimeWindow(makeTimeWindow(windowPreset));
+    setSampleGeneration((generation) => generation + 1);
+  }
 
   return (
     <EvaluatorPlaygroundFrame
@@ -665,20 +573,21 @@ export default function EvaluatorPlayground() {
                     <EvaluatorSlot
                       slotId={slotId}
                       registerAgentSlot={registerAgentSlot}
-                      datasetId={datasetId}
+                      source={slotSource}
+                      sourceFilterCondition={filterCondition}
                       initialEvaluatorId={searchParams.get(
                         `evaluator${slotId}`
                       )}
                       initialDatasetEvaluatorId={searchParams.get(
-                        `datasetEvaluator${slotId}`
+                        getSlotBindingParam("dataset", slotId)
+                      )}
+                      initialProjectEvaluatorId={searchParams.get(
+                        getSlotBindingParam("project", slotId)
                       )}
                       sampleContext={sampleContext}
                       onChange={(snapshot) =>
                         setSlots((previous) =>
-                          previous[slotId]?.revision === snapshot.revision &&
-                          previous[slotId]?.validationError ===
-                            snapshot.validationError &&
-                          previous[slotId]?.isDirty === snapshot.isDirty
+                          isSameSlotSnapshot(previous[slotId], snapshot)
                             ? previous
                             : { ...previous, [slotId]: snapshot }
                         )
@@ -694,31 +603,17 @@ export default function EvaluatorPlayground() {
                                     (slot) => slot !== slotId
                                   )
                                 );
-                                next.delete(`evaluator${slotId}`);
-                                next.delete(`datasetEvaluator${slotId}`);
+                                writeSlotSelectionParams(next, slotId, null);
 
                                 return next;
                               })
                           : undefined
                       }
                       isRunning={!!runs[slotId]?.isRunning}
-                      onSelectionChange={({
-                        evaluatorId,
-                        datasetEvaluatorId,
-                      }) =>
+                      onSelectionChange={(selection) =>
                         setSearchParams((previous) => {
                           const next = new URLSearchParams(previous);
-                          next.delete(`evaluator${slotId}`);
-                          next.delete(`datasetEvaluator${slotId}`);
-
-                          if (evaluatorId)
-                            next.set(`evaluator${slotId}`, evaluatorId);
-
-                          if (datasetEvaluatorId)
-                            next.set(
-                              `datasetEvaluator${slotId}`,
-                              datasetEvaluatorId
-                            );
+                          writeSlotSelectionParams(next, slotId, selection);
 
                           return next;
                         })
@@ -736,67 +631,54 @@ export default function EvaluatorPlayground() {
           resizable
           panelProps={{ defaultSize: 45, minSize: 15 }}
           extra={
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <Suspense fallback={<Loading size="S" />}>
-                <DatasetSelectWithSplits
-                  size="S"
-                  placeholder="Select a dataset"
+            <EvaluatorPlaygroundSourceStrip
+              source={source}
+              sourceKind={sourceKind}
+              sampleSize={sampleSize}
+              isDisabled={isRunning}
+              onSourceKindChange={(kind) => {
+                setPendingKind(kind);
+
+                if (source && source.kind !== kind) changeSource(null);
+              }}
+              onSourceChange={changeSource}
+              onSampleSizeChange={(size) => {
+                void expectedOutputQueue.flushNow();
+                changeParam(
+                  "sampleSize",
+                  size === DEFAULT_SAMPLE_SIZE ? null : String(size)
+                );
+              }}
+              onFilterValidityChange={setIsFilterValid}
+              onReload={reloadSample}
+            >
+              {source?.kind === "project" ? (
+                <EvaluatorPlaygroundSaveFilterMenu
+                  slots={slots}
+                  visibleSlotIds={visibleSlotIds}
+                  filterCondition={filterCondition}
+                  isFilterValid={isFilterValid}
                   isDisabled={isRunning}
-                  value={datasetId ? { datasetId, splitIds } : null}
-                  onSelectionChange={({
-                    datasetId: nextDatasetId,
-                    splitIds: nextSplits,
-                  }) => {
-                    stop();
-                    // Annotations are resolved against the sample they were made
-                    // on, so write them before it goes away.
-                    void expectedOutputQueue.flushNow();
-                    setSearchParams((previous) => {
-                      const next = new URLSearchParams(previous);
-                      next.delete("datasetId");
-                      next.delete("splitId");
-                      next.delete("datasetVersionId");
-
-                      if (nextDatasetId) next.set("datasetId", nextDatasetId);
-                      nextSplits.forEach((splitId) =>
-                        next.append("splitId", splitId)
-                      );
-
-                      if (nextDatasetId !== datasetId) {
-                        EVALUATOR_SLOT_IDS.forEach((slot) =>
-                          next.delete(`datasetEvaluator${slot}`)
-                        );
-                      }
-
-                      return next;
-                    });
-                  }}
+                  onSave={(slotId) =>
+                    void getSlotHost(slotId)?.saveFilter(filterCondition)
+                  }
                 />
-              </Suspense>
+              ) : null}
               <EvaluatorPlaygroundSettingsButton
-                sampleSize={sampleSize}
                 hideExpectedAnnotations={hideExpectedAnnotations}
                 onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
                 isDisabled={isRunning}
-                onSampleSizeChange={(size) => {
-                  void expectedOutputQueue.flushNow();
-                  changeParam(
-                    "sampleSize",
-                    size === DEFAULT_SAMPLE_SIZE ? null : String(size)
-                  );
-                }}
               />
-            </Flex>
+            </EvaluatorPlaygroundSourceStrip>
           }
         >
-          {datasetId ? (
+          {source ? (
             <Suspense key={sampleKey} fallback={null}>
-              <EvaluatorPlaygroundSample
-                fetchKey={sampleKey}
-                datasetId={datasetId}
-                first={sampleSize}
-                splitIds={splitIds}
-                versionId={versionId}
+              <EvaluatorPlaygroundSampleLoader
+                source={source}
+                sampleKey={sampleKey}
+                sampleSize={sampleSize}
+                startIso={timeWindow.startIso}
                 onLoad={(loaded) =>
                   setSample({
                     key: sampleKey,
@@ -807,9 +689,10 @@ export default function EvaluatorPlayground() {
               />
             </Suspense>
           ) : null}
-          {datasetId ? (
+          {source ? (
             <EvaluatorPlaygroundResults
               examples={examples}
+              rowNoun={source.kind === "project" ? "spans" : "examples"}
               isLoading={isSampleLoading}
               sampleSize={sampleSize}
               runs={currentRuns}
@@ -830,37 +713,263 @@ export default function EvaluatorPlayground() {
               pendingCount={expectedOutputQueue.pendingCount}
               expectedOutputError={expectedOutputQueue.error}
               onRetryExpectedOutputs={() => void expectedOutputQueue.flushNow()}
-              onReloadSample={() => {
-                stop();
-                changeParam("datasetVersionId", null);
-                setSampleGeneration((generation) => generation + 1);
-              }}
+              onReloadSample={reloadSample}
               staleSlots={staleSlots}
             />
           ) : (
-            <Flex
-              direction="column"
-              alignItems="center"
-              justifyContent="center"
-              height="100%"
-            >
-              <View padding="size-400">
-                <EmptyState
-                  graphic={<EmptyStateGraphic variant="dataset" />}
-                  title="Select a dataset"
-                  description="Evaluators run over the first examples of a dataset. Each example's output is the response being judged; use a slot's input mapping to judge another field."
-                />
-              </View>
-            </Flex>
+            <EvaluatorPlaygroundEmptySource kind={sourceKind} />
           )}
         </TitledPanel>
       </Group>
       <ConfirmNavigationDialog
         blocker={blocker}
-        message="Leave evaluator playground? Unsaved drafts and run results will be lost. Unsaved annotations are written to the dataset on the way out."
+        message={`Leave evaluator playground? Unsaved drafts and run results will be lost. Unsaved annotations are written to the ${
+          sourceKind === "project" ? "spans" : "dataset"
+        } on the way out.`}
       />
     </EvaluatorPlaygroundFrame>
   );
+}
+
+/**
+ * Whether a published snapshot changes anything the page reads. A save
+ * remounts the slot on the new binding with the same draft, so the save target
+ * counts too, or the page would keep offering to create what it just saved.
+ */
+function isSameSlotSnapshot(
+  previous: SlotSnapshot | undefined,
+  next: SlotSnapshot
+) {
+  return (
+    previous?.revision === next.revision &&
+    previous.validationError === next.validationError &&
+    previous.isDirty === next.isDirty &&
+    JSON.stringify(previous.saveTarget) === JSON.stringify(next.saveTarget)
+  );
+}
+
+type LoadedSample = {
+  key: string;
+  scope: string;
+  examples: SampleExample[];
+};
+
+/** What the strip and the slots read from the source, with defaults for none. */
+function readPlaygroundScope(
+  source: EvaluatorPlaygroundSource | null,
+  pendingKind: EvaluatorPlaygroundSourceKind
+) {
+  const project = source?.kind === "project" ? source : null;
+
+  return {
+    sourceKind: source?.kind ?? pendingKind,
+    filterCondition: project?.filterCondition ?? "",
+    windowPreset: project?.window ?? DEFAULT_TIME_WINDOW_PRESET_ID,
+  };
+}
+
+/**
+ * Keep the displayed sample mounted while a size change loads. Execution and
+ * review still require the requested sample, and a different source must
+ * never display rows from the previous scope.
+ */
+function getSampleState({
+  source,
+  sample,
+  sampleKey,
+  sampleScope,
+}: {
+  source: EvaluatorPlaygroundSource | null;
+  sample: LoadedSample | null;
+  sampleKey: string;
+  sampleScope: string;
+}) {
+  const isSampleLoading = source != null && sample?.key !== sampleKey;
+
+  const displayedExamples =
+    sample?.scope === sampleScope ? sample.examples : EMPTY_EXAMPLES;
+
+  return {
+    isSampleLoading,
+    displayedExamples,
+    examples: isSampleLoading ? EMPTY_EXAMPLES : displayedExamples,
+  };
+}
+
+/** Loads the sample for whichever kind of source is selected. */
+function EvaluatorPlaygroundSampleLoader({
+  source,
+  sampleKey,
+  sampleSize,
+  startIso,
+  onLoad,
+}: {
+  source: EvaluatorPlaygroundSource;
+  sampleKey: string;
+  sampleSize: number;
+  startIso: string;
+  onLoad: (rows: SampleExample[]) => void;
+}) {
+  return source.kind === "dataset" ? (
+    <EvaluatorPlaygroundSample
+      fetchKey={sampleKey}
+      datasetId={source.datasetId}
+      first={sampleSize}
+      splitIds={source.splitIds}
+      versionId={source.versionId}
+      onLoad={onLoad}
+    />
+  ) : (
+    <EvaluatorPlaygroundProjectSample
+      fetchKey={sampleKey}
+      projectId={source.projectId}
+      first={sampleSize}
+      filterCondition={source.filterCondition}
+      startIso={startIso}
+      onLoad={onLoad}
+    />
+  );
+}
+
+/**
+ * Replaces a slot's source params: the shared evaluator, or the dataset or
+ * project evaluator it was opened from. `null` clears them all.
+ */
+function writeSlotSelectionParams(
+  params: URLSearchParams,
+  slotId: SlotId,
+  selection: EvaluatorSlotSelection | null
+) {
+  params.delete(`evaluator${slotId}`);
+  clearSlotBindingParams(params, slotId);
+
+  if (selection?.evaluatorId)
+    params.set(`evaluator${slotId}`, selection.evaluatorId);
+
+  if (selection?.datasetEvaluatorId)
+    params.set(
+      getSlotBindingParam("dataset", slotId),
+      selection.datasetEvaluatorId
+    );
+
+  if (selection?.projectEvaluatorId)
+    params.set(
+      getSlotBindingParam("project", slotId),
+      selection.projectEvaluatorId
+    );
+}
+
+/** The first row as the slots' mapping source, in the source's grain. */
+function getSampleContext(
+  kind: EvaluatorPlaygroundSourceKind,
+  rows: SampleExample[]
+): EvaluatorSlotSampleContext {
+  return rows[0]
+    ? {
+        grain: kind === "project" ? "span" : "dataset",
+        ...createEvaluatorContext(rows[0]),
+      }
+    : { grain: "dataset", input: {}, output: {}, reference: {}, metadata: {} };
+}
+
+/**
+ * The providers the LLM slots are configured to call, so the API Keys
+ * dropdown offers exactly the credential fields those runs will need.
+ */
+function getConfiguredProviders(
+  slots: Partial<Record<SlotId, SlotSnapshot>>,
+  visibleSlotIds: SlotId[]
+) {
+  return Array.from(
+    new Set(
+      visibleSlotIds.flatMap((slotId) => {
+        const provider =
+          slots[slotId]?.preview?.inlineLlmEvaluator?.promptVersion
+            .modelProvider;
+
+        return provider != null && isModelProvider(provider) ? [provider] : [];
+      })
+    )
+  );
+}
+
+/** The results panel before a dataset or project is chosen. */
+function EvaluatorPlaygroundEmptySource({
+  kind,
+}: {
+  kind: EvaluatorPlaygroundSourceKind;
+}) {
+  return (
+    <Flex
+      direction="column"
+      alignItems="center"
+      justifyContent="center"
+      height="100%"
+    >
+      <View padding="size-400">
+        {kind === "project" ? (
+          <EmptyState
+            graphic={<EmptyStateGraphic variant="project" />}
+            title="Select a project"
+            description="Evaluators run over the project's most recent spans that match the filter in the time window. Each span's output is the response being judged; use a slot's input mapping to judge another field."
+          />
+        ) : (
+          <EmptyState
+            graphic={<EmptyStateGraphic variant="dataset" />}
+            title="Select a dataset"
+            description="Evaluators run over the first examples of a dataset. Each example's output is the response being judged; use a slot's input mapping to judge another field."
+          />
+        )}
+      </View>
+    </Flex>
+  );
+}
+
+/** The slot's selected output out of a preview's flattened results. */
+function readPrediction(
+  slot: SlotSnapshot,
+  preview: NonNullable<SlotSnapshot["preview"]>,
+  results: EvaluatorPlaygroundPreviewMutation["response"]["evaluatorPreviews"]["results"]
+): EvaluatorPrediction {
+  const outputCount =
+    preview.inlineLlmEvaluator?.outputConfigs.length ??
+    preview.inlineCodeEvaluator?.outputConfigs.length ??
+    1;
+
+  const annotationName = getEvaluatorAnnotationName({
+    evaluatorName: slot.name,
+    outputName: slot.selectedOutputName,
+    outputCount,
+  });
+
+  const result = results.find(
+    (item) => item.annotation?.name === annotationName
+  );
+
+  const annotation = result?.annotation;
+
+  const validLabels =
+    slot.outputNames.find((output) => output.name === slot.selectedOutputName)
+      ?.labels ?? [];
+
+  if (
+    !annotation ||
+    (validLabels.length > 0 && !validLabels.includes(annotation.label ?? ""))
+  )
+    return {
+      status: "error",
+      error:
+        result?.error ??
+        results.find((item) => item.error)?.error ??
+        "Evaluator did not return a label from the selected output.",
+    };
+
+  return {
+    status: "success",
+    label: annotation.label,
+    explanation: annotation.explanation,
+    score: annotation.score,
+  };
 }
 
 function getEvaluatorPlaygroundView({
@@ -876,8 +985,8 @@ function getEvaluatorPlaygroundView({
   examples: SampleExample[];
   sampleKey: string;
   visibleSlotIds: SlotId[];
-  /** Annotations not yet confirmed by the server; they win over the dataset. */
-  overlay: PendingExpectedOutputs;
+  /** Annotations not yet confirmed by the server; they win over the stored ones. */
+  overlay: Record<string, Record<string, ExpectedOutput | null>>;
 }) {
   const expected: SlotExpectations = {};
 

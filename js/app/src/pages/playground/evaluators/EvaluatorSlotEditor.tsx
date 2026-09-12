@@ -72,6 +72,9 @@ import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import { EvaluatorSlotOutput } from "./EvaluatorSlotOutput";
 import type {
   EvaluatorSlotProps,
+  EvaluatorSlotSampleContext,
+  EvaluatorSlotSaveOptions,
+  EvaluatorSlotSelection,
   SlotOutput,
   SlotSnapshot,
 } from "./evaluatorSlotTypes";
@@ -82,8 +85,10 @@ import {
 import {
   SAVE_EFFECTS,
   SaveEvaluatorSlotDialog,
+  type ProjectEvaluatorScopeDefaults,
 } from "./SaveEvaluatorSlotDialog";
 import { useEvaluatorSlotSave } from "./useEvaluatorSlotSave";
+import type { SavedEvaluatorSlot } from "./useEvaluatorSlotSave";
 
 type EditorProps = EvaluatorSlotProps & {
   kind: "LLM" | "CODE";
@@ -92,6 +97,8 @@ type EditorProps = EvaluatorSlotProps & {
   initialLanguage?: CodeEvaluatorLanguage;
   initialSourceCode?: string;
   initialSandboxConfigId?: string;
+  /** The loaded project evaluator's filter and sampling rate, if any. */
+  initialProjectScope?: ProjectEvaluatorScopeDefaults | null;
 };
 
 const EMPTY_SANDBOX_CONFIGS: ReturnType<typeof mapSandboxConfigOptions> = [];
@@ -183,6 +190,7 @@ function EvaluatorSlotEditorContent({
   initialLanguage,
   initialSourceCode,
   initialSandboxConfigId,
+  initialProjectScope = null,
   sourceControl,
   sandboxConfigs,
   modelCatalog,
@@ -192,7 +200,8 @@ function EvaluatorSlotEditorContent({
   modelCatalog: ModelCatalog;
 }) {
   const {
-    datasetId,
+    source,
+    sourceFilterCondition = "",
     slotId,
     onChange,
     onRemove,
@@ -200,8 +209,11 @@ function EvaluatorSlotEditorContent({
     sampleContext,
     registerAgentSlot,
     initialDatasetEvaluatorId,
+    initialProjectEvaluatorId,
     initialEvaluatorId,
   } = props;
+
+  const sourceKind = source?.kind ?? "dataset";
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tabKey = `slotTab${slotId}`;
@@ -220,7 +232,8 @@ function EvaluatorSlotEditorContent({
   );
 
   const [sourceCode, setSourceCode] = useState(
-    initialSourceCode ?? getDefaultCodeEvaluatorSource(language, "dataset")
+    initialSourceCode ??
+      getDefaultCodeEvaluatorSource(language, sampleContext.grain)
   );
 
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(() =>
@@ -242,23 +255,9 @@ function EvaluatorSlotEditorContent({
   // A parent render must not rebuild the evaluator or restart subscriptions.
   const onSnapshotChange = useEffectEvent(onChange);
   useEffect(() => {
-    store.getState().setEvaluatorMappingSource({
-      grain: "dataset",
-      source: {
-        input: isStringKeyedObject(sampleContext.input)
-          ? sampleContext.input
-          : { value: sampleContext.input },
-        output: isStringKeyedObject(sampleContext.output)
-          ? sampleContext.output
-          : { value: sampleContext.output },
-        reference: isStringKeyedObject(sampleContext.reference)
-          ? sampleContext.reference
-          : { value: sampleContext.reference },
-        metadata: isStringKeyedObject(sampleContext.metadata)
-          ? sampleContext.metadata
-          : {},
-      },
-    });
+    store
+      .getState()
+      .setEvaluatorMappingSource(toEvaluatorMappingSource(sampleContext));
   }, [store, sampleContext]);
   useEffect(() => {
     function publish() {
@@ -322,7 +321,7 @@ function EvaluatorSlotEditorContent({
             name,
             description: current.evaluator.description,
             outputConfigs: current.outputConfigs,
-            datasetId: datasetId ?? "",
+            datasetId: "",
             inputMapping: current.evaluator.inputMapping,
             includeExplanation: current.evaluator.includeExplanation,
           });
@@ -371,6 +370,7 @@ function EvaluatorSlotEditorContent({
         preview,
         inputMapping: current.evaluator.inputMapping,
         validationError,
+        saveTarget,
       };
 
       setSnapshot((previous) =>
@@ -421,7 +421,7 @@ function EvaluatorSlotEditorContent({
     sandboxConfigId,
     sandboxConfigs,
     selectedOutput,
-    datasetId,
+    saveTarget,
     slotId,
     savedRevision,
   ]);
@@ -429,21 +429,26 @@ function EvaluatorSlotEditorContent({
   /**
    * Saves the draft to `saveTarget`, or as a new evaluator named as a copy of
    * the draft when the dialog's "Save as new" asks for one. PXI saves take the
-   * target as is.
+   * target as is. On a project source the filter and sampling rate default to
+   * the loaded project evaluator's, or to the strip's filter at 100% for a
+   * new one, unless the options say otherwise.
    */
   async function save({
     asNew = false,
-  }: { asNew?: boolean } = {}): Promise<UIOperationResult> {
+    filterCondition,
+    samplingRate,
+  }: EvaluatorSlotSaveOptions = {}): Promise<UIOperationResult> {
     setSaveError(null);
 
     if (
-      !datasetId ||
+      !source ||
       !snapshot?.preview ||
       !(await store.getState().validateAll())
     )
       return {
         ok: false,
-        error: "Select a dataset and complete evaluator setup before saving.",
+        error:
+          "Select a dataset or project and complete evaluator setup before saving.",
       };
     const draftName = store.getState().evaluator.globalName.trim();
 
@@ -465,19 +470,24 @@ function EvaluatorSlotEditorContent({
     try {
       // The copy's name lands in the draft too, so the slot shows what was
       // saved and the user can rename it afterwards.
-      const name = asNew ? await copyName(draftName, datasetId) : draftName;
+      const name = asNew ? await copyName(draftName, source) : draftName;
 
       if (asNew) store.getState().setEvaluatorGlobalName(name);
 
       const saved = await saveSlot({
         target: asNew ? { action: "create" } : saveTarget,
-        datasetId,
+        source,
+        projectScope: getProjectScope({
+          filterCondition,
+          samplingRate,
+          loaded: initialProjectScope,
+          sourceFilterCondition,
+        }),
         name,
         description: store.getState().evaluator.description.trim() || undefined,
         preview: snapshot.preview,
         inputMapping: snapshot.inputMapping,
-        promptVersionId:
-          playgroundStore?.getState().instances[0]?.prompt?.version ?? null,
+        promptVersionId: getLoadedPromptVersionId(playgroundStore),
         sandboxConfigId,
         initialSandboxConfigId: initialSandboxConfigId ?? null,
       });
@@ -486,19 +496,9 @@ function EvaluatorSlotEditorContent({
       adoptSavedPrompt(playgroundStore, saved.prompt);
 
       if (saved.action === "created")
-        props.onSelectionChange?.({
-          evaluatorId: null,
-          datasetEvaluatorId: saved.datasetEvaluatorId,
-        });
+        props.onSelectionChange?.(toSavedSelection(saved));
 
-      return {
-        ok: true,
-        output: {
-          datasetEvaluatorId: saved.datasetEvaluatorId,
-          action: saved.action,
-          name,
-        },
-      };
+      return { ok: true, output: toSaveOutput(saved, name) };
     } catch (error) {
       const message = getSaveErrorMessage(error);
       setSaveError(message);
@@ -522,7 +522,11 @@ function EvaluatorSlotEditorContent({
     const host = createEvaluatorAgentSlot({
       slotId,
       modelCatalog,
-      sourceKey: initialDatasetEvaluatorId ?? initialEvaluatorId ?? "new-llm",
+      sourceKey:
+        initialProjectEvaluatorId ??
+        initialDatasetEvaluatorId ??
+        initialEvaluatorId ??
+        "new-llm",
       saveTarget,
       kind,
       store,
@@ -537,7 +541,7 @@ function EvaluatorSlotEditorContent({
       },
       getPreferences: () => modelConfigByProvider,
       sandboxConfigs,
-      save: () => saveRef.current(),
+      save: (options) => saveRef.current(options),
     });
 
     return registerAgentSlot?.(slotId, host);
@@ -554,6 +558,7 @@ function EvaluatorSlotEditorContent({
     sandboxConfigs,
     registerAgentSlot,
     initialDatasetEvaluatorId,
+    initialProjectEvaluatorId,
     initialEvaluatorId,
     saveTarget,
     slotId,
@@ -567,7 +572,7 @@ function EvaluatorSlotEditorContent({
     outputNames: [],
   };
 
-  const isActionDisabled = !datasetId || !!currentSnapshot.validationError;
+  const isActionDisabled = !source || !!currentSnapshot.validationError;
 
   const status = getSlotStatus({
     savedRevision,
@@ -588,21 +593,26 @@ function EvaluatorSlotEditorContent({
         onSave={() => setIsSaveDialogOpen(true)}
         onRemove={onRemove}
       />
-      <SaveEvaluatorSlotDialog
-        slotId={slotId}
-        target={saveTarget}
-        isOpen={isSaveDialogOpen}
-        onOpenChange={setIsSaveDialogOpen}
-        isSaving={isSaving}
-        error={saveError}
-        onSave={async (options) => {
-          const result = await save(options);
+      {source ? (
+        <SaveEvaluatorSlotDialog
+          slotId={slotId}
+          target={saveTarget}
+          source={source}
+          sourceFilterCondition={sourceFilterCondition}
+          projectScope={initialProjectScope}
+          isOpen={isSaveDialogOpen}
+          onOpenChange={setIsSaveDialogOpen}
+          isSaving={isSaving}
+          error={saveError}
+          onSave={async (options) => {
+            const result = await save(options);
 
-          if (result.ok) setIsSaveDialogOpen(false);
+            if (result.ok) setIsSaveDialogOpen(false);
 
-          return result;
-        }}
-      />
+            return result;
+          }}
+        />
+      ) : null}
       {/* PXI saves report here; the dialog shows its own errors. */}
       {saveError && !isSaveDialogOpen ? (
         <Alert variant="danger" title="Could not save evaluator">
@@ -648,7 +658,7 @@ function EvaluatorSlotEditorContent({
                       })
                     );
                     setSourceCode(
-                      getDefaultCodeEvaluatorSource(next, "dataset")
+                      getDefaultCodeEvaluatorSource(next, sampleContext.grain)
                     );
                   }}
                 />
@@ -672,9 +682,9 @@ function EvaluatorSlotEditorContent({
         <TabPanel id="mapping" css={slotTabPanelCSS}>
           <Flex direction="column" gap="size-100">
             <Text color="text-500" size="S">
-              Map the evaluator&apos;s variables to fields of the dataset
-              example. Variables left blank are matched to fields of the same
-              name.
+              Map the evaluator&apos;s variables to fields of the{" "}
+              {sampleContext.grain === "span" ? "span" : "dataset example"}.
+              Variables left blank are matched to fields of the same name.
             </Text>
             <View
               borderRadius="medium"
@@ -696,7 +706,9 @@ function EvaluatorSlotEditorContent({
             >
               <Label>Name</Label>
               <Input placeholder="e.g. correctness" />
-              <Text slot="description">{SAVE_EFFECTS[saveTarget.action]}.</Text>
+              <Text slot="description">
+                {SAVE_EFFECTS[sourceKind][saveTarget.action]}.
+              </Text>
             </TextField>
             {currentSnapshot.outputNames.length > 1 ? (
               <Select
@@ -832,6 +844,90 @@ function EvaluatorSlotToolbar({
 }
 
 const NAME_REQUIRED_ERROR = "Enter a name before saving.";
+
+/**
+ * The filter and sampling rate a project save stores: the options win, then
+ * the loaded project evaluator's values, then the strip's filter at 100%.
+ */
+function getProjectScope({
+  filterCondition,
+  samplingRate,
+  loaded,
+  sourceFilterCondition,
+}: {
+  filterCondition: string | undefined;
+  samplingRate: number | undefined;
+  loaded: ProjectEvaluatorScopeDefaults | null;
+  sourceFilterCondition: string;
+}): ProjectEvaluatorScopeDefaults {
+  return {
+    filterCondition:
+      filterCondition ?? loaded?.filterCondition ?? sourceFilterCondition,
+    samplingRate: samplingRate ?? loaded?.samplingRate ?? 1,
+  };
+}
+
+/** The prompt version the LLM slot was loaded from, so saves append to it. */
+function getLoadedPromptVersionId(
+  playgroundStore: PlaygroundStore | null | undefined
+): string | null {
+  return playgroundStore?.getState().instances[0]?.prompt?.version ?? null;
+}
+
+/** The URL binding a created evaluator leaves the slot pointing at. */
+function toSavedSelection(saved: SavedEvaluatorSlot): EvaluatorSlotSelection {
+  return {
+    evaluatorId: null,
+    datasetEvaluatorId:
+      saved.bindingKind === "dataset" ? saved.bindingId : null,
+    projectEvaluatorId:
+      saved.bindingKind === "project" ? saved.bindingId : null,
+  };
+}
+
+/** What a save reports to PXI: the binding id under its own name. */
+function toSaveOutput(saved: SavedEvaluatorSlot, name: string) {
+  return {
+    ...(saved.bindingKind === "dataset"
+      ? { datasetEvaluatorId: saved.bindingId }
+      : { projectEvaluatorId: saved.bindingId }),
+    action: saved.action,
+    name,
+  };
+}
+
+/**
+ * The first row as the mapping UI's source. An example's fields are objects
+ * by construction; a span's `input`/`output` are raw attribute values and its
+ * metadata must keep `attributes`, which the store checks for the span grain.
+ */
+function toEvaluatorMappingSource(context: EvaluatorSlotSampleContext) {
+  const metadata = isStringKeyedObject(context.metadata)
+    ? context.metadata
+    : {};
+
+  if (context.grain === "span")
+    return {
+      grain: "span" as const,
+      source: { input: context.input, output: context.output, metadata },
+    };
+
+  return {
+    grain: "dataset" as const,
+    source: {
+      input: isStringKeyedObject(context.input)
+        ? context.input
+        : { value: context.input },
+      output: isStringKeyedObject(context.output)
+        ? context.output
+        : { value: context.output },
+      reference: isStringKeyedObject(context.reference)
+        ? context.reference
+        : { value: context.reference },
+      metadata,
+    },
+  };
+}
 
 /**
  * Points the judge prompt at the version the save produced, so the next save

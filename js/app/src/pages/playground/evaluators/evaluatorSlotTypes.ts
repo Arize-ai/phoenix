@@ -2,6 +2,8 @@ import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__gen
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
 import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
+import type { EvaluatorSlotSource } from "./evaluatorPlaygroundSource";
+import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 
 export const EVALUATOR_SLOT_IDS = ["A", "B", "C", "D"] as const;
 
@@ -47,30 +49,57 @@ export type SlotSnapshot = {
   preview: EvaluatorPreviewInput | null;
   inputMapping: EvaluatorInputMapping;
   validationError: string | null;
+  /** What Save writes for this slot; fixed for the life of the loaded source. */
+  saveTarget: EvaluatorSaveTarget;
+};
+
+/**
+ * The first row's evaluation context, as the slot's input mapping UI reads it.
+ * `grain` says which record vocabulary it speaks: an example, or a span whose
+ * metadata keeps the span's `attributes`.
+ */
+export type EvaluatorSlotSampleContext = {
+  grain: "dataset" | "span";
+  input: unknown;
+  output: unknown;
+  reference: unknown;
+  metadata: unknown;
+};
+
+/** The saved evaluator a slot was opened from, by URL param. */
+export type EvaluatorSlotSelection = {
+  evaluatorId: string | null;
+  datasetEvaluatorId: string | null;
+  projectEvaluatorId: string | null;
 };
 
 export type EvaluatorSlotProps = {
   registerAgentSlot?: (slot: SlotId, host: EvaluatorAgentSlot) => () => void;
   slotId: SlotId;
-  datasetId: string | null;
+  /** The dataset or project the slot saves to; null before one is chosen. */
+  source: EvaluatorSlotSource | null;
+  /** Project source: the applied span filter in the Results strip. */
+  sourceFilterCondition?: string;
   initialEvaluatorId?: string | null;
   initialDatasetEvaluatorId?: string | null;
-  sampleContext: {
-    input: unknown;
-    output: unknown;
-    reference: unknown;
-    metadata: unknown;
-  };
+  initialProjectEvaluatorId?: string | null;
+  sampleContext: EvaluatorSlotSampleContext;
   onChange: (snapshot: SlotSnapshot) => void;
   /**
    * Removes this slot from the comparison. Any slot can be removed while more than one remains.
    */
   onRemove?: () => void;
   isRunning: boolean;
-  onSelectionChange?: (selection: {
-    evaluatorId: string | null;
-    datasetEvaluatorId: string | null;
-  }) => void;
+  onSelectionChange?: (selection: EvaluatorSlotSelection) => void;
+};
+
+/** The save options the dialog and the Save filter action can set. */
+export type EvaluatorSlotSaveOptions = {
+  asNew?: boolean;
+  /** Project source only: the span filter to store on the project evaluator. */
+  filterCondition?: string;
+  /** Project source only: sampling rate as a fraction in [0, 1]. */
+  samplingRate?: number;
 };
 
 /** The position of a slot in the comparison, for the alphabetic index icon. */

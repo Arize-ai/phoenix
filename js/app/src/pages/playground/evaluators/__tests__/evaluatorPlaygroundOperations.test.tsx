@@ -12,9 +12,7 @@ import type { EvaluatorWorkspaceRead } from "../useEvaluatorPlaygroundAgent";
 
 const emptyWorkspace: EvaluatorWorkspaceRead = {
   mode: "evaluators",
-  datasetId: null,
-  splitIds: [],
-  datasetVersionId: null,
+  source: null,
   sampleSize: 20,
   sampleLoaded: false,
   totalExamples: 0,
@@ -98,6 +96,7 @@ describe("PXI evaluator mode dispatch", () => {
       read: vi.fn(),
       edit: vi.fn(),
       save,
+      saveFilter: vi.fn(),
     });
 
     const pending = dispatch("evaluatorPlayground.saveSlot", {

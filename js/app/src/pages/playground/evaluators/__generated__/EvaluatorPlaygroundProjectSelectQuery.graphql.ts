@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d461127a02b258027830d71af2396210>>
+ * @generated SignedSource<<31cd084047f1b1acfa9b4b36c93a1504>>
  * @lightSyntaxTransform
  */
 
@@ -15,12 +15,11 @@ export type ProjectFilter = {
 };
 export type EvaluatorPlaygroundProjectSelectQuery$variables = {
   filter?: ProjectFilter | null;
-  hasOpened: boolean;
   hasProject: boolean;
   projectId: string;
 };
 export type EvaluatorPlaygroundProjectSelectQuery$data = {
-  readonly projects?: {
+  readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly gradientEndColor: string;
@@ -49,89 +48,76 @@ var v0 = {
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "hasOpened"
+  "name": "hasProject"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "hasProject"
-},
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "projectId"
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v6 = {
-  "condition": "hasOpened",
-  "kind": "Condition",
-  "passingValue": true,
+v5 = {
+  "alias": null,
+  "args": [
+    {
+      "kind": "Variable",
+      "name": "filter",
+      "variableName": "filter"
+    },
+    {
+      "kind": "Literal",
+      "name": "first",
+      "value": 50
+    }
+  ],
+  "concreteType": "ProjectConnection",
+  "kind": "LinkedField",
+  "name": "projects",
+  "plural": false,
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "filter",
-          "variableName": "filter"
-        },
-        {
-          "kind": "Literal",
-          "name": "first",
-          "value": 50
-        }
-      ],
-      "concreteType": "ProjectConnection",
+      "args": null,
+      "concreteType": "ProjectEdge",
       "kind": "LinkedField",
-      "name": "projects",
-      "plural": false,
+      "name": "edges",
+      "plural": true,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "ProjectEdge",
+          "concreteType": "Project",
           "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
+          "name": "node",
+          "plural": false,
           "selections": [
+            (v3/*:: as any*/),
+            (v4/*:: as any*/),
             {
               "alias": null,
               "args": null,
-              "concreteType": "Project",
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": [
-                (v4/*:: as any*/),
-                (v5/*:: as any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "gradientStartColor",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "gradientEndColor",
-                  "storageKey": null
-                }
-              ],
+              "kind": "ScalarField",
+              "name": "gradientStartColor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "gradientEndColor",
               "storageKey": null
             }
           ],
@@ -140,9 +126,10 @@ v6 = {
       ],
       "storageKey": null
     }
-  ]
+  ],
+  "storageKey": null
 },
-v7 = [
+v6 = [
   {
     "kind": "Variable",
     "name": "id",
@@ -154,14 +141,13 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
-      (v3/*:: as any*/)
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "EvaluatorPlaygroundProjectSelectQuery",
     "selections": [
-      (v6/*:: as any*/),
+      (v5/*:: as any*/),
       {
         "condition": "hasProject",
         "kind": "Condition",
@@ -169,7 +155,7 @@ return {
         "selections": [
           {
             "alias": "selected",
-            "args": (v7/*:: as any*/),
+            "args": (v6/*:: as any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
@@ -178,8 +164,8 @@ return {
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v4/*:: as any*/),
-                  (v5/*:: as any*/)
+                  (v3/*:: as any*/),
+                  (v4/*:: as any*/)
                 ],
                 "type": "Project",
                 "abstractKey": null
@@ -197,14 +183,13 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v0/*:: as any*/),
-      (v1/*:: as any*/),
-      (v3/*:: as any*/),
-      (v2/*:: as any*/)
+      (v2/*:: as any*/),
+      (v1/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "EvaluatorPlaygroundProjectSelectQuery",
     "selections": [
-      (v6/*:: as any*/),
+      (v5/*:: as any*/),
       {
         "condition": "hasProject",
         "kind": "Condition",
@@ -212,7 +197,7 @@ return {
         "selections": [
           {
             "alias": "selected",
-            "args": (v7/*:: as any*/),
+            "args": (v6/*:: as any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
@@ -225,11 +210,11 @@ return {
                 "name": "__typename",
                 "storageKey": null
               },
-              (v4/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v5/*:: as any*/)
+                  (v4/*:: as any*/)
                 ],
                 "type": "Project",
                 "abstractKey": null
@@ -242,16 +227,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d817e627828c37e1fa909e7f3fa04e5f",
+    "cacheID": "7f1a292c544cb078d3b6e8672c0e7ff0",
     "id": null,
     "metadata": {},
     "name": "EvaluatorPlaygroundProjectSelectQuery",
     "operationKind": "query",
-    "text": "query EvaluatorPlaygroundProjectSelectQuery(\n  $filter: ProjectFilter\n  $hasOpened: Boolean!\n  $projectId: ID!\n  $hasProject: Boolean!\n) {\n  projects(first: 50, filter: $filter) @include(if: $hasOpened) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  selected: node(id: $projectId) @include(if: $hasProject) {\n    __typename\n    ... on Project {\n      id\n      name\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorPlaygroundProjectSelectQuery(\n  $filter: ProjectFilter\n  $projectId: ID!\n  $hasProject: Boolean!\n) {\n  projects(first: 50, filter: $filter) {\n    edges {\n      node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n    }\n  }\n  selected: node(id: $projectId) @include(if: $hasProject) {\n    __typename\n    ... on Project {\n      id\n      name\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c4d487432242ef23d69a81e9fd5b8c43";
+(node as any).hash = "e54caa212df02da3b746accb8a9d47ea";
 
 export default node;

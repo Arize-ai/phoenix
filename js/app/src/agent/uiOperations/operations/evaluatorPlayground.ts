@@ -4,6 +4,8 @@ import { defineUIOperation } from "../types";
 
 const slot = z.enum(["A", "B", "C", "D"]);
 
+const timeWindow = z.enum(["1h", "24h", "7d", "30d"]);
+
 const empty = z.strictObject({});
 
 const availability = {
@@ -90,7 +92,7 @@ export const readEvaluatorPlaygroundOperation = defineUIOperation({
   operationKind: "read",
   availability,
   description:
-    "Read evaluator mode, dataset/splits/sample size, slot summaries, run status, expected labels and paginated comparison results. Runs are temporary previews, not prompt experiments. All slots are peers with independent expected outputs. Use readSlot for editable draft details. No credentials are returned.",
+    "Read evaluator mode: the source (a dataset with splits, or a project with a span filter and time window), sample size, slot summaries, run status, expected outputs and paginated comparison rows. Rows are dataset examples or spans (span id as id and revisionId). Runs are temporary previews, not prompt experiments. All slots are peers with independent expected outputs. Use readSlot for editable draft details. No credentials are returned.",
   inputSchema: z.strictObject({
     offset: z.number().int().min(0).default(0),
     limit: z.number().int().min(1).max(50).default(20),
@@ -102,10 +104,16 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Configure evaluator mode's dataset by Relay node ID, splits, sample size, visible slots and result filter. Changing dataset/sample clears displayed results. Removing an unsaved slot requires discardChanges. Does not configure prompt playground or run anything.",
+    "Configure evaluator mode's source and view: a dataset (Relay node ID) with splits, or a project (Relay node ID) with a span filterCondition and timeWindow — rows are then the most recent matching spans. Setting projectId clears the dataset and vice versa; changing the source or sample size clears displayed results. Also sets sample size, visible slots and the result filter. Removing an unsaved slot requires discardChanges. Does not configure prompt playground or run anything.",
   inputSchema: z.strictObject({
     datasetId: z.string().nullable().optional(),
     splitIds: z.array(z.string()).optional(),
+    projectId: z.string().nullable().optional(),
+    filterCondition: z
+      .string()
+      .optional()
+      .describe("Span filter DSL for a project source; empty for every span."),
+    timeWindow: timeWindow.optional(),
     sampleSize: z.number().int().min(1).max(500).optional(),
     slots: z.array(slot).min(1).max(4).optional(),
     filter: z
@@ -120,13 +128,14 @@ export const selectEvaluatorPlaygroundSlotOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Load a saved global/dataset evaluator or a new LLM/code draft into explicit slot A, B, C or D. Configure visible slots before selecting one. Existing unsaved edits require discardChanges. Loading does not save. Call readSlot after loading.",
+    "Load a saved global, dataset or project evaluator, or a new LLM/code draft, into explicit slot A, B, C or D. Configure visible slots before selecting one. Existing unsaved edits require discardChanges. Loading does not save. Call readSlot after loading.",
   inputSchema: z.strictObject({
     slot,
     source: z.discriminatedUnion("type", [
       z.strictObject({ type: z.literal("new"), kind: z.enum(["LLM", "CODE"]) }),
       z.strictObject({ type: z.literal("evaluator"), id: z.string() }),
       z.strictObject({ type: z.literal("datasetEvaluator"), id: z.string() }),
+      z.strictObject({ type: z.literal("projectEvaluator"), id: z.string() }),
     ]),
     discardChanges: z.boolean().default(false),
   }),
@@ -146,7 +155,7 @@ export const editEvaluatorPlaygroundSlotOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Edit exactly one evaluator draft with a readSlot revision. Only supplied fields change; lists/mappings replace their entire value. Prompt/messages/model/includeExplanation apply to LLM; code/language/sandbox to CODE. Outputs: LLM slots accept only categorical outputs (labels, each optionally scored — express a 0–1 scale as scored labels); continuous and freeform outputs are valid only for CODE slots and are rejected for LLM on run and save. Dataset output is the judged response; reference starts empty. Human expected labels never enter evaluator context. Does not save or run.",
+    "Edit exactly one evaluator draft with a readSlot revision. Only supplied fields change; lists/mappings replace their entire value. Prompt/messages/model/includeExplanation apply to LLM; code/language/sandbox to CODE. Outputs: LLM slots accept only categorical outputs (labels, each optionally scored — express a 0–1 scale as scored labels); continuous and freeform outputs are valid only for CODE slots and are rejected for LLM on run and save. A row's output is the judged response; reference starts empty. Span rows expose the span's metadata (attributes included) to the mapping. Human expected labels never enter evaluator context. Does not save or run.",
   inputSchema: evaluatorSlotEditSchema,
 });
 
@@ -178,7 +187,7 @@ export const saveEvaluatorPlaygroundSlotOperation = defineUIOperation({
   longRunning: true,
   availability,
   description:
-    "Explicitly save one evaluator slot through the UI validation/save path. readSlot's saveTarget says what happens: update overwrites the evaluator loaded into the slot, attach updates a shared code evaluator and adds it to the selected dataset, create saves a NEW dataset evaluator (set a name with editSlot first). Requires the latest readSlot revision; returns the dataset-evaluator ID and whether it was created or updated.",
+    "Explicitly save one evaluator slot through the UI validation/save path. readSlot's saveTarget says what happens: update overwrites the evaluator loaded into the slot, attach updates a shared code evaluator and adds it to the selected dataset or project, create saves a NEW dataset evaluator or online project (span) evaluator (set a name with editSlot first). On a project source the saved evaluator takes the current span filter and 100% sampling unless it was loaded from a project evaluator. Requires the latest readSlot revision; returns the dataset- or project-evaluator ID and whether it was created or updated.",
   inputSchema: z.strictObject({ slot, expectedRevision: z.string() }),
 });
 
@@ -187,7 +196,7 @@ export const setExpectedOutputEvaluatorPlaygroundOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Persist or clear an expected output on a sampled example for an explicit evaluator slot. Only record user-provided/confirmed ground truth; never silently promote your own or evaluator predictions to human labels. Require example revision and output name from read to prevent stale or mis-scoped expected-output writes.",
+    "Persist or clear an expected output on a sampled row for an explicit evaluator slot: a dataset calibration label, or a HUMAN span annotation on a project source. Only record user-provided/confirmed ground truth; never silently promote your own or evaluator predictions to human labels. Require the row's revisionId (the span id for a span) and output name from read to prevent stale or mis-scoped writes.",
   inputSchema: z.strictObject({
     slot,
     exampleId: z.string(),

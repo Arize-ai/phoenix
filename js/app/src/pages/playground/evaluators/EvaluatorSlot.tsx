@@ -57,23 +57,35 @@ import {
 
 import type { EvaluatorSlotQuery } from "./__generated__/EvaluatorSlotQuery.graphql";
 import type { EvaluatorSlotSourceQuery } from "./__generated__/EvaluatorSlotSourceQuery.graphql";
-import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
+import type {
+  EvaluatorSaveBinding,
+  EvaluatorSaveTarget,
+} from "./evaluatorSaveTarget";
 import { getEvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import { EvaluatorSlotEditor } from "./EvaluatorSlotEditor";
 import type { EvaluatorSlotProps } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
 import { getSlotSourceLabel } from "./evaluatorSlotValidation";
 
-export function EvaluatorSlot(props: EvaluatorSlotProps) {
-  const initialSelection =
-    props.initialDatasetEvaluatorId ?? props.initialEvaluatorId ?? "new-llm";
+/** The node the slot opens with: a binding when the URL names one, else the evaluator. */
+export function getInitialSlotSelection(props: EvaluatorSlotProps) {
+  return (
+    props.initialProjectEvaluatorId ??
+    props.initialDatasetEvaluatorId ??
+    props.initialEvaluatorId ??
+    "new-llm"
+  );
+}
 
-  return <EvaluatorSlotContent key={initialSelection} {...props} />;
+export function EvaluatorSlot(props: EvaluatorSlotProps) {
+  return (
+    <EvaluatorSlotContent key={getInitialSlotSelection(props)} {...props} />
+  );
 }
 
 function EvaluatorSlotContent(props: EvaluatorSlotProps) {
-  const [selection, setSelection] = useState(
-    props.initialDatasetEvaluatorId ?? props.initialEvaluatorId ?? "new-llm"
+  const [selection, setSelection] = useState(() =>
+    getInitialSlotSelection(props)
   );
 
   // Bumped on every (re)selection so choosing the source already loaded — the
@@ -89,7 +101,11 @@ function EvaluatorSlotContent(props: EvaluatorSlotProps) {
     setPendingSelection(null);
     setSelection(id);
     setGeneration((current) => current + 1);
-    props.onSelectionChange?.({ evaluatorId: id, datasetEvaluatorId: null });
+    props.onSelectionChange?.({
+      evaluatorId: id,
+      datasetEvaluatorId: null,
+      projectEvaluatorId: null,
+    });
   }
 
   function requestSource(id: string) {
@@ -310,6 +326,9 @@ function EvaluatorSlotSource(
           ... on DatasetEvaluator {
             ...EvaluatorSlot_datasetEvaluator @relay(mask: false)
           }
+          ... on ProjectEvaluator {
+            ...EvaluatorSlot_projectEvaluator @relay(mask: false)
+          }
         }
       }
     `,
@@ -339,7 +358,7 @@ function EvaluatorSlotSource(
   const saveTarget = resolveSaveTarget({
     node: data.node,
     source,
-    datasetId: props.datasetId,
+    playgroundSource: props.source,
   });
 
   const editor = (
@@ -351,6 +370,16 @@ function EvaluatorSlotSource(
         initialSourceCode={source?.sourceCode}
         initialLanguage={source?.language}
         initialSandboxConfigId={source?.sandboxConfig?.id}
+        initialProjectScope={
+          data.node?.project &&
+          data.node.filterCondition != null &&
+          data.node.samplingRate != null
+            ? {
+                filterCondition: data.node.filterCondition,
+                samplingRate: data.node.samplingRate,
+              }
+            : null
+        }
       />
     </EvaluatorStoreProvider>
   );
@@ -368,16 +397,14 @@ function EvaluatorSlotSource(
 function resolveSaveTarget({
   node,
   source,
-  datasetId,
+  playgroundSource,
 }: {
   node: EvaluatorSlotSourceQuery["response"]["node"];
   source: EvaluatorSlotSourceQuery["response"]["node"];
-  datasetId: string | null;
+  playgroundSource: EvaluatorSlotProps["source"];
 }): EvaluatorSaveTarget {
-  const isBinding = node?.evaluator != null;
-
   return getEvaluatorSaveTarget({
-    datasetId,
+    playgroundSource,
     source:
       source?.id && source.kind
         ? {
@@ -386,11 +413,25 @@ function resolveSaveTarget({
             datasetEvaluators: source.datasetEvaluators ?? [],
           }
         : null,
-    selectedDatasetEvaluator:
-      isBinding && node.id && node.dataset
-        ? { id: node.id, datasetId: node.dataset.id }
-        : null,
+    selectedBinding: getSelectedBinding(node),
   });
+}
+
+/** The binding the slot was opened from, when the node is one. */
+function getSelectedBinding(
+  node: EvaluatorSlotSourceQuery["response"]["node"]
+): EvaluatorSaveBinding | null {
+  if (!node?.evaluator || !node.id) return null;
+
+  // A ProjectEvaluator names its project, a DatasetEvaluator its dataset; the
+  // shared Evaluator has neither.
+  if (node.project)
+    return { kind: "project", id: node.id, projectId: node.project.id };
+
+  if (node.dataset)
+    return { kind: "dataset", id: node.id, datasetId: node.dataset.id };
+
+  return null;
 }
 
 function createSlotInitialState({
@@ -536,6 +577,29 @@ export const evaluatorSlotDatasetEvaluatorFragment = graphql`
   }
 `;
 
+// Also returned by the slot's project update mutations. A project evaluator
+// has no output configs of its own; the evaluator's apply.
+export const evaluatorSlotProjectEvaluatorFragment = graphql`
+  fragment EvaluatorSlot_projectEvaluator on ProjectEvaluator {
+    id
+    name
+    filterCondition
+    samplingRate
+    evaluationTarget
+    evaluationDelaySeconds
+    project {
+      id
+    }
+    inputMapping {
+      literalMapping
+      pathMapping
+    }
+    evaluator {
+      ...EvaluatorSlot_source @relay(mask: false)
+    }
+  }
+`;
+
 export const evaluatorSlotOutputFragment = graphql`
   fragment EvaluatorSlot_output on BuiltInEvaluatorOutputConfig {
     __typename
@@ -594,6 +658,7 @@ function EvaluatorSlotUnavailable({
         preview: null,
         inputMapping: { literalMapping: {}, pathMapping: {} },
         validationError: "The selected evaluator is unavailable.",
+        saveTarget: { action: "create" },
       }),
     [onChange, selection]
   );

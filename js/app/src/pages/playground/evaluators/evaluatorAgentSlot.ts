@@ -17,12 +17,14 @@ import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
-import type { SlotId } from "./evaluatorSlotTypes";
+import type { EvaluatorSlotSaveOptions, SlotId } from "./evaluatorSlotTypes";
 
 export type EvaluatorAgentSlot = {
   read: () => ReturnType<ReturnType<typeof createEvaluatorAgentSlot>["read"]>;
   edit: (input: EvaluatorSlotEdit) => Promise<UIOperationResult>;
   save: (revision: string) => Promise<UIOperationResult>;
+  /** The page's "Save filter": a normal save with the filter overridden. */
+  saveFilter: (filterCondition: string) => Promise<UIOperationResult>;
 };
 
 /** The slot editor state that lives outside the evaluator store. */
@@ -63,7 +65,7 @@ export function createEvaluatorAgentSlot({
     name: string;
     language: CodeEvaluatorLanguage;
   }[];
-  save: () => Promise<UIOperationResult>;
+  save: (options?: EvaluatorSlotSaveOptions) => Promise<UIOperationResult>;
 }) {
   function read() {
     const state = store.getState();
@@ -254,6 +256,9 @@ export function createEvaluatorAgentSlot({
         };
 
       return save();
+    },
+    saveFilter(filterCondition: string) {
+      return save({ filterCondition });
     },
   };
 }

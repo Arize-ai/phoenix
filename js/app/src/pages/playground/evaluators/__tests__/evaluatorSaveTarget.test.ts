@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { getEvaluatorSaveTarget } from "../evaluatorSaveTarget";
+import {
+  getEvaluatorSaveTarget,
+  isProjectEvaluatorUpdate,
+} from "../evaluatorSaveTarget";
 
 const onThisDataset = { id: "binding-1", dataset: { id: "dataset-1" } };
 const onOtherDataset = { id: "binding-2", dataset: { id: "dataset-2" } };
+const dataset1 = { kind: "dataset", datasetId: "dataset-1" } as const;
+const project1 = { kind: "project", projectId: "project-1" } as const;
 
 describe("getEvaluatorSaveTarget", () => {
-  it("creates for a new draft or without a dataset", () => {
+  it("creates for a new draft or without a source", () => {
     expect(
       getEvaluatorSaveTarget({
         source: null,
-        selectedDatasetEvaluator: null,
-        datasetId: "dataset-1",
+        selectedBinding: null,
+        playgroundSource: dataset1,
       })
     ).toEqual({ action: "create" });
     expect(
@@ -21,8 +26,8 @@ describe("getEvaluatorSaveTarget", () => {
           kind: "CODE",
           datasetEvaluators: [onThisDataset],
         },
-        selectedDatasetEvaluator: null,
-        datasetId: null,
+        selectedBinding: null,
+        playgroundSource: null,
       })
     ).toEqual({ action: "create" });
   });
@@ -35,8 +40,8 @@ describe("getEvaluatorSaveTarget", () => {
           kind: "LLM",
           datasetEvaluators: [onOtherDataset, onThisDataset],
         },
-        selectedDatasetEvaluator: null,
-        datasetId: "dataset-1",
+        selectedBinding: null,
+        playgroundSource: dataset1,
       })
     ).toEqual({
       action: "update",
@@ -53,8 +58,12 @@ describe("getEvaluatorSaveTarget", () => {
           kind: "CODE",
           datasetEvaluators: [onThisDataset, { ...onThisDataset, id: "twin" }],
         },
-        selectedDatasetEvaluator: { id: "twin", datasetId: "dataset-1" },
-        datasetId: "dataset-1",
+        selectedBinding: {
+          kind: "dataset",
+          id: "twin",
+          datasetId: "dataset-1",
+        },
+        playgroundSource: dataset1,
       })
     ).toMatchObject({ action: "update", datasetEvaluatorId: "twin" });
   });
@@ -67,16 +76,69 @@ describe("getEvaluatorSaveTarget", () => {
           kind: "CODE",
           datasetEvaluators: [onOtherDataset],
         },
-        selectedDatasetEvaluator: { id: "binding-2", datasetId: "dataset-2" },
-        datasetId: "dataset-1",
+        selectedBinding: {
+          kind: "dataset",
+          id: "binding-2",
+          datasetId: "dataset-2",
+        },
+        playgroundSource: dataset1,
       })
     ).toEqual({ action: "attach", evaluatorId: "code" });
     expect(
       getEvaluatorSaveTarget({
         source: { id: "llm", kind: "LLM", datasetEvaluators: [onOtherDataset] },
-        selectedDatasetEvaluator: null,
-        datasetId: "dataset-1",
+        selectedBinding: null,
+        playgroundSource: dataset1,
       })
     ).toEqual({ action: "create" });
+  });
+
+  it("updates the project evaluator the slot was opened from, on that project", () => {
+    const target = getEvaluatorSaveTarget({
+      source: { id: "llm", kind: "LLM", datasetEvaluators: [] },
+      selectedBinding: { kind: "project", id: "pe-1", projectId: "project-1" },
+      playgroundSource: project1,
+    });
+    expect(target).toEqual({
+      action: "update",
+      evaluatorId: "llm",
+      projectEvaluatorId: "pe-1",
+    });
+    expect(isProjectEvaluatorUpdate(target)).toBe(true);
+  });
+
+  it("on a project, a bare shared evaluator attaches (code) or is copied (LLM)", () => {
+    expect(
+      getEvaluatorSaveTarget({
+        source: {
+          id: "code",
+          kind: "CODE",
+          datasetEvaluators: [onThisDataset],
+        },
+        selectedBinding: {
+          kind: "project",
+          id: "pe-other",
+          projectId: "project-2",
+        },
+        playgroundSource: project1,
+      })
+    ).toEqual({ action: "attach", evaluatorId: "code" });
+    expect(
+      getEvaluatorSaveTarget({
+        source: { id: "llm", kind: "LLM", datasetEvaluators: [onThisDataset] },
+        selectedBinding: null,
+        playgroundSource: project1,
+      })
+    ).toEqual({ action: "create" });
+  });
+
+  it("a dataset binding never counts as an update on a project", () => {
+    expect(
+      isProjectEvaluatorUpdate({
+        action: "update",
+        evaluatorId: "llm",
+        datasetEvaluatorId: "binding-1",
+      })
+    ).toBe(false);
   });
 });

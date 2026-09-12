@@ -2,13 +2,29 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 import type { SlotId, SlotOutput } from "./evaluatorSlotTypes";
 
+/**
+ * One row of the sample: a dataset example, or a span read through its
+ * evaluation context so it carries the same `{input, output, metadata}` shape.
+ * For a span, `id` and `revisionId` are both the span id.
+ */
 export type SampleExample = {
   id: string;
   revisionId: string;
+  /** A display name where the row has one (a span's name). */
+  name?: string;
   input: unknown;
   output: unknown;
   metadata: unknown;
-  calibrationLabels: ReadonlyArray<ExpectedOutput & { annotationName: string }>;
+  calibrationLabels: ReadonlyArray<SampleExpectedOutput>;
+};
+
+/**
+ * A persisted expected output. On a span it is a HUMAN span annotation, and
+ * `annotationId` is what a later change or clear addresses.
+ */
+export type SampleExpectedOutput = ExpectedOutput & {
+  annotationName: string;
+  annotationId?: string;
 };
 
 export type EvaluatorPrediction =
@@ -39,6 +55,12 @@ export type EvaluatorRun = {
  * Keep annotations out of evaluator context, even for whole-object mappings.
  * Expected outputs live in the example's annotations alongside any annotations
  * carried over from a span, and none of them should inform the judge.
+ *
+ * Span rows are stripped the same way. An online project evaluator does see a
+ * span's prior annotations, but the playground deliberately hides the expected
+ * labels it writes there, so the mapping source and the run context both drop
+ * `metadata.annotations`; the rest of a span's metadata (`attributes` included)
+ * is kept.
  */
 export function createEvaluatorContext(
   example: Pick<SampleExample, "input" | "output" | "metadata">

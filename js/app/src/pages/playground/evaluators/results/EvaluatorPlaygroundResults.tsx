@@ -70,6 +70,7 @@ export function EvaluatorPlaygroundResults(
     saveStatus: props.saveStatus,
     pendingCount: props.pendingCount,
     hideExpectedAnnotations: props.hideExpectedAnnotations,
+    rowNoun: props.rowNoun,
   };
 
   const [snapshot, setSnapshot] = useState(nextSnapshot);
@@ -150,8 +151,11 @@ function EvaluatorPlaygroundResultsContent({
   staleSlots,
   onRetryExpectedOutputs,
   onReloadSample,
+  rowNoun = "examples",
 }: {
   examples: SampleExample[];
+  /** What a row is, for the counts and empty state: "examples" or "spans". */
+  rowNoun?: "examples" | "spans";
   sampleSize: number;
   isLoading: boolean;
   runs: Partial<Record<SlotId, EvaluatorRun>>;
@@ -318,8 +322,8 @@ function EvaluatorPlaygroundResultsContent({
               {isLoading && !examples.length
                 ? "Loading sample…"
                 : examples.length < sampleSize
-                  ? `All ${examples.length} examples`
-                  : `First ${sampleSize} examples`}
+                  ? `All ${examples.length} ${rowNoun}`
+                  : `${rowNoun === "spans" ? "Most recent" : "First"} ${sampleSize} ${rowNoun}`}
             </Text>
             <ExpectedOutputSaveIndicator
               status={saveStatus}
@@ -421,7 +425,7 @@ function EvaluatorPlaygroundResultsContent({
             <TableEmptyWrap>
               <CompactEmptyState
                 icon={<Icon svg={<Icons.Database />} />}
-                description="No examples"
+                description={`No ${rowNoun}`}
                 isFiltered={filter !== "all"}
               />
             </TableEmptyWrap>
