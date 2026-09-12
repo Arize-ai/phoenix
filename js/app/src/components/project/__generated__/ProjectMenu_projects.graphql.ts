@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<33369ca95a80927220fb8f970e61284e>>
+ * @generated SignedSource<<7d6842e07a90d9c4243a639ca8d76155>>
  * @lightSyntaxTransform
  */
 
@@ -20,11 +20,6 @@ export type ProjectMenu_projects$data = {
       };
     }>;
   };
-  readonly selectedProject?: {
-    readonly __typename: string;
-    readonly id: string;
-    readonly name?: string;
-  };
   readonly " $fragmentType": "ProjectMenu_projects";
 };
 export type ProjectMenu_projects$key = {
@@ -37,28 +32,7 @@ import ProjectMenuProjectsQuery_graphql from './ProjectMenuProjectsQuery.graphql
 const node: ReaderFragment = (function(){
 var v0 = [
   "projects"
-],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-};
+];
 return {
   "argumentDefinitions": [
     {
@@ -75,16 +49,6 @@ return {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "hasSelectedProject"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "selectedProjectId"
     }
   ],
   "kind": "Fragment",
@@ -112,40 +76,6 @@ return {
   },
   "name": "ProjectMenu_projects",
   "selections": [
-    {
-      "condition": "hasSelectedProject",
-      "kind": "Condition",
-      "passingValue": true,
-      "selections": [
-        {
-          "alias": "selectedProject",
-          "args": [
-            {
-              "kind": "Variable",
-              "name": "id",
-              "variableName": "selectedProjectId"
-            }
-          ],
-          "concreteType": null,
-          "kind": "LinkedField",
-          "name": "node",
-          "plural": false,
-          "selections": [
-            (v1/*:: as any*/),
-            (v2/*:: as any*/),
-            {
-              "kind": "InlineFragment",
-              "selections": [
-                (v3/*:: as any*/)
-              ],
-              "type": "Project",
-              "abstractKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ]
-    },
     {
       "alias": "projects",
       "args": [
@@ -176,8 +106,20 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v2/*:: as any*/),
-                (v3/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "id",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "name",
+                  "storageKey": null
+                },
                 {
                   "alias": null,
                   "args": null,
@@ -210,7 +152,13 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*:: as any*/)
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                }
               ],
               "storageKey": null
             }
@@ -251,6 +199,6 @@ return {
 };
 })();
 
-(node as any).hash = "acf5af224c355e76f53d918b469f477c";
+(node as any).hash = "b352f700c90c5801783845b12c62096f";
 
 export default node;
