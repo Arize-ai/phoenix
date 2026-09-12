@@ -1,16 +1,34 @@
 # type: ignore
 
 import json
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
 from phoenix.evals.utils import (
+    download_benchmark_dataset,
     extract_with_jsonpath,
     remap_eval_input,
     to_annotation_dataframe,
 )
+
+
+class TestDownloadBenchmarkDataset:
+    """Test the download_benchmark_dataset utility function."""
+
+    def test_unresponsive_server_raises_instead_of_blocking(self):
+        def unresponsive_urlopen(url, timeout=None):
+            if timeout is None:
+                raise AssertionError("the download would block forever")
+            raise TimeoutError("timed out")
+
+        with patch("phoenix.evals.utils.urlopen", unresponsive_urlopen):
+            with pytest.raises(TimeoutError):
+                download_benchmark_dataset(
+                    "binary-hallucination-classification", "halueval_qa_data"
+                )
 
 
 class TestRemapEvalInput:
