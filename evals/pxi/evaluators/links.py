@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from phoenix.evals import create_evaluator
 
@@ -55,13 +55,33 @@ def _bare_urls(text: str, markdown_href_spans: list[tuple[int, int]]) -> list[st
     return urls
 
 
+def _path_segments(path: str) -> tuple[str, ...]:
+    # Decode within segments so an encoded slash cannot change route boundaries.
+    return tuple(unquote(segment) for segment in path.split("/"))
+
+
+def _same_in_app_href(observed: str, expected: str) -> bool:
+    if not _is_root_relative_app_href(observed):
+        return False
+    actual, wanted = urlparse(observed), urlparse(expected)
+    return (
+        _path_segments(actual.path) == _path_segments(wanted.path)
+        and actual.params == wanted.params
+        and actual.query == wanted.query
+        and actual.fragment == wanted.fragment
+    )
+
+
 def _absolute_app_link_reason(href: str, required_paths: list[str]) -> str | None:
     parsed = urlparse(href)
     if parsed.scheme not in {"http", "https"}:
         return None
     if parsed.hostname not in _LOCAL_APP_HOSTS:
         return None
-    if parsed.path in required_paths:
+    if any(
+        _path_segments(parsed.path) == _path_segments(urlparse(path).path)
+        for path in required_paths
+    ):
         return "absolute app link"
     return None
 
@@ -159,7 +179,9 @@ def evaluate_in_app_links(output: Any, expected: Any) -> dict[str, Any]:
 
     hrefs, href_spans = _markdown_href_spans(text)
     bare_urls = _bare_urls(text, href_spans)
-    missing = [path for path in required if path not in hrefs]
+    missing = [
+        path for path in required if not any(_same_in_app_href(href, path) for href in hrefs)
+    ]
     invalid_in_app = _invalid_in_app_hrefs(hrefs, required)
     metadata = {
         "required_in_app": required,
