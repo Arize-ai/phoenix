@@ -30,7 +30,10 @@ import {
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { toProjectEvaluatorSamplingFraction } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
-import type { EvaluatorSlotSource } from "./evaluatorPlaygroundSource";
+import type {
+  EvaluatorPlaygroundProjectScope,
+  EvaluatorSlotSource,
+} from "./evaluatorPlaygroundSource";
 import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import type { EvaluatorSlotSaveOptions, SlotId } from "./evaluatorSlotTypes";
 
@@ -67,13 +70,6 @@ const SUBMIT_LABELS: Record<SourceKind, Record<SaveAction, string>> = {
   },
 };
 
-/** The project evaluator's stored scope, when the slot loaded one. */
-export type ProjectEvaluatorScopeDefaults = {
-  filterCondition: string;
-  /** A fraction in [0, 1]. */
-  samplingRate: number;
-};
-
 /**
  * The slot's save step, in the shape of the prompt playground's save dialog:
  * name and description (the same values the Output tab edits), what the save
@@ -99,7 +95,7 @@ export function SaveEvaluatorSlotDialog({
   /** The applied filter in the Results strip, offered for a project save. */
   sourceFilterCondition: string;
   /** The loaded project evaluator's scope; null for a new draft. */
-  projectScope: ProjectEvaluatorScopeDefaults | null;
+  projectScope: EvaluatorPlaygroundProjectScope | null;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   isSaving: boolean;
@@ -142,7 +138,7 @@ function SaveEvaluatorSlotForm({
   target: EvaluatorSaveTarget;
   source: EvaluatorSlotSource;
   sourceFilterCondition: string;
-  projectScope: ProjectEvaluatorScopeDefaults | null;
+  projectScope: EvaluatorPlaygroundProjectScope | null;
   isSaving: boolean;
   error: string | null;
   onSave: (options: EvaluatorSlotSaveOptions) => Promise<UIOperationResult>;
@@ -219,6 +215,7 @@ function SaveEvaluatorSlotForm({
             {source.kind === "project" ? (
               <ProjectScopeFields
                 sourceFilterCondition={sourceFilterCondition}
+                storedFilterCondition={projectScope?.filterCondition ?? null}
                 includeFilter={includeFilter}
                 onIncludeFilterChange={setIncludeFilter}
                 samplingPercent={samplingPercent}
@@ -264,18 +261,35 @@ function SaveEvaluatorSlotForm({
 /** What the saved online evaluator runs on. The target is fixed to spans. */
 function ProjectScopeFields({
   sourceFilterCondition,
+  storedFilterCondition,
   includeFilter,
   onIncludeFilterChange,
   samplingPercent,
   onSamplingPercentChange,
 }: {
   sourceFilterCondition: string;
+  /** The loaded project evaluator's filter, kept when the box is unchecked. */
+  storedFilterCondition: string | null;
   includeFilter: boolean;
   onIncludeFilterChange: (include: boolean) => void;
   samplingPercent: number;
   onSamplingPercentChange: (percent: number) => void;
 }) {
   const hasFilter = sourceFilterCondition.trim().length > 0;
+
+  // What the saved evaluator will run on, given the checkbox.
+  const effect =
+    includeFilter && hasFilter
+      ? sourceFilterCondition
+      : storedFilterCondition != null
+        ? storedFilterCondition ||
+          "Keeps no filter; the evaluator runs on every span."
+        : hasFilter
+          ? "Stores no filter; the evaluator runs on every span."
+          : "The Results strip has no filter; the evaluator runs on every span.";
+
+  const isCondition =
+    effect === sourceFilterCondition || effect === storedFilterCondition;
 
   return (
     <>
@@ -296,11 +310,9 @@ function ProjectScopeFields({
         <Text
           size="XS"
           color="text-500"
-          fontFamily={hasFilter ? "mono" : undefined}
+          fontFamily={isCondition ? "mono" : undefined}
         >
-          {hasFilter
-            ? sourceFilterCondition
-            : "The Results strip has no filter; the evaluator runs on every span."}
+          {effect}
         </Text>
       </Flex>
       <NumberField

@@ -13,6 +13,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import { DeleteProjectEvaluatorDialog } from "@phoenix/pages/project/evaluators/DeleteProjectEvaluatorDialog";
 
 enum ProjectEvaluatorAction {
@@ -48,6 +49,7 @@ export function ProjectEvaluatorActionMenu({
   evaluatorKind,
   evaluatorName,
   filterCondition,
+  evaluationTarget,
   onEdit,
 }: {
   projectEvaluatorId: string;
@@ -56,6 +58,7 @@ export function ProjectEvaluatorActionMenu({
   evaluatorName: string;
   /** Carried into the playground so its rows match what the evaluator runs on. */
   filterCondition: string;
+  evaluationTarget: EvaluationTarget;
   /** Passed in by the table, so the edit path is derived once per render and
    * not once per row. */
   onEdit: (projectEvaluatorId: string) => void;
@@ -63,6 +66,9 @@ export function ProjectEvaluatorActionMenu({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const navigate = useNavigate();
   const canEdit = evaluatorKind === "LLM" || evaluatorKind === "CODE";
+  // The playground runs over spans; a trace or session evaluator would be
+  // refused there, so the entry is only offered for span evaluators.
+  const canOpenInPlayground = canEdit && evaluationTarget === "SPAN";
   return (
     <StopPropagation>
       <MenuTrigger>
@@ -107,7 +113,7 @@ export function ProjectEvaluatorActionMenu({
                 </Flex>
               </MenuItem>
             ) : null}
-            {canEdit ? (
+            {canOpenInPlayground ? (
               <MenuItem id={ProjectEvaluatorAction.OPEN_IN_PLAYGROUND}>
                 <Flex
                   direction="row"

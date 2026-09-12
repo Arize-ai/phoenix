@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import type { SampleExample } from "../evaluatorResults";
 import {
   applySpanAnnotationWrites,
   createSpanSampleRow,
   planSpanAnnotationWrites,
-} from "../spanSampleRows";
+} from "../evaluatorPlaygroundSpanRows";
+import type { SampleExample } from "../evaluatorResults";
 
 const span = {
   id: "span-1",

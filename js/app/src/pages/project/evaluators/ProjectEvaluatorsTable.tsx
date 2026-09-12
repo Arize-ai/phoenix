@@ -618,6 +618,7 @@ export function ProjectEvaluatorsTable({
             evaluatorKind={row.original.evaluator.kind}
             evaluatorName={row.original.name}
             filterCondition={row.original.filterCondition}
+            evaluationTarget={row.original.evaluationTarget}
             onEdit={openEditSlideover}
           />
         ),

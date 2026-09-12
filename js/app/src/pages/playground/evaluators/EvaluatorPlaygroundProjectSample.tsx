@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { EvaluatorPlaygroundProjectSampleQuery } from "./__generated__/EvaluatorPlaygroundProjectSampleQuery.graphql";
+import { createSpanSampleRow } from "./evaluatorPlaygroundSpanRows";
 import type { SampleExample } from "./evaluatorResults";
-import { createSpanSampleRow } from "./spanSampleRows";
 
 /**
  * The project counterpart of `EvaluatorPlaygroundSample`: the most recent spans
@@ -49,8 +49,6 @@ export function EvaluatorPlaygroundProjectSample({
                 node {
                   id
                   name
-                  spanKind
-                  startTime
                   evaluationContext
                   spanAnnotations {
                     id

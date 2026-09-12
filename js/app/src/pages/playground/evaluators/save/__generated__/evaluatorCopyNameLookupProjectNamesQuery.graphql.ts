@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0551f205bf16196f2eaa14219a738ca5>>
+ * @generated SignedSource<<621e793e1f1df625f28f3dba0496ea6d>>
  * @lightSyntaxTransform
  */
 
@@ -18,12 +18,12 @@ export type ProjectEvaluatorFilter = {
   col: ProjectEvaluatorFilterColumn;
   value: string;
 };
-export type useEvaluatorSlotSaveProjectNamesQuery$variables = {
+export type evaluatorCopyNameLookupProjectNamesQuery$variables = {
   filter: EvaluatorFilter;
   projectFilter: ProjectEvaluatorFilter;
   projectId: string;
 };
-export type useEvaluatorSlotSaveProjectNamesQuery$data = {
+export type evaluatorCopyNameLookupProjectNamesQuery$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -41,9 +41,9 @@ export type useEvaluatorSlotSaveProjectNamesQuery$data = {
     };
   };
 };
-export type useEvaluatorSlotSaveProjectNamesQuery = {
-  response: useEvaluatorSlotSaveProjectNamesQuery$data;
-  variables: useEvaluatorSlotSaveProjectNamesQuery$variables;
+export type evaluatorCopyNameLookupProjectNamesQuery = {
+  response: evaluatorCopyNameLookupProjectNamesQuery$data;
+  variables: evaluatorCopyNameLookupProjectNamesQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -121,7 +121,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useEvaluatorSlotSaveProjectNamesQuery",
+    "name": "evaluatorCopyNameLookupProjectNamesQuery",
     "selections": [
       {
         "alias": null,
@@ -213,7 +213,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useEvaluatorSlotSaveProjectNamesQuery",
+    "name": "evaluatorCopyNameLookupProjectNamesQuery",
     "selections": [
       {
         "alias": null,
@@ -309,16 +309,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "45322207e96e8989a01827ec92981ca5",
+    "cacheID": "40c0fd4719688764227e83eaec2afbf0",
     "id": null,
     "metadata": {},
-    "name": "useEvaluatorSlotSaveProjectNamesQuery",
+    "name": "evaluatorCopyNameLookupProjectNamesQuery",
     "operationKind": "query",
-    "text": "query useEvaluatorSlotSaveProjectNamesQuery(\n  $filter: EvaluatorFilter!\n  $projectFilter: ProjectEvaluatorFilter!\n  $projectId: ID!\n) {\n  evaluators(first: 200, filter: $filter) {\n    edges {\n      node {\n        __typename\n        name\n        id\n      }\n    }\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 200, filter: $projectFilter) {\n        edges {\n          node {\n            name\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query evaluatorCopyNameLookupProjectNamesQuery(\n  $filter: EvaluatorFilter!\n  $projectFilter: ProjectEvaluatorFilter!\n  $projectId: ID!\n) {\n  evaluators(first: 200, filter: $filter) {\n    edges {\n      node {\n        __typename\n        name\n        id\n      }\n    }\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluators(first: 200, filter: $projectFilter) {\n        edges {\n          node {\n            name\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3b7b412849eb6bff85f4609ff5c2bd1b";
+(node as any).hash = "dc79435c797ae3a4d173d9fdc81aed06";
 
 export default node;

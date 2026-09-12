@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5106a5ab045ca146fac45cacc415c2fc>>
+ * @generated SignedSource<<851d934b46c5888f86559b3b7b283d2a>>
  * @lightSyntaxTransform
  */
 
@@ -71,10 +71,10 @@ export type FreeformAnnotationConfigInput = {
   threshold?: number | null;
   upperBound?: number | null;
 };
-export type useEvaluatorSlotSaveUpdateProjectCodeMutation$variables = {
+export type saveProjectEvaluatorUpdateProjectCodeMutation$variables = {
   input: UpdateProjectCodeEvaluatorInput;
 };
-export type useEvaluatorSlotSaveUpdateProjectCodeMutation$data = {
+export type saveProjectEvaluatorUpdateProjectCodeMutation$data = {
   readonly updateProjectCodeEvaluator: {
     readonly evaluator: {
       readonly evaluationDelaySeconds: number;
@@ -153,9 +153,9 @@ export type useEvaluatorSlotSaveUpdateProjectCodeMutation$data = {
     };
   };
 };
-export type useEvaluatorSlotSaveUpdateProjectCodeMutation = {
-  response: useEvaluatorSlotSaveUpdateProjectCodeMutation$data;
-  variables: useEvaluatorSlotSaveUpdateProjectCodeMutation$variables;
+export type saveProjectEvaluatorUpdateProjectCodeMutation = {
+  response: saveProjectEvaluatorUpdateProjectCodeMutation$data;
+  variables: saveProjectEvaluatorUpdateProjectCodeMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -1025,7 +1025,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useEvaluatorSlotSaveUpdateProjectCodeMutation",
+    "name": "saveProjectEvaluatorUpdateProjectCodeMutation",
     "selections": [
       {
         "alias": null,
@@ -1170,7 +1170,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useEvaluatorSlotSaveUpdateProjectCodeMutation",
+    "name": "saveProjectEvaluatorUpdateProjectCodeMutation",
     "selections": [
       {
         "alias": null,
@@ -1313,16 +1313,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0afd6d513bb615e1c66a02f878d8f257",
+    "cacheID": "15f49b273510f1296c0f820b406cb707",
     "id": null,
     "metadata": {},
-    "name": "useEvaluatorSlotSaveUpdateProjectCodeMutation",
+    "name": "saveProjectEvaluatorUpdateProjectCodeMutation",
     "operationKind": "mutation",
-    "text": "mutation useEvaluatorSlotSaveUpdateProjectCodeMutation(\n  $input: UpdateProjectCodeEvaluatorInput!\n) {\n  updateProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      filterCondition\n      samplingRate\n      evaluationTarget\n      evaluationDelaySeconds\n      project {\n        id\n      }\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      evaluator {\n        __typename\n        __isEvaluator: __typename\n        id\n        name\n        description\n        kind\n        isBuiltin\n        outputConfigs {\n          __typename\n          __isBuiltInEvaluatorOutputConfig: __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        datasetEvaluators {\n          id\n          dataset {\n            id\n          }\n        }\n        ... on LLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            id\n            templateFormat\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n          }\n          promptVersionTag {\n            name\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          language\n          sourceCode\n          sandboxConfig {\n            id\n          }\n          inputMapping {\n            literalMapping\n            pathMapping\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
+    "text": "mutation saveProjectEvaluatorUpdateProjectCodeMutation(\n  $input: UpdateProjectCodeEvaluatorInput!\n) {\n  updateProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      filterCondition\n      samplingRate\n      evaluationTarget\n      evaluationDelaySeconds\n      project {\n        id\n      }\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      evaluator {\n        __typename\n        __isEvaluator: __typename\n        id\n        name\n        description\n        kind\n        isBuiltin\n        outputConfigs {\n          __typename\n          __isBuiltInEvaluatorOutputConfig: __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        datasetEvaluators {\n          id\n          dataset {\n            id\n          }\n        }\n        ... on LLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            id\n            templateFormat\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n          }\n          promptVersionTag {\n            name\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          language\n          sourceCode\n          sandboxConfig {\n            id\n          }\n          inputMapping {\n            literalMapping\n            pathMapping\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7a9732e43f28158566a1434578d02096";
+(node as any).hash = "650e05aab44a5fb0d10de83712208fbf";
 
 export default node;

@@ -8,14 +8,14 @@ import type { useEvaluatorPlaygroundExpectedOutputsDatasetMutation } from "./__g
 import type { useEvaluatorPlaygroundExpectedOutputsDeleteSpanMutation } from "./__generated__/useEvaluatorPlaygroundExpectedOutputsDeleteSpanMutation.graphql";
 import type { useEvaluatorPlaygroundExpectedOutputsPatchSpanMutation } from "./__generated__/useEvaluatorPlaygroundExpectedOutputsPatchSpanMutation.graphql";
 import type { EvaluatorPlaygroundSource } from "./evaluatorPlaygroundSource";
-import type { SampleExample } from "./evaluatorResults";
-import type { PendingExpectedOutputs } from "./expectedOutputQueue";
 import {
   applySpanAnnotationWrites,
   planSpanAnnotationWrites,
   type SavedSpanAnnotation,
-} from "./spanSampleRows";
-import { commitEvaluatorMutation } from "./useEvaluatorSlotSave";
+} from "./evaluatorPlaygroundSpanRows";
+import type { SampleExample } from "./evaluatorResults";
+import type { PendingExpectedOutputs } from "./expectedOutputQueue";
+import { commitEvaluatorMutation } from "./save";
 
 type DatasetLabelInput =
   useEvaluatorPlaygroundExpectedOutputsDatasetMutation["variables"]["input"]["labels"][number];
@@ -125,7 +125,11 @@ export function useEvaluatorPlaygroundExpectedOutputs({
   }
 
   /**
-   * Creates, patches and deletes go out in that order, each only when needed.
+   * Deletes, then patches, then creates. A failed batch goes back to the queue
+   * and is retried against the rows, so every write that did land is folded
+   * into the rows even when a later one throws: a delete or patch retried is
+   * harmless, but a create retried would mint a duplicate annotation, which is
+   * why creates go last and their ids are recorded whatever happens next.
    * The annotations are `source: APP`, HUMAN, with empty metadata, so they
    * read as a person's judgment made in the app.
    */
@@ -138,47 +142,54 @@ export function useEvaluatorPlaygroundExpectedOutputs({
     if (!planned.ok) return planned;
     const { creates, patches, deleteIds } = planned.plan;
     const saved: SavedSpanAnnotation[] = [];
+    const deleted: string[] = [];
 
-    if (creates.length) {
-      const response =
-        await commitEvaluatorMutation<useEvaluatorPlaygroundExpectedOutputsCreateSpanMutation>(
+    try {
+      if (deleteIds.length) {
+        await commitEvaluatorMutation<useEvaluatorPlaygroundExpectedOutputsDeleteSpanMutation>(
           environment,
-          createSpanMutation,
-          {
-            input: creates.map((create) => ({
-              ...create,
-              annotatorKind: "HUMAN",
-              source: "APP",
-              metadata: {},
-            })),
-          }
+          deleteSpanMutation,
+          { input: { annotationIds: deleteIds } }
         );
+        deleted.push(...deleteIds);
+      }
 
-      saved.push(...response.createSpanAnnotations.spanAnnotations);
+      if (patches.length) {
+        const response =
+          await commitEvaluatorMutation<useEvaluatorPlaygroundExpectedOutputsPatchSpanMutation>(
+            environment,
+            patchSpanMutation,
+            { input: patches }
+          );
+
+        saved.push(...response.patchSpanAnnotations.spanAnnotations);
+      }
+
+      if (creates.length) {
+        const response =
+          await commitEvaluatorMutation<useEvaluatorPlaygroundExpectedOutputsCreateSpanMutation>(
+            environment,
+            createSpanMutation,
+            {
+              input: creates.map((create) => ({
+                ...create,
+                annotatorKind: "HUMAN",
+                source: "APP",
+                metadata: {},
+              })),
+            }
+          );
+
+        saved.push(...response.createSpanAnnotations.spanAnnotations);
+      }
+    } finally {
+      if (saved.length || deleted.length)
+        updateRows((current) =>
+          applySpanAnnotationWrites(current, { saved, deleteIds: deleted })
+        );
     }
 
-    if (patches.length) {
-      const response =
-        await commitEvaluatorMutation<useEvaluatorPlaygroundExpectedOutputsPatchSpanMutation>(
-          environment,
-          patchSpanMutation,
-          { input: patches }
-        );
-
-      saved.push(...response.patchSpanAnnotations.spanAnnotations);
-    }
-
-    if (deleteIds.length)
-      await commitEvaluatorMutation<useEvaluatorPlaygroundExpectedOutputsDeleteSpanMutation>(
-        environment,
-        deleteSpanMutation,
-        { input: { annotationIds: deleteIds } }
-      );
-    updateRows((current) =>
-      applySpanAnnotationWrites(current, { saved, deleteIds })
-    );
-
-    return { ok: true, output: { saved: saved.length + deleteIds.length } };
+    return { ok: true, output: { saved: saved.length + deleted.length } };
   }
 
   return { flush };

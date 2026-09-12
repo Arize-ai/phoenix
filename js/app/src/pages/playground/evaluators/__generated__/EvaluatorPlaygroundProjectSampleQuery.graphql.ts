@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4d5dcfcf79cc279752a95a80d0a97dcd>>
+ * @generated SignedSource<<bcca8c5003354fb518c3d5c577a3b2ec>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,6 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type EvaluatorPlaygroundProjectSampleQuery$variables = {
   filterCondition?: string | null;
   first: number;
@@ -32,8 +31,6 @@ export type EvaluatorPlaygroundProjectSampleQuery$data = {
             readonly name: string;
             readonly score: number | null;
           }>;
-          readonly spanKind: SpanKind;
-          readonly startTime: string;
         };
       }>;
     };
@@ -145,20 +142,6 @@ v7 = {
               "selections": [
                 (v5/*:: as any*/),
                 (v6/*:: as any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "spanKind",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "startTime",
-                  "storageKey": null
-                },
                 {
                   "alias": null,
                   "args": null,
@@ -282,16 +265,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "32de22625bb042903ff0691ea1da8d22",
+    "cacheID": "9118608435c74c2a94b441176b3fd77a",
     "id": null,
     "metadata": {},
     "name": "EvaluatorPlaygroundProjectSampleQuery",
     "operationKind": "query",
-    "text": "query EvaluatorPlaygroundProjectSampleQuery(\n  $projectId: ID!\n  $first: Int!\n  $filterCondition: String\n  $start: DateTime!\n) {\n  node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: {start: $start}) {\n        edges {\n          node {\n            id\n            name\n            spanKind\n            startTime\n            evaluationContext\n            spanAnnotations {\n              id\n              name\n              annotatorKind\n              label\n              score\n              explanation\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorPlaygroundProjectSampleQuery(\n  $projectId: ID!\n  $first: Int!\n  $filterCondition: String\n  $start: DateTime!\n) {\n  node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: {start: $start}) {\n        edges {\n          node {\n            id\n            name\n            evaluationContext\n            spanAnnotations {\n              id\n              name\n              annotatorKind\n              label\n              score\n              explanation\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3041429b3d69189640f2e679ea7b712b";
+(node as any).hash = "788a8d2de1620d177cc910dd9d76777a";
 
 export default node;

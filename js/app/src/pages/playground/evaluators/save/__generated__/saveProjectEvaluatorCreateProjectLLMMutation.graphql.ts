@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2549239bff55cdeab45062a832b144c5>>
+ * @generated SignedSource<<3c3cc4d6edd2999741c61edf973f9cfd>>
  * @lightSyntaxTransform
  */
 
@@ -258,19 +258,19 @@ export type EvaluatorInputMappingInput = {
   literalMapping: any;
   pathMapping: any;
 };
-export type useEvaluatorSlotSaveCreateProjectLLMMutation$variables = {
+export type saveProjectEvaluatorCreateProjectLLMMutation$variables = {
   input: CreateProjectLLMEvaluatorInput;
 };
-export type useEvaluatorSlotSaveCreateProjectLLMMutation$data = {
+export type saveProjectEvaluatorCreateProjectLLMMutation$data = {
   readonly createProjectLlmEvaluator: {
     readonly evaluator: {
       readonly id: string;
     };
   };
 };
-export type useEvaluatorSlotSaveCreateProjectLLMMutation = {
-  response: useEvaluatorSlotSaveCreateProjectLLMMutation$data;
-  variables: useEvaluatorSlotSaveCreateProjectLLMMutation$variables;
+export type saveProjectEvaluatorCreateProjectLLMMutation = {
+  response: saveProjectEvaluatorCreateProjectLLMMutation$data;
+  variables: saveProjectEvaluatorCreateProjectLLMMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -323,7 +323,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useEvaluatorSlotSaveCreateProjectLLMMutation",
+    "name": "saveProjectEvaluatorCreateProjectLLMMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -332,20 +332,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useEvaluatorSlotSaveCreateProjectLLMMutation",
+    "name": "saveProjectEvaluatorCreateProjectLLMMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "90b48b744188eaa3eeabcbb145f5de8d",
+    "cacheID": "6d055b95c8c0bb097edabb7f5afbb150",
     "id": null,
     "metadata": {},
-    "name": "useEvaluatorSlotSaveCreateProjectLLMMutation",
+    "name": "saveProjectEvaluatorCreateProjectLLMMutation",
     "operationKind": "mutation",
-    "text": "mutation useEvaluatorSlotSaveCreateProjectLLMMutation(\n  $input: CreateProjectLLMEvaluatorInput!\n) {\n  createProjectLlmEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
+    "text": "mutation saveProjectEvaluatorCreateProjectLLMMutation(\n  $input: CreateProjectLLMEvaluatorInput!\n) {\n  createProjectLlmEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7d3f61a157547e6d9d14979ea0892b3e";
+(node as any).hash = "529b157605af85d9780622d33594c2b5";
 
 export default node;

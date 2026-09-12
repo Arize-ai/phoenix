@@ -47,7 +47,7 @@ export function RowCell({
           <TooltipTrigger>
             <IconButton
               size="S"
-              aria-label={`Run evaluators on example ${position}`}
+              aria-label={`Run evaluators on row ${position}`}
               isDisabled={!canRun}
               onPress={onRun}
             >
@@ -55,7 +55,7 @@ export function RowCell({
             </IconButton>
             <Tooltip>
               <TooltipArrow />
-              Run evaluators on this example
+              Run evaluators on this row
             </Tooltip>
           </TooltipTrigger>
         </span>

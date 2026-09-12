@@ -47,9 +47,9 @@ export function EvaluatorColumnHeader({
   canRun: boolean;
   onRun: () => void;
 }) {
-  // Examples with a persisted expected output. This is dataset state, so it
-  // survives a reload while run results do not — hence "with expected", not
-  // "reviewed", which would imply someone looked at this run.
+  // Rows with a persisted expected output. That is stored on the dataset or
+  // the span, so it survives a reload while run results do not — hence "with
+  // expected", not "reviewed", which would imply someone looked at this run.
   const withExpected = examples.filter((example) => expected?.[example.id]);
 
   // Agreement is counted over examples whose expectation the output config

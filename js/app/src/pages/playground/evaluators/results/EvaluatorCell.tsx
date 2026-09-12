@@ -85,7 +85,7 @@ export function EvaluatorCell({
   const value = (
     <span
       css={valueCSS}
-      aria-label={`Evaluator ${slot} result for example ${position}`}
+      aria-label={`Evaluator ${slot} result for row ${position}`}
     >
       <PredictionValue result={result} isPending={isPending} />
     </span>
@@ -140,8 +140,8 @@ export function EvaluatorCell({
                   isDisabled={!canAnnotate}
                   aria-label={
                     verdict === "match"
-                      ? `Clear expected output for evaluator ${slot}, example ${position}`
-                      : `Agree with evaluator ${slot}'s result for example ${position}`
+                      ? `Clear expected output for evaluator ${slot}, row ${position}`
+                      : `Agree with evaluator ${slot}'s result for row ${position}`
                   }
                   onPress={() => {
                     if (verdict === "match") void onSave(null);
@@ -168,7 +168,7 @@ export function EvaluatorCell({
                   color={verdict === "mismatch" ? "danger" : "text-500"}
                   aria-pressed={verdict === "mismatch"}
                   isDisabled={!canAnnotate}
-                  aria-label={`Disagree with evaluator ${slot}'s result for example ${position}`}
+                  aria-label={`Disagree with evaluator ${slot}'s result for row ${position}`}
                   onPress={() => setIsEditing(true)}
                 >
                   <Icon svg={<Icons.ThumbsDown />} />
@@ -206,7 +206,7 @@ export function EvaluatorCell({
             css={expectedBandCSS}
             data-verdict={verdict ?? undefined}
             disabled={isDisabled}
-            aria-label={`Expected output for evaluator ${slot}, example ${position}. Press to edit.`}
+            aria-label={`Expected output for evaluator ${slot}, row ${position}. Press to edit.`}
           >
             <Flex
               direction="row"

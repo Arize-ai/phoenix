@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b08adfd46dbe5cebd0807ac71c53ad1>>
+ * @generated SignedSource<<c7dd46a457ab2773971d075af8f8b8b8>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
+export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
@@ -19,15 +20,19 @@ export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NON
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
-export type UpdateDatasetLLMEvaluatorInput = {
-  datasetEvaluatorId: string;
-  datasetId: string;
+export type UpdateProjectLLMEvaluatorInput = {
   description?: string | null;
-  inputMapping?: EvaluatorInputMappingInput | null;
+  enabled?: boolean | null;
+  evaluationDelaySeconds?: number | null;
+  evaluationTarget: EvaluationTarget;
+  filterCondition: string;
+  inputMapping: EvaluatorInputMappingInput;
   name: string;
   outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  projectEvaluatorId: string;
   promptVersion: ChatPromptVersionInput;
   promptVersionId?: string | null;
+  samplingRate: number;
 };
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
@@ -256,15 +261,14 @@ export type EvaluatorInputMappingInput = {
   literalMapping: any;
   pathMapping: any;
 };
-export type useEvaluatorSlotSaveUpdateLLMMutation$variables = {
-  input: UpdateDatasetLLMEvaluatorInput;
+export type saveProjectEvaluatorUpdateProjectLLMMutation$variables = {
+  input: UpdateProjectLLMEvaluatorInput;
 };
-export type useEvaluatorSlotSaveUpdateLLMMutation$data = {
-  readonly updateDatasetLlmEvaluator: {
+export type saveProjectEvaluatorUpdateProjectLLMMutation$data = {
+  readonly updateProjectLlmEvaluator: {
     readonly evaluator: {
-      readonly dataset: {
-        readonly id: string;
-      };
+      readonly evaluationDelaySeconds: number;
+      readonly evaluationTarget: EvaluationTarget;
       readonly evaluator: {
         readonly datasetEvaluators: ReadonlyArray<{
           readonly dataset: {
@@ -325,44 +329,23 @@ export type useEvaluatorSlotSaveUpdateLLMMutation$data = {
         } | null;
         readonly sourceCode?: string;
       };
+      readonly filterCondition: string;
       readonly id: string;
       readonly inputMapping: {
         readonly literalMapping: any;
         readonly pathMapping: any;
       };
       readonly name: string;
-      readonly outputConfigs: ReadonlyArray<{
-        readonly __typename: "CategoricalAnnotationConfig";
-        readonly name: string;
-        readonly optimizationDirection: OptimizationDirection;
-        readonly values: ReadonlyArray<{
-          readonly label: string;
-          readonly score: number | null;
-        }>;
-      } | {
-        readonly __typename: "ContinuousAnnotationConfig";
-        readonly lowerBound: number | null;
-        readonly name: string;
-        readonly optimizationDirection: OptimizationDirection;
-        readonly upperBound: number | null;
-      } | {
-        readonly __typename: "FreeformAnnotationConfig";
-        readonly lowerBound: number | null;
-        readonly name: string;
-        readonly optimizationDirection: OptimizationDirection;
-        readonly threshold: number | null;
-        readonly upperBound: number | null;
-      } | {
-        // This will never be '%other', but we need some
-        // value in case none of the concrete values match.
-        readonly __typename: "%other";
-      }>;
+      readonly project: {
+        readonly id: string;
+      };
+      readonly samplingRate: number;
     };
   };
 };
-export type useEvaluatorSlotSaveUpdateLLMMutation = {
-  response: useEvaluatorSlotSaveUpdateLLMMutation$data;
-  variables: useEvaluatorSlotSaveUpdateLLMMutation$variables;
+export type saveProjectEvaluatorUpdateProjectLLMMutation = {
+  response: saveProjectEvaluatorUpdateProjectLLMMutation$data;
+  variables: saveProjectEvaluatorUpdateProjectLLMMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -394,20 +377,48 @@ v3 = {
   "name": "name",
   "storageKey": null
 },
-v4 = [
-  (v2/*:: as any*/)
-],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "filterCondition",
+  "storageKey": null
+},
 v5 = {
   "alias": null,
   "args": null,
-  "concreteType": "Dataset",
-  "kind": "LinkedField",
-  "name": "dataset",
-  "plural": false,
-  "selections": (v4/*:: as any*/),
+  "kind": "ScalarField",
+  "name": "samplingRate",
   "storageKey": null
 },
 v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "evaluationTarget",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "evaluationDelaySeconds",
+  "storageKey": null
+},
+v8 = [
+  (v2/*:: as any*/)
+],
+v9 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Project",
+  "kind": "LinkedField",
+  "name": "project",
+  "plural": false,
+  "selections": (v8/*:: as any*/),
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "EvaluatorInputMapping",
@@ -432,25 +443,46 @@ v6 = {
   ],
   "storageKey": null
 },
-v7 = {
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isBuiltin",
+  "storageKey": null
+},
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v8 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v9 = {
+v16 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
-    (v8/*:: as any*/),
+    (v15/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -480,36 +512,36 @@ v9 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v10 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "lowerBound",
   "storageKey": null
 },
-v11 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "upperBound",
   "storageKey": null
 },
-v12 = {
+v19 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
-    (v8/*:: as any*/),
-    (v10/*:: as any*/),
-    (v11/*:: as any*/)
+    (v15/*:: as any*/),
+    (v17/*:: as any*/),
+    (v18/*:: as any*/)
   ],
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v13 = {
+v20 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
-    (v8/*:: as any*/),
+    (v15/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -517,49 +549,13 @@ v13 = {
       "name": "threshold",
       "storageKey": null
     },
-    (v10/*:: as any*/),
-    (v11/*:: as any*/)
+    (v17/*:: as any*/),
+    (v18/*:: as any*/)
   ],
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v14 = {
-  "alias": null,
-  "args": null,
-  "concreteType": null,
-  "kind": "LinkedField",
-  "name": "outputConfigs",
-  "plural": true,
-  "selections": [
-    (v7/*:: as any*/),
-    (v9/*:: as any*/),
-    (v12/*:: as any*/),
-    (v13/*:: as any*/)
-  ],
-  "storageKey": null
-},
-v15 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "description",
-  "storageKey": null
-},
-v16 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "kind",
-  "storageKey": null
-},
-v17 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "isBuiltin",
-  "storageKey": null
-},
-v18 = {
+v21 = {
   "alias": null,
   "args": null,
   "concreteType": "DatasetEvaluator",
@@ -568,84 +564,93 @@ v18 = {
   "plural": true,
   "selections": [
     (v2/*:: as any*/),
-    (v5/*:: as any*/)
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Dataset",
+      "kind": "LinkedField",
+      "name": "dataset",
+      "plural": false,
+      "selections": (v8/*:: as any*/),
+      "storageKey": null
+    }
   ],
   "storageKey": null
 },
-v19 = [
+v22 = [
   (v2/*:: as any*/),
   (v3/*:: as any*/)
 ],
-v20 = {
+v23 = {
   "alias": null,
   "args": null,
   "concreteType": "Prompt",
   "kind": "LinkedField",
   "name": "prompt",
   "plural": false,
-  "selections": (v19/*:: as any*/),
-  "storageKey": null
-},
-v21 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "templateFormat",
-  "storageKey": null
-},
-v22 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "modelName",
-  "storageKey": null
-},
-v23 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "modelProvider",
+  "selections": (v22/*:: as any*/),
   "storageKey": null
 },
 v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "temperature",
+  "name": "templateFormat",
   "storageKey": null
 },
 v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "frequencyPenalty",
+  "name": "modelName",
   "storageKey": null
 },
 v26 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "presencePenalty",
+  "name": "modelProvider",
   "storageKey": null
 },
 v27 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "topP",
+  "name": "temperature",
   "storageKey": null
 },
 v28 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "extraBody",
+  "name": "frequencyPenalty",
   "storageKey": null
 },
 v29 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "presencePenalty",
+  "storageKey": null
+},
+v30 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "topP",
+  "storageKey": null
+},
+v31 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "extraBody",
+  "storageKey": null
+},
+v32 = {
   "kind": "InlineFragment",
   "selections": [
-    (v24/*:: as any*/),
+    (v27/*:: as any*/),
     {
       "alias": "openaiMaxTokens",
       "args": null,
@@ -660,9 +665,9 @@ v29 = {
       "name": "maxCompletionTokens",
       "storageKey": null
     },
-    (v25/*:: as any*/),
-    (v26/*:: as any*/),
-    (v27/*:: as any*/),
+    (v28/*:: as any*/),
+    (v29/*:: as any*/),
+    (v30/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -684,19 +689,19 @@ v29 = {
       "name": "reasoningEffort",
       "storageKey": null
     },
-    (v28/*:: as any*/)
+    (v31/*:: as any*/)
   ],
   "type": "PromptOpenAIInvocationParameters",
   "abstractKey": null
 },
-v30 = {
+v33 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v31 = {
+v34 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -706,9 +711,9 @@ v31 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v24/*:: as any*/),
     (v27/*:: as any*/),
     (v30/*:: as any*/),
+    (v33/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -735,7 +740,7 @@ v31 = {
       "name": "thinking",
       "plural": false,
       "selections": [
-        (v7/*:: as any*/),
+        (v14/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -788,15 +793,15 @@ v31 = {
       ],
       "storageKey": null
     },
-    (v28/*:: as any*/)
+    (v31/*:: as any*/)
   ],
   "type": "PromptAnthropicInvocationParameters",
   "abstractKey": null
 },
-v32 = {
+v35 = {
   "kind": "InlineFragment",
   "selections": [
-    (v24/*:: as any*/),
+    (v27/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -804,10 +809,10 @@ v32 = {
       "name": "maxOutputTokens",
       "storageKey": null
     },
+    (v33/*:: as any*/),
+    (v29/*:: as any*/),
+    (v28/*:: as any*/),
     (v30/*:: as any*/),
-    (v26/*:: as any*/),
-    (v25/*:: as any*/),
-    (v27/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -851,7 +856,7 @@ v32 = {
   "type": "PromptGoogleInvocationParameters",
   "abstractKey": null
 },
-v33 = {
+v36 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -861,31 +866,31 @@ v33 = {
       "name": "maxTokens",
       "storageKey": null
     },
-    (v24/*:: as any*/),
     (v27/*:: as any*/),
-    (v30/*:: as any*/)
+    (v30/*:: as any*/),
+    (v33/*:: as any*/)
   ],
   "type": "PromptAwsInvocationParameters",
   "abstractKey": null
 },
-v34 = {
+v37 = {
   "alias": null,
   "args": null,
   "concreteType": "GenerativeModelCustomProvider",
   "kind": "LinkedField",
   "name": "customProvider",
   "plural": false,
-  "selections": (v19/*:: as any*/),
+  "selections": (v22/*:: as any*/),
   "storageKey": null
 },
-v35 = {
+v38 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "strict",
   "storageKey": null
 },
-v36 = {
+v39 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptResponseFormatJSONSchema",
@@ -902,7 +907,7 @@ v36 = {
       "plural": false,
       "selections": [
         (v3/*:: as any*/),
-        (v15/*:: as any*/),
+        (v11/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -910,21 +915,21 @@ v36 = {
           "name": "schema",
           "storageKey": null
         },
-        (v35/*:: as any*/)
+        (v38/*:: as any*/)
       ],
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v37 = {
+v40 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v38 = {
+v41 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -932,7 +937,7 @@ v38 = {
   "name": "template",
   "plural": false,
   "selections": [
-    (v7/*:: as any*/),
+    (v14/*:: as any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -959,7 +964,7 @@ v38 = {
               "name": "content",
               "plural": true,
               "selections": [
-                (v7/*:: as any*/),
+                (v14/*:: as any*/),
                 {
                   "kind": "InlineFragment",
                   "selections": [
@@ -996,7 +1001,7 @@ v38 = {
                       "name": "toolCall",
                       "plural": false,
                       "selections": [
-                        (v37/*:: as any*/),
+                        (v40/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -1034,7 +1039,7 @@ v38 = {
                       "name": "toolResult",
                       "plural": false,
                       "selections": [
-                        (v37/*:: as any*/),
+                        (v40/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -1076,7 +1081,7 @@ v38 = {
   ],
   "storageKey": null
 },
-v39 = {
+v42 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptTools",
@@ -1092,7 +1097,7 @@ v39 = {
       "name": "tools",
       "plural": true,
       "selections": [
-        (v7/*:: as any*/),
+        (v14/*:: as any*/),
         {
           "kind": "InlineFragment",
           "selections": [
@@ -1105,7 +1110,7 @@ v39 = {
               "plural": false,
               "selections": [
                 (v3/*:: as any*/),
-                (v15/*:: as any*/),
+                (v11/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -1113,7 +1118,7 @@ v39 = {
                   "name": "parameters",
                   "storageKey": null
                 },
-                (v35/*:: as any*/)
+                (v38/*:: as any*/)
               ],
               "storageKey": null
             }
@@ -1173,7 +1178,7 @@ v39 = {
   ],
   "storageKey": null
 },
-v40 = {
+v43 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -1197,67 +1202,45 @@ v40 = {
       "kind": "LinkedField",
       "name": "sandboxConfig",
       "plural": false,
-      "selections": (v4/*:: as any*/),
+      "selections": (v8/*:: as any*/),
       "storageKey": null
     },
-    (v6/*:: as any*/)
+    (v10/*:: as any*/)
   ],
   "type": "CodeEvaluator",
   "abstractKey": null
-},
-v41 = {
-  "alias": null,
-  "args": null,
-  "concreteType": null,
-  "kind": "LinkedField",
-  "name": "outputConfigs",
-  "plural": true,
-  "selections": [
-    (v7/*:: as any*/),
-    {
-      "kind": "TypeDiscriminator",
-      "abstractKey": "__isBuiltInEvaluatorOutputConfig"
-    },
-    (v9/*:: as any*/),
-    (v12/*:: as any*/),
-    (v13/*:: as any*/),
-    {
-      "kind": "InlineFragment",
-      "selections": (v4/*:: as any*/),
-      "type": "Node",
-      "abstractKey": "__isNode"
-    }
-  ],
-  "storageKey": null
 };
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useEvaluatorSlotSaveUpdateLLMMutation",
+    "name": "saveProjectEvaluatorUpdateProjectLLMMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*:: as any*/),
-        "concreteType": "DatasetEvaluatorMutationPayload",
+        "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "updateDatasetLlmEvaluator",
+        "name": "updateProjectLlmEvaluator",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "DatasetEvaluator",
+            "concreteType": "ProjectEvaluator",
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
             "selections": [
               (v2/*:: as any*/),
               (v3/*:: as any*/),
+              (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v14/*:: as any*/),
+              (v7/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -1268,15 +1251,29 @@ return {
                 "selections": [
                   (v2/*:: as any*/),
                   (v3/*:: as any*/),
-                  (v15/*:: as any*/),
-                  (v16/*:: as any*/),
-                  (v17/*:: as any*/),
-                  (v14/*:: as any*/),
-                  (v18/*:: as any*/),
+                  (v11/*:: as any*/),
+                  (v12/*:: as any*/),
+                  (v13/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "outputConfigs",
+                    "plural": true,
+                    "selections": [
+                      (v14/*:: as any*/),
+                      (v16/*:: as any*/),
+                      (v19/*:: as any*/),
+                      (v20/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  (v21/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v20/*:: as any*/),
+                      (v23/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -1286,14 +1283,14 @@ return {
                         "plural": false,
                         "selections": [
                           (v2/*:: as any*/),
-                          (v21/*:: as any*/),
+                          (v24/*:: as any*/),
                           {
                             "kind": "InlineDataFragmentSpread",
                             "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion",
                             "selections": [
                               (v2/*:: as any*/),
-                              (v22/*:: as any*/),
-                              (v23/*:: as any*/),
+                              (v25/*:: as any*/),
+                              (v26/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -1306,11 +1303,11 @@ return {
                                     "kind": "InlineDataFragmentSpread",
                                     "name": "PromptInvocationParametersReadableFragment",
                                     "selections": [
-                                      (v7/*:: as any*/),
-                                      (v29/*:: as any*/),
-                                      (v31/*:: as any*/),
+                                      (v14/*:: as any*/),
                                       (v32/*:: as any*/),
-                                      (v33/*:: as any*/)
+                                      (v34/*:: as any*/),
+                                      (v35/*:: as any*/),
+                                      (v36/*:: as any*/)
                                     ],
                                     "args": null,
                                     "argumentDefinitions": []
@@ -1318,10 +1315,10 @@ return {
                                 ],
                                 "storageKey": null
                               },
-                              (v34/*:: as any*/),
-                              (v36/*:: as any*/),
-                              (v38/*:: as any*/),
-                              (v39/*:: as any*/)
+                              (v37/*:: as any*/),
+                              (v39/*:: as any*/),
+                              (v41/*:: as any*/),
+                              (v42/*:: as any*/)
                             ],
                             "args": null,
                             "argumentDefinitions": []
@@ -1345,7 +1342,7 @@ return {
                     "type": "LLMEvaluator",
                     "abstractKey": null
                   },
-                  (v40/*:: as any*/)
+                  (v43/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -1363,29 +1360,32 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useEvaluatorSlotSaveUpdateLLMMutation",
+    "name": "saveProjectEvaluatorUpdateProjectLLMMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*:: as any*/),
-        "concreteType": "DatasetEvaluatorMutationPayload",
+        "concreteType": "ProjectEvaluatorMutationPayload",
         "kind": "LinkedField",
-        "name": "updateDatasetLlmEvaluator",
+        "name": "updateProjectLlmEvaluator",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "DatasetEvaluator",
+            "concreteType": "ProjectEvaluator",
             "kind": "LinkedField",
             "name": "evaluator",
             "plural": false,
             "selections": [
               (v2/*:: as any*/),
               (v3/*:: as any*/),
+              (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v41/*:: as any*/),
+              (v7/*:: as any*/),
+              (v9/*:: as any*/),
+              (v10/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -1394,22 +1394,46 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v7/*:: as any*/),
+                  (v14/*:: as any*/),
                   {
                     "kind": "TypeDiscriminator",
                     "abstractKey": "__isEvaluator"
                   },
                   (v2/*:: as any*/),
                   (v3/*:: as any*/),
-                  (v15/*:: as any*/),
-                  (v16/*:: as any*/),
-                  (v17/*:: as any*/),
-                  (v41/*:: as any*/),
-                  (v18/*:: as any*/),
+                  (v11/*:: as any*/),
+                  (v12/*:: as any*/),
+                  (v13/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "outputConfigs",
+                    "plural": true,
+                    "selections": [
+                      (v14/*:: as any*/),
+                      {
+                        "kind": "TypeDiscriminator",
+                        "abstractKey": "__isBuiltInEvaluatorOutputConfig"
+                      },
+                      (v16/*:: as any*/),
+                      (v19/*:: as any*/),
+                      (v20/*:: as any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": (v8/*:: as any*/),
+                        "type": "Node",
+                        "abstractKey": "__isNode"
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  (v21/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
-                      (v20/*:: as any*/),
+                      (v23/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -1419,9 +1443,9 @@ return {
                         "plural": false,
                         "selections": [
                           (v2/*:: as any*/),
-                          (v21/*:: as any*/),
-                          (v22/*:: as any*/),
-                          (v23/*:: as any*/),
+                          (v24/*:: as any*/),
+                          (v25/*:: as any*/),
+                          (v26/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -1430,22 +1454,22 @@ return {
                             "name": "invocationParameters",
                             "plural": false,
                             "selections": [
-                              (v7/*:: as any*/),
+                              (v14/*:: as any*/),
                               {
                                 "kind": "TypeDiscriminator",
                                 "abstractKey": "__isPromptInvocationParameters"
                               },
-                              (v29/*:: as any*/),
-                              (v31/*:: as any*/),
                               (v32/*:: as any*/),
-                              (v33/*:: as any*/)
+                              (v34/*:: as any*/),
+                              (v35/*:: as any*/),
+                              (v36/*:: as any*/)
                             ],
                             "storageKey": null
                           },
-                          (v34/*:: as any*/),
-                          (v36/*:: as any*/),
-                          (v38/*:: as any*/),
-                          (v39/*:: as any*/)
+                          (v37/*:: as any*/),
+                          (v39/*:: as any*/),
+                          (v41/*:: as any*/),
+                          (v42/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -1466,7 +1490,7 @@ return {
                     "type": "LLMEvaluator",
                     "abstractKey": null
                   },
-                  (v40/*:: as any*/)
+                  (v43/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -1479,16 +1503,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9e0e48bcabe0fa1aa55cba5b28a9c3a0",
+    "cacheID": "6958f1bbdc2f485b9d4df3b038383caa",
     "id": null,
     "metadata": {},
-    "name": "useEvaluatorSlotSaveUpdateLLMMutation",
+    "name": "saveProjectEvaluatorUpdateProjectLLMMutation",
     "operationKind": "mutation",
-    "text": "mutation useEvaluatorSlotSaveUpdateLLMMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      dataset {\n        id\n      }\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      outputConfigs {\n        __typename\n        __isBuiltInEvaluatorOutputConfig: __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      evaluator {\n        __typename\n        __isEvaluator: __typename\n        id\n        name\n        description\n        kind\n        isBuiltin\n        outputConfigs {\n          __typename\n          __isBuiltInEvaluatorOutputConfig: __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        datasetEvaluators {\n          id\n          dataset {\n            id\n          }\n        }\n        ... on LLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            id\n            templateFormat\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n          }\n          promptVersionTag {\n            name\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          language\n          sourceCode\n          sandboxConfig {\n            id\n          }\n          inputMapping {\n            literalMapping\n            pathMapping\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
+    "text": "mutation saveProjectEvaluatorUpdateProjectLLMMutation(\n  $input: UpdateProjectLLMEvaluatorInput!\n) {\n  updateProjectLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      filterCondition\n      samplingRate\n      evaluationTarget\n      evaluationDelaySeconds\n      project {\n        id\n      }\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      evaluator {\n        __typename\n        __isEvaluator: __typename\n        id\n        name\n        description\n        kind\n        isBuiltin\n        outputConfigs {\n          __typename\n          __isBuiltInEvaluatorOutputConfig: __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        datasetEvaluators {\n          id\n          dataset {\n            id\n          }\n        }\n        ... on LLMEvaluator {\n          prompt {\n            id\n            name\n          }\n          promptVersion {\n            id\n            templateFormat\n            ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n          }\n          promptVersionTag {\n            name\n            id\n          }\n        }\n        ... on CodeEvaluator {\n          language\n          sourceCode\n          sandboxConfig {\n            id\n          }\n          inputMapping {\n            literalMapping\n            pathMapping\n          }\n        }\n      }\n    }\n  }\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3972bc64f00a188a70439e32e0d7b2e6";
+(node as any).hash = "68b3fc9ca58d7cd19aa86707c8e20395";
 
 export default node;

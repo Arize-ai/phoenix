@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d2f34f78e6e60a1576032b516efd7d7>>
+ * @generated SignedSource<<de177d6457be637c1da373649e0e922f>>
  * @lightSyntaxTransform
  */
 
@@ -69,19 +69,19 @@ export type FreeformAnnotationConfigInput = {
   threshold?: number | null;
   upperBound?: number | null;
 };
-export type useEvaluatorSlotSaveCreateProjectCodeMutation$variables = {
+export type saveProjectEvaluatorCreateProjectCodeMutation$variables = {
   input: CreateProjectCodeEvaluatorInput;
 };
-export type useEvaluatorSlotSaveCreateProjectCodeMutation$data = {
+export type saveProjectEvaluatorCreateProjectCodeMutation$data = {
   readonly createProjectCodeEvaluator: {
     readonly evaluator: {
       readonly id: string;
     };
   };
 };
-export type useEvaluatorSlotSaveCreateProjectCodeMutation = {
-  response: useEvaluatorSlotSaveCreateProjectCodeMutation$data;
-  variables: useEvaluatorSlotSaveCreateProjectCodeMutation$variables;
+export type saveProjectEvaluatorCreateProjectCodeMutation = {
+  response: saveProjectEvaluatorCreateProjectCodeMutation$data;
+  variables: saveProjectEvaluatorCreateProjectCodeMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -134,7 +134,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useEvaluatorSlotSaveCreateProjectCodeMutation",
+    "name": "saveProjectEvaluatorCreateProjectCodeMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -143,20 +143,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useEvaluatorSlotSaveCreateProjectCodeMutation",
+    "name": "saveProjectEvaluatorCreateProjectCodeMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "638971df1eaf42a792f525adf5cecc43",
+    "cacheID": "8bafc978da552bd1c1ebe7077087a25a",
     "id": null,
     "metadata": {},
-    "name": "useEvaluatorSlotSaveCreateProjectCodeMutation",
+    "name": "saveProjectEvaluatorCreateProjectCodeMutation",
     "operationKind": "mutation",
-    "text": "mutation useEvaluatorSlotSaveCreateProjectCodeMutation(\n  $input: CreateProjectCodeEvaluatorInput!\n) {\n  createProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
+    "text": "mutation saveProjectEvaluatorCreateProjectCodeMutation(\n  $input: CreateProjectCodeEvaluatorInput!\n) {\n  createProjectCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ae0bb3b85521199ade95ef56811bf0e9";
+(node as any).hash = "6bbcc5ea432b4df722f24d327714e6a0";
 
 export default node;

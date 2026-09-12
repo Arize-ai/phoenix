@@ -3,6 +3,7 @@ import {
   isTimeWindowPresetId,
   type TimeWindowPresetId,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTimeWindow";
+import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 import { EVALUATOR_SLOT_IDS, type SlotId } from "./evaluatorSlotTypes";
 
@@ -138,6 +139,126 @@ function getSourceRootId(source: EvaluatorPlaygroundSource | null) {
   return source.kind === "dataset"
     ? `dataset:${source.datasetId}`
     : `project:${source.projectId}`;
+}
+
+/** The source fields `evaluatorPlayground.configure` may set. */
+export type ConfigureEvaluatorPlaygroundSourceInput = {
+  datasetId?: string | null;
+  splitIds?: string[];
+  projectId?: string | null;
+  filterCondition?: string;
+  timeWindow?: TimeWindowPresetId;
+};
+
+/**
+ * The source `configure` asks for. Naming a project replaces a dataset and
+ * vice versa; the other fields refine the source of their own kind and are
+ * rejected against the other kind rather than silently dropped.
+ */
+export function getConfiguredSource(
+  current: EvaluatorPlaygroundSource | null,
+  input: ConfigureEvaluatorPlaygroundSourceInput
+):
+  | { ok: true; source: EvaluatorPlaygroundSource | null }
+  | { ok: false; error: string } {
+  let source = getConfiguredRoot(current, input);
+
+  if (input.splitIds) {
+    if (source?.kind !== "dataset")
+      return { ok: false, error: "splitIds apply to a dataset source." };
+    source = { ...source, splitIds: input.splitIds };
+  }
+
+  if (input.filterCondition !== undefined || input.timeWindow) {
+    if (source?.kind !== "project")
+      return {
+        ok: false,
+        error: "filterCondition and timeWindow apply to a project source.",
+      };
+    source = {
+      ...source,
+      filterCondition: input.filterCondition ?? source.filterCondition,
+      window: input.timeWindow ?? source.window,
+    };
+  }
+
+  return { ok: true, source };
+}
+
+/** The dataset or project `configure` names, keeping the same record's settings. */
+function getConfiguredRoot(
+  current: EvaluatorPlaygroundSource | null,
+  input: ConfigureEvaluatorPlaygroundSourceInput
+): EvaluatorPlaygroundSource | null {
+  if (input.projectId !== undefined) {
+    if (!input.projectId) return null;
+
+    const same =
+      current?.kind === "project" && current.projectId === input.projectId
+        ? current
+        : null;
+
+    return {
+      kind: "project",
+      projectId: input.projectId,
+      filterCondition: same?.filterCondition ?? "",
+      window: same?.window ?? DEFAULT_TIME_WINDOW_PRESET_ID,
+    };
+  }
+
+  if (input.datasetId !== undefined) {
+    if (!input.datasetId) return null;
+
+    const same =
+      current?.kind === "dataset" && current.datasetId === input.datasetId
+        ? current
+        : null;
+
+    return {
+      kind: "dataset",
+      datasetId: input.datasetId,
+      splitIds: same?.splitIds ?? [],
+      versionId: null,
+    };
+  }
+
+  return current;
+}
+
+/** What a project evaluator stores beyond the evaluator itself. */
+export type EvaluatorPlaygroundProjectScope = {
+  filterCondition: string;
+  /** A fraction in [0, 1]. */
+  samplingRate: number;
+  /**
+   * Span only in this PR. A loaded trace or session evaluator is refused by
+   * the slot, so the value only ever echoes a loaded SPAN evaluator or the
+   * default; a trace or session target would branch here.
+   */
+  evaluationTarget: ProjectEvaluatorTarget;
+};
+
+/**
+ * The scope a project save stores: the save options win, then the loaded
+ * project evaluator's values, then the strip's filter at 100% sampling.
+ */
+export function resolveProjectScope({
+  filterCondition,
+  samplingRate,
+  loaded,
+  sourceFilterCondition,
+}: {
+  filterCondition?: string;
+  samplingRate?: number;
+  loaded: EvaluatorPlaygroundProjectScope | null;
+  sourceFilterCondition: string;
+}): EvaluatorPlaygroundProjectScope {
+  return {
+    filterCondition:
+      filterCondition ?? loaded?.filterCondition ?? sourceFilterCondition,
+    samplingRate: samplingRate ?? loaded?.samplingRate ?? 1,
+    evaluationTarget: loaded?.evaluationTarget ?? "SPAN",
+  };
 }
 
 export function toEvaluatorSlotSource(

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4ff421b56b4799b285219644642c9bf>>
+ * @generated SignedSource<<819df809e295aab1e7c22eed8067666e>>
  * @lightSyntaxTransform
  */
 
@@ -13,10 +13,10 @@ export type EvaluatorFilter = {
   col: EvaluatorFilterColumn;
   value: string;
 };
-export type useEvaluatorSlotSaveNamesQuery$variables = {
+export type evaluatorCopyNameLookupNamesQuery$variables = {
   filter: EvaluatorFilter;
 };
-export type useEvaluatorSlotSaveNamesQuery$data = {
+export type evaluatorCopyNameLookupNamesQuery$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -31,9 +31,9 @@ export type useEvaluatorSlotSaveNamesQuery$data = {
     }>;
   };
 };
-export type useEvaluatorSlotSaveNamesQuery = {
-  response: useEvaluatorSlotSaveNamesQuery$data;
-  variables: useEvaluatorSlotSaveNamesQuery$variables;
+export type evaluatorCopyNameLookupNamesQuery = {
+  response: evaluatorCopyNameLookupNamesQuery$data;
+  variables: evaluatorCopyNameLookupNamesQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -87,7 +87,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useEvaluatorSlotSaveNamesQuery",
+    "name": "evaluatorCopyNameLookupNamesQuery",
     "selections": [
       {
         "alias": null,
@@ -144,7 +144,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useEvaluatorSlotSaveNamesQuery",
+    "name": "evaluatorCopyNameLookupNamesQuery",
     "selections": [
       {
         "alias": null,
@@ -205,16 +205,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7d741b6c9fa46cca6e21e5a07aa08049",
+    "cacheID": "ac5347cf2b57d3bfa01ed66e212e3f64",
     "id": null,
     "metadata": {},
-    "name": "useEvaluatorSlotSaveNamesQuery",
+    "name": "evaluatorCopyNameLookupNamesQuery",
     "operationKind": "query",
-    "text": "query useEvaluatorSlotSaveNamesQuery(\n  $filter: EvaluatorFilter!\n) {\n  evaluators(first: 200, filter: $filter) {\n    edges {\n      node {\n        __typename\n        name\n        datasetEvaluators {\n          name\n          dataset {\n            id\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query evaluatorCopyNameLookupNamesQuery(\n  $filter: EvaluatorFilter!\n) {\n  evaluators(first: 200, filter: $filter) {\n    edges {\n      node {\n        __typename\n        name\n        datasetEvaluators {\n          name\n          dataset {\n            id\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2909e2b69d8efe47aeb0f21a4022107b";
+(node as any).hash = "3df06fe27f3cf4239784b259df5d26b1";
 
 export default node;

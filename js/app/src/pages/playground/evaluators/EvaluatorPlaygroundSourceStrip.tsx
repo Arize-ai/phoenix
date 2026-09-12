@@ -25,6 +25,7 @@ import {
 } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
 import {
+  DEFAULT_TIME_WINDOW_PRESET_ID,
   TIME_WINDOW_PRESETS,
   isTimeWindowPresetId,
   type TimeWindowPresetId,
@@ -116,7 +117,7 @@ export function EvaluatorPlaygroundSourceStrip({
                 kind: "project",
                 projectId,
                 filterCondition: "",
-                window: project?.window ?? "7d",
+                window: project?.window ?? DEFAULT_TIME_WINDOW_PRESET_ID,
               })
             }
           />

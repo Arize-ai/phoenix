@@ -68,6 +68,8 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { EvaluatorSlotEditorQuery } from "./__generated__/EvaluatorSlotEditorQuery.graphql";
 import { createEvaluatorAgentSlot } from "./evaluatorAgentSlot";
+import type { EvaluatorPlaygroundProjectScope } from "./evaluatorPlaygroundSource";
+import { resolveProjectScope } from "./evaluatorPlaygroundSource";
 import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import { EvaluatorSlotOutput } from "./EvaluatorSlotOutput";
 import type {
@@ -82,13 +84,12 @@ import {
   getCodeSlotValidationError,
   getDefaultSandboxConfigId,
 } from "./evaluatorSlotValidation";
+import { useEvaluatorSlotSave } from "./save";
+import type { SavedEvaluatorSlot } from "./save";
 import {
   SAVE_EFFECTS,
   SaveEvaluatorSlotDialog,
-  type ProjectEvaluatorScopeDefaults,
 } from "./SaveEvaluatorSlotDialog";
-import { useEvaluatorSlotSave } from "./useEvaluatorSlotSave";
-import type { SavedEvaluatorSlot } from "./useEvaluatorSlotSave";
 
 type EditorProps = EvaluatorSlotProps & {
   kind: "LLM" | "CODE";
@@ -97,8 +98,8 @@ type EditorProps = EvaluatorSlotProps & {
   initialLanguage?: CodeEvaluatorLanguage;
   initialSourceCode?: string;
   initialSandboxConfigId?: string;
-  /** The loaded project evaluator's filter and sampling rate, if any. */
-  initialProjectScope?: ProjectEvaluatorScopeDefaults | null;
+  /** The loaded project evaluator's filter, sampling rate and target, if any. */
+  initialProjectScope?: EvaluatorPlaygroundProjectScope | null;
 };
 
 const EMPTY_SANDBOX_CONFIGS: ReturnType<typeof mapSandboxConfigOptions> = [];
@@ -477,7 +478,7 @@ function EvaluatorSlotEditorContent({
       const saved = await saveSlot({
         target: asNew ? { action: "create" } : saveTarget,
         source,
-        projectScope: getProjectScope({
+        projectScope: resolveProjectScope({
           filterCondition,
           samplingRate,
           loaded: initialProjectScope,
@@ -844,28 +845,6 @@ function EvaluatorSlotToolbar({
 }
 
 const NAME_REQUIRED_ERROR = "Enter a name before saving.";
-
-/**
- * The filter and sampling rate a project save stores: the options win, then
- * the loaded project evaluator's values, then the strip's filter at 100%.
- */
-function getProjectScope({
-  filterCondition,
-  samplingRate,
-  loaded,
-  sourceFilterCondition,
-}: {
-  filterCondition: string | undefined;
-  samplingRate: number | undefined;
-  loaded: ProjectEvaluatorScopeDefaults | null;
-  sourceFilterCondition: string;
-}): ProjectEvaluatorScopeDefaults {
-  return {
-    filterCondition:
-      filterCondition ?? loaded?.filterCondition ?? sourceFilterCondition,
-    samplingRate: samplingRate ?? loaded?.samplingRate ?? 1,
-  };
-}
 
 /** The prompt version the LLM slot was loaded from, so saves append to it. */
 function getLoadedPromptVersionId(

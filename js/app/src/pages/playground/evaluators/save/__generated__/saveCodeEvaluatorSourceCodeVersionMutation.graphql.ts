@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f6e9af732522a857231c064fdf14f38>>
+ * @generated SignedSource<<ddd2c86c28d03c66e25f3aa68acb40f0>>
  * @lightSyntaxTransform
  */
 
@@ -12,19 +12,19 @@ export type CreateCodeEvaluatorVersionInput = {
   codeEvaluatorId: string;
   sourceCode: string;
 };
-export type useEvaluatorSlotSaveCodeVersionMutation$variables = {
+export type saveCodeEvaluatorSourceCodeVersionMutation$variables = {
   input: CreateCodeEvaluatorVersionInput;
 };
-export type useEvaluatorSlotSaveCodeVersionMutation$data = {
+export type saveCodeEvaluatorSourceCodeVersionMutation$data = {
   readonly createCodeEvaluatorVersion: {
     readonly evaluator: {
       readonly id: string;
     };
   };
 };
-export type useEvaluatorSlotSaveCodeVersionMutation = {
-  response: useEvaluatorSlotSaveCodeVersionMutation$data;
-  variables: useEvaluatorSlotSaveCodeVersionMutation$variables;
+export type saveCodeEvaluatorSourceCodeVersionMutation = {
+  response: saveCodeEvaluatorSourceCodeVersionMutation$data;
+  variables: saveCodeEvaluatorSourceCodeVersionMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -77,7 +77,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "useEvaluatorSlotSaveCodeVersionMutation",
+    "name": "saveCodeEvaluatorSourceCodeVersionMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -86,20 +86,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "useEvaluatorSlotSaveCodeVersionMutation",
+    "name": "saveCodeEvaluatorSourceCodeVersionMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "b26e73e991f6f13d4577eb135a80881c",
+    "cacheID": "d5a69d9917ce674f6c213248105853f1",
     "id": null,
     "metadata": {},
-    "name": "useEvaluatorSlotSaveCodeVersionMutation",
+    "name": "saveCodeEvaluatorSourceCodeVersionMutation",
     "operationKind": "mutation",
-    "text": "mutation useEvaluatorSlotSaveCodeVersionMutation(\n  $input: CreateCodeEvaluatorVersionInput!\n) {\n  createCodeEvaluatorVersion(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
+    "text": "mutation saveCodeEvaluatorSourceCodeVersionMutation(\n  $input: CreateCodeEvaluatorVersionInput!\n) {\n  createCodeEvaluatorVersion(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "72917662f555972eeeb697112caf5780";
+(node as any).hash = "992a3526f83361346d9dc946a2e0fe67";
 
 export default node;

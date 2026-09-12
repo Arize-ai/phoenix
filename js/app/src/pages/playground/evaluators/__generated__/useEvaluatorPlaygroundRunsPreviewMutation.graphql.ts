@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<13953c332ddd564d52f16d0eb39a974b>>
+ * @generated SignedSource<<3ece644113cc5049923e63ca440f50a7>>
  * @lightSyntaxTransform
  */
 
@@ -293,10 +293,10 @@ export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
 };
-export type EvaluatorPlaygroundPreviewMutation$variables = {
+export type useEvaluatorPlaygroundRunsPreviewMutation$variables = {
   input: EvaluatorPreviewsInput;
 };
-export type EvaluatorPlaygroundPreviewMutation$data = {
+export type useEvaluatorPlaygroundRunsPreviewMutation$data = {
   readonly evaluatorPreviews: {
     readonly results: ReadonlyArray<{
       readonly annotation: {
@@ -309,9 +309,9 @@ export type EvaluatorPlaygroundPreviewMutation$data = {
     }>;
   };
 };
-export type EvaluatorPlaygroundPreviewMutation = {
-  response: EvaluatorPlaygroundPreviewMutation$data;
-  variables: EvaluatorPlaygroundPreviewMutation$variables;
+export type useEvaluatorPlaygroundRunsPreviewMutation = {
+  response: useEvaluatorPlaygroundRunsPreviewMutation$data;
+  variables: useEvaluatorPlaygroundRunsPreviewMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -369,7 +369,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluatorPlaygroundPreviewMutation",
+    "name": "useEvaluatorPlaygroundRunsPreviewMutation",
     "selections": [
       {
         "alias": null,
@@ -417,7 +417,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "EvaluatorPlaygroundPreviewMutation",
+    "name": "useEvaluatorPlaygroundRunsPreviewMutation",
     "selections": [
       {
         "alias": null,
@@ -467,16 +467,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8ae526180a4caf38405d65c2a57af54f",
+    "cacheID": "51153f6af88b7635e8f1a8af3e6b21ce",
     "id": null,
     "metadata": {},
-    "name": "EvaluatorPlaygroundPreviewMutation",
+    "name": "useEvaluatorPlaygroundRunsPreviewMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorPlaygroundPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      annotation {\n        name\n        label\n        score\n        explanation\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "mutation useEvaluatorPlaygroundRunsPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      annotation {\n        name\n        label\n        score\n        explanation\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f952ede8d2ee75f7a5b6d6598c3f985e";
+(node as any).hash = "2d5960d3cbadcf466bc9ff93deb496a9";
 
 export default node;

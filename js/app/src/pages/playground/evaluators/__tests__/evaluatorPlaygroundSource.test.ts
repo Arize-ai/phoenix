@@ -2,10 +2,27 @@ import { describe, expect, it } from "vitest";
 
 import {
   clearSlotBindingParams,
+  getConfiguredSource,
   readEvaluatorPlaygroundSource,
+  resolveProjectScope,
   toEvaluatorSlotSource,
   writeEvaluatorPlaygroundSource,
 } from "../evaluatorPlaygroundSource";
+import type { EvaluatorPlaygroundSource } from "../evaluatorPlaygroundSource";
+
+const dataset: EvaluatorPlaygroundSource = {
+  kind: "dataset",
+  datasetId: "d1",
+  splitIds: ["s1"],
+  versionId: null,
+};
+
+const project: EvaluatorPlaygroundSource = {
+  kind: "project",
+  projectId: "p1",
+  filterCondition: "span_kind == 'LLM'",
+  window: "1h",
+};
 
 describe("readEvaluatorPlaygroundSource", () => {
   it("reads a dataset with its splits and version", () => {
@@ -156,5 +173,101 @@ describe("slot bindings and slot source", () => {
       })
     ).toEqual({ kind: "project", projectId: "p1" });
     expect(toEvaluatorSlotSource(null)).toBeNull();
+  });
+});
+
+describe("getConfiguredSource", () => {
+  it("replaces a dataset with a project and a project with a dataset", () => {
+    expect(getConfiguredSource(dataset, { projectId: "p1" })).toEqual({
+      ok: true,
+      source: {
+        kind: "project",
+        projectId: "p1",
+        filterCondition: "",
+        window: "7d",
+      },
+    });
+    expect(getConfiguredSource(project, { datasetId: "d2" })).toEqual({
+      ok: true,
+      source: {
+        kind: "dataset",
+        datasetId: "d2",
+        splitIds: [],
+        versionId: null,
+      },
+    });
+    expect(getConfiguredSource(project, { projectId: null })).toEqual({
+      ok: true,
+      source: null,
+    });
+  });
+
+  it("keeps the filter and window when the same project is named again", () => {
+    expect(
+      getConfiguredSource(project, { projectId: "p1", timeWindow: "30d" })
+    ).toEqual({ ok: true, source: { ...project, window: "30d" } });
+    expect(getConfiguredSource(dataset, { datasetId: "d1" })).toEqual({
+      ok: true,
+      source: dataset,
+    });
+  });
+
+  it("refines the current source when no root is named", () => {
+    expect(getConfiguredSource(dataset, { splitIds: ["s2"] })).toEqual({
+      ok: true,
+      source: { ...dataset, splitIds: ["s2"] },
+    });
+    expect(getConfiguredSource(project, { filterCondition: "" })).toEqual({
+      ok: true,
+      source: { ...project, filterCondition: "" },
+    });
+  });
+
+  it("rejects fields of the other kind", () => {
+    expect(getConfiguredSource(project, { splitIds: ["s1"] })).toMatchObject({
+      ok: false,
+    });
+    expect(
+      getConfiguredSource(dataset, { filterCondition: "name == 'x'" })
+    ).toMatchObject({ ok: false });
+    expect(getConfiguredSource(null, { timeWindow: "1h" })).toMatchObject({
+      ok: false,
+    });
+  });
+});
+
+describe("resolveProjectScope", () => {
+  const loaded = {
+    filterCondition: "stored",
+    samplingRate: 0.25,
+    evaluationTarget: "SPAN",
+  } as const;
+
+  it("prefers the options, then the loaded scope, then the strip at 100%", () => {
+    expect(
+      resolveProjectScope({
+        filterCondition: "typed",
+        loaded,
+        sourceFilterCondition: "strip",
+      })
+    ).toEqual({
+      filterCondition: "typed",
+      samplingRate: 0.25,
+      evaluationTarget: "SPAN",
+    });
+    expect(
+      resolveProjectScope({ loaded, sourceFilterCondition: "strip" })
+    ).toEqual({
+      filterCondition: "stored",
+      samplingRate: 0.25,
+      evaluationTarget: "SPAN",
+    });
+    expect(
+      resolveProjectScope({ loaded: null, sourceFilterCondition: "strip" })
+    ).toEqual({
+      filterCondition: "strip",
+      samplingRate: 1,
+      evaluationTarget: "SPAN",
+    });
   });
 });

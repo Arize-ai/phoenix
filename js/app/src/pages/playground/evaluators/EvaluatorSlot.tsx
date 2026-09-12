@@ -50,6 +50,10 @@ import ModelMenuQueryNode, {
 import { ModelMenuFetchPolicyContext } from "@phoenix/components/generative/useModelMenuData";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
+  formatEvaluationTarget,
+  isProjectEvaluatorTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
   type AnnotationConfig,
   type EvaluatorStoreProps,
@@ -337,10 +341,15 @@ function EvaluatorSlotSource(
 
   const source = data.node?.evaluator ?? data.node;
 
-  if (!isNew && !isEditableSource(source))
+  const unavailableReason = isNew
+    ? null
+    : getUnavailableReason({ node: data.node, source });
+
+  if (unavailableReason)
     return (
       <EvaluatorSlotUnavailable
         selection={props.selection}
+        reason={unavailableReason}
         onChange={props.onChange}
         sourceControl={props.sourceControl}
       />
@@ -373,10 +382,13 @@ function EvaluatorSlotSource(
         initialProjectScope={
           data.node?.project &&
           data.node.filterCondition != null &&
-          data.node.samplingRate != null
+          data.node.samplingRate != null &&
+          data.node.evaluationTarget != null &&
+          isProjectEvaluatorTarget(data.node.evaluationTarget)
             ? {
                 filterCondition: data.node.filterCondition,
                 samplingRate: data.node.samplingRate,
+                evaluationTarget: data.node.evaluationTarget,
               }
             : null
         }
@@ -627,22 +639,40 @@ export const evaluatorSlotOutputFragment = graphql`
   }
 `;
 
-function isEditableSource(
-  source: EvaluatorSlotSourceQuery["response"]["node"]
-): boolean {
-  return (
-    !!source?.id &&
-    !source.isBuiltin &&
-    (source.kind === "LLM" || source.kind === "CODE")
-  );
+/**
+ * Why a loaded node cannot be edited here, or null. Only span project
+ * evaluators load: the playground's rows are spans and its saves write a
+ * SPAN target, which the server would reject for a trace or session
+ * evaluator. Trace and session targets are follow-ups and would branch here.
+ */
+function getUnavailableReason({
+  node,
+  source,
+}: {
+  node: EvaluatorSlotSourceQuery["response"]["node"];
+  source: EvaluatorSlotSourceQuery["response"]["node"];
+}): string | null {
+  if (
+    !source?.id ||
+    source.isBuiltin ||
+    (source.kind !== "LLM" && source.kind !== "CODE")
+  )
+    return "This evaluator was deleted or cannot be edited here. Select another evaluator to continue.";
+
+  if (node?.project && node.evaluationTarget !== "SPAN")
+    return `This ${formatEvaluationTarget(node.evaluationTarget ?? "SPAN").toLowerCase()} evaluator cannot be opened here yet; the evaluator playground runs over spans. Select a span evaluator to continue.`;
+
+  return null;
 }
 
 function EvaluatorSlotUnavailable({
   selection,
+  reason,
   onChange,
   sourceControl,
 }: {
   selection: string;
+  reason: string;
   onChange: EvaluatorSlotProps["onChange"];
   sourceControl: ReactNode;
 }) {
@@ -667,8 +697,7 @@ function EvaluatorSlotUnavailable({
     <Flex direction="column" gap="size-200">
       {sourceControl}
       <Alert variant="danger" title="Evaluator unavailable">
-        This evaluator was deleted or cannot be edited here. Select another
-        evaluator to continue.
+        {reason}
       </Alert>
     </Flex>
   );

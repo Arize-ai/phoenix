@@ -9,6 +9,7 @@ import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
 import type { EvaluatorPlaygroundSource } from "./evaluatorPlaygroundSource";
 import {
   clearSlotBindingParams,
+  getConfiguredSource,
   getSlotBindingParam,
   writeEvaluatorPlaygroundSource,
 } from "./evaluatorPlaygroundSource";
@@ -23,7 +24,6 @@ import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 import { createLatestValue } from "./latestValue";
 import { useEvaluatorPlaygroundAgent } from "./useEvaluatorPlaygroundAgent";
 import type {
-  ConfigureEvaluatorWorkspace,
   EvaluatorWorkspaceRead,
   EvaluatorWorkspaceReadSource,
 } from "./useEvaluatorPlaygroundAgent";
@@ -418,81 +418,6 @@ function toReadSource(
         timeWindow: source.window,
         evaluationTarget: "SPAN",
       };
-}
-
-/**
- * The source `configure` asks for. Naming a project replaces a dataset and
- * vice versa; the other fields refine the source of their own kind and are
- * rejected against the other kind rather than silently dropped.
- */
-function getConfiguredSource(
-  current: EvaluatorPlaygroundSource | null,
-  input: ConfigureEvaluatorWorkspace
-):
-  | { ok: true; source: EvaluatorPlaygroundSource | null }
-  | { ok: false; error: string } {
-  let source = getConfiguredRoot(current, input);
-
-  if (input.splitIds) {
-    if (source?.kind !== "dataset")
-      return { ok: false, error: "splitIds apply to a dataset source." };
-    source = { ...source, splitIds: input.splitIds };
-  }
-
-  if (input.filterCondition !== undefined || input.timeWindow) {
-    if (source?.kind !== "project")
-      return {
-        ok: false,
-        error: "filterCondition and timeWindow apply to a project source.",
-      };
-    source = {
-      ...source,
-      filterCondition: input.filterCondition ?? source.filterCondition,
-      window: input.timeWindow ?? source.window,
-    };
-  }
-
-  return { ok: true, source };
-}
-
-/** The dataset or project `configure` names, keeping the same record's settings. */
-function getConfiguredRoot(
-  current: EvaluatorPlaygroundSource | null,
-  input: ConfigureEvaluatorWorkspace
-): EvaluatorPlaygroundSource | null {
-  if (input.projectId !== undefined) {
-    if (!input.projectId) return null;
-
-    const same =
-      current?.kind === "project" && current.projectId === input.projectId
-        ? current
-        : null;
-
-    return {
-      kind: "project",
-      projectId: input.projectId,
-      filterCondition: same?.filterCondition ?? "",
-      window: same?.window ?? "7d",
-    };
-  }
-
-  if (input.datasetId !== undefined) {
-    if (!input.datasetId) return null;
-
-    const same =
-      current?.kind === "dataset" && current.datasetId === input.datasetId
-        ? current
-        : null;
-
-    return {
-      kind: "dataset",
-      datasetId: input.datasetId,
-      splitIds: same?.splitIds ?? [],
-      versionId: null,
-    };
-  }
-
-  return current;
 }
 
 /**

@@ -104,7 +104,7 @@ export function ExampleFieldCell({
               </TooltipTrigger>
             ) : null}
             <DetailsPopover
-              label={`View ${label} for example ${position}`}
+              label={`View ${label} for row ${position}`}
               icon={<Icons.Expand />}
               width={560}
             >
