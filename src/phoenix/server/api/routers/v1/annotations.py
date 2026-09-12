@@ -4,30 +4,42 @@ import logging
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
 from sqlalchemy import ColumnElement, delete, exists, select
 from starlette.requests import Request
+from starlette.responses import Response
 from strawberry.relay import GlobalID
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
+from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.ProjectSessionAnnotation import (
     ProjectSessionAnnotation as SessionAnnotationNodeType,
 )
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation as TraceAnnotationNodeType
 from phoenix.server.api.types.User import User as UserNodeType
+from phoenix.server.authorization import is_not_locked, restrict_access_by_viewers
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import (
     ProjectSessionAnnotationDeleteEvent,
+    ProjectSessionAnnotationInsertEvent,
     SpanAnnotationDeleteEvent,
+    SpanAnnotationInsertEvent,
     TraceAnnotationDeleteEvent,
+    TraceAnnotationInsertEvent,
 )
 
-from .utils import PaginatedResponseBody, add_errors_to_responses, get_project_by_identifier
+from .utils import (
+    PaginatedResponseBody,
+    ResponseBody,
+    add_errors_to_responses,
+    get_project_by_identifier,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1147,3 +1159,553 @@ async def delete_session_annotations(
 
     if deleted_ids:
         request.state.event_queue.put(ProjectSessionAnnotationDeleteEvent(tuple(deleted_ids)))
+
+
+# =============================================================================
+# PATCH/DELETE /{kind}_annotations/{annotation_id} — single-annotation by GlobalID
+# =============================================================================
+
+
+class PatchAnnotationRequestBody(V1RoutesBaseModel):
+    """
+    Fields to partially update on an annotation. Omit a field to leave it
+    unchanged. This mirrors the semantics of the `patchSpanAnnotations` /
+    `patchTraceAnnotations` GraphQL mutations.
+    """
+
+    name: Optional[str] = Field(
+        default=UNDEFINED,
+        min_length=1,
+        description="New name for the annotation. Omit to leave the name unchanged.",
+    )
+    annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = Field(
+        default=UNDEFINED,
+        description="New annotator kind. Omit to leave the annotator kind unchanged.",
+    )
+    label: Optional[str] = Field(
+        default=UNDEFINED,
+        description="New label. Set to null to clear it; omit to leave it unchanged.",
+    )
+    score: Optional[float] = Field(
+        default=UNDEFINED,
+        description="New score. Set to null to clear it; omit to leave it unchanged.",
+    )
+    explanation: Optional[str] = Field(
+        default=UNDEFINED,
+        description="New explanation. Set to null to clear it; omit to leave it unchanged.",
+    )
+    metadata: Optional[dict[str, Any]] = Field(
+        default=UNDEFINED,
+        description="New metadata object. Omit to leave the metadata unchanged.",
+    )
+    identifier: Optional[str] = Field(
+        default=UNDEFINED,
+        description=(
+            "New identifier. Set to null to clear it to the empty string; omit to "
+            "leave it unchanged."
+        ),
+    )
+    source: Optional[Literal["API", "APP"]] = Field(
+        default=UNDEFINED,
+        description="New annotation source. Omit to leave the source unchanged.",
+    )
+
+
+class PatchSpanAnnotationResponseBody(ResponseBody[SpanAnnotation]):
+    pass
+
+
+class PatchTraceAnnotationResponseBody(ResponseBody[TraceAnnotation]):
+    pass
+
+
+class PatchSessionAnnotationResponseBody(ResponseBody[SessionAnnotation]):
+    pass
+
+
+_PATCH_DESCRIPTION_TEMPLATE = """
+Partially update a single {kind} annotation identified by its GlobalID.
+
+- Only the fields included in the request body are changed; omitted fields
+  are left unchanged.
+- Callers with the MEMBER role or higher may update annotations they created
+  (`user_id` matches the caller); admins may update any annotation. When
+  authentication is disabled, every caller may update any annotation.
+"""
+
+_DELETE_BY_ID_DESCRIPTION_TEMPLATE = """
+Delete a single {kind} annotation identified by its GlobalID.
+
+- Callers with the MEMBER role or higher may delete annotations they created
+  (`user_id` matches the caller); admins may delete any annotation. When
+  authentication is disabled, every caller may delete any annotation.
+- This endpoint does not respect `is_not_locked` (unlike PATCH): deletions
+  remain available even when storage capacity is exceeded.
+"""
+
+
+def _resolve_current_user(request: Request) -> tuple[Optional[int], bool]:
+    """Return `(user_id, is_admin)` for the caller.
+
+    When authentication is disabled there is no notion of identity, so the
+    caller is treated as unrestricted (`is_admin=True`), mirroring the
+    behavior of `_resolve_non_admin_user_id` above. When authentication is
+    enabled but `request.user` is not a `PhoenixUser` (should not normally
+    happen, since `is_authenticated` would have already rejected the
+    request), the caller is treated as a non-admin with no identity so that
+    ownership checks fail closed.
+    """
+    if not request.app.state.authentication_enabled:
+        return None, True
+    user = request.user
+    if not isinstance(user, PhoenixUser):
+        return None, False
+    return int(user.identity), user.is_admin
+
+
+def _ensure_owner_or_admin(
+    *,
+    annotation_user_id: Optional[int],
+    current_user_id: Optional[int],
+    is_admin: bool,
+    kind: str,
+) -> None:
+    if is_admin:
+        return
+    if annotation_user_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail=(f"Only the {kind} annotation's owner or an admin can modify this annotation."),
+        )
+
+
+def _apply_annotation_patch(
+    annotation: Any,
+    request_body: PatchAnnotationRequestBody,
+) -> bool:
+    """Apply the non-omitted fields from `request_body` onto `annotation` in
+    place. Returns True if at least one field was changed.
+
+    Mirrors the field-by-field partial-update semantics of the
+    `patch_span_annotations` / `patch_trace_annotations` GraphQL mutations.
+    """
+    changed = False
+    if request_body.name is not UNDEFINED and request_body.name:
+        annotation.name = request_body.name
+        changed = True
+    if request_body.annotator_kind is not UNDEFINED and request_body.annotator_kind:
+        annotation.annotator_kind = request_body.annotator_kind
+        changed = True
+    if request_body.label is not UNDEFINED:
+        annotation.label = request_body.label
+        changed = True
+    if request_body.score is not UNDEFINED:
+        annotation.score = request_body.score
+        changed = True
+    if request_body.explanation is not UNDEFINED:
+        annotation.explanation = request_body.explanation
+        changed = True
+    if request_body.metadata is not UNDEFINED:
+        if not isinstance(request_body.metadata, dict):
+            raise HTTPException(status_code=422, detail="metadata must be a JSON object")
+        annotation.metadata_ = request_body.metadata
+        changed = True
+    if request_body.identifier is not UNDEFINED:
+        annotation.identifier = request_body.identifier or ""
+        changed = True
+    if request_body.source is not UNDEFINED and request_body.source:
+        annotation.source = request_body.source
+        changed = True
+    return changed
+
+
+def _get_span_annotation_rowid(annotation_id: str) -> int:
+    try:
+        return from_global_id_with_expected_type(
+            GlobalID.from_id(annotation_id), SPAN_ANNOTATION_NODE_NAME
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid span annotation ID: {annotation_id}",
+        )
+
+
+def _get_trace_annotation_rowid(annotation_id: str) -> int:
+    try:
+        return from_global_id_with_expected_type(
+            GlobalID.from_id(annotation_id), TRACE_ANNOTATION_NODE_NAME
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid trace annotation ID: {annotation_id}",
+        )
+
+
+def _get_session_annotation_rowid(annotation_id: str) -> int:
+    try:
+        return from_global_id_with_expected_type(
+            GlobalID.from_id(annotation_id), SESSION_ANNOTATION_NODE_NAME
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid session annotation ID: {annotation_id}",
+        )
+
+
+@router.patch(
+    "/span_annotations/{annotation_id}",
+    dependencies=[Depends(restrict_access_by_viewers), Depends(is_not_locked)],
+    operation_id="updateSpanAnnotation",
+    summary="Update a span annotation by ID",
+    description=_PATCH_DESCRIPTION_TEMPLATE.format(kind="span"),
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 403,
+                "description": "Insufficient permissions to modify this annotation",
+            },
+            {"status_code": 404, "description": "Span annotation not found"},
+            {"status_code": 422, "description": "Invalid span annotation ID or request body"},
+        ]
+    ),
+)
+async def update_span_annotation(
+    request: Request,
+    request_body: PatchAnnotationRequestBody,
+    annotation_id: str = Path(description="The GlobalID of the span annotation"),
+) -> PatchSpanAnnotationResponseBody:
+    annotation_rowid = _get_span_annotation_rowid(annotation_id)
+    current_user_id, is_admin = _resolve_current_user(request)
+
+    async with request.app.state.db() as session:
+        row = (
+            await session.execute(
+                select(models.SpanAnnotation, models.Span.span_id)
+                .join(models.Span, models.Span.id == models.SpanAnnotation.span_rowid)
+                .where(models.SpanAnnotation.id == annotation_rowid)
+            )
+        ).one_or_none()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Span annotation not found")
+        span_annotation, span_id = row
+        _ensure_owner_or_admin(
+            annotation_user_id=span_annotation.user_id,
+            current_user_id=current_user_id,
+            is_admin=is_admin,
+            kind="span",
+        )
+        changed = _apply_annotation_patch(span_annotation, request_body)
+        if changed:
+            session.add(span_annotation)
+            await session.flush()
+            await session.refresh(span_annotation)
+        data = SpanAnnotation(
+            id=str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(span_annotation.id))),
+            span_id=span_id,
+            name=span_annotation.name,
+            result=AnnotationResult(
+                label=span_annotation.label,
+                score=span_annotation.score,
+                explanation=span_annotation.explanation,
+            ),
+            metadata=span_annotation.metadata_,
+            annotator_kind=span_annotation.annotator_kind,
+            created_at=span_annotation.created_at,
+            updated_at=span_annotation.updated_at,
+            identifier=span_annotation.identifier,
+            source=span_annotation.source,
+            user_id=(
+                str(GlobalID(USER_NODE_NAME, str(span_annotation.user_id)))
+                if span_annotation.user_id
+                else None
+            ),
+        )
+        annotation_rowid_for_event = span_annotation.id
+
+    if changed:
+        request.state.event_queue.put(SpanAnnotationInsertEvent((annotation_rowid_for_event,)))
+
+    return PatchSpanAnnotationResponseBody(data=data)
+
+
+@router.delete(
+    "/span_annotations/{annotation_id}",
+    dependencies=[Depends(restrict_access_by_viewers)],
+    operation_id="deleteSpanAnnotation",
+    summary="Delete a span annotation by ID",
+    description=_DELETE_BY_ID_DESCRIPTION_TEMPLATE.format(kind="span"),
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 403,
+                "description": "Insufficient permissions to delete this annotation",
+            },
+            {"status_code": 404, "description": "Span annotation not found"},
+            {"status_code": 422, "description": "Invalid span annotation ID"},
+        ]
+    ),
+)
+async def delete_span_annotation(
+    request: Request,
+    annotation_id: str = Path(description="The GlobalID of the span annotation"),
+) -> Response:
+    annotation_rowid = _get_span_annotation_rowid(annotation_id)
+    current_user_id, is_admin = _resolve_current_user(request)
+
+    async with request.app.state.db() as session:
+        span_annotation = await session.get(models.SpanAnnotation, annotation_rowid)
+        if span_annotation is None:
+            raise HTTPException(status_code=404, detail="Span annotation not found")
+        _ensure_owner_or_admin(
+            annotation_user_id=span_annotation.user_id,
+            current_user_id=current_user_id,
+            is_admin=is_admin,
+            kind="span",
+        )
+        await session.delete(span_annotation)
+
+    request.state.event_queue.put(SpanAnnotationDeleteEvent((annotation_rowid,)))
+    return Response(status_code=204)
+
+
+@router.patch(
+    "/trace_annotations/{annotation_id}",
+    dependencies=[Depends(restrict_access_by_viewers), Depends(is_not_locked)],
+    operation_id="updateTraceAnnotation",
+    summary="Update a trace annotation by ID",
+    description=_PATCH_DESCRIPTION_TEMPLATE.format(kind="trace"),
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 403,
+                "description": "Insufficient permissions to modify this annotation",
+            },
+            {"status_code": 404, "description": "Trace annotation not found"},
+            {"status_code": 422, "description": "Invalid trace annotation ID or request body"},
+        ]
+    ),
+)
+async def update_trace_annotation(
+    request: Request,
+    request_body: PatchAnnotationRequestBody,
+    annotation_id: str = Path(description="The GlobalID of the trace annotation"),
+) -> PatchTraceAnnotationResponseBody:
+    annotation_rowid = _get_trace_annotation_rowid(annotation_id)
+    current_user_id, is_admin = _resolve_current_user(request)
+
+    async with request.app.state.db() as session:
+        row = (
+            await session.execute(
+                select(models.TraceAnnotation, models.Trace.trace_id)
+                .join(models.Trace, models.Trace.id == models.TraceAnnotation.trace_rowid)
+                .where(models.TraceAnnotation.id == annotation_rowid)
+            )
+        ).one_or_none()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Trace annotation not found")
+        trace_annotation, trace_id = row
+        _ensure_owner_or_admin(
+            annotation_user_id=trace_annotation.user_id,
+            current_user_id=current_user_id,
+            is_admin=is_admin,
+            kind="trace",
+        )
+        changed = _apply_annotation_patch(trace_annotation, request_body)
+        if changed:
+            session.add(trace_annotation)
+            await session.flush()
+            await session.refresh(trace_annotation)
+        data = TraceAnnotation(
+            id=str(GlobalID(TRACE_ANNOTATION_NODE_NAME, str(trace_annotation.id))),
+            trace_id=trace_id,
+            name=trace_annotation.name,
+            result=AnnotationResult(
+                label=trace_annotation.label,
+                score=trace_annotation.score,
+                explanation=trace_annotation.explanation,
+            ),
+            metadata=trace_annotation.metadata_,
+            annotator_kind=trace_annotation.annotator_kind,
+            created_at=trace_annotation.created_at,
+            updated_at=trace_annotation.updated_at,
+            identifier=trace_annotation.identifier,
+            source=trace_annotation.source,
+            user_id=(
+                str(GlobalID(USER_NODE_NAME, str(trace_annotation.user_id)))
+                if trace_annotation.user_id
+                else None
+            ),
+        )
+        annotation_rowid_for_event = trace_annotation.id
+
+    if changed:
+        request.state.event_queue.put(TraceAnnotationInsertEvent((annotation_rowid_for_event,)))
+
+    return PatchTraceAnnotationResponseBody(data=data)
+
+
+@router.delete(
+    "/trace_annotations/{annotation_id}",
+    dependencies=[Depends(restrict_access_by_viewers)],
+    operation_id="deleteTraceAnnotation",
+    summary="Delete a trace annotation by ID",
+    description=_DELETE_BY_ID_DESCRIPTION_TEMPLATE.format(kind="trace"),
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 403,
+                "description": "Insufficient permissions to delete this annotation",
+            },
+            {"status_code": 404, "description": "Trace annotation not found"},
+            {"status_code": 422, "description": "Invalid trace annotation ID"},
+        ]
+    ),
+)
+async def delete_trace_annotation(
+    request: Request,
+    annotation_id: str = Path(description="The GlobalID of the trace annotation"),
+) -> Response:
+    annotation_rowid = _get_trace_annotation_rowid(annotation_id)
+    current_user_id, is_admin = _resolve_current_user(request)
+
+    async with request.app.state.db() as session:
+        trace_annotation = await session.get(models.TraceAnnotation, annotation_rowid)
+        if trace_annotation is None:
+            raise HTTPException(status_code=404, detail="Trace annotation not found")
+        _ensure_owner_or_admin(
+            annotation_user_id=trace_annotation.user_id,
+            current_user_id=current_user_id,
+            is_admin=is_admin,
+            kind="trace",
+        )
+        await session.delete(trace_annotation)
+
+    request.state.event_queue.put(TraceAnnotationDeleteEvent((annotation_rowid,)))
+    return Response(status_code=204)
+
+
+@router.patch(
+    "/session_annotations/{annotation_id}",
+    dependencies=[Depends(restrict_access_by_viewers), Depends(is_not_locked)],
+    operation_id="updateSessionAnnotation",
+    summary="Update a session annotation by ID",
+    description=_PATCH_DESCRIPTION_TEMPLATE.format(kind="session"),
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 403,
+                "description": "Insufficient permissions to modify this annotation",
+            },
+            {"status_code": 404, "description": "Session annotation not found"},
+            {"status_code": 422, "description": "Invalid session annotation ID or request body"},
+        ]
+    ),
+)
+async def update_session_annotation(
+    request: Request,
+    request_body: PatchAnnotationRequestBody,
+    annotation_id: str = Path(description="The GlobalID of the session annotation"),
+) -> PatchSessionAnnotationResponseBody:
+    annotation_rowid = _get_session_annotation_rowid(annotation_id)
+    current_user_id, is_admin = _resolve_current_user(request)
+
+    async with request.app.state.db() as session:
+        row = (
+            await session.execute(
+                select(models.ProjectSessionAnnotation, models.ProjectSession.session_id)
+                .join(
+                    models.ProjectSession,
+                    models.ProjectSession.id == models.ProjectSessionAnnotation.project_session_id,
+                )
+                .where(models.ProjectSessionAnnotation.id == annotation_rowid)
+            )
+        ).one_or_none()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session annotation not found")
+        session_annotation, session_id = row
+        _ensure_owner_or_admin(
+            annotation_user_id=session_annotation.user_id,
+            current_user_id=current_user_id,
+            is_admin=is_admin,
+            kind="session",
+        )
+        changed = _apply_annotation_patch(session_annotation, request_body)
+        if changed:
+            session.add(session_annotation)
+            await session.flush()
+            await session.refresh(session_annotation)
+        data = SessionAnnotation(
+            id=str(GlobalID(SESSION_ANNOTATION_NODE_NAME, str(session_annotation.id))),
+            session_id=session_id,
+            name=session_annotation.name,
+            result=AnnotationResult(
+                label=session_annotation.label,
+                score=session_annotation.score,
+                explanation=session_annotation.explanation,
+            ),
+            metadata=session_annotation.metadata_,
+            annotator_kind=session_annotation.annotator_kind,
+            created_at=session_annotation.created_at,
+            updated_at=session_annotation.updated_at,
+            identifier=session_annotation.identifier,
+            source=session_annotation.source,
+            user_id=(
+                str(GlobalID(USER_NODE_NAME, str(session_annotation.user_id)))
+                if session_annotation.user_id
+                else None
+            ),
+        )
+        annotation_rowid_for_event = session_annotation.id
+
+    if changed:
+        request.state.event_queue.put(
+            ProjectSessionAnnotationInsertEvent((annotation_rowid_for_event,))
+        )
+
+    return PatchSessionAnnotationResponseBody(data=data)
+
+
+@router.delete(
+    "/session_annotations/{annotation_id}",
+    dependencies=[Depends(restrict_access_by_viewers)],
+    operation_id="deleteSessionAnnotation",
+    summary="Delete a session annotation by ID",
+    description=_DELETE_BY_ID_DESCRIPTION_TEMPLATE.format(kind="session"),
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 403,
+                "description": "Insufficient permissions to delete this annotation",
+            },
+            {"status_code": 404, "description": "Session annotation not found"},
+            {"status_code": 422, "description": "Invalid session annotation ID"},
+        ]
+    ),
+)
+async def delete_session_annotation(
+    request: Request,
+    annotation_id: str = Path(description="The GlobalID of the session annotation"),
+) -> Response:
+    annotation_rowid = _get_session_annotation_rowid(annotation_id)
+    current_user_id, is_admin = _resolve_current_user(request)
+
+    async with request.app.state.db() as session:
+        session_annotation = await session.get(models.ProjectSessionAnnotation, annotation_rowid)
+        if session_annotation is None:
+            raise HTTPException(status_code=404, detail="Session annotation not found")
+        _ensure_owner_or_admin(
+            annotation_user_id=session_annotation.user_id,
+            current_user_id=current_user_id,
+            is_admin=is_admin,
+            kind="session",
+        )
+        await session.delete(session_annotation)
+
+    request.state.event_queue.put(ProjectSessionAnnotationDeleteEvent((annotation_rowid,)))
+    return Response(status_code=204)
