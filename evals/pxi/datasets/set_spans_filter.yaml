@@ -554,7 +554,7 @@ examples:
     input:
       messages:
         - role: user
-          content: Filter the spans table to span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+          content: Filter the spans table to span 7a3f9c2e1b8d4e5f.
         - role: assistant
           tool_calls:
             - id: search-ops
@@ -569,7 +569,7 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
+          condition: span_id == '7a3f9c2e1b8d4e5f'
     metadata:
       annotation:
         agreement: medium
@@ -579,7 +579,7 @@ examples:
     input:
       messages:
         - role: user
-          content: Show me direct children of span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+          content: Show me direct children of span 7a3f9c2e1b8d4e5f.
         - role: assistant
           tool_calls:
             - id: search-ops
@@ -594,7 +594,7 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: parent_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
+          condition: parent_id == '7a3f9c2e1b8d4e5f'
     metadata:
       annotation:
         agreement: high

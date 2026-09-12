@@ -7,6 +7,7 @@ Run directly:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -358,3 +359,16 @@ examples:
                 assert description.get("non_empty") is True, (
                     f"{example['id']} must reject an empty playground.prompt.save description"
                 )
+
+
+@pytest.mark.parametrize("example_id", ["span-by-id", "children-of-parent"])
+def test_span_id_fixtures_use_matching_otel_span_ids(example_id: str) -> None:
+    example = next(e for e in load_dataset("set_spans_filter").examples if e["id"] == example_id)
+    query = example["input"]["messages"][0]["content"]
+    condition = example["expected"]["ui_operation_args"]["spansFilter.set"]["condition"]
+    input_ids = re.findall(r"\b[0-9a-f]{16,32}\b", query)
+    expected_ids = re.findall(r"\b[0-9a-f]{16,32}\b", condition)
+    assert input_ids == expected_ids
+    assert len(input_ids) == 1
+    assert re.fullmatch(r"[0-9a-f]{16}", input_ids[0])
+    assert int(input_ids[0], 16) != 0
