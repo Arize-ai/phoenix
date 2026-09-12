@@ -10112,12 +10112,23 @@ export interface operations {
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
-                /** @description Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI. */
+                /**
+                 * @deprecated
+                 * @description Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.
+                 */
                 error?: boolean | null;
-                /** @description Inclusive lower bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.
+                 */
                 min_latency_ms?: number | null;
-                /** @description Inclusive upper bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.
+                 */
                 max_latency_ms?: number | null;
+                /** @description Filter traces using a boolean expression. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -10135,6 +10146,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
@@ -11904,6 +11924,8 @@ export interface operations {
                 limit?: number;
                 /** @description Sort order by ID: 'asc' (ascending) or 'desc' (descending). */
                 order?: "asc" | "desc";
+                /** @description Filter sessions using a boolean expression. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -11921,6 +11943,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetSessionsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */

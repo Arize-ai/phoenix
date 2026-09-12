@@ -36,6 +36,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ProjectSessionAnnotationInsertEvent, SpanDeleteEvent
+from phoenix.server.session_filters import SessionFilterConditionError, apply_session_filter_to_page
 
 from .annotations import SessionAnnotationData
 from .utils import RequestBody
@@ -338,7 +339,7 @@ async def delete_sessions(
     "/projects/{project_identifier}/sessions",
     operation_id="listProjectSessions",
     summary="List sessions for a project",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([400, 404, 422]),
 )
 async def list_project_sessions(
     request: Request,
@@ -358,6 +359,14 @@ async def list_project_sessions(
         default="asc",
         description="Sort order by ID: 'asc' (ascending) or 'desc' (descending).",
     ),
+    filter: Optional[str] = Query(
+        default=None,
+        description=(
+            "Filter sessions using a boolean expression. "
+            "For example: `num_traces_with_error > 0 and duration_ms >= 60000`. "
+            "Empty expressions do not filter. Invalid expressions return 400."
+        ),
+    ),
 ) -> GetSessionsResponseBody:
     async with request.app.state.db.read() as db_session:
         project = await get_project_by_identifier(db_session, project_identifier)
@@ -370,6 +379,14 @@ async def list_project_sessions(
         sessions_stmt = (
             select(models.ProjectSession).filter_by(project_id=project.id).order_by(order_clause)
         )
+
+        if filter:
+            try:
+                sessions_stmt = apply_session_filter_to_page(
+                    sessions_stmt, filter, project_rowids=[project.id]
+                )
+            except SessionFilterConditionError as error:
+                raise HTTPException(status_code=400, detail=str(error)) from error
 
         if cursor:
             try:
