@@ -604,7 +604,16 @@ content matters. Use `absent: true` when omission itself is the behavior under
 test.
 
 For efficiency-focused examples, add `expected.budgets.max_tool_calls` and
-enable the `tool_call_count_within_limit` evaluator. Bash-first examples can
+enable the `tool_call_count_within_limit` evaluator. When a read-only example
+must allow different setup paths, use `expected.budgets.max_repeated_tool_calls`
+instead. A repeat has the same tool name and JSON arguments as an earlier call
+in the scored output; object-key order and call IDs do not matter. Every call
+after the first matching one counts toward the limit. Distinct skills and
+corrected arguments are not repeats. Both limits apply if both are supplied.
+
+Use a zero-repeat budget only when another identical request would add no new
+information. It is not a replacement for latency or total-cost measurements,
+and it does not detect unnecessary calls with different arguments. Bash-first examples can
 use `bash_command_substrings_match` to check command intent without requiring
 exact shell syntax.
 
