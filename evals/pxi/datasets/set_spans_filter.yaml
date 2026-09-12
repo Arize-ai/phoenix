@@ -89,7 +89,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind == 'LLM'
+          condition:
+            filter_equals: span_kind == 'LLM'
     metadata:
       annotation:
         agreement: high
@@ -114,7 +115,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind == 'TOOL'
+          condition:
+            filter_equals: span_kind == 'TOOL'
     metadata:
       annotation:
         agreement: high
@@ -139,7 +141,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: status_code == 'ERROR'
+          condition:
+            filter_equals: status_code == 'ERROR'
     metadata:
       annotation:
         agreement: high
@@ -223,7 +226,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
+          condition:
+            filter_equals: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
     metadata:
       annotation:
         agreement: high
@@ -248,7 +252,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: name == 'retrieve_documents'
+          condition:
+            filter_equals: name == 'retrieve_documents'
     metadata:
       annotation:
         agreement: high
@@ -304,7 +309,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: annotations['Hallucination'].label == 'hallucinated'
+          condition:
+            filter_equals: annotations['Hallucination'].label == 'hallucinated'
     metadata:
       annotation:
         agreement: high
@@ -329,7 +335,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: parent_id is None
+          condition:
+            filter_equals: parent_id is None
     metadata:
       annotation:
         agreement: high
@@ -354,7 +361,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind == 'CHAIN'
+          condition:
+            filter_equals: span_kind == 'CHAIN'
     metadata:
       annotation:
         agreement: high
@@ -409,7 +417,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind == 'EMBEDDING'
+          condition:
+            filter_equals: span_kind == 'EMBEDDING'
     metadata:
       annotation:
         agreement: high
@@ -434,7 +443,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: status_code == 'OK'
+          condition:
+            filter_equals: status_code == 'OK'
     metadata:
       annotation:
         agreement: high
@@ -459,7 +469,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: status_code == 'UNSET'
+          condition:
+            filter_equals: status_code == 'UNSET'
     metadata:
       annotation:
         agreement: high
@@ -511,10 +522,10 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition:
-            contains_all:
-              ["cumulative_token_count.total", "50000", "parent_id is None"]
-            not_contains: ["cumulative_token_count.total < ", "cumulative_token_count.total <= "]
+          - condition:
+              filter_equals: parent_id is None and cumulative_token_count.total > 50000
+          - condition:
+              filter_equals: parent_id is None and cumulative_token_count.total >= 50000
     metadata:
       annotation:
         agreement: high
@@ -541,7 +552,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: start_time >= '2025-01-15T00:00:00Z'
+          condition:
+            filter_equals: start_time >= '2025-01-15T00:00:00Z'
     metadata:
       annotation:
         agreement: medium
@@ -569,7 +581,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_id == '7a3f9c2e1b8d4e5f'
+          condition:
+            filter_equals: span_id == '7a3f9c2e1b8d4e5f'
     metadata:
       annotation:
         agreement: medium
@@ -594,7 +607,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: parent_id == '7a3f9c2e1b8d4e5f'
+          condition:
+            filter_equals: parent_id == '7a3f9c2e1b8d4e5f'
     metadata:
       annotation:
         agreement: high
@@ -672,7 +686,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: metadata['environment'] == 'prod'
+          condition:
+            filter_equals: metadata['environment'] == 'prod'
     metadata:
       annotation:
         agreement: medium
@@ -697,7 +712,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind == 'AGENT'
+          condition:
+            filter_equals: span_kind == 'AGENT'
     metadata:
       annotation:
         agreement: high
@@ -722,7 +738,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind == 'RETRIEVER'
+          condition:
+            filter_equals: span_kind == 'RETRIEVER'
     metadata:
       annotation:
         agreement: high
@@ -747,7 +764,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind != 'LLM'
+          condition:
+            filter_equals: span_kind != 'LLM'
     metadata:
       annotation:
         agreement: medium
@@ -782,9 +800,8 @@ examples:
         agreement: high
         n_opinions: 3
   - id: llm-or-tool-spans
-    # OR semantics: ``contains_all`` of just the literal values matches both
-    # ``span_kind == 'LLM' or span_kind == 'TOOL'`` and the equivalent
-    # ``span_kind in ('LLM', 'TOOL')`` form the parser accepts.
+    # Compare the full predicate, accepting both membership and OR clauses.
+    # Historical substring matching accepted an impossible AND of both kinds.
     splits: [regression]
     input:
       messages:
@@ -805,8 +822,7 @@ examples:
       ui_operation_args:
         spansFilter.set:
           condition:
-            contains_all: ["LLM", "TOOL"]
-            not_contains: ["!=", "not_in", "not in"]
+            filter_equals: span_kind in ['LLM', 'TOOL']
     metadata:
       annotation:
         agreement: high
@@ -858,7 +874,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: end_time < '2025-01-15T12:00:00Z'
+          condition:
+            filter_equals: end_time < '2025-01-15T12:00:00Z'
     metadata:
       annotation:
         agreement: high
@@ -909,7 +926,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: attributes['user.id'] == 'alice'
+          condition:
+            filter_equals: attributes['user.id'] == 'alice'
     metadata:
       annotation:
         agreement: high
@@ -992,8 +1010,7 @@ examples:
       ui_operation_args:
         spansFilter.set:
           condition:
-            contains_all: ["TOOL", "RETRIEVER"]
-            not_contains: ["!=", "not_in", "not in"]
+            filter_equals: span_kind in ['TOOL', 'RETRIEVER']
     metadata:
       annotation:
         agreement: medium
@@ -1020,7 +1037,8 @@ examples:
         required: [spansFilter.set]
       ui_operation_args:
         spansFilter.set:
-          condition: span_kind != 'TOOL'
+          condition:
+            filter_equals: span_kind != 'TOOL'
     metadata:
       annotation:
         agreement: high
