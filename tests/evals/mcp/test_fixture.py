@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from evals.mcp.environment.seed import seed
-from evals.mcp.scripts.prepare import prepare
+from evals.mcp.scripts.prepare_seed import prepare
 
 
 def row(trace_id="trace-a", span_id="span-a"):

@@ -3,7 +3,7 @@ import re
 from evals.mcp.scoring.answers import numeric, plain
 
 
-def verify_error_rate_by_length(answer, reference):
+def verify_answer(answer, reference):
     """Return reward 1 when both labeled error percentages match, otherwise 0.
 
     Extract percentages labeled short and long. Compare each with the trusted

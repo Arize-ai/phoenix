@@ -2,43 +2,26 @@
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import shutil
 import subprocess
 import tarfile
 import tempfile
-import tomllib
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[1]
 ROOT = HERE.parents[1]
 
 
-def source_hash() -> str:
-    """Fingerprint public benchmark inputs so prepared runs cannot silently go stale."""
-    digest = hashlib.sha256()
-    for path in sorted(HERE.rglob("*")):
-        relative = path.relative_to(HERE)
-        if any(part.startswith(".") or part == "__pycache__" for part in relative.parts):
-            continue
-        if (
-            path.is_file()
-            and path.suffix in {".py", ".toml", ".json", ".yaml", ".sh"}
-            or path.name == "Dockerfile"
-        ):
-            digest.update(str(relative).encode())
-            digest.update(path.read_bytes())
-        elif path.name == "instruction.md":
-            digest.update(str(relative).encode())
-            digest.update(path.read_bytes())
-    return digest.hexdigest()
-
-
-def build_images(*, target_source: Path = ROOT, target_ref: str | None = None) -> dict:
+def build_images(
+    *,
+    config: dict,
+    target_source: Path = ROOT,
+    target_ref: str | None = None,
+    cli_package: Path | None = None,
+) -> dict:
     """Build a working checkout or a git revision, including unreleased MCP changes."""
-    config = tomllib.loads((HERE / "benchmark.toml").read_text())
     build_root = HERE / ".runtime"
     build_root.mkdir(exist_ok=True)
     context = Path(tempfile.mkdtemp(prefix="build-", dir=build_root))
@@ -62,16 +45,27 @@ def build_images(*, target_source: Path = ROOT, target_ref: str | None = None) -
     (wheel,) = wheels.glob("arize_phoenix-*.whl")
     wheel_hash = hashlib.sha256(wheel.read_bytes()).hexdigest()
     shutil.copy(HERE / "environment/Dockerfile", context / "Dockerfile")
+    (context / "cli-package").mkdir()
+    cli_hash = None
+    cli_version = config["px_version"]
+    if cli_package is not None:
+        # npm pack output is installed during the build, never during a trial.
+        with tarfile.open(cli_package) as package:
+            member = package.extractfile("package/package.json")
+            metadata = json.load(member) if member is not None else {}
+            if metadata.get("name") != "@arizeai/phoenix-cli":
+                raise ValueError("--cli-package must be a packed @arizeai/phoenix-cli package")
+            cli_version = metadata["version"]
+        cli_hash = hashlib.sha256(cli_package.read_bytes()).hexdigest()
+        shutil.copyfile(cli_package, context / "cli-package/phoenix-cli.tgz")
     (context / ".dockerignore").write_text("candidate/\ncandidate.tar\n")
-    for directory in ("environment", "scoring", "tasks"):
+    for directory in ("environment", "scoring"):
         shutil.copytree(
             HERE / directory, context / directory, ignore=shutil.ignore_patterns("__pycache__")
         )
-    fingerprint = source_hash()
-    build_id = hashlib.sha256((fingerprint + wheel_hash).encode()).hexdigest()[:20]
     images = {}
     for name in ("agent-mcp", "agent-cli", "target", "verifier"):
-        tag = f"phoenix-mcp-bench-{name}:{build_id}"
+        tag = f"phoenix-mcp-bench-{name}:{context.name}"
         subprocess.run(
             [
                 "docker",
@@ -81,11 +75,14 @@ def build_images(*, target_source: Path = ROOT, target_ref: str | None = None) -
                 "-t",
                 tag,
                 "--build-arg",
-                "CLAUDE_VERSION=" + config["agents"]["claude-code"]["version"],
+                "CLAUDE_VERSION=" + config["agents"].get("claude-code", {}).get("version", ""),
                 "--build-arg",
-                "CODEX_VERSION=" + config["agents"]["codex"]["version"],
+                "CODEX_VERSION=" + config["agents"].get("codex", {}).get("version", ""),
                 "--build-arg",
                 "PX_VERSION=" + config["px_version"],
+                "--build-arg",
+                "PX_PACKAGE="
+                + ("/opt/benchmark/cli-package/phoenix-cli.tgz" if cli_package else ""),
                 str(context),
             ],
             check=True,
@@ -96,19 +93,7 @@ def build_images(*, target_source: Path = ROOT, target_ref: str | None = None) -
         "revision": revision,
         "working_tree": target_ref is None,
         "wheel_sha256": wheel_hash,
-        "benchmark_sha256": fingerprint,
+        "cli_package_sha256": cli_hash,
+        "cli_version": cli_version,
     }
-    (context / "images.json").write_text(json.dumps(images, indent=2) + "\n")
     return images
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target-source", type=Path, default=ROOT)
-    parser.add_argument("--target-ref")
-    args = parser.parse_args()
-    print(
-        json.dumps(
-            build_images(target_source=args.target_source, target_ref=args.target_ref), indent=2
-        )
-    )

@@ -1,8 +1,16 @@
 import json
+from pathlib import Path
 
 import pytest
 
-from evals.mcp.scoring.verify import grade_task_answer, verify_artifacts
+from evals.mcp.scoring.verify import grade_task_answer as grade_verifier
+from evals.mcp.scoring.verify import verify_artifacts
+
+TASKS = Path(__file__).resolve().parents[3] / "evals/mcp/tasks"
+
+
+def grade_task_answer(task, answer, reference):
+    return grade_verifier(TASKS / task / "tests/verify.py", answer, reference)
 
 
 @pytest.mark.parametrize(
@@ -113,7 +121,9 @@ def test_unavailable_measurements_do_not_change_valid_reward(tmp_path):
     (tmp_path / "evidence").mkdir()
     (tmp_path / "evidence/reference.json").write_text(json.dumps({"count-traces": {"value": 117}}))
     (tmp_path / "evidence/ready.json").write_text('{"ready": true}')
-    scores = verify_artifacts(tmp_path, "count-traces", "mcp")
+    scores = verify_artifacts(
+        tmp_path, "count-traces", "mcp", verifier=TASKS / "count-traces/tests/verify.py"
+    )
     assert scores["reward"] == 1
     assert scores["tool_measurement_complete"] == 0
     assert "tool_call_count" not in scores
@@ -124,7 +134,9 @@ def test_missing_seed_readiness_cannot_reuse_an_existing_reward(tmp_path):
     reward.parent.mkdir(parents=True)
     reward.write_text('{"reward": 1}')
     with pytest.raises((FileNotFoundError, ValueError)):
-        verify_artifacts(tmp_path, "count-traces", "mcp")
+        verify_artifacts(
+            tmp_path, "count-traces", "mcp", verifier=TASKS / "count-traces/tests/verify.py"
+        )
     assert not reward.exists()
 
 

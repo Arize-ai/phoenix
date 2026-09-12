@@ -7,18 +7,19 @@ WORKDIR /workspace
 FROM base AS agent-mcp
 ARG CLAUDE_VERSION
 ARG CODEX_VERSION
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_VERSION} @openai/codex@${CODEX_VERSION}
+RUN if [ -n "$CLAUDE_VERSION" ]; then npm install -g @anthropic-ai/claude-code@${CLAUDE_VERSION}; fi \
+    && if [ -n "$CODEX_VERSION" ]; then npm install -g @openai/codex@${CODEX_VERSION}; fi
 COPY environment/probe.py /opt/benchmark/probe.py
 ENTRYPOINT ["python", "/opt/benchmark/probe.py"]
 
 FROM agent-mcp AS agent-cli
 ARG PX_VERSION
-RUN npm install -g @arizeai/phoenix-cli@${PX_VERSION}
+ARG PX_PACKAGE
+COPY cli-package/ /opt/benchmark/cli-package/
+RUN if [ -n "$PX_PACKAGE" ]; then npm install -g "$PX_PACKAGE"; else npm install -g @arizeai/phoenix-cli@${PX_VERSION}; fi
 
 FROM base AS verifier
 COPY scoring/ /opt/benchmark/evals/mcp/scoring/
-COPY tasks/ /opt/benchmark/evals/mcp/tasks/
-RUN mkdir /tests && printf '#!/bin/sh\nset -eu\npython -m evals.mcp.scoring.verify --task "$BENCHMARK_TASK" --interface "$BENCHMARK_INTERFACE"\n' > /tests/test.sh
 ENV PYTHONPATH=/opt/benchmark
 
 FROM python:3.13-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e AS target

@@ -1,7 +1,7 @@
 from evals.mcp.scoring.answers import exact_integer
 
 
-def verify_count_traces(answer, reference):
+def verify_answer(answer, reference):
     """Return reward 1 for the exact trace count in the final answer, otherwise 0.
 
     Compare an unambiguous integer or trace-count statement with the trusted

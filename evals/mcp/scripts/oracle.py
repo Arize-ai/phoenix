@@ -8,6 +8,7 @@ import json
 import math
 import re
 import subprocess
+import sys
 import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -129,8 +130,7 @@ def solve(project, task):
 
 
 if __name__ == "__main__":
-    config = json.loads(Path("/solution/config.json").read_text())
-    answer = solve(**config)
+    answer = solve(project="research-assistant", task=sys.argv[1])
     Path("/workspace/answer.txt").write_text(answer)
     STEPS.append(
         {

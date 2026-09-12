@@ -1,3 +1,4 @@
+import pytest
 import tomllib
 import yaml
 
@@ -13,7 +14,6 @@ def images():
             "revision": "c" * 40,
             "working_tree": True,
             "wheel_sha256": "d" * 64,
-            "benchmark_sha256": "e" * 64,
         }
     }
 
@@ -45,6 +45,10 @@ def test_all_task_metadata_and_prompts_share_seed_identity(tmp_path):
         assert config["environment"]["allowed_hosts"] == ["api.openai.com"]
         assert config["verifier"]["environment"]["network_mode"] == "no-network"
         assert not (task / "tests/docker-compose.yaml").exists()
+        assert "docker_image" not in config["verifier"]["environment"]
+        assert (task / "tests/Dockerfile").read_text().endswith("COPY . /tests/\n")
+        assert (task / "tests/test.sh").is_file()
+        assert (task / "solution/solve.sh").is_file()
         artifacts = {entry["source"]: entry for entry in config["artifacts"]}
         assert artifacts["/evidence/reference.json"]["service"] == "phoenix"
         compose = yaml.safe_load((task / "environment/docker-compose.yaml").read_text())
@@ -71,7 +75,6 @@ async def test_native_plugin_preserves_small_metadata_and_versions_seed_changes(
     from harbor.job import Job
     from harbor.models.job.config import DatasetConfig, JobConfig
     from harbor.models.trial.config import AgentConfig
-    from phoenix.client.harbor._adapter import build_job_plan
 
     manifest = {
         "project": "research-assistant",
@@ -90,6 +93,8 @@ async def test_native_plugin_preserves_small_metadata_and_versions_seed_changes(
     task = next(t for t in tasks if t.name == "count-traces")
 
     async def plan(name):
+        from phoenix.client.harbor._adapter import build_job_plan
+
         job = await Job.create(
             JobConfig(
                 job_name=name,
@@ -110,3 +115,96 @@ async def test_native_plugin_preserves_small_metadata_and_versions_seed_changes(
     second = await plan("second")
     assert first.tasks[0].task_id == second.tasks[0].task_id
     assert first.tasks[0].digest != second.tasks[0].digest
+
+
+@pytest.mark.parametrize("packaging", ["default", "dockerfile", "image"])
+async def test_custom_verifier_artifacts_and_oracle_survive_staging(
+    tmp_path, monkeypatch, packaging
+):
+    import shutil
+
+    import toml
+    from harbor.models.task.task import Task
+
+    from evals.mcp.scripts import stage
+
+    source = tmp_path / "source"
+    task = source / "tasks/custom-state"
+    (task / "tests").mkdir(parents=True)
+    (task / "solution").mkdir()
+    (task / "instruction.md").write_text("Create the requested split.")
+    verifier = "#!/bin/sh\npython /tests/check_state.py\n"
+    (task / "tests/test.sh").write_text(verifier)
+    (task / "tests/check_state.py").write_text("# task-owned state grader")
+    (task / "solution/solve.sh").write_text("# task-owned oracle")
+    if packaging == "dockerfile":
+        (task / "tests/Dockerfile").write_text("FROM custom-grader\nCOPY . /tests/\n")
+    (task / "task.toml").write_text(
+        toml.dumps(
+            {
+                "agent": {"timeout_sec": 900},
+                "verifier": {
+                    "environment": {"docker_image": "custom-grader"}
+                    if packaging == "image"
+                    else {},
+                    "timeout_sec": 120,
+                    "env": {"EXPECTED_SPLIT": "regressions"},
+                    "collect": [{"service": "phoenix", "command": "snapshot"}],
+                },
+                "artifacts": [
+                    {"source": "/evidence/state.json", "service": "phoenix"},
+                    {"source": "/workspace/answer.txt", "destination": "custom-answer.txt"},
+                ],
+            }
+        )
+    )
+    shutil.copytree(stage.HERE / "environment", source / "environment")
+    shutil.copytree(stage.HERE / "scripts", source / "scripts")
+    monkeypatch.setattr(stage, "HERE", source)
+    [staged] = stage.stage_tasks(
+        {
+            "project": "research-assistant",
+            "corpus": "test",
+            "revision": "a" * 40,
+            "fixture_hash": "b" * 64,
+        },
+        tmp_path / "staged",
+        images=images(),
+        seed=tmp_path / "seed",
+        interface="cli",
+        provider="openai",
+    )
+    config = Task(staged).config
+    assert (staged / "tests/test.sh").read_text() == verifier
+    assert (staged / "solution/solve.sh").read_text() == "# task-owned oracle"
+    assert config.agent.timeout_sec == 900
+    assert config.verifier.timeout_sec == 120
+    assert config.verifier.env["EXPECTED_SPLIT"] == "regressions"
+    assert config.verifier.collect[0].command == "snapshot"
+    if packaging == "image":
+        assert config.verifier.environment.docker_image == "custom-grader"
+        assert not (staged / "tests/Dockerfile").exists()
+    else:
+        assert config.verifier.environment.docker_image is None
+        if packaging == "dockerfile":
+            assert (staged / "tests/Dockerfile").read_bytes() == (
+                task / "tests/Dockerfile"
+            ).read_bytes()
+    artifacts = {a.source: a for a in config.artifacts}
+    assert len(artifacts) == 2  # Task declarations replace the answer-task defaults.
+    assert artifacts["/evidence/state.json"].service == "phoenix"
+    assert artifacts["/workspace/answer.txt"].destination == "custom-answer.txt"
+
+
+def test_task_overrides_cannot_expand_phase_or_step_network_access():
+    import pytest
+
+    from evals.mcp.scripts.stage import require_fixed_network
+
+    for override in (
+        {"network_mode": "public"},
+        {"environment": {"allowed_hosts": ["example.com"]}},
+        [{"agent": {"extra_allowed_hosts": ["example.com"]}}],
+    ):
+        with pytest.raises(ValueError, match="Network policy is fixed"):
+            require_fixed_network(override)

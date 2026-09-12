@@ -3,7 +3,7 @@ import re
 from evals.mcp.scoring.answers import identity, plain
 
 
-def verify_repeated_tool_calls(answer, reference):
+def verify_answer(answer, reference):
     """Return reward 1 for a most-repeated tool and its exact count, otherwise 0.
 
     Match a trusted tool-name alias and a count labeled calls or times.

@@ -1,7 +1,7 @@
 from evals.mcp.scoring.answers import numeric
 
 
-def verify_spend_concentration(answer, reference):
+def verify_answer(answer, reference):
     """Return reward 1 for a supported top-decile cost share, otherwise 0.
 
     Compare the stated percentage to the trusted floor or ceiling selection

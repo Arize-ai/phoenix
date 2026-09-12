@@ -1,7 +1,10 @@
 from harbor.agents.installed.claude_code import ClaudeCode
 from harbor.agents.installed.codex import Codex
 
-from evals.mcp.scripts.stage import CONFIG, job_config
+from evals.mcp.scripts.experiment import HERE, load_config
+from evals.mcp.scripts.stage import job_config
+
+CONFIG = load_config(HERE / "benchmark.toml")
 
 
 def test_four_conditions_use_paired_models_and_native_harbor_adapters(tmp_path):
@@ -12,6 +15,7 @@ def test_four_conditions_use_paired_models_and_native_harbor_adapters(tmp_path):
             tasks=tmp_path / "tasks",
             output=tmp_path,
             images={"target": {"id": "sha256:" + "a" * 64}},
+            benchmark=CONFIG,
         )
         jobs.append(job)
         agent = job.agents[0]

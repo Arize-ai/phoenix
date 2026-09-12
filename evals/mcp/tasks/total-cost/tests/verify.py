@@ -1,7 +1,7 @@
 from evals.mcp.scoring.answers import numeric
 
 
-def verify_total_cost(answer, reference):
+def verify_answer(answer, reference):
     """Return reward 1 for the total application cost rounded to cents, otherwise 0.
 
     Compare a currency amount or a bare numeric answer with the trusted sum

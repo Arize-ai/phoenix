@@ -67,6 +67,8 @@ def interface_measurements(
     ATIF contains a submitted px command. It does not prove command execution
     or that every Phoenix request used px. Missing evidence remains unknown.
     """
+    if interface == "none":
+        return {}
     if interface == "mcp":
         used = (
             None

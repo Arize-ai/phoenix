@@ -10,7 +10,7 @@ import re
 from evals.mcp.scoring.answers import plain
 
 
-def verify_pagedown_root_cause(answer, reference):
+def verify_answer(answer, reference):
     """Return reward 1 for a supported signature-mismatch diagnosis, otherwise 0.
 
     Require an explanation that forward receives an unsupported keyword and

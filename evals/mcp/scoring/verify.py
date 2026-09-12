@@ -11,7 +11,6 @@ from typing import Any
 from evals.mcp.scoring.measurements import interface_measurements, sql_measurements
 from evals.mcp.scoring.trajectory import final_answer, read_trajectory, trajectory_measurements
 
-TASKS = Path(__file__).resolve().parents[1] / "tasks"
 SQL_TASKS = {
     "total-cost",
     "most-failing-tool",
@@ -23,23 +22,14 @@ SQL_TASKS = {
 }
 
 
-def grade_task_answer(task: str, answer: Any, reference: dict[str, Any]) -> dict[str, float]:
-    """Run the named task's verifier against its answer and trusted reference.
-
-    Each task defines its own comparison and returns reward 1 or 0. This
-    dispatcher selects that function and validates the reward format.
-    """
-    if task not in {p.name for p in TASKS.iterdir() if (p / "task.toml").is_file()}:
-        raise ValueError("Unknown task")
-    spec = importlib.util.spec_from_file_location(
-        "task_verifier", TASKS / task / "tests" / "verify.py"
-    )
+def grade_task_answer(verifier: Path, answer: Any, reference: dict[str, Any]) -> dict[str, float]:
+    """Call a bundled answer grader's verify_answer function and validate its score."""
+    spec = importlib.util.spec_from_file_location("task_verifier", verifier)
     if spec is None or spec.loader is None:
         raise RuntimeError("Missing task verifier")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    verify_answer = getattr(module, "verify_" + task.replace("-", "_"))
-    scores = verify_answer(answer, reference)
+    scores = module.verify_answer(answer, reference)
     if scores.get("reward") not in (0, 1):
         raise ValueError("Task must emit a binary reward")
     return {str(k): float(v) for k, v in scores.items()}
@@ -54,7 +44,7 @@ def read_events(path: Path) -> list[dict[str, Any]] | None:
     return events if all(isinstance(event, dict) for event in events) else None
 
 
-def verify_artifacts(root: Path, task: str, interface: str) -> dict[str, float]:
+def verify_artifacts(root: Path, task: str, interface: str, *, verifier: Path) -> dict[str, float]:
     """Write reward.json from Harbor's collected answer and sidecar artifacts.
 
     Seed readiness and reference data are required. Missing trajectory or audit
@@ -78,7 +68,7 @@ def verify_artifacts(root: Path, task: str, interface: str) -> dict[str, float]:
             answer = (root / "workspace/answer.txt").read_text()
         except OSError:
             answer = ""
-    scores = grade_task_answer(task, answer, references[task])
+    scores = grade_task_answer(verifier, answer, references[task])
     operations = read_events(root / "evidence/operations.jsonl")
     measurements: dict[str, int | None] = interface_measurements(interface, trajectory, operations)
     agent = trajectory.get("agent") if trajectory else None
@@ -96,9 +86,9 @@ def verify_artifacts(root: Path, task: str, interface: str) -> dict[str, float]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task", required=True)
-    parser.add_argument("--interface", choices=["mcp", "cli"], required=True)
+    parser.add_argument("--interface", choices=["mcp", "cli", "none"], required=True)
     args = parser.parse_args()
-    verify_artifacts(Path("/"), args.task, args.interface)
+    verify_artifacts(Path("/"), args.task, args.interface, verifier=Path("/tests/verify.py"))
 
 
 if __name__ == "__main__":
