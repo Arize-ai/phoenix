@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { shallow } from "zustand/shallow";
 
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
@@ -36,6 +36,7 @@ import type { SlotId, SlotSnapshot } from "../evaluatorSlotTypes";
 import type { ExpectedOutputSaveStatus } from "../expectedOutputQueue";
 import { EvaluatorCell } from "./EvaluatorCell";
 import { EvaluatorColumnHeader } from "./EvaluatorColumnHeader";
+import { EvaluatorPlaygroundResultsBody } from "./EvaluatorPlaygroundResultsBody";
 import { EvaluatorPlaygroundResultsTable } from "./EvaluatorPlaygroundResultsTable";
 import {
   EvaluatorPlaygroundResultsTableProvider,
@@ -190,6 +191,9 @@ function EvaluatorPlaygroundResultsContent({
   const positions = new Map(
     examples.map((example, index) => [example.id, index + 1])
   );
+
+  // The scroll container the row virtualizer watches.
+  const tableWrapRef = useRef<HTMLDivElement>(null);
 
   const selectedOutput = (slot: SlotId) =>
     slots[slot]?.outputNames.find(
@@ -404,7 +408,7 @@ function EvaluatorPlaygroundResultsContent({
           {expectedOutputError}
         </Alert>
       ) : null}
-      <div css={tableWrapCSS}>
+      <div css={tableWrapCSS} ref={tableWrapRef}>
         <EvaluatorPlaygroundResultsTable
           columns={columns}
           columnVisibility={columnVisibility}
@@ -430,12 +434,14 @@ function EvaluatorPlaygroundResultsContent({
               />
             </TableEmptyWrap>
           ) : (
-            <tbody>
-              {activeView.examples.map((example) => {
+            <EvaluatorPlaygroundResultsBody
+              rows={activeView.examples}
+              scrollElementRef={tableWrapRef}
+              renderRow={(example) => {
                 const position = positions.get(example.id)!;
 
                 return (
-                  <tr key={example.id}>
+                  <>
                     <td className="table__cell results-table__row-cell">
                       <RowCell
                         position={position}
@@ -488,10 +494,10 @@ function EvaluatorPlaygroundResultsContent({
                         />
                       </td>
                     ))}
-                  </tr>
+                  </>
                 );
-              })}
-            </tbody>
+              }}
+            />
           )}
         </EvaluatorPlaygroundResultsTable>
       </div>

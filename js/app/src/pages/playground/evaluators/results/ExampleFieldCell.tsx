@@ -39,7 +39,7 @@ export const EXAMPLE_FIELD_LABELS: Record<ExampleField, string> = {
 // each one is the point of this table. Still shorter than the experiment
 // table's primary content, as the evaluator cells beside these are two short
 // rows.
-const EXAMPLE_FIELD_HEIGHT = 220;
+export const EXAMPLE_FIELD_HEIGHT = 220;
 
 const exampleFieldContentCSS = css`
   flex: none;

@@ -1,0 +1,72 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
+import type { ReactNode, RefObject } from "react";
+
+import type { SampleExample } from "../evaluatorResults";
+import { EXAMPLE_FIELD_HEIGHT } from "./ExampleFieldCell";
+
+/**
+ * Every row is the same height: a field cell's header strip over its fixed
+ * content area, which the evaluator cells stretch to match. A constant
+ * estimate is therefore exact, and rows need no measuring.
+ */
+const HEADER_STRIP_HEIGHT = 39;
+
+export const RESULTS_ROW_HEIGHT = EXAMPLE_FIELD_HEIGHT + HEADER_STRIP_HEIGHT;
+
+/**
+ * The rows in view, plus a few beyond it. A 20-row sample holds some sixty
+ * CodeMirror editors, which took the main thread for seconds when they all
+ * mounted at once; virtualizing over the table's scroll container mounts
+ * only the visible ones, the way the experiment compare table does.
+ */
+export function EvaluatorPlaygroundResultsBody({
+  rows,
+  scrollElementRef,
+  renderRow,
+}: {
+  rows: SampleExample[];
+  /** The `overflow: auto` wrap the table scrolls inside. */
+  scrollElementRef: RefObject<HTMLDivElement | null>;
+  renderRow: (example: SampleExample) => ReactNode;
+}) {
+  // The virtualizer mutates its instance, so the compiler cannot memoize here.
+  "use no memo";
+
+  // eslint-disable-next-line react/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollElementRef.current,
+    estimateSize: () => RESULTS_ROW_HEIGHT,
+    // Each row mounts three editors, so a row costs tens of milliseconds;
+    // two rows of overscan keep a wheel scroll smooth without paying for
+    // rows the viewport is unlikely to reach in one motion.
+    overscan: 2,
+  });
+
+  const virtualRows = virtualizer.getVirtualItems();
+
+  return (
+    <tbody style={{ height: virtualizer.getTotalSize() }}>
+      {virtualRows.map((virtualRow, index) => {
+        const example = rows[virtualRow.index];
+
+        return (
+          <tr
+            key={example.id}
+            data-index={virtualRow.index}
+            style={{
+              height: virtualRow.size,
+              // Rows above the window are not rendered, so the first rendered
+              // row is shifted down to where it would have sat.
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {renderRow(example)}
+          </tr>
+        );
+      })}
+    </tbody>
+  );
+}

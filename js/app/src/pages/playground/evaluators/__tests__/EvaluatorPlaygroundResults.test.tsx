@@ -21,6 +21,30 @@ vi.mock("@uiw/react-codemirror", () => ({
   },
 }));
 
+// jsdom lays nothing out, so the row virtualizer would see a zero-height
+// scroll container and render no rows. Stand in a viewport that shows every
+// row; these tests are about the rows' content and inertness, not windowing.
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({
+    count,
+    estimateSize,
+  }: {
+    count: number;
+    estimateSize: () => number;
+  }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, index) => ({
+        index,
+        key: index,
+        start: index * estimateSize(),
+        size: estimateSize(),
+        end: (index + 1) * estimateSize(),
+        lane: 0,
+      })),
+    getTotalSize: () => count * estimateSize(),
+  }),
+}));
+
 installTestMatchMedia();
 
 const initialProps: ComponentProps<typeof EvaluatorPlaygroundResults> = {
