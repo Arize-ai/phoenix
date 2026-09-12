@@ -10,13 +10,11 @@ spec:
         env:
         - name: PHOENIX_ENABLE_AUTH
           value: "true"
-        # When enabling Auth, you must provide a secret
-        # For example, set a Kubernetes Secret with:
-        # kubectl create secret generic phoenix-secret --from-literal=secret-key='[YOUR-SECRET]'
-        # then use 
-        #  valueFrom:
-        #    secretKeyRef:
-        #      name: phoenix-secret
-        #      key: secret-key
+        # Enabling auth requires a secret. Create it before applying this overlay:
+        #   kubectl create secret generic phoenix-secret \
+        #     --from-literal=secret-key="$(openssl rand -hex 32)"
         - name: PHOENIX_SECRET
-          value:  "3413f9a7735bb780c6b8e4db7d946a492b64d26112a955cdea6a797f4c833593"
+          valueFrom:
+            secretKeyRef:
+              name: phoenix-secret
+              key: secret-key
