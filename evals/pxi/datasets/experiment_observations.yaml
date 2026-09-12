@@ -317,7 +317,12 @@ examples:
       ui_operations:
         forbidden: [experiment.patch, playground.experiment.setRecording]
       budgets:
-        max_tool_calls: 3
+        # No primed catalog here. Allow experiments methodology + backend
+        # discovery + schema/reference + the deferred read. GraphQL uses
+        # load_skill(experiments), load_skill(phoenix-graphql), its reference,
+        # then bash; MCP uses load_skill(experiments), search, get_schema, execute.
+        # Redundant discovery and failed reference loads still exceed this budget.
+        max_tool_calls: 4
     metadata:
       category: negative_read_only
       difficulty: moderate
@@ -341,7 +346,12 @@ examples:
       ui_operations:
         forbidden: [experiment.patch]
       budgets:
-        max_tool_calls: 3
+        # No primed catalog here. Allow experiments methodology + backend
+        # discovery + schema/reference + the deferred read. GraphQL uses
+        # load_skill(experiments), load_skill(phoenix-graphql), its reference,
+        # then bash; MCP uses load_skill(experiments), search, get_schema, execute.
+        # Redundant discovery and failed reference loads still exceed this budget.
+        max_tool_calls: 4
     metadata:
       category: negative_compare_only
       difficulty: moderate
