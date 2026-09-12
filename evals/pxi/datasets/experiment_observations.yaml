@@ -210,13 +210,24 @@ examples:
             - id: r1
               name: bash
               args:
+                summary: Read the requested Phoenix data.
                 command: >-
-                  px-graphql 'query { node(id: "RXhwZXJpbWVudDoxMA==") { ... on Experiment { metadata averageRunLatencyMs } } }'
+                  phoenix-gql 'query { node(id: "RXhwZXJpbWVudDoxMA==") { ... on Experiment { metadata averageRunLatencyMs } } }'
         - role: tool
           tool_call_id: r1
           name: bash
-          content: >-
-            {"data":{"node":{"metadata":{},"averageRunLatencyMs":2840}}}
+          content:
+            command: 'phoenix-gql ''query { node(id: "RXhwZXJpbWVudDoxMA==") { ... on Experiment { metadata averageRunLatencyMs } } }'''
+            stdout: '{"data":{"node":{"metadata":{},"averageRunLatencyMs":2840}}}'
+            stderr: ''
+            exitCode: 0
+            durationMs: 1
+            startedAt: '2026-04-03T19:00:00Z'
+            completedAt: '2026-04-03T19:00:00.001Z'
+            stdoutBytes: 60
+            stderrBytes: 0
+            stdoutTruncated: false
+            stderrTruncated: false
         - role: user
           content: >-
             Quality held up but it's noticeably slower on the long inputs — add
@@ -263,14 +274,25 @@ examples:
             - id: r1
               name: bash
               args:
+                summary: Read the requested Phoenix data.
                 command: >-
-                  px-graphql 'query { node(id: "RXhwZXJpbWVudDoyMA==") { ... on Experiment { metadata } } }'
+                  phoenix-gql 'query { node(id: "RXhwZXJpbWVudDoyMA==") { ... on Experiment { metadata } } }'
         - role: tool
           tool_call_id: r1
           name: bash
-          content: >-
-            {"data":{"node":{"metadata":{"hypothesis":"tighter system prompt
-            reduces hedging","changed_variable":"system_prompt","baseline_experiment_id":"RXhwZXJpbWVudDox"}}}}
+          content:
+            command: 'phoenix-gql ''query { node(id: "RXhwZXJpbWVudDoyMA==") { ... on Experiment { metadata } } }'''
+            stdout: |-
+              {"data":{"node":{"metadata":{"hypothesis":"tighter system prompt reduces hedging","changed_variable":"system_prompt","baseline_experiment_id":"RXhwZXJpbWVudDox"}}}}
+            stderr: ''
+            exitCode: 0
+            durationMs: 1
+            startedAt: '2026-04-03T19:00:00Z'
+            completedAt: '2026-04-03T19:00:00.001Z'
+            stdoutBytes: 164
+            stderrBytes: 0
+            stdoutTruncated: false
+            stderrTruncated: false
         - role: user
           content: >-
             The hedging is mostly gone but it now refuses two of the edge cases.

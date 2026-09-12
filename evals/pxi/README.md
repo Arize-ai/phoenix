@@ -506,81 +506,75 @@ list through to the Phoenix client upload payload.
 
 ## Inputs
 
-Every example declares `input.messages` as a single ordered conversation
-prefix. The trailing entry decides which step of the agent loop the harness
-scores:
-
-- **Last entry is `role: user`.** That turn becomes the user prompt; everything
-  before it is replayed as message history. The default case -- "user asks,
-  what does the agent do?"
-- **Last entry is `role: tool`.** The harness runs the agent with `user_prompt
-  = None` and the full list as message history, so the agent picks up
-  mid-loop from a primed tool return. Lets a dataset isolate one step of
-  behavior ("given the bash output below, what does the agent emit next?")
-  without a synthetic user follow-up.
-- **Last entry is `role: assistant`.** Rejected -- nothing remains to score.
-
-Examples may also include `input.contexts`, which uses the same camelCase
-shape as the browser agent API (`app`, `project`, `graphql`, etc.) so
-server-side evals can exercise realistic page state without launching
-Playwright.
-
-A plain example -- user asks, agent decides:
+New fixtures should use the public `PhoenixUIMessage` transcript returned by
+`GET /v1/agent_sessions/{session_id}/messages`. This is a stored conversation
+artifact. The chat POST now sends a new message or tool outputs into a server-owned
+session, so a fixture is not a literal POST request body.
 
 ```yaml
 input:
-  contexts:
-    - type: project
-      projectNodeId: UHJvamVjdDoxMg==
-      spanFilter: "status_code == 'ERROR'"
   messages:
-    - role: user
-      content: Keep the error filter, but only show root spans.
+    - id: user-1
+      role: user
+      parts:
+        - type: text
+          text: Keep the error filter, but only show root spans.
+      metadata:
+        phoenix:
+          type: user
+          currentDateTime: "2026-04-03T12:00:00-07:00"
+          timeZone: America/Los_Angeles
+          editPermission: manual
+          uiContexts:
+            project:
+              type: project
+              projectNodeId: UHJvamVjdDoxMg==
+              spanFilter: "status_code == 'ERROR'"
 ```
 
-A primed-tool-history example -- the agent has already issued a `bash` call
-to inspect recent traces, and the harness scores whatever action it emits
-next (typically a `set_spans_filter` call referencing the dates that came
-back in the tool return):
+Completed tool calls and their outputs live together in an assistant part:
 
 ```yaml
-input:
-  contexts:
-    - type: project
-      projectNodeId: UHJvamVjdDoxMg==
-      spanFilter: "span_kind == 'LLM'"
-  messages:
-    - role: user
-      content: Show me only the latest traces in this project.
-    - role: assistant
-      tool_calls:
-        - id: t1
-          name: bash
-          args:
-            command: "phoenix-gql --query '...recent spans by startTime desc...'"
-    - role: tool
-      tool_call_id: t1
-      name: bash
-      content: |
-        {"data":{"node":{"spans":{"edges":[
-          {"node":{"startTime":"2026-04-03T18:42:11Z"}},
-          {"node":{"startTime":"2026-04-03T18:41:58Z"}}
-        ]}}}}
+- id: assistant-1
+  role: assistant
+  parts:
+    - type: tool-search_browser_actions
+      toolCallId: search-1
+      state: output-available
+      input: {query: filter the spans table}
+      output: "<the public browser operation catalog>"
 ```
 
-Schema notes:
+The transcript must end with a user message or a completed tool output. Pending
+calls and approvals are rejected. Use synthetic identifiers and results; do not
+commit private production conversations. Keep each user turn's UI state and
+browser clock in its metadata. The production adapter renders changed state at
+the corresponding turn and preserves structured tool results.
 
-- An assistant turn may carry `content`, `tool_calls`, or both. Real PXI
-  traces show no assistant text between tool calls, so primed-tool examples
-  should omit narration unless you're deliberately testing narration
-  behavior.
-- Each tool call needs a local string `id` (any value; not interpreted by
-  the agent) plus `name` and `args`. Every assistant `tool_calls` entry
-  MUST be followed later by a `role: tool` entry whose `tool_call_id` and
-  `name` match. `tool_call_id` values must be unique across the whole list.
-- Primed messages are fed to the model verbatim via pydantic_ai's message
-  types; the model cannot distinguish a primed tool call from one that
-  was actually executed.
+Existing datasets may retain the compact `role/content/tool_calls` notation.
+The fixture compiler pairs each tool return with its call, validates the result
+as `PhoenixUIMessage`, then uses the same transcript adapter as production.
+Tool `content` may be an object. In particular, `bash` returns `command`,
+`stdout`, `stderr`, `exitCode`, timing, byte counts, and truncation flags. Raw
+GraphQL JSON belongs inside `stdout`, not at the top level of the tool result.
+
+For compact fixtures, `input.contexts` uses the public context union and describes
+the active user turn. Omitted contexts mean no page context. There is no implicit
+project. Do not combine top-level contexts with per-turn stored UI state.
+
+Prefer assertions about public UI operation arguments, resulting filter
+predicates, links, and artifacts. Avoid asserting a particular discovery order
+unless that order is the behavior under test. A catalog excerpt still isolates a
+single step; it does not exercise discovery against the full browser catalog.
+These offline evals stop at deferred actions and cannot prove that a script ran,
+a database query succeeded, or a UI mutation produced the intended state. Browser
+E2E tests cover those outcomes. Script argument extraction and tool-call budgets
+remain implementation-dependent checks and should be used sparingly.
+
+`test_agent_task_inputs.py` validates every fixture through the current public
+message models and production adapter. It also checks primed bash results against
+the shipped result schema. That catches wire-format drift before spending tokens
+on live evals.
 
 ## Matcher Vocabulary
 

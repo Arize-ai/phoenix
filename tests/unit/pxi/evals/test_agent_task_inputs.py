@@ -1,336 +1,161 @@
+"""Check fixture inputs against Phoenix's public transcript and tool contracts."""
+
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 import pytest
-from pydantic_ai.messages import (
-    ModelRequest,
-    ModelResponse,
-    TextPart,
-    ToolCallPart,
-    ToolReturnPart,
-    UserPromptPart,
-)
+import yaml
+from pydantic import TypeAdapter
+from pydantic_ai.messages import ToolReturnPart, UserPromptPart
 
 from evals.pxi.harness.agent_task import (
-    _attach_ui_state,
     _build_contexts,
     _build_dependencies,
     _build_run_inputs,
-    _materialize_messages,
-    _ui_state_block,
+    _prepare_transcript,
 )
+from evals.pxi.harness.transcript import fixture_messages
+from phoenix.server.agents.capabilities.tools.internal.bash import BashToolResult
+
+_DATASETS = Path(__file__).parents[4] / "evals" / "pxi" / "datasets"
 
 
-class TestBuildContexts:
-    def test_uses_default_project_context_when_contexts_omitted(self) -> None:
-        contexts = _build_contexts({"messages": [{"role": "user", "content": "x"}]})
-        assert contexts.project is not None
-        assert contexts.project.project_node_id == "UHJvamVjdDox"
-        assert contexts.project.span_filter == ""
-
-    def test_parses_browser_context_shape(self) -> None:
-        contexts = _build_contexts(
-            {
-                "contexts": [
-                    {
-                        "type": "app",
-                        "currentDateTime": "2026-05-18T14:30:00-07:00",
-                        "timeZone": "America/Los_Angeles",
-                    },
-                    {"type": "graphql", "mutationsEnabled": False},
-                    {
-                        "type": "project",
-                        "projectNodeId": "UHJvamVjdDoxMg==",
-                        "spanFilter": "span_kind == 'LLM' and parent_span is None",
-                    },
-                ]
+def _user(id: str, text: str, project: str) -> dict[str, Any]:
+    return {
+        "id": id,
+        "role": "user",
+        "parts": [{"type": "text", "text": text}],
+        "metadata": {
+            "phoenix": {
+                "type": "user",
+                "currentDateTime": "2026-04-03T12:00:00-07:00",
+                "timeZone": "America/Los_Angeles",
+                "editPermission": "manual",
+                "uiContexts": {"project": {"type": "project", "projectNodeId": project}},
             }
-        )
-        assert contexts.app is not None
-        assert contexts.app.current_date_time == "2026-05-18T14:30:00-07:00"
-        assert contexts.app.time_zone == "America/Los_Angeles"
-        assert contexts.graphql is not None
-        assert contexts.graphql.mutations_enabled is False
-        assert contexts.project is not None
-        assert contexts.project.project_node_id == "UHJvamVjdDoxMg=="
-        assert contexts.project.span_filter == "span_kind == 'LLM' and parent_span is None"
-
-    def test_rejects_non_list_contexts(self) -> None:
-        with pytest.raises(ValueError, match="input.contexts must be a list"):
-            _build_contexts({"contexts": {"type": "project"}})
+        },
+    }
 
 
-class TestBuildRunInputs:
-    def test_user_only_messages_becomes_user_prompt_with_no_history(self) -> None:
-        user_prompt, history = _build_run_inputs(
-            {"messages": [{"role": "user", "content": "Show me the latest traces."}]}
-        )
-        assert user_prompt == "Show me the latest traces."
-        assert history is None
-
-    def test_user_terminated_history_pops_last_as_user_prompt(self) -> None:
-        user_prompt, history = _build_run_inputs(
-            {
-                "messages": [
-                    {"role": "user", "content": "Show me the latest traces."},
-                    {"role": "assistant", "content": "They were on April 3."},
-                    {"role": "user", "content": "Filter to that day."},
-                ]
-            }
-        )
-        assert user_prompt == "Filter to that day."
-        assert history is not None
-        assert len(history) == 2
-        first, second = history
-        assert isinstance(first, ModelRequest)
-        assert isinstance(first.parts[0], UserPromptPart)
-        assert first.parts[0].content == "Show me the latest traces."
-        assert isinstance(second, ModelResponse)
-        assert isinstance(second.parts[0], TextPart)
-        assert second.parts[0].content == "They were on April 3."
-
-    def test_tool_terminated_history_is_mid_loop_continuation(self) -> None:
-        user_prompt, history = _build_run_inputs(
-            {
-                "messages": [
-                    {"role": "user", "content": "When were the latest traces?"},
-                    {
-                        "role": "assistant",
-                        "tool_calls": [{"id": "t1", "name": "bash", "args": {"command": "ls"}}],
-                    },
-                    {
-                        "role": "tool",
-                        "tool_call_id": "t1",
-                        "name": "bash",
-                        "content": "a.json\nb.json",
-                    },
-                ]
-            }
-        )
-        # Mid-loop continuation: user_prompt is None, full history is replayed.
-        assert user_prompt is None
-        assert history is not None
-        assert len(history) == 3
-        last = history[-1]
-        assert isinstance(last, ModelRequest)
-        return_part = last.parts[0]
-        assert isinstance(return_part, ToolReturnPart)
-        assert return_part.tool_call_id == "t1"
-        assert return_part.content == "a.json\nb.json"
-
-    def test_rejects_assistant_terminated_messages(self) -> None:
-        with pytest.raises(ValueError, match="user turn .* or a tool return"):
-            _build_run_inputs(
-                {
-                    "messages": [
-                        {"role": "user", "content": "hi"},
-                        {"role": "assistant", "content": "hello"},
-                    ]
-                }
-            )
-
-    def test_rejects_empty_messages(self) -> None:
-        with pytest.raises(ValueError, match="must be a non-empty list"):
-            _build_run_inputs({"messages": []})
-
-    def test_rejects_final_user_turn_with_empty_content(self) -> None:
-        with pytest.raises(ValueError, match="non-empty string content"):
-            _build_run_inputs({"messages": [{"role": "user", "content": ""}]})
+def test_omitted_contexts_do_not_invent_a_project() -> None:
+    assert _build_contexts({"messages": [{"role": "user", "content": "hello"}]}).project is None
 
 
-class TestMaterializeMessages:
-    def test_builds_primed_bash_tool_call_and_return(self) -> None:
-        history = _materialize_messages(
-            [
-                {"role": "user", "content": "When were the latest traces?"},
-                {
-                    "role": "assistant",
-                    "tool_calls": [
-                        {"id": "t1", "name": "bash", "args": {"command": "ls /phoenix"}}
-                    ],
-                },
-                {
-                    "role": "tool",
-                    "tool_call_id": "t1",
-                    "name": "bash",
-                    "content": "agent-start.md\npage-context.json\n",
-                },
-            ]
-        )
-        assert len(history) == 3
-        user_turn, assistant_call_turn, tool_turn = history
-        assert isinstance(user_turn, ModelRequest)
-        assert isinstance(user_turn.parts[0], UserPromptPart)
-        assert isinstance(assistant_call_turn, ModelResponse)
-        call_part = assistant_call_turn.parts[0]
-        assert isinstance(call_part, ToolCallPart)
-        assert call_part.tool_name == "bash"
-        assert call_part.tool_call_id == "t1"
-        assert call_part.args == {"command": "ls /phoenix"}
-        assert isinstance(tool_turn, ModelRequest)
-        return_part = tool_turn.parts[0]
-        assert isinstance(return_part, ToolReturnPart)
-        assert return_part.tool_call_id == "t1"
-
-    def test_assistant_turn_may_include_text_and_tool_calls(self) -> None:
-        history = _materialize_messages(
-            [
-                {
-                    "role": "assistant",
-                    "content": "Let me check the recent traces.",
-                    "tool_calls": [{"id": "t1", "name": "bash", "args": {"command": "ls"}}],
-                },
-                {
-                    "role": "tool",
-                    "tool_call_id": "t1",
-                    "name": "bash",
-                    "content": "a.json",
-                },
-            ]
-        )
-        assistant_turn = history[0]
-        assert isinstance(assistant_turn, ModelResponse)
-        kinds = [type(part).__name__ for part in assistant_turn.parts]
-        assert kinds == ["TextPart", "ToolCallPart"]
-
-    def test_rejects_tool_return_with_unknown_tool_call_id(self) -> None:
-        with pytest.raises(ValueError, match="unknown tool_call_id"):
-            _materialize_messages(
-                [{"role": "tool", "tool_call_id": "ghost", "name": "bash", "content": "x"}]
-            )
-
-    def test_rejects_tool_return_name_mismatch(self) -> None:
-        with pytest.raises(ValueError, match="does not match prior tool call name"):
-            _materialize_messages(
-                [
-                    {
-                        "role": "assistant",
-                        "tool_calls": [{"id": "t1", "name": "bash", "args": {"command": "ls"}}],
-                    },
-                    {
-                        "role": "tool",
-                        "tool_call_id": "t1",
-                        "name": "search_phoenix",
-                        "content": "x",
-                    },
-                ]
-            )
-
-    def test_rejects_assistant_tool_call_without_matching_return(self) -> None:
-        with pytest.raises(ValueError, match="without matching tool returns"):
-            _materialize_messages(
-                [
-                    {
-                        "role": "assistant",
-                        "tool_calls": [{"id": "t1", "name": "bash", "args": {"command": "ls"}}],
-                    }
-                ]
-            )
-
-    def test_rejects_duplicate_tool_call_ids(self) -> None:
-        with pytest.raises(ValueError, match="was already used earlier"):
-            _materialize_messages(
-                [
-                    {
-                        "role": "assistant",
-                        "tool_calls": [{"id": "t1", "name": "bash", "args": {"command": "ls"}}],
-                    },
-                    {
-                        "role": "tool",
-                        "tool_call_id": "t1",
-                        "name": "bash",
-                        "content": "out",
-                    },
-                    {
-                        "role": "assistant",
-                        "tool_calls": [{"id": "t1", "name": "bash", "args": {"command": "pwd"}}],
-                    },
-                ]
-            )
-
-    def test_rejects_assistant_turn_with_neither_content_nor_tool_calls(self) -> None:
-        with pytest.raises(ValueError, match="must have content or tool_calls"):
-            _materialize_messages([{"role": "assistant"}])
-
-    def test_rejects_unknown_roles(self) -> None:
-        with pytest.raises(ValueError, match="role must be user, assistant, or tool"):
-            _materialize_messages([{"role": "system", "content": "x"}])
-
-
-class TestUIStateAttachment:
-    """The harness renders the state block the chat route would otherwise have
-    put on the user's turn."""
-
-    def test_block_reflects_the_example_contexts(self) -> None:
-        deps = _build_dependencies(
-            {
-                "contexts": [
-                    {"type": "project", "projectNodeId": "UHJvamVjdDoxMg=="},
-                    {"type": "dataset", "datasetNodeId": "RGF0YXNldDox"},
-                ],
-                "messages": [{"role": "user", "content": "x"}],
-            }
-        )
-
-        block = _ui_state_block(deps)
-
-        assert '"projectNodeId": "UHJvamVjdDoxMg=="' in block
-        assert '"datasetNodeId": "RGF0YXNldDox"' in block
-        assert "<edit_permission>manual</edit_permission>" in block
-
-    def test_prepends_to_the_new_user_prompt_when_there_is_no_history(self) -> None:
-        user_prompt, history = _attach_ui_state(
-            "<phoenix_ui_state/>", user_prompt="hello", message_history=None
-        )
-
-        assert user_prompt == "<phoenix_ui_state/>\n\nhello"
-        assert history is None
-
-    def test_prepends_to_the_earliest_user_turn_of_a_replayed_history(self) -> None:
-        history = _materialize_messages(
-            [
-                {"role": "user", "content": "first"},
-                {"role": "assistant", "content": "ok"},
-            ]
-        )
-
-        user_prompt, updated = _attach_ui_state(
-            "<phoenix_ui_state/>", user_prompt="second", message_history=history
-        )
-
-        assert user_prompt == "second"
-        assert updated is not None
-        first_request = updated[0]
-        assert isinstance(first_request, ModelRequest)
-        [part] = [p for p in first_request.parts if isinstance(p, UserPromptPart)]
-        assert part.content == "<phoenix_ui_state/>\n\nfirst"
-
-    def test_mid_loop_continuation_still_carries_the_block(self) -> None:
-        """A tool-return continuation has no new user prompt, so the block has
-        to land on the replayed user turn."""
-        _, history = _build_run_inputs(
-            {
-                "messages": [
-                    {"role": "user", "content": "find errors"},
-                    {
-                        "role": "assistant",
-                        "tool_calls": [{"id": "c1", "name": "bash", "args": {"command": "x"}}],
-                    },
-                    {"role": "tool", "tool_call_id": "c1", "name": "bash", "content": "{}"},
-                ]
-            }
-        )
-
-        user_prompt, updated = _attach_ui_state(
-            "<phoenix_ui_state/>", user_prompt=None, message_history=history
-        )
-
-        assert user_prompt is None
-        assert updated is not None
-        [part] = [
-            p
-            for message in updated
-            if isinstance(message, ModelRequest)
-            for p in message.parts
-            if isinstance(p, UserPromptPart)
+def test_per_turn_metadata_preserves_navigation_and_browser_clock() -> None:
+    first, second = "UHJvamVjdDox", "UHJvamVjdDoy"
+    inp = {
+        "messages": [
+            _user("u1", "Show this project", first),
+            {"id": "a1", "role": "assistant", "parts": [{"type": "text", "text": "OK"}]},
+            _user("u2", "Now show this project", second),
         ]
-        assert part.content == "<phoenix_ui_state/>\n\nfind errors"
+    }
+    deps = _build_dependencies(inp)
+    assert deps.contexts.project is not None
+    assert deps.contexts.project.project_node_id == second
+    assert deps.contexts.app is not None
+    assert deps.contexts.app.time_zone == "America/Los_Angeles"
+    _, history = _build_run_inputs(inp)
+    users = [p.content for m in history for p in m.parts if isinstance(p, UserPromptPart)]
+    assert first in str(users[0]) and second not in str(users[0])
+    assert second in str(users[1]) and first not in str(users[1])
+    assert inp["messages"][0]["parts"][0]["text"] == "Show this project"
+
+
+def test_same_state_is_not_repeated_on_each_user_message() -> None:
+    inp = {
+        "messages": [_user("u1", "first", "UHJvamVjdDox"), _user("u2", "second", "UHJvamVjdDox")]
+    }
+    messages = _prepare_transcript(inp)
+    assert "phoenix_ui_state" in messages[0].model_dump_json()
+    assert "phoenix_ui_state" not in messages[1].model_dump_json()
+
+
+def test_legacy_context_applies_to_active_turn_not_first_turn() -> None:
+    inp = {
+        "contexts": [{"type": "project", "projectNodeId": "UHJvamVjdDoy"}],
+        "messages": [
+            {"role": "user", "content": "first"},
+            {"role": "assistant", "content": "OK"},
+            {"role": "user", "content": "second"},
+        ],
+    }
+    messages = _prepare_transcript(inp)
+    assert "phoenix_ui_state" not in messages[0].model_dump_json()
+    assert "UHJvamVjdDoy" in messages[2].model_dump_json()
+
+
+@pytest.mark.parametrize("dynamic", [False, True])
+def test_public_tool_output_keeps_structured_result(dynamic: bool) -> None:
+    part = {
+        "type": "dynamic-tool" if dynamic else "tool-bash",
+        "toolCallId": "c1",
+        "state": "output-available",
+        "input": {"command": "pwd"},
+        "output": {"stdout": "/workspace", "stderr": "", "exitCode": 0},
+    }
+    if dynamic:
+        part["toolName"] = "bash"
+    inp = {
+        "messages": [
+            _user("u1", "where am I", "UHJvamVjdDox"),
+            {"id": "a1", "role": "assistant", "parts": [part]},
+        ]
+    }
+    prompt, history = _build_run_inputs(inp)
+    assert prompt is None
+    outputs = [p for m in history for p in m.parts if isinstance(p, ToolReturnPart)]
+    assert len(outputs) == 1
+    assert outputs[0].content == part["output"]
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        [],
+        [{"role": "user", "content": ""}],
+        [{"role": "assistant", "content": "done"}],
+        [{"role": "tool", "tool_call_id": "unknown", "name": "bash", "content": "x"}],
+        [{"role": "assistant", "tool_calls": [{"id": "t1", "name": "bash", "args": {}}]}],
+        [{"role": "user", "content": "hello", "tool_calls": [{"id": "t1", "name": "bash"}]}],
+    ],
+)
+def test_rejects_unresumable_or_invalid_prefixes(raw: Any) -> None:
+    with pytest.raises(ValueError):
+        fixture_messages(raw)
+
+
+def test_rejects_conflicting_context_sources() -> None:
+    with pytest.raises(ValueError, match="per-turn metadata"):
+        _prepare_transcript({"contexts": [], "messages": [_user("u", "x", "UHJvamVjdDox")]})
+
+
+def test_shorthand_pairs_parallel_outputs_and_rejects_duplicate_ids() -> None:
+    calls = [{"id": "c1", "name": "first", "args": {}}, {"id": "c2", "name": "second", "args": {}}]
+    raw = [
+        {"role": "assistant", "tool_calls": calls},
+        {"role": "tool", "tool_call_id": "c2", "name": "second", "content": "two"},
+        {"role": "tool", "tool_call_id": "c1", "name": "first", "content": "one"},
+    ]
+    result = fixture_messages(raw)[0].model_dump(by_alias=True)
+    assert [part["output"] for part in result["parts"]] == ["one", "two"]
+    raw.append({"role": "assistant", "tool_calls": [calls[0]]})
+    with pytest.raises(ValueError, match="Duplicate"):
+        fixture_messages(raw)
+
+
+@pytest.mark.parametrize("path", sorted(_DATASETS.glob("*.yaml")), ids=lambda p: p.stem)
+def test_all_fixtures_use_current_transcript_and_bash_result_contracts(path: Path) -> None:
+    for example in yaml.safe_load(path.read_text())["examples"]:
+        inp = example["input"]
+        # Public message validation and the same conversion production uses.
+        _, history = _build_run_inputs(inp)
+        assert history, example["id"]
+        for message in history:
+            for part in message.parts:
+                if isinstance(part, ToolReturnPart) and part.tool_name == "bash":
+                    output = TypeAdapter(BashToolResult).validate_python(part.content)
+                    assert output["stdoutBytes"] == len(output["stdout"].encode())
+                    assert output["stderrBytes"] == len(output["stderr"].encode())

@@ -212,12 +212,24 @@ examples:
             - id: bash_call
               name: bash
               args:
+                summary: Read the requested Phoenix data.
                 command: phoenix-gql query.graphql --data-only
         - role: tool
           tool_call_id: bash_call
           name: bash
-          content: |
-            {"data":{"node":{"name":"pxi_dev","id":"UHJvamVjdDo0Nw==","spans":{"edges":[{"node":{"name":"pxiAgent Turn","cumulativeTokenCountTotal":617245,"trace":{"id":"VHJhY2U6NDQy","traceId":"66a8042a448b757ed73e3ab80dd83db1"}}}]}}}}
+          content:
+            command: phoenix-gql query.graphql --data-only
+            stdout: |
+              {"data":{"node":{"name":"pxi_dev","id":"UHJvamVjdDo0Nw==","spans":{"edges":[{"node":{"name":"pxiAgent Turn","cumulativeTokenCountTotal":617245,"trace":{"id":"VHJhY2U6NDQy","traceId":"66a8042a448b757ed73e3ab80dd83db1"}}}]}}}}
+            stderr: ''
+            exitCode: 0
+            durationMs: 1
+            startedAt: '2026-04-03T19:00:00Z'
+            completedAt: '2026-04-03T19:00:00.001Z'
+            stdoutBytes: 225
+            stderrBytes: 0
+            stdoutTruncated: false
+            stderrTruncated: false
     expected:
       tools:
         required: []

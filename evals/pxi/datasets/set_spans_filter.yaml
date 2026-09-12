@@ -15,6 +15,10 @@ examples:
   - id: llm-spans
     splits: [regression]
     input:
+      contexts: &project_context
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: ""
       messages:
         - role: user
           content: Show me only LLM spans.
@@ -98,6 +102,7 @@ examples:
   - id: tool-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter the table to tool spans.
@@ -124,6 +129,7 @@ examples:
   - id: error-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans that errored.
@@ -154,6 +160,7 @@ examples:
     # plausible inverted-threshold failure mode (``latency_ms < 5000``).
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show slow spans taking at least five seconds.
@@ -183,6 +190,7 @@ examples:
     # can emit clauses in either order. Both clauses must appear.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show slow LLM calls taking at least five seconds.
@@ -209,6 +217,7 @@ examples:
   - id: trace-id
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
@@ -235,6 +244,7 @@ examples:
   - id: span-name
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans named retrieve_documents.
@@ -265,6 +275,7 @@ examples:
     # pins the DSL's ``in input.value`` form while allowing quote/spacing drift.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans where the input mentions refund policy.
@@ -292,6 +303,7 @@ examples:
   - id: annotation-label
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans marked hallucinated by the Hallucination annotation.
@@ -318,6 +330,7 @@ examples:
   - id: reset-filter
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Clear the span filter and return to the default root spans view.
@@ -344,6 +357,7 @@ examples:
   - id: chain-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter to the chain spans.
@@ -373,6 +387,7 @@ examples:
     # root predicate on its own. Accept either via variants.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show me top-level agent traces only.
@@ -400,6 +415,7 @@ examples:
   - id: embedding-spans-lowercase
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: just embeddings pls
@@ -426,6 +442,7 @@ examples:
   - id: status-ok-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show only successful spans.
@@ -452,6 +469,7 @@ examples:
   - id: status-unset-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: show me spans that have no status set
@@ -478,6 +496,7 @@ examples:
   - id: high-prompt-tokens
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: find LLM calls that used more than 10k prompt tokens
@@ -505,6 +524,7 @@ examples:
   - id: cumulative-tokens-roots
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show traces that burned over 50k tokens in total.
@@ -535,6 +555,7 @@ examples:
     # exact string. Literal expectation pins the canonical form.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter to spans that started at or after 2025-01-15T00:00:00Z.
@@ -564,6 +585,7 @@ examples:
   - id: span-by-id
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter the spans table to span 7a3f9c2e1b8d4e5f.
@@ -590,6 +612,7 @@ examples:
   - id: children-of-parent
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show me direct children of span 7a3f9c2e1b8d4e5f.
@@ -616,6 +639,7 @@ examples:
   - id: annotation-score
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans where the Helpfulness annotation scored above 0.8.
@@ -643,6 +667,7 @@ examples:
   - id: output-substring
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans whose response mentions error code 502.
@@ -669,6 +694,7 @@ examples:
   - id: metadata-access
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter to spans tagged with environment 'prod' in metadata.
@@ -695,6 +721,7 @@ examples:
   - id: agent-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show me agent spans.
@@ -721,6 +748,7 @@ examples:
   - id: retriever-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter to retriever spans only.
@@ -747,6 +775,7 @@ examples:
   - id: not-llm-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show me everything that's not an LLM call.
@@ -775,6 +804,7 @@ examples:
     # are free. ``not_contains`` rules out the inverted ``latency_ms >`` form.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter to spans under 100ms latency.
@@ -804,6 +834,7 @@ examples:
     # Historical substring matching accepted an impossible AND of both kinds.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show me LLM or tool calls.
@@ -830,6 +861,7 @@ examples:
   - id: high-completion-tokens
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Find LLM calls that produced more than 2000 completion tokens.
@@ -857,6 +889,7 @@ examples:
   - id: ended-before-timestamp
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans that ended before 2025-01-15T12:00:00Z.
@@ -883,6 +916,7 @@ examples:
   - id: status-message-substring
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter to spans whose status message mentions 'timeout'.
@@ -909,6 +943,7 @@ examples:
   - id: attribute-path-access
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show spans where attribute 'user.id' equals 'alice'.
@@ -935,6 +970,7 @@ examples:
   - id: three-clause-conjunction
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show errored LLM calls slower than 3 seconds.
@@ -965,6 +1001,7 @@ examples:
     # downward-bounded latency clause counts.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: show me fast spans
@@ -992,6 +1029,7 @@ examples:
   - id: ambiguous-tools-or-retrievers
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: show me tool or retriever spans only
@@ -1020,6 +1058,7 @@ examples:
   - id: ambiguous-not-tool-spans
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: show me everything except tool calls
@@ -1048,6 +1087,7 @@ examples:
   - id: negative-greeting
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: hey, what's up?
@@ -1062,6 +1102,7 @@ examples:
   - id: negative-capabilities-question
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: what can you do?
@@ -1076,6 +1117,7 @@ examples:
   - id: negative-thanks
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: thanks!
@@ -1093,6 +1135,7 @@ examples:
     # expected to stage timeRange.set and must not touch the spans filter.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show me only the last hour.
@@ -1117,6 +1160,7 @@ examples:
   - id: negative-clone-prompt-intent
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Clone the current prompt please.
@@ -1131,6 +1175,7 @@ examples:
   - id: negative-how-to-question
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: How do I create a new dataset?
@@ -1145,6 +1190,7 @@ examples:
   - id: negative-summarize-ask
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Summarize what we see in the spans table right now.
@@ -1159,6 +1205,7 @@ examples:
   - id: negative-diagnosis-question
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Is there a problem with my project?
@@ -1173,6 +1220,7 @@ examples:
   - id: negative-definitional-question
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Explain what span kinds mean.
@@ -1187,6 +1235,7 @@ examples:
   - id: negative-debug-advice
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: I think my agent is too slow, what should I do?
@@ -1201,6 +1250,7 @@ examples:
   - id: negative-average-latency
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: what's the average latency?
@@ -1215,6 +1265,7 @@ examples:
   - id: negative-delete-trace
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: delete this trace
@@ -1237,8 +1288,6 @@ examples:
         - type: app
           currentDateTime: "2026-05-18T14:43:38-07:00"
           timeZone: America/Los_Angeles
-        - type: graphql
-          mutationsEnabled: false
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: "span_kind == 'LLM'"
@@ -1259,6 +1308,7 @@ examples:
             - id: t1
               name: bash
               args:
+                summary: Read the requested Phoenix data.
                 command: >-
                   phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project
                   { spans(first: 5, rootSpansOnly: true, sort: {col: startTime,
@@ -1266,14 +1316,26 @@ examples:
         - role: tool
           tool_call_id: t1
           name: bash
-          content: |
-            {"data":{"node":{"spans":{"edges":[
-              {"node":{"startTime":"2026-04-03T18:42:11Z"}},
-              {"node":{"startTime":"2026-04-03T18:41:58Z"}},
-              {"node":{"startTime":"2026-04-03T17:55:02Z"}},
-              {"node":{"startTime":"2026-04-03T17:12:30Z"}},
-              {"node":{"startTime":"2026-04-03T16:48:14Z"}}
-            ]}}}}
+          content:
+            command: |-
+              phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project { spans(first: 5, rootSpansOnly: true, sort: {col: startTime, dir: desc}) { edges { node { startTime } } } } } }'
+            stdout: |
+              {"data":{"node":{"spans":{"edges":[
+                {"node":{"startTime":"2026-04-03T18:42:11Z"}},
+                {"node":{"startTime":"2026-04-03T18:41:58Z"}},
+                {"node":{"startTime":"2026-04-03T17:55:02Z"}},
+                {"node":{"startTime":"2026-04-03T17:12:30Z"}},
+                {"node":{"startTime":"2026-04-03T16:48:14Z"}}
+              ]}}}}
+            stderr: ''
+            exitCode: 0
+            durationMs: 1
+            startedAt: '2026-04-03T19:00:00Z'
+            completedAt: '2026-04-03T19:00:00.001Z'
+            stdoutBytes: 286
+            stderrBytes: 0
+            stdoutTruncated: false
+            stderrTruncated: false
     expected:
       tools:
         forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
@@ -1300,8 +1362,6 @@ examples:
         - type: app
           currentDateTime: "2026-05-18T15:02:00-07:00"
           timeZone: America/Los_Angeles
-        - type: graphql
-          mutationsEnabled: false
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: ""
@@ -1322,6 +1382,7 @@ examples:
             - id: t1
               name: bash
               args:
+                summary: Read the requested Phoenix data.
                 command: >-
                   phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project {
                   p50: spanLatencyMsQuantile(probability: 0.5, filterCondition:
@@ -1333,13 +1394,25 @@ examples:
         - role: tool
           tool_call_id: t1
           name: bash
-          content: |
-            {"data":{"node":{
-              "p50": 312,
-              "p90": 1840,
-              "p95": 3210,
-              "p99": 8420
-            }}}
+          content:
+            command: |-
+              phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project { p50: spanLatencyMsQuantile(probability: 0.5, filterCondition: "span_kind == ''LLM''") p90: spanLatencyMsQuantile(probability: 0.9, filterCondition: "span_kind == ''LLM''") p95: spanLatencyMsQuantile(probability: 0.95, filterCondition: "span_kind == ''LLM''") p99: spanLatencyMsQuantile(probability: 0.99, filterCondition: "span_kind == ''LLM''") } } }'
+            stdout: |
+              {"data":{"node":{
+                "p50": 312,
+                "p90": 1840,
+                "p95": 3210,
+                "p99": 8420
+              }}}
+            stderr: ''
+            exitCode: 0
+            durationMs: 1
+            startedAt: '2026-04-03T19:00:00Z'
+            completedAt: '2026-04-03T19:00:00.001Z'
+            stdoutBytes: 80
+            stderrBytes: 0
+            stdoutTruncated: false
+            stderrTruncated: false
     expected:
       tools:
         forbidden: [ask_user, query_docs_filesystem_phoenix, search_phoenix]
@@ -1362,8 +1435,6 @@ examples:
         - type: app
           currentDateTime: "2026-05-18T14:45:12-07:00"
           timeZone: America/Los_Angeles
-        - type: graphql
-          mutationsEnabled: false
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: "status_code == 'ERROR'"

@@ -14,6 +14,10 @@ examples:
   - id: preset-15m
     splits: [regression]
     input:
+      contexts: &project_context
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: ""
       messages:
         - role: user
           content: Show me just the last 15 minutes.
@@ -93,6 +97,7 @@ examples:
   - id: preset-1h
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Filter this view to the last hour.
@@ -115,6 +120,7 @@ examples:
   - id: preset-12h
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: past 12 hrs only
@@ -137,6 +143,7 @@ examples:
   - id: preset-1d
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: I want the last 24 hours of traces.
@@ -159,6 +166,7 @@ examples:
   - id: preset-7d
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Can you set the range to the past week?
@@ -181,6 +189,7 @@ examples:
   - id: preset-30d
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: zoom out to the last month
@@ -203,6 +212,7 @@ examples:
   - id: custom-explicit-utc-range
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Set the range from 2025-01-01T00:00:00Z to 2025-01-31T23:59:59Z.
@@ -227,6 +237,7 @@ examples:
   - id: custom-explicit-offset-range
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show traces between 2025-03-10T08:30:00-07:00 and 2025-03-10T11:00:00-07:00.
@@ -254,6 +265,7 @@ examples:
     # unconstrained via subset semantics.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Everything until 2025-04-01T00:00:00Z.
@@ -277,6 +289,7 @@ examples:
   - id: custom-open-end
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show traces since 2025-04-01T09:00:00Z.
@@ -309,6 +322,7 @@ examples:
     # belong in the regression gate.
     splits: [dev]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: I need traces from January 15, 2025.
@@ -337,6 +351,7 @@ examples:
     # Accept either via variants.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: just show today
@@ -361,6 +376,7 @@ examples:
     # "Recent" has no canonical window; accept any short preset.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: focus on recent traces
@@ -387,6 +403,7 @@ examples:
     # global time range. The primed catalog carries both operations.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Show me only LLM spans.
@@ -408,6 +425,7 @@ examples:
   - id: negative-latency-filter
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: only spans that took more than five seconds
@@ -431,6 +449,7 @@ examples:
     # fresh turn; whatever the agent does, it must not touch the time range.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Clone the current prompt so I can compare a shorter version.
@@ -442,6 +461,7 @@ examples:
   - id: negative-read-current-prompt
     splits: [dev]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: What's in prompt A right now?
@@ -454,6 +474,7 @@ examples:
     # Asks for analysis of span latency, not the time range selector.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: Which span took the longest time to complete?
@@ -467,6 +488,7 @@ examples:
     # changed.
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: What does the time range selector do?
@@ -478,6 +500,7 @@ examples:
   - id: negative-greeting
     splits: [dev]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: hey, what can you help me with?
@@ -489,6 +512,7 @@ examples:
   - id: negative-thanks
     splits: [regression]
     input:
+      contexts: *project_context
       messages:
         - role: user
           content: thanks!
@@ -511,8 +535,6 @@ examples:
         - type: app
           currentDateTime: "2026-05-18T14:30:00-07:00"
           timeZone: America/Los_Angeles
-        - type: graphql
-          mutationsEnabled: false
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: parent_id is None
@@ -557,8 +579,6 @@ examples:
         - type: app
           currentDateTime: "2026-05-18T14:44:02-07:00"
           timeZone: America/Los_Angeles
-        - type: graphql
-          mutationsEnabled: false
         - type: project
           projectNodeId: UHJvamVjdDoxMg==
           spanFilter: parent_id is None
@@ -570,6 +590,7 @@ examples:
             - id: t1
               name: bash
               args:
+                summary: Read the requested Phoenix data.
                 command: >-
                   phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project
                   { spans(first: 5, rootSpansOnly: true, sort: {col: startTime,
@@ -577,14 +598,26 @@ examples:
         - role: tool
           tool_call_id: t1
           name: bash
-          content: |
-            {"data":{"node":{"spans":{"edges":[
-              {"node":{"startTime":"2026-04-03T18:42:11Z"}},
-              {"node":{"startTime":"2026-04-03T18:41:58Z"}},
-              {"node":{"startTime":"2026-04-03T17:55:02Z"}},
-              {"node":{"startTime":"2026-04-03T17:12:30Z"}},
-              {"node":{"startTime":"2026-04-03T16:48:14Z"}}
-            ]}}}}
+          content:
+            command: |-
+              phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project { spans(first: 5, rootSpansOnly: true, sort: {col: startTime, dir: desc}) { edges { node { startTime } } } } } }'
+            stdout: |
+              {"data":{"node":{"spans":{"edges":[
+                {"node":{"startTime":"2026-04-03T18:42:11Z"}},
+                {"node":{"startTime":"2026-04-03T18:41:58Z"}},
+                {"node":{"startTime":"2026-04-03T17:55:02Z"}},
+                {"node":{"startTime":"2026-04-03T17:12:30Z"}},
+                {"node":{"startTime":"2026-04-03T16:48:14Z"}}
+              ]}}}}
+            stderr: ''
+            exitCode: 0
+            durationMs: 1
+            startedAt: '2026-04-03T19:00:00Z'
+            completedAt: '2026-04-03T19:00:00.001Z'
+            stdoutBytes: 286
+            stderrBytes: 0
+            stdoutTruncated: false
+            stderrTruncated: false
         - role: user
           content: Set the time filter to that day so the table shows only those traces.
         - role: assistant

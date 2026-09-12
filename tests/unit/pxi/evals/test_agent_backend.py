@@ -182,3 +182,31 @@ async def test_shared_mcp_server_supports_concurrent_examples(
         )
     )
     assert all(output.get("assistant_text") == "Loaded." for output in outputs), outputs
+
+
+async def test_primed_tool_inputs_match_current_agent_schemas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pathlib import Path
+
+    import jsonschema
+    import yaml
+
+    from evals.pxi.harness.transcript import fixture_messages
+
+    def respond(messages: Any, info: AgentInfo) -> ModelResponse:
+        definitions = {tool.name: tool for tool in info.function_tools}
+        datasets = Path(__file__).parents[4] / "evals" / "pxi" / "datasets"
+        for path in sorted(datasets.glob("*.yaml")):
+            for example in yaml.safe_load(path.read_text())["examples"]:
+                for message in fixture_messages(example["input"]["messages"]):
+                    for part in message.model_dump(by_alias=True)["parts"]:
+                        if not part["type"].startswith("tool-"):
+                            continue
+                        name = part["type"].removeprefix("tool-")
+                        assert name in definitions, (path.name, example["id"], name)
+                        jsonschema.validate(part["input"], definitions[name].parameters_json_schema)
+        return ModelResponse(parts=[TextPart(content="Fixture inputs match tool schemas.")])
+
+    output = await _run(monkeypatch, respond)
+    assert not output.get("error"), output
