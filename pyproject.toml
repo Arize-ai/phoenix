@@ -312,6 +312,7 @@ faulthandler_timeout = 300.0
 faulthandler_exit_on_timeout = false
 addopts = [
   "-rA",
+  "--ignore=tests/evals/mcp", # Dedicated Python 3.13 CI job runs these tests.
   "--import-mode=importlib",
   "--doctest-modules",
   # Alembic's env.py runs migration context at import time and isn't importable
@@ -339,6 +340,8 @@ files = [
   "tests/",
 ]
 exclude = [
+  "evals/mcp/", # Separate Python 3.13 runtime; checked by make mcp-check.
+  "tests/evals/mcp/",
   "api_reference",
   "dist/",
   "examples/",

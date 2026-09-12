@@ -1,0 +1,11 @@
+{
+  "source_revision": "3952c5f65621617db750a30fdc4487e560ccdba7",
+  "currency": "USD",
+  "models": {
+    "o3-mini": {
+      "input": 1.1e-06,
+      "output": 4.4e-06,
+      "cache_read": 5.5e-07
+    }
+  }
+}

@@ -1,0 +1,40 @@
+# Harbor routes both services through its native egress-control sidecar.
+# Shared localhost networking; separate containers, processes, and filesystems.
+services:
+  main:
+    image: __AGENT_IMAGE__
+    cap_drop: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    security_opt: [no-new-privileges:true]
+    environment:
+      BENCHMARK_INTERFACE: __INTERFACE__
+      PHOENIX_COLLECTOR_ENDPOINT: http://127.0.0.1:6006
+      PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES: "true"
+      NO_COLOR: "1"
+    depends_on:
+      phoenix:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, test, -f, /tmp/benchmark-ready]
+      interval: 1s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+
+  phoenix:
+    image: __TARGET_IMAGE__
+    cap_drop: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - type: bind
+        source: __SEED_DIR__
+        target: /seed
+        read_only: true
+      # The sibling directory is never mounted into main and survives teardown.
+      - type: bind
+        source: ${HOST_AGENT_LOGS_PATH}/../target-data
+        target: /data
+    healthcheck:
+      test: [CMD, test, -f, /evidence/ready.json]
+      interval: 2s
+      timeout: 2s
+      retries: 150
