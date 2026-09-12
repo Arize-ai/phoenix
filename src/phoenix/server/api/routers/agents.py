@@ -3324,8 +3324,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 name="PXIAgent",
                 headless=body.headless,
                 model=model,
-                db=request.app.state.db,
-                event_queue=request.state.event_queue,
                 prompts=agent_prompts,
                 principal=phoenix_user,
                 schema=request.app.state.graphql_schema if bash_enabled else None,

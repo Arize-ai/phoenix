@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
@@ -23,7 +21,6 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model as PydanticAIModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from evals.pxi.harness.backend import (
     EvalBackendCapability,
@@ -54,20 +51,6 @@ from phoenix.server.agents.prompts import UI_STATE_TEMPLATE
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.api.routers.agents import _get_ui_contexts, _render_ui_state
-from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanPutItem, DbSessionFactory
-
-
-@asynccontextmanager
-async def _unavailable_db_session() -> AsyncIterator[AsyncSession]:
-    raise RuntimeError("PXI eval harness does not provide a Phoenix database.")
-    yield
-
-
-class _NoOpEventQueue:
-    def put(self, item: DmlEvent) -> None:
-        return None
-
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -77,8 +60,6 @@ ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
 _MAX_ERROR_MESSAGE_LEN = 200
-_OFFLINE_DB = DbSessionFactory(db=_unavailable_db_session, dialect="sqlite")
-_OFFLINE_EVENT_QUEUE: CanPutItem[DmlEvent] = _NoOpEventQueue()
 
 # Fallback only: the pytest plugin's capture_spans relabels in-test spans to
 # the experiment's project.
@@ -634,8 +615,6 @@ async def run_pxi_example(
             schema=eval_graphql_schema(),
             build_graphql_context=unavailable_graphql_context,
             tracer_provider=tracer_provider,
-            db=_OFFLINE_DB,
-            event_queue=_OFFLINE_EVENT_QUEUE,
             read_only=True,
         )
         result = await agent.run(
