@@ -4976,15 +4976,15 @@ async def test_list_dataset_splits_accepts_dataset_name(
 async def test_list_dataset_splits_scopes_splits_through_example_membership(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    """Populated splits are listed only under datasets holding their examples; empty
-    splits are listed under every dataset."""
+    """A split is listed only under datasets holding at least one of its examples, so
+    a split with no examples is listed under none."""
     dataset_a, _ = await _create_dataset_with_examples(httpx_client, "ds_scope_a", 1)
     dataset_b, examples_b = await _create_dataset_with_examples(httpx_client, "ds_scope_b", 1)
     await _create_split(httpx_client, dataset_b, "b_only", examples_b)
-    await _create_split(httpx_client, dataset_a, "empty_split")
+    await _create_split(httpx_client, dataset_a, "no_examples")
 
-    assert await _list_split_counts(httpx_client, dataset_a) == {"empty_split": 0}
-    assert await _list_split_counts(httpx_client, dataset_b) == {"b_only": 1, "empty_split": 0}
+    assert await _list_split_counts(httpx_client, dataset_a) == {}
+    assert await _list_split_counts(httpx_client, dataset_b) == {"b_only": 1}
 
 
 @pytest.mark.parametrize("num_examples, expected_count", [(3, 2), (1, 0)])
