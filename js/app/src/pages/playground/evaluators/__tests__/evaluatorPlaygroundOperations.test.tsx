@@ -34,11 +34,17 @@ function setup(slot?: EvaluatorAgentSlot) {
 
   const configure = vi.fn(async () => ({ ok: true as const }));
 
+  const readFilterHelp = vi.fn(async () => ({
+    ok: true as const,
+    output: { fields: [], notes: [], examples: [], project: null },
+  }));
+
   function Host() {
     useEvaluatorPlaygroundAgent({
       getSlot: () => slot,
       readWorkspace: () => emptyWorkspace,
       configureWorkspace: configure,
+      readFilterHelp,
       selectSlot: async () => ({ ok: true }),
       runSlots: run,
       stopRuns: vi.fn(),
@@ -78,7 +84,7 @@ function setup(slot?: EvaluatorAgentSlot) {
     });
   }
 
-  return { agentStore, mounted, dispatch, run, configure };
+  return { agentStore, mounted, dispatch, run, configure, readFilterHelp };
 }
 
 describe("PXI evaluator mode dispatch", () => {
@@ -104,7 +110,7 @@ describe("PXI evaluator mode dispatch", () => {
       expectedRevision: "current",
     });
 
-    await vi.waitFor(() => expect(save).toHaveBeenCalledWith("current"));
+    await vi.waitFor(() => expect(save).toHaveBeenCalledWith("current", {}));
     expect(await dispatch("evaluatorPlayground.run")).toMatchObject({
       ok: false,
     });
@@ -114,6 +120,44 @@ describe("PXI evaluator mode dispatch", () => {
     expect(await dispatch("evaluatorPlayground.run")).toMatchObject({
       ok: true,
     });
+    mounted.unmount();
+  });
+  it("passes save options through to the slot and exposes filter help", async () => {
+    const save = vi.fn(async () => ({ ok: true as const }));
+
+    const { mounted, dispatch, readFilterHelp } = setup({
+      read: vi.fn(),
+      edit: vi.fn(),
+      save,
+      saveFilter: vi.fn(),
+    });
+
+    expect(
+      await dispatch("evaluatorPlayground.saveSlot", {
+        slot: "A",
+        expectedRevision: "current",
+        filterCondition: "",
+        samplingRate: 0.5,
+        asNew: true,
+      })
+    ).toMatchObject({ ok: true });
+    expect(save).toHaveBeenCalledWith("current", {
+      filterCondition: "",
+      samplingRate: 0.5,
+      asNew: true,
+    });
+    expect(
+      await dispatch("evaluatorPlayground.saveSlot", {
+        slot: "A",
+        expectedRevision: "current",
+        samplingRate: 2,
+      })
+    ).toMatchObject({ ok: false, code: "INVALID_INPUT" });
+    expect(await dispatch("evaluatorPlayground.readFilterHelp")).toMatchObject({
+      ok: true,
+      output: { project: null },
+    });
+    expect(readFilterHelp).toHaveBeenCalledOnce();
     mounted.unmount();
   });
   it("exposes evaluator mode operations, not prompt run or evaluator-dialog edits", async () => {

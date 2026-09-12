@@ -542,6 +542,7 @@ function EvaluatorSlotEditorContent({
       },
       getPreferences: () => modelConfigByProvider,
       sandboxConfigs,
+      loadedProjectScope: initialProjectScope,
       save: (options) => saveRef.current(options),
     });
 
@@ -561,6 +562,7 @@ function EvaluatorSlotEditorContent({
     initialDatasetEvaluatorId,
     initialProjectEvaluatorId,
     initialEvaluatorId,
+    initialProjectScope,
     saveTarget,
     slotId,
   ]);

@@ -126,10 +126,18 @@ instances and `ui.evaluators.*` operates the separate form dialogs, and neither 
    rows are the most recent spans matching a span `filterCondition`; a span row has the same
    `input`/`output`/`metadata` shape as an example and uses the span id as both `id` and
    `revisionId`. Use `ui.evaluatorPlayground.configure` to set the dataset (by Relay node ID)
-   and splits, or the project (by Relay node ID) with its filter — setting one kind clears the
-   other —
-   plus the sample size, the visible slots (up to four, `A`–`D`), and the result filter. Changing
-   the source or sample clears displayed results.
+   and splits, or the project — `projectId` (Relay node ID) or `projectName` (exact name, resolved
+   for you) — with its filter; setting one kind clears the other. The same call sets the sample
+   size, the visible slots (up to four, `A`–`D`), and the result filter. Changing the source or
+   sample clears displayed results. One `configure` can switch the project, set the filter and the
+   sample size together; read the returned workspace instead of calling `read` again.
+   - Writing a filter: `filterCondition` is the span filter DSL, the dialect `ui.spansFilter.set`
+     documents. The names it references must exist on the project, so when the request names an
+     annotation, attribute, or model, call `ui.evaluatorPlayground.readFilterHelp` first: it
+     returns the fields, the dialect notes, request→expression examples, and the project's own
+     annotation and model names. `configure` validates the filter against the project before
+     applying it and rejects an invalid one with the parser's message and nothing changed; fix
+     the expression rather than retrying it. Pass `""` for every span.
 3. Load each slot's source with `ui.evaluatorPlayground.selectSlot`: a saved global, dataset or
    project evaluator, or a new LLM or code draft. Slots are peers addressed by letter, never by numeric
    prompt instance ID. A slot with unsaved edits requires `discardChanges`.
@@ -146,17 +154,21 @@ instances and `ui.evaluators.*` operates the separate form dialogs, and neither 
    do not enable experiment recording or query experiment results for them. `stop` halts scheduling
    but lets in-flight requests finish.
 7. Record expected outputs only from judgments the user made or confirmed, with
-   `ui.evaluatorPlayground.setExpectedOutput`, naming the slot, the row's `revisionId`, and its
-   selected output; an expected label must be one of that output's labels. On a dataset they are
-   stored as calibration labels; on a project they are HUMAN span annotations named after the
-   evaluator, written to the real span. Each slot keeps its own expected outputs and there is no
-   baseline slot; each column reports agreement with its own.
-8. Save a slot only when the user asks, with `ui.evaluatorPlayground.saveSlot`. `readSlot` reports
-   the slot's `saveTarget`: `update` overwrites the evaluator loaded into the slot, `attach` updates
-   a shared code evaluator and adds it to the dataset or project, and `create` saves a new dataset
-   evaluator or, on a project source, a new online span evaluator that runs on the project with the
-   current filter at 100% sampling (set a name via `editSlot` first). Loading and running never
-   save.
+   `ui.evaluatorPlayground.setExpectedOutput`, naming the slot, the row's `id` and `revisionId`
+   (both the span id for a span), and its selected output; an expected label must be one of that
+   output's labels. "Row 1" is the first row of `read` at offset 0. On a dataset they are stored
+   as calibration labels; on a project they are HUMAN span annotations named after the evaluator,
+   written to the real span. Each slot keeps its own expected outputs and there is no baseline
+   slot; each column reports agreement with its own.
+8. Save a slot only when the user asks, with `ui.evaluatorPlayground.saveSlot` and the revision
+   from the latest `readSlot`, `selectSlot`, or `editSlot` result. `readSlot` reports the slot's
+   `saveTarget`: `update` overwrites the evaluator loaded into the slot, `attach` updates a shared
+   code evaluator and adds it to the dataset or project, and `create` saves a new dataset
+   evaluator or, on a project source, a new online span evaluator (set a name via `editSlot`
+   first; `asNew` forces a copy). A project evaluator stores the workspace's current filter at
+   100% sampling, or the values it was loaded with (`readSlot` shows them as `loadedProjectScope`);
+   pass `filterCondition` (`""` for none) or `samplingRate` to override. Loading and running
+   never save.
 
 ## Workflow: Author, Refine, Or Remove A Function Tool
 

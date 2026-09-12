@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useRelayEnvironment } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
+import { getSpanFilterHelp } from "@phoenix/pages/project/spanFilterHelp";
+import { fetchSpanFilterProjectVocabulary } from "@phoenix/pages/project/spanFilterProjectVocabulary";
+import { validateSpanFilterCondition } from "@phoenix/pages/project/spanFilterValidation";
 
 import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
+import { fetchProjectIdByName } from "./evaluatorPlaygroundProjectLookup";
 import type { EvaluatorPlaygroundSource } from "./evaluatorPlaygroundSource";
 import {
   clearSlotBindingParams,
@@ -65,6 +70,7 @@ export function useEvaluatorWorkspaceOperations(
   const [slotHosts] = useState(createSlotHostRegistry);
   const allowNavigation = useRef(false);
   const [, setSearchParams] = useSearchParams();
+  const environment = useRelayEnvironment();
 
   useEffect(() => {
     latest.set(state);
@@ -186,9 +192,24 @@ export function useEvaluatorWorkspaceOperations(
           error:
             "A removed slot has unsaved changes. Save it or explicitly set discardChanges.",
         };
-      const nextSource = getConfiguredSource(state.source, input);
+      const projectId = input.projectName
+        ? await fetchProjectIdByName(environment, input.projectName)
+        : null;
+
+      if (projectId && !projectId.ok)
+        return { ok: false, error: projectId.error, code: "NOT_FOUND" };
+      const nextSource = getConfiguredSource(
+        state.source,
+        projectId ? { ...input, projectId: projectId.projectId } : input
+      );
 
       if (!nextSource.ok) return nextSource;
+      // The strip applies only a filter the server accepted; PXI's filter
+      // goes through the same check so a typo answers with the parser's
+      // message instead of a sample query that fails.
+      const rejection = await getFilterRejection(nextSource.source);
+
+      if (rejection) return rejection;
       allowNavigation.current = input.discardChanges;
       flushSync(() =>
         setSearchParams((previous) => {
@@ -220,6 +241,18 @@ export function useEvaluatorWorkspaceOperations(
         };
 
       return { ok: true, output: readWorkspace({ offset: 0, limit: 20 }) };
+    },
+    readFilterHelp: async () => {
+      const source = latest.get().source;
+      const project =
+        source?.kind === "project"
+          ? await fetchSpanFilterProjectVocabulary({
+              projectId: source.projectId,
+              includeModels: true,
+            })
+          : null;
+
+      return { ok: true, output: { ...getSpanFilterHelp(), project } };
     },
     selectSlot: async (input) => {
       if (isBusy)
@@ -397,6 +430,25 @@ export function useEvaluatorWorkspaceOperations(
     registerAgentSlot: slotHosts.register,
     getSlotHost: slotHosts.get,
   };
+}
+
+/** The error `configure` answers with when a project filter fails to parse. */
+async function getFilterRejection(
+  source: EvaluatorPlaygroundSource | null
+): Promise<UIOperationResult | null> {
+  if (source?.kind !== "project" || !source.filterCondition) return null;
+  const validation = await validateSpanFilterCondition(
+    source.filterCondition,
+    source.projectId
+  );
+
+  return validation.isValid
+    ? null
+    : {
+        ok: false,
+        error: `Invalid span filter: ${validation.errorMessage ?? "the condition failed validation"}. Fix the expression (readFilterHelp lists the fields and idioms); nothing was changed.`,
+        code: "INVALID_INPUT",
+      };
 }
 
 function toReadSource(

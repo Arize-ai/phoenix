@@ -4,7 +4,10 @@ import {
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { reconcileJudgeOperations } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import type { EditLlmEvaluatorDraftOperation } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import type { EvaluatorSlotEdit } from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
+import type {
+  EvaluatorSlotEdit,
+  EvaluatorSlotSaveInput,
+} from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import { getEvaluatorOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
 import { getProviderKeyForGenerativeModelSDK } from "@phoenix/components/generative/modelProviderUtils";
@@ -16,13 +19,17 @@ import type { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
+import type { EvaluatorPlaygroundProjectScope } from "./evaluatorPlaygroundSource";
 import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import type { EvaluatorSlotSaveOptions, SlotId } from "./evaluatorSlotTypes";
 
 export type EvaluatorAgentSlot = {
   read: () => ReturnType<ReturnType<typeof createEvaluatorAgentSlot>["read"]>;
   edit: (input: EvaluatorSlotEdit) => Promise<UIOperationResult>;
-  save: (revision: string) => Promise<UIOperationResult>;
+  save: (
+    revision: string,
+    options?: EvaluatorSlotSaveInput
+  ) => Promise<UIOperationResult>;
   /** The page's "Save filter": a normal save with the filter overridden. */
   saveFilter: (filterCondition: string) => Promise<UIOperationResult>;
 };
@@ -48,6 +55,7 @@ export function createEvaluatorAgentSlot({
   setLocal,
   getPreferences,
   sandboxConfigs,
+  loadedProjectScope = null,
   save,
 }: {
   slotId: SlotId;
@@ -65,6 +73,8 @@ export function createEvaluatorAgentSlot({
     name: string;
     language: CodeEvaluatorLanguage;
   }[];
+  /** The filter and sampling rate of a loaded project evaluator. */
+  loadedProjectScope?: EvaluatorPlaygroundProjectScope | null;
   save: (options?: EvaluatorSlotSaveOptions) => Promise<UIOperationResult>;
 }) {
   function read() {
@@ -104,8 +114,11 @@ export function createEvaluatorAgentSlot({
       ...draft,
       revision: JSON.stringify(draft),
       // What saveSlot does: update the loaded evaluator, attach a shared code
-      // evaluator to the dataset, or create a new dataset evaluator.
+      // evaluator to the dataset or project, or create a new one.
       saveTarget,
+      // What a loaded project evaluator stores; saveSlot keeps it unless told
+      // otherwise, so an agent can see it before deciding to override it.
+      loadedProjectScope,
       // Stated on every read so an agent learns the rule before its first edit
       // rather than from a rejected run.
       outputConfigRules:
@@ -247,7 +260,10 @@ export function createEvaluatorAgentSlot({
 
       return { ok: true, output: read() };
     },
-    async save(revision: string): Promise<UIOperationResult> {
+    async save(
+      revision: string,
+      options: EvaluatorSlotSaveInput = {}
+    ): Promise<UIOperationResult> {
       if (revision !== read().revision)
         return {
           ok: false,
@@ -255,7 +271,7 @@ export function createEvaluatorAgentSlot({
           code: "STALE_REVISION",
         };
 
-      return save();
+      return save(options);
     },
     saveFilter(filterCondition: string) {
       return save({ filterCondition });

@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
@@ -19,15 +18,13 @@ import {
   useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import environment from "@phoenix/RelayEnvironment";
 
-import type { SpanFilterConditionFieldCompletionsQuery } from "./__generated__/SpanFilterConditionFieldCompletionsQuery.graphql";
-import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   coreSpanFilterCompletions,
   spanFilterAIQueryDSL,
   spanFilterSnippets,
 } from "./spanFilterDSL";
+import { fetchSpanFilterProjectVocabulary } from "./spanFilterProjectVocabulary";
 import {
   useSpanFilterActions,
   useSpanFilterCondition,
@@ -61,38 +58,19 @@ const spanFilterAIQuery: DSLFilterAIQueryProps = {
 async function fetchAnnotationCompletions(
   projectId: string
 ): Promise<Completion[]> {
-  const data = await fetchQuery<SpanFilterConditionFieldCompletionsQuery>(
-    environment,
-    graphql`
-      query SpanFilterConditionFieldCompletionsQuery($id: ID!) {
-        project: node(id: $id) {
-          ... on Project {
-            spanAnnotationNames
-            traceAnnotationsNames
-          }
-        }
-      }
-    `,
-    { id: projectId }
-  ).toPromise();
+  const vocabulary = await fetchSpanFilterProjectVocabulary({ projectId });
   return [
     ...createAnnotationMemberCompletions({
       accessor: "annotations",
       noun: "annotation",
       sectionName: "Annotations",
-      // notes are a pseudo-annotation deliberately hidden from
-      // annotation-name surfaces
-      names: getNonNoteAnnotationNames(
-        data?.project?.spanAnnotationNames ?? []
-      ),
+      names: vocabulary.spanAnnotationNames,
     }),
     ...createAnnotationMemberCompletions({
       accessor: "trace_annotations",
       noun: "trace annotation",
       sectionName: "Trace Annotations",
-      names: getNonNoteAnnotationNames(
-        data?.project?.traceAnnotationsNames ?? []
-      ),
+      names: vocabulary.traceAnnotationNames,
     }),
   ];
 }

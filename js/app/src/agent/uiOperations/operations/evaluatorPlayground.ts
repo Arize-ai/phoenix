@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { formatSpanFilterExampleSummary } from "@phoenix/pages/project/spanFilterHelp";
+
 import { defineUIOperation } from "../types";
 
 const slot = z.enum(["A", "B", "C", "D"]);
@@ -85,6 +87,12 @@ export const evaluatorSlotEditSchema = z.strictObject({
 
 export type EvaluatorSlotEdit = z.infer<typeof evaluatorSlotEditSchema>;
 
+/** The options `saveSlot` passes through to the slot's save, revision aside. */
+export type EvaluatorSlotSaveInput = Omit<
+  z.infer<typeof saveEvaluatorPlaygroundSlotOperation.inputSchema>,
+  "slot" | "expectedRevision"
+>;
+
 export const readEvaluatorPlaygroundOperation = defineUIOperation({
   name: "evaluatorPlayground.read",
   operationKind: "read",
@@ -102,16 +110,35 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Configure evaluator mode's source and view: a dataset (Relay node ID) with splits, or a project (Relay node ID) with a span filterCondition — rows are then the most recent matching spans. Setting projectId clears the dataset and vice versa; changing the source or sample size clears displayed results. Also sets sample size, visible slots and the result filter. Removing an unsaved slot requires discardChanges. Does not configure prompt playground or run anything.",
+    "Configure evaluator mode's source and view: a dataset (Relay node ID) with splits, or a project (projectId, or projectName to resolve the exact name) with a span filterCondition — rows are then the most recent matching spans, capped by sampleSize. Setting a project clears the dataset and vice versa; changing the source or sample size clears displayed results. Also sets visible slots and the result filter. The filter is validated against the project before it is applied; an invalid one is rejected with the server's message and nothing changes. Removing an unsaved slot requires discardChanges. Does not configure prompt playground or run anything.",
   inputSchema: z.strictObject({
     datasetId: z.string().nullable().optional(),
     splitIds: z.array(z.string()).optional(),
-    projectId: z.string().nullable().optional(),
+    projectId: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("Project Relay node ID; null clears the source."),
+    projectName: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Exact project name, resolved to its ID for you. Use instead of projectId when you only know the name."
+      ),
     filterCondition: z
       .string()
       .optional()
-      .describe("Span filter DSL for a project source; empty for every span."),
-    sampleSize: z.number().int().min(1).max(500).optional(),
+      .describe(
+        `Span filter DSL for a project source; empty string for every span. Same dialect as spansFilter.set, e.g. ${formatSpanFilterExampleSummary()}. readFilterHelp lists the fields, idioms and this project's annotation and model names.`
+      ),
+    sampleSize: z
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .optional()
+      .describe("How many rows to load: examples, or most recent spans."),
     slots: z.array(slot).min(1).max(4).optional(),
     filter: z
       .enum(["all", "missing-expected", "errors", "disagreements"])
@@ -120,12 +147,21 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
   }),
 });
 
+export const readEvaluatorPlaygroundFilterHelpOperation = defineUIOperation({
+  name: "evaluatorPlayground.readFilterHelp",
+  operationKind: "read",
+  availability,
+  description:
+    "Read the span filter DSL reference for configure's filterCondition: the fields an expression may reference, dialect notes (units, casing, attribute and annotation access), request→expression examples, and — when a project is the source — that project's annotation names and model names, so filters use names that exist. Call it before writing a filter that names an annotation, attribute or model, or after configure rejected one.",
+  inputSchema: empty,
+});
+
 export const selectEvaluatorPlaygroundSlotOperation = defineUIOperation({
   name: "evaluatorPlayground.selectSlot",
   operationKind: "write",
   availability,
   description:
-    "Load a saved global, dataset or project evaluator, or a new LLM/code draft, into explicit slot A, B, C or D. Configure visible slots before selecting one. Existing unsaved edits require discardChanges. Loading does not save. Call readSlot after loading.",
+    "Load a saved global, dataset or project evaluator (by Relay node ID), or a new LLM/code draft, into explicit slot A, B, C or D. Configure visible slots before selecting one. Existing unsaved edits require discardChanges. Loading does not save. Returns the same snapshot as readSlot, revision included, so edit next without re-reading.",
   inputSchema: z.strictObject({
     slot,
     source: z.discriminatedUnion("type", [
@@ -143,7 +179,7 @@ export const readEvaluatorPlaygroundSlotOperation = defineUIOperation({
   operationKind: "read",
   availability,
   description:
-    "Read one explicitly targeted evaluator slot: revision, kind, name, prompt/model or code/language/sandbox, available sandboxes, output configs, mapping and validation. Read before editSlot or saveSlot. These slots are not numeric prompt instances or evaluator dialogs.",
+    "Read one explicitly targeted evaluator slot: revision, kind, name, prompt/model or code/language/sandbox, available sandboxes, output configs, mapping, saveTarget and, for a loaded project evaluator, its stored filter and sampling rate. Read before editSlot or saveSlot unless you hold the revision from selectSlot or editSlot. These slots are not numeric prompt instances or evaluator dialogs.",
   inputSchema: z.strictObject({ slot }),
 });
 
@@ -184,8 +220,24 @@ export const saveEvaluatorPlaygroundSlotOperation = defineUIOperation({
   longRunning: true,
   availability,
   description:
-    "Explicitly save one evaluator slot through the UI validation/save path. readSlot's saveTarget says what happens: update overwrites the evaluator loaded into the slot, attach updates a shared code evaluator and adds it to the selected dataset or project, create saves a NEW dataset evaluator or online project (span) evaluator (set a name with editSlot first). On a project source the saved evaluator takes the current span filter and 100% sampling unless it was loaded from a project evaluator. Requires the latest readSlot revision; returns the dataset- or project-evaluator ID and whether it was created or updated.",
-  inputSchema: z.strictObject({ slot, expectedRevision: z.string() }),
+    "Explicitly save one evaluator slot through the UI validation/save path. readSlot's saveTarget says what happens: update overwrites the evaluator loaded into the slot, attach updates a shared code evaluator and adds it to the selected dataset or project, create saves a NEW dataset evaluator or online project (span) evaluator (set a name with editSlot first; asNew forces a copy under a fresh name). On a project source the saved evaluator takes the current span filter and 100% sampling unless it was loaded from a project evaluator; filterCondition and samplingRate override that (pass filterCondition '' to save without a filter). Requires the latest revision; returns the dataset- or project-evaluator ID and whether it was created or updated.",
+  inputSchema: z.strictObject({
+    slot,
+    expectedRevision: z.string(),
+    asNew: z.boolean().optional(),
+    filterCondition: z
+      .string()
+      .optional()
+      .describe(
+        "Project source only: the span filter to store; '' stores no filter. Defaults to the loaded evaluator's, else the workspace filter."
+      ),
+    samplingRate: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe("Project source only: fraction of matching spans to evaluate."),
+  }),
 });
 
 export const setExpectedOutputEvaluatorPlaygroundOperation = defineUIOperation({
@@ -208,6 +260,7 @@ export const setExpectedOutputEvaluatorPlaygroundOperation = defineUIOperation({
 export const evaluatorPlaygroundOperations = [
   readEvaluatorPlaygroundOperation,
   configureEvaluatorPlaygroundOperation,
+  readEvaluatorPlaygroundFilterHelpOperation,
   selectEvaluatorPlaygroundSlotOperation,
   readEvaluatorPlaygroundSlotOperation,
   editEvaluatorPlaygroundSlotOperation,

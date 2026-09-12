@@ -6,6 +6,7 @@ import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
 import {
   configureEvaluatorPlaygroundOperation as configure,
   editEvaluatorPlaygroundSlotOperation as edit,
+  readEvaluatorPlaygroundFilterHelpOperation as readFilterHelp,
   readEvaluatorPlaygroundOperation as read,
   readEvaluatorPlaygroundSlotOperation as readSlot,
   runEvaluatorPlaygroundOperation as run,
@@ -94,6 +95,7 @@ export type EvaluatorPlaygroundHandlers = {
   configureWorkspace: (
     input: ConfigureEvaluatorWorkspace
   ) => Promise<UIOperationResult>;
+  readFilterHelp: () => Promise<UIOperationResult>;
   selectSlot: (input: SelectEvaluatorSlot) => Promise<UIOperationResult>;
   runSlots: (
     slots?: SlotId[],
@@ -182,6 +184,10 @@ export function useEvaluatorPlaygroundAgent(
             withWriteLock((current) => current.configureWorkspace(input)),
         },
         {
+          descriptor: readFilterHelp,
+          handler: () => latest.current.readFilterHelp(),
+        },
+        {
           descriptor: select,
           handler: (input) =>
             withWriteLock((current) => current.selectSlot(input)),
@@ -207,10 +213,11 @@ export function useEvaluatorPlaygroundAgent(
         },
         {
           descriptor: save,
-          handler: ({ slot, expectedRevision }) =>
+          handler: ({ slot, expectedRevision, ...options }) =>
             withWriteLock(
               async (current) =>
-                current.getSlot(slot)?.save(expectedRevision) ?? NOT_MOUNTED
+                current.getSlot(slot)?.save(expectedRevision, options) ??
+                NOT_MOUNTED
             ),
         },
         {
