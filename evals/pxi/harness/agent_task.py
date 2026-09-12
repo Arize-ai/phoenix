@@ -611,7 +611,7 @@ async def run_pxi_example(
             headless=False,
             model=model,
             docs_mcp_server=docs_mcp_server,
-            phoenix_mcp_server=eval_phoenix_mcp_server(_OFFLINE_DB),
+            phoenix_mcp_server=eval_phoenix_mcp_server(),
             schema=eval_graphql_schema(),
             build_graphql_context=unavailable_graphql_context,
             tracer_provider=tracer_provider,

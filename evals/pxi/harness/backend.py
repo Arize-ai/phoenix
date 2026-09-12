@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Any
 
@@ -14,6 +16,7 @@ from pydantic_ai.exceptions import CallDeferred
 from pydantic_ai.messages import ToolCallPart
 from pydantic_ai.models import ModelRequestContext
 from pydantic_ai.tools import ToolDefinition
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.server.agents.types import AgentDependencies
 from phoenix.server.api.context import Context
@@ -34,8 +37,14 @@ def unavailable_graphql_context() -> Context:
     raise RuntimeError("PXI eval backend calls must be deferred; no application data is provided.")
 
 
+@asynccontextmanager
+async def _unavailable_db_session() -> AsyncIterator[AsyncSession]:
+    raise RuntimeError("PXI eval backend calls must be deferred; no application data is provided.")
+    yield
+
+
 @lru_cache(maxsize=1)
-def eval_phoenix_mcp_server(db: DbSessionFactory) -> FastMCP:
+def eval_phoenix_mcp_server() -> FastMCP:
     """Share the production read-only catalog and skill server within a worker.
 
     Routes supply schemas only. No app lifespan, database, or sandbox worker
@@ -49,7 +58,7 @@ def eval_phoenix_mcp_server(db: DbSessionFactory) -> FastMCP:
         code_mode=True,
         monty_consumer="agent",
         read_only=True,
-        db=db,
+        db=DbSessionFactory(db=_unavailable_db_session, dialect="sqlite"),
         skills_roots=PXI_SKILLS_ROOTS,
     )
     return server
