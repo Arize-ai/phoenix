@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bcca8c5003354fb518c3d5c577a3b2ec>>
+ * @generated SignedSource<<22c978a5f43262f6dc2a13a53d43f843>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,6 @@ export type EvaluatorPlaygroundProjectSampleQuery$variables = {
   filterCondition?: string | null;
   first: number;
   projectId: string;
-  start: string;
 };
 export type EvaluatorPlaygroundProjectSampleQuery$data = {
   readonly node: {
@@ -57,33 +56,28 @@ v2 = {
   "kind": "LocalArgument",
   "name": "projectId"
 },
-v3 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "start"
-},
-v4 = [
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v5 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v7 = {
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -106,17 +100,6 @@ v7 = {
             "col": "startTime",
             "dir": "desc"
           }
-        },
-        {
-          "fields": [
-            {
-              "kind": "Variable",
-              "name": "start",
-              "variableName": "start"
-            }
-          ],
-          "kind": "ObjectValue",
-          "name": "timeRange"
         }
       ],
       "concreteType": "SpanConnection",
@@ -140,8 +123,8 @@ v7 = {
               "name": "node",
               "plural": false,
               "selections": [
+                (v4/*:: as any*/),
                 (v5/*:: as any*/),
-                (v6/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -157,8 +140,8 @@ v7 = {
                   "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
+                    (v4/*:: as any*/),
                     (v5/*:: as any*/),
-                    (v6/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -208,8 +191,7 @@ return {
     "argumentDefinitions": [
       (v0/*:: as any*/),
       (v1/*:: as any*/),
-      (v2/*:: as any*/),
-      (v3/*:: as any*/)
+      (v2/*:: as any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -217,13 +199,13 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*:: as any*/)
+          (v6/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -236,15 +218,14 @@ return {
     "argumentDefinitions": [
       (v2/*:: as any*/),
       (v1/*:: as any*/),
-      (v0/*:: as any*/),
-      (v3/*:: as any*/)
+      (v0/*:: as any*/)
     ],
     "kind": "Operation",
     "name": "EvaluatorPlaygroundProjectSampleQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v4/*:: as any*/),
+        "args": (v3/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -257,24 +238,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v7/*:: as any*/),
-          (v5/*:: as any*/)
+          (v6/*:: as any*/),
+          (v4/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "9118608435c74c2a94b441176b3fd77a",
+    "cacheID": "8c97e571e2506228d8c86a055219de51",
     "id": null,
     "metadata": {},
     "name": "EvaluatorPlaygroundProjectSampleQuery",
     "operationKind": "query",
-    "text": "query EvaluatorPlaygroundProjectSampleQuery(\n  $projectId: ID!\n  $first: Int!\n  $filterCondition: String\n  $start: DateTime!\n) {\n  node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition, timeRange: {start: $start}) {\n        edges {\n          node {\n            id\n            name\n            evaluationContext\n            spanAnnotations {\n              id\n              name\n              annotatorKind\n              label\n              score\n              explanation\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorPlaygroundProjectSampleQuery(\n  $projectId: ID!\n  $first: Int!\n  $filterCondition: String\n) {\n  node(id: $projectId) {\n    __typename\n    ... on Project {\n      spans(first: $first, sort: {col: startTime, dir: desc}, filterCondition: $filterCondition) {\n        edges {\n          node {\n            id\n            name\n            evaluationContext\n            spanAnnotations {\n              id\n              name\n              annotatorKind\n              label\n              score\n              explanation\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "788a8d2de1620d177cc910dd9d76777a";
+(node as any).hash = "31ff12650e969a211f766a1bada6dc74";
 
 export default node;

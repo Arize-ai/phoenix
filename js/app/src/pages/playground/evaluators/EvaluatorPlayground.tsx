@@ -18,7 +18,6 @@ import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { CredentialsDropdown } from "@phoenix/pages/playground/PlaygroundCredentialsDropdown";
-import { DEFAULT_TIME_WINDOW_PRESET_ID } from "@phoenix/pages/project/evaluators/projectEvaluatorTimeWindow";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import { EvaluatorPlaygroundFrame } from "./EvaluatorPlaygroundFrame";
@@ -106,7 +105,7 @@ export default function EvaluatorPlayground() {
   // The segmented control's choice before a dataset or project is picked.
   const [pendingKind, setPendingKind] =
     useState<EvaluatorPlaygroundSourceKind>("dataset");
-  const { sourceKind, filterCondition, windowPreset } = readPlaygroundScope(
+  const { sourceKind, filterCondition } = readPlaygroundScope(
     source,
     pendingKind
   );
@@ -119,7 +118,6 @@ export default function EvaluatorPlayground() {
   const sample = useEvaluatorPlaygroundSample({
     source,
     sourceKind,
-    windowPreset,
     sampleSize,
   });
 
@@ -401,7 +399,6 @@ export default function EvaluatorPlayground() {
             <EvaluatorPlaygroundSourceStrip
               source={source}
               sourceKind={sourceKind}
-              sampleSize={sampleSize}
               isDisabled={isRunning}
               onSourceKindChange={(kind) => {
                 setPendingKind(kind);
@@ -409,13 +406,6 @@ export default function EvaluatorPlayground() {
                 if (source && source.kind !== kind) changeSource(null);
               }}
               onSourceChange={changeSource}
-              onSampleSizeChange={(size) => {
-                void expectedOutputQueue.flushNow();
-                changeParam(
-                  "sampleSize",
-                  size === DEFAULT_SAMPLE_SIZE ? null : String(size)
-                );
-              }}
               onFilterValidityChange={setIsFilterValid}
               onReload={reloadSample}
             >
@@ -432,6 +422,15 @@ export default function EvaluatorPlayground() {
                 />
               ) : null}
               <EvaluatorPlaygroundSettingsButton
+                sampleSize={sampleSize}
+                rowNoun={sourceKind === "project" ? "spans" : "examples"}
+                onSampleSizeChange={(size) => {
+                  void expectedOutputQueue.flushNow();
+                  changeParam(
+                    "sampleSize",
+                    size === DEFAULT_SAMPLE_SIZE ? null : String(size)
+                  );
+                }}
                 hideExpectedAnnotations={hideExpectedAnnotations}
                 onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
                 isDisabled={isRunning}
@@ -445,7 +444,6 @@ export default function EvaluatorPlayground() {
                 source={source}
                 sampleKey={sampleKey}
                 sampleSize={sampleSize}
-                startIso={sample.timeWindow.startIso}
                 onLoad={sample.onLoad}
               />
             </Suspense>
@@ -519,7 +517,6 @@ function readPlaygroundScope(
   return {
     sourceKind: source?.kind ?? pendingKind,
     filterCondition: project?.filterCondition ?? "",
-    windowPreset: project?.window ?? DEFAULT_TIME_WINDOW_PRESET_ID,
   };
 }
 
@@ -590,7 +587,7 @@ function EvaluatorPlaygroundEmptySource({
           <EmptyState
             graphic={<EmptyStateGraphic variant="project" />}
             title="Select a project"
-            description="Evaluators run over the project's most recent spans that match the filter in the time window. Each span's output is the response being judged; use a slot's input mapping to judge another field."
+            description="Evaluators run over the project's most recent spans that match the filter. Each span's output is the response being judged; use a slot's input mapping to judge another field."
           />
         ) : (
           <EmptyState

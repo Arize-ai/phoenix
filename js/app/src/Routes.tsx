@@ -928,7 +928,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment with prompts or compare LLM and code evaluators on a dataset sample or on a project's recent spans. Evaluator mode supports mode=evaluators, repeatable evaluatorSlot (A-D), evaluatorA-evaluatorD, datasetEvaluatorA-datasetEvaluatorD or projectEvaluatorA-projectEvaluatorD, datasetId, splitId, projectId, filterCondition (span filter), window (1h, 24h, 7d, 30d), sampleSize, and resultFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                "Experiment with prompts or compare LLM and code evaluators on a dataset sample or on a project's recent spans. Evaluator mode supports mode=evaluators, repeatable evaluatorSlot (A-D), evaluatorA-evaluatorD, datasetEvaluatorA-datasetEvaluatorD or projectEvaluatorA-projectEvaluatorD, datasetId, splitId, projectId, filterCondition (span filter), sampleSize, and resultFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
             },
             navigation: {
               section: "Pages",
@@ -946,7 +946,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment with prompts or compare LLM and code evaluators on a dataset sample or on a project's recent spans. Evaluator mode supports mode=evaluators, repeatable evaluatorSlot (A-D), evaluatorA-evaluatorD, datasetEvaluatorA-datasetEvaluatorD or projectEvaluatorA-projectEvaluatorD, datasetId, splitId, projectId, filterCondition (span filter), window (1h, 24h, 7d, 30d), sampleSize, and resultFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                  "Experiment with prompts or compare LLM and code evaluators on a dataset sample or on a project's recent spans. Evaluator mode supports mode=evaluators, repeatable evaluatorSlot (A-D), evaluatorA-evaluatorD, datasetEvaluatorA-datasetEvaluatorD or projectEvaluatorA-projectEvaluatorD, datasetId, splitId, projectId, filterCondition (span filter), sampleSize, and resultFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
               },
             }}
           />

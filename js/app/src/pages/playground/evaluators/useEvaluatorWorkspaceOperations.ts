@@ -415,7 +415,6 @@ function toReadSource(
         kind: "project",
         projectId: source.projectId,
         filterCondition: source.filterCondition,
-        timeWindow: source.window,
         evaluationTarget: "SPAN",
       };
 }

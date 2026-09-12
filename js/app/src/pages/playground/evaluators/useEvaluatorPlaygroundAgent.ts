@@ -49,7 +49,6 @@ export type EvaluatorWorkspaceReadSource =
       kind: "project";
       projectId: string;
       filterCondition: string;
-      timeWindow: string;
       evaluationTarget: "SPAN";
     };
 

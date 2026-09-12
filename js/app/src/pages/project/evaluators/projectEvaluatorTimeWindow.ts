@@ -1,9 +1,7 @@
 import invariant from "tiny-invariant";
 
 /**
- * How far back a project evaluator's matching-record preview looks. Shared by
- * the project evaluator scope panel and the evaluator playground's project
- * source, which persists the preset id in the URL.
+ * How far back a project evaluator's matching-record preview looks.
  */
 export const TIME_WINDOW_PRESETS = [
   {
@@ -37,8 +35,6 @@ export const TIME_WINDOW_PRESETS = [
 ] as const;
 
 export type TimeWindowPresetId = (typeof TIME_WINDOW_PRESETS)[number]["id"];
-
-export const DEFAULT_TIME_WINDOW_PRESET_ID: TimeWindowPresetId = "7d";
 
 export const isTimeWindowPresetId = (
   value: string

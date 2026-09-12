@@ -21,7 +21,6 @@ const project: EvaluatorPlaygroundSource = {
   kind: "project",
   projectId: "p1",
   filterCondition: "span_kind == 'LLM'",
-  window: "1h",
 };
 
 describe("readEvaluatorPlaygroundSource", () => {
@@ -37,35 +36,21 @@ describe("readEvaluatorPlaygroundSource", () => {
     });
   });
 
-  it("reads a project, defaulting the window and the filter", () => {
+  it("reads a project, defaulting the filter", () => {
     expect(
       readEvaluatorPlaygroundSource(new URLSearchParams("projectId=p1"))
-    ).toEqual({
-      kind: "project",
-      projectId: "p1",
-      filterCondition: "",
-      window: "7d",
-    });
+    ).toEqual({ kind: "project", projectId: "p1", filterCondition: "" });
     expect(
       readEvaluatorPlaygroundSource(
         new URLSearchParams(
-          "projectId=p1&filterCondition=span_kind+%3D%3D+'LLM'&window=1h"
+          "projectId=p1&filterCondition=span_kind+%3D%3D+'LLM'"
         )
       )
     ).toEqual({
       kind: "project",
       projectId: "p1",
       filterCondition: "span_kind == 'LLM'",
-      window: "1h",
     });
-  });
-
-  it("falls back to the default window for an unknown preset", () => {
-    expect(
-      readEvaluatorPlaygroundSource(
-        new URLSearchParams("projectId=p1&window=1y")
-      )
-    ).toMatchObject({ window: "7d" });
   });
 
   it("prefers the dataset when a URL names both, and is null for neither", () => {
@@ -85,7 +70,7 @@ describe("writeEvaluatorPlaygroundSource", () => {
     );
     writeEvaluatorPlaygroundSource(
       params,
-      { kind: "project", projectId: "p1", filterCondition: "", window: "7d" },
+      { kind: "project", projectId: "p1", filterCondition: "" },
       readEvaluatorPlaygroundSource(params)
     );
     expect(params.toString()).toBe(
@@ -93,26 +78,26 @@ describe("writeEvaluatorPlaygroundSource", () => {
     );
   });
 
-  it("omits the default window and an empty filter", () => {
+  it("omits an empty filter", () => {
     const params = new URLSearchParams();
     writeEvaluatorPlaygroundSource(
       params,
-      {
-        kind: "project",
-        projectId: "p1",
-        filterCondition: "name == 'x'",
-        window: "24h",
-      },
+      { kind: "project", projectId: "p1", filterCondition: "name == 'x'" },
       null
     );
     expect(Object.fromEntries(params)).toEqual({
       projectId: "p1",
       filterCondition: "name == 'x'",
-      window: "24h",
     });
+    writeEvaluatorPlaygroundSource(
+      params,
+      { kind: "project", projectId: "p1", filterCondition: "" },
+      readEvaluatorPlaygroundSource(params)
+    );
+    expect(Object.fromEntries(params)).toEqual({ projectId: "p1" });
   });
 
-  it("keeps slot bindings when only the filter or window changes", () => {
+  it("keeps slot bindings when only the filter changes", () => {
     const params = new URLSearchParams("projectId=p1&projectEvaluatorA=pe1");
     const previous = readEvaluatorPlaygroundSource(params);
     writeEvaluatorPlaygroundSource(
@@ -121,12 +106,10 @@ describe("writeEvaluatorPlaygroundSource", () => {
         kind: "project",
         projectId: "p1",
         filterCondition: "span_kind == 'LLM'",
-        window: "1h",
       },
       previous
     );
     expect(params.get("projectEvaluatorA")).toBe("pe1");
-    expect(params.get("window")).toBe("1h");
   });
 
   it("clears bindings when the dataset changes, and clears everything for null", () => {
@@ -169,7 +152,6 @@ describe("slot bindings and slot source", () => {
         kind: "project",
         projectId: "p1",
         filterCondition: "",
-        window: "7d",
       })
     ).toEqual({ kind: "project", projectId: "p1" });
     expect(toEvaluatorSlotSource(null)).toBeNull();
@@ -184,7 +166,6 @@ describe("getConfiguredSource", () => {
         kind: "project",
         projectId: "p1",
         filterCondition: "",
-        window: "7d",
       },
     });
     expect(getConfiguredSource(project, { datasetId: "d2" })).toEqual({
@@ -202,10 +183,11 @@ describe("getConfiguredSource", () => {
     });
   });
 
-  it("keeps the filter and window when the same project is named again", () => {
-    expect(
-      getConfiguredSource(project, { projectId: "p1", timeWindow: "30d" })
-    ).toEqual({ ok: true, source: { ...project, window: "30d" } });
+  it("keeps the filter when the same project is named again", () => {
+    expect(getConfiguredSource(project, { projectId: "p1" })).toEqual({
+      ok: true,
+      source: project,
+    });
     expect(getConfiguredSource(dataset, { datasetId: "d1" })).toEqual({
       ok: true,
       source: dataset,
@@ -230,7 +212,7 @@ describe("getConfiguredSource", () => {
     expect(
       getConfiguredSource(dataset, { filterCondition: "name == 'x'" })
     ).toMatchObject({ ok: false });
-    expect(getConfiguredSource(null, { timeWindow: "1h" })).toMatchObject({
+    expect(getConfiguredSource(null, { filterCondition: "" })).toMatchObject({
       ok: false,
     });
   });

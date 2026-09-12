@@ -1,15 +1,10 @@
-import {
-  DEFAULT_TIME_WINDOW_PRESET_ID,
-  isTimeWindowPresetId,
-  type TimeWindowPresetId,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTimeWindow";
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 import { EVALUATOR_SLOT_IDS, type SlotId } from "./evaluatorSlotTypes";
 
 /**
  * Where the playground's rows come from: the first examples of a dataset, or
- * the most recent spans of a project that match a filter inside a time window.
+ * the most recent spans of a project that match a filter.
  * Traces and sessions are follow-ups; a target would branch here.
  */
 export type EvaluatorPlaygroundSource =
@@ -24,7 +19,6 @@ export type EvaluatorPlaygroundSource =
       projectId: string;
       /** Only an applied (validated) filter is stored; an empty string is no filter. */
       filterCondition: string;
-      window: TimeWindowPresetId;
     };
 
 export type EvaluatorPlaygroundSourceKind = EvaluatorPlaygroundSource["kind"];
@@ -35,7 +29,7 @@ export type EvaluatorSlotSource =
   | { kind: "project"; projectId: string };
 
 const DATASET_PARAMS = ["datasetId", "splitId", "datasetVersionId"] as const;
-const PROJECT_PARAMS = ["projectId", "filterCondition", "window"] as const;
+const PROJECT_PARAMS = ["projectId", "filterCondition"] as const;
 
 /** The URL param that binds a slot to a saved evaluator on the source. */
 export const SLOT_BINDING_PARAMS: Record<
@@ -82,19 +76,12 @@ export function readEvaluatorPlaygroundSource(
     };
   const projectId = params.get("projectId");
 
-  if (projectId) {
-    const window = params.get("window");
-
+  if (projectId)
     return {
       kind: "project",
       projectId,
       filterCondition: params.get("filterCondition") ?? "",
-      window:
-        window && isTimeWindowPresetId(window)
-          ? window
-          : DEFAULT_TIME_WINDOW_PRESET_ID,
     };
-  }
 
   return null;
 }
@@ -123,9 +110,6 @@ export function writeEvaluatorPlaygroundSource(
 
     if (next.filterCondition)
       params.set("filterCondition", next.filterCondition);
-
-    if (next.window !== DEFAULT_TIME_WINDOW_PRESET_ID)
-      params.set("window", next.window);
   }
 
   if (getSourceRootId(next) !== getSourceRootId(previous))
@@ -147,7 +131,6 @@ export type ConfigureEvaluatorPlaygroundSourceInput = {
   splitIds?: string[];
   projectId?: string | null;
   filterCondition?: string;
-  timeWindow?: TimeWindowPresetId;
 };
 
 /**
@@ -169,17 +152,13 @@ export function getConfiguredSource(
     source = { ...source, splitIds: input.splitIds };
   }
 
-  if (input.filterCondition !== undefined || input.timeWindow) {
+  if (input.filterCondition !== undefined) {
     if (source?.kind !== "project")
       return {
         ok: false,
-        error: "filterCondition and timeWindow apply to a project source.",
+        error: "filterCondition applies to a project source.",
       };
-    source = {
-      ...source,
-      filterCondition: input.filterCondition ?? source.filterCondition,
-      window: input.timeWindow ?? source.window,
-    };
+    source = { ...source, filterCondition: input.filterCondition };
   }
 
   return { ok: true, source };
@@ -202,7 +181,6 @@ function getConfiguredRoot(
       kind: "project",
       projectId: input.projectId,
       filterCondition: same?.filterCondition ?? "",
-      window: same?.window ?? DEFAULT_TIME_WINDOW_PRESET_ID,
     };
   }
 

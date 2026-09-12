@@ -4,8 +4,6 @@ import { defineUIOperation } from "../types";
 
 const slot = z.enum(["A", "B", "C", "D"]);
 
-const timeWindow = z.enum(["1h", "24h", "7d", "30d"]);
-
 const empty = z.strictObject({});
 
 const availability = {
@@ -92,7 +90,7 @@ export const readEvaluatorPlaygroundOperation = defineUIOperation({
   operationKind: "read",
   availability,
   description:
-    "Read evaluator mode: the source (a dataset with splits, or a project with a span filter and time window), sample size, slot summaries, run status, expected outputs and paginated comparison rows. Rows are dataset examples or spans (span id as id and revisionId). Runs are temporary previews, not prompt experiments. All slots are peers with independent expected outputs. Use readSlot for editable draft details. No credentials are returned.",
+    "Read evaluator mode: the source (a dataset with splits, or a project with a span filter), sample size, slot summaries, run status, expected outputs and paginated comparison rows. Rows are dataset examples or spans (span id as id and revisionId). Runs are temporary previews, not prompt experiments. All slots are peers with independent expected outputs. Use readSlot for editable draft details. No credentials are returned.",
   inputSchema: z.strictObject({
     offset: z.number().int().min(0).default(0),
     limit: z.number().int().min(1).max(50).default(20),
@@ -104,7 +102,7 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Configure evaluator mode's source and view: a dataset (Relay node ID) with splits, or a project (Relay node ID) with a span filterCondition and timeWindow — rows are then the most recent matching spans. Setting projectId clears the dataset and vice versa; changing the source or sample size clears displayed results. Also sets sample size, visible slots and the result filter. Removing an unsaved slot requires discardChanges. Does not configure prompt playground or run anything.",
+    "Configure evaluator mode's source and view: a dataset (Relay node ID) with splits, or a project (Relay node ID) with a span filterCondition — rows are then the most recent matching spans. Setting projectId clears the dataset and vice versa; changing the source or sample size clears displayed results. Also sets sample size, visible slots and the result filter. Removing an unsaved slot requires discardChanges. Does not configure prompt playground or run anything.",
   inputSchema: z.strictObject({
     datasetId: z.string().nullable().optional(),
     splitIds: z.array(z.string()).optional(),
@@ -113,7 +111,6 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
       .string()
       .optional()
       .describe("Span filter DSL for a project source; empty for every span."),
-    timeWindow: timeWindow.optional(),
     sampleSize: z.number().int().min(1).max(500).optional(),
     slots: z.array(slot).min(1).max(4).optional(),
     filter: z

@@ -123,11 +123,11 @@ instances and `ui.evaluators.*` operates the separate form dialogs, and neither 
    the exact input shapes with `search_browser_actions`.
 2. Call `ui.evaluatorPlayground.read` for the source, sample size, visible slots, run status,
    expected outputs, and paginated rows. The source is a dataset with splits, or a project whose
-   rows are the most recent spans matching a span `filterCondition` inside a `timeWindow`
-   (`1h`, `24h`, `7d`, `30d`); a span row has the same `input`/`output`/`metadata` shape as an
-   example and uses the span id as both `id` and `revisionId`. Use
-   `ui.evaluatorPlayground.configure` to set the dataset (by Relay node ID) and splits, or the
-   project (by Relay node ID) with its filter and window — setting one kind clears the other —
+   rows are the most recent spans matching a span `filterCondition`; a span row has the same
+   `input`/`output`/`metadata` shape as an example and uses the span id as both `id` and
+   `revisionId`. Use `ui.evaluatorPlayground.configure` to set the dataset (by Relay node ID)
+   and splits, or the project (by Relay node ID) with its filter — setting one kind clears the
+   other —
    plus the sample size, the visible slots (up to four, `A`–`D`), and the result filter. Changing
    the source or sample clears displayed results.
 3. Load each slot's source with `ui.evaluatorPlayground.selectSlot`: a saved global, dataset or

@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import { makeTimeWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorTimeWindow";
-import type { TimeWindowPresetId } from "@phoenix/pages/project/evaluators/projectEvaluatorTimeWindow";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 
 import { EvaluatorPlaygroundProjectSample } from "./EvaluatorPlaygroundProjectSample";
@@ -24,30 +22,15 @@ const EMPTY_EXAMPLES: SampleExample[] = [];
 export function useEvaluatorPlaygroundSample({
   source,
   sourceKind,
-  windowPreset,
   sampleSize,
 }: {
   source: EvaluatorPlaygroundSource | null;
   sourceKind: EvaluatorPlaygroundSourceKind;
-  windowPreset: TimeWindowPresetId;
   sampleSize: number;
 }) {
+  // Bumped by reload so the same scope fetches again.
   const [sampleGeneration, setSampleGeneration] = useState(0);
-
-  // The window's start is fixed when the preset is chosen (or the sample
-  // reloaded) so re-renders do not shift it and refetch. A dataset ignores it.
-  const [timeWindow, setTimeWindow] = useState(() =>
-    makeTimeWindow(windowPreset)
-  );
-
-  if (timeWindow.presetId !== windowPreset)
-    setTimeWindow(makeTimeWindow(windowPreset));
-
-  const sampleScope = JSON.stringify([
-    sampleGeneration,
-    source,
-    timeWindow.startIso,
-  ]);
+  const sampleScope = JSON.stringify([sampleGeneration, source]);
 
   const sampleKey = JSON.stringify([sampleScope, sampleSize]);
   const [sample, setSample] = useState<LoadedSample | null>(null);
@@ -77,7 +60,6 @@ export function useEvaluatorPlaygroundSample({
     displayedExamples,
     examples,
     sampleContext: getSampleContext(sourceKind, displayedExamples),
-    timeWindow,
     getLatest: () => latestSample.current,
     onLoad: (loaded: SampleExample[]) =>
       setSample({ key: sampleKey, scope: sampleScope, examples: loaded }),
@@ -87,11 +69,8 @@ export function useEvaluatorPlaygroundSample({
           ? { ...previous, examples: update(previous.examples) }
           : previous
       ),
-    /** Loads the sample again, moving a project's window up to now. */
-    reload: () => {
-      setTimeWindow(makeTimeWindow(windowPreset));
-      setSampleGeneration((generation) => generation + 1);
-    },
+    /** Loads the sample again: the latest examples, or the newest spans. */
+    reload: () => setSampleGeneration((generation) => generation + 1),
   };
 }
 
@@ -134,13 +113,11 @@ export function EvaluatorPlaygroundSampleLoader({
   source,
   sampleKey,
   sampleSize,
-  startIso,
   onLoad,
 }: {
   source: EvaluatorPlaygroundSource;
   sampleKey: string;
   sampleSize: number;
-  startIso: string;
   onLoad: (rows: SampleExample[]) => void;
 }) {
   return source.kind === "dataset" ? (
@@ -158,7 +135,6 @@ export function EvaluatorPlaygroundSampleLoader({
       projectId={source.projectId}
       first={sampleSize}
       filterCondition={source.filterCondition}
-      startIso={startIso}
       onLoad={onLoad}
     />
   );

@@ -7,7 +7,7 @@ import type { SampleExample } from "./evaluatorResults";
 
 /**
  * The project counterpart of `EvaluatorPlaygroundSample`: the most recent spans
- * matching the filter inside the time window, read through their evaluation
+ * matching the filter, read through their evaluation
  * context so each row has an example's shape. Span target only; a trace or
  * session target would query a different connection here.
  */
@@ -16,7 +16,6 @@ export function EvaluatorPlaygroundProjectSample({
   projectId,
   first,
   filterCondition,
-  startIso,
   onLoad,
 }: {
   fetchKey: string;
@@ -25,8 +24,6 @@ export function EvaluatorPlaygroundProjectSample({
   first: number;
   /** An applied filter, or an empty string for every span. */
   filterCondition: string;
-  /** The start of the time window, fixed when the window was chosen. */
-  startIso: string;
   onLoad: (rows: SampleExample[]) => void;
 }) {
   const data = useLazyLoadQuery<EvaluatorPlaygroundProjectSampleQuery>(
@@ -35,7 +32,6 @@ export function EvaluatorPlaygroundProjectSample({
         $projectId: ID!
         $first: Int!
         $filterCondition: String
-        $start: DateTime!
       ) {
         node(id: $projectId) {
           ... on Project {
@@ -43,7 +39,6 @@ export function EvaluatorPlaygroundProjectSample({
               first: $first
               sort: { col: startTime, dir: desc }
               filterCondition: $filterCondition
-              timeRange: { start: $start }
             ) {
               edges {
                 node {
@@ -69,7 +64,6 @@ export function EvaluatorPlaygroundProjectSample({
       projectId,
       first,
       filterCondition: filterCondition.trim() || null,
-      start: startIso,
     },
     { fetchPolicy: "network-only", fetchKey }
   );
