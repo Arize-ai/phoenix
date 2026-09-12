@@ -31,6 +31,43 @@ This package provides a TypeScript client for the [Arize Phoenix](https://github
 npm install @arizeai/phoenix-client
 ```
 
+## Runtime Support
+
+The core client and data-oriented entry points work in Node.js, browsers,
+React Native, and other runtimes that provide the standard Fetch APIs
+(`fetch`, `Request`, `Response`, and `Headers`):
+
+- `@arizeai/phoenix-client`
+- `@arizeai/phoenix-client/datasets`
+- `@arizeai/phoenix-client/prompts`
+- `@arizeai/phoenix-client/projects`
+- `@arizeai/phoenix-client/sessions`
+- `@arizeai/phoenix-client/spans`
+- `@arizeai/phoenix-client/traces`
+
+In non-Node runtimes, filesystem-backed `.env.phoenix` discovery is disabled.
+Pass client settings explicitly and provide a standards-compliant `fetch`
+implementation when the runtime does not expose one globally:
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient({
+  getEnvironmentOptions: () => ({}),
+  options: {
+    baseUrl: "https://phoenix.example.com",
+    fetch: globalThis.fetch,
+  },
+});
+```
+
+The following entry points are intentionally Node-only because they integrate
+with Node test runners or tracing infrastructure:
+
+- `@arizeai/phoenix-client/experiments`
+- `@arizeai/phoenix-client/jest` and `/jest/reporter`
+- `@arizeai/phoenix-client/vitest` and `/vitest/reporter`
+
 ## Configuration
 
 The client will automatically read environment variables from your environment, if available.

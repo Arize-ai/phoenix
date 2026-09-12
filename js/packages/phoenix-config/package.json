@@ -27,9 +27,14 @@
   "types": "dist/src/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/src/index.d.ts",
       "browser": "./dist/browser/index.js",
-      "import": "./dist/esm/index.js",
-      "require": "./dist/src/index.js"
+      "react-native": "./dist/browser/index.js",
+      "node": {
+        "import": "./dist/esm/index.js",
+        "require": "./dist/src/index.js"
+      },
+      "default": "./dist/browser/index.js"
     }
   },
   "scripts": {
