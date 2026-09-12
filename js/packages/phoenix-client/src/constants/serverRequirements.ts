@@ -131,6 +131,27 @@ export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
   minServerVersion: [15, 0, 0],
 };
 
+export const CREATE_DATASET_SPLIT: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/datasets/{dataset_identifier}/splits",
+  minServerVersion: [19, 20, 0],
+};
+
+export const UPDATE_DATASET_SPLIT: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+  minServerVersion: [19, 20, 0],
+};
+
+export const DELETE_DATASET_SPLIT: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+  minServerVersion: [19, 20, 0],
+};
+
 export const ADD_TRACE_NOTE_IDENTIFIER: ParameterRequirement = {
   kind: "parameter",
   parameterName: "identifier",
@@ -247,6 +268,9 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_TRACES_FILTERS,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
+  CREATE_DATASET_SPLIT,
+  UPDATE_DATASET_SPLIT,
+  DELETE_DATASET_SPLIT,
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
