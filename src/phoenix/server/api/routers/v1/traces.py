@@ -442,20 +442,26 @@ async def post_traces(
     content_encoding: Optional[str] = Header(default=None),
     x_project_name: Optional[str] = Header(default=None),
 ) -> Response:
-    if content_type != "application/x-protobuf":
+    # HTTP media types are case-insensitive and may include parameters. Some
+    # fetch implementations append a charset parameter to binary requests.
+    normalized_content_type = (
+        content_type.split(";", 1)[0].strip().lower() if content_type else None
+    )
+    if normalized_content_type != "application/x-protobuf":
         raise HTTPException(
             detail=f"Unsupported content type: {content_type}",
             status_code=415,
         )
-    if content_encoding and content_encoding not in ("gzip", "deflate"):
+    normalized_content_encoding = content_encoding.strip().lower() if content_encoding else None
+    if normalized_content_encoding and normalized_content_encoding not in ("gzip", "deflate"):
         raise HTTPException(
             detail=f"Unsupported content encoding: {content_encoding}",
             status_code=415,
         )
     body = await request.body()
-    if content_encoding == "gzip":
+    if normalized_content_encoding == "gzip":
         body = await run_in_threadpool(gzip.decompress, body)
-    elif content_encoding == "deflate":
+    elif normalized_content_encoding == "deflate":
         body = await run_in_threadpool(zlib.decompress, body)
     req = ExportTraceServiceRequest()
     try:
