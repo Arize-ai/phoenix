@@ -20,6 +20,8 @@ import { JSONBlock } from "@phoenix/components/code";
 import { CellTop } from "@phoenix/components/table";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
+import { truncateJsonPreview } from "./jsonPreview";
+
 /** The example's own fields, each an optional column in table order. */
 export const EXAMPLE_FIELDS = ["input", "output", "metadata"] as const;
 
@@ -79,6 +81,9 @@ export function ExampleFieldCell({
     null,
     2
   );
+  // The collapsed cell shows a screenful; the popover renders the whole value
+  // only when opened, so a table of large spans stays responsive.
+  const preview = truncateJsonPreview(json);
 
   return (
     <Flex direction="column" height="100%">
@@ -121,7 +126,8 @@ export function ExampleFieldCell({
       <ExpandableContent height={EXAMPLE_FIELD_HEIGHT}>
         <div css={exampleFieldContentCSS}>
           <JSONBlock
-            value={json}
+            value={preview.text}
+            lint={!preview.isTruncated}
             basicSetup={{ lineNumbers: false, foldGutter: false }}
           />
         </div>
