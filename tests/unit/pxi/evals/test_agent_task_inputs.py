@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
+from graphql import build_schema, parse, validate
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ToolReturnPart, UserPromptPart
 
@@ -16,6 +18,7 @@ from evals.pxi.harness.agent_task import (
     _build_run_inputs,
     _prepare_transcript,
 )
+from evals.pxi.harness.backend import eval_graphql_schema
 from evals.pxi.harness.transcript import fixture_messages
 from phoenix.server.agents.capabilities.tools.internal.bash import BashToolResult
 
@@ -153,9 +156,20 @@ def test_all_fixtures_use_current_transcript_and_bash_result_contracts(path: Pat
         # Public message validation and the same conversion production uses.
         _, history = _build_run_inputs(inp)
         assert history, example["id"]
+        commands = {
+            part["toolCallId"]: part["input"].get("command")
+            for message in fixture_messages(inp["messages"])
+            for part in message.model_dump(by_alias=True)["parts"]
+            if part["type"] == "tool-bash"
+        }
         for message in history:
             for part in message.parts:
                 if isinstance(part, ToolReturnPart) and part.tool_name == "bash":
                     output = TypeAdapter(BashToolResult).validate_python(part.content)
+                    assert output["command"] == commands[part.tool_call_id]
+                    argv = shlex.split(output["command"])
+                    if argv[0] == "phoenix-gql" and argv[1].startswith(("{", "query ")):
+                        schema = build_schema(eval_graphql_schema().as_str())
+                        assert not validate(schema, parse(argv[1])), example["id"]
                     assert output["stdoutBytes"] == len(output["stdout"].encode())
                     assert output["stderrBytes"] == len(output["stderr"].encode())

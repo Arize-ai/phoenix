@@ -213,12 +213,12 @@ examples:
               name: bash
               args:
                 summary: Read the requested Phoenix data.
-                command: phoenix-gql query.graphql --data-only
+                command: phoenix-gql query.graphql
         - role: tool
           tool_call_id: bash_call
           name: bash
           content:
-            command: phoenix-gql query.graphql --data-only
+            command: phoenix-gql query.graphql
             stdout: |
               {"data":{"node":{"name":"pxi_dev","id":"UHJvamVjdDo0Nw==","spans":{"edges":[{"node":{"name":"pxiAgent Turn","cumulativeTokenCountTotal":617245,"trace":{"id":"VHJhY2U6NDQy","traceId":"66a8042a448b757ed73e3ab80dd83db1"}}}]}}}}
             stderr: ''
