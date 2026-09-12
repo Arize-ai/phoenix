@@ -23,6 +23,7 @@ from phoenix.client.constants.server_requirements import (
     DELETE_SESSIONS,
     GET_SESSION,
     LIST_PROJECT_SESSIONS,
+    LIST_SESSIONS_FILTER_EXPRESSION,
 )
 from phoenix.client.utils.annotation_helpers import (
     _chunk_session_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
@@ -140,6 +141,7 @@ class Sessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        filter: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[v1.SessionData]:
         """List sessions for a project.
@@ -150,6 +152,8 @@ class Sessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            filter: Session DSL expression. Empty strings do not filter.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -157,6 +161,8 @@ class Sessions:
         """
 
         self._guard.require(LIST_PROJECT_SESSIONS)
+        if filter:
+            self._guard.require(LIST_SESSIONS_FILTER_EXPRESSION)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -168,6 +174,8 @@ class Sessions:
         next_cursor: Optional[str] = None
         while True:
             params: dict[str, Any] = {}
+            if filter:
+                params["filter"] = filter
             if next_cursor:
                 params["cursor"] = next_cursor
             if limit is not None:
@@ -238,6 +246,7 @@ class Sessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        filter: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
@@ -248,6 +257,8 @@ class Sessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            filter: Session DSL expression. Empty strings do not filter.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -256,7 +267,11 @@ class Sessions:
         import pandas as pd
 
         sessions = self.list(
-            project_id=project_id, project_name=project_name, limit=limit, timeout=timeout
+            project_id=project_id,
+            project_name=project_name,
+            limit=limit,
+            filter=filter,
+            timeout=timeout,
         )
         rows = [
             {
@@ -709,6 +724,7 @@ class AsyncSessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        filter: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> List[v1.SessionData]:
         """List sessions for a project.
@@ -719,6 +735,8 @@ class AsyncSessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            filter: Session DSL expression. Empty strings do not filter.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -726,6 +744,8 @@ class AsyncSessions:
         """
 
         await self._guard.require(LIST_PROJECT_SESSIONS)
+        if filter:
+            await self._guard.require(LIST_SESSIONS_FILTER_EXPRESSION)
         if not project_id and not project_name:
             raise ValueError("Either project_id or project_name must be provided.")
         if project_id and project_name:
@@ -737,6 +757,8 @@ class AsyncSessions:
         next_cursor: Optional[str] = None
         while True:
             params: dict[str, Any] = {}
+            if filter:
+                params["filter"] = filter
             if next_cursor:
                 params["cursor"] = next_cursor
             if limit is not None:
@@ -807,6 +829,7 @@ class AsyncSessions:
         project_id: Optional[str] = None,
         project_name: Optional[str] = None,
         limit: Optional[int] = None,
+        filter: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """Get sessions as a pandas DataFrame.
@@ -817,6 +840,8 @@ class AsyncSessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
+            filter: Session DSL expression. Empty strings do not filter.
+                Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -825,7 +850,11 @@ class AsyncSessions:
         import pandas as pd
 
         sessions = await self.list(
-            project_id=project_id, project_name=project_name, limit=limit, timeout=timeout
+            project_id=project_id,
+            project_name=project_name,
+            limit=limit,
+            filter=filter,
+            timeout=timeout,
         )
         rows = [
             {

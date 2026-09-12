@@ -30,6 +30,13 @@ LIST_PROJECT_SESSIONS = RouteRequirement(
     min_server_version=Version(13, 5, 0),
 )
 
+LIST_SESSIONS_FILTER_EXPRESSION = ParameterRequirement(
+    parameter_name="filter",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/sessions",
+    min_server_version=Version(20, 11, 0),
+)
+
 ANNOTATE_SESSIONS = RouteRequirement(
     method="POST",
     path="/v1/session_annotations",
@@ -79,6 +86,13 @@ GET_TRACES_FILTERS = ParameterRequirement(
         "The 'error', 'min_latency_ms', and 'max_latency_ms' query parameters "
         "on GET /v1/projects/{id}/traces"
     ),
+)
+
+GET_TRACES_FILTER_EXPRESSION = ParameterRequirement(
+    parameter_name="filter",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/traces",
+    min_server_version=Version(20, 11, 0),
 )
 
 DATASET_UPLOAD_EXAMPLE_IDS = ParameterRequirement(
