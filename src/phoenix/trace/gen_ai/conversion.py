@@ -1,4 +1,4 @@
-"""Convert OTel GenAI semantic-convention attributes back to OpenInference attributes."""
+"""Convert OTel GenAI attributes to OpenInference. See README.md for compatibility rules."""
 
 import json
 from collections.abc import Mapping, Sequence
@@ -158,8 +158,8 @@ def get_openinference_message_attributes(
     # synthetic system-role message at input_messages.0, shifting the actual
     # user/assistant turns down by one.
     next_input_index = 0
-    sys_parts = _validate_root_list(
-        attributes.get(gen_ai.GEN_AI_SYSTEM_INSTRUCTIONS), SystemInstructions
+    sys_parts = _normalize_and_validate_message_list(
+        attributes.get(gen_ai.GEN_AI_SYSTEM_INSTRUCTIONS), model_cls=SystemInstructions
     )
     if sys_parts:
         sys_msg = ChatMessage.model_construct(role=Role.system, parts=list(sys_parts))
@@ -168,14 +168,18 @@ def get_openinference_message_attributes(
         )
         next_input_index += 1
 
-    for in_msg in _validate_root_list(attributes.get(gen_ai.GEN_AI_INPUT_MESSAGES), InputMessages):
+    for in_msg in _normalize_and_validate_message_list(
+        attributes.get(gen_ai.GEN_AI_INPUT_MESSAGES), model_cls=InputMessages
+    ):
         oi_attributes.update(
             _flatten_message(in_msg, SpanAttributes.LLM_INPUT_MESSAGES, next_input_index)
         )
         next_input_index += 1
 
     for index, out_msg in enumerate(
-        _validate_root_list(attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES), OutputMessages)
+        _normalize_and_validate_message_list(
+            attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES), model_cls=OutputMessages
+        )
     ):
         oi_attributes.update(_flatten_message(out_msg, SpanAttributes.LLM_OUTPUT_MESSAGES, index))
 
@@ -443,21 +447,6 @@ def _build_invocation_parameters(
     return parameters
 
 
-# TODO: handle OTel GenAI semconv drift between producers.
-# Our generated models target semconv v1.41.1 (BlobPart has ``content: bytes`` and a
-# required ``modality`` field; UriPart/FilePart similarly renamed). Some producers
-# emit older drafts — notably opentelemetry-instrumentation-google-genai uses the
-# v1.30-era shape: ``data`` instead of ``content``, no ``modality``. Pydantic union
-# validation falls through to GenericPart for those parts, and ``_flatten_message``
-# below drops them silently (e.g. images vanish from llm.input_messages).
-# Three options when we get to this:
-#   1. Loosen the generated models (accept ``data``/``content`` aliases, optional
-#      ``modality``). Most permissive but modifies generated code.
-#   2. Pre-normalize part dicts in ``_validate_root_list`` (rename ``data`` ->
-#      ``content``, default ``modality`` from ``mime_type``). Contained.
-#   3. Sniff GenericPart for known ``type`` values (``blob``/``uri``/``file``) in
-#      ``_flatten_message`` and pull image fields from ``model_extra``. Most
-#      defensive — covers future drift too.
 def _flatten_message(
     message: ChatMessage | OutputMessage,
     prefix: str,
@@ -606,6 +595,55 @@ def _definition_to_oi_schema(
 
 
 _R = TypeVar("_R")
+
+
+def _normalize_and_validate_message_list(
+    value: Any,
+    model_cls: type[RootModel[list[_R]]],
+) -> list[_R]:
+    """Decode, normalize known legacy parts, then validate the canonical schema.
+
+    Input/output messages contain nested ``parts``; system instructions are a
+    flat part list. Only these message attributes use this compatibility path.
+    See README.md for examples, precedence, and unsupported shapes.
+    """
+    if not isinstance(value, (str, bytes, bytearray)):
+        return []
+    try:
+        payload = json.loads(value)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(payload, list):
+        return []
+
+    if model_cls is SystemInstructions:
+        _normalize_legacy_media_part_fields(payload)
+    else:
+        for message in payload:
+            if isinstance(message, dict) and isinstance(parts := message.get("parts"), list):
+                _normalize_legacy_media_part_fields(parts)
+    try:
+        return model_cls.model_validate(payload).root
+    except ValidationError:
+        return []
+
+
+def _normalize_legacy_media_part_fields(parts: list[Any]) -> None:
+    """Normalize freshly decoded part dicts in place; never overwrite canonical fields.
+
+    Older producers use blob ``data`` and omit media ``modality``. Without this
+    step, those parts can validate as GenericPart and disappear during flattening.
+    Match the shape, not a producer/version identifier; leave unknown parts alone.
+    """
+    for part in parts:
+        if not isinstance(part, dict) or part.get("type") not in ("blob", "uri", "file"):
+            continue
+        if part.get("type") == "blob" and "content" not in part and "data" in part:
+            part["content"] = part.pop("data")
+        if "modality" not in part:
+            mime_type = part.get("mime_type")
+            if isinstance(mime_type, str) and "/" in mime_type:
+                part["modality"] = mime_type.partition("/")[0]
 
 
 def _validate_root_list(

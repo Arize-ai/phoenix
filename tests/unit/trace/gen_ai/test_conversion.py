@@ -1072,3 +1072,156 @@ def test_embedding_attributes_empty_for_non_embedding_span() -> None:
         )
         == {}
     )
+
+
+# ---------------------------------------------------------------------------
+# Legacy media fields: blob data aliases and missing modality
+# ---------------------------------------------------------------------------
+
+
+def test_blob_data_without_modality_becomes_data_url() -> None:
+    """google-genai-style producers emit ``data`` and no ``modality``; the fold
+    must land them on the v1.41.1 schema instead of dropping them silently."""
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [{"type": "blob", "mime_type": "image/png", "data": "SGVsbG8="}],
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[f"{base}.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"]
+        == "data:image/png;base64,SGVsbG8="
+    )
+
+
+def test_blob_part_modality_defaults_from_mime_main_type() -> None:
+    """A non-AV blob (application/pdf) still converts: modality defaults to the
+    MIME main type, which the ``Modality | str`` schema accepts."""
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [{"type": "blob", "mime_type": "application/pdf", "data": "AAAA"}],
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[f"{base}.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"]
+        == "data:application/pdf;base64,AAAA"
+    )
+
+
+def test_uri_part_without_modality_renders() -> None:
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "type": "uri",
+                            "mime_type": "image/jpeg",
+                            "uri": "https://example.com/cat.jpg",
+                        }
+                    ],
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[f"{base}.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"]
+        == "https://example.com/cat.jpg"
+    )
+
+
+def test_system_instruction_blob_data_without_modality_becomes_data_url() -> None:
+    """system_instructions is a flat part list; the fold must cover that shape too."""
+    attributes = {
+        gen_ai.GEN_AI_SYSTEM_INSTRUCTIONS: json.dumps(
+            [{"type": "blob", "mime_type": "image/png", "data": "SGVsbG8="}]
+        ),
+    }
+    out = get_openinference_message_attributes(attributes)
+    image = MessageContentAttributes.MESSAGE_CONTENT_IMAGE
+    assert (
+        out[
+            f"{SpanAttributes.LLM_INPUT_MESSAGES}.0.{MessageAttributes.MESSAGE_CONTENTS}.0.{image}.{ImageAttributes.IMAGE_URL}"
+        ]
+        == "data:image/png;base64,SGVsbG8="
+    )
+
+
+@pytest.mark.parametrize(
+    "attribute",
+    [
+        gen_ai.GEN_AI_INPUT_MESSAGES,
+        gen_ai.GEN_AI_OUTPUT_MESSAGES,
+        gen_ai.GEN_AI_SYSTEM_INSTRUCTIONS,
+    ],
+)
+@pytest.mark.parametrize("part_type", ["blob", "uri", "file"])
+def test_legacy_media_matches_canonical_messages(attribute: str, part_type: str) -> None:
+    legacy: dict[str, Any] = {"type": part_type, "mime_type": "image/png"}
+    canonical = {**legacy, "modality": "image"}
+    if part_type == "blob":
+        legacy["data"] = "SGVsbG8="
+        canonical["content"] = "SGVsbG8="
+    elif part_type == "uri":
+        legacy["uri"] = canonical["uri"] = "https://example.com/image.png"
+    else:
+        legacy["file_id"] = canonical["file_id"] = "file-123"
+
+    def attributes(part: dict[str, Any]) -> dict[str, AttributeValue]:
+        parts = [{"type": "text", "content": "Keep this sibling"}, part]
+        payload = (
+            parts
+            if attribute == gen_ai.GEN_AI_SYSTEM_INSTRUCTIONS
+            else [{"role": "assistant", "finish_reason": "stop", "parts": parts}]
+        )
+        return {attribute: json.dumps(payload)}
+
+    source = attributes(legacy)
+    original = dict(source)
+    assert get_openinference_message_attributes(source) == get_openinference_message_attributes(
+        attributes(canonical)
+    )
+    assert source == original
+
+
+def test_legacy_blob_does_not_override_canonical_content() -> None:
+    canonical = {"type": "blob", "content": "AAAA", "modality": "image"}
+    assert get_openinference_message_attributes(
+        _input_messages([{"role": "user", "parts": [{**canonical, "data": "BBBB"}]}])
+    ) == get_openinference_message_attributes(
+        _input_messages([{"role": "user", "parts": [canonical]}])
+    )
+
+
+@pytest.mark.parametrize("modality", [None, 42])
+def test_invalid_explicit_modality_is_not_repaired(modality: Any) -> None:
+    parts = [
+        {"type": "text", "content": "survives"},
+        {"type": "blob", "data": "AAAA", "mime_type": "image/png", "modality": modality},
+    ]
+    assert get_openinference_message_attributes(
+        _input_messages([{"role": "user", "parts": parts}])
+    ) == get_openinference_message_attributes(
+        _input_messages([{"role": "user", "parts": parts[:1]}])
+    )
+
+
+@pytest.mark.parametrize("payload", ["{", "null", "{}", "[null]", '[{"parts": []}]'])
+def test_invalid_message_payload_yields_no_attributes(payload: str) -> None:
+    assert get_openinference_message_attributes({gen_ai.GEN_AI_INPUT_MESSAGES: payload}) == {}
