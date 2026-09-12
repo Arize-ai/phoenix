@@ -6,7 +6,8 @@ from urllib.parse import urlparse
 
 from phoenix.evals import create_evaluator
 
-_MARKDOWN_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)\s]+)\)")
+_LINK_PADDING = r"[ \t]*(?:\r?\n[ \t]*)?"
+_MARKDOWN_LINK_RE = re.compile(rf"\[[^\]]+\]\({_LINK_PADDING}([^)\s]+){_LINK_PADDING}\)")
 _BARE_URL_RE = re.compile(r"https?://[^\s)]+")
 _LOCAL_APP_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
