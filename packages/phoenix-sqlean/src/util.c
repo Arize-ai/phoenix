@@ -28,9 +28,11 @@ int pysqlite_step(sqlite3_stmt* statement, pysqlite_Connection* connection)
 {
     int rc;
 
+    pysqlite_enter_sqlite(connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_step(statement);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(connection);
 
     return rc;
 }
@@ -42,7 +44,15 @@ int pysqlite_step(sqlite3_stmt* statement, pysqlite_Connection* connection)
 int _pysqlite_seterror(sqlite3* db)
 {
     PyObject *exc_class;
-    int errorcode = sqlite3_errcode(db);
+    int errorcode;
+
+    if (db == NULL) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Cannot operate on a closed database.");
+        return SQLITE_MISUSE;
+    }
+
+    errorcode = sqlite3_errcode(db);
 
     switch (errorcode)
     {

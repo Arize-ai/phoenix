@@ -1,3 +1,11 @@
+/* blob.c - the blob type
+ *
+ * Part of the pysqlite lineage (zlib license; see LICENSE), added in
+ * the pysqlite3 fork.
+ *
+ * Modified by the Arize Phoenix team, 2026.
+ */
+
 #include "blob.h"
 #include "util.h"
 
@@ -23,17 +31,48 @@ int pysqlite_blob_init(pysqlite_Blob *self, pysqlite_Connection* connection,
 
 static void remove_blob_from_connection_blob_list(pysqlite_Blob *self)
 {
-    Py_ssize_t i;
-    PyObject *item, *ref;
+    Py_ssize_t i = 0;
 
-    for (i = 0; i < PyList_GET_SIZE(self->connection->blobs); i++) {
-        item = PyList_GET_ITEM(self->connection->blobs, i);
-        if (PyWeakref_GetRef(item, &ref) == 1) {
-            if (ref == (PyObject *)self) {
+    /* The blob list is gone when the connection failed a
+       re-initialization (and there is no connection at all on a Blob
+       constructed without __init__). */
+    if (self->connection == NULL || self->connection->blobs == NULL) {
+        return;
+    }
+
+    while (i < PyList_GET_SIZE(self->connection->blobs)) {
+        PyObject *item = PyList_GET_ITEM(self->connection->blobs, i);
+#if PY_VERSION_HEX < 0x030D0000
+        /* Borrowed compare: PyWeakref_GetRef would resurrect self when
+           called mid-dealloc (refcount 0 -> 1), and dropping that
+           reference would re-enter tp_dealloc. */
+        if (PyWeakref_GET_OBJECT(item) == (PyObject *)self) {
+            PyList_SetSlice(self->connection->blobs, i, i+1, NULL);
+            break;
+        }
+        i++;
+#else
+        PyObject *ref;
+        int rc = PyWeakref_GetRef(item, &ref);
+        if (rc == 1) {
+            int found = (ref == (PyObject *)self);
+            Py_DECREF(ref);
+            if (found) {
                 PyList_SetSlice(self->connection->blobs, i, i+1, NULL);
                 break;
             }
+            i++;
         }
+        else if (rc == 0) {
+            /* Dead weakref.  On 3.13+ a blob mid-dealloc already reads
+               as dead, so pruning every dead entry is what unlinks it. */
+            PyList_SetSlice(self->connection->blobs, i, i+1, NULL);
+        }
+        else {
+            PyErr_Clear();
+            i++;
+        }
+#endif
     }
 }
 
@@ -45,21 +84,30 @@ static void _close_blob_inner(pysqlite_Blob* self)
     blob = self->blob;
     self->blob = NULL;
     if (blob) {
+        if (self->connection) {
+            pysqlite_enter_sqlite(self->connection);
+        }
         Py_BEGIN_ALLOW_THREADS
         sqlite3_blob_close(blob);
         Py_END_ALLOW_THREADS
+        if (self->connection) {
+            pysqlite_leave_sqlite(self->connection);
+        }
     }
 
     /* remove from connection weaklist */
     remove_blob_from_connection_blob_list(self);
-    if (self->in_weakreflist != NULL) {
-        PyObject_ClearWeakRefs((PyObject*)self);
-    }
 }
 
 static void pysqlite_blob_dealloc(pysqlite_Blob* self)
 {
     _close_blob_inner(self);
+    /* Clearing weakrefs is only valid during deallocation; doing it from
+       an explicit close() on a live object is an internal-API misuse
+       (SystemError on 3.13+). */
+    if (self->in_weakreflist != NULL) {
+        PyObject_ClearWeakRefs((PyObject*)self);
+    }
     Py_XDECREF(self->connection);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
@@ -93,6 +141,12 @@ PyObject* pysqlite_blob_close(pysqlite_Blob *self)
         return NULL;
     }
 
+    if (self->connection->in_sqlite > 0) {
+        PyErr_SetString(pysqlite_ProgrammingError,
+                        "Cannot close a blob from within a callback function.");
+        return NULL;
+    }
+
     _close_blob_inner(self);
     Py_RETURN_NONE;
 };
@@ -119,9 +173,11 @@ static PyObject* inner_read(pysqlite_Blob *self, int read_length, int offset)
     }
     raw_buffer = PyBytes_AS_STRING(buffer);
 
+    pysqlite_enter_sqlite(self->connection);
     Py_BEGIN_ALLOW_THREADS
-    rc = sqlite3_blob_read(self->blob, raw_buffer, read_length, self->offset);
+    rc = sqlite3_blob_read(self->blob, raw_buffer, read_length, offset);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(self->connection);
 
     if (rc != SQLITE_OK){
         Py_DECREF(buffer);
@@ -176,9 +232,11 @@ static int write_inner(pysqlite_Blob *self, const void *buf, Py_ssize_t len, int
 {
     int rc;
 
+    pysqlite_enter_sqlite(self->connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_blob_write(self->blob, buf, len, offset);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_sqlite(self->connection);
     if (rc != SQLITE_OK) {
         /* For some reason after modifying blob the
         error is not set on the connection db. */
@@ -406,7 +464,6 @@ static PyObject * pysqlite_blob_subscript(pysqlite_Blob *self, PyObject *item)
                 "Blob index out of range");
             return NULL;
         }
-        // TODO: I am not sure...
         return inner_read(self, 1, i);
     }
     else if (PySlice_Check(item)) {
@@ -424,22 +481,29 @@ static PyObject * pysqlite_blob_subscript(pysqlite_Blob *self, PyObject *item)
         } else {
             char *result_buf = (char *)PyMem_Malloc(slicelen);
             char *data_buff = NULL;
-            Py_ssize_t cur, i;
+            Py_ssize_t span_start, span_len, cur, i;
             PyObject *result;
             int rc;
+
+            /* A negative step runs backwards from start; read the byte
+               range the slice spans and pick the items out of it. */
+            span_start = (step > 0) ? start : start + (slicelen - 1) * step;
+            span_len = (slicelen - 1) * (step > 0 ? step : -step) + 1;
 
             if (result_buf == NULL)
                 return PyErr_NoMemory();
 
-            data_buff = (char *)PyMem_Malloc(stop - start);
+            data_buff = (char *)PyMem_Malloc(span_len);
             if (data_buff == NULL) {
                 PyMem_Free(result_buf);
                 return PyErr_NoMemory();
             }
 
+            pysqlite_enter_sqlite(self->connection);
             Py_BEGIN_ALLOW_THREADS
-            rc = sqlite3_blob_read(self->blob, data_buff, stop - start, start);
+            rc = sqlite3_blob_read(self->blob, data_buff, span_len, span_start);
             Py_END_ALLOW_THREADS
+            pysqlite_leave_sqlite(self->connection);
 
             if (rc != SQLITE_OK){
                 /* For some reason after modifying blob the
@@ -455,7 +519,7 @@ static PyObject * pysqlite_blob_subscript(pysqlite_Blob *self, PyObject *item)
                 return NULL;
             }
 
-            for (cur = 0, i = 0; i < slicelen;
+            for (cur = start - span_start, i = 0; i < slicelen;
                  cur += step, i++) {
                 result_buf[i] = data_buff[cur];
             }
@@ -538,19 +602,27 @@ static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyOb
             rc = write_inner(self, vbuf.buf, slicelen, start);
         }
         else {
-            Py_ssize_t cur, i;
+            Py_ssize_t span_start, span_len, cur, i;
             char *data_buff;
 
+            /* A negative step runs backwards from start; read the byte
+               range the slice spans, merge the new items in, and write
+               that range back. */
+            span_start = (step > 0) ? start : start + (slicelen - 1) * step;
+            span_len = (slicelen - 1) * (step > 0 ? step : -step) + 1;
 
-            data_buff = (char *)PyMem_Malloc(stop - start);
+            data_buff = (char *)PyMem_Malloc(span_len);
             if (data_buff == NULL) {
                 PyErr_NoMemory();
+                PyBuffer_Release(&vbuf);
                 return -1;
             }
 
+            pysqlite_enter_sqlite(self->connection);
             Py_BEGIN_ALLOW_THREADS
-            rc = sqlite3_blob_read(self->blob, data_buff, stop - start, start);
+            rc = sqlite3_blob_read(self->blob, data_buff, span_len, span_start);
             Py_END_ALLOW_THREADS
+            pysqlite_leave_sqlite(self->connection);
 
             if (rc != SQLITE_OK){
                 /* For some reason after modifying blob the
@@ -562,19 +634,24 @@ static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyOb
                     _pysqlite_seterror(self->connection->db);
                 }
                 PyMem_Free(data_buff);
-                rc = -1;
+                PyBuffer_Release(&vbuf);
+                return -1;
             }
 
-            for (cur = 0, i = 0;
+            for (cur = start - span_start, i = 0;
                  i < slicelen;
                  cur += step, i++)
             {
                 data_buff[cur] = ((char *)vbuf.buf)[i];
             }
 
+            pysqlite_enter_sqlite(self->connection);
             Py_BEGIN_ALLOW_THREADS
-            rc = sqlite3_blob_write(self->blob, data_buff, stop - start, start);
+            rc = sqlite3_blob_write(self->blob, data_buff, span_len, span_start);
             Py_END_ALLOW_THREADS
+            pysqlite_leave_sqlite(self->connection);
+
+            PyMem_Free(data_buff);
 
             if (rc != SQLITE_OK){
                 /* For some reason after modifying blob the
@@ -585,8 +662,8 @@ static int pysqlite_blob_ass_subscript(pysqlite_Blob *self, PyObject *item, PyOb
                 } else {
                     _pysqlite_seterror(self->connection->db);
                 }
-                PyMem_Free(data_buff);
-                rc = -1;
+                PyBuffer_Release(&vbuf);
+                return -1;
             }
             rc = 0;
 
