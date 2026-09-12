@@ -23,7 +23,7 @@ def _score(example_id: str, script: str) -> float:
             }
         ]
     }
-    return evaluate_tool_call_args(output, example["expected"])["score"]
+    return float(evaluate_tool_call_args(output, example["expected"])["score"])
 
 
 def _script(condition: str) -> str:
