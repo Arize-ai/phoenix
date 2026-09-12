@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -16,7 +17,29 @@ import { DeleteProjectEvaluatorDialog } from "@phoenix/pages/project/evaluators/
 
 enum ProjectEvaluatorAction {
   EDIT = "edit",
+  OPEN_IN_PLAYGROUND = "open-in-playground",
   DELETE = "delete",
+}
+
+/** The evaluator playground, over this project, with the evaluator in slot A. */
+export function getProjectEvaluatorPlaygroundPath({
+  projectId,
+  projectEvaluatorId,
+  filterCondition,
+}: {
+  projectId: string;
+  projectEvaluatorId: string;
+  filterCondition: string;
+}) {
+  const params = new URLSearchParams({
+    mode: "evaluators",
+    projectId,
+    projectEvaluatorA: projectEvaluatorId,
+  });
+
+  if (filterCondition) params.set("filterCondition", filterCondition);
+
+  return `/playground?${params}`;
 }
 
 export function ProjectEvaluatorActionMenu({
@@ -24,17 +47,21 @@ export function ProjectEvaluatorActionMenu({
   projectId,
   evaluatorKind,
   evaluatorName,
+  filterCondition,
   onEdit,
 }: {
   projectEvaluatorId: string;
   projectId: string;
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
+  /** Carried into the playground so its rows match what the evaluator runs on. */
+  filterCondition: string;
   /** Passed in by the table, so the edit path is derived once per render and
    * not once per row. */
   onEdit: (projectEvaluatorId: string) => void;
 }) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const navigate = useNavigate();
   const canEdit = evaluatorKind === "LLM" || evaluatorKind === "CODE";
   return (
     <StopPropagation>
@@ -52,6 +79,15 @@ export function ProjectEvaluatorActionMenu({
                 case ProjectEvaluatorAction.EDIT:
                   onEdit(projectEvaluatorId);
                   break;
+                case ProjectEvaluatorAction.OPEN_IN_PLAYGROUND:
+                  void navigate(
+                    getProjectEvaluatorPlaygroundPath({
+                      projectId,
+                      projectEvaluatorId,
+                      filterCondition,
+                    })
+                  );
+                  break;
                 case ProjectEvaluatorAction.DELETE:
                   setIsDeleteOpen(true);
                   break;
@@ -68,6 +104,19 @@ export function ProjectEvaluatorActionMenu({
                 >
                   <Icon svg={<Icons.Edit2 />} />
                   <Text>Edit</Text>
+                </Flex>
+              </MenuItem>
+            ) : null}
+            {canEdit ? (
+              <MenuItem id={ProjectEvaluatorAction.OPEN_IN_PLAYGROUND}>
+                <Flex
+                  direction="row"
+                  gap="size-75"
+                  justifyContent="start"
+                  alignItems="center"
+                >
+                  <Icon svg={<Icons.PlayCircle />} />
+                  <Text>Open in evaluator playground</Text>
                 </Flex>
               </MenuItem>
             ) : null}
