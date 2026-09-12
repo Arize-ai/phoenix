@@ -198,7 +198,11 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         detail: DetailLevel = "brief",
         search: Optional[str] = None,
     ) -> str:
-        """Return the allowlisted analytics SQL schema for telemetry, datasets, and experiments."""
+        """Describe allowlisted analytics SQL tables, columns, and join keys.
+
+        Call before `executeSql`. Telemetry joins use internal row IDs, including
+        `spans.trace_rowid` and `traces.project_rowid`.
+        """
         if detail not in {"brief", "detailed", "full"}:
             raise ToolError("detail must be one of: brief, detailed, full")
 
@@ -264,7 +268,15 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         validate_only: bool = False,
         row_limit: Optional[int] = None,
     ) -> ExecuteSqlOutput:
-        """Execute read-only analytics SQL against allowlisted Phoenix tables.
+        """Aggregate Phoenix data with one read-only SQL query.
+
+        Use for counts, sums, averages, rankings, grouped metrics, costs, latency,
+        and percentiles across telemetry, annotations, experiments, and datasets.
+        Prefer SQL when the result is smaller than the matching records.
+
+        Call `describeSqlSchema` first for tables, columns, and join keys. Telemetry
+        joins use internal row IDs, including `spans.trace_rowid` and
+        `traces.project_rowid`.
 
         Returns either the columns, rows, and applied limits, or an error
         envelope when the SQL cannot be accepted.
