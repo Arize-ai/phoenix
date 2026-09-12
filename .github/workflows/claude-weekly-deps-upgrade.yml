@@ -63,16 +63,55 @@ jobs:
             echo "date=$DATE"
           } >> "$GITHUB_OUTPUT"
 
+      # The upgrade steps log to .scratch/verify/ and continue-on-error so a
+      # failure flows into the Claude hand-off below instead of aborting the
+      # run. The "Propagate unfixed failures" step at the end of the job
+      # fails the run if nothing fixed the failure.
       - name: Upgrade Python (uv)
+        id: upgrade_py
+        continue-on-error: true
         run: |
-          uv lock --upgrade
-          uv sync
+          set -o pipefail
+          mkdir -p .scratch/verify
+          { uv lock --upgrade && uv sync; } 2>&1 | tee .scratch/verify/upgrade-python.log
 
       - name: Upgrade JavaScript (pnpm)
+        id: upgrade_js
+        continue-on-error: true
         working-directory: ./js
         run: |
-          pnpm update --recursive
-          pnpm install --frozen-lockfile
+          set -o pipefail
+          mkdir -p ../.scratch/verify
+          log=../.scratch/verify/upgrade-js.log
+          ok=0
+          for attempt in 1 2 3; do
+            if pnpm update --recursive 2>&1 | tee "$log"; then
+              ok=1
+              break
+            fi
+            # Self-heal ERR_PNPM_IGNORED_BUILDS: a newly introduced transitive
+            # dependency has a build script not covered by allowBuilds. Deny it
+            # ("<pkg>": false) — a deny executes nothing new, and Verify catches
+            # the rare package that genuinely needs its build output (a human
+            # then flips the entry deliberately). Anything else breaks the loop
+            # and lands in the Claude hand-off.
+            pkgs=$(sed -n 's/.*Ignored build scripts: //p' "$log" \
+              | tr ',' '\n' \
+              | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; s/@[^@/]*$//' \
+              | sort -u)
+            [ -n "$pkgs" ] || break
+            while IFS= read -r pkg; do
+              # npm names are [a-z0-9@/._-]; skip anything else defensively.
+              case "$pkg" in
+                (''|*[!A-Za-z0-9@/._-]*) continue ;;
+              esac
+              echo "::warning::New dependency with build scripts: $pkg — adding allowBuilds deny"
+              pkg="$pkg" yq -i '.allowBuilds[strenv(pkg)] = false' pnpm-workspace.yaml
+              echo "$pkg" >> ../.scratch/verify/auto-denied.txt
+            done <<< "$pkgs"
+          done
+          [ "$ok" -eq 1 ] || exit 1
+          pnpm install --frozen-lockfile 2>&1 | tee -a "$log"
 
       - name: Detect changes
         id: changes
@@ -86,7 +125,13 @@ jobs:
 
       - name: Verify
         id: verify
-        if: steps.changes.outputs.changed == 'true'
+        # Skipped when an upgrade step failed: checks against a half-upgraded
+        # tree would report noise, not the root cause. The Claude hand-off
+        # runs the check matrix itself after repairing the upgrade.
+        if: >-
+          steps.changes.outputs.changed == 'true' &&
+          steps.upgrade_py.outcome == 'success' &&
+          steps.upgrade_js.outcome == 'success'
         continue-on-error: true
         run: |
           mkdir -p .scratch/verify
@@ -183,15 +228,25 @@ jobs:
           git add -A
           git commit -m "chore(deps): weekly dependency upgrade ${DATE}"
           git push -u origin "${BRANCH}"
-          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
-            gh pr create \
-              --title "chore(deps): weekly dependency upgrade ${DATE}" \
-              --body "Automated weekly dependency upgrade.
+          body="Automated weekly dependency upgrade.
 
           - \`uv lock --upgrade\` (Python)
           - \`pnpm update --recursive\` in \`js/\`
 
           All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
+          if [ -s .scratch/verify/auto-denied.txt ]; then
+            denied=$(while IFS= read -r p; do printf -- '- `%s`\n' "$p"; done < .scratch/verify/auto-denied.txt)
+            body="$body
+
+          New dependencies with build scripts were auto-denied in \`allowBuilds\` (\`js/pnpm-workspace.yaml\`) — their build scripts do not run:
+          $denied
+
+          Flip an entry to \`true\` only if the package's build output is actually needed."
+          fi
+          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
+            gh pr create \
+              --title "chore(deps): weekly dependency upgrade ${DATE}" \
+              --body "$body"
           fi
 
       - name: Install subprocess isolation deps
@@ -199,7 +254,10 @@ jobs:
         # needs both bubblewrap AND socat, and Ubuntu 24.04+ blocks the unprivileged
         # user namespaces it relies on by default. Mirrors the upstream action's
         # install step (which only runs when allowed_non_write_users is set).
-        if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure'
+        if: >-
+          steps.upgrade_py.outcome == 'failure' ||
+          steps.upgrade_js.outcome == 'failure' ||
+          (steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure')
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends bubblewrap socat
@@ -209,7 +267,10 @@ jobs:
 
       - name: Hand off to Claude (fix regressions)
         id: claude_fix
-        if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure'
+        if: >-
+          steps.upgrade_py.outcome == 'failure' ||
+          steps.upgrade_js.outcome == 'failure' ||
+          (steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure')
         uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
@@ -229,14 +290,17 @@ jobs:
           show_full_output: 'true'
           prompt: |
             You're on branch `${{ steps.branch.outputs.branch }}`. The weekly dependency upgrade
-            already ran (`uv lock --upgrade` for Python, `pnpm update -r`
-            in `js/`), but the verification step failed. The upgraded
-            lockfiles and any package manifest changes are in the working tree
-            (uncommitted). Your job is to fix the regressions in the working tree
-            and write a one-page summary of what you did — nothing more.
-            A separate workflow step will commit, push, and open the PR; do NOT
-            attempt to do any of that yourself (your tools don't include `git
-            commit`, `git push`, or `gh`).
+            ran (`uv lock --upgrade` for Python, `pnpm update -r` in `js/`)
+            and something failed. Step outcomes:
+            upgrade-python=${{ steps.upgrade_py.outcome }},
+            upgrade-js=${{ steps.upgrade_js.outcome }},
+            verify=${{ steps.verify.outcome }} (a skipped verify means an
+            upgrade step failed first). Whatever the upgrade managed to change
+            is in the working tree (uncommitted). Your job is to fix the
+            failure in the working tree and write a one-page summary of what
+            you did — nothing more. A separate workflow step will commit,
+            push, and open the PR; do NOT attempt to do any of that yourself
+            (your tools don't include `git commit`, `git push`, or `gh`).
 
             ## Investigate
             Start with `git status --short` and `git diff` (read-only) so you
@@ -254,6 +318,10 @@ jobs:
             only as evidence for what changed and what failed.
 
             Available log files (when present):
+              - `.scratch/verify/upgrade-python.log` (`uv lock --upgrade && uv sync` output)
+              - `.scratch/verify/upgrade-js.log` (`pnpm update -r && pnpm install` output)
+              - `.scratch/verify/auto-denied.txt` (packages the upgrade step
+                auto-denied in `allowBuilds`; list them in your summary)
               - `.scratch/verify/gen-graphql.log`
               - `.scratch/verify/gen-openapi.log`
               - `.scratch/verify/gen-generative-ui.log`
@@ -275,6 +343,22 @@ jobs:
             confirm they pass. You don't need to re-run the full matrix unless you
             suspect cross-cutting impact.
 
+            ## If an upgrade step failed
+            Verify was skipped, so there are no per-check logs yet. Read the
+            upgrade log, fix the root cause, then re-run the failed upgrade
+            (`uv lock --upgrade && uv sync` at the repo root, or
+            `pnpm update --recursive && pnpm install --frozen-lockfile` in
+            `js/`) until it succeeds. Because Verify never ran, you must then
+            run the full check matrix yourself and confirm every check passes,
+            in this order: `make graphql`, `make openapi`,
+            `make schema-generative-ui`, `make ui-message-stream-fixtures`,
+            `make format-python`, `make lint-python`, `make typecheck-python`,
+            `make format-ts`, `make lint-ts`, `make build-ts`,
+            `make typecheck-ts`, `make test-ts`. The gen and format targets
+            write files — that output must stay in the working tree so the
+            commit step picks it up (CI enforces committed artifacts match
+            regeneration). Record pass/fail per check in your summary.
+
             ## Fix
             Apply minimal fixes that preserve original behavior — don't refactor
             beyond what the upgrade requires. Examples:
@@ -294,9 +378,15 @@ jobs:
 
             ## Constraints
             - Honor the `pnpm.minimumReleaseAge` and `allowBuilds` policies in
-              `js/pnpm-workspace.yaml` — never
-              bypass them with `--config.dangerouslyAllowAllBuilds` or by editing
-              the policy.
+              `js/pnpm-workspace.yaml`. You may add `"<package>": false`
+              entries to `allowBuilds` for newly introduced dependencies (a
+              deny: pnpm skips that package's build scripts, so nothing new
+              executes) — the upgrade step may already have added some
+              automatically; keep them and list them in the summary. Never set
+              a package to `true`, never remove or weaken existing entries,
+              and never use `--config.dangerouslyAllowAllBuilds`. If a package
+              genuinely needs its build output to function, pin its parent
+              dependency back instead and flag it for human review.
             - No pre-releases in production Python deps (CLAUDE.md policy). Dev
               groups may use them when necessary.
             - `pnpm update --recursive` upgrades within the existing
@@ -317,7 +407,9 @@ jobs:
           claude_args: '--model opus --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(uv:*)","Bash(pnpm:*)","Bash(make:*)","Bash(node:*)","Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(find:*)","Bash(grep:*)","Bash(sed:*)","Bash(awk:*)","Bash(jq:*)","Bash(cat:*)","Bash(ls:*)","Bash(head:*)","Bash(tail:*)","Bash(sort:*)","Bash(comm:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(rm:*)","Bash(cp:*)","Bash(mv:*)","Bash(date:*)","Bash(echo:*)","Bash(printf:*)"'
 
       - name: Commit & open PR (after Claude fix)
-        if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure' && steps.claude_fix.outcome == 'success'
+        # claude_fix succeeding implies its gate fired (upgrade or verify
+        # failure); a skipped step's outcome is 'skipped', never 'success'.
+        if: steps.claude_fix.outcome == 'success'
         env:
           # Separate publishing token; the claude-code-action app token has
           # already been revoked by this point.
@@ -335,7 +427,7 @@ jobs:
           # summary (treated as narrative content only; humans review).
           {
             echo "> :robot: Automated weekly dependency upgrade with regression fixes."
-            echo "> The narrative below was written by Claude after the upgrade caused verification failures."
+            echo "> The narrative below was written by Claude after this week's upgrade either failed to complete or broke verification."
             echo "> Review the diff and fixes carefully before merging."
             echo ""
             echo "- \`uv lock --upgrade\` (Python)"
@@ -377,6 +469,25 @@ jobs:
               --title "chore(deps): weekly dependency upgrade ${DATE}" \
               --body-file .scratch/pr-body-full.md
           fi
+
+      # The upgrade steps use continue-on-error so failures can flow into the
+      # Claude hand-off; this gate keeps the run from going green when nothing
+      # fixed the failure (and keeps the Slack notification firing).
+      - name: Propagate unfixed failures
+        if: >-
+          always() &&
+          (steps.upgrade_py.outcome == 'failure' ||
+           steps.upgrade_js.outcome == 'failure' ||
+           steps.verify.outcome == 'failure') &&
+          steps.claude_fix.outcome != 'success'
+        env:
+          UPGRADE_PY: ${{ steps.upgrade_py.outcome }}
+          UPGRADE_JS: ${{ steps.upgrade_js.outcome }}
+          VERIFY: ${{ steps.verify.outcome }}
+          CLAUDE_FIX: ${{ steps.claude_fix.outcome }}
+        run: |
+          echo "::error::A step failed and was not fixed (upgrade-python=$UPGRADE_PY, upgrade-js=$UPGRADE_JS, verify=$VERIFY, claude-fix=$CLAUDE_FIX)."
+          exit 1
 
   slack-notification:
     name: Slack Notification
