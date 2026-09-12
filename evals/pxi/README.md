@@ -715,3 +715,17 @@ coding agent) consume it:
    ```bash
    gh run download <run-id> -n pxi-eval-reports-<run-id>
    ```
+
+### Static filter predicate comparisons
+
+`condition: {filter_equals: "span_kind in ['LLM', 'TOOL']"}` compares a decoded
+`ui.spansFilter.set` condition with a Python DSL AST. It accepts quote and whitespace
+changes, reordered AND/OR clauses, and equivalent literal membership lists. It rejects
+missing or additional predicates and preserves the difference between AND and OR.
+
+This matcher supports a single unconditional operation with a string literal or
+`const` string binding, including shorthand properties, comments, static templates,
+and a UIResult return guard after the call. Dynamic expressions, conditional calls,
+and multiple filter calls fail closed. Scripts are never executed. Other matchers
+retain their existing substring semantics; this is not a complete JavaScript or
+semantic filter evaluator.

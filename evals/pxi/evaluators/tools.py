@@ -6,6 +6,8 @@ from typing import Any
 
 from phoenix.evals import create_evaluator
 
+from evals.pxi.evaluators.filters import filter_matches
+
 
 def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
@@ -410,6 +412,8 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 #   passing an empty value are semantically equivalent, e.g. ``tags`` (the save
 #   tool treats an omitted ``tags`` and ``tags: []`` identically), so the agent
 #   may legitimately produce either form.
+# - ``filter_equals: <DSL>`` -- UI condition only: decode a static spansFilter.set
+#   script and compare predicate ASTs, allowing clause order and membership lists.
 # - ``has_keys: [<key>, ...]`` -- observed must be a dict containing every
 #   listed key (presence only -- values are not checked, and nesting below the
 #   top level is not inspected). For object-valued args where the agent fills
@@ -419,6 +423,7 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 _MATCHER_KEYS: frozenset[str] = frozenset(
     {
         "equals",
+        "filter_equals",
         "contains_all",
         "contains_any",
         "not_contains",
@@ -452,6 +457,9 @@ def _string_list_or_none(value: Any) -> list[str] | None:
 
 def _matcher_value_error(matcher: dict[str, Any]) -> str | None:
     """Validate a matcher dict; return an error string if malformed."""
+    if "filter_equals" in matcher:
+        if not isinstance(matcher["filter_equals"], str) or len(matcher) != 1:
+            return "matcher 'filter_equals' must be a string and used alone"
     if "any" in matcher and matcher["any"] is not True:
         return "matcher 'any' must be true"
     if "non_empty" in matcher and matcher["non_empty"] is not True:
@@ -479,6 +487,8 @@ def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
     ``observed`` is the literal value pulled from the call's args, or the
     ``_MISSING`` sentinel if the key wasn't present at all.
     """
+    if "filter_equals" in matcher:
+        return False  # Only supported for static spansFilter.set UI scripts.
     if "any" in matcher:
         if observed is _MISSING:
             return False
@@ -625,6 +635,8 @@ def _source_pair_passes(source: str, key: str, expected_value: Any, script: str 
     (``{ key }``) the value is a hoisted variable whose text lives elsewhere
     in the script, so value checks fall back to the whole ``script``.
     """
+    if isinstance(expected_value, dict) and "filter_equals" in expected_value:
+        return key == "condition" and filter_matches(script, expected_value["filter_equals"])
     has_key = _source_has_key(source, key)
     # Where the value's text lives: the argument source for longhand, the
     # whole script for shorthand (hoisted `const key = ...`).
