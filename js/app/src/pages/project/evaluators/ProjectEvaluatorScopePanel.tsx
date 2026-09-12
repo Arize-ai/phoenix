@@ -77,6 +77,13 @@ import type { ProjectEvaluatorScopePanelSpansQuery } from "@phoenix/pages/projec
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
+  TIME_WINDOW_PRESETS,
+  isTimeWindowPresetId,
+  makeTimeWindow,
+  type TimeWindow,
+  type TimeWindowPresetId,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTimeWindow";
+import {
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorMappingSourceGrain,
@@ -99,62 +106,6 @@ export type ProjectEvaluatorInlineCode = {
   sourceCode: string;
   sandboxConfigId: string | null;
 };
-
-const TIME_WINDOW_PRESETS = [
-  {
-    id: "1h",
-    label: "Last hour",
-    shortLabel: "1h",
-    prose: "in the last hour",
-    ms: 3_600_000,
-  },
-  {
-    id: "24h",
-    label: "Last 24 hours",
-    shortLabel: "24h",
-    prose: "in the last 24 hours",
-    ms: 86_400_000,
-  },
-  {
-    id: "7d",
-    label: "Last 7 days",
-    shortLabel: "7d",
-    prose: "in the last 7 days",
-    ms: 7 * 86_400_000,
-  },
-  {
-    id: "30d",
-    label: "Last 30 days",
-    shortLabel: "30d",
-    prose: "in the last 30 days",
-    ms: 30 * 86_400_000,
-  },
-] as const;
-
-const isTimeWindowPresetId = (value: string): value is TimeWindowPresetId =>
-  TIME_WINDOW_PRESETS.some(({ id }) => id === value);
-
-type TimeWindowPresetId = (typeof TIME_WINDOW_PRESETS)[number]["id"];
-
-/**
- * `startIso` is computed once when the preset is chosen so re-renders do not
- * shift the window and refire the queries.
- */
-type TimeWindow = {
-  presetId: TimeWindowPresetId;
-  prose: string;
-  startIso: string;
-};
-
-function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
-  const preset = TIME_WINDOW_PRESETS.find(({ id }) => id === presetId);
-  invariant(preset, `unknown time window preset: ${presetId}`);
-  return {
-    presetId,
-    prose: preset.prose,
-    startIso: new Date(Date.now() - preset.ms).toISOString(),
-  };
-}
 
 type ProjectEvaluatorScopePanelScopeFieldsProps =
   | {
