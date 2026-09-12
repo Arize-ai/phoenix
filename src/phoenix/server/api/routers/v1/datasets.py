@@ -19,7 +19,7 @@ from anyio import to_thread
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import Field
-from sqlalchemy import and_, case, delete, func, insert, or_, select
+from sqlalchemy import and_, case, delete, func, insert, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -1693,21 +1693,19 @@ async def list_dataset_splits(
 ) -> ListDatasetSplitsResponseBody:
     async with request.app.state.db.read() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        # A split is listed under a dataset when it has an example in that dataset,
-        # or when it has no examples at all.
-        split_ids_with_examples = select(models.DatasetSplitDatasetExample.dataset_split_id)
-        split_ids_in_dataset = split_ids_with_examples.join(
-            models.DatasetExample,
-            models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
-        ).where(models.DatasetExample.dataset_id == dataset.id)
+        # A split belongs to a dataset through its examples: it is listed when at
+        # least one of its examples is in the dataset, matching GraphQL Dataset.splits.
+        split_ids_in_dataset = (
+            select(models.DatasetSplitDatasetExample.dataset_split_id)
+            .join(
+                models.DatasetExample,
+                models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
+            )
+            .where(models.DatasetExample.dataset_id == dataset.id)
+        )
         query = (
             select(models.DatasetSplit)
-            .where(
-                or_(
-                    models.DatasetSplit.id.in_(split_ids_in_dataset),
-                    models.DatasetSplit.id.not_in(split_ids_with_examples),
-                )
-            )
+            .where(models.DatasetSplit.id.in_(split_ids_in_dataset))
             .order_by(models.DatasetSplit.id.desc())
         )
         if cursor:
