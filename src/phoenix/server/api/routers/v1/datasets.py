@@ -65,6 +65,7 @@ from .utils import (
     add_errors_to_responses,
     add_text_csv_content_to_responses,
     get_dataset_by_identifier,
+    parse_cursor_rowid,
 )
 
 csv.field_size_limit(
@@ -78,24 +79,6 @@ DATASET_NODE_NAME = DatasetNodeType.__name__
 DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 DATASET_SPLIT_NODE_NAME = DatasetSplitNodeType.__name__
 DATASET_EXAMPLE_NODE_NAME = DatasetExampleNodeType.__name__
-
-
-def _parse_cursor_rowid(cursor: str, node_name: str) -> int:
-    """Parse a pagination cursor into a rowid for the given node type.
-
-    Raises 422 for malformed cursors, including ids outside the DB's integer
-    range, which would otherwise overflow at bind time and surface as a 500.
-    """
-    try:
-        rowid = from_global_id_with_expected_type(GlobalID.from_id(cursor), node_name)
-        if not 0 <= rowid < 2**63:
-            raise ValueError(cursor)
-    except ValueError:
-        raise HTTPException(
-            detail=f"Invalid cursor format: {cursor}",
-            status_code=422,
-        )
-    return rowid
 
 
 # Matches the dataset-split form's default color (app NewDatasetSplitForm).
@@ -151,9 +134,7 @@ async def list_datasets(
         )
 
         if cursor:
-            query = query.filter(
-                models.Dataset.id <= _parse_cursor_rowid(cursor, DATASET_NODE_NAME)
-            )
+            query = query.filter(models.Dataset.id <= parse_cursor_rowid(cursor, DATASET_NODE_NAME))
         if name:
             query = query.filter(models.Dataset.name == name)
 
@@ -329,7 +310,7 @@ async def list_dataset_versions(
         .limit(limit + 1)
     )
     if cursor:
-        dataset_version_id = _parse_cursor_rowid(cursor, DATASET_VERSION_NODE_NAME)
+        dataset_version_id = parse_cursor_rowid(cursor, DATASET_VERSION_NODE_NAME)
         max_dataset_version_id = (
             select(models.DatasetVersion.id)
             .where(models.DatasetVersion.id == dataset_version_id)
@@ -1626,32 +1607,22 @@ async def _dataset_scoped_example_counts(
     dataset_split_ids: Sequence[int],
     dataset_id: int,
 ) -> dict[int, int]:
-    """Per-split count of the dataset's examples in each split.
+    """Per-split count of the dataset's live examples (latest revision not DELETE).
 
-    Only examples whose latest revision is not a DELETE are counted, so the
-    numbers agree with the example counts reported by the non-split dataset
-    surfaces (e.g. GET /datasets/{id}/examples). Splits absent from the result
-    have no live examples in the dataset.
+    Splits with no live examples in the dataset are absent from the result.
     """
     if not dataset_split_ids:
         return {}
-    # Bound the latest-revision aggregation to the splits' members so it scales
-    # with their membership rather than the dataset's full revision history.
     member_example_ids = select(models.DatasetSplitDatasetExample.dataset_example_id).where(
         models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
     )
     latest_revision_ids = (
         select(func.max(models.DatasetExampleRevision.id))
-        .join(models.DatasetExample)
-        .where(models.DatasetExample.dataset_id == dataset_id)
         .where(models.DatasetExampleRevision.dataset_example_id.in_(member_example_ids))
         .group_by(models.DatasetExampleRevision.dataset_example_id)
     )
     rows = await session.execute(
-        select(
-            models.DatasetSplitDatasetExample.dataset_split_id,
-            func.count(models.DatasetExample.id),
-        )
+        select(models.DatasetSplitDatasetExample.dataset_split_id, func.count())
         .select_from(models.DatasetSplitDatasetExample)
         .join(
             models.DatasetExample,
@@ -1720,39 +1691,29 @@ async def list_dataset_splits(
         le=1000,
     ),
 ) -> ListDatasetSplitsResponseBody:
-    cursor_id: Optional[int] = None
-    if cursor:
-        cursor_id = _parse_cursor_rowid(cursor, DATASET_SPLIT_NODE_NAME)
     async with request.app.state.db.read() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        # A split belongs to a dataset when at least one of its examples does. A split
-        # with no examples at all belongs to no dataset yet and is listed under every
-        # dataset — otherwise a freshly created empty split would be invisible to GET
-        # until an example is added.
-        has_example_in_dataset = (
-            select(models.DatasetSplitDatasetExample.dataset_split_id)
-            .join(
-                models.DatasetExample,
-                models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
-            )
-            .where(models.DatasetSplitDatasetExample.dataset_split_id == models.DatasetSplit.id)
-            .where(models.DatasetExample.dataset_id == dataset.id)
-            .exists()
-        )
-        has_any_example = (
-            select(models.DatasetSplitDatasetExample.dataset_split_id)
-            .where(models.DatasetSplitDatasetExample.dataset_split_id == models.DatasetSplit.id)
-            .exists()
-        )
-        # Select the page of splits first so the count aggregation below is bounded by
-        # the page size rather than the dataset's entire split membership.
+        # A split is listed under a dataset when it has an example in that dataset,
+        # or when it has no examples at all.
+        split_ids_with_examples = select(models.DatasetSplitDatasetExample.dataset_split_id)
+        split_ids_in_dataset = split_ids_with_examples.join(
+            models.DatasetExample,
+            models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
+        ).where(models.DatasetExample.dataset_id == dataset.id)
         query = (
             select(models.DatasetSplit)
-            .where(or_(has_example_in_dataset, ~has_any_example))
+            .where(
+                or_(
+                    models.DatasetSplit.id.in_(split_ids_in_dataset),
+                    models.DatasetSplit.id.not_in(split_ids_with_examples),
+                )
+            )
             .order_by(models.DatasetSplit.id.desc())
         )
-        if cursor_id is not None:
-            query = query.where(models.DatasetSplit.id <= cursor_id)
+        if cursor:
+            query = query.where(
+                models.DatasetSplit.id <= parse_cursor_rowid(cursor, DATASET_SPLIT_NODE_NAME)
+            )
         splits = list(await session.scalars(query.limit(limit + 1)))
 
         next_cursor = None
