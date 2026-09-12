@@ -90,8 +90,6 @@ Inspect experiments, scores, and linked ATIF traces in Phoenix.
 
 ## Inside each attempt
 
-[![Harbor runs a coding agent and fresh Phoenix target in separate containers with native network controls, then verifies collected artifacts and records results in Phoenix.](assets/architecture.png)](assets/architecture.svg)
-
 [Compose](environment/docker-compose.yaml) defines the agent and Phoenix services.
 Every attempt gets a new writable Phoenix database, seeded and checked before the
 agent starts. The containers have separate filesystems, so the agent cannot read
@@ -201,9 +199,10 @@ be installed before the trial. This launcher does not yet run the full PXI app.
 
 ## Task-owned verification
 
-Every task supplies `tasks/<name>/tests/test.sh`. Harbor invokes that script
-directly. The bundled scripts call the shared `scoring.verify` answer helper;
-a new task can run any verifier and supporting files it needs.
+Harbor invokes `tests/test.sh` directly. For the bundled answer tasks, staging
+generates this entrypoint to call the shared `scoring.verify` helper with the
+task's `tests/verify.py`. A task can supply its own `tests/test.sh` to run any
+verifier and supporting files it needs; staging preserves that script.
 The script owns grading and writes Harbor's `/logs/verifier/reward.json` or
 `reward.txt`. Task-defined finite numeric scores are accepted; a literal binary
 `reward` is required only by the bundled answer helper.
@@ -220,11 +219,12 @@ its native separate-verifier support. For different grading dependencies, supply
 your own `tests/Dockerfile` or `[verifier.environment].docker_image`. A prebuilt
 image must contain `/tests/test.sh`. Verifiers remain separate and offline.
 
-Tasks with a reference solution supply `solution/solve.sh`. Staging makes the
-shared CLI oracle helper available as `solution/oracle.py`, unless the task
-already supplies that file. No solution entrypoint is generated. Run `--oracle`
-only on tasks with a solution; the launcher's oracle route needs at least one
-CLI condition.
+Staging also generates the bundled answer tasks' `solution/solve.sh` when no
+solution directory is supplied. Tasks can provide their own solution directory.
+Custom `tests/test.sh` entrypoints do not receive an automatic oracle solution.
+The shared CLI oracle helper is available as `solution/oracle.py` unless the
+task supplies that file. Run `--oracle` only on tasks with a solution; the
+launcher's oracle route needs at least one CLI condition.
 
 Missing optional telemetry omits the affected measurements. Missing evidence
 needed to establish correctness must fail grading rather than produce a pass.

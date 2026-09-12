@@ -118,8 +118,9 @@ async def test_native_plugin_preserves_small_metadata_and_versions_seed_changes(
 
 
 @pytest.mark.parametrize("packaging", ["default", "dockerfile", "image"])
+@pytest.mark.parametrize("has_solution", [False, True])
 async def test_custom_verifier_artifacts_and_oracle_survive_staging(
-    tmp_path, monkeypatch, packaging
+    tmp_path, monkeypatch, packaging, has_solution
 ):
     import shutil
 
@@ -131,12 +132,14 @@ async def test_custom_verifier_artifacts_and_oracle_survive_staging(
     source = tmp_path / "source"
     task = source / "tasks/custom-state"
     (task / "tests").mkdir(parents=True)
-    (task / "solution").mkdir()
     (task / "instruction.md").write_text("Create the requested split.")
     verifier = "#!/bin/sh\npython /tests/check_state.py\n"
     (task / "tests/test.sh").write_text(verifier)
+    (task / "tests/verify.py").write_text("# Must not override the explicit test.sh")
     (task / "tests/check_state.py").write_text("# task-owned state grader")
-    (task / "solution/solve.sh").write_text("# task-owned oracle")
+    if has_solution:
+        (task / "solution").mkdir()
+        (task / "solution/solve.sh").write_text("# task-owned oracle")
     if packaging == "dockerfile":
         (task / "tests/Dockerfile").write_text("FROM custom-grader\nCOPY . /tests/\n")
     (task / "task.toml").write_text(
@@ -176,7 +179,10 @@ async def test_custom_verifier_artifacts_and_oracle_survive_staging(
     )
     config = Task(staged).config
     assert (staged / "tests/test.sh").read_text() == verifier
-    assert (staged / "solution/solve.sh").read_text() == "# task-owned oracle"
+    if has_solution:
+        assert (staged / "solution/solve.sh").read_text() == "# task-owned oracle"
+    else:
+        assert not (staged / "solution").exists()
     assert config.agent.timeout_sec == 900
     assert config.verifier.timeout_sec == 120
     assert config.verifier.env["EXPECTED_SPLIT"] == "regressions"

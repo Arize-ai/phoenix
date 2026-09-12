@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import shutil
 import tomllib
 from pathlib import Path
@@ -74,6 +75,17 @@ def stage_tasks(
         verifier.setdefault("env", {}).update(BENCHMARK_INTERFACE=interface, BENCHMARK_TASK=name)
         verifier_env = verifier.setdefault("environment", {})
         verifier_env["network_mode"] = "no-network"
+        # Bundled answer tasks share entrypoints; task-owned scripts take precedence.
+        if not (task / "tests/test.sh").exists() and (task / "tests/verify.py").is_file():
+            (task / "tests/test.sh").write_text(
+                "#!/bin/sh\nset -eu\npython -m evals.mcp.scoring.verify "
+                '--task "$BENCHMARK_TASK" --interface "$BENCHMARK_INTERFACE"\n'
+            )
+            if not (task / "solution").exists():
+                (task / "solution").mkdir()
+                (task / "solution/solve.sh").write_text(
+                    f"#!/bin/sh\nset -eu\npython /solution/oracle.py {shlex.quote(name)}\n"
+                )
         # Harbor builds a task's tests/Dockerfile and invokes /tests/test.sh directly.
         # Custom Dockerfiles and prebuilt verifier images already own this contract.
         if not verifier_env.get("docker_image") and not (task / "tests/Dockerfile").exists():
