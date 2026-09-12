@@ -41,6 +41,7 @@ jobs:
     outputs:
       phoenix_path: ${{ steps.paths.outputs.phoenix_path }}
       package_paths: ${{ steps.paths.outputs.package_paths }}
+      expected: ${{ steps.paths.outputs.expected }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -54,13 +55,16 @@ jobs:
         run: |
           NEED_PHOENIX=''
           NEED_PACKAGES='[]'
+          EXPECTED='[]'
           for path in $(jq -r 'keys[]' .release-please-manifest.json); do
             [ -z "$path" ] && continue
             NAME=$(jq -r --arg p "$path" '.packages[$p]["package-name"] // empty' release-please-config.json)
             VERSION=$(jq -r --arg p "$path" '.[$p]' .release-please-manifest.json)
             if [ -z "$NAME" ] || [ "$VERSION" = "null" ] || [ -z "$VERSION" ]; then
               echo "Including $path (name or version missing)"
+              [ "$VERSION" = "null" ] && VERSION=''
               if [ "$path" = "." ]; then NEED_PHOENIX='.'; else NEED_PACKAGES=$(jq -c --arg p "$path" '. + [$p]' <<< "$NEED_PACKAGES"); fi
+              EXPECTED=$(jq -c --arg p "$path" --arg n "$NAME" --arg v "$VERSION" '. + [{path: $p, name: $n, version: $v}]' <<< "$EXPECTED")
               continue
             fi
             HTTP=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${NAME}/${VERSION}/json")
@@ -71,14 +75,19 @@ jobs:
               else
                 NEED_PACKAGES=$(jq -c --arg p "$path" '. + [$p]' <<< "$NEED_PACKAGES")
               fi
+              EXPECTED=$(jq -c --arg p "$path" --arg n "$NAME" --arg v "$VERSION" '. + [{path: $p, name: $n, version: $v}]' <<< "$EXPECTED")
             else
               echo "${NAME}==${VERSION} already on PyPI, skipping"
             fi
           done
-          echo "phoenix_path=$NEED_PHOENIX" >> $GITHUB_OUTPUT
-          echo "package_paths=$NEED_PACKAGES" >> $GITHUB_OUTPUT
+          {
+            echo "phoenix_path=$NEED_PHOENIX"
+            echo "package_paths=$NEED_PACKAGES"
+            echo "expected=$EXPECTED"
+          } >> "$GITHUB_OUTPUT"
           echo "Phoenix path: $NEED_PHOENIX"
           echo "Package paths: $NEED_PACKAGES"
+          echo "Expected: $EXPECTED"
 
   build-phoenix:
     name: Build Phoenix (main package)
@@ -150,7 +159,12 @@ jobs:
   publish-phoenix:
     name: Publish Phoenix (main package)
     runs-on: ubuntu-latest
-    needs: build-phoenix
+    needs: [build-phoenix, publish-packages]
+    # `!cancelled()` suppresses the success() that GitHub otherwise prepends to a
+    # job `if:`, so the build gate has to be spelled out. `!= 'failure'` rather
+    # than `== 'success'` because publish-packages is skipped on a release that
+    # ships only the root package, and succeeds when every matrix leg skips.
+    if: ${{ !cancelled() && needs.build-phoenix.result == 'success' && needs.publish-packages.result != 'failure' }}
     environment:
       name: pypi
       url: https://pypi.org/p/arize-phoenix
@@ -394,23 +408,29 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Trigger dependency update workflow
         if: steps.check.outputs.needed == 'true'
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MATRIX_PATH: ${{ matrix.path }}
+          PACKAGE_NAME: ${{ matrix.package_name }}
         run: |
-          VERSION=$(jq -r --arg p "${{ matrix.path }}" '.[$p] // empty' .release-please-manifest.json)
+          VERSION=$(jq -r --arg p "$MATRIX_PATH" '.[$p] // empty' .release-please-manifest.json)
+          if [ -z "$VERSION" ]; then
+            echo "::error::No version for $MATRIX_PATH in .release-please-manifest.json"
+            exit 1
+          fi
           gh workflow run update-phoenix-package-versions.yml \
             --repo "$GITHUB_REPOSITORY" \
-            --field package="${{ matrix.package_name }}" \
+            --field package="$PACKAGE_NAME" \
             --field version="$VERSION"
 
   slack:
-    name: Slack notification
-    # Depends on the build jobs too, not just the publish ones: a publish job
-    # is gated on its build succeeding, so a failed build leaves it *skipped*
-    # rather than failed. Watching only publish results therefore reports
-    # success for a package that never shipped, as long as some other package
-    # published in the same run.
+    name: Publication report
+    # A publish job concluding `success` never means its packages shipped: every
+    # leg of the matrix can skip via `needed=false` and still aggregate to
+    # success, and a publish job gated on its build is left *skipped* rather
+    # than failed when that build breaks. The report therefore asks PyPI which
+    # exact versions are actually there, and uses job conclusions only to say
+    # where an unpublished package got stuck.
     needs:
       - list-python-packages
       - build-phoenix
@@ -421,38 +441,118 @@ jobs:
       - build-sqlean
       - publish-sqlean
       - trigger-version-updates
-    if: >-
-      always() && inputs.feature_branch == '' &&
-      (contains(needs.*.result, 'failure')
-      || needs.publish-phoenix.result != 'skipped'
-      || needs.publish-packages.result != 'skipped'
-      || needs.publish-sqlean.result != 'skipped')
+    if: ${{ always() && inputs.feature_branch == '' }}
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - name: Set notification content
+      - name: Confirm expected versions on PyPI
         id: notify
         env:
+          EXPECTED: ${{ needs.list-python-packages.outputs.expected }}
+          LIST_RESULT: ${{ needs.list-python-packages.result }}
+          SQLEAN_SOURCES_RESULT: ${{ needs.sqlean-sources.result }}
+          SQLEAN_NEEDED: ${{ needs.sqlean-sources.outputs.needed }}
           PHOENIX_RESULT: ${{ needs.publish-phoenix.result }}
           PACKAGES_RESULT: ${{ needs.publish-packages.result }}
           SQLEAN_RESULT: ${{ needs.publish-sqlean.result }}
           ANY_FAILURE: ${{ contains(needs.*.result, 'failure') }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "$ANY_FAILURE" = "true" ]; then
+          STATE=indeterminate
+          DETAIL=''
+          CONFIRMED=''
+          UNCONFIRMED=''
+          if [ "$LIST_RESULT" != "success" ]; then
+            DETAIL="list-python-packages did not complete (result: ${LIST_RESULT})"
+          elif ! jq -e 'type == "array"' > /dev/null 2>&1 <<< "$EXPECTED"; then
+            DETAIL="the expected-package list is missing or unparseable"
+          else
+            # arize-phoenix-sqlean has no release tag until release-please cuts its
+            # first release, and skipping it then is not a partial train. Keep it
+            # expected when the job that answers that question did not succeed.
+            EXPECTED=$(jq -c --arg needed "$SQLEAN_NEEDED" --arg sources "$SQLEAN_SOURCES_RESULT" \
+              '[.[] | select(.path != "packages/phoenix-sqlean" or $needed == "true" or $sources != "success")]' <<< "$EXPECTED")
+            if [ "$(jq -r 'length' <<< "$EXPECTED")" -eq 0 ]; then
+              STATE=nothing-expected
+            else
+              for i in $(jq -r 'to_entries[].key' <<< "$EXPECTED"); do
+                PKG_PATH=$(jq -r --argjson i "$i" '.[$i].path' <<< "$EXPECTED")
+                NAME=$(jq -r --argjson i "$i" '.[$i].name' <<< "$EXPECTED")
+                VERSION=$(jq -r --argjson i "$i" '.[$i].version' <<< "$EXPECTED")
+                case "$PKG_PATH" in
+                  .) WHERE="publish-phoenix: ${PHOENIX_RESULT}" ;;
+                  packages/phoenix-sqlean) WHERE="publish-sqlean: ${SQLEAN_RESULT}" ;;
+                  *) WHERE="publish-packages: ${PACKAGES_RESULT}" ;;
+                esac
+                if [ -z "$NAME" ] || [ -z "$VERSION" ]; then
+                  UNCONFIRMED="${UNCONFIRMED}- ${PKG_PATH}: no package name or version in the release manifest (${WHERE})"$'\n'
+                  continue
+                fi
+                HTTP=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/${NAME}/${VERSION}/json")
+                if [ "$HTTP" = "200" ]; then
+                  CONFIRMED="${CONFIRMED}- ${NAME}==${VERSION}"$'\n'
+                else
+                  UNCONFIRMED="${UNCONFIRMED}- ${NAME}==${VERSION}: not on PyPI (HTTP ${HTTP}) (${WHERE})"$'\n'
+                fi
+              done
+              if [ -z "$UNCONFIRMED" ]; then STATE=success; else STATE=partial; fi
+            fi
+          fi
+
+          case "$STATE" in
+            success) HEADLINE="PYPI Publication Succeeded" ;;
+            partial)
+              if [ "$ANY_FAILURE" = "true" ]; then
+                HEADLINE="🚨🚨🚨 PYPI Publication Failed 🚨🚨🚨"
+              else
+                HEADLINE="🚨🚨🚨 PYPI Publication Incomplete 🚨🚨🚨"
+              fi
+              ;;
+            indeterminate) HEADLINE="🚨🚨🚨 PYPI Publication Report Unavailable 🚨🚨🚨" ;;
+            nothing-expected) HEADLINE="No packages were expected to publish" ;;
+          esac
+
+          NOTE=''
+          if [ "$STATE" = "success" ] && [ "$ANY_FAILURE" = "true" ]; then
+            NOTE="Every expected version published, but a job in this run failed."
+          fi
+          if [ "$STATE" = "indeterminate" ]; then
+            NOTE="${DETAIL}. Job conclusions — publish-phoenix: ${PHOENIX_RESULT}, publish-packages: ${PACKAGES_RESULT}, publish-sqlean: ${SQLEAN_RESULT}."
+          fi
+
+          {
+            echo "## ${HEADLINE}"
+            echo ""
+            if [ -n "$NOTE" ]; then
+              echo "$NOTE"
+              echo ""
+            fi
+            if [ -n "$CONFIRMED" ]; then
+              echo "Confirmed on PyPI:"
+              echo ""
+              printf '%s\n' "$CONFIRMED"
+            fi
+            if [ -n "$UNCONFIRMED" ]; then
+              echo "Not confirmed on PyPI:"
+              echo ""
+              printf '%s\n' "$UNCONFIRMED"
+            fi
+            echo "$RUN_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$STATE" != "nothing-expected" ]; then
             {
               echo "text<<EOF"
-              echo "🚨🚨🚨 PYPI Publication Failed 🚨🚨🚨"
+              echo "$HEADLINE"
+              if [ -n "$NOTE" ]; then
+                echo "$NOTE"
+              fi
+              if [ -n "$UNCONFIRMED" ]; then
+                printf 'Not confirmed on PyPI:\n%s' "$UNCONFIRMED"
+              fi
               echo "$RUN_URL"
               echo "EOF"
-            } >> $GITHUB_OUTPUT
-          elif [ "$PHOENIX_RESULT" = "success" ] || [ "$PACKAGES_RESULT" = "success" ] || [ "$SQLEAN_RESULT" = "success" ]; then
-            {
-              echo "text<<EOF"
-              echo "PYPI Publication Succeeded"
-              echo "$RUN_URL"
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
+            } >> "$GITHUB_OUTPUT"
           fi
       - name: Send message to Slack
         if: steps.notify.outputs.text != ''
@@ -506,6 +606,7 @@ jobs:
               - 'src/phoenix/**'
               - 'js/app/src/**'
               - 'pyproject.toml'
+              - 'packages/**'
             phoenix-client:
               - 'packages/phoenix-client/**'
             phoenix-evals:
@@ -549,11 +650,28 @@ jobs:
       - name: Stamp dev version
         env:
           HEAD_SHA: ${{ needs.preview-changes.outputs.sha }}
+          PYPROJECT_PATH: pyproject.toml
+          SELF_NAME: arize-phoenix
+          CLIENT_CHANGED: ${{ needs.preview-changes.outputs['phoenix-client'] }}
+          EVALS_CHANGED: ${{ needs.preview-changes.outputs['phoenix-evals'] }}
+          OTEL_CHANGED: ${{ needs.preview-changes.outputs['phoenix-otel'] }}
         run: |
           python - <<'PY'
-          import re, os
-          path = "src/phoenix/version.py"
+          import os, re, sys
+
+          SIBLINGS = {
+              "arize-phoenix-client": ("packages/phoenix-client/pyproject.toml", "CLIENT_CHANGED"),
+              "arize-phoenix-evals": ("packages/phoenix-evals/pyproject.toml", "EVALS_CHANGED"),
+              "arize-phoenix-otel": ("packages/phoenix-otel/pyproject.toml", "OTEL_CHANGED"),
+          }
+
+          def canon(name):
+              return re.sub(r"[-_.]+", "-", name).lower()
+
           suffix = int(os.environ["HEAD_SHA"][:7], 16)
+          me = canon(os.environ["SELF_NAME"])
+
+          path = "src/phoenix/version.py"
           content = open(path).read()
           new = re.sub(
               r'(__version__ = ")([^"]+)(")',
@@ -561,6 +679,80 @@ jobs:
               content,
           )
           open(path, "w").write(new)
+
+          # Every preview job stamps from the same head SHA, so each one can derive
+          # its siblings' dev versions itself. Pinning them is what makes the wheel
+          # installable as a set: [tool.uv.sources] workspace linkage is uv-local
+          # and never reaches wheel metadata, so an unpinned floor is satisfied by
+          # the stable release and the dev sibling is simply never selected.
+          version_re = re.compile(r'(?m)^version = "([^"]+)"')
+          dev = {}
+          for name, (manifest, changed) in SIBLINGS.items():
+              if os.environ.get(changed) != "true" or canon(name) == me:
+                  continue
+              found = version_re.search(open(manifest).read())
+              if not found:
+                  sys.exit(f"::error::No version key in {manifest}")
+              dev[canon(name)] = f"{found.group(1)}.dev{suffix}"
+
+          path = os.environ["PYPROJECT_PATH"]
+          lines = open(path).read().split("\n")
+          string_re = re.compile(r"\"[^\"]*\"|'[^']*'")
+          req_re = re.compile(
+              r"\"([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]\"]*\])?([^\"]*)\""
+              r"|'([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]']*\])?([^']*)'"
+          )
+          rewrites = {c: 0 for c in dev}
+
+          def pin(match):
+              double = match.group(1) is not None
+              quote = '"' if double else "'"
+              name = match.group(1) if double else match.group(4)
+              extras = (match.group(2) if double else match.group(5)) or ""
+              rest = (match.group(3) if double else match.group(6)) or ""
+              target = dev.get(canon(name))
+              if target is None:
+                  return match.group(0)
+              rewrites[canon(name)] += 1
+              marker = ";" + rest.split(";", 1)[1] if ";" in rest else ""
+              return f"{quote}{name}{extras}=={target}{marker}{quote}"
+
+          # Only PEP 621 requirement lists are rewritten; [tool.uv] names these
+          # packages too and its entries are not dependency specifiers.
+          table, key, depth, scanned = "", None, 0, []
+          for i, line in enumerate(lines):
+              header = re.match(r"\s*\[([^\]]+)\]\s*$", line)
+              if header:
+                  table, key, depth = header.group(1), None, 0
+                  continue
+              bare = string_re.sub("", line)
+              if depth == 0:
+                  assign = re.match(r"\s*([A-Za-z0-9_.\"'-]+)\s*=", line)
+                  key = assign.group(1) if assign else key
+              if table.startswith("project"):
+                  scanned.append(line)
+                  requirements = table == "project.optional-dependencies" or (
+                      table == "project" and key == "dependencies"
+                  )
+                  if requirements and (depth > 0 or "[" in bare):
+                      lines[i] = req_re.sub(pin, line)
+              depth = max(0, depth + bare.count("[") - bare.count("]"))
+
+          quoted = string_re.findall("\n".join(scanned))
+          for name in SIBLINGS:
+              if canon(name) not in dev:
+                  continue
+              boundary = rf"(?<![A-Za-z0-9._-]){re.escape(name)}(?![A-Za-z0-9._-])"
+              declared = sum(1 for q in quoted if re.search(boundary, q))
+              if declared != rewrites[canon(name)]:
+                  sys.exit(
+                      f"::error::{path} declares {name} in a form this step cannot "
+                      f"rewrite ({declared} declared, {rewrites[canon(name)]} rewritten)"
+                  )
+              if rewrites[canon(name)]:
+                  print(f"Pinned {name} to {dev[canon(name)]} in {path}")
+
+          open(path, "w").write("\n".join(lines))
           PY
       - name: Build distribution
         run: rm -rf dist && uv build
@@ -623,11 +815,39 @@ jobs:
         env:
           PYPROJECT_PATH: ${{ matrix.path }}/pyproject.toml
           HEAD_SHA: ${{ needs.preview-changes.outputs.sha }}
+          SELF_NAME: ${{ matrix.package_name }}
+          CLIENT_CHANGED: ${{ needs.preview-changes.outputs['phoenix-client'] }}
+          EVALS_CHANGED: ${{ needs.preview-changes.outputs['phoenix-evals'] }}
+          OTEL_CHANGED: ${{ needs.preview-changes.outputs['phoenix-otel'] }}
         run: |
           python - <<'PY'
-          import re, os
-          path = os.environ["PYPROJECT_PATH"]
+          import os, re, sys
+
+          SIBLINGS = {
+              "arize-phoenix-client": ("packages/phoenix-client/pyproject.toml", "CLIENT_CHANGED"),
+              "arize-phoenix-evals": ("packages/phoenix-evals/pyproject.toml", "EVALS_CHANGED"),
+              "arize-phoenix-otel": ("packages/phoenix-otel/pyproject.toml", "OTEL_CHANGED"),
+          }
+
+          def canon(name):
+              return re.sub(r"[-_.]+", "-", name).lower()
+
           suffix = int(os.environ["HEAD_SHA"][:7], 16)
+          me = canon(os.environ["SELF_NAME"])
+
+          # Sibling base versions are read before this package's own manifest is
+          # stamped, and never include this package, so no version is suffixed twice.
+          version_re = re.compile(r'(?m)^version = "([^"]+)"')
+          dev = {}
+          for name, (manifest, changed) in SIBLINGS.items():
+              if os.environ.get(changed) != "true" or canon(name) == me:
+                  continue
+              found = version_re.search(open(manifest).read())
+              if not found:
+                  sys.exit(f"::error::No version key in {manifest}")
+              dev[canon(name)] = f"{found.group(1)}.dev{suffix}"
+
+          path = os.environ["PYPROJECT_PATH"]
           content = open(path).read()
           new = re.sub(
               r'(?m)^(version = ")([^"]+)(")',
@@ -635,6 +855,69 @@ jobs:
               content,
           )
           open(path, "w").write(new)
+
+          # Every preview job stamps from the same head SHA, so each one can derive
+          # its siblings' dev versions itself. Pinning them is what makes the wheel
+          # installable as a set: [tool.uv.sources] workspace linkage is uv-local
+          # and never reaches wheel metadata, so an unpinned floor is satisfied by
+          # the stable release and the dev sibling is simply never selected.
+          lines = open(path).read().split("\n")
+          string_re = re.compile(r"\"[^\"]*\"|'[^']*'")
+          req_re = re.compile(
+              r"\"([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]\"]*\])?([^\"]*)\""
+              r"|'([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]']*\])?([^']*)'"
+          )
+          rewrites = {c: 0 for c in dev}
+
+          def pin(match):
+              double = match.group(1) is not None
+              quote = '"' if double else "'"
+              name = match.group(1) if double else match.group(4)
+              extras = (match.group(2) if double else match.group(5)) or ""
+              rest = (match.group(3) if double else match.group(6)) or ""
+              target = dev.get(canon(name))
+              if target is None:
+                  return match.group(0)
+              rewrites[canon(name)] += 1
+              marker = ";" + rest.split(";", 1)[1] if ";" in rest else ""
+              return f"{quote}{name}{extras}=={target}{marker}{quote}"
+
+          # Only PEP 621 requirement lists are rewritten; [tool.uv] names these
+          # packages too and its entries are not dependency specifiers.
+          table, key, depth, scanned = "", None, 0, []
+          for i, line in enumerate(lines):
+              header = re.match(r"\s*\[([^\]]+)\]\s*$", line)
+              if header:
+                  table, key, depth = header.group(1), None, 0
+                  continue
+              bare = string_re.sub("", line)
+              if depth == 0:
+                  assign = re.match(r"\s*([A-Za-z0-9_.\"'-]+)\s*=", line)
+                  key = assign.group(1) if assign else key
+              if table.startswith("project"):
+                  scanned.append(line)
+                  requirements = table == "project.optional-dependencies" or (
+                      table == "project" and key == "dependencies"
+                  )
+                  if requirements and (depth > 0 or "[" in bare):
+                      lines[i] = req_re.sub(pin, line)
+              depth = max(0, depth + bare.count("[") - bare.count("]"))
+
+          quoted = string_re.findall("\n".join(scanned))
+          for name in SIBLINGS:
+              if canon(name) not in dev:
+                  continue
+              boundary = rf"(?<![A-Za-z0-9._-]){re.escape(name)}(?![A-Za-z0-9._-])"
+              declared = sum(1 for q in quoted if re.search(boundary, q))
+              if declared != rewrites[canon(name)]:
+                  sys.exit(
+                      f"::error::{path} declares {name} in a form this step cannot "
+                      f"rewrite ({declared} declared, {rewrites[canon(name)]} rewritten)"
+                  )
+              if rewrites[canon(name)]:
+                  print(f"Pinned {name} to {dev[canon(name)]} in {path}")
+
+          open(path, "w").write("\n".join(lines))
           PY
       - name: Build distribution
         if: steps.check.outputs.needed == 'true'
