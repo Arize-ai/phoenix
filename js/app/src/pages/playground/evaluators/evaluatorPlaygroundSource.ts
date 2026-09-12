@@ -116,6 +116,34 @@ export function writeEvaluatorPlaygroundSource(
     clearSlotBindingParams(params);
 }
 
+/**
+ * Whether two sources select the same rows. Written for `configure`, which
+ * waits for the page to show the source it asked for: the URL round trip
+ * rebuilds the object, so identity cannot say.
+ */
+export function isSameEvaluatorPlaygroundSource(
+  left: EvaluatorPlaygroundSource | null,
+  right: EvaluatorPlaygroundSource | null
+): boolean {
+  if (left === null || right === null) return left === right;
+
+  if (left.kind === "dataset" && right.kind === "dataset")
+    return (
+      left.datasetId === right.datasetId &&
+      left.versionId === right.versionId &&
+      left.splitIds.length === right.splitIds.length &&
+      left.splitIds.every((splitId, index) => right.splitIds[index] === splitId)
+    );
+
+  if (left.kind === "project" && right.kind === "project")
+    return (
+      left.projectId === right.projectId &&
+      left.filterCondition === right.filterCondition
+    );
+
+  return false;
+}
+
 /** The record that the source's saved evaluators belong to. */
 function getSourceRootId(source: EvaluatorPlaygroundSource | null) {
   if (!source) return null;

@@ -1,8 +1,9 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { dispatchUIOperationCall } from "@phoenix/agent/uiOperations/dispatch";
+import type { EvaluatorWorkspaceReadOutput } from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -88,6 +89,9 @@ function setup(slot?: EvaluatorAgentSlot) {
 }
 
 describe("PXI evaluator mode dispatch", () => {
+  it("documents the read output with the shape the page returns", () => {
+    expectTypeOf<EvaluatorWorkspaceRead>().toMatchTypeOf<EvaluatorWorkspaceReadOutput>();
+  });
   it("saves through the slot adapter and rejects writes during an active save", async () => {
     let finish!: (result: { ok: true }) => void;
 

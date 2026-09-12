@@ -14,6 +14,9 @@ const availability = {
 };
 
 const outputConfig = z.strictObject({
+  // readSlot reports categorical outputs with this tag; accepting it lets a
+  // read snapshot round-trip into an edit unchanged.
+  kind: z.literal("classification").optional(),
   name: z.string().min(1),
   optimizationDirection: z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]),
   values: z
@@ -93,16 +96,110 @@ export type EvaluatorSlotSaveInput = Omit<
   "slot" | "expectedRevision"
 >;
 
+const expectedOutput = z.object({
+  label: z.string().nullable(),
+  score: z.number().nullable().optional(),
+  explanation: z.string().nullable().optional(),
+});
+
+const prediction = z.union([
+  z.object({
+    status: z.literal("success"),
+    label: z.string().nullable(),
+    score: z.number().nullable(),
+    explanation: z.string().nullable(),
+    revision: z.string(),
+  }),
+  z.object({
+    status: z.literal("error"),
+    error: z.string(),
+    revision: z.string(),
+  }),
+]);
+
+/** One value per visible slot; a missing or null entry means none yet. */
+function bySlot<T extends z.ZodType>(schema: T) {
+  const perSlot = schema.nullable().optional();
+
+  return z.object({ A: perSlot, B: perSlot, C: perSlot, D: perSlot });
+}
+
+/**
+ * What `read` and `run` return. Documentation for the signature only: it
+ * names where a row's predictions and expected outputs live so a script can
+ * select them instead of paging through whole rows to find out.
+ */
+const workspaceRead = z.object({
+  mode: z.literal("evaluators"),
+  source: z
+    .union([
+      z.object({
+        kind: z.literal("dataset"),
+        datasetId: z.string(),
+        splitIds: z.array(z.string()),
+        datasetVersionId: z.string().nullable(),
+      }),
+      z.object({
+        kind: z.literal("project"),
+        projectId: z.string(),
+        filterCondition: z.string(),
+        evaluationTarget: z.literal("SPAN"),
+      }),
+    ])
+    .nullable(),
+  sampleSize: z.number(),
+  sampleLoaded: z.boolean(),
+  totalExamples: z.number(),
+  isRunning: z.boolean(),
+  staleSlots: z.array(z.string()),
+  slots: z.array(
+    z.object({
+      slot,
+      name: z.string().optional(),
+      outputName: z.string().optional(),
+      kind: z.enum(["LLM", "CODE"]).optional(),
+      validationError: z.string().nullable().optional(),
+      isDirty: z.boolean().optional(),
+      isRunning: z.boolean(),
+      completed: z.number(),
+    })
+  ),
+  examples: z.array(
+    z.object({
+      id: z.string(),
+      revisionId: z.string(),
+      name: z.string().optional(),
+      input: z.unknown(),
+      output: z.unknown(),
+      metadata: z.unknown(),
+      expectedOutputs: bySlot(expectedOutput),
+      savedExpectedOutputs: z
+        .array(
+          expectedOutput.extend({
+            annotationName: z.string(),
+            annotationId: z.string().optional(),
+          })
+        )
+        .readonly(),
+      predictions: bySlot(prediction),
+    })
+  ),
+  nextOffset: z.number().nullable(),
+});
+
+export type EvaluatorWorkspaceReadOutput = z.infer<typeof workspaceRead>;
+
 export const readEvaluatorPlaygroundOperation = defineUIOperation({
   name: "evaluatorPlayground.read",
   operationKind: "read",
   availability,
   description:
-    "Read evaluator mode: the source (a dataset with splits, or a project with a span filter), sample size, slot summaries, run status, expected outputs and paginated comparison rows. Rows are dataset examples or spans (span id as id and revisionId). Runs are temporary previews, not prompt experiments. All slots are peers with independent expected outputs. Use readSlot for editable draft details. No credentials are returned.",
+    "Read evaluator mode: the source (a dataset with splits, or a project with a span filter), sample size, slot summaries, run status, expected outputs and paginated comparison rows. Each row carries the input, output and metadata an evaluator receives: for a span row (span id as id and revisionId) metadata holds span_kind, status_code, status_message, latency_ms, cumulative token counts, start/end time, attributes and events — read it from here rather than querying spans separately; rows can be large, so select the fields you need in the script. Runs are temporary previews, not prompt experiments. All slots are peers with independent expected outputs. Use readSlot for editable draft details. No credentials are returned.",
   inputSchema: z.strictObject({
     offset: z.number().int().min(0).default(0),
     limit: z.number().int().min(1).max(50).default(20),
   }),
+  outputSchema: workspaceRead,
 });
 
 export const configureEvaluatorPlaygroundOperation = defineUIOperation({
@@ -118,7 +215,9 @@ export const configureEvaluatorPlaygroundOperation = defineUIOperation({
       .string()
       .nullable()
       .optional()
-      .describe("Project Relay node ID; null clears the source."),
+      .describe(
+        "Project Relay node ID when you already hold one; null clears the source. Do not query for an ID — pass projectName."
+      ),
     projectName: z
       .string()
       .min(1)
@@ -152,8 +251,24 @@ export const readEvaluatorPlaygroundFilterHelpOperation = defineUIOperation({
   operationKind: "read",
   availability,
   description:
-    "Read the span filter DSL reference for configure's filterCondition: the fields an expression may reference, dialect notes (units, casing, attribute and annotation access), request→expression examples, and — when a project is the source — that project's annotation names and model names, so filters use names that exist. Call it before writing a filter that names an annotation, attribute or model, or after configure rejected one.",
+    "Read the span filter DSL reference for configure's filterCondition: the fields an expression may reference, dialect notes (units, casing, attribute and annotation access), request→expression examples, and — when a project is the source — that project's annotation names and model names, so filters use names that exist (tell the user when a requested name is not among them). Call it before writing a filter that names an annotation, attribute or model, or after configure rejected one.",
   inputSchema: empty,
+  outputSchema: z.object({
+    fields: z.array(
+      z.object({ name: z.string(), description: z.string().optional() })
+    ),
+    notes: z.array(z.string()),
+    examples: z.array(
+      z.object({ description: z.string(), expression: z.string() })
+    ),
+    project: z
+      .object({
+        spanAnnotationNames: z.array(z.string()),
+        traceAnnotationNames: z.array(z.string()),
+        modelNames: z.array(z.string()),
+      })
+      .nullable(),
+  }),
 });
 
 export const selectEvaluatorPlaygroundSlotOperation = defineUIOperation({
@@ -161,7 +276,7 @@ export const selectEvaluatorPlaygroundSlotOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Load a saved global, dataset or project evaluator (by Relay node ID), or a new LLM/code draft, into explicit slot A, B, C or D. Configure visible slots before selecting one. Existing unsaved edits require discardChanges. Loading does not save. Returns the same snapshot as readSlot, revision included, so edit next without re-reading.",
+    "Load a saved global, dataset or project evaluator (by Relay node ID), or a new LLM/code draft, into explicit slot A, B, C or D: source is {type:'new', kind:'CODE'|'LLM'} or {type:'evaluator'|'datasetEvaluator'|'projectEvaluator', id}. Configure visible slots before selecting one. Existing unsaved edits require discardChanges. Loading does not save. Returns the same snapshot as readSlot, revision included, so edit next without re-reading.",
   inputSchema: z.strictObject({
     slot,
     source: z.discriminatedUnion("type", [
@@ -188,7 +303,7 @@ export const editEvaluatorPlaygroundSlotOperation = defineUIOperation({
   operationKind: "write",
   availability,
   description:
-    "Edit exactly one evaluator draft with a readSlot revision. Only supplied fields change; lists/mappings replace their entire value. Prompt/messages/model/includeExplanation apply to LLM; code/language/sandbox to CODE. Outputs: LLM slots accept only categorical outputs (labels, each optionally scored — express a 0–1 scale as scored labels); continuous and freeform outputs are valid only for CODE slots and are rejected for LLM on run and save. A row's output is the judged response; reference starts empty. Span rows expose the span's metadata (attributes included) to the mapping. Human expected labels never enter evaluator context. Does not save or run.",
+    "Edit exactly one evaluator draft with a readSlot revision. Only supplied fields change; lists/mappings replace their entire value; outputConfigs accepts readSlot's shape back. Prompt/messages/model/includeExplanation apply to LLM; code/language/sandbox to CODE. Outputs: LLM slots accept only categorical outputs (labels, each optionally scored — express a 0–1 scale as scored labels); continuous and freeform outputs are valid only for CODE slots and are rejected for LLM on run and save. A row's output is the judged response; reference starts empty. Span rows expose the span's metadata (attributes included) to the mapping. Human expected labels never enter evaluator context. Does not save or run.",
   inputSchema: evaluatorSlotEditSchema,
 });
 
@@ -198,11 +313,12 @@ export const runEvaluatorPlaygroundOperation = defineUIOperation({
   longRunning: true,
   availability,
   description:
-    "Run all visible evaluators (omit slots) or explicit A–D slots on the shared sample, or on only the given exampleIds (a row run keeps the other rows' results). Awaits completion and returns run status/results; calls LLMs or sandboxes and can incur cost. Unselected slot results remain unchanged. Does not save evaluators, create experiments, or write expected labels.",
+    "Run all visible evaluators (omit slots) or explicit A–D slots on the shared sample, or on only the given exampleIds (a row run keeps the other rows' results). Awaits completion and returns the workspace as read does — each row's result is examples[i].predictions[slot] ({status, label, score, explanation} or {status:'error', error}); select those fields in the script instead of returning whole rows. Calls LLMs or sandboxes and can incur cost. Unselected slot results remain unchanged. Does not save evaluators, create experiments, or write expected labels.",
   inputSchema: z.strictObject({
     slots: z.array(slot).min(1).max(4).optional(),
     exampleIds: z.array(z.string()).min(1).optional(),
   }),
+  outputSchema: workspaceRead,
 });
 
 export const stopEvaluatorPlaygroundOperation = defineUIOperation({

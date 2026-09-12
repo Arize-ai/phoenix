@@ -144,6 +144,8 @@ instances and `ui.evaluators.*` operates the separate form dialogs, and neither 
 4. Call `ui.evaluatorPlayground.readSlot` before editing and pass its `expectedRevision` to
    `ui.evaluatorPlayground.editSlot`. Edit the prompt and model or the code and sandbox, the output
    configs, the selected output, and the input mapping. LLM slots take categorical outputs only.
+   The snapshot lists `availableSandboxConfigs` and `availableModels`; there is nothing to look up
+   over GraphQL first.
 5. In this mode a row's `output` is the judged response and `reference` starts empty; inspect
    actual row content and configure the input mapping rather than assuming the experiment output
    shape. A span row exposes the span's metadata (`attributes` included) to the mapping. The row's

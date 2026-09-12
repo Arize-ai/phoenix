@@ -16,6 +16,7 @@ import {
   clearSlotBindingParams,
   getConfiguredSource,
   getSlotBindingParam,
+  isSameEvaluatorPlaygroundSource,
   writeEvaluatorPlaygroundSource,
 } from "./evaluatorPlaygroundSource";
 import type {
@@ -24,6 +25,7 @@ import type {
   ExpectedOutput,
   SlotExpectations,
 } from "./evaluatorResults";
+import { createEvaluatorContext } from "./evaluatorResults";
 import { setVisibleEvaluatorSlots } from "./evaluatorSlotTypes";
 import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
 import { createLatestValue } from "./latestValue";
@@ -146,6 +148,8 @@ export function useEvaluatorWorkspaceOperations(
           ...(example.name != null ? { name: example.name } : {}),
           input: example.input,
           output: example.output,
+          // The metadata as the evaluator sees it, expected outputs removed.
+          metadata: createEvaluatorContext(example).metadata,
           expectedOutputs: Object.fromEntries(
             visible.map((slot) => [
               slot,
@@ -227,10 +231,15 @@ export function useEvaluatorWorkspaceOperations(
       );
       allowNavigation.current = false;
 
-      // A changed sample loads through Suspense; report the workspace once the
-      // render that carries it has committed.
+      // The router commits the new URL on its own schedule and the changed
+      // sample loads through Suspense, so wait for the render that shows the
+      // requested source with its sample, not merely the next one.
+      const requestedSampleSize = input.sampleSize ?? state.sampleSize;
       const settled = await latest.waitFor(
-        (current) => !current.source || current.sampleLoaded,
+        (current) =>
+          isSameEvaluatorPlaygroundSource(current.source, nextSource.source) &&
+          current.sampleSize === requestedSampleSize &&
+          (!current.source || current.sampleLoaded),
         SETTLE_TIMEOUT_MS
       );
 

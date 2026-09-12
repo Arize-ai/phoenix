@@ -72,13 +72,17 @@ export type EvaluatorWorkspaceRead = {
     isRunning: boolean;
     completed: number;
   }[];
-  /** Dataset examples or spans; a span's id and revisionId are the span id. */
+  /**
+   * Dataset examples or spans; a span's id and revisionId are the span id.
+   * `metadata` is what the evaluator receives: expected outputs are stripped.
+   */
   examples: {
     id: string;
     revisionId: string;
     name?: string;
     input: unknown;
     output: unknown;
+    metadata: unknown;
     expectedOutputs: Partial<Record<SlotId, ExpectedOutput | null>>;
     savedExpectedOutputs: SampleExample["calibrationLabels"];
     predictions: Partial<Record<SlotId, EvaluatorResult | null>>;

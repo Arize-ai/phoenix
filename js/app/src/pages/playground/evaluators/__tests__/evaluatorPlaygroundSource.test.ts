@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   clearSlotBindingParams,
   getConfiguredSource,
+  isSameEvaluatorPlaygroundSource,
   readEvaluatorPlaygroundSource,
   resolveProjectScope,
   toEvaluatorSlotSource,
@@ -251,5 +252,24 @@ describe("resolveProjectScope", () => {
       samplingRate: 1,
       evaluationTarget: "SPAN",
     });
+  });
+});
+
+describe("isSameEvaluatorPlaygroundSource", () => {
+  it("compares by the fields that select rows, not by identity", () => {
+    expect(isSameEvaluatorPlaygroundSource(project, { ...project })).toBe(true);
+    expect(
+      isSameEvaluatorPlaygroundSource(project, {
+        ...project,
+        filterCondition: "",
+      })
+    ).toBe(false);
+    expect(isSameEvaluatorPlaygroundSource(dataset, { ...dataset })).toBe(true);
+    expect(
+      isSameEvaluatorPlaygroundSource(dataset, { ...dataset, splitIds: [] })
+    ).toBe(false);
+    expect(isSameEvaluatorPlaygroundSource(dataset, project)).toBe(false);
+    expect(isSameEvaluatorPlaygroundSource(null, null)).toBe(true);
+    expect(isSameEvaluatorPlaygroundSource(null, project)).toBe(false);
   });
 });

@@ -202,8 +202,10 @@ export function createEvaluatorAgentSlot({
 
       const outputConfigs =
         input.outputConfigs?.map((config) =>
+          // A categorical output is the one with values; its tag is optional
+          // on input so a readSlot snapshot can be edited and sent back.
           fromOutputConfigDraft(
-            "kind" in config ? config : { ...config, kind: "classification" }
+            "values" in config ? { ...config, kind: "classification" } : config
           )
         ) ?? state.outputConfigs;
 
