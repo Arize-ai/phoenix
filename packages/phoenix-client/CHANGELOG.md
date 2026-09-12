@@ -1,5 +1,26 @@
 # Changelog
 
+## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.4.0...arize-phoenix-client-v3.5.0) (2026-09-12)
+
+
+### Features
+
+* add MiniMax provider integration ([#14310](https://github.com/Arize-ai/phoenix/issues/14310)) ([7e01ce7](https://github.com/Arize-ai/phoenix/commit/7e01ce703b3830447ebdf641ccbb95089778e810))
+* **client:** add ATIF tracing to Harbor plugin ([#15715](https://github.com/Arize-ai/phoenix/issues/15715)) ([30dccec](https://github.com/Arize-ai/phoenix/commit/30dccec0744d55612366aa3d444eb7dc12f7831b))
+* **client:** add error and latency filters to get_traces in python and typescript clients ([c839254](https://github.com/Arize-ai/phoenix/commit/c83925478204259eca8e6709fd8c1a3c20f2f7e1))
+* **evals:** deprecate document relevance evaluators ([#15991](https://github.com/Arize-ai/phoenix/issues/15991)) ([d67ea3f](https://github.com/Arize-ai/phoenix/commit/d67ea3fdaaa3df4c006c950e12e785f2bdc81960))
+* **prompts:** expose version metadata in REST API ([#15980](https://github.com/Arize-ai/phoenix/issues/15980)) ([2b73847](https://github.com/Arize-ai/phoenix/commit/2b7384774ad6193c16538730f41ee5858df98818))
+
+
+### Bug Fixes
+
+* **annotations:** validate all configured ID columns, not just the first ([#15877](https://github.com/Arize-ai/phoenix/issues/15877)) ([7654185](https://github.com/Arize-ai/phoenix/commit/76541854a8936bf95ffb3ed959085d4f6a92a53b))
+
+
+### Documentation
+
+* **phoenix-client:** create_dataset docstring documented dataset_name, param is name ([#15950](https://github.com/Arize-ai/phoenix/issues/15950)) ([397088a](https://github.com/Arize-ai/phoenix/commit/397088a263e0d999c3912cd85adc05166cbf69a2))
+
 ## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.5.0...arize-phoenix-client-v3.4.0) (2026-09-09)
 
 
