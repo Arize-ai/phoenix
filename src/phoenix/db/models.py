@@ -2866,7 +2866,11 @@ class SpanCost(HasId):
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
+        # Span.span_cost is a scalar relationship, so at most one cost row may
+        # exist per span. A unique index enforces that invariant in the database
+        # rather than relying on every writer to preserve it.
         index=True,
+        unique=True,
     )
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
