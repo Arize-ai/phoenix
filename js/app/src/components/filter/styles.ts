@@ -177,6 +177,9 @@ export const dslFilterCodeMirrorCSS = css`
   .cm-content {
     padding: var(--global-dimension-size-100) 0;
   }
+  [data-size="S"] & .cm-content {
+    padding: var(--global-dimension-size-50) 0;
+  }
   .cm-editor {
     background-color: transparent !important;
   }

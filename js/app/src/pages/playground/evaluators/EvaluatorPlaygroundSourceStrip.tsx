@@ -212,6 +212,7 @@ function EvaluatorPlaygroundFilterField({
   return (
     <div css={filterFieldCSS} aria-disabled={isDisabled}>
       <SpanFilterConditionFieldCore
+        size="S"
         projectId={projectId}
         filterCondition={draft}
         onFilterConditionChange={setDraft}

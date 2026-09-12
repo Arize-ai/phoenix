@@ -166,6 +166,7 @@ export type SpanFilterConditionFieldCoreProps = {
   /** An empty condition reports as valid (unfiltered). */
   onValidityChange?: (isValid: boolean) => void;
   placeholder?: string;
+  size?: "M" | "S";
   /**
    * Opt in only where the `set_spans_filter` client action is registered (the
    * tracing pages).
@@ -189,6 +190,7 @@ export function SpanFilterConditionFieldCore(
     validationRetryKey,
     onValidityChange,
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
+    size,
     advertiseFilterToAgent = false,
   } = props;
   const [isConditionValid, setIsConditionValid] = useState<boolean>(true);
@@ -303,6 +305,7 @@ export function SpanFilterConditionFieldCore(
   return (
     <AIQueryDSLFilterField
       aria-label="Filter spans"
+      size={size}
       value={filterCondition}
       onChange={onFilterConditionChange}
       placeholder={placeholder}

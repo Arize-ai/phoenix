@@ -431,6 +431,11 @@ export type DSLFilterConditionFieldProps<
    */
   "aria-label"?: string;
   className?: string;
+  /**
+   * Control height. `S` matches size-S inputs and buttons so the field can sit
+   * in a compact toolbar; the default matches the tracing page's filter bar.
+   */
+  size?: "M" | "S";
 };
 
 /**
@@ -541,6 +546,7 @@ export function DSLFilterConditionField<
     onClear,
     ref,
     className,
+    size = "M",
   } = props;
   const {
     snippets,
@@ -886,6 +892,7 @@ export function DSLFilterConditionField<
       data-is-warning={!hasError && hasWarnings}
       data-has-condition={hasCondition}
       data-variant={variant}
+      data-size={size}
       className={classNames("dsl-filter-condition-field", className)}
       css={dslFilterFieldCSS}
     >
@@ -916,7 +923,11 @@ export function DSLFilterConditionField<
           }}
           value={value}
           onChange={onChange}
-          height="36px"
+          height={
+            size === "S"
+              ? "calc(var(--global-input-height-s) - 2 * var(--global-border-size-thin))"
+              : "36px"
+          }
           width="100%"
           theme={codeMirrorTheme}
           placeholder={placeholder}
