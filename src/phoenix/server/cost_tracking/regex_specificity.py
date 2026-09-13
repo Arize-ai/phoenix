@@ -138,19 +138,36 @@ def score(regex: Union[str, re.Pattern[str]]) -> int:
     return max(score_value, 1)
 
 
+INLINE_FLAGS = set("aiLmsux-")
+
+
+def _get_inline_flag_end(pattern: str, start: int) -> int:
+    """
+    If pattern[start:] begins with a leading inline flag group like (?i) or (?im-s),
+    return the index immediately after the closing ')'. Otherwise return -1.
+    """
+    if not pattern.startswith("(?", start):
+        return -1
+    close = pattern.find(")", start)
+    if close == -1 or close == start + 2:
+        return -1
+    flag_content = pattern[start + 2 : close]
+    if all(c in INLINE_FLAGS for c in flag_content):
+        return close + 1
+    return -1
+
+
 def _has_start_anchor(pattern: str) -> bool:
     """
     Check if pattern has a start anchor (after all leading inline flags).
     Handles multiple inline flags robustly.
     """
     i = 0
-    # Skip all leading inline flags
-    while pattern.startswith("(?", i):
-        close = pattern.find(")", i)
-        if close == -1:
+    while True:
+        end = _get_inline_flag_end(pattern, i)
+        if end == -1:
             break
-        i = close + 1
-    # After all flags, check for ^
+        i = end
     return i < len(pattern) and pattern[i] == "^"
 
 
@@ -160,20 +177,18 @@ def _strip_anchors(pattern: str) -> str:
     Handles multiple inline flags robustly.
     """
     i = 0
-    # Remove all leading inline flags
-    while pattern.startswith("(?", i):
-        close = pattern.find(")", i)
-        if close == -1:
+    while True:
+        end = _get_inline_flag_end(pattern, i)
+        if end == -1:
             break
-        i = close + 1
-    # Remove start anchor
+        i = end
     if i < len(pattern) and pattern[i] == "^":
         i += 1
     content = pattern[i:]
-    # Remove end anchor
     if content.endswith("$"):
         content = content[:-1]
     return content
+
 
 
 def _score_content(content: str) -> int:

@@ -26,6 +26,8 @@ from phoenix.server.cost_tracking.regex_specificity import (
         pytest.param("(?i)abc^", False, id="anchor not at start"),
         pytest.param("(?i)^", True, id="just anchor with flags"),
         pytest.param("(?i)", False, id="just flags"),
+        pytest.param("(?:abc)def", False, id="non capturing group no anchor"),
+        pytest.param("(?:abc)^def", False, id="non capturing group before anchor"),
     ],
 )
 def test_has_start_anchor(pattern: str, expected: bool) -> None:
@@ -43,6 +45,7 @@ def test_has_start_anchor(pattern: str, expected: bool) -> None:
         pytest.param("(?i)abc", "abc", id="inline flag only"),
         pytest.param("(?i)(?m)^abc$", "abc", id="multiple flags + anchors"),
         pytest.param("(?i)^(?m)abc$", "(?m)abc", id="flag-anchor-flag"),
+        pytest.param("(?:abc)def", "(?:abc)def", id="non capturing group preserved"),
     ],
 )
 def test_strip_anchors(pattern: str, expected: str) -> None:
