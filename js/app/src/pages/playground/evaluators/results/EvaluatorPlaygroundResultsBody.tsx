@@ -21,10 +21,13 @@ export const RESULTS_ROW_HEIGHT = EXAMPLE_FIELD_HEIGHT + HEADER_STRIP_HEIGHT;
  */
 export function EvaluatorPlaygroundResultsBody({
   rows,
+  columnCount,
   scrollElementRef,
   renderRow,
 }: {
   rows: SampleExample[];
+  /** How many columns the spacer row spans. */
+  columnCount: number;
   /** The `overflow: auto` wrap the table scrolls inside. */
   scrollElementRef: RefObject<HTMLDivElement | null>;
   renderRow: (example: SampleExample) => ReactNode;
@@ -44,9 +47,15 @@ export function EvaluatorPlaygroundResultsBody({
   });
 
   const virtualRows = virtualizer.getVirtualItems();
+  // The rows not rendered still need their room, or the scroll range ends at
+  // the last rendered row. A spacer row holds it: a height on the tbody would
+  // instead be shared out among the rendered rows, stretching them.
+  const spacerHeight =
+    virtualizer.getTotalSize() -
+    virtualRows.reduce((total, row) => total + row.size, 0);
 
   return (
-    <tbody style={{ height: virtualizer.getTotalSize() }}>
+    <tbody>
       {virtualRows.map((virtualRow, index) => {
         const example = rows[virtualRow.index];
 
@@ -67,6 +76,12 @@ export function EvaluatorPlaygroundResultsBody({
           </tr>
         );
       })}
+      <tr aria-hidden>
+        <td
+          colSpan={columnCount}
+          style={{ height: spacerHeight, padding: 0 }}
+        />
+      </tr>
     </tbody>
   );
 }

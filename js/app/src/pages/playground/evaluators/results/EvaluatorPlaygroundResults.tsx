@@ -435,6 +435,7 @@ function EvaluatorPlaygroundResultsContent({
             </TableEmptyWrap>
           ) : (
             <EvaluatorPlaygroundResultsBody
+              columnCount={visibleSlotIds.length + visibleFields.length + 1}
               rows={activeView.examples}
               scrollElementRef={tableWrapRef}
               renderRow={(example) => {
