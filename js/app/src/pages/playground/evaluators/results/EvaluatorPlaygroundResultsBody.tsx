@@ -14,10 +14,10 @@ const HEADER_STRIP_HEIGHT = 39;
 export const RESULTS_ROW_HEIGHT = EXAMPLE_FIELD_HEIGHT + HEADER_STRIP_HEIGHT;
 
 /**
- * The rows in view, plus a few beyond it. A 20-row sample holds some sixty
- * CodeMirror editors, which took the main thread for seconds when they all
- * mounted at once; virtualizing over the table's scroll container mounts
- * only the visible ones, the way the experiment compare table does.
+ * The rows in view, plus a few beyond it. A 20-row sample took the main thread
+ * for seconds when every row mounted at once; virtualizing over the table's
+ * scroll container mounts only the visible ones, the way the experiment
+ * compare table does.
  */
 export function EvaluatorPlaygroundResultsBody({
   rows,
@@ -40,10 +40,9 @@ export function EvaluatorPlaygroundResultsBody({
     count: rows.length,
     getScrollElement: () => scrollElementRef.current,
     estimateSize: () => RESULTS_ROW_HEIGHT,
-    // Each row mounts three editors, so a row costs tens of milliseconds;
-    // two rows of overscan keep a wheel scroll smooth without paying for
-    // rows the viewport is unlikely to reach in one motion.
-    overscan: 2,
+    // Field cells are static text, so a row is cheap; overscan a few so a
+    // wheel scroll never reaches an unrendered row.
+    overscan: 4,
   });
 
   const virtualRows = virtualizer.getVirtualItems();

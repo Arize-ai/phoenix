@@ -17,6 +17,7 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import { JSONPreview } from "@phoenix/components/code/JSONPreview";
 import { CellTop } from "@phoenix/components/table";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
@@ -44,9 +45,6 @@ export const EXAMPLE_FIELD_HEIGHT = 220;
 const exampleFieldContentCSS = css`
   flex: none;
   padding: var(--global-dimension-size-200);
-  .cm-editor {
-    background: transparent !important;
-  }
 `;
 
 /**
@@ -81,8 +79,9 @@ export function ExampleFieldCell({
     null,
     2
   );
-  // The collapsed cell shows a screenful; the popover renders the whole value
-  // only when opened, so a table of large spans stays responsive.
+  // The collapsed cell shows a screenful as static text; the popover mounts an
+  // editor over the whole value only when opened. Rows scroll in as fast as
+  // the browser can lay out text, instead of waiting on editors.
   const preview = truncateJsonPreview(json);
 
   return (
@@ -125,11 +124,7 @@ export function ExampleFieldCell({
       </CellTop>
       <ExpandableContent height={EXAMPLE_FIELD_HEIGHT}>
         <div css={exampleFieldContentCSS}>
-          <JSONBlock
-            value={preview.text}
-            lint={!preview.isTruncated}
-            basicSetup={{ lineNumbers: false, foldGutter: false }}
-          />
+          <JSONPreview value={preview.text} />
         </div>
       </ExpandableContent>
     </Flex>
