@@ -17,7 +17,10 @@ fi
 mkdir -p "$STATE_DIR"
 # HARBOR_PHOENIX_* come from the task's environment.env; the agent requests
 # remote trace export whenever the endpoint is set.
-PHOENIX_SQL_DATABASE_URL="sqlite:///$FIXTURE_DB" PHOENIX_WORKING_DIR=/data \
+# The docs MCP server reaches out to an external host on every turn; the eval
+# scores PXI on the fixture data, so it runs without docs tools.
+PHOENIX_ALLOW_EXTERNAL_RESOURCES=false \
+  PHOENIX_SQL_DATABASE_URL="sqlite:///$FIXTURE_DB" PHOENIX_WORKING_DIR=/data \
   PHOENIX_HOST=0.0.0.0 PHOENIX_PORT="$PORT" \
   PHOENIX_AGENTS_COLLECTOR_ENDPOINT="${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}" \
   PHOENIX_AGENTS_COLLECTOR_API_KEY="${HARBOR_PHOENIX_API_KEY:-}" \
