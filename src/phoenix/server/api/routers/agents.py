@@ -999,9 +999,6 @@ def _build_message_metadata_chunk(
     session_id: str,
     usage: RequestUsage | None = None,
 ) -> MessageMetadataChunk:
-    """Build the `MessageMetadataChunk` emitted as an agent turn starts (so the
-    trace context reaches clients that stop the turn early) and again as it
-    completes, with the turn's usage. The client merges the two."""
     return MessageMetadataChunk(
         message_metadata=MessageMetadata(
             phoenix=_build_phoenix_assistant_message_metadata(
@@ -3617,10 +3614,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         assert _is_async_generator(raw_stream)
 
                         async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
-                            # The turn's trace context is streamed right after the opening
-                            # `start` message chunk. A client that stops the turn never
-                            # receives the completion metadata, and would otherwise have no
-                            # trace to link the partial response to until it reloads.
+                            # A client that stops the turn never receives the completion
+                            # metadata, so the trace context is sent up front.
                             turn_trace_context_streamed = resolved_turn_trace_context is None
                             # Forced skills are streamed as their own `load_skill` steps so
                             # the browser transcript matches what the model received. They

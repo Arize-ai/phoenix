@@ -2338,8 +2338,7 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
     assert response.status_code == 200
 
     # The stream carries pydantic-ai's own metadata chunk too; the Phoenix ones
-    # are identified by their sessionId payload. The turn's trace context is
-    # streamed as the turn starts and again with its usage as it completes.
+    # are identified by their sessionId payload.
     phoenix_metadata_chunks = [
         chunk["messageMetadata"]
         for chunk in _stream_chunks(response.text)
