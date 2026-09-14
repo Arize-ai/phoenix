@@ -70,6 +70,10 @@ import { EvaluatorSlotEditor } from "./EvaluatorSlotEditor";
 import type { EvaluatorSlotProps } from "./evaluatorSlotTypes";
 import { getSlotIndex } from "./evaluatorSlotTypes";
 import { getSlotSourceLabel } from "./evaluatorSlotValidation";
+import {
+  searchablePickerListCSS,
+  searchablePickerMenuCSS,
+} from "./searchablePickerStyles";
 
 /** The node the slot opens with: a binding when the URL names one, else the evaluator. */
 export function getInitialSlotSelection(props: EvaluatorSlotProps) {
@@ -274,42 +278,48 @@ function EvaluatorSlotPicker({
         <SelectChevronUpDownIcon />
       </Button>
       <Popover>
-        <View padding="size-100">
-          <DebouncedSearch
-            aria-label="Search evaluators"
-            defaultValue={search}
-            onChange={setSearch}
-            placeholder="Search evaluators"
-          />
-        </View>
-        {isLoadingOptions ? <Loading size="S" /> : null}
-        <ListBox>
-          <SelectItem id="new-llm" textValue="New LLM evaluator">
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <Icon svg={<Icons.PlusCircle />} />
-              <Text>New LLM evaluator</Text>
-            </Flex>
-          </SelectItem>
-          <SelectItem id="new-code" textValue="New code evaluator">
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <Icon svg={<Icons.PlusCircle />} />
-              <Text>New code evaluator</Text>
-            </Flex>
-          </SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option.id} id={option.id} textValue={option.name}>
-              <Flex
-                direction="row"
-                gap="size-100"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Text>{option.name}</Text>
-                <EvaluatorKindToken kind={option.kind} size="S" />
+        <div css={searchablePickerMenuCSS}>
+          <View padding="size-100" flex="none">
+            <DebouncedSearch
+              aria-label="Search evaluators"
+              defaultValue={search}
+              onChange={setSearch}
+              placeholder="Search evaluators"
+            />
+          </View>
+          {isLoadingOptions ? <Loading size="S" /> : null}
+          <ListBox css={searchablePickerListCSS}>
+            <SelectItem id="new-llm" textValue="New LLM evaluator">
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Icon svg={<Icons.PlusCircle />} />
+                <Text>New LLM evaluator</Text>
               </Flex>
             </SelectItem>
-          ))}
-        </ListBox>
+            <SelectItem id="new-code" textValue="New code evaluator">
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Icon svg={<Icons.PlusCircle />} />
+                <Text>New code evaluator</Text>
+              </Flex>
+            </SelectItem>
+            {options.map((option) => (
+              <SelectItem
+                key={option.id}
+                id={option.id}
+                textValue={option.name}
+              >
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Text>{option.name}</Text>
+                  <EvaluatorKindToken kind={option.kind} size="S" />
+                </Flex>
+              </SelectItem>
+            ))}
+          </ListBox>
+        </div>
       </Popover>
     </Select>
   );

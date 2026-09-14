@@ -21,6 +21,10 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { ProjectItemContent } from "@phoenix/components/project/ProjectItemContent";
 
 import type { EvaluatorPlaygroundProjectSelectQuery } from "./__generated__/EvaluatorPlaygroundProjectSelectQuery.graphql";
+import {
+  searchablePickerListCSS,
+  searchablePickerMenuCSS,
+} from "./searchablePickerStyles";
 
 /**
  * The project counterpart of the dataset picker in the Results strip: a
@@ -102,35 +106,42 @@ export function EvaluatorPlaygroundProjectSelect({
         <SelectChevronUpDownIcon />
       </Button>
       <Popover>
-        <View padding="size-100">
-          <DebouncedSearch
-            aria-label="Search projects"
-            defaultValue={search}
-            onChange={setSearch}
-            placeholder="Search projects"
-          />
-        </View>
-        <ListBox
-          renderEmptyState={() => (
-            <CompactEmptyState
-              icon={<Icon svg={<Icons.Grid />} />}
-              description="No projects"
-              isFiltered={deferredSearch.length > 0}
+        <div css={searchablePickerMenuCSS}>
+          <View padding="size-100" flex="none">
+            <DebouncedSearch
+              aria-label="Search projects"
+              defaultValue={search}
+              onChange={setSearch}
+              placeholder="Search projects"
             />
-          )}
-        >
-          {options.map((option) => (
-            <SelectItem key={option.id} id={option.id} textValue={option.name}>
-              <Flex direction="row" alignItems="center" minWidth={0}>
-                <ProjectItemContent
-                  name={option.name}
-                  gradientStartColor={option.gradientStartColor}
-                  gradientEndColor={option.gradientEndColor}
-                />
-              </Flex>
-            </SelectItem>
-          ))}
-        </ListBox>
+          </View>
+          <ListBox
+            css={searchablePickerListCSS}
+            renderEmptyState={() => (
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.Grid />} />}
+                description="No projects"
+                isFiltered={deferredSearch.length > 0}
+              />
+            )}
+          >
+            {options.map((option) => (
+              <SelectItem
+                key={option.id}
+                id={option.id}
+                textValue={option.name}
+              >
+                <Flex direction="row" alignItems="center" minWidth={0}>
+                  <ProjectItemContent
+                    name={option.name}
+                    gradientStartColor={option.gradientStartColor}
+                    gradientEndColor={option.gradientEndColor}
+                  />
+                </Flex>
+              </SelectItem>
+            ))}
+          </ListBox>
+        </div>
       </Popover>
     </Select>
   );
