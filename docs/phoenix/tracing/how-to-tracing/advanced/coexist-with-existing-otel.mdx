@@ -1,0 +1,138 @@
+---
+title: "Coexist with an Existing OpenTelemetry Setup"
+description: Forward only LLM (OpenInference) spans to Phoenix from an application that already runs its own full-stack OpenTelemetry, without replacing your TracerProvider.
+---
+
+Many production systems already run OpenTelemetry end to end — browser or mobile spans
+propagated through a load balancer, into an HTTP server, and down through service calls. When
+you add Phoenix for LLM observability, you don't want to re-architect that: you want your LLM
+spans to keep flowing through your existing pipeline **and** a filtered copy to reach Phoenix.
+
+<Info>
+`register()` from `arize-phoenix-otel` is **not** the entry point for this scenario. It always
+builds a new `TracerProvider` and (by default) installs it as the global one, replacing yours.
+For coexistence, keep your provider and add a second, Phoenix-bound exporter to it.
+</Info>
+
+## Send only LLM spans to Phoenix
+
+Add a Phoenix-bound OTLP exporter as an **additional span processor** on your existing
+`TracerProvider`, and filter it so only OpenInference-tagged spans (the ones Phoenix
+understands) are forwarded. Your existing exporters and collector are untouched — Phoenix just
+receives a filtered copy.
+
+Phoenix has no built-in "is this an OpenInference span?" helper in Python, so filter on the
+`openinference.span.kind` attribute that every OpenInference instrumentor sets:
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from openinference.semconv.trace import SpanAttributes
+
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND  # "openinference.span.kind"
+
+
+class OpenInferenceOnlyExporter(SpanExporter):
+    """Wrap an exporter so only OpenInference-tagged spans are sent to Phoenix."""
+
+    def __init__(self, inner: SpanExporter) -> None:
+        self._inner = inner
+
+    def export(self, spans) -> SpanExportResult:
+        oi = [s for s in spans if s.attributes and OPENINFERENCE_SPAN_KIND in s.attributes]
+        return self._inner.export(oi) if oi else SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        self._inner.shutdown()
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return self._inner.force_flush(timeout_millis)
+
+
+phoenix_exporter = OTLPSpanExporter(
+    endpoint="http://localhost:6006/v1/traces",
+    headers={"authorization": "Bearer YOUR_PHOENIX_API_KEY"},  # omit if auth is disabled
+)
+
+# Add Phoenix as a SECOND processor on your OWN provider — do not replace it.
+your_provider = trace.get_tracer_provider()
+your_provider.add_span_processor(BatchSpanProcessor(OpenInferenceOnlyExporter(phoenix_exporter)))
+```
+
+Because you only add a processor, LLM spans stay in your existing trace tree and continue to
+flow to your own backend — Phoenix receives a filtered copy in parallel. See
+[Exporter](/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter),
+[Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor), and
+[Tracer Provider](/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider)
+for the underlying primitives.
+
+### Where to point the exporter
+
+| Transport | Endpoint | Notes |
+|---|---|---|
+| OTLP / HTTP | `http://<host>:6006/v1/traces` | Phoenix serves OTLP/HTTP on its **UI port 6006**, not the OTLP default 4318. Include the `/v1/traces` path. |
+| OTLP / gRPC | `<host>:4317` | Host and port only, no path. |
+
+When your Phoenix has authentication enabled, add an `authorization: Bearer <PHOENIX_API_KEY>`
+header (as above). A default local Phoenix has no auth, so you can drop the header.
+
+### Filtering in a Collector instead
+
+If your stack already routes through an OpenTelemetry Collector, you don't need application
+code — add a second `otlp` exporter pointing at Phoenix and a `filter` processor that keeps
+only spans with the `openinference.span.kind` attribute. See
+[OTel Collector](/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector).
+
+### TypeScript
+
+`@arizeai/phoenix-otel`'s `register()` also creates its own provider, so use the same approach:
+build the Phoenix span processor with `getDefaultSpanProcessor(...)` and add it to your own
+provider, or call `register({ global: false, spanProcessors: [...] })` so it doesn't take over
+the global provider. For Vercel AI SDK spans, the `isOpenInferenceSpan` filter is re-exported
+from `@arizeai/phoenix-otel/vercel`.
+
+## Make the Sessions view work
+
+This is the part that trips people up in a full-stack setup, so it's worth understanding
+before you rely on it.
+
+**Setting the session works.** Phoenix links a trace to a session from the **first span that
+carries a `session.id` while the trace has no session yet** — not strictly the root span. So as
+long as one forwarded OpenInference span sets `session.id`, the session shows up in the
+**Sessions** list.
+
+**But the Turns/Traces tabs may be empty.** Those tabs render each turn from the trace's
+**root span**, and Phoenix treats a span as a root only when its `parent_id` is null. In a
+full-stack trace, your forwarded LLM span's parent is the HTTP/browser span — which you
+filtered *out* — so in Phoenix that LLM span is an **orphan** (non-null parent pointing at a
+span Phoenix never received). With no null-parent root, the trace has no root span to render,
+and the Turns/Traces tabs stay empty even though the session name appears.
+
+<Warning>
+This is a current limitation: Phoenix does not promote orphan spans to roots on the Sessions
+display path, and there is no setting to change it. To populate the Turns/Traces tabs, the
+top OpenInference span you forward must be a **root in Phoenix's copy** — its `parent_id` must
+be null in what Phoenix receives.
+</Warning>
+
+The working pattern, therefore, is to give the LLM work its own root **in the spans you send to
+Phoenix**, and set `session.id` (and optionally `user.id`) on that top span:
+
+- **Start the LLM operation in a fresh trace/root span** with `session.id` set on it (see
+  [Setup Sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions)), or
+- **Clear the `parent_id` on the top forwarded span** before it reaches Phoenix — cleanest in a
+  Collector `transform` (OTTL) step on the Phoenix-bound pipeline.
+
+Honest trade-off: either way, **Phoenix shows the LLM work as its own root trace**, not nested
+under the browser/HTTP span. Your own backend still keeps the full nesting — only Phoenix's
+copy is re-rooted. There is currently no way to keep the LLM spans nested under a non-forwarded
+root *and* have Phoenix's Sessions tabs populate.
+
+## Verify
+
+1. Trigger a request that produces LLM spans with `session.id` set.
+2. Open **Sessions** — the session should appear in the list.
+3. Open the session — the **Turns**/**Traces** tabs should render input/output. If they're
+   empty, the top span you forwarded still has a non-null `parent_id` in Phoenix; re-root it as
+   above.

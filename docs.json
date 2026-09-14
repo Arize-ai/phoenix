@@ -178,7 +178,8 @@
                       "docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes",
                       "docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing",
                       "docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans",
-                      "docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing"
+                      "docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing",
+                      "docs/phoenix/tracing/how-to-tracing/advanced/coexist-with-existing-otel"
                     ]
                   }
                 ]
