@@ -681,7 +681,7 @@ function ToolInvocationPartDetails({
                 className="tool-part__chevron"
               />
               <Icon
-                svgKey={getToolIconKey({ toolName, input: part.input })}
+                svgKey={getToolIconKey({ toolName })}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -1213,12 +1213,19 @@ const TOOL_PRESENTATION_BUILDERS: Partial<
       quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
     };
   },
-  [LOAD_SKILL_REFERENCE_TOOL_NAME]: (part, statusVariant) => ({
-    preview: getLoadSkillReferenceToolPreview(part),
-    stateLabel: formatToolState(part.state),
-    statusVariant,
-    details: <LoadSkillReferenceToolDetails part={part} />,
-  }),
+  [LOAD_SKILL_REFERENCE_TOOL_NAME]: (part, statusVariant) => {
+    const referenceName = getLoadSkillReferenceToolPreview(part);
+    return {
+      preview: referenceName,
+      stateLabel: formatToolState(part.state),
+      statusVariant,
+      details: <LoadSkillReferenceToolDetails part={part} />,
+      variant: part.state === "output-available" ? "quiet" : "default",
+      quietLabel: referenceName
+        ? `Loaded skill reference ${referenceName}`
+        : "Loaded skill reference",
+    };
+  },
   [NATIVE_WEB_SEARCH_TOOL_NAME]: (part, statusVariant, toolName) => ({
     preview: getNativeWebToolPreview(toolName, part),
     stateLabel: formatToolState(part.state),
