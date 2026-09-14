@@ -326,6 +326,8 @@ addopts = [
   "no:phoenix",
 ]
 doctest_optionflags = ["NORMALIZE_WHITESPACE"]
+# Lets tests import the top-level evals/ package, which is not part of the wheel.
+pythonpath = ["."]
 testpaths = [
   "tests",
 ]
