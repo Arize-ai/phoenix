@@ -9,8 +9,8 @@ means = answer.get("means", {})
 passed = answer.get("lower_experiment") == truth["lower_experiment"] and all(
     abs(float(means.get(name, -1)) - value) <= 0.001 for name, value in truth["means"].items()
 )
-messages_path = step_logs / "new_messages.json"
-messages = messages_path.read_text() if messages_path.exists() else ""
+metrics_path = step_logs / "metrics.json"
+metrics = json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
 Path("/logs/verifier/reward.json").write_text(
-    json.dumps({"reward": float(passed), "tool_calls": messages.count('"tool-call"')})
+    json.dumps({"reward": float(passed), "tool_calls": metrics.get("tool_calls", 0)})
 )

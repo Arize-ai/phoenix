@@ -1,0 +1,6 @@
+# Publishes the Phoenix server port on a random host port so a host-side
+# Harbor agent can reach the chat route inside the container.
+services:
+  main:
+    ports:
+      - "6006"

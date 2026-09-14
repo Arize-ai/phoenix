@@ -15,7 +15,7 @@ from openinference.instrumentation import OITracer, TraceConfig, get_span_kind_a
 from opentelemetry.sdk.trace import TracerProvider
 from phoenix.otel import register, using_attributes
 from pydantic_ai.agent.abstract import AbstractAgent
-from pydantic_ai.messages import ModelMessagesTypeAdapter
+from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.test import TestModel
 
@@ -148,6 +148,15 @@ async def run(args: argparse.Namespace) -> None:
     )
     args.out_dir.joinpath("new_messages.json").write_bytes(
         ModelMessagesTypeAdapter.dump_json(result.new_messages())
+    )
+    tool_calls = sum(
+        isinstance(part, ToolCallPart)
+        for message in result.new_messages()
+        if isinstance(message, ModelResponse)
+        for part in message.parts
+    )
+    args.out_dir.joinpath("metrics.json").write_text(
+        json.dumps({"tool_calls": tool_calls}, indent=2) + "\n"
     )
     usage_attribute = result.usage
     usage = usage_attribute() if callable(usage_attribute) else usage_attribute
