@@ -253,6 +253,7 @@ const builtInSkillIconItems = [
   "datasets",
   "evaluators",
   "experiments",
+  "phoenix-error-analysis",
   "phoenix-graphql",
   "playground",
 ].map((skillName) => ({
