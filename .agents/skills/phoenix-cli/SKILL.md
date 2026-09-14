@@ -425,9 +425,9 @@ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' |
 Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
 
 `getProjectByName(name:)` targets one project; `projects(first: 1)` picks an
-arbitrary one. There is no `traces` connection: for one row per trace, filter
-`spans` with `parent_id is None` (`parent_span is None` also counts orphans).
-`rootSpansOnly` is deprecated.
+arbitrary one. There is no `traces` connection: for root spans (usually one per
+trace), filter `spans` with `parent_id is None`. `parent_span is None` also
+counts orphans, as the deprecated `rootSpansOnly` did.
 
 ### Span filter expressions
 
@@ -444,7 +444,7 @@ subscript accessors, and **the accessor picks the level**:
 
 Each yields `.label`, `.score`, and `.explanation`. `trace_annotations` joins a
 span through its trace row ID, so every span in an annotated trace matches — add
-`parent_id is None` to the same condition when you want one row per trace:
+`parent_id is None` to the same condition when you want root spans only:
 
 ```bash
 px api graphql '{
@@ -478,8 +478,8 @@ annotations, or iterate `span_annotations` for span-level annotations ``.
 that keeps spans whose **trace** matches. It is the language the UI's traces
 table compiles, and it is the filter to reach for when the question is about
 whole traces ("which traces errored and took over a second") rather than
-individual spans. Pair it with `filterCondition: "parent_id is None"` for one
-row per trace:
+individual spans. Pair it with `filterCondition: "parent_id is None"` to keep
+root spans only:
 
 ```bash
 px api graphql '{

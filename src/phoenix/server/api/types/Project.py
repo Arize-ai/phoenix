@@ -118,6 +118,13 @@ _SESSION_FILTER_CONDITION_NOTE = (
     "expression (see sessionFilterVocabulary). It is an expression, not a substring of the "
     "session's input/output."
 )
+
+_PROJECT_ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON = (
+    ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON
+    + " With `traceFilterCondition`, this argument still selects the root span the trace "
+    "vocabulary (`input`, `output`, `metadata`, ...) reads from; that policy has no "
+    "`filterCondition` equivalent."
+)
 _TOKEN_COUNT_DETAIL_SORT_ORDER = {
     "input": 0,
     "output": 0,
@@ -624,7 +631,9 @@ class Project(Node):
         trace_filter_condition: Optional[str] = UNSET,
         orphan_span_as_root_span: Annotated[
             Optional[bool],
-            strawberry.argument(deprecation_reason=ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON),
+            strawberry.argument(
+                deprecation_reason=_PROJECT_ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON
+            ),
         ] = True,
     ) -> Connection[Span]:
         if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:

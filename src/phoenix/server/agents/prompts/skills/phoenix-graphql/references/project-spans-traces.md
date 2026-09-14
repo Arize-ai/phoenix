@@ -2,7 +2,7 @@
 
 ## Project
 
-- `Project.spans(timeRange, first, after, sort: SpanSort, filterCondition: String, traceFilterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(filterCondition: "parent_id is None")` for root spans (`parent_span is None` also counts orphans), usually one per trace though fragmented traces can have several. `rootSpansOnly` is deprecated.
+- `Project.spans(timeRange, first, after, sort: SpanSort, filterCondition: String, traceFilterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(filterCondition: "parent_id is None")` for root spans, usually one per trace though fragmented traces can have several. `parent_span is None` also counts orphans, as the deprecated `rootSpansOnly` did.
 - `Project.trace(traceId: ID!)` → `Trace` — lookup by OTel hex trace id.
 - Aggregates, most accepting `timeRange` and `filterCondition`: `traceCount`, `recordCount` (span count), `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `costSummary`, `latencyMsQuantile(probability: Float!)`, `spanLatencyMsQuantile(probability: Float!)`.
 - Discovery fields: `spanAnnotationNames`, `traceAnnotationNames`, `spanAnnotationSummary`, `documentEvaluationNames` — check which evals/annotations exist before querying them.
@@ -19,7 +19,7 @@ Key fields: `traceId`, `latencyMs`, `numSpans`, `rootSpan { ... }` (the entry sp
 
 ## Examples
 
-Recent root spans (one per trace), slowest first:
+Recent root spans (usually one per trace), slowest first:
 
 ```graphql
 query RecentTraces($id: ID!, $first: Int = 20) {

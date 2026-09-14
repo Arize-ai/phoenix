@@ -52,7 +52,7 @@ ROOT_SPANS_ONLY_DEPRECATION_REASON = (
     "Express root-span scoping in `filterCondition` instead: `parent_id is None` keeps "
     "only spans with no parent id, and `parent_span is None` also treats orphan spans "
     "(whose parent is absent) as roots. A filter composes with every other clause and is "
-    "the language the UI and the CLI compile."
+    "how the UI's spans table scopes to root spans."
 )
 
 ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON = (
