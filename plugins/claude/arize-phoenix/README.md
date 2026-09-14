@@ -47,3 +47,7 @@ Run `/mcp` inside Claude Code to confirm the `phoenix` server is connected and c
 For local development, add the marketplace from a checkout instead: `claude plugin marketplace add ./` from the repository root. The trailing slash matters — a bare `.` is rejected as an invalid source.
 
 Check changes with `claude plugin validate plugins/claude/arize-phoenix`. It warns that the three `skills/` entries are symlinks it did not follow; that warning is expected, since `validate` reads components without following symlinks while a session loading the plugin does follow them. `claude plugin details arize-phoenix@arize-phoenix` on an installed copy confirms the resolved inventory — three skills and one MCP server.
+
+## Evals
+
+Behavioral tests for the plugin live under `evals/` and run with `claude plugin eval .` from this directory. See [Test plugins with evals](https://code.claude.com/docs/en/plugin-evals) for the case format, graders, MCP mocks, and CI usage. Run output under `evals/results/` is gitignored.
