@@ -1,4 +1,4 @@
-# Phoenix headless agent Harbor evaluation
+# PXI Harbor evaluation
 
 ## Run
 
@@ -20,20 +20,18 @@ Validate with the bundled oracle:
 make harbor-oracle
 ```
 
-Run the real headless-agent adapter:
+Run the real agent trial:
 
 ```bash
 make harbor-run
 ```
 
-Run the same task through Phoenix's agent session chat route instead of the in-process
-agent. A Phoenix server starts inside the task container against the fixture database, and
-the host-side agent drives it over the container's published port, so the server owns the
-transcript across steps. This path only supports the docker environment:
-
-```bash
-make harbor-run-chat
-```
+The agent drives PXI through Phoenix's agent session chat route. A Phoenix server starts
+inside the task container against the fixture database, and the host-side Harbor agent
+talks to it over the container's published port, so the server owns the transcript across
+steps exactly as it does for the browser assistant and the `pxi` CLI. Because the port is
+published by Docker, trials only run on the docker environment; the oracle still accepts
+`HARBOR_ENV`.
 
 Test the Harbor plugin against a local Phoenix server with the direct task path used by
 the PXI workflow:
@@ -95,7 +93,6 @@ Both trial targets accept overrides, e.g.:
 ```bash
 make harbor-run HARBOR_TASK=evals/harbor/tasks/regression-triage \
   HARBOR_MODEL=anthropic/claude-sonnet-4-5 \
-  HARBOR_ENV=docker \
   HARBOR_ATTEMPTS=1
 ```
 
@@ -105,7 +102,9 @@ Browse job results in a local web viewer:
 make harbor-view
 ```
 
-Optionally export traces to a remote Phoenix instance:
+Optionally export PXI turn traces to a remote Phoenix instance. The in-container server
+reads these as its agent collector settings and the agent requests remote export on every
+turn when the endpoint is set:
 
 ```bash
 export HARBOR_PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.example.com

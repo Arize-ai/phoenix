@@ -15,7 +15,12 @@ if is_healthy; then
 fi
 mkdir -p "$STATE_DIR"
 # The fixture is /data/phoenix.db, which is the default database under this working dir.
+# HARBOR_PHOENIX_* arrive from the task's environment.env and select where the
+# server exports PXI turn traces when the agent asks for remote export.
 PHOENIX_WORKING_DIR=/data PHOENIX_HOST=0.0.0.0 PHOENIX_PORT="$PORT" \
+  PHOENIX_AGENTS_COLLECTOR_ENDPOINT="${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}" \
+  PHOENIX_AGENTS_COLLECTOR_API_KEY="${HARBOR_PHOENIX_API_KEY:-}" \
+  PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME="${HARBOR_PHOENIX_PROJECT_NAME:-harbor-server-agent-evals}" \
   setsid nohup phoenix serve >"$STATE_DIR/server.log" 2>&1 &
 for _ in $(seq 1 120); do
   if is_healthy; then

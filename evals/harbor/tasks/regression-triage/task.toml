@@ -3,8 +3,8 @@ multi_step_reward_strategy = "mean"
 
 [task]
 name = "arize/phoenix-regression-triage"
-description = "Phoenix headless agent triages an experiment regression via GraphQL"
-keywords = ["headless_agent"]
+description = "PXI triages an experiment regression via GraphQL through the agent session chat route"
+keywords = ["pxi", "agent_session_chat"]
 
 [environment]
 os = "linux"
