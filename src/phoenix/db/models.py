@@ -2866,7 +2866,6 @@ class SpanCost(HasId):
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
@@ -2951,6 +2950,11 @@ class SpanCost(HasId):
     )
 
     __table_args__ = (
+        # `Span.span_cost` is a scalar relationship: the application never
+        # expects more than one cost row per span. The unique constraint
+        # doubles as the lookup index `index=True` used to provide, so there
+        # is no separate non-unique index on `span_rowid` to maintain.
+        UniqueConstraint("span_rowid"),
         Index(
             "ix_span_costs_model_id_span_start_time",
             "model_id",
