@@ -48,6 +48,18 @@ from phoenix.trace.attributes import get_attribute_value
 
 from .TokenCountPromptDetails import TokenCountPromptDetails
 
+ROOT_SPANS_ONLY_DEPRECATION_REASON = (
+    "Express root-span scoping in `filterCondition` instead: `parent_id is None` keeps "
+    "only spans with no parent id, and `parent_span is None` also treats orphan spans "
+    "(whose parent is absent) as roots. A filter composes with every other clause and is "
+    "the language the UI and the CLI compile."
+)
+
+ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON = (
+    "Deprecated along with `rootSpansOnly`. Choose the behavior in `filterCondition` "
+    "instead: `parent_span is None` treats orphans as roots, `parent_id is None` does not."
+)
+
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
     from phoenix.server.api.types.Trace import Trace

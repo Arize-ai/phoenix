@@ -9,7 +9,8 @@ from typing import Any
 
 import pytest
 import yaml
-from graphql import GraphQLSchema, build_schema, parse, validate
+from graphql import GraphQLSchema, build_schema, parse, specified_rules, validate
+from graphql.validation.rules.custom.no_deprecated import NoDeprecatedCustomRule
 
 from phoenix.server.mcp.skills import PXI_SKILLS_ROOT, SHARED_SKILLS_ROOT
 
@@ -19,6 +20,9 @@ AGENT_SKILLS_ROOT = REPO_ROOT / ".agents" / "skills"
 THIRD_PARTY_SKILLS_LOCKFILE = REPO_ROOT / "skills-lock.json"
 
 _GRAPHQL_FENCE = re.compile(r"^[ \t]*```graphql[^\n]*\n(.*?)^[ \t]*```", re.DOTALL | re.MULTILINE)
+_BASH_FENCE = re.compile(r"^[ \t]*```bash[^\n]*\n(.*?)^[ \t]*```", re.DOTALL | re.MULTILINE)
+# A single-quoted query passed to the CLI, e.g. ``px api graphql '{ ... }'``.
+_PX_API_GRAPHQL = re.compile(r"px api graphql '([^']*)'")
 _FRONTMATTER = re.compile(r"\A---\n(.*?)\n---", re.DOTALL)
 
 
@@ -59,6 +63,13 @@ def _queries_by_location() -> dict[str, str]:
             text = path.read_text(encoding="utf-8")
             for index, match in enumerate(_GRAPHQL_FENCE.finditer(text)):
                 queries[f"{path.relative_to(REPO_ROOT)}#{index}"] = match.group(1)
+            cli_queries = [
+                query
+                for fence in _BASH_FENCE.finditer(text)
+                for query in _PX_API_GRAPHQL.findall(fence.group(1))
+            ]
+            for index, query in enumerate(cli_queries):
+                queries[f"{path.relative_to(REPO_ROOT)}#px-api-graphql-{index}"] = query
     return queries
 
 
@@ -88,5 +99,8 @@ def test_fence_pattern_finds_examples() -> None:
 
 @pytest.mark.parametrize("query", QUERIES_BY_LOCATION.values(), ids=QUERIES_BY_LOCATION.keys())
 def test_example_validates_against_exported_schema(schema: GraphQLSchema, query: str) -> None:
-    errors = validate(schema, parse(query))
+    # Deprecated fields and arguments (e.g. `rootSpansOnly`) are rejected too:
+    # the skills are the only place a model learns to avoid them.
+    rules = [*specified_rules, NoDeprecatedCustomRule]
+    errors = validate(schema, parse(query), rules)
     assert not errors, [error.message for error in errors]

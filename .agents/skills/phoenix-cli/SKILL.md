@@ -5,7 +5,7 @@ license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.4.0"
+  version: "3.5.0"
 ---
 
 # Phoenix CLI
@@ -422,7 +422,30 @@ px api graphql '{ evaluators { edges { node { name kind } } } }' | jq '.data.eva
 px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' | jq '.data.__type.fields[]'
 ```
 
-Key root fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
+Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
+
+Target a project by name with `getProjectByName(name: "...")`. `projects(first: 1)`
+picks an arbitrary project, so use it only when any project will do.
+
+### One row per trace
+
+There is no `traces` connection on `Project`. To get one row per trace, ask
+`spans` for root spans through the span filter DSL:
+
+```bash
+px api graphql '{
+  getProjectByName(name: "default") { spans(
+    first: 20
+    filterCondition: "parent_id is None"
+    sort: { col: startTime, dir: desc }
+  ) { edges { node { spanId name trace { traceId } } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
+```
+
+`parent_id is None` keeps spans with no parent id. `parent_span is None` also
+counts orphans (spans whose parent was never received) as roots. Both compose
+with any other clause via `and`. The `rootSpansOnly` and `orphanSpanAsRootSpan`
+arguments are deprecated; do not use them.
 
 ### Span filter expressions
 
@@ -438,17 +461,16 @@ subscript accessors, and **the accessor picks the level**:
 | `trace_annotations["name"]` | the span's parent **trace** | `px trace annotate`, `px trace add-note` |
 
 Each yields `.label`, `.score`, and `.explanation`. `trace_annotations` joins a
-span through its trace row ID, so every span in an annotated trace matches — pair
-it with `rootSpansOnly: true` when you want one row per trace:
+span through its trace row ID, so every span in an annotated trace matches — add
+`parent_id is None` to the same condition when you want one row per trace:
 
 ```bash
 px api graphql '{
-  projects(first: 1) { edges { node { spans(
+  getProjectByName(name: "default") { spans(
     first: 20
-    rootSpansOnly: true
-    filterCondition: "trace_annotations[\"quality\"].label == \"poor\""
-  ) { edges { node { spanId name } } } } } }
-}' | jq '.data.projects.edges[0].node.spans.edges[].node'
+    filterCondition: "parent_id is None and trace_annotations[\"quality\"].label == \"poor\""
+  ) { edges { node { spanId name } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
 Picking the wrong accessor fails silently rather than erroring: filtering with
@@ -474,16 +496,17 @@ annotations, or iterate `span_annotations` for span-level annotations ``.
 that keeps spans whose **trace** matches. It is the language the UI's traces
 table compiles, and it is the filter to reach for when the question is about
 whole traces ("which traces errored and took over a second") rather than
-individual spans. Pair it with `rootSpansOnly: true` for one row per trace:
+individual spans. Pair it with `filterCondition: "parent_id is None"` for one
+row per trace:
 
 ```bash
 px api graphql '{
-  projects(first: 1) { edges { node { spans(
+  getProjectByName(name: "default") { spans(
     first: 20
-    rootSpansOnly: true
+    filterCondition: "parent_id is None"
     traceFilterCondition: "error_count > 0 and latency_ms > 1000"
-  ) { edges { node { spanId name latencyMs } } } } } }
-}' | jq '.data.projects.edges[0].node.spans.edges[].node'
+  ) { edges { node { spanId name latencyMs } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
 `traceFilterCondition` and the span-level `filterCondition` are **not** mutually

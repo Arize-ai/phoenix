@@ -66,7 +66,11 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Span import (
+    ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON,
+    ROOT_SPANS_ONLY_DEPRECATION_REASON,
+    Span,
+)
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanFilterConditionAnalysis import (
     SpanFilterConditionAnalysis,
@@ -612,10 +616,16 @@ class Project(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         sort: Optional[SpanSort] = UNSET,
-        root_spans_only: Optional[bool] = UNSET,
+        root_spans_only: Annotated[
+            Optional[bool],
+            strawberry.argument(deprecation_reason=ROOT_SPANS_ONLY_DEPRECATION_REASON),
+        ] = UNSET,
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
-        orphan_span_as_root_span: Optional[bool] = True,
+        orphan_span_as_root_span: Annotated[
+            Optional[bool],
+            strawberry.argument(deprecation_reason=ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON),
+        ] = True,
     ) -> Connection[Span]:
         if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
             return await _paginate_span_by_trace_start_time(

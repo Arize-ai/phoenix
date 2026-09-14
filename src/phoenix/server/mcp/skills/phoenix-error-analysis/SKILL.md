@@ -59,7 +59,7 @@ The steps below name operations, not commands. Two surfaces implement them; use 
 
 | Operation | Phoenix CLI (`px`) | GraphQL (`phoenix-gql` or any client) |
 | --- | --- | --- |
-| Sample, expand, drill | `px trace list`, `px trace get <trace-id>`, `px span get <span-id>`, `px session get <session-id>` | `Project.spans(rootSpansOnly: true)`, `getTraceByOtelId`, `getSpanByOtelId`, `node(id:)` on a session |
+| Sample, expand, drill | `px trace list`, `px trace get <trace-id>`, `px span get <span-id>`, `px session get <session-id>` | `Project.spans(filterCondition: "parent_id is None")`, `getTraceByOtelId`, `getSpanByOtelId`, `node(id:)` on a session |
 | Check existing notes | `--include-notes` on `get`/`list` | `Span.spanNotes`; `Trace.traceAnnotations` / `ProjectSession.sessionAnnotations` where `name == "note"` |
 | Write a note | `px trace add-note <trace-id> --text "..." --identifier "$CODING_ANNOTATION_IDENTIFIER"` (also `px span add-note`, `px session add-note`) | `createTraceNotes`, `createSpanNotes`, `createProjectSessionNotes` — each takes `{ note, annotatorKind: LLM, source: API, identifier }` plus an entity reference by OTel id (`{ otelId }`) or node id (`{ id }`) |
 | Write an axial annotation | `px trace annotate <trace-id> --name <annotation-name> --label <label> --identifier "$CODING_ANNOTATION_IDENTIFIER"` (also `span`, `session`) | `createTraceAnnotations`, `createSpanAnnotations`, `createProjectSessionAnnotations` — Phoenix node ids only, plus `name`, `label`, `explanation`, `annotatorKind: LLM`, `source: API`, `metadata: {}`, `identifier` |

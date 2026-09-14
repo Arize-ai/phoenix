@@ -31,7 +31,12 @@ from phoenix.server.api.types.pagination import (
     connection_from_cursors_and_nodes,
 )
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, SpanKind
+from phoenix.server.api.types.Span import (
+    ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON,
+    ROOT_SPANS_ONLY_DEPRECATION_REASON,
+    Span,
+    SpanKind,
+)
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
@@ -284,8 +289,14 @@ class Trace(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-        root_spans_only: Optional[bool] = UNSET,
-        orphan_span_as_root_span: Optional[bool] = True,
+        root_spans_only: Annotated[
+            Optional[bool],
+            strawberry.argument(deprecation_reason=ROOT_SPANS_ONLY_DEPRECATION_REASON),
+        ] = UNSET,
+        orphan_span_as_root_span: Annotated[
+            Optional[bool],
+            strawberry.argument(deprecation_reason=ORPHAN_SPAN_AS_ROOT_SPAN_DEPRECATION_REASON),
+        ] = True,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
         # Build base query for spans in this trace
