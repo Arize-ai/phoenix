@@ -520,7 +520,7 @@ HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VER
 
 # Container assets are staged into the task's Docker build context by stage_harbor_task_environments.sh.
 define check-harbor-staged
-	@test -f $(HARBOR_TASK)/environment/start_phoenix_server.sh || \
+	@test -d $(HARBOR_TASK)/environment/container_assets || \
 		{ echo -e "$(RED)Missing staged assets in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 

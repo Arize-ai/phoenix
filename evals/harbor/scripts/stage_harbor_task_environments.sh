@@ -14,11 +14,10 @@ uv build --wheel
 staged=0
 for environment in "$TASKS_DIR"/*/environment; do
   [ -d "$environment" ] || continue
-  rm -rf "$environment/wheels"
+  rm -rf "$environment/wheels" "$environment/container_assets"
   mkdir -p "$environment/wheels"
   cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
-  cp "$CONTAINER_ASSETS/chat_client.py" "$CONTAINER_ASSETS/fetch_fixtures.py" \
-    "$CONTAINER_ASSETS/start_phoenix_server.sh" "$environment/"
+  rsync -a --exclude __pycache__ "$CONTAINER_ASSETS/" "$environment/container_assets/"
   staged=$((staged + 1))
 done
 

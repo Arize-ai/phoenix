@@ -101,9 +101,7 @@ helm/charts/*.tgz
 
 # Build-context artifacts copied into each task's environment
 /evals/harbor/**/*.whl
-/evals/harbor/tasks/**/environment/chat_client.py
-/evals/harbor/tasks/**/environment/fetch_fixtures.py
-/evals/harbor/tasks/**/environment/start_phoenix_server.sh
+/evals/harbor/tasks/**/environment/container_assets/
 
 # WebAssembly binaries
 **/wasm/*.wasm
