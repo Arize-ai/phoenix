@@ -206,7 +206,9 @@ export function Playground(
       defaultModelName={defaultModelName}
     >
       <div css={playgroundWrapCSS}>
-        <View borderBottomColor="default" borderBottomWidth="thin">
+        {/* The panels below shrink, not the header, so both modes' panels
+            start at the same line. */}
+        <View borderBottomColor="default" borderBottomWidth="thin" flex="none">
           <PageHeader
             title="Playground"
             extra={
@@ -782,6 +784,7 @@ function PlaygroundContent() {
         orientation="vertical"
         defaultLayout={defaultLayout}
         onLayoutChanged={onLayoutChanged}
+        style={{ flex: 1, minHeight: 0 }}
       >
         <TitledPanel
           ref={promptsPanelRef}

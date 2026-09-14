@@ -15,7 +15,7 @@ export function EvaluatorPlaygroundFrame({
 }: PropsWithChildren<{ actions?: ReactNode }>) {
   return (
     <div css={frameCSS}>
-      <View borderBottomColor="default" borderBottomWidth="thin">
+      <View borderBottomColor="default" borderBottomWidth="thin" flex="none">
         <PageHeader
           title="Playground"
           extra={
