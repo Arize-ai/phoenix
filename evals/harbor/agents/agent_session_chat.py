@@ -17,15 +17,22 @@ import re
 from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 from uuid import uuid4
 
 import httpx
 
 EditPermission = Literal["manual", "bypass"]
-Message = dict[str, Any]
-"""A UI message in its wire shape: ``{"id", "role", "parts", "metadata"?}``."""
 Part = dict[str, Any]
+
+
+class Message(TypedDict, total=False):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: list[Part]
+    metadata: dict[str, Any]
+
+
 ApprovalPolicy = Callable[[Part], bool]
 """Decides whether a tool part in ``approval-requested`` state is approved."""
 
@@ -36,7 +43,6 @@ _BUSY_RETRY_ATTEMPTS = 30
 
 
 async def iter_sse_chunks(lines: AsyncIterator[str]) -> AsyncIterator[dict[str, Any]]:
-    """Yield the JSON chunks carried by the ``data:`` lines of an SSE response."""
     async for line in lines:
         line = line.rstrip("\r")
         if line == _SSE_DONE or not line.startswith(_SSE_DATA_PREFIX):
@@ -49,14 +55,8 @@ class StreamError(Exception):
 
 
 class MessageReducer:
-    """Folds UI message stream chunks into one assistant message.
-
-    A subset of the AI SDK's ``processUIMessageStream``: text parts keyed by
-    id, dynamic tool parts keyed by tool call id, merged message metadata.
-    """
-
     def __init__(self) -> None:
-        self.message: Message = {"id": None, "role": "assistant", "parts": []}
+        self.message: Message = {"role": "assistant", "parts": []}
         self.errors: list[str] = []
         self._text_parts: dict[str, Part] = {}
         self._tool_parts: dict[str, Part] = {}
@@ -128,17 +128,13 @@ async def accumulate_assistant_message(chunks: AsyncIterator[dict[str, Any]]) ->
         reducer.feed(chunk)
     if reducer.errors:
         raise StreamError("; ".join(reducer.errors))
-    if reducer.message["id"] is None:
+    if "id" not in reducer.message:
         raise RuntimeError("The chat stream ended without a start chunk naming the message")
     return reducer.message
 
 
 def builtin_model_selection(harbor_model_name: str) -> dict[str, Any]:
-    """Convert Harbor's ``provider/model`` string to a built-in model selection.
-
-    The provider is upper-cased to match Phoenix's ``ModelProvider`` enum; the
-    server rejects names it does not know when the session is created.
-    """
+    """The server, not this client, rejects providers Phoenix does not know."""
     provider, separator, model_name = harbor_model_name.partition("/")
     if not separator or not model_name:
         raise ValueError(
@@ -167,7 +163,6 @@ def _is_tool_part(part: Part) -> bool:
 
 
 def pending_approvals(message: Message) -> list[Part]:
-    """Tool parts on the message still awaiting an approval decision."""
     return [
         part
         for part in message["parts"]
@@ -214,8 +209,6 @@ class Turn:
 
 
 class AgentSessionChatClient:
-    """Drives one Phoenix agent session over HTTP."""
-
     def __init__(
         self,
         base_url: str,
