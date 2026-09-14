@@ -35,6 +35,13 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
+from phoenix.db.types.evaluator_definition import (
+    BuiltInEvaluatorDefinition,
+    EvaluatorDefinition,
+    InlineCodeEvaluatorDefinition,
+    InlineLLMEvaluatorDefinition,
+    StoredCodeEvaluatorDefinition,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -48,6 +55,7 @@ from phoenix.db.types.prompts import (
     TextContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.evaluators import validate_evaluator_prompt_and_configs
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundClient,
@@ -66,6 +74,7 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.monty_runtime import MontyServiceError
 from phoenix.server.online_eval.failure_policy import FailureDisposition
+from phoenix.server.online_eval.session_policy import ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
     SecretsContext,
@@ -1278,6 +1287,266 @@ def create_llm_evaluator_from_inline(
         prompt_name="preview-prompt",
         max_message_bytes=max_message_bytes,
     )
+
+
+async def build_evaluator_from_definition(
+    *,
+    definition: EvaluatorDefinition,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+    sandbox_runtime: Optional[SandboxRuntimeContext] = None,
+    sandbox_session_manager: Optional[SandboxSessionManager] = None,
+    session_key: Optional[str] = None,
+    max_message_bytes: Optional[int] = None,
+    max_payload_bytes: Optional[int] = None,
+) -> BaseEvaluator:
+    """
+    Build the runtime evaluator a definition describes.
+
+    Evaluator previews and experiment evaluator tasks both construct their evaluator here,
+    so a preview exercises the evaluator that an experiment will run.
+
+    Args:
+        definition: An inline LLM or code evaluator, or a reference to a stored one.
+        session: Database session for stored evaluators, sandbox configurations and secrets.
+        decrypt: Decrypts stored secrets for model and sandbox credentials.
+        credentials: Ephemeral model credentials supplied with the request, if any.
+        sandbox_runtime: Runtime context handed to sandbox backends.
+        sandbox_session_manager: When given, a code evaluator reuses one sandbox session per
+            ``session_key`` instead of creating an ephemeral sandbox for each evaluation.
+        session_key: Partitions sandbox sessions; required with a session manager.
+        max_message_bytes: Cap on the rendered LLM messages, or None for no cap.
+        max_payload_bytes: Cap on the rendered sandbox payload, or None for no cap.
+
+    Raises:
+        BadRequest: The definition cannot be honoured: a missing or disabled sandbox
+            configuration, a judge prompt whose tools do not match its output configs,
+            or a stored evaluator that no longer exists.
+    """
+    if isinstance(definition, BuiltInEvaluatorDefinition):
+        return await _build_builtin_evaluator(definition, session=session)
+    if isinstance(definition, InlineLLMEvaluatorDefinition):
+        return await _build_inline_llm_evaluator(
+            definition,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+            max_message_bytes=max_message_bytes,
+        )
+    if isinstance(definition, StoredCodeEvaluatorDefinition):
+        return await _build_stored_code_evaluator(
+            definition,
+            session=session,
+            decrypt=decrypt,
+            sandbox_runtime=sandbox_runtime,
+            sandbox_session_manager=sandbox_session_manager,
+            session_key=session_key,
+            max_payload_bytes=max_payload_bytes,
+        )
+    if isinstance(definition, InlineCodeEvaluatorDefinition):
+        return await _build_inline_code_evaluator(
+            definition,
+            session=session,
+            decrypt=decrypt,
+            sandbox_runtime=sandbox_runtime,
+            sandbox_session_manager=sandbox_session_manager,
+            session_key=session_key,
+            max_payload_bytes=max_payload_bytes,
+        )
+    assert_never(definition)
+
+
+async def _build_builtin_evaluator(
+    definition: BuiltInEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+) -> BuiltInEvaluator:
+    record = await session.get(models.BuiltinEvaluator, definition.builtin_evaluator_id)
+    if record is None:
+        raise BadRequest(f"Built-in evaluator with id {definition.builtin_evaluator_id} not found")
+    evaluator_class = get_builtin_evaluator_by_key(record.key)
+    if evaluator_class is None:
+        raise BadRequest(f"Built-in evaluator class for key '{record.key}' not found")
+    return evaluator_class()
+
+
+async def _build_inline_llm_evaluator(
+    definition: InlineLLMEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    max_message_bytes: Optional[int],
+) -> LLMEvaluator:
+    prompt_version = definition.prompt_version
+    llm_client = await get_playground_client(
+        model_provider=prompt_version.model_provider,
+        model_name=prompt_version.model_name,
+        session=session,
+        decrypt=decrypt,
+        credentials=credentials,
+        connection=prompt_version.custom_provider_id,
+    )
+    try:
+        validate_evaluator_prompt_and_configs(
+            prompt_tools=prompt_version.tools,
+            prompt_response_format=prompt_version.response_format,
+            evaluator_output_configs=list(definition.output_configs),
+            evaluator_description=definition.description,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
+    tools = prompt_version.tools
+    assert tools is not None  # the validation above requires tools
+    return LLMEvaluator(
+        name=definition.name,
+        description=definition.description,
+        template=prompt_version.template,
+        template_format=prompt_version.template_format,
+        tools=tools,
+        invocation_parameters=prompt_version.invocation_parameters,
+        model_provider=prompt_version.model_provider,
+        llm_client=llm_client,
+        output_configs=definition.output_configs,
+        prompt_name=definition.name,
+        max_message_bytes=max_message_bytes,
+    )
+
+
+async def _build_stored_code_evaluator(
+    definition: StoredCodeEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    sandbox_runtime: Optional[SandboxRuntimeContext],
+    sandbox_session_manager: Optional[SandboxSessionManager],
+    session_key: Optional[str],
+    max_payload_bytes: Optional[int],
+) -> "CodeEvaluatorRunner":
+    record = await session.get(models.CodeEvaluator, definition.code_evaluator_id)
+    if record is None:
+        raise BadRequest(f"Code evaluator with id {definition.code_evaluator_id} not found")
+    latest_versions = await latest_code_evaluator_versions_by_evaluator_id([record.id], session)
+    version = latest_versions.get(record.id)
+    if version is None:
+        raise BadRequest(
+            f"Code evaluator with id {definition.code_evaluator_id} has no current version"
+        )
+    evaluator_name = record.name.root
+    if record.sandbox_config_id is None:
+        raise BadRequest(
+            f"Code evaluator '{evaluator_name}' has no sandbox backend configured"
+            f" for language '{record.language}'. "
+            "Please configure a sandbox provider at /settings/sandboxes."
+        )
+    sandbox_backend, sandbox_timeout = await _resolve_sandbox_backend(
+        session=session,
+        sandbox_config_id=record.sandbox_config_id,
+        language=record.language,
+        decrypt=decrypt,
+        sandbox_runtime=sandbox_runtime,
+    )
+    return CodeEvaluatorRunner(
+        name=evaluator_name,
+        description=record.description,
+        source_code=version.source_code,
+        stored_output_configs=as_output_configs(record.output_configs),
+        sandbox_backend=sandbox_backend,
+        language=record.language,
+        timeout=sandbox_timeout,
+        evaluator_version_id=str(GlobalID("CodeEvaluatorVersion", str(version.id))),
+        sandbox_session_manager=sandbox_session_manager,
+        session_key=session_key,
+        max_payload_bytes=max_payload_bytes,
+        payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
+    )
+
+
+async def _build_inline_code_evaluator(
+    definition: InlineCodeEvaluatorDefinition,
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    sandbox_runtime: Optional[SandboxRuntimeContext],
+    sandbox_session_manager: Optional[SandboxSessionManager],
+    session_key: Optional[str],
+    max_payload_bytes: Optional[int],
+) -> "CodeEvaluatorRunner":
+    sandbox_backend, sandbox_timeout = await _resolve_sandbox_backend(
+        session=session,
+        sandbox_config_id=definition.sandbox_config_id,
+        language=definition.language,
+        decrypt=decrypt,
+        sandbox_runtime=sandbox_runtime,
+    )
+    return CodeEvaluatorRunner(
+        name=definition.name,
+        description=definition.description,
+        source_code=definition.source_code,
+        stored_output_configs=definition.output_configs,
+        sandbox_backend=sandbox_backend,
+        language=definition.language,
+        timeout=sandbox_timeout,
+        sandbox_session_manager=sandbox_session_manager,
+        session_key=session_key,
+        max_payload_bytes=max_payload_bytes,
+        payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
+    )
+
+
+async def _resolve_sandbox_backend(
+    *,
+    session: AsyncSession,
+    sandbox_config_id: int,
+    language: str,
+    decrypt: Callable[[bytes], bytes],
+    sandbox_runtime: Optional[SandboxRuntimeContext],
+) -> tuple[SandboxBackend, Optional[int]]:
+    """Return the backend and timeout of an enabled sandbox configuration for a language."""
+    sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+    if sandbox_config is None:
+        raise BadRequest(f"Sandbox configuration with id {sandbox_config_id} was not found")
+    if not sandbox_config.enabled:
+        raise BadRequest(
+            f"Sandbox configuration '{sandbox_config.name}' is disabled. "
+            "Enable it before testing this evaluator."
+        )
+    provider = await session.scalar(
+        select(models.SandboxProvider).where(
+            models.SandboxProvider.backend_type == sandbox_config.backend_type
+        )
+    )
+    if provider is None:
+        raise BadRequest(
+            f"Sandbox provider for configuration '{sandbox_config.name}' was not found"
+        )
+    if not provider.enabled:
+        raise BadRequest(
+            f"Sandbox provider '{provider.backend_type}' is disabled. "
+            "Enable it before testing this evaluator."
+        )
+    if sandbox_config.language != language:
+        raise BadRequest("Sandbox provider language does not match code evaluator language")
+    try:
+        sandbox_backend = await build_sandbox_backend(
+            sandbox_config,
+            secrets=SecretsContext(session=session, decrypt=decrypt),
+            runtime=sandbox_runtime,
+        )
+    except (
+        MissingSecretError,
+        UnsupportedOperation,
+        PydanticValidationError,
+        ValueError,
+    ) as error:
+        raise BadRequest(str(error))
+    if sandbox_backend is None:
+        raise BadRequest(
+            f"Sandbox backend '{provider.backend_type}' is unavailable for language "
+            f"'{language}'. Ensure the backend is installed and configured."
+        )
+    return sandbox_backend, sandbox_config.timeout
 
 
 @register_builtin_evaluator
