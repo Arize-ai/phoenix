@@ -997,9 +997,11 @@ def _build_message_metadata_chunk(
     *,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RequestUsage,
+    usage: RequestUsage | None = None,
 ) -> MessageMetadataChunk:
-    """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
+    """Build the `MessageMetadataChunk` emitted as an agent turn starts (so the
+    trace context reaches clients that stop the turn early) and again as it
+    completes, with the turn's usage. The client merges the two."""
     return MessageMetadataChunk(
         message_metadata=MessageMetadata(
             phoenix=_build_phoenix_assistant_message_metadata(
@@ -3615,6 +3617,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         assert _is_async_generator(raw_stream)
 
                         async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                            # The turn's trace context is streamed right after the opening
+                            # `start` message chunk. A client that stops the turn never
+                            # receives the completion metadata, and would otherwise have no
+                            # trace to link the partial response to until it reloads.
+                            turn_trace_context_streamed = resolved_turn_trace_context is None
                             # Forced skills are streamed as their own `load_skill` steps so
                             # the browser transcript matches what the model received. They
                             # are emitted once, right after the stream's opening `start`
@@ -3630,6 +3637,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                             emitted_at=datetime.now(timezone.utc),
                                         )
                                     yield agent_message_chunk
+                                    if not turn_trace_context_streamed and isinstance(
+                                        agent_message_chunk,
+                                        StartChunk,
+                                    ):
+                                        yield _build_message_metadata_chunk(
+                                            turn_trace_context=resolved_turn_trace_context,
+                                            session_id=otel_session_id,
+                                        )
+                                        turn_trace_context_streamed = True
                                     if not forced_skills_streamed and isinstance(
                                         agent_message_chunk,
                                         StartChunk,
