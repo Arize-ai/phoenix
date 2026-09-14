@@ -90,9 +90,7 @@ class PhoenixChatAgent(BaseAgent):
                 edit_permission=edit_permission,
                 mutations_enabled=allow_mutations,
                 approve=lambda _part: approve_tool_calls,
-                # The container's server exports to the same endpoint; see
-                # start_phoenix_server.sh.
-                export_remote_traces=bool(os.getenv(_TRACE_ENDPOINT_ENV_VAR)),
+                export_remote_traces=_server_has_remote_trace_collector(),
             )
             transcript = await client.list_messages(self._session_id)
         finally:
@@ -160,6 +158,11 @@ class PhoenixChatAgent(BaseAgent):
             context.n_output_tokens = tokens.get("completion")
             prompt_details = usage.get("promptDetails") or {}
             context.n_cache_tokens = prompt_details.get("cacheRead")
+
+
+def _server_has_remote_trace_collector() -> bool:
+    """start_phoenix_server.sh hands the same variable to the in-container server."""
+    return bool(os.getenv(_TRACE_ENDPOINT_ENV_VAR))
 
 
 def _dump_messages(messages: list[Message]) -> str:

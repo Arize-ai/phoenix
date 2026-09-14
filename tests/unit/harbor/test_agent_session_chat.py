@@ -1,4 +1,5 @@
 import json
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
@@ -268,7 +269,7 @@ async def test_reducer_agrees_with_the_server_reducer_on_text_and_tool_parts() -
 
     ours = await accumulate_assistant_message(_iter())
 
-    def _essentials(message: dict[str, Any]) -> list[dict[str, Any]]:
+    def _essentials(message: Mapping[str, Any]) -> list[dict[str, Any]]:
         keys = ("type", "text", "toolCallId", "toolName", "state", "input", "output")
         return [
             {key: part[key] for key in keys if key in part}

@@ -4,6 +4,7 @@
 set -eu
 PORT="${PHOENIX_PORT:-6006}"
 STATE_DIR=/var/lib/phoenix-eval
+FIXTURE_DB=/data/phoenix.db
 HEALTH_URL="http://127.0.0.1:${PORT}/healthz"
 
 is_healthy() {
@@ -14,10 +15,10 @@ if is_healthy; then
   exit 0
 fi
 mkdir -p "$STATE_DIR"
-# The fixture is /data/phoenix.db, which is the default database under this working dir.
-# HARBOR_PHOENIX_* arrive from the task's environment.env and select where the
-# server exports PXI turn traces when the agent asks for remote export.
-PHOENIX_WORKING_DIR=/data PHOENIX_HOST=0.0.0.0 PHOENIX_PORT="$PORT" \
+# HARBOR_PHOENIX_* come from the task's environment.env; the agent requests
+# remote trace export whenever the endpoint is set.
+PHOENIX_SQL_DATABASE_URL="sqlite:///$FIXTURE_DB" PHOENIX_WORKING_DIR=/data \
+  PHOENIX_HOST=0.0.0.0 PHOENIX_PORT="$PORT" \
   PHOENIX_AGENTS_COLLECTOR_ENDPOINT="${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}" \
   PHOENIX_AGENTS_COLLECTOR_API_KEY="${HARBOR_PHOENIX_API_KEY:-}" \
   PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME="${HARBOR_PHOENIX_PROJECT_NAME:-harbor-server-agent-evals}" \
