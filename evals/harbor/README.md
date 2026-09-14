@@ -26,11 +26,6 @@ Run the real agent trial:
 make harbor-run
 ```
 
-The agent drives PXI through Phoenix's agent session chat route. A Phoenix server starts
-inside the task container against the fixture database, and a client in the same container
-submits each step through the route, so the server owns the transcript across steps exactly
-as it does for the browser assistant and the `pxi` CLI.
-
 Test the Harbor plugin against a local Phoenix server with the direct task path used by
 the PXI workflow:
 
@@ -101,9 +96,7 @@ Browse job results in a local web viewer:
 make harbor-view
 ```
 
-Optionally export PXI turn traces to a remote Phoenix instance. The in-container server
-reads these as its agent collector settings and the agent requests remote export on every
-turn when the endpoint is set:
+Optionally export traces to a remote Phoenix instance:
 
 ```bash
 export HARBOR_PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.example.com
