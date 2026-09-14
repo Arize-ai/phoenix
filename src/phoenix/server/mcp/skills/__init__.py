@@ -15,6 +15,7 @@ from fastmcp.tools.base import Tool
 from mcp_types import ToolAnnotations
 from pydantic import Field
 
+from phoenix.config import get_env_skills_paths, get_env_skills_visibility
 from phoenix.server.agents.prompts.templating import get_template
 
 _SERVER_DIR = Path(__file__).resolve().parents[2]
@@ -58,6 +59,7 @@ class Skill:
     text: str
     path: Path
     references: tuple[SkillReference, ...] = ()
+    visibility: Optional[str] = None
 
     @classmethod
     def from_directory(cls, directory: Path) -> Skill:
@@ -84,6 +86,7 @@ class Skill:
             text=text,
             path=directory,
             references=_scan_references(directory),
+            visibility=frontmatter.visibility,
         )
 
     def get_reference(self, name: str) -> Optional[SkillReference]:
@@ -97,6 +100,7 @@ class _Frontmatter:
     name: str
     description: str
     summary: str
+    visibility: Optional[str]
 
 
 def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
@@ -111,10 +115,17 @@ def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
         raise ValueError(f"{source}: frontmatter must be a mapping")
     description = " ".join(_required_string(mapping, "description", source).split())
     summary = _get_frontmatter_value_if_exists_and_is_string(mapping, "summary", source)
+    metadata = mapping.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        raise ValueError(f"{source}: metadata must be a mapping")
+    visibility = metadata.get("arize-phoenix-visibility")
+    if visibility is not None and visibility not in ("visible", "hidden"):
+        raise ValueError(f"{source}: arize-phoenix-visibility must be 'visible' or 'hidden'")
     return _Frontmatter(
         name=_required_string(mapping, "name", source),
         description=description,
         summary=summary.strip() if summary else _truncate(description, _SUMMARY_MAX_CHARS),
+        visibility=visibility,
     )
 
 
@@ -160,18 +171,42 @@ def _scan_references(skill_dir: Path) -> tuple[SkillReference, ...]:
 
 
 @lru_cache(maxsize=None)
-def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
+def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Skill, ...]:
     """Every skill under ``roots``: root order first, name order within a root."""
     skills: dict[str, Skill] = {}
     for root in roots:
         if not root.is_dir():
             raise ValueError(f"Skills root {root} is not a directory")
-        for directory in sorted(p for p in root.iterdir() if (p / _SKILL_FILE).is_file()):
+        directories = (
+            [root]
+            if (root / _SKILL_FILE).is_file()
+            else sorted(p for p in root.iterdir() if (p / _SKILL_FILE).is_file())
+        )
+        for directory in directories:
             skill = Skill.from_directory(directory)
+            if explicit and skill.visibility != "visible":
+                continue
             if skill.name in skills:
                 raise ValueError(
                     f"Skill {skill.name!r} is defined in both "
                     f"{skills[skill.name].path} and {directory}"
+                )
+            skills[skill.name] = skill
+    return tuple(skills.values())
+
+
+def load_configured_skills() -> tuple[Skill, ...]:
+    return load_skills(get_env_skills_paths(), explicit=get_env_skills_visibility() == "explicit")
+
+
+def merge_skills(*catalogs: Sequence[Skill]) -> tuple[Skill, ...]:
+    skills: dict[str, Skill] = {}
+    for catalog in catalogs:
+        for skill in catalog:
+            if skill.name in skills:
+                raise ValueError(
+                    f"Skill {skill.name!r} is defined in both "
+                    f"{skills[skill.name].path} and {skill.path}"
                 )
             skills[skill.name] = skill
     return tuple(skills.values())
