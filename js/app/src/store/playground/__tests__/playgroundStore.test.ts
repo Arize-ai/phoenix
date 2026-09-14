@@ -219,7 +219,7 @@ describe("setSelectedRepetitionNumber", () => {
       datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
-    store.getState().addInstance();
+    store.getState().addInstance({ type: "duplicate" });
     const instanceId = store.getState().instances[1].id; // id of second instance
 
     // verify initial selected repetition numbers
@@ -534,7 +534,7 @@ describe("clearRepetitions", () => {
       datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
-    store.getState().addInstance();
+    store.getState().addInstance({ type: "duplicate" });
     store.getState().setRepetitions(2);
     store.getState().runPlaygroundInstances();
 
@@ -578,7 +578,7 @@ describe("runPlaygroundInstances", () => {
       datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
-    store.getState().addInstance();
+    store.getState().addInstance({ type: "duplicate" });
 
     // set to 3 repetitions
     store.getState().setRepetitions(3);
@@ -653,7 +653,7 @@ describe("markPlaygroundInstanceComplete", () => {
       datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
-    store.getState().addInstance();
+    store.getState().addInstance({ type: "duplicate" });
     store.getState().setRepetitions(2);
 
     // run both instances
@@ -733,7 +733,7 @@ describe("cancelPlaygroundInstances", () => {
       datasetId: null,
     };
     const store = createPlaygroundStore(initialProps);
-    store.getState().addInstance();
+    store.getState().addInstance({ type: "duplicate" });
     store.getState().setRepetitions(2);
 
     // run both instances
@@ -1017,7 +1017,7 @@ describe("updateModelSupportedInvocationParameters", () => {
       responseFormat: TEST_RESPONSE_FORMAT,
     });
 
-    store.getState().addInstance();
+    store.getState().addInstance({ type: "duplicate" });
     const secondInstanceId = store.getState().instances[1].id;
 
     // Verify the response format was copied to the second instance via spread
@@ -1164,5 +1164,217 @@ describe("dataset-scoped state", () => {
     expect(
       store.getState().stateByDatasetId[datasetId1].templateVariablesPath
     ).toBe(customPath);
+  });
+});
+
+describe("addInstance", () => {
+  const createStore = () =>
+    createPlaygroundStore({ modelConfigByProvider: {}, datasetId: null });
+
+  it("duplicates the first instance with fresh message ids", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    const [first] = store.getState().instances;
+    const id = store.getState().addInstance({ type: "duplicate" });
+    const second = store.getState().instances[1];
+
+    expect(id).toBe(second.id);
+    expect(second.task).toEqual({ kind: "prompt" });
+    expect(second.model).toEqual(first.model);
+    expect(second.template).not.toEqual(first.template);
+    expect(
+      (second.template as { messageIds: number[] }).messageIds.map(
+        (messageId) => store.getState().allInstanceMessages[messageId].content
+      )
+    ).toEqual(
+      (first.template as { messageIds: number[] }).messageIds.map(
+        (messageId) => store.getState().allInstanceMessages[messageId].content
+      )
+    );
+  });
+
+  it("adds a new prompt task on the page's model without a loading source", () => {
+    const store = createStore();
+    store.getState().updateProvider({
+      instanceId: store.getState().instances[0].id,
+      provider: "ANTHROPIC",
+      modelConfigByProvider: {},
+    });
+    store.getState().addInstance({ type: "new", kind: "prompt" });
+    const second = store.getState().instances[1];
+
+    expect(second.task).toEqual({ kind: "prompt" });
+    expect(second.prompt).toBeUndefined();
+    expect(second.loadingSource).toBeUndefined();
+    expect(second.model.provider).toBe("ANTHROPIC");
+  });
+
+  it("adds a new LLM evaluator draft with the judge prompt as its template", () => {
+    const store = createStore();
+    store.getState().addInstance({ type: "new", kind: "LLM" });
+    const second = store.getState().instances[1];
+
+    expect(second.task.kind).toBe("evaluator");
+    expect(
+      second.task.kind === "evaluator" && second.task.evaluator
+    ).toMatchObject({ kind: "LLM", code: null });
+    expect(second.toolChoice).toEqual({ type: "ONE_OR_MORE" });
+    const messageIds = (second.template as { messageIds: number[] }).messageIds;
+    expect(messageIds).toHaveLength(2);
+    expect(store.getState().allInstanceMessages[messageIds[0]].role).toBe(
+      "system"
+    );
+  });
+
+  it("adds a new code evaluator draft with an empty template and placeholder code", () => {
+    const store = createStore();
+    store.getState().addInstance({ type: "new", kind: "CODE" });
+    const second = store.getState().instances[1];
+
+    expect(
+      second.task.kind === "evaluator" && second.task.evaluator.code
+    ).toMatchObject({ language: "PYTHON", sandboxConfigId: null });
+    expect((second.template as { messageIds: number[] }).messageIds).toEqual(
+      []
+    );
+  });
+
+  it("marks a saved prompt source as loading until its content lands", () => {
+    const store = createStore();
+    const source = {
+      type: "prompt" as const,
+      promptId: "P1",
+      promptVersionId: "V1",
+      tagName: null,
+    };
+    store.getState().addInstance(source);
+    const second = store.getState().instances[1];
+
+    expect(second.task).toEqual({ kind: "prompt" });
+    expect(second.loadingSource).toEqual(source);
+    expect(second.prompt).toBeUndefined();
+  });
+
+  it("marks a saved evaluator source as loading and records it on the task", () => {
+    const store = createStore();
+    store.getState().addInstance({ type: "evaluator", evaluatorId: "E1" });
+    store
+      .getState()
+      .addInstance({ type: "datasetEvaluator", datasetEvaluatorId: "DE1" });
+    const [, second, third] = store.getState().instances;
+
+    expect(second.loadingSource).toEqual({
+      type: "evaluator",
+      evaluatorId: "E1",
+    });
+    expect(
+      second.task.kind === "evaluator" && second.task.evaluator.source
+    ).toEqual({ evaluatorId: "E1", datasetEvaluatorId: null });
+    expect(
+      third.task.kind === "evaluator" && third.task.evaluator.source
+    ).toEqual({ evaluatorId: null, datasetEvaluatorId: "DE1" });
+  });
+});
+
+describe("replaceInstance", () => {
+  it("swaps the instance in place with a fresh id and clears its dirty flag", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    store.getState().addInstance({ type: "duplicate" });
+    const [first, second] = store.getState().instances;
+    store.getState().setDirty(first.id, true);
+
+    const replacementId = store.getState().replaceInstance({
+      instanceId: first.id,
+      source: { type: "new", kind: "CODE" },
+    });
+
+    const instances = store.getState().instances;
+    expect(instances).toHaveLength(2);
+    expect(instances[0].id).toBe(replacementId);
+    expect(instances[0].id).not.toBe(first.id);
+    expect(instances[0].task.kind).toBe("evaluator");
+    expect(instances[1]).toBe(second);
+    expect(store.getState().dirtyInstances[first.id]).toBe(false);
+    expect(store.getState().dirtyInstances[instances[0].id]).toBe(false);
+  });
+
+  it("returns null for an unknown instance", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    expect(
+      store
+        .getState()
+        .replaceInstance({ instanceId: 999, source: { type: "duplicate" } })
+    ).toBeNull();
+    expect(store.getState().instances).toHaveLength(1);
+  });
+});
+
+describe("loadInstance", () => {
+  it("lands fetched content under the same id, normalizing its messages", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    const instanceId = store.getState().addInstance({
+      type: "prompt",
+      promptId: "P1",
+    });
+    if (instanceId == null) throw new Error("expected an instance");
+    store.getState().setDirty(instanceId, true);
+
+    const { instance: defaults } = createNormalizedPlaygroundInstance();
+    store.getState().loadInstance({
+      instanceId,
+      instance: {
+        ...defaults,
+        template: {
+          __type: "chat",
+          messages: [{ id: 501, role: "user", content: "{{output}}" }],
+        },
+        prompt: { id: "P1", name: "judge", version: "V1", tag: null },
+      },
+    });
+
+    const loaded = store.getState().instances[1];
+    expect(loaded.id).toBe(instanceId);
+    expect(loaded.loadingSource).toBeNull();
+    expect(loaded.prompt).toEqual({
+      id: "P1",
+      name: "judge",
+      version: "V1",
+      tag: null,
+    });
+    expect(loaded.template).toEqual({ __type: "chat", messageIds: [501] });
+    expect(store.getState().allInstanceMessages[501].content).toBe(
+      "{{output}}"
+    );
+    expect(store.getState().dirtyInstances[instanceId]).toBe(false);
+  });
+});
+
+describe("runPlaygroundInstances with instanceIds", () => {
+  it("starts a run only on the named instances", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    store.getState().addInstance({ type: "duplicate" });
+    const [first, second] = store.getState().instances;
+
+    store.getState().runPlaygroundInstances([second.id]);
+
+    const [firstAfter, secondAfter] = store.getState().instances;
+    expect(firstAfter.activeRunId).toBeNull();
+    expect(firstAfter).toBe(first);
+    expect(secondAfter.activeRunId).not.toBeNull();
+    expect(secondAfter.repetitions[1]?.status).toBe("pending");
   });
 });

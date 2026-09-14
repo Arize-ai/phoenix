@@ -77,7 +77,7 @@ describe("playground model agent tools", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance({ type: "duplicate" });
     const action = createSetPlaygroundModelClientAction({
       playgroundStore,
       modelCatalog: { installedBuiltInProviders, customProviders: [] },
@@ -101,7 +101,7 @@ describe("playground model agent tools", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance({ type: "duplicate" });
     const action = createSetPlaygroundModelClientAction({
       playgroundStore,
       modelCatalog: { installedBuiltInProviders, customProviders: [] },

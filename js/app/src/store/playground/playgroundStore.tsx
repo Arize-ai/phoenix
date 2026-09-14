@@ -2,6 +2,7 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/defaultEvaluatorTemplate";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
@@ -17,14 +18,18 @@ import {
 } from "@phoenix/pages/playground/providerAdapters";
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
+import { createPlaygroundEvaluatorTask } from "./playgroundTask";
 import {
   type ChatMessage,
   type ExperimentScaffold,
   type GenAIOperationType,
   type InitialPlaygroundState,
+  type ModelConfig,
   type PlaygroundChatTemplate,
   type PlaygroundError,
+  type PlaygroundEvaluatorTaskKind,
   type PlaygroundInstance,
+  type PlaygroundInstanceSource,
   type PlaygroundNormalizedChatTemplate,
   type PlaygroundNormalizedInstance,
   type PlaygroundRepetitionStatus,
@@ -102,6 +107,26 @@ export const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   ],
 });
 
+/**
+ * The judge prompt a new LLM evaluator draft starts from: the same rubric
+ * template the evaluator dialogs open with.
+ */
+export const generateJudgeChatTemplate = (): PlaygroundChatTemplate => ({
+  __type: "chat",
+  messages: [
+    {
+      id: generateMessageId(),
+      role: "system",
+      content: DEFAULT_EVALUATOR_TEMPLATE.systemPrompt,
+    },
+    {
+      id: generateMessageId(),
+      role: "user",
+      content: DEFAULT_EVALUATOR_TEMPLATE.userPrompt,
+    },
+  ],
+});
+
 export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
   return {
     template: {
@@ -117,6 +142,30 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
     ),
   };
 };
+
+/**
+ * Normalizes a denormalized instance into the store's shape under the given
+ * id, returning the messages to merge into `allInstanceMessages`.
+ */
+function normalizeInstance(
+  instance: Omit<PlaygroundInstance, "id">,
+  id: number
+): {
+  instance: PlaygroundNormalizedInstance;
+  messages: Record<number, ChatMessage>;
+} {
+  if (instance.template.__type !== "chat") {
+    return {
+      instance: { ...instance, template: instance.template, id },
+      messages: {},
+    };
+  }
+  const normalized = normalizeChatTemplate(instance.template);
+  return {
+    instance: { ...instance, template: normalized.template, id },
+    messages: normalized.messages,
+  };
+}
 
 const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   __type: "text_completion",
@@ -143,6 +192,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
       },
     },
     activeRunId: null,
+    task: { kind: "prompt" },
   }) satisfies Partial<PlaygroundInstance>;
 
 /**
@@ -162,6 +212,146 @@ export function createNormalizedPlaygroundInstance() {
       selectedRepetitionNumber: 1,
     } as PlaygroundNormalizedInstance,
     instanceMessages: normalizedTemplate.messages,
+  };
+}
+
+/**
+ * A fresh evaluator draft as a denormalized instance. An LLM draft carries
+ * the default judge prompt as its template; a code draft's template is
+ * empty because the code, not a prompt, is what runs.
+ */
+export function createEvaluatorTaskInstance({
+  kind,
+  model,
+}: {
+  kind: PlaygroundEvaluatorTaskKind;
+  model?: ModelConfig;
+}): Omit<PlaygroundInstance, "id"> {
+  const params = DEFAULT_INSTANCE_PARAMS();
+  return {
+    ...params,
+    model: model ?? params.model,
+    template:
+      kind === "LLM"
+        ? generateJudgeChatTemplate()
+        : { __type: "chat", messages: [] },
+    // The judge must call its output tool.
+    toolChoice: kind === "LLM" ? { type: "ONE_OR_MORE" } : params.toolChoice,
+    selectedRepetitionNumber: 1,
+    task: {
+      kind: "evaluator",
+      evaluator: createPlaygroundEvaluatorTask({ kind }),
+    },
+  };
+}
+
+/**
+ * Builds the instance `addInstance` and `replaceInstance` insert for a
+ * source, plus its messages. Saved sources come back as drafts of their
+ * kind that carry the reference in `loadingSource`; the page fetches the
+ * content and lands it with `loadInstance`.
+ */
+function createInstanceFromSource(
+  state: Pick<PlaygroundState, "instances" | "allInstanceMessages">,
+  source: PlaygroundInstanceSource
+): {
+  instance: PlaygroundNormalizedInstance;
+  messages: Record<number, ChatMessage>;
+} | null {
+  const firstInstance = state.instances[0];
+  if (source.type === "duplicate") {
+    return firstInstance
+      ? duplicateInstance(firstInstance, state.allInstanceMessages)
+      : null;
+  }
+  // A new task keeps the page's model so comparisons start on equal footing.
+  const model = firstInstance?.model;
+  if (source.type === "new") {
+    if (source.kind !== "prompt") {
+      return normalizeInstance(
+        createEvaluatorTaskInstance({ kind: source.kind, model }),
+        generateInstanceId()
+      );
+    }
+    const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+    return {
+      instance: { ...instance, model: model ?? instance.model },
+      messages: instanceMessages,
+    };
+  }
+  if (source.type === "prompt") {
+    const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+    return {
+      instance: {
+        ...instance,
+        model: model ?? instance.model,
+        loadingSource: source,
+      },
+      messages: instanceMessages,
+    };
+  }
+  // A saved evaluator's kind is only known once fetched; the draft is
+  // replaced wholesale when its content lands.
+  const draft = createEvaluatorTaskInstance({ kind: "LLM", model });
+  return normalizeInstance(
+    {
+      ...draft,
+      task: {
+        kind: "evaluator",
+        evaluator: {
+          ...createPlaygroundEvaluatorTask({ kind: "LLM" }),
+          source: {
+            evaluatorId:
+              source.type === "evaluator" ? source.evaluatorId : null,
+            datasetEvaluatorId:
+              source.type === "datasetEvaluator"
+                ? source.datasetEvaluatorId
+                : null,
+          },
+        },
+      },
+      loadingSource: source,
+    },
+    generateInstanceId()
+  );
+}
+
+/** Today's Compare: a copy of the instance with fresh message ids and no run state. */
+function duplicateInstance(
+  source: PlaygroundNormalizedInstance,
+  allInstanceMessages: Record<number, ChatMessage>
+): {
+  instance: PlaygroundNormalizedInstance;
+  messages: Record<number, ChatMessage>;
+} {
+  let template = source.template;
+  let messages: Record<number, ChatMessage> = {};
+  if (source.template.__type === "chat") {
+    const copiedMessages = source.template.messageIds
+      .map((id) => allInstanceMessages[id])
+      .map((message) => ({ ...message, id: generateMessageId() }));
+    template = {
+      ...source.template,
+      messageIds: copiedMessages.map((message) => message.id),
+    };
+    messages = copiedMessages.reduce<Record<number, ChatMessage>>(
+      (acc, message) => {
+        acc[message.id] = message;
+        return acc;
+      },
+      {}
+    );
+  }
+  return {
+    instance: {
+      ...source,
+      template,
+      id: generateInstanceId(),
+      activeRunId: null,
+      experiment: null,
+      repetitions: {},
+    },
+    messages,
   };
 }
 
@@ -354,59 +544,77 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
       set({ operationType }, false, { type: "setOperationType" });
     },
-    addInstance: () => {
-      const instances = get().instances;
-      const instanceMessages = get().allInstanceMessages;
-      const firstInstance = get().instances[0];
-      if (!firstInstance) {
-        return;
-      }
-      let newMessageIds: number[] = [];
-      let newMessageMap: Record<number, ChatMessage> = {};
-      if (firstInstance.template.__type === "chat") {
-        const messageIdsToCopy = firstInstance.template.messageIds;
-        const copiedMessages = messageIdsToCopy
-          .map((id) => instanceMessages[id])
-          .map((message) => ({
-            ...message,
-            id: generateMessageId(),
-          }));
-        newMessageIds = copiedMessages.map((message) => message.id);
-        newMessageMap = copiedMessages.reduce<Record<number, ChatMessage>>(
-          (acc, message) => {
-            acc[message.id] = message;
-            return acc;
-          },
-          {}
-        );
+    addInstance: (source) => {
+      const created = createInstanceFromSource(get(), source);
+      if (!created) {
+        return null;
       }
       set(
         {
           allInstanceMessages: {
-            ...instanceMessages,
-            ...newMessageMap,
+            ...get().allInstanceMessages,
+            ...created.messages,
           },
-          instances: [
-            ...instances,
-            {
-              ...firstInstance,
-              ...(firstInstance.template.__type === "chat"
-                ? {
-                    template: {
-                      ...firstInstance.template,
-                      messageIds: newMessageIds,
-                    },
-                  }
-                : {}),
-              id: generateInstanceId(),
-              activeRunId: null,
-              experiment: null,
-              repetitions: {},
-            },
-          ],
+          instances: [...get().instances, created.instance],
         },
         false,
         { type: "addInstance" }
+      );
+      return created.instance.id;
+    },
+    replaceInstance: ({ instanceId, source }) => {
+      const instances = get().instances;
+      if (!instances.some((instance) => instance.id === instanceId)) {
+        return null;
+      }
+      const created = createInstanceFromSource(get(), source);
+      if (!created) {
+        return null;
+      }
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...created.messages,
+          },
+          instances: instances.map((instance) =>
+            instance.id === instanceId ? created.instance : instance
+          ),
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: false,
+            [created.instance.id]: false,
+          },
+        },
+        false,
+        { type: "replaceInstance" }
+      );
+      return created.instance.id;
+    },
+    loadInstance: ({ instanceId, instance }) => {
+      const instances = get().instances;
+      if (!instances.some((current) => current.id === instanceId)) {
+        return;
+      }
+      const loaded = normalizeInstance(instance, instanceId);
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...loaded.messages,
+          },
+          instances: instances.map((current) =>
+            current.id === instanceId
+              ? { ...current, ...loaded.instance, loadingSource: null }
+              : current
+          ),
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: false,
+          },
+        },
+        false,
+        { type: "loadInstance" }
       );
     },
     syncInvocationParametersWithSpecs: ({
@@ -802,28 +1010,33 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "markToolsExternallyUpdated" }
       );
     },
-    runPlaygroundInstances: () => {
+    runPlaygroundInstances: (instanceIds) => {
       const instances = get().instances;
       const repetitions = get().repetitions;
       set(
         {
-          instances: instances.map((instance) => ({
-            ...instance,
-            activeRunId: generateRunId(),
-            repetitions: Object.fromEntries(
-              Array.from({ length: repetitions }, (_, i) => [
-                i + 1,
-                {
-                  output: null,
-                  spanId: null,
-                  error: null,
-                  status: "pending",
-                  toolCalls: {},
-                },
-              ])
-            ),
-            selectedRepetitionNumber: 1,
-          })),
+          instances: instances.map((instance) => {
+            if (instanceIds != null && !instanceIds.includes(instance.id)) {
+              return instance;
+            }
+            return {
+              ...instance,
+              activeRunId: generateRunId(),
+              repetitions: Object.fromEntries(
+                Array.from({ length: repetitions }, (_, i) => [
+                  i + 1,
+                  {
+                    output: null,
+                    spanId: null,
+                    error: null,
+                    status: "pending",
+                    toolCalls: {},
+                  },
+                ])
+              ),
+              selectedRepetitionNumber: 1,
+            };
+          }),
         },
         false,
         { type: "runPlaygroundInstances" }

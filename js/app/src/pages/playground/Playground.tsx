@@ -244,7 +244,7 @@ function AddPromptButton() {
       leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
       isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
       onPress={() => {
-        addInstance();
+        addInstance({ type: "duplicate" });
       }}
     >
       Compare

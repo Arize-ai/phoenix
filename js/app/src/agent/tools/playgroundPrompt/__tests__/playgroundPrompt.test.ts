@@ -26,9 +26,9 @@ describe("playground prompt agent tools", () => {
     const cloneAction = createClonePromptInstanceClientAction({
       playgroundStore,
     });
-    playgroundStore.getState().addInstance();
-    playgroundStore.getState().addInstance();
-    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance({ type: "duplicate" });
+    playgroundStore.getState().addInstance({ type: "duplicate" });
+    playgroundStore.getState().addInstance({ type: "duplicate" });
     expect(playgroundStore.getState().instances).toHaveLength(4);
 
     const result = await cloneAction({ instanceId: 0 });
@@ -48,9 +48,9 @@ describe("playground prompt agent tools", () => {
       modelConfigByProvider: {},
     });
     const addAction = createAddPromptInstanceClientAction({ playgroundStore });
-    playgroundStore.getState().addInstance();
-    playgroundStore.getState().addInstance();
-    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance({ type: "duplicate" });
+    playgroundStore.getState().addInstance({ type: "duplicate" });
+    playgroundStore.getState().addInstance({ type: "duplicate" });
 
     const result = await addAction({});
 

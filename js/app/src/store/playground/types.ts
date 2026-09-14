@@ -4,6 +4,12 @@ import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type { ProviderInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
+} from "@phoenix/types";
+
+import type { AnnotationConfig } from "../evaluatorStore";
 /**
  * Provider-agnostic canonical tool choice stored on PlaygroundInstance.
  * Mirrors the DB PromptToolChoice enum plus an optional function name.
@@ -228,6 +234,77 @@ export type PlaygroundInstancePrompt = {
   tag: string | null;
 };
 
+export type PlaygroundTaskKind = "prompt" | "evaluator";
+
+export type PlaygroundEvaluatorTaskKind = "LLM" | "CODE";
+
+/** The executable half of a code evaluator task. */
+export type PlaygroundEvaluatorTaskCode = {
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  sandboxConfigId: string | null;
+};
+
+/**
+ * The saved evaluator an evaluator task was loaded from, or that its last
+ * save produced. Both ids are null for a draft that has never been saved.
+ */
+export type PlaygroundEvaluatorTaskSource = {
+  evaluatorId: string | null;
+  datasetEvaluatorId: string | null;
+};
+
+/**
+ * An evaluator draft edited in a playground instance. For an LLM evaluator
+ * the judge prompt is the instance's own template, model and prompt
+ * reference; this holds everything else the evaluator editor owns.
+ */
+export type PlaygroundEvaluatorTask = {
+  kind: PlaygroundEvaluatorTaskKind;
+  /** The evaluator store's globalName. */
+  name: string;
+  description: string;
+  outputConfigs: AnnotationConfig[];
+  inputMapping: EvaluatorInputMapping;
+  /** LLM only. */
+  includeExplanation: boolean;
+  code: PlaygroundEvaluatorTaskCode | null;
+  source: PlaygroundEvaluatorTaskSource;
+  /** The task revision the last save wrote, for the "Saved" status. */
+  savedRevision: string | null;
+};
+
+/**
+ * What a playground instance is: a prompt, or an evaluator judged over the
+ * dataset. All instances on a page share one kind; see getPlaygroundTaskKind.
+ */
+export type PlaygroundTask =
+  | { kind: "prompt" }
+  | { kind: "evaluator"; evaluator: PlaygroundEvaluatorTask };
+
+/**
+ * Where a new (or replacement) instance comes from. Saved prompts and
+ * evaluators are fetched after the instance exists, see
+ * {@link PlaygroundInstance.loadingSource}.
+ */
+export type PlaygroundInstanceSource =
+  | { type: "duplicate" }
+  | { type: "new"; kind: "prompt" | PlaygroundEvaluatorTaskKind }
+  | {
+      type: "prompt";
+      promptId: string;
+      promptVersionId?: string | null;
+      tagName?: string | null;
+    }
+  | { type: "evaluator"; evaluatorId: string }
+  | { type: "datasetEvaluator"; datasetEvaluatorId: string };
+
+/** A source that names a saved entity, so its content has to be fetched. */
+export type PlaygroundInstanceLoadingSource = Exclude<
+  PlaygroundInstanceSource,
+  { type: "duplicate" | "new" }
+>;
+
 export type PlaygroundRepetitionStatus =
   | "notStarted"
   | "pending" // awaiting first token in streaming mode or awaiting response in non-streaming mode
@@ -325,6 +402,16 @@ export interface PlaygroundInstance {
    * Progress tracking for experiment runs over a dataset
    */
   experimentRunProgress?: ExperimentRunProgress | null;
+  /**
+   * What the instance holds: a prompt, or an evaluator draft.
+   */
+  task: PlaygroundTask;
+  /**
+   * The saved prompt or evaluator being fetched into this instance, set by
+   * addInstance/replaceInstance for a saved source and cleared by
+   * loadInstance once its content has landed.
+   */
+  loadingSource?: PlaygroundInstanceLoadingSource | null;
 }
 
 /**
@@ -531,9 +618,29 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setInput: (input: PlaygroundInput) => void;
   /**
-   * Add a comparison instance to the playground
+   * Add a comparison instance to the playground, built from `source`.
+   * A saved prompt or evaluator source leaves the new instance with a
+   * `loadingSource` until {@link loadInstance} lands its content.
+   * @returns the new instance's id, or null when nothing could be added
    */
-  addInstance: () => void;
+  addInstance: (source: PlaygroundInstanceSource) => number | null;
+  /**
+   * Swap an instance for a fresh one built from `source`, in the same
+   * position. Used to change an instance's task, including its kind.
+   * @returns the replacement's id, or null when the instance was not found
+   */
+  replaceInstance: (params: {
+    instanceId: number;
+    source: PlaygroundInstanceSource;
+  }) => number | null;
+  /**
+   * Land fetched content in an instance: its template, model, prompt
+   * reference and task. Clears `loadingSource` and the dirty flag.
+   */
+  loadInstance: (params: {
+    instanceId: number;
+    instance: Omit<PlaygroundInstance, "id">;
+  }) => void;
   /**
    * Delete a specific instance of the playground
    * @param instanceId the instance to delete
@@ -635,9 +742,9 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     patch: Partial<Omit<ModelConfig, "provider" | "invocationParameters">>;
   }) => void;
   /**
-   * Run all the active playground Instances
+   * Run the playground instances: all of them, or only `instanceIds`.
    */
-  runPlaygroundInstances: () => void;
+  runPlaygroundInstances: (instanceIds?: readonly number[]) => void;
   /**
    * Cancel all the active playground Instances
    */
