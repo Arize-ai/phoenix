@@ -695,7 +695,7 @@ function EvaluatorGallery() {
                     id={itemKey}
                     textValue={evaluator.name}
                   >
-                    <Flex direction="column" gap="size-10">
+                    <Flex direction="column" gap="size-0">
                       <Text size="S" weight="heavy">
                         {evaluator.name}
                       </Text>
@@ -704,7 +704,7 @@ function EvaluatorGallery() {
                       />
                     </Flex>
                     <LineClamp lines={3}>
-                      <Text size="XS" color="text-700">
+                      <Text size="S" color="text-700">
                         {evaluator.description || "No description"}
                       </Text>
                     </LineClamp>
@@ -760,7 +760,7 @@ function EvaluatorGallery() {
                     id={getTemplateItemKey(template.name)}
                     textValue={template.name}
                   >
-                    <Flex direction="column" gap="size-10">
+                    <Flex direction="column" gap="size-0">
                       <Text size="S" weight="heavy">
                         {template.name}
                       </Text>
@@ -770,7 +770,7 @@ function EvaluatorGallery() {
                       />
                     </Flex>
                     <LineClamp lines={3}>
-                      <Text size="XS" color="text-700">
+                      <Text size="S" color="text-700">
                         {template.description}
                       </Text>
                     </LineClamp>
