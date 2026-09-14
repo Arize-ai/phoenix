@@ -57,6 +57,7 @@ from phoenix.server.bearer_auth import (
     token_audience_permits,
 )
 from phoenix.server.mcp.skills import (
+    SHARED_SKILLS_ROOT,
     SKILL_TOOL_NAMES,
     SKILL_TOOLS_TAG,
     get_skill_instructions,
@@ -118,6 +119,12 @@ _DEFAULT_ANNOTATIONS = ToolAnnotations(
 # them: code-mode discovery, and the analytics SQL tools.
 _META_ANNOTATIONS = ToolAnnotations(
     read_only_hint=True, destructive_hint=False, open_world_hint=False
+)
+
+_NOTE_CREATE_ROUTE_MAP = RouteMap(
+    pattern=r"^/v1/(span|trace|session)_notes$",
+    methods=["POST"],
+    mcp_type=MCPType.TOOL,
 )
 
 
@@ -242,6 +249,26 @@ class _InternalIdentityDispatch:
     async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
         if scope["type"] == "http" and (principal := _current_mcp_principal()) is not None:
             scope = {**scope, INTERNAL_PRINCIPAL_SCOPE_KEY: principal}
+        await self._app(scope, receive, send)
+
+
+class _LifespanStateDispatch:
+    """ASGI wrapper that gives in-process requests the app's lifespan state.
+
+    A server copies the state the lifespan yields into every request scope,
+    which is what ``request.state`` reads. ``httpx.ASGITransport`` builds its
+    scope from scratch, so a tool call would reach ``/v1`` with an empty
+    ``request.state``. The lifespan publishes the same dict on
+    ``app.state.lifespan_state`` for this hop to copy.
+    """
+
+    def __init__(self, app: "FastAPI") -> None:
+        self._app = app
+
+    async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
+        if scope["type"] == "http":
+            lifespan_state = getattr(self._app.state, "lifespan_state", None) or {}
+            scope = {**scope, "state": {**lifespan_state, **scope.get("state", {})}}
         await self._app(scope, receive, send)
 
 
@@ -451,7 +478,8 @@ def build_phoenix_mcp_server(
             tools instead of one tool per endpoint.
         monty_consumer: Admission class the sandbox spends against under code
             mode. Ignored when code mode is off.
-        read_only: Derive tools from GET routes only.
+        read_only: Derive tools from GET routes, plus the routes that create
+            span, trace, and session notes.
         db: Session factory for the analytics SQL tools.
         skills_roots: Directories whose skill folders this consumer receives.
             Empty by default: no skill tools, and no skill instructions
@@ -467,7 +495,7 @@ def build_phoenix_mcp_server(
     # Tool dispatch authenticates by principal passing, not token replay — see
     # ``_InternalIdentityDispatch``.
     client = httpx2.AsyncClient(
-        transport=httpx2.ASGITransport(app=_InternalIdentityDispatch(app)),
+        transport=httpx2.ASGITransport(app=_InternalIdentityDispatch(_LifespanStateDispatch(app))),
         base_url=_INTERNAL_BASE_URL,
     )
     openapi_spec = app.openapi()
@@ -483,7 +511,8 @@ def build_phoenix_mcp_server(
         route_maps=[
             # Expose every REST endpoint under /v1 as a tool; exclude everything
             # else (GraphQL is mounted separately; health/version routes are not
-            # useful to MCP clients).
+            # useful to MCP clients). The first matching map wins.
+            *([_NOTE_CREATE_ROUTE_MAP] if read_only else []),
             RouteMap(
                 pattern=r"^/v1/",
                 methods=["GET"] if read_only else "*",
@@ -534,6 +563,7 @@ def create_phoenix_mcp_app(
         monty_runtime=monty_runtime,
         code_mode=get_env_mcp_code_mode(),
         db=db,
+        skills_roots=(SHARED_SKILLS_ROOT,),
     )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".

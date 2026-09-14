@@ -76,6 +76,13 @@ jobs:
           - os: ubuntu-latest
             py: "3.10"
             db: postgresql
+        include:
+          # 3.11 is the only Python whose dataclasses reject unhashable defaults
+          # such as MappingProxyType, so it needs its own import check.
+          - branch: main
+            db: sqlite
+            py: "3.11"
+            os: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

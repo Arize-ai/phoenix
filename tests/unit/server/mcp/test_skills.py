@@ -1,7 +1,7 @@
 """Tests for the skills the MCP server serves.
 
 Which skills a consumer sees is decided by the roots its server is built with:
-the mount receives the general root alone; the in-process agent adds its own.
+the mount receives the shared root alone; the in-process agent adds its own.
 """
 
 from __future__ import annotations
@@ -15,9 +15,9 @@ from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
 from phoenix.server.mcp.skills import (
-    GENERAL_SKILLS_ROOT,
     PXI_SKILLS_ROOT,
     PXI_SKILLS_ROOTS,
+    SHARED_SKILLS_ROOT,
     Skill,
     load_skills,
 )
@@ -173,16 +173,16 @@ class TestTools:
 
 
 class TestLoadSkills:
-    def test_pxi_skills_are_by_name_and_exclude_the_general_root(self) -> None:
+    def test_pxi_skills_are_the_shared_root_then_its_own(self) -> None:
         names = [skill.name for skill in load_skills(PXI_SKILLS_ROOTS)]
-        general = [skill.name for skill in load_skills((GENERAL_SKILLS_ROOT,))]
+        shared = [skill.name for skill in load_skills((SHARED_SKILLS_ROOT,))]
         pxi = [skill.name for skill in load_skills((PXI_SKILLS_ROOT,))]
 
-        assert names == pxi
-        assert names == sorted(names)
-        assert {"phoenix-graphql", "datasets"} <= set(names)
-        assert general == ["project-overview"]
-        assert not set(general) & set(names)
+        assert names == shared + pxi
+        assert shared == sorted(shared)
+        assert pxi == sorted(pxi)
+        assert {"phoenix-graphql", "datasets"} <= set(pxi)
+        assert not set(shared) & set(pxi)
 
     def test_references_are_named_by_their_path_from_the_skill_root(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "a-skill")
@@ -208,11 +208,14 @@ class TestLoadSkills:
 
         assert [skill.name for skill in load_skills((tmp_path,))] == ["a-skill"]
 
-    def test_roots_with_no_skills_are_refused(self, tmp_path: Path) -> None:
+    def test_a_root_with_no_skills_yields_none(self, tmp_path: Path) -> None:
         (tmp_path / "notes").mkdir()
 
-        with pytest.raises(ValueError, match="No skills found under"):
-            load_skills((tmp_path,))
+        assert load_skills((tmp_path,)) == ()
+
+    def test_a_missing_root_is_refused(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="is not a directory"):
+            load_skills((tmp_path / "nope",))
 
     def test_a_name_defined_in_two_roots_is_refused(self, tmp_path: Path) -> None:
         _write_skill(tmp_path / "one" / "a-skill")

@@ -7,6 +7,7 @@ caller's identity and the session's tool visibility itself.
 from __future__ import annotations
 
 from contextlib import AsyncExitStack
+from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
 import pytest
@@ -15,7 +16,9 @@ from fastapi import FastAPI, Request
 from fastmcp import FastMCP
 from pydantic import SecretStr
 from pydantic_ai import ModelRetry
+from sqlalchemy import insert, select
 
+from phoenix.db import models
 from phoenix.db.models import UserRoleName
 from phoenix.server.agents.capabilities import PhoenixMCPToolset
 from phoenix.server.app import create_app
@@ -82,6 +85,10 @@ def _rest_app(seen: list[Any]) -> FastAPI:
 
     @app.post("/v1/mutate", tags=["projects"], summary="Change something.")
     async def mutate() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.post("/v1/span_notes", tags=["spans"], summary="Create a span note.")
+    async def create_span_note() -> dict[str, bool]:
         return {"ok": True}
 
     return app
@@ -276,7 +283,7 @@ class TestInMemoryTransportContract:
 
 class TestReadOnlySurface:
     """Mutations belong to the agent's editing tools, which route approval
-    through the user; this surface cannot express one."""
+    through the user; this surface expresses none of them except note creation."""
 
     async def test_only_get_routes_become_tools(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
@@ -288,6 +295,18 @@ class TestReadOnlySurface:
 
         assert any("whoami" in name for name in names)
         assert not any("mutate" in name for name in names)
+
+    async def test_note_creation_is_the_exception(self) -> None:
+        mcp, _ = build_phoenix_mcp_server(
+            _rest_app([]), code_mode=False, read_only=True, db=_unused_db()
+        )
+
+        async with PhoenixMCPToolset[None](mcp) as toolset:
+            tools = {tool.name: tool for tool in await toolset.list_tools()}
+
+        create = next(tool for name, tool in tools.items() if "span_note" in name)
+        assert create.annotations is not None
+        assert create.annotations.read_only_hint is False
 
     async def test_mutating_routes_are_tools_when_not_read_only(self) -> None:
         mcp, _ = build_phoenix_mcp_server(
@@ -370,6 +389,16 @@ class TestCodeMode:
         assert "whoami" in catalog
         assert "mutate" not in catalog
 
+    async def test_the_catalog_keeps_note_creation(self) -> None:
+        mcp, runtime = self._code_mode_server([])
+        try:
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                catalog = str(await toolset.direct_call_tool("list_tools", {}))
+        finally:
+            await runtime.aclose()
+
+        assert "span_note" in catalog
+
 
 def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     """Instructions that name a tool the surface lacks cost a failed call to
@@ -381,6 +410,8 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     for tool in ("execute", "call_tool", "search", "get_schema", "tags"):
         assert tool in rendered
     assert "read-only" in rendered.lower()
+    for tool in ("createSpanNote", "createTraceNote", "createSessionNote"):
+        assert tool in rendered
     assert "not through `call_tool` inside `execute`" in rendered
     assert 'detail="detailed"' in rendered
     assert 'detail="full"' in rendered
@@ -492,3 +523,80 @@ class TestBoundPrincipalAgainstRealV1Auth:
                 await toolset.direct_call_tool(
                     "execute", {"code": "return await call_tool('getProjects', {})"}
                 )
+
+
+class TestLifespanStateReachesV1:
+    """``/v1`` handlers read ``request.state`` for what the lifespan yields.
+
+    A server copies that state into every request scope. The in-process
+    dispatch builds its own scope, so it must copy the state itself or a
+    mutating tool fails after its database write has committed.
+    """
+
+    async def test_dispatch_injects_the_published_lifespan_state(self) -> None:
+        app = FastAPI()
+
+        @app.get("/v1/marker", tags=["projects"], summary="Report a lifespan value.")
+        async def read_marker(request: Request) -> dict[str, Any]:
+            return {"marker": request.state.marker}
+
+        app.state.lifespan_state = {"marker": "from-lifespan"}
+        mcp, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=True, db=_unused_db())
+
+        async with PhoenixMCPToolset[None](mcp) as toolset:
+            result = await toolset.direct_call_tool("read_marker_v1_marker_get", {})
+
+        assert result == {"marker": "from-lifespan"}
+
+    async def test_a_note_written_through_the_in_process_client_lands(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        trace_id = "82c6c9c33ccc586e0d3bdf46b20db309"
+        async with db() as session:
+            project_rowid = await session.scalar(
+                insert(models.Project).values(name="project").returning(models.Project.id)
+            )
+            await session.execute(
+                insert(models.Trace).values(
+                    trace_id=trace_id,
+                    project_rowid=project_rowid,
+                    start_time=datetime(2021, 1, 1, tzinfo=timezone.utc),
+                    end_time=datetime(2021, 1, 1, 0, 1, tzinfo=timezone.utc),
+                )
+            )
+
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_grpc_server())
+            app = create_app(
+                db=db,
+                authentication_enabled=False,
+                serve_ui=False,
+                bulk_inserter_factory=TestBulkInserter,
+            )
+            await stack.enter_async_context(LifespanManager(app))
+            mcp, _ = build_phoenix_mcp_server(app, code_mode=False, read_only=False, db=db)
+
+            async with PhoenixMCPToolset[None](mcp) as toolset:
+                result = await toolset.direct_call_tool(
+                    "createTraceNote",
+                    {
+                        "data": {
+                            "trace_id": trace_id,
+                            "note": "written in-process",
+                            "identifier": "coding-run:test",
+                        }
+                    },
+                )
+
+        assert isinstance(result, dict) and "id" in result["data"]
+        async with db() as session:
+            note = await session.scalar(
+                select(models.TraceAnnotation).where(
+                    models.TraceAnnotation.identifier == "coding-run:test"
+                )
+            )
+        assert note is not None
+        assert note.name == "note"
+        assert note.explanation == "written in-process"

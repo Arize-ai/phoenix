@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets gen-otel-models \
+	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples gen-otel-models \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
 	clean clean-all
@@ -57,6 +57,7 @@ help: ## Show this help message
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
+	@echo -e "  mcp-skills             - Compile the MCP server's shared skills from .agents/skills"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -97,6 +98,7 @@ help: ## Show this help message
 	@echo -e "  lint-ts                - Lint all TypeScript (js/ workspace)"
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
+	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -173,6 +175,17 @@ setup-remote-export: ## Configure PXI remote trace export
 #=============================================================================
 # Schema Generation
 #=============================================================================
+
+mcp-skills: ## Compile the MCP server's shared skills from .agents/skills
+	@echo -e "$(CYAN)Compiling MCP skills from src/phoenix/server/mcp/skills-lock.json...$(NC)"
+	@# The skills CLI can only install into <cwd>/.agents/skills, so alias that to skills/ for the compile.
+	@cd src/phoenix/server/mcp \
+		&& mkdir -p .agents && ln -sfn ../skills .agents/skills \
+		&& trap 'rm -rf .agents' EXIT \
+		&& for source in $$(python3 -c 'import json; print(" ".join(e["source"] for e in json.load(open("skills-lock.json"))["skills"].values()))'); do \
+			npx --yes skills add "$$source" --project --agent universal --yes || exit 1; \
+		done
+	@echo -e "$(GREEN)✓ src/phoenix/server/mcp/skills$(NC)"
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
@@ -436,6 +449,11 @@ check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have pe
 check-filter-dsl-snippets: ## Ensure UI filter DSL snippets and examples compile under the Python filters
 	@echo -e "$(CYAN)Checking UI filter DSL snippets against the Python filters...$(NC)"
 	@$(UV) run python $(CURDIR)/scripts/ci/check_filter_dsl_snippets.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-graphql-examples: ## Ensure fenced GraphQL examples in shipped skills validate against js/app/schema.graphql
+	@echo -e "$(CYAN)Checking skill GraphQL examples against js/app/schema.graphql...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_graphql_examples.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py

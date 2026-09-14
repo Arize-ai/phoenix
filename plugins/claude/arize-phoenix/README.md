@@ -44,4 +44,6 @@ claude plugin install arize-phoenix@arize-phoenix
 
 Run `/mcp` inside Claude Code to confirm the `phoenix` server is connected and complete the login.
 
-For local development, add the marketplace from a checkout instead: `claude plugin marketplace add .` from the repository root.
+For local development, add the marketplace from a checkout instead: `claude plugin marketplace add ./` from the repository root. The trailing slash matters — a bare `.` is rejected as an invalid source.
+
+Check changes with `claude plugin validate plugins/claude/arize-phoenix`. It warns that the three `skills/` entries are symlinks it did not follow; that warning is expected, since `validate` reads components without following symlinks while a session loading the plugin does follow them. `claude plugin details arize-phoenix@arize-phoenix` on an installed copy confirms the resolved inventory — three skills and one MCP server.
