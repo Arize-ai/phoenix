@@ -14,6 +14,7 @@ from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 
+from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
 from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.db.types.annotation_configs import (
@@ -92,7 +93,7 @@ from phoenix.server.online_eval.session_policy import (
     MAX_SESSION_EVAL_TURNS,
     SESSION_POLICY_VERSION,
 )
-from phoenix.server.online_eval.session_sweeper import SessionEvalSweeper
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.online_eval.tracing import (
     EVALUATOR_TRACE_MARKER_ATTRIBUTE,
     PROJECT_EVALUATOR_ID_ATTRIBUTE,
@@ -749,7 +750,11 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
             )
         )
 
-    await SessionEvalSweeper(db)._tick()
+    await EvalSweeper(
+        db,
+        evaluation_target="SESSION",
+        max_outstanding=get_env_online_eval_max_session_outstanding(),
+    )._tick()
     async with db() as session:
         units = list(
             await session.scalars(
