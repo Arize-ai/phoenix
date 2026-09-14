@@ -447,9 +447,9 @@ class Traces:
             max_latency_ms (Optional[float]): Inclusive upper bound on trace latency in
                 milliseconds. Requires Phoenix server >= 20.8.0.
                 Deprecated: use ``filter="latency_ms <= N"``.
-            filter: Trace DSL expression, combined with other filters using AND.
-                Empty strings do not filter.
-                Requires Phoenix server >= 20.11.0.
+            filter: Trace filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
+                Combined with deprecated filters using AND. Empty strings do not filter.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 
@@ -871,8 +871,9 @@ class AsyncTraces:
             max_latency_ms (Optional[float]): Inclusive upper bound on trace latency in
                 milliseconds. Requires Phoenix server >= 20.8.0.
                 Deprecated: use ``filter="latency_ms <= N"``.
-            filter: Trace DSL expression, combined with other filters using AND.
-                Empty strings do not filter.
+            filter: Trace filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
+                Combined with other filters using AND. Empty strings do not filter.
                 Requires Phoenix server >= 20.11.0.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.

@@ -152,8 +152,8 @@ class Sessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
-            filter: Session DSL expression. Empty strings do not filter.
-                Requires Phoenix server >= 20.11.0.
+            filter: Session filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -257,7 +257,9 @@ class Sessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
-            filter: Session DSL expression. Empty strings do not filter.
+            filter: Session filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
+                Empty strings do not filter.
                 Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
@@ -735,7 +737,9 @@ class AsyncSessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
-            filter: Session DSL expression. Empty strings do not filter.
+            filter: Session filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
+                Empty strings do not filter.
                 Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 
@@ -840,7 +844,9 @@ class AsyncSessions:
             project_id: The ID of the project.
             project_name: The name of the project.
             limit: Maximum number of sessions to return.
-            filter: Session DSL expression. Empty strings do not filter.
+            filter: Session filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
+                Empty strings do not filter.
                 Requires Phoenix server >= 20.11.0.
             timeout: Optional timeout in seconds for the request.
 

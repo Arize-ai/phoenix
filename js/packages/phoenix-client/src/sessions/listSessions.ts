@@ -16,7 +16,8 @@ import { toSession } from "./sessionUtils";
 export type ListSessionsParams = ClientFn &
   ProjectIdentifier & {
     /**
-     * Session DSL expression applied before pagination. Empty strings do not filter.
+     * Session filter expression.
+     * @see https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions
      * @requires Phoenix server >= 20.11.0
      */
     filter?: string | null;

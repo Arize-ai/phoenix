@@ -33,8 +33,8 @@ export interface GetTracesParams extends ClientFn {
   /** Filter traces by session identifier(s) (session_id strings or GlobalIDs) */
   sessionId?: string | string[] | null;
   /**
-   * Trace DSL expression, combined with other filters using AND.
-   * Use the same expression on subsequent pages. Empty strings do not filter.
+   * Trace filter expression, combined with other filters using AND.
+   * @see https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions
    * @requires Phoenix server >= 20.11.0
    */
   filter?: string | null;
