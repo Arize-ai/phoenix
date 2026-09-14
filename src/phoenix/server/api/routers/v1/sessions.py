@@ -362,8 +362,8 @@ async def list_project_sessions(
     filter: Optional[str] = Query(
         default=None,
         description=(
-            "Filter sessions using a boolean expression. "
-            "For example: `num_traces_with_error > 0 and duration_ms >= 60000`. "
+            "Session filter expression, as documented at "
+            "https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. "
             "Empty expressions do not filter. Invalid expressions return 400."
         ),
     ),

@@ -216,8 +216,8 @@ async def list_project_traces(
     filter: Optional[str] = Query(
         default=None,
         description=(
-            "Filter traces using a boolean expression. "
-            "For example: `error_count > 0 and latency_ms >= 1000`. "
+            "Trace filter expression, as documented at "
+            "https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. "
             "Combined with other filters using AND. Empty expressions do not filter. "
             "Invalid expressions return 400."
         ),

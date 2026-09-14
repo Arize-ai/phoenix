@@ -10127,7 +10127,7 @@ export interface operations {
                  * @description Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.
                  */
                 max_latency_ms?: number | null;
-                /** @description Filter traces using a boolean expression. For example: `error_count > 0 and latency_ms >= 1000`. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400. */
+                /** @description Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400. */
                 filter?: string | null;
             };
             header?: never;
@@ -11924,7 +11924,7 @@ export interface operations {
                 limit?: number;
                 /** @description Sort order by ID: 'asc' (ascending) or 'desc' (descending). */
                 order?: "asc" | "desc";
-                /** @description Filter sessions using a boolean expression. For example: `num_traces_with_error > 0 and duration_ms >= 60000`. Empty expressions do not filter. Invalid expressions return 400. */
+                /** @description Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400. */
                 filter?: string | null;
             };
             header?: never;
