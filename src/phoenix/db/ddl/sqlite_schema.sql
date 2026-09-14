@@ -834,19 +834,19 @@ CREATE INDEX ix_experiments_user_id ON experiments (user_id);
 -- ----------------------
 CREATE TABLE experiment_jobs (
     id INTEGER NOT NULL,
-    type VARCHAR NOT NULL
-        CONSTRAINT "ck_experiment_jobs_`valid_type`"
-        CHECK (type IN ('PROMPT', 'EVAL_ONLY')),
-    status VARCHAR DEFAULT 'STOPPED' NOT NULL
-        CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
-        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
+    type VARCHAR NOT NULL,
+    status VARCHAR DEFAULT 'STOPPED' NOT NULL,
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     cooldown_until TIMESTAMP,
     max_concurrency INTEGER DEFAULT '10' NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id UNIQUE (type, id),
+    CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
+        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
+    CONSTRAINT "ck_experiment_jobs_`valid_type`"
+        CHECK (type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')),
     CONSTRAINT fk_experiment_jobs_id_experiments
         FOREIGN KEY (id)
         REFERENCES experiments (id)
@@ -873,6 +873,28 @@ CREATE TABLE experiment_dataset_evaluators (
 
 CREATE INDEX ix_experiment_dataset_evaluators_dataset_evaluator_id ON experiment_dataset_evaluators
     (dataset_evaluator_id);
+
+
+-- Table: experiment_evaluator_tasks
+-- ---------------------------------
+CREATE TABLE experiment_evaluator_tasks (
+    id INTEGER NOT NULL,
+    type VARCHAR DEFAULT 'EVALUATOR' NOT NULL
+        CONSTRAINT "ck_experiment_evaluator_tasks_`valid_type`"
+        CHECK (type = 'EVALUATOR'),
+    name VARCHAR NOT NULL,
+    evaluator_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_experiment_evaluator_tasks_`valid_evaluator_kind`"
+        CHECK (evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')),
+    definition JSONB NOT NULL,
+    input_mapping JSONB NOT NULL,
+    output_configs JSONB NOT NULL,
+    CONSTRAINT pk_experiment_evaluator_tasks PRIMARY KEY (id),
+    CONSTRAINT fk_experiment_evaluator_tasks_type_experiment_jobs
+        FOREIGN KEY (type, id)
+        REFERENCES experiment_jobs (type, id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: experiment_logs
