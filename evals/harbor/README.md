@@ -26,6 +26,15 @@ Run the real headless-agent adapter:
 make harbor-run
 ```
 
+Run the same task through Phoenix's agent session chat route instead of the in-process
+agent. A Phoenix server starts inside the task container against the fixture database, and
+the host-side agent drives it over the container's published port, so the server owns the
+transcript across steps. This path only supports the docker environment:
+
+```bash
+make harbor-run-chat
+```
+
 Test the Harbor plugin against a local Phoenix server with the direct task path used by
 the PXI workflow:
 

@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
+	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-run-chat harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -113,6 +113,7 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run-chat$(NC)          - Run the trial through the agent session chat route (docker only)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -549,6 +550,13 @@ harbor-run: ## Run the real headless-agent Harbor trial (HARBOR_TASK=..., HARBOR
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
 		-a evals.harbor.agents.phoenix_headless_agent:PhoenixHeadlessAgent \
 		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
+
+harbor-run-chat: ## Run the Harbor trial through the agent session chat route (docker only; HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ATTEMPTS=...)
+	$(check-harbor-staged)
+	@echo -e "$(CYAN)Running Harbor chat-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on docker...$(NC)"
+	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
+		-a evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent \
+		-m $(HARBOR_MODEL) -e docker -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs

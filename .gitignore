@@ -103,6 +103,7 @@ helm/charts/*.tgz
 /evals/harbor/**/*.whl
 /evals/harbor/tasks/**/environment/run_headless_agent.py
 /evals/harbor/tasks/**/environment/fetch_fixtures.py
+/evals/harbor/tasks/**/environment/start_phoenix_server.sh
 
 # WebAssembly binaries
 **/wasm/*.wasm

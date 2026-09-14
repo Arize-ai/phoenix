@@ -65,8 +65,8 @@ actual = asyncio.run(
 passed = actual == set(truth["expected_example_keys"])
 # Harbor averages each reward key across every step and counts a missing key as
 # 0, so tool_calls has to be reported here too for its mean to mean anything.
-messages_path = AGENT_LOG_DIR / "steps/4/new_messages.json"
-messages = messages_path.read_text() if messages_path.exists() else ""
+metrics_path = AGENT_LOG_DIR / "steps/4/metrics.json"
+metrics = json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
 VERIFIER_LOG_DIR.joinpath("reward.json").write_text(
-    json.dumps({"reward": float(passed), "tool_calls": messages.count('"tool-call"')})
+    json.dumps({"reward": float(passed), "tool_calls": metrics.get("tool_calls", 0)})
 )
