@@ -1,38 +1,33 @@
-"""Client for Phoenix's agent session chat route and its UI message stream.
+#!/usr/bin/env python3
+"""Run one PXI turn through the agent session chat route of the local Phoenix server.
 
 Mirrors what the ``pxi`` CLI does in ``js/packages/phoenix-cli/src/pxi/client.ts``:
 create a session, submit a user message with ``headless: true``, read the SSE
 data stream into an assistant message, and answer tool approvals until the turn
-settles.
-
-This runs inside Harbor's Python environment, which cannot install the Phoenix
-wheel alongside Harbor (their ``openai`` pins conflict), so it depends only on
-httpx and reduces the stream itself. The reducer covers the chunk types the eval
-reads back: text, tool parts, approvals, message metadata, and errors.
+settles. Runs inside the task container, where the Phoenix wheel is installed,
+so the stream is reduced by the server's own port of the AI SDK reducer.
 """
 
+import argparse
 import asyncio
 import json
 import re
 from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Literal, TypedDict
+from pathlib import Path
+from typing import Any, Literal
 from uuid import uuid4
 
 import httpx
+from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, DataChunk
+
+from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
+from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 
 EditPermission = Literal["manual", "bypass"]
+Message = dict[str, Any]
 Part = dict[str, Any]
-
-
-class Message(TypedDict, total=False):
-    id: str
-    role: Literal["system", "user", "assistant"]
-    parts: list[Part]
-    metadata: dict[str, Any]
-
-
 ApprovalPolicy = Callable[[Part], bool]
 """Decides whether a tool part in ``approval-requested`` state is approved."""
 
@@ -41,96 +36,49 @@ _SSE_DONE = "data: [DONE]"
 _BUSY_RETRY_DELAY_SECONDS = 2.0
 _BUSY_RETRY_ATTEMPTS = 30
 
+_CHUNK_TYPES: dict[str, type[BaseChunk]] = {
+    default: chunk_type
+    for chunk_type in BaseChunk.__subclasses__()
+    if isinstance(default := chunk_type.model_fields["type"].default, str)
+}
 
-async def iter_sse_chunks(lines: AsyncIterator[str]) -> AsyncIterator[dict[str, Any]]:
+
+def parse_chunk(payload: dict[str, Any]) -> BaseChunk | None:
+    """``None`` for chunk types the reducer has no model for."""
+    chunk_type = payload["type"]
+    if chunk_type.startswith("data-"):
+        return DataChunk.model_validate(payload)
+    model = _CHUNK_TYPES.get(chunk_type)
+    return model.model_validate(payload) if model is not None else None
+
+
+async def iter_sse_chunks(lines: AsyncIterator[str]) -> AsyncIterator[BaseChunk]:
     async for line in lines:
         line = line.rstrip("\r")
         if line == _SSE_DONE or not line.startswith(_SSE_DATA_PREFIX):
             continue
-        yield json.loads(line[len(_SSE_DATA_PREFIX) :])
+        chunk = parse_chunk(json.loads(line[len(_SSE_DATA_PREFIX) :]))
+        if chunk is not None:
+            yield chunk
 
 
 class StreamError(Exception):
     """The server emitted an ``error`` chunk during the turn."""
 
 
-class MessageReducer:
-    def __init__(self) -> None:
-        self.message: Message = {"role": "assistant", "parts": []}
-        self.errors: list[str] = []
-        self._text_parts: dict[str, Part] = {}
-        self._tool_parts: dict[str, Part] = {}
-
-    def feed(self, chunk: dict[str, Any]) -> None:
-        chunk_type = chunk["type"]
-        if chunk_type == "start":
-            if message_id := chunk.get("messageId"):
-                self.message["id"] = message_id
-            self._merge_metadata(chunk.get("messageMetadata"))
-        elif chunk_type == "text-start":
-            part = {"type": "text", "text": "", "state": "streaming"}
-            self._text_parts[chunk["id"]] = part
-            self.message["parts"].append(part)
-        elif chunk_type == "text-delta":
-            self._text_parts[chunk["id"]]["text"] += chunk["delta"]
-        elif chunk_type == "text-end":
-            self._text_parts[chunk["id"]]["state"] = "done"
-        elif chunk_type == "tool-input-start":
-            self._tool_part(chunk)["state"] = "input-streaming"
-        elif chunk_type == "tool-input-available":
-            self._tool_part(chunk).update(state="input-available", input=chunk.get("input"))
-        elif chunk_type == "tool-input-error":
-            self._tool_part(chunk).update(
-                state="output-error", input=chunk.get("input"), errorText=chunk["errorText"]
-            )
-        elif chunk_type == "tool-output-available":
-            self._tool_part(chunk).update(state="output-available", output=chunk.get("output"))
-        elif chunk_type == "tool-output-error":
-            self._tool_part(chunk).update(state="output-error", errorText=chunk["errorText"])
-        elif chunk_type == "tool-approval-request":
-            self._tool_part(chunk).update(
-                state="approval-requested", approval={"id": chunk["approvalId"]}
-            )
-        elif chunk_type == "tool-output-denied":
-            self._tool_part(chunk)["state"] = "output-denied"
-        elif chunk_type in ("message-metadata", "finish"):
-            self._merge_metadata(chunk.get("messageMetadata"))
-        elif chunk_type == "error":
-            self.errors.append(str(chunk.get("errorText", "")))
-
-    def _tool_part(self, chunk: dict[str, Any]) -> Part:
-        tool_call_id = chunk["toolCallId"]
-        if (part := self._tool_parts.get(tool_call_id)) is None:
-            part = {"type": "dynamic-tool", "toolCallId": tool_call_id}
-            self._tool_parts[tool_call_id] = part
-            self.message["parts"].append(part)
-        if tool_name := chunk.get("toolName"):
-            part["toolName"] = tool_name
-        return part
-
-    def _merge_metadata(self, metadata: Any) -> None:
-        if isinstance(metadata, dict):
-            self.message["metadata"] = _merge_objects(self.message.get("metadata"), metadata)
-
-
-def _merge_objects(base: Any, overrides: Any) -> Any:
-    if not isinstance(base, dict) or not isinstance(overrides, dict):
-        return overrides
-    merged = dict(base)
-    for key, value in overrides.items():
-        merged[key] = _merge_objects(base.get(key), value)
-    return merged
-
-
-async def accumulate_assistant_message(chunks: AsyncIterator[dict[str, Any]]) -> Message:
-    reducer = MessageReducer()
-    async for chunk in chunks:
-        reducer.feed(chunk)
-    if reducer.errors:
-        raise StreamError("; ".join(reducer.errors))
-    if "id" not in reducer.message:
-        raise RuntimeError("The chat stream ended without a start chunk naming the message")
-    return reducer.message
+async def accumulate_assistant_message(chunks: AsyncIterator[BaseChunk]) -> Message:
+    errors: list[str] = []
+    latest: Any = None
+    async for message in read_ui_message_stream(
+        stream=iter_chunks_with_error_parts(chunks), on_error=lambda e: errors.append(str(e))
+    ):
+        latest = message
+    if errors:
+        raise StreamError("; ".join(errors))
+    if latest is None:
+        raise RuntimeError("The chat stream ended without producing an assistant message")
+    dumped: Message = latest.model_dump(mode="json", by_alias=True, exclude_none=True)
+    return dumped
 
 
 def builtin_model_selection(harbor_model_name: str) -> dict[str, Any]:
@@ -333,3 +281,74 @@ def _raise_for_status(response: httpx.Response) -> None:
     if response.status_code == 409 and isinstance(payload, dict) and "code" in payload:
         raise SessionConflict(str(payload["code"]), message)
     raise RuntimeError(message)
+
+
+def _load_step_config(path: Path | None) -> dict[str, Any]:
+    if path is None or not path.is_file():
+        return {}
+    config = json.loads(path.read_text())
+    return config if isinstance(config, dict) else {}
+
+
+def _dump_json(value: Any) -> str:
+    return json.dumps(value, indent=2) + "\n"
+
+
+async def run(args: argparse.Namespace) -> None:
+    step_config = _load_step_config(args.step_config)
+    allow_mutations = bool(step_config.get("allow_mutations", False))
+    approve_tool_calls = bool(step_config.get("approve_tool_calls", False))
+    edit_permission: EditPermission = "bypass" if allow_mutations else "manual"
+    client = AgentSessionChatClient(
+        args.base_url,
+        model=builtin_model_selection(args.model),
+        turn_timeout_seconds=float(step_config.get("turn_timeout_seconds", 900.0)),
+    )
+    try:
+        session_id = args.session_id or await client.create_session()
+        turn = await client.run_turn(
+            session_id,
+            args.instruction_file.read_text(),
+            edit_permission=edit_permission,
+            mutations_enabled=allow_mutations,
+            approve=lambda _part: approve_tool_calls,
+            export_remote_traces=args.export_remote_traces,
+        )
+        transcript = await client.list_messages(session_id)
+    finally:
+        await client.aclose()
+
+    answer = answer_text(turn.final_message)
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    args.out_dir.joinpath("session_id").write_text(session_id + "\n")
+    args.out_dir.joinpath("answer.md").write_text(answer)
+    args.out_dir.joinpath("answer.json").write_text(_dump_json(parse_json_answer(answer)))
+    args.out_dir.joinpath("new_messages.json").write_text(_dump_json(turn.assistant_messages))
+    args.out_dir.joinpath("messages.json").write_text(_dump_json(transcript))
+    args.out_dir.joinpath("metrics.json").write_text(
+        _dump_json({"tool_calls": count_tool_calls(turn.assistant_messages)})
+    )
+    args.out_dir.joinpath("usage.json").write_text(_dump_json(turn.usage))
+    if args.latest_symlink is not None:
+        args.latest_symlink.parent.mkdir(parents=True, exist_ok=True)
+        args.latest_symlink.unlink(missing_ok=True)
+        args.latest_symlink.symlink_to(args.out_dir)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base-url", default="http://127.0.0.1:6006")
+    parser.add_argument("--model", required=True, help="Harbor provider/model name")
+    parser.add_argument("--instruction-file", type=Path, required=True)
+    parser.add_argument("--out-dir", type=Path, required=True)
+    parser.add_argument(
+        "--session-id", default=None, help="Continue this session; omit to create one"
+    )
+    parser.add_argument("--step-config", type=Path, default=None)
+    parser.add_argument("--latest-symlink", type=Path, default=None)
+    parser.add_argument("--export-remote-traces", action="store_true")
+    asyncio.run(run(parser.parse_args()))
+
+
+if __name__ == "__main__":
+    main()

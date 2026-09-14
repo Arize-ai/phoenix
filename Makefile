@@ -112,7 +112,7 @@ help: ## Show this help message
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the PXI chat-agent trial on docker (HARBOR_TASK=..., HARBOR_MODEL=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the PXI chat-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -543,12 +543,12 @@ harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK
 	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
 	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
-harbor-run: ## Run the PXI chat-agent Harbor trial on docker (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ATTEMPTS=...)
+harbor-run: ## Run the PXI chat-agent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
 	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor chat-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on docker...$(NC)"
+	@echo -e "$(CYAN)Running Harbor chat-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
 		-a evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent \
-		-m $(HARBOR_MODEL) -e docker -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) --yes
+		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs

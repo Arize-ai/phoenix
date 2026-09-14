@@ -15,16 +15,15 @@ concurrency:
 
 jobs:
   harbor-eval:
-    name: PXI chat agent regression triage
+    name: Headless agent regression triage (Daytona)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      # The chat agent reaches the in-container Phoenix server through a
-      # published Docker port, so trials run on the runner's Docker daemon.
-      HARBOR_ENV: docker
+      HARBOR_ENV: daytona
       # Two attempts, gated on the mean: a one-off agent slip passes while a
       # consistent regression still fails.
       HARBOR_ATTEMPTS: "2"
+      DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -47,7 +46,7 @@ jobs:
 
       # The agent is nondeterministic; require 3 of 4 steps rather than
       # perfection. Tighten once there's a pass-rate history.
-      - name: Run chat-agent trial
+      - name: Run headless-agent trial
         run: |
           make harbor-run
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75

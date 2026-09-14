@@ -6,7 +6,7 @@ from pydantic_ai.models.test import TestModel
 from sqlalchemy import select
 from starlette.types import ASGIApp
 
-from evals.harbor.agents.agent_session_chat import (
+from evals.harbor.container_assets.chat_client import (
     AgentSessionChatClient,
     answer_text,
     builtin_model_selection,

@@ -17,7 +17,8 @@ for environment in "$TASKS_DIR"/*/environment; do
   rm -rf "$environment/wheels"
   mkdir -p "$environment/wheels"
   cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
-  cp "$CONTAINER_ASSETS/fetch_fixtures.py" "$CONTAINER_ASSETS/start_phoenix_server.sh" "$environment/"
+  cp "$CONTAINER_ASSETS/chat_client.py" "$CONTAINER_ASSETS/fetch_fixtures.py" \
+    "$CONTAINER_ASSETS/start_phoenix_server.sh" "$environment/"
   staged=$((staged + 1))
 done
 
