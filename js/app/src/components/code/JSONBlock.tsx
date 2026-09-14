@@ -16,10 +16,15 @@ type JSONBlockProps = Omit<
   "theme" | "extensions" | "editable" | "basicSetup"
 > & {
   basicSetup?: Partial<BasicSetupOptions>;
+  /**
+   * Whether to underline JSON syntax errors. Off for text that is knowingly
+   * not a complete document, such as a truncated preview.
+   */
+  lint?: boolean;
 };
 
 export function JSONBlock(props: JSONBlockProps) {
-  const { basicSetup: propsBasicSetup, ...rest } = props;
+  const { basicSetup: propsBasicSetup, lint = true, ...rest } = props;
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const basicSetup = useMemo(() => {
@@ -36,10 +41,17 @@ export function JSONBlock(props: JSONBlockProps) {
     }
     return baseSetup;
   }, [propsBasicSetup]);
+  const extensions = useMemo(
+    () =>
+      lint
+        ? [json(), EditorView.lineWrapping, linter(jsonParseLinter())]
+        : [json(), EditorView.lineWrapping],
+    [lint]
+  );
   return (
     <CodeMirror
       value={props.value}
-      extensions={[json(), EditorView.lineWrapping, linter(jsonParseLinter())]}
+      extensions={extensions}
       editable={false}
       theme={codeMirrorTheme}
       {...rest}
