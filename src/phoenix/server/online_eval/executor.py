@@ -12,7 +12,6 @@ import logging
 from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Protocol, Sequence
 
@@ -362,26 +361,6 @@ def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
 
 
-def _session_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
-    """Newest root-span time actually loaded into the evaluated session.
-
-    A session row is materialized with ``evaluated_through`` set to the ingest
-    watermark seen at sweep time, but the session is loaded later and can cover
-    more; publication records what the annotation read separately.
-    """
-    policy = hydrated.annotation_metadata.get(_SESSION_POLICY_METADATA_KEY)
-    if not isinstance(policy, dict):
-        return None
-    last_loaded_event_time = policy.get("last_loaded_event_time")
-    if not isinstance(last_loaded_event_time, str):
-        return None
-    try:
-        watermark = datetime.fromisoformat(last_loaded_event_time)
-    except ValueError:
-        return None
-    return watermark if watermark.tzinfo is not None else watermark.replace(tzinfo=timezone.utc)
-
-
 class _TargetContextLoader(Protocol):
     async def __call__(
         self,
@@ -445,10 +424,6 @@ async def _load_session_context(
     return loaded.context, loaded.applied_policy
 
 
-def _no_coverage_watermark(hydrated: HydratedWorkUnit) -> Optional[datetime]:
-    return None
-
-
 @dataclass(frozen=True)
 class _EvaluationTargetSpec:
     """What one evaluation target contributes to hydration and publication."""
@@ -459,7 +434,6 @@ class _EvaluationTargetSpec:
     annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
     unique_by: tuple[str, ...]
     on_conflict: OnConflict
-    coverage_watermark: Callable[[HydratedWorkUnit], Optional[datetime]]
     insert_event: Callable[[tuple[int, ...]], DmlEvent]
 
 
@@ -471,7 +445,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         annotation_table=models.SpanAnnotation,
         unique_by=("name", "span_rowid", "identifier"),
         on_conflict=OnConflict.DO_NOTHING,
-        coverage_watermark=_no_coverage_watermark,
         insert_event=SpanAnnotationInsertEvent,
     ),
     "SESSION": _EvaluationTargetSpec(
@@ -481,7 +454,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         annotation_table=models.ProjectSessionAnnotation,
         unique_by=("name", "project_session_id", "identifier"),
         on_conflict=OnConflict.DO_UPDATE,
-        coverage_watermark=_session_coverage_watermark,
         insert_event=ProjectSessionAnnotationInsertEvent,
     ),
 }
@@ -1121,7 +1093,6 @@ class OnlineEvalExecutor:
                     work_unit_id=unit.work_unit_id,
                     claimed_by=unit.claimed_by,
                     write=_write_annotations,
-                    coverage_watermark=target_spec.coverage_watermark(hydrated),
                 )
             # Span duplicates return no id and need no cache invalidation. Session
             # replacements return their id because the annotation genuinely changed.
