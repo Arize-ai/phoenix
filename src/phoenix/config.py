@@ -52,6 +52,19 @@ ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
+"""
+JSON array of skill directories or directories containing skills, loaded at startup.
+For example: '["./.agents/skills", "/opt/skills/team-analysis"]'. Paths are on the
+Phoenix server, relative to its working directory. Unset means no external skills.
+"""
+ENV_PHOENIX_SKILLS_VISIBILITY = "PHOENIX_SKILLS_VISIBILITY"
+"""
+External skill visibility: all (default) ignores visibility metadata; explicit
+requires metadata.arize-phoenix-visibility: visible in SKILL.md frontmatter.
+Missing metadata or hidden excludes a skill in explicit mode. Bundled skills
+are unaffected. Restart Phoenix after changing skills or configuration.
+"""
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -3874,3 +3887,25 @@ def get_env_postgres_azure_scope() -> str:
     return getenv(ENV_PHOENIX_POSTGRES_AZURE_SCOPE) or (
         "https://ossrdbms-aad.database.windows.net/.default"
     )
+
+
+def get_env_skills_paths() -> tuple[Path, ...]:
+    value = getenv(ENV_PHOENIX_SKILLS_PATHS)
+    if value is None:
+        return ()
+    try:
+        paths = json.loads(value)
+    except ValueError as error:
+        raise ValueError(f"{ENV_PHOENIX_SKILLS_PATHS} must be a JSON array of paths") from error
+    if not isinstance(paths, list) or any(
+        not isinstance(path, str) or not path.strip() for path in paths
+    ):
+        raise ValueError(f"{ENV_PHOENIX_SKILLS_PATHS} must be a JSON array of non-empty paths")
+    return tuple(Path(path).expanduser().resolve() for path in paths)
+
+
+def get_env_skills_visibility() -> Literal["all", "explicit"]:
+    value = getenv(ENV_PHOENIX_SKILLS_VISIBILITY, "all")
+    if value not in ("all", "explicit"):
+        raise ValueError(f"{ENV_PHOENIX_SKILLS_VISIBILITY} must be 'all' or 'explicit'")
+    return cast(Literal["all", "explicit"], value)
