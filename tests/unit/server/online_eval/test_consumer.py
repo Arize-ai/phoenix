@@ -737,7 +737,6 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "RUNNING"
     assert stored.evaluated_through == scheduled_at
-    assert stored.transcript_covered_through == event_time
     (annotation,) = await _session_annotations(db)
     assert annotation.identifier == annotation_identifier(fingerprint)
     async with db() as session:
@@ -1531,7 +1530,7 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
     assert events.empty()
 
 
-async def test_session_publication_preserves_ingest_and_records_coverage_watermarks(
+async def test_session_publication_preserves_the_ingest_watermark(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -1563,10 +1562,9 @@ async def test_session_publication_preserves_ingest_and_records_coverage_waterma
     unit = await _get_session_unit(db, unit_id)
     assert unit.status == "DONE"
     assert unit.evaluated_through == start_time + timedelta(seconds=5)
-    assert unit.transcript_covered_through == start_time
 
 
-async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
+async def test_reclaimed_session_publication_pairs_annotation_with_reloaded_content(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     first_event_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
@@ -1648,7 +1646,6 @@ async def test_reclaimed_session_publication_pairs_annotation_with_new_coverage(
     policy = annotation.metadata_["phoenix.online_eval.session_policy"]
     assert policy["last_loaded_event_time"] == second_event_time.isoformat()
     assert unit.evaluated_through == first_ingest_time
-    assert unit.transcript_covered_through == second_event_time
 
 
 async def test_cross_project_session_unit_expires_before_evaluator_call(
