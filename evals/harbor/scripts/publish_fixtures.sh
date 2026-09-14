@@ -3,8 +3,9 @@
 # gs://arize-phoenix-assets/evals/harbor/<task-name>/, where each task's
 # container_assets/fetch_fixtures.py downloads them at the start of the first step.
 #
-# Clears everything under the evals/harbor prefix before uploading, so the
-# bucket always mirrors the tasks in this checkout.
+# Clears each regenerated task's prefix before uploading it. Tasks without a
+# generator (hand-prepared fixtures such as error-analysis) keep what was
+# uploaded by hand.
 set -euo pipefail
 
 GCS_PREFIX="gs://arize-phoenix-assets/evals/harbor"
@@ -40,13 +41,12 @@ if [ "$generated" -eq 0 ]; then
   exit 1
 fi
 
-echo "Clearing $GCS_PREFIX..."
-if gcloud storage ls "$GCS_PREFIX/**" >/dev/null 2>&1; then
-  gcloud storage rm -r "$GCS_PREFIX"
-fi
-
 for out in "$STAGING"/*/; do
   task=$(basename "$out")
+  if gcloud storage ls "$GCS_PREFIX/$task/**" >/dev/null 2>&1; then
+    echo "Clearing $GCS_PREFIX/$task..."
+    gcloud storage rm -r "$GCS_PREFIX/$task"
+  fi
   echo "Uploading $task..."
   gcloud storage cp --cache-control=no-store "$out"* "$GCS_PREFIX/$task/"
 done
