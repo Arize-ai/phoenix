@@ -80,6 +80,7 @@ def get_filtered_session_rowids_subquery(
     project_rowids: Sequence[int],
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
+    candidate_session_rowids: Optional[Sequence[int]] = None,
     lowering: FilterLowering = "scan",
 ) -> ScalarSelect[int]:
     """Compile the session filter DSL into a subquery of matching project-session rowids."""
@@ -89,6 +90,7 @@ def get_filtered_session_rowids_subquery(
             project_rowids=list(project_rowids),
             start_time=start_time,
             end_time=end_time,
+            candidate_session_rowids=candidate_session_rowids,
             lowering=lowering,
         )
 
