@@ -100,10 +100,10 @@ class TestMakeSideBinning:
         assert binning.bin("fail", None) == "fail"
         assert binning.flagged_label_set == frozenset({"fail"})
 
-    def test_categorical_without_direction_has_no_flag_semantics(self) -> None:
+    def test_categorical_without_direction_defaults_to_minimize(self) -> None:
         config = _categorical_config(direction=OptimizationDirection.NONE)
         binning = make_side_binning("verdict", config, None)
-        assert binning.flagged_label_set is None
+        assert binning.flagged_label_set == frozenset({"pass"})
 
 
 class TestCohensKappa:
@@ -227,7 +227,7 @@ class TestComparisonAccumulator:
         assert result.n == sum(range(1, 10))
         assert sum(row[0] for row in result.matrix) == result.n
 
-    def test_identical_label_sets_fall_back_to_label_equality(self) -> None:
+    def test_identical_label_sets_without_direction_use_assumed_flags(self) -> None:
         config = _categorical_config(direction=OptimizationDirection.NONE)
         binning_a = make_side_binning("a", config, None)
         binning_b = make_side_binning("b", config, None)
@@ -238,10 +238,10 @@ class TestComparisonAccumulator:
         result = accumulator.result()
         assert result.agreement == pytest.approx(2 / 3)
         assert result.disagreement_count == 1
-        assert result.side_a.flagged_count is None
-        assert result.side_a.flag_rate is None
+        assert result.side_a.flagged_count == 2
+        assert result.side_a.flag_rate == pytest.approx(2 / 3)
 
-    def test_disjoint_label_sets_without_flags_have_no_agreement(self) -> None:
+    def test_disjoint_label_sets_without_direction_use_assumed_flags(self) -> None:
         config_a = _categorical_config(
             direction=OptimizationDirection.NONE, values=[("harmful", 0.0), ("safe", 1.0)]
         )
@@ -255,9 +255,9 @@ class TestComparisonAccumulator:
         accumulator.add("safe", None, "clean", None)
         result = accumulator.result()
         assert result.n == 2
-        assert result.agreement is None
-        assert result.cohens_kappa is None
-        assert result.disagreement_count is None
+        assert result.agreement == 1.0
+        assert result.cohens_kappa == 1.0
+        assert result.disagreement_count == 0
 
     def test_empty_population(self) -> None:
         binning_a = make_side_binning("a", _continuous_config(name="a"), None)
@@ -302,7 +302,7 @@ class TestComparisonTimeSeries:
         assert result.n == 1
         assert result.time_series == ()
 
-    def test_agreement_is_none_without_a_reduction(self) -> None:
+    def test_time_series_without_direction_uses_assumed_flags(self) -> None:
         hour_one = datetime.fromisoformat("2024-01-01T01:00:00+00:00")
         config_a = _categorical_config(
             direction=OptimizationDirection.NONE, values=[("harmful", 0.0), ("safe", 1.0)]
@@ -315,8 +315,8 @@ class TestComparisonTimeSeries:
         )
         accumulator.add("harmful", None, "profane", None, bucket=hour_one)
         (point,) = accumulator.result().time_series
-        assert point.agreement is None
-        assert point.flag_rate_a is None
+        assert point.agreement == 1.0
+        assert point.flag_rate_a == 0.0
 
 
 class TestScoreBinCounts:

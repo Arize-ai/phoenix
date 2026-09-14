@@ -35,14 +35,27 @@ export const projectEvaluatorCompareLoaderGQL = graphql`
         evaluationTarget
         evaluator {
           outputConfigs {
+            ... on AnnotationConfigBase {
+              name
+              annotationType
+            }
             ... on CategoricalAnnotationConfig {
               optimizationDirection
+              values {
+                label
+                score
+              }
             }
             ... on ContinuousAnnotationConfig {
               optimizationDirection
+              lowerBound
+              upperBound
             }
             ... on FreeformAnnotationConfig {
               optimizationDirection
+              threshold
+              lowerBound
+              upperBound
             }
           }
         }
@@ -59,14 +72,27 @@ export const projectEvaluatorCompareLoaderGQL = graphql`
         evaluationTarget
         evaluator {
           outputConfigs {
+            ... on AnnotationConfigBase {
+              name
+              annotationType
+            }
             ... on CategoricalAnnotationConfig {
               optimizationDirection
+              values {
+                label
+                score
+              }
             }
             ... on ContinuousAnnotationConfig {
               optimizationDirection
+              lowerBound
+              upperBound
             }
             ... on FreeformAnnotationConfig {
               optimizationDirection
+              threshold
+              lowerBound
+              upperBound
             }
           }
         }

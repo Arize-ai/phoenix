@@ -3,6 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 
 import { Card, Flex, Text, View } from "@phoenix/components";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import { Empty } from "@phoenix/components/core/empty";
 import type { ProjectEvaluatorCompareContentQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareContentQuery.graphql";
 import { ProjectEvaluatorCompareMatrix } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareMatrix";
@@ -25,6 +26,8 @@ export function ProjectEvaluatorCompareContent({
   evaluatorBName,
   evaluatorAOptimizationDirection,
   evaluatorBOptimizationDirection,
+  evaluatorAOptimizationConfig,
+  evaluatorBOptimizationConfig,
   timeRange,
 }: {
   projectId: string;
@@ -34,6 +37,8 @@ export function ProjectEvaluatorCompareContent({
   evaluatorBName: string;
   evaluatorAOptimizationDirection: EvaluatorOptimizationDirection | null;
   evaluatorBOptimizationDirection: EvaluatorOptimizationDirection | null;
+  evaluatorAOptimizationConfig: AnnotationOptimizationConfig | undefined;
+  evaluatorBOptimizationConfig: AnnotationOptimizationConfig | undefined;
   timeRange: TimeRange;
 }) {
   const data = useLazyLoadQuery<ProjectEvaluatorCompareContentQuery>(
@@ -105,6 +110,8 @@ export function ProjectEvaluatorCompareContent({
         comparisonRef={comparison}
         evaluatorAName={evaluatorAName}
         evaluatorBName={evaluatorBName}
+        evaluatorAOptimizationConfig={evaluatorAOptimizationConfig}
+        evaluatorBOptimizationConfig={evaluatorBOptimizationConfig}
       />
       <div css={comparisonPanelsCSS}>
         <ProjectEvaluatorCompareMatrix
