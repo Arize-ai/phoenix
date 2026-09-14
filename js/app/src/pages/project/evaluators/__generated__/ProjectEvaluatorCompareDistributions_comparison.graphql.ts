@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9943e2158f658f5781a6ac8d20deade2>>
+ * @generated SignedSource<<6c9868611fcb12bf891bf0451a3c371c>>
  * @lightSyntaxTransform
  */
 
@@ -18,36 +18,10 @@ export type ProjectEvaluatorCompareDistributions_comparison$data = {
   };
   readonly evaluationTarget: EvaluationTarget;
   readonly sideA: {
-    readonly allEvaluatedMeanScore: number | null;
-    readonly labelCounts: ReadonlyArray<{
-      readonly count: number;
-      readonly isOther: boolean;
-      readonly label: string;
-      readonly score: number | null;
-    }> | null;
-    readonly scoreBinCounts: ReadonlyArray<number> | null;
-    readonly scoreBinEdges: ReadonlyArray<number> | null;
-    readonly scoreValueCounts: ReadonlyArray<{
-      readonly count: number;
-      readonly score: number;
-    }> | null;
-    readonly threshold: number | null;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_side">;
   };
   readonly sideB: {
-    readonly allEvaluatedMeanScore: number | null;
-    readonly labelCounts: ReadonlyArray<{
-      readonly count: number;
-      readonly isOther: boolean;
-      readonly label: string;
-      readonly score: number | null;
-    }> | null;
-    readonly scoreBinCounts: ReadonlyArray<number> | null;
-    readonly scoreBinEdges: ReadonlyArray<number> | null;
-    readonly scoreValueCounts: ReadonlyArray<{
-      readonly count: number;
-      readonly score: number;
-    }> | null;
-    readonly threshold: number | null;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_side">;
   };
   readonly " $fragmentType": "ProjectEvaluatorCompareDistributions_comparison";
 };
@@ -73,72 +47,80 @@ v1 = {
 },
 v2 = [
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "threshold",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "allEvaluatedMeanScore",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "scoreBinEdges",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "scoreBinCounts",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "EvaluatorScoreValueCount",
-    "kind": "LinkedField",
-    "name": "scoreValueCounts",
-    "plural": true,
-    "selections": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "EvaluatorLabelCount",
-    "kind": "LinkedField",
-    "name": "labelCounts",
-    "plural": true,
+    "kind": "InlineDataFragmentSpread",
+    "name": "ProjectEvaluatorCompareDistributions_side",
     "selections": [
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "label",
+        "name": "threshold",
         "storageKey": null
       },
-      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "isOther",
+        "name": "allEvaluatedMeanScore",
         "storageKey": null
       },
-      (v1/*:: as any*/)
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "scoreBinEdges",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "scoreBinCounts",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "EvaluatorScoreValueCount",
+        "kind": "LinkedField",
+        "name": "scoreValueCounts",
+        "plural": true,
+        "selections": [
+          (v0/*:: as any*/),
+          (v1/*:: as any*/)
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "EvaluatorLabelCount",
+        "kind": "LinkedField",
+        "name": "labelCounts",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "label",
+            "storageKey": null
+          },
+          (v0/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "isOther",
+            "storageKey": null
+          },
+          (v1/*:: as any*/)
+        ],
+        "storageKey": null
+      }
     ],
-    "storageKey": null
+    "args": null,
+    "argumentDefinitions": ([]/*:: as any*/)
   }
 ];
 return {
@@ -212,6 +194,6 @@ return {
 };
 })();
 
-(node as any).hash = "70401789cf201c7530e66dbed475dd4a";
+(node as any).hash = "53a9ef66146c6e1da7982d58137afaaf";
 
 export default node;

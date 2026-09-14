@@ -1,10 +1,12 @@
 import type { AnnotationMetricsView } from "@phoenix/components/chart/annotationMetricsUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import type { ProjectEvaluatorCompareDistributions_comparison$data } from "./__generated__/ProjectEvaluatorCompareDistributions_comparison.graphql";
+import type { ProjectEvaluatorCompareDistributions_side$data } from "./__generated__/ProjectEvaluatorCompareDistributions_side.graphql";
 
-export type DistributionSide =
-  ProjectEvaluatorCompareDistributions_comparison$data["sideA"];
+export type DistributionSide = Omit<
+  ProjectEvaluatorCompareDistributions_side$data,
+  " $fragmentType"
+>;
 export type DistributionChartRow = {
   label: string;
   count: number;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<af746e33a694b6bd6fe4003cd840cc5d>>
+ * @generated SignedSource<<bac267ea79c125adaf6e717a80400b3f>>
  * @lightSyntaxTransform
  */
 
@@ -7,7 +7,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { ReaderInlineDataFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorCompareDistributions_side$data = {
   readonly allEvaluatedMeanScore: number | null;
@@ -31,101 +31,11 @@ export type ProjectEvaluatorCompareDistributions_side$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_side">;
 };
 
-const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "score",
-  "storageKey": null
-},
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "count",
-  "storageKey": null
+const node: ReaderInlineDataFragment = {
+  "kind": "InlineDataFragment",
+  "name": "ProjectEvaluatorCompareDistributions_side"
 };
-return {
-  "argumentDefinitions": [],
-  "kind": "Fragment",
-  "metadata": null,
-  "name": "ProjectEvaluatorCompareDistributions_side",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "threshold",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "allEvaluatedMeanScore",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "scoreBinEdges",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "scoreBinCounts",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "EvaluatorScoreValueCount",
-      "kind": "LinkedField",
-      "name": "scoreValueCounts",
-      "plural": true,
-      "selections": [
-        (v0/*:: as any*/),
-        (v1/*:: as any*/)
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "EvaluatorLabelCount",
-      "kind": "LinkedField",
-      "name": "labelCounts",
-      "plural": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "label",
-          "storageKey": null
-        },
-        (v0/*:: as any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "isOther",
-          "storageKey": null
-        },
-        (v1/*:: as any*/)
-      ],
-      "storageKey": null
-    }
-  ],
-  "type": "EvaluatorComparisonSide",
-  "abstractKey": null
-};
-})();
 
-(node as any).hash = "2a9dfdb466c5fee5abfe69500b4b1cc8";
+(node as any).hash = "de977866640dfc15ab62b35d91340708";
 
 export default node;

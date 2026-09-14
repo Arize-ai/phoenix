@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { graphql, useFragment } from "react-relay";
+import { graphql, readInlineData, useFragment } from "react-relay";
 import { useSearchParams } from "react-router";
 import {
   Bar,
@@ -33,6 +33,7 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 import type { ProjectEvaluatorCompareDistributions_comparison$key } from "./__generated__/ProjectEvaluatorCompareDistributions_comparison.graphql";
+import type { ProjectEvaluatorCompareDistributions_side$key } from "./__generated__/ProjectEvaluatorCompareDistributions_side.graphql";
 import { EVALUATOR_COMPARE_COLORS } from "./projectEvaluatorCompareUtils";
 import {
   getDistributionView,
@@ -93,10 +94,10 @@ export function ProjectEvaluatorCompareDistributions({
           onlyB
         }
         sideA {
-          ...ProjectEvaluatorCompareDistributions_side @relay(mask: false)
+          ...ProjectEvaluatorCompareDistributions_side
         }
         sideB {
-          ...ProjectEvaluatorCompareDistributions_side @relay(mask: false)
+          ...ProjectEvaluatorCompareDistributions_side
         }
       }
     `,
@@ -121,16 +122,21 @@ export function ProjectEvaluatorCompareDistributions({
       direction: evaluatorBOptimizationDirection,
     },
   ].map((item) => {
+    const side = readInlineData<ProjectEvaluatorCompareDistributions_side$key>(
+      projectEvaluatorDistributionSideFragment,
+      item.side
+    );
     const param = `distributionView.${item.id}`;
     const view = getDistributionView({
-      side: item.side,
+      side,
       requested: searchParams.get(param),
     });
     return {
       ...item,
+      side,
       param,
       view,
-      rows: getDistributionRows({ side: item.side, view }),
+      rows: getDistributionRows({ side, view }),
     };
   });
   const maximum = sides.reduce(
@@ -175,7 +181,8 @@ export function ProjectEvaluatorCompareDistributions({
 }
 
 export const projectEvaluatorDistributionSideFragment = graphql`
-  fragment ProjectEvaluatorCompareDistributions_side on EvaluatorComparisonSide {
+  fragment ProjectEvaluatorCompareDistributions_side on EvaluatorComparisonSide
+  @inline {
     threshold
     allEvaluatedMeanScore
     scoreBinEdges
