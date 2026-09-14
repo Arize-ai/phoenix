@@ -484,50 +484,52 @@ function EvaluatorGallery() {
         className="project-evaluator-gallery__templates"
         aria-label="Evaluator templates"
       >
-        <div className="project-evaluator-gallery__compact-add-evaluator-menu">
-          <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
-        </div>
-        <Select
-          aria-label="Evaluator gallery section"
-          className="project-evaluator-gallery__compact-category-select"
-          value={selectedSection}
-          onChange={(section) => {
-            if (typeof section === "string") {
-              scrollToSection(section as GallerySection);
-            }
-          }}
-        >
-          <Button size="S">
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Popover isNonModal closeOnInteractOutside>
-            <ListBox css={compactCategoryListCSS}>
-              {hasCustomEvaluators ? (
-                <ListBoxSection id="compact-custom-evaluators">
-                  {renderSectionItem({
-                    id: CUSTOM_EVALUATORS_SECTION,
-                    name: "Custom evaluators",
-                    count: customEvaluators.length,
-                  })}
+        <div className="project-evaluator-gallery__template-controls">
+          <div className="project-evaluator-gallery__compact-add-evaluator-menu">
+            <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
+          </div>
+          <Select
+            aria-label="Evaluator gallery section"
+            className="project-evaluator-gallery__compact-category-select"
+            value={selectedSection}
+            onChange={(section) => {
+              if (typeof section === "string") {
+                scrollToSection(section as GallerySection);
+              }
+            }}
+          >
+            <Button size="S">
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover isNonModal closeOnInteractOutside>
+              <ListBox css={compactCategoryListCSS}>
+                {hasCustomEvaluators ? (
+                  <ListBoxSection id="compact-custom-evaluators">
+                    {renderSectionItem({
+                      id: CUSTOM_EVALUATORS_SECTION,
+                      name: "Custom evaluators",
+                      count: customEvaluators.length,
+                    })}
+                  </ListBoxSection>
+                ) : null}
+                <ListBoxSection id="compact-categories">
+                  <Header className="project-evaluator-gallery__category-section-heading">
+                    <Text
+                      elementType="h2"
+                      size="XS"
+                      weight="heavy"
+                      color="text-500"
+                    >
+                      Categories
+                    </Text>
+                  </Header>
+                  {categoryItems.map(renderSectionItem)}
                 </ListBoxSection>
-              ) : null}
-              <ListBoxSection id="compact-categories">
-                <Header className="project-evaluator-gallery__category-section-heading">
-                  <Text
-                    elementType="h2"
-                    size="XS"
-                    weight="heavy"
-                    color="text-500"
-                  >
-                    Categories
-                  </Text>
-                </Header>
-                {categoryItems.map(renderSectionItem)}
-              </ListBoxSection>
-            </ListBox>
-          </Popover>
-        </Select>
+              </ListBox>
+            </Popover>
+          </Select>
+        </div>
         <ListBox
           ref={galleryScrollRegionRef}
           aria-label="Evaluators and templates"
@@ -1349,7 +1351,6 @@ const galleryCSS = css`
   background-color: var(--global-background-color-default);
 
   .project-evaluator-gallery__categories,
-  .project-evaluator-gallery__templates,
   .project-evaluator-gallery__details {
     min-height: 0;
     padding: var(--project-evaluator-gallery-column-padding);
@@ -1364,6 +1365,7 @@ const galleryCSS = css`
   .project-evaluator-gallery__templates {
     display: flex;
     flex-direction: column;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -1417,11 +1419,7 @@ const galleryCSS = css`
     margin-bottom: var(--global-dimension-size-200);
   }
 
-  .project-evaluator-gallery__compact-category-select {
-    display: none;
-  }
-
-  .project-evaluator-gallery__compact-add-evaluator-menu {
+  .project-evaluator-gallery__template-controls {
     display: none;
   }
 
@@ -1431,7 +1429,12 @@ const galleryCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-400);
-    margin-top: var(--global-dimension-size-100);
+    padding: calc(
+        var(--project-evaluator-gallery-column-padding) +
+          var(--global-dimension-size-100)
+      )
+      var(--project-evaluator-gallery-column-padding)
+      var(--project-evaluator-gallery-column-padding);
     overflow-y: auto;
     scroll-behavior: smooth;
 
@@ -1510,6 +1513,14 @@ const galleryCSS = css`
       width: 100%;
     }
 
+    .project-evaluator-gallery__template-controls {
+      display: flex;
+      flex: none;
+      flex-direction: column;
+      padding: var(--project-evaluator-gallery-column-padding)
+        var(--project-evaluator-gallery-column-padding) 0;
+    }
+
     .project-evaluator-gallery__compact-add-evaluator-menu {
       display: flex;
       flex: none;
@@ -1519,6 +1530,10 @@ const galleryCSS = css`
     .project-evaluator-gallery__templates {
       grid-column: 1;
       grid-row: 1;
+    }
+
+    .project-evaluator-gallery__template-card-scroll-region {
+      padding-top: var(--global-dimension-size-100);
     }
 
     .project-evaluator-gallery__details {
