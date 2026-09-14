@@ -933,6 +933,56 @@ describe("PXI app", () => {
     }
   });
 
+  it("drops empty parts when interrupted before any token arrives, like the server does", async () => {
+    const submittedMessages: PxiMessage[][] = [];
+    // The AI SDK opens a step and a text part before the first token lands.
+    const emptyAssistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        { type: "step-start" },
+        { type: "text", text: "", state: "streaming" },
+      ],
+    };
+    const client: PxiChatClient = {
+      sendMessage: async ({ messages, abortSignal, onAssistantMessage }) => {
+        submittedMessages.push(messages);
+        if (submittedMessages.length === 1) {
+          onAssistantMessage(emptyAssistantMessage);
+          return new Promise((resolve) => {
+            abortSignal?.addEventListener("abort", () => resolve(null), {
+              once: true,
+            });
+          });
+        }
+        return null;
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "hello" });
+    await writeInput({ stdin, input: "\r" });
+    await act(async () => {
+      stdin.write(ESCAPE_CHARACTER);
+    });
+    await flushPendingEscapeInput();
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "── Interrupted before a response was generated ──"
+    );
+
+    await writeInput({ stdin, input: "continue" });
+    await writeInput({ stdin, input: "\r" });
+
+    const assistantMessage = submittedMessages[1]?.find(
+      (message) => message.role === "assistant"
+    );
+    expect(assistantMessage?.parts).toEqual([]);
+    unmount();
+  });
+
   it("separates the interruption marker from a trailing tool line by one blank line", () => {
     const interruptedMessage: PxiMessage = {
       id: "assistant-1",

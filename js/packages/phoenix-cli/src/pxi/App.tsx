@@ -949,6 +949,26 @@ function closeOutInterruptedPart({
 }
 
 /**
+ * Drop the parts the server discards when it finalizes an interrupted turn:
+ * text and reasoning that never received a token, and step boundaries with
+ * nothing after them.
+ */
+function dropEmptyInterruptedParts({
+  parts,
+}: {
+  parts: PxiMessagePart[];
+}): PxiMessagePart[] {
+  const result = parts.filter(
+    (part) =>
+      !((part.type === "text" || part.type === "reasoning") && !part.text)
+  );
+  while (result.at(-1)?.type === "step-start") {
+    result.pop();
+  }
+  return result;
+}
+
+/**
  * Close out an interrupted assistant message the way the server persists it,
  * so the transcript does not change when the poll swaps in the persisted copy.
  */
@@ -966,7 +986,9 @@ function markMessageInterrupted({
       : { type: "assistant", sessionId, interrupted: true };
   return {
     ...message,
-    parts: message.parts.map((part) => closeOutInterruptedPart({ part })),
+    parts: dropEmptyInterruptedParts({ parts: message.parts }).map((part) =>
+      closeOutInterruptedPart({ part })
+    ),
     metadata: { ...message.metadata, phoenix: interruptedMetadata },
   };
 }
