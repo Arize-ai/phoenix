@@ -1,8 +1,17 @@
 import { css } from "@emotion/react";
 import { graphql, useFragment } from "react-relay";
+import { Pie, PieChart, Sector, type PieSectorShapeProps } from "recharts";
 
-import { ColorSwatch, Flex, Text } from "@phoenix/components";
-import { ChartPanel, ChartPanelStrip } from "@phoenix/components/chart";
+import { ColorSwatch, Text } from "@phoenix/components";
+import {
+  type AnnotationOptimizationConfig,
+  getPositiveOptimizationFromConfig,
+} from "@phoenix/components/annotation";
+import {
+  ChartPanel,
+  ChartPanelStrip,
+  CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
+} from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareStats_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_comparison.graphql";
 import {
   EVALUATOR_COMPARE_COLORS,
@@ -21,7 +30,7 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 const stripCSS = css`
-  height: var(--global-dimension-size-2400);
+  height: ${CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}px;
 
   .chart-panel .chart-panel__title.heading {
     font-size: var(--global-font-size-m);
@@ -37,10 +46,9 @@ const statValueCSS = css`
 
 const sideBySideGridCSS = css`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
-  align-items: center;
-  column-gap: var(--global-dimension-size-200);
-  row-gap: var(--global-dimension-size-150);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--global-dimension-size-100);
+  height: 100%;
 `;
 
 const evaluatorNameCSS = css`
@@ -56,9 +64,39 @@ const evaluatorNameCSS = css`
   }
 `;
 
-const sideMetricCSS = css`
-  text-align: right;
+const evaluatorSummaryCSS = css`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--global-dimension-size-50);
+  min-width: 0;
 `;
+
+const evaluatorSummaryHeaderCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--global-dimension-size-50);
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+
+  .text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+`;
+
+const DONUT_SIZE = 112;
+const DONUT_INNER_RADIUS = 46;
+const DONUT_OUTER_RADIUS = 54;
+
+function DonutSector({ payload, ...props }: PieSectorShapeProps) {
+  return <Sector {...props} fill={payload?.color} />;
+}
 
 const formatNullableFloat = (value: number | null) =>
   value == null ? "--" : formatFloat(value);
@@ -86,50 +124,142 @@ function StatValueWithDetail({
   );
 }
 
-function SideBySideRow({
+function FlagRateDonut({
+  color,
+  evaluatedByBoth,
+  flaggedCount,
+  flagRate,
+}: {
+  color: string;
+  evaluatedByBoth: number;
+  flaggedCount: number | null;
+  flagRate: number | null;
+}) {
+  const chartData = [
+    { name: "flagged", value: flaggedCount ?? 0, color },
+    {
+      name: "not flagged",
+      value: Math.max(evaluatedByBoth - (flaggedCount ?? 0), 0),
+      color: "var(--global-color-gray-300)",
+    },
+  ];
+  const formattedRate = formatNullableRate(flagRate);
+  const formattedCount = formatNullableInt(flaggedCount);
+
+  return (
+    <div role="img" aria-label={`${formattedRate}; ${formattedCount} flagged`}>
+      <PieChart width={DONUT_SIZE} height={DONUT_SIZE} aria-hidden="true">
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={DONUT_INNER_RADIUS}
+          outerRadius={DONUT_OUTER_RADIUS}
+          stroke="transparent"
+          strokeWidth={0}
+          startAngle={90}
+          endAngle={-270}
+          isAnimationActive={false}
+          shape={DonutSector}
+        />
+        <text
+          x="50%"
+          y="40%"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="var(--global-text-color-900)"
+          fontFamily="var(--global-font-family-mono)"
+          fontSize="var(--global-font-size-s)"
+          fontWeight="var(--font-weight-heavy)"
+        >
+          {formattedRate}
+        </text>
+        <text
+          x="50%"
+          y="64%"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="var(--global-text-color-700)"
+          fontFamily="var(--global-font-family-mono)"
+          fontSize="var(--global-font-size-xxs)"
+        >
+          {`${formattedCount} flagged`}
+        </text>
+      </PieChart>
+    </div>
+  );
+}
+
+function getMeanScoreColor({
+  meanScore,
+  optimizationConfig,
+}: {
+  meanScore: number | null;
+  optimizationConfig: AnnotationOptimizationConfig | undefined;
+}): "success" | "danger" | undefined {
+  const positiveOptimization = getPositiveOptimizationFromConfig({
+    config: optimizationConfig,
+    score: meanScore,
+  });
+  return positiveOptimization == null
+    ? undefined
+    : positiveOptimization
+      ? "success"
+      : "danger";
+}
+
+function EvaluatorSummary({
   name,
   annotationName,
   color,
+  evaluatedByBoth,
   flaggedCount,
   flagRate,
   meanScore,
+  optimizationConfig,
 }: {
   name: string;
   annotationName: string;
   color: string;
+  evaluatedByBoth: number;
   flaggedCount: number | null;
   flagRate: number | null;
   meanScore: number | null;
+  optimizationConfig: AnnotationOptimizationConfig | undefined;
 }) {
   const outputName = getComparedOutputName({
     evaluatorName: name,
     annotationName,
   });
+  const displayName = outputName ? `${name} · ${outputName}` : name;
   return (
-    <>
-      <div css={evaluatorNameCSS}>
+    <section css={evaluatorSummaryCSS}>
+      <div css={evaluatorSummaryHeaderCSS}>
         <ColorSwatch color={color} size="M" />
-        <Flex direction="column" minWidth={0}>
-          <Text size="S" title={name}>
-            {name}
-          </Text>
-          {outputName ? (
-            <Text size="XS" color="text-700" title={annotationName}>
-              output: {outputName}
-            </Text>
-          ) : null}
-        </Flex>
+        <Text size="XS" fontFamily="mono" title={displayName}>
+          {displayName}
+        </Text>
       </div>
-      <Text size="S" css={sideMetricCSS}>
-        {formatNullableInt(flaggedCount)}
-      </Text>
-      <Text size="S" css={sideMetricCSS}>
-        {formatNullableRate(flagRate)}
-      </Text>
-      <Text size="S" css={sideMetricCSS}>
+      <FlagRateDonut
+        color={color}
+        evaluatedByBoth={evaluatedByBoth}
+        flaggedCount={flaggedCount}
+        flagRate={flagRate}
+      />
+      <Text
+        size="M"
+        fontFamily="mono"
+        color={getMeanScoreColor({
+          meanScore,
+          optimizationConfig,
+        })}
+      >
+        <span aria-label="mean score">μ</span>&nbsp;
         {formatNullableFloat(meanScore)}
       </Text>
-    </>
+    </section>
   );
 }
 
@@ -137,10 +267,14 @@ export function ProjectEvaluatorCompareStats({
   comparisonRef,
   evaluatorAName,
   evaluatorBName,
+  evaluatorAOptimizationConfig,
+  evaluatorBOptimizationConfig,
 }: {
   comparisonRef: ProjectEvaluatorCompareStats_comparison$key;
   evaluatorAName: string;
   evaluatorBName: string;
+  evaluatorAOptimizationConfig: AnnotationOptimizationConfig | undefined;
+  evaluatorBOptimizationConfig: AnnotationOptimizationConfig | undefined;
 }) {
   const comparison = useFragment(
     graphql`
@@ -283,35 +417,37 @@ export function ProjectEvaluatorCompareStats({
             </StatField>
           </StatFieldList>
         </ChartPanel>
-        <ChartPanel title="Side by side" headingLevel={3} fillHeight>
+        <ChartPanel
+          title="Side by side"
+          actions={
+            <Text size="S" color="text-700">
+              {formatInt(coverage.evaluatedByBoth)} shared{" "}
+              {formatEvaluationTargetPlural(comparison.evaluationTarget)}
+            </Text>
+          }
+          headingLevel={3}
+          fillHeight
+        >
           <div css={sideBySideGridCSS}>
-            <Text size="XS" color="text-700">
-              evaluator
-            </Text>
-            <Text size="XS" color="text-700" css={sideMetricCSS}>
-              flagged
-            </Text>
-            <Text size="XS" color="text-700" css={sideMetricCSS}>
-              flag rate
-            </Text>
-            <Text size="XS" color="text-700" css={sideMetricCSS}>
-              mean score
-            </Text>
-            <SideBySideRow
+            <EvaluatorSummary
               name={evaluatorAName}
               annotationName={comparison.sideA.annotationName}
               color={EVALUATOR_COMPARE_COLORS.a}
+              evaluatedByBoth={coverage.evaluatedByBoth}
               flaggedCount={comparison.sideA.flaggedCount}
               flagRate={comparison.sideA.flagRate}
               meanScore={comparison.sideA.meanScore}
+              optimizationConfig={evaluatorAOptimizationConfig}
             />
-            <SideBySideRow
+            <EvaluatorSummary
               name={evaluatorBName}
               annotationName={comparison.sideB.annotationName}
               color={EVALUATOR_COMPARE_COLORS.b}
+              evaluatedByBoth={coverage.evaluatedByBoth}
               flaggedCount={comparison.sideB.flaggedCount}
               flagRate={comparison.sideB.flagRate}
               meanScore={comparison.sideB.meanScore}
+              optimizationConfig={evaluatorBOptimizationConfig}
             />
           </div>
         </ChartPanel>

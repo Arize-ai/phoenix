@@ -101,15 +101,19 @@ class EvaluatorComparisonSummary:
     )
     flagged_labels: Optional[list[str]] = strawberry.field(
         description=(
-            "Which of `labels` count as flagged; null when the evaluator's config "
-            "does not determine flag semantics."
+            "Which of `labels` count as flagged; scored configs without an "
+            "optimization direction assume MINIMIZE, and unscored categorical "
+            "configs return null."
         )
     )
     threshold: Optional[float] = strawberry.field(
         description="The flag threshold used to bin scores; null for categorical evaluators."
     )
     flagged_count: Optional[int] = strawberry.field(
-        description="Entities this evaluator flags, over the shared population."
+        description=(
+            "Entities this evaluator flags over the shared population, using the "
+            "same direction fallback as `flaggedLabels`."
+        )
     )
     flag_rate: Optional[float] = strawberry.field(description="flaggedCount over `populationSize`.")
     mean_score: Optional[float] = strawberry.field(

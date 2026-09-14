@@ -17,6 +17,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { toAnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import { Empty } from "@phoenix/components/core/empty";
 import {
   ConnectedTimeRangeSelector,
@@ -104,6 +105,12 @@ function ProjectEvaluatorComparePageLoaded({
     evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null;
   const evaluatorBOptimizationDirection =
     evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null;
+  const evaluatorAOptimizationConfig = toAnnotationOptimizationConfig(
+    evaluatorA.evaluator.outputConfigs[0] ?? {}
+  );
+  const evaluatorBOptimizationConfig = toAnnotationOptimizationConfig(
+    evaluatorB.evaluator.outputConfigs[0] ?? {}
+  );
   const comparisonKey = [
     evaluatorA.id,
     evaluatorB.id,
@@ -175,6 +182,8 @@ function ProjectEvaluatorComparePageLoaded({
                   evaluatorBOptimizationDirection={
                     evaluatorBOptimizationDirection
                   }
+                  evaluatorAOptimizationConfig={evaluatorAOptimizationConfig}
+                  evaluatorBOptimizationConfig={evaluatorBOptimizationConfig}
                   timeRange={timeRange}
                 />
               </Suspense>

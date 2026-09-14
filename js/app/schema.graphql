@@ -1948,7 +1948,7 @@ type EvaluatorComparisonSummary {
   labels: [String!]!
 
   """
-  Which of `labels` count as flagged; null when the evaluator's config does not determine flag semantics.
+  Which of `labels` count as flagged; scored configs without an optimization direction assume MINIMIZE, and unscored categorical configs return null.
   """
   flaggedLabels: [String!]
 
@@ -1957,7 +1957,9 @@ type EvaluatorComparisonSummary {
   """
   threshold: Float
 
-  """Entities this evaluator flags, over the shared population."""
+  """
+  Entities this evaluator flags over the shared population, using the same direction fallback as `flaggedLabels`.
+  """
   flaggedCount: Int
 
   """flaggedCount over `populationSize`."""

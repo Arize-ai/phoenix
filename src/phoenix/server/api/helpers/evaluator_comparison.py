@@ -98,18 +98,19 @@ def make_side_binning(
     config pins down (a freeform config's first declared threshold, or the
     midpoint of the config's bounds — value-score bounds for categorical
     configs), else 0.5. A categorical label sitting exactly at the pivot is
-    neither good nor bad and never flagged; without a MAXIMIZE/MINIMIZE
-    direction or with unscored labels a categorical side has no flag semantics
-    at all (None).
+    neither good nor bad and never flagged. When a config has no optimization
+    direction, comparison flags default to MINIMIZE, matching thresholded
+    outputs; categorical configs with unscored labels still have no flag
+    semantics at all (None).
     """
     threshold = _pivot(output_config, threshold_override)
 
     if isinstance(output_config, CategoricalOutputConfig):
         direction = output_config.optimization_direction
+        if direction is OptimizationDirection.NONE:
+            direction = OptimizationDirection.MINIMIZE
         flagged_label_set: Optional[frozenset[str]] = None
-        if direction is not OptimizationDirection.NONE and all(
-            value.score is not None for value in output_config.values
-        ):
+        if all(value.score is not None for value in output_config.values):
             flagged_label_set = frozenset(
                 value.label
                 for value in output_config.values
