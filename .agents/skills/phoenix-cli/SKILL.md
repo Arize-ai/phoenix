@@ -424,28 +424,10 @@ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' |
 
 Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
 
-Target a project by name with `getProjectByName(name: "...")`. `projects(first: 1)`
-picks an arbitrary project, so use it only when any project will do.
-
-### One row per trace
-
-There is no `traces` connection on `Project`. To get one row per trace, ask
-`spans` for root spans through the span filter DSL:
-
-```bash
-px api graphql '{
-  getProjectByName(name: "default") { spans(
-    first: 20
-    filterCondition: "parent_id is None"
-    sort: { col: startTime, dir: desc }
-  ) { edges { node { spanId name trace { traceId } } } } }
-}' | jq '.data.getProjectByName.spans.edges[].node'
-```
-
-`parent_id is None` keeps spans with no parent id. `parent_span is None` also
-counts orphans (spans whose parent was never received) as roots. Both compose
-with any other clause via `and`. The `rootSpansOnly` and `orphanSpanAsRootSpan`
-arguments are deprecated; do not use them.
+`getProjectByName(name:)` targets one project; `projects(first: 1)` picks an
+arbitrary one. There is no `traces` connection: for one row per trace, filter
+`spans` with `parent_id is None` (`parent_span is None` also counts orphans).
+`rootSpansOnly` is deprecated.
 
 ### Span filter expressions
 
