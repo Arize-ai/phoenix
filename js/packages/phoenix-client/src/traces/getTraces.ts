@@ -35,7 +35,7 @@ export interface GetTracesParams extends ClientFn {
   /**
    * Trace filter expression, combined with other filters using AND.
    * @see https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions
-   * @requires Phoenix server >= 20.11.0
+   * @requires Phoenix server >= 20.12.0
    */
   filter?: string | null;
   /**

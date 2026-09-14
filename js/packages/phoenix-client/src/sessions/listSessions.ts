@@ -18,7 +18,7 @@ export type ListSessionsParams = ClientFn &
     /**
      * Session filter expression.
      * @see https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions
-     * @requires Phoenix server >= 20.11.0
+     * @requires Phoenix server >= 20.12.0
      */
     filter?: string | null;
   };

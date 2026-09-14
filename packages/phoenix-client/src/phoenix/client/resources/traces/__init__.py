@@ -874,7 +874,7 @@ class AsyncTraces:
             filter: Trace filter expression, as documented at
                 https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
                 Combined with other filters using AND. Empty strings do not filter.
-                Requires Phoenix server >= 20.11.0.
+                Requires Phoenix server >= 20.12.0.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 

@@ -422,7 +422,7 @@ const sessionTraces = await getTraces({
   sessionId: "my-session-id",
 });
 
-// Filter by error status and latency (requires Phoenix server >= 20.11.0)
+// Filter by error status and latency (requires Phoenix server >= 20.12.0)
 const slowFailures = await getTraces({
   project: { projectName: "my-project" },
   filter: "error_count > 0 and latency_ms >= 1000",

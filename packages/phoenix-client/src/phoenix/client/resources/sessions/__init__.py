@@ -260,7 +260,7 @@ class Sessions:
             filter: Session filter expression, as documented at
                 https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
                 Empty strings do not filter.
-                Requires Phoenix server >= 20.11.0.
+                Requires Phoenix server >= 20.12.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -740,7 +740,7 @@ class AsyncSessions:
             filter: Session filter expression, as documented at
                 https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
                 Empty strings do not filter.
-                Requires Phoenix server >= 20.11.0.
+                Requires Phoenix server >= 20.12.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
@@ -847,7 +847,7 @@ class AsyncSessions:
             filter: Session filter expression, as documented at
                 https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
                 Empty strings do not filter.
-                Requires Phoenix server >= 20.11.0.
+                Requires Phoenix server >= 20.12.0.
             timeout: Optional timeout in seconds for the request.
 
         Returns:
