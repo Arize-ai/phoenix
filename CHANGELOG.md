@@ -1,5 +1,20 @@
 # Changelog
 
+## [20.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.11.0...arize-phoenix-v20.12.0) (2026-09-14)
+
+
+### Features
+
+* **api:** expose trace and session filter expressions ([#16077](https://github.com/Arize-ai/phoenix/issues/16077)) ([d613de7](https://github.com/Arize-ai/phoenix/commit/d613de73943972bef1dd966de4d5e36254235d06))
+* **server:** add GET /datasets/{dataset_identifier}/splits ([e60697f](https://github.com/Arize-ai/phoenix/commit/e60697fe1e24ca84909e602b207b62af42bb3860)), closes [#12090](https://github.com/Arize-ai/phoenix/issues/12090)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([25b95d7](https://github.com/Arize-ai/phoenix/commit/25b95d7fd4d2dbeaf6faa3fe8b72fde255f60e47))
+* **server:** address review findings for GET /datasets/{dataset_identifier}/splits ([655802b](https://github.com/Arize-ai/phoenix/commit/655802b21016aa74d42dec2d4e38ea6fdc5ea969))
+* **server:** scope listed dataset splits by example membership only ([eafa87c](https://github.com/Arize-ai/phoenix/commit/eafa87c45ee1b0d39676f21ddcee19a9a6140fb3))
+
 ## [20.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.10.0...arize-phoenix-v20.11.0) (2026-09-12)
 
 
