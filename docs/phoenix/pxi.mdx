@@ -253,20 +253,6 @@ The library is under active development and grows each release. Track progress o
 the [Phoenix roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13).
 
 <CardGroup cols={3}>
-  <Card title="Trace debugging" icon="bug">
-    Walk failing traces against a failure-mode checklist and return prioritized
-    root-cause hypotheses.
-  </Card>
-  <Card title="Span coding" icon="pen-to-square">
-    Open-code spans with working notes, then group them into failure categories
-    and promote the stable ones into structured annotations — a way to build a
-    taxonomy before one exists.
-  </Card>
-  <Card title="Span annotation" icon="tag">
-    Annotate spans and apply labels in bulk across a trace or project, and draft
-    the annotation config itself — categorical, continuous, or freeform. Config
-    writes are shown for approval before they replace anything.
-  </Card>
   <Card title="Prompt playground" icon="wand-magic-sparkles">
     Co-author and optimize prompts, with every edit shown as a diff to approve.
   </Card>
@@ -325,11 +311,7 @@ explicit permission model, and only reaches the internet when you let it.
   replacing an annotation config, writing dataset examples, submitting an
   evaluator — each is proposed as a reviewable diff or card and applied only when
   you accept, under an edit-approval mode you pick from the chat input (or cycle
-  with `Ctrl+T`). Read-only actions run freely. There is one deliberate
-  exception: while open-coding spans, PXI writes its working notes straight to
-  the span (a single note tagged `pxi`, updated in place) without a prompt, so it
-  can iterate without asking on every observation — see the span-coding skill
-  under [Skills](#skills).
+  with `Ctrl+T`). Read-only actions run freely.
 - **Add web grounding when you want it.** Toggle **web access** with the globe
   button in the chat input to let PXI consult the live internet for additional
   grounding. The toggle is per session and only appears when an administrator

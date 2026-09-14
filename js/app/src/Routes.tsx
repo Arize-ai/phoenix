@@ -463,7 +463,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Configuration",
                     description:
-                      "Configure project settings including display details, default tab, and data retention policy assignment.",
+                      "Configure project settings including display details, default tab, data retention policy assignment, and the annotation configs associated with this project alongside its annotations. Prefer this over the instance-wide annotation settings page when the annotation configs belong to a specific project.",
                   },
                 }}
               />
@@ -1089,7 +1089,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Annotations",
                 description:
-                  "Configure annotation configs including categorical, continuous, and freeform annotation settings.",
+                  "Configure the instance-wide catalog of annotation configs including categorical, continuous, and freeform annotation settings. For the annotation configs and annotations of one project, prefer that project's configuration page.",
               },
             }}
           />

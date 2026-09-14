@@ -1,5 +1,24 @@
 # Changelog
 
+## [20.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.10.0...arize-phoenix-v20.11.0) (2026-09-12)
+
+
+### Features
+
+* **annotations:** add GraphQL mutations for span, trace, and session notes ([#16053](https://github.com/Arize-ai/phoenix/issues/16053)) ([e374a4d](https://github.com/Arize-ai/phoenix/commit/e374a4d92afc7852da4479abffd6c42e1391230b))
+* **mcp:** serve the shared skills root on the /mcp mount ([#15726](https://github.com/Arize-ai/phoenix/issues/15726)) ([dd2e22d](https://github.com/Arize-ai/phoenix/commit/dd2e22dd0d9adb315c130150312b9163b98e48b5))
+* **skills:** add phoenix-error-analysis skill ([#15727](https://github.com/Arize-ai/phoenix/issues/15727)) ([df349f2](https://github.com/Arize-ai/phoenix/commit/df349f2bad089dfa5088c8947dee1f9b2d11a205))
+
+
+### Bug Fixes
+
+* **mcp:** carry lifespan state into in-process tool dispatch ([#16109](https://github.com/Arize-ai/phoenix/issues/16109)) ([a516ac3](https://github.com/Arize-ai/phoenix/commit/a516ac3cd136691d026e423e894c6e6529c0f6ef))
+
+
+### Documentation
+
+* restructure the Claude Code plugin docs as its own section ([400d187](https://github.com/Arize-ai/phoenix/commit/400d187aa28dd1c322ddea6696487f5f38bd8e7c))
+
 ## [20.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.9.0...arize-phoenix-v20.10.0) (2026-09-11)
 
 

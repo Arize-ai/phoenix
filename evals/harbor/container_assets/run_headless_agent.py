@@ -102,8 +102,6 @@ async def run(args: argparse.Namespace) -> None:
                 model=model,
                 schema=app.state.graphql_schema,
                 build_graphql_context=lambda: app.state.build_graphql_context(None),
-                db=db,
-                event_queue=app.state.build_graphql_context(None).event_queue,
                 phoenix_mcp_server=app.state.pxi_mcp_server,
                 edit_permission=edit_permission,
                 graphql_mutations_enabled=graphql_mutations_enabled,

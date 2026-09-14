@@ -58,6 +58,7 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
 
     self->st = NULL;
     self->in_use = 0;
+    self->connection = connection;
 
     assert(PyUnicode_Check(sql));
 
@@ -75,6 +76,12 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
     Py_INCREF(sql);
     self->sql = sql;
 
+    if (pysqlite_refuse_nested_prepare(connection)) {
+        return PYSQLITE_NESTED_PREPARE;
+    }
+
+    pysqlite_enter_sqlite(connection);
+    pysqlite_enter_prepare(connection);
     Py_BEGIN_ALLOW_THREADS
     rc = sqlite3_prepare_v2(connection->db,
                             sql_cstr,
@@ -83,6 +90,8 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
                             &tail);
     self->is_dml = !sqlite3_stmt_readonly(self->st);
     Py_END_ALLOW_THREADS
+    pysqlite_leave_prepare(connection);
+    pysqlite_leave_sqlite(connection);
 
     /* To retain backward-compatibility, we need to treat DDL and certain types
      * of transactions as being "not-dml".
@@ -113,7 +122,7 @@ int pysqlite_statement_create(pysqlite_Statement* self, pysqlite_Connection* con
     self->db = connection->db;
 
     if (rc == SQLITE_OK && pysqlite_check_remaining_sql(tail)) {
-        (void)sqlite3_finalize(self->st);
+        (void)pysqlite_statement_finalize(self);
         self->st = NULL;
         rc = PYSQLITE_TOO_MUCH_SQL;
     }
@@ -335,31 +344,46 @@ void pysqlite_statement_bind_parameters(pysqlite_Statement* self, PyObject* para
 
 int pysqlite_statement_finalize(pysqlite_Statement* self)
 {
-    int rc;
+    int rc = SQLITE_OK;
+    sqlite3_stmt *st = self->st;
 
-    rc = SQLITE_OK;
-    if (self->st) {
-        Py_BEGIN_ALLOW_THREADS
-        rc = sqlite3_finalize(self->st);
-        Py_END_ALLOW_THREADS
-        self->st = NULL;
-    }
-
+    /* Drop the pointer first so a re-entrant close/rollback cannot
+       finalize the same VDBE a second time while xFinal is running. */
+    self->st = NULL;
     self->in_use = 0;
+    if (st) {
+        if (self->connection) {
+            pysqlite_enter_sqlite(self->connection);
+            pysqlite_enter_stmt_teardown(self->connection);
+        }
+        Py_BEGIN_ALLOW_THREADS
+        rc = sqlite3_finalize(st);
+        Py_END_ALLOW_THREADS
+        if (self->connection) {
+            pysqlite_leave_stmt_teardown(self->connection);
+            pysqlite_leave_sqlite(self->connection);
+        }
+    }
 
     return rc;
 }
 
 int pysqlite_statement_reset(pysqlite_Statement* self)
 {
-    int rc;
-
-    rc = SQLITE_OK;
+    int rc = SQLITE_OK;
 
     if (self->in_use && self->st) {
+        if (self->connection) {
+            pysqlite_enter_sqlite(self->connection);
+            pysqlite_enter_stmt_teardown(self->connection);
+        }
         Py_BEGIN_ALLOW_THREADS
         rc = sqlite3_reset(self->st);
         Py_END_ALLOW_THREADS
+        if (self->connection) {
+            pysqlite_leave_stmt_teardown(self->connection);
+            pysqlite_leave_sqlite(self->connection);
+        }
 
         if (rc == SQLITE_OK) {
             self->in_use = 0;
@@ -376,13 +400,7 @@ void pysqlite_statement_mark_dirty(pysqlite_Statement* self)
 
 void pysqlite_statement_dealloc(pysqlite_Statement* self)
 {
-    if (self->st) {
-        Py_BEGIN_ALLOW_THREADS
-        sqlite3_finalize(self->st);
-        Py_END_ALLOW_THREADS
-    }
-
-    self->st = NULL;
+    (void)pysqlite_statement_finalize(self);
 
     Py_XDECREF(self->sql);
 

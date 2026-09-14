@@ -20,6 +20,7 @@ from pydantic import SecretStr
 
 from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import INTERNAL_PRINCIPAL_SCOPE_KEY, PhoenixUser
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOT, SHARED_SKILLS_ROOT, load_skills
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     MountPathNormalizer,
@@ -109,11 +110,9 @@ async def test_mcp_server_advertises_the_phoenix_version(
         assert client.server_info.version == phoenix_version
 
 
-async def test_the_mount_serves_no_skills(
+async def test_the_mount_serves_the_shared_skills_and_not_the_agents_own(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Skills are PXI-only for now: the ``/mcp`` mount neither advertises them in
-    its instructions nor mounts the tools that load them."""
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
     from fastmcp import Client
     from fastmcp.client.transports import StreamableHttpTransport
@@ -138,8 +137,12 @@ async def test_the_mount_serves_no_skills(
         instructions = client.instructions
         tool_names = {tool.name for tool in await client.list_tools()}
 
-    assert instructions is None
-    assert tool_names.isdisjoint({"load_skill", "load_skill_reference"})
+    assert instructions is not None
+    for skill in load_skills((SHARED_SKILLS_ROOT,)):
+        assert f"<name>{skill.name}</name>" in instructions
+    for skill in load_skills((PXI_SKILLS_ROOT,)):
+        assert f"<name>{skill.name}</name>" not in instructions
+    assert {"load_skill", "load_skill_reference"} <= tool_names
 
 
 @pytest.mark.real_agent_mcp_server
@@ -158,7 +161,8 @@ async def test_the_agents_own_server_adds_the_pxi_skills(
 
     instructions = app.state.pxi_mcp_server.instructions
     assert "<name>phoenix-graphql</name>" in instructions
-    assert "<name>project-overview</name>" not in instructions
+    for skill in load_skills((SHARED_SKILLS_ROOT,)):
+        assert f"<name>{skill.name}</name>" in instructions
 
 
 async def test_fixture_app_does_not_generate_the_openapi_document(app: FastAPI) -> None:
@@ -353,7 +357,7 @@ class TestAgentMCPServerIsIndependentOfTheMount:
 
         assert app.state.pxi_mcp_server is None
 
-    async def test_surface_is_read_only(
+    async def test_surface_is_read_only_except_note_creation(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Through the server ``create_app`` wires, so the read-only derivation is
@@ -373,12 +377,15 @@ class TestAgentMCPServerIsIndependentOfTheMount:
             result = await client.call_tool("list_tools", {"detail": "full"})
         catalog = {tool["name"] for tool in json.loads(result.structured_content["result"])}
 
-        operation_ids: dict[bool, set[str]] = {True: set(), False: set()}
+        note_creates = {"createSpanNote", "createTraceNote", "createSessionNote"}
+        reads: set[str] = set()
+        writes: set[str] = set()
         for operations in app.openapi()["paths"].values():
             for method, operation in operations.items():
-                operation_ids[method == "get"].add(operation["operationId"])
-        assert operation_ids[True] <= catalog
-        assert catalog.isdisjoint(operation_ids[False]), catalog & operation_ids[False]
+                (reads if method == "get" else writes).add(operation["operationId"])
+        assert note_creates <= writes
+        assert reads | note_creates <= catalog
+        assert catalog.isdisjoint(writes - note_creates), catalog & writes
 
 
 async def test_mcp_code_mode_replaces_tool_surface(
@@ -425,7 +432,15 @@ async def test_mcp_code_mode_replaces_tool_surface(
         )
         async with Client(transport) as client:
             tools = {t.name: t for t in await client.list_tools()}
-            assert set(tools) == {"search", "get_schema", "tags", "list_tools", "execute"}
+            assert set(tools) == {
+                "search",
+                "get_schema",
+                "tags",
+                "list_tools",
+                "execute",
+                "load_skill",
+                "load_skill_reference",
+            }
 
             # Discovery tools are reads and say so; execute can invoke mutating
             # tools, so it stays unannotated (treated as possibly destructive).
