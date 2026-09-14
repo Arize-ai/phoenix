@@ -13,6 +13,7 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from bashkit import Bash
 
@@ -112,7 +113,7 @@ def save_shell(connection: sqlite3.Connection, session_rowid: int, shell: Bash) 
     )
 
 
-def append_line(shell: Bash, path: str, row: dict) -> None:
+def append_line(shell: Bash, path: str, row: dict[str, Any]) -> None:
     shell.execute_sync_or_throw(f"mkdir -p {os.path.dirname(path)}")
     existing = shell.read_file(path) if shell.exists(path) else ""
     if isinstance(existing, (bytes, bytearray)):
@@ -128,6 +129,7 @@ def ensure_agent_session(connection: sqlite3.Connection) -> int:
         "INSERT INTO agent_sessions(project_name, title, model_provider, model_name, is_ephemeral)"
         " VALUES ('mobile-review-queue', 'oracle', 'ANTHROPIC', 'oracle', 0)"
     )
+    assert cursor.lastrowid is not None
     return int(cursor.lastrowid)
 
 
@@ -137,7 +139,9 @@ def span_rowid(connection: sqlite3.Connection, span_id: str) -> int:
     )
 
 
-def upsert_span_annotation(connection, rowid, name, label, explanation) -> None:
+def upsert_span_annotation(
+    connection: sqlite3.Connection, rowid: int, name: str, label: str | None, explanation: str
+) -> None:
     connection.execute(
         "INSERT INTO span_annotations(span_rowid, name, label, score, explanation, metadata,"
         " annotator_kind, identifier, source) VALUES (?, ?, ?, NULL, ?, '{}', 'LLM', ?, 'API')"
@@ -147,7 +151,7 @@ def upsert_span_annotation(connection, rowid, name, label, explanation) -> None:
     )
 
 
-def step_1(connection: sqlite3.Connection, truth: dict) -> str:
+def step_1(connection: sqlite3.Connection, truth: dict[str, Any]) -> str:
     session_rowid = ensure_agent_session(connection)
     shell = load_shell(connection, session_rowid)
     for planted in truth["planted_traces"]:
@@ -168,7 +172,7 @@ def step_1(connection: sqlite3.Connection, truth: dict) -> str:
     return global_id("AgentSession", session_rowid)
 
 
-def step_2(connection: sqlite3.Connection, truth: dict) -> str:
+def step_2(connection: sqlite3.Connection, truth: dict[str, Any]) -> str:
     session_rowid = ensure_agent_session(connection)
     shell = load_shell(connection, session_rowid)
     project_id = connection.execute(
