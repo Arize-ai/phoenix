@@ -811,6 +811,31 @@ async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
     assert await _work_statuses(db) == ["PENDING"]
 
 
+async def test_unit_superseded_by_an_edit_is_not_re_offered_below_the_scan_floor(
+    db: DbSessionFactory,
+) -> None:
+    """Edits apply to future activity: a unit superseded mid-flight is not re-offered
+    under the new configuration once its session is below the scan floor."""
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _set_delay(db, project_evaluator_id, 10)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit).values(
+                status="SUPERSEDED",
+                error=STALE_FINGERPRINT_ERROR,
+            )
+        )
+    await _rename_project_evaluator(db, project_evaluator_id)
+
+    await sweeper._tick()
+    await sweeper._tick()
+
+    assert await _work_statuses(db) == ["SUPERSEDED"]
+
+
 async def test_stale_fingerprint_revival_selects_one_row_per_dedup_key(
     db: DbSessionFactory,
 ) -> None:

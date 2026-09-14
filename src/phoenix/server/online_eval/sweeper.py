@@ -34,7 +34,6 @@ from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
-from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.selectable import ScalarSelect, Subquery
 from typing_extensions import assert_never
@@ -231,12 +230,13 @@ def _live_work_exists(
     )
 
 
-def _eligible_pairs_statement(
+def _eligible_pairs_relation(
     target: _SweepTarget,
-    project_evaluator_relation: Subquery,
+    project_evaluators: Sequence[_SweepProjectEvaluator],
     database_now: datetime,
     dialect: SupportedSQLDialect,
-) -> Select[Any]:
+) -> Subquery:
+    project_evaluator_relation = _project_evaluator_relation(project_evaluators, dialect)
     entity_model = target.entity_model
     target_column = target.work_unit_target_column
     successful_work = aliased(target.work_unit_model)
@@ -307,21 +307,8 @@ def _eligible_pairs_statement(
                 terminal_watermark < entity_model.last_span_ingested_at,
             ),
         )
+        .subquery("eligible_pairs")
     )
-
-
-def _eligible_pairs_relation(
-    target: _SweepTarget,
-    project_evaluators: Sequence[_SweepProjectEvaluator],
-    database_now: datetime,
-    dialect: SupportedSQLDialect,
-) -> Subquery:
-    return _eligible_pairs_statement(
-        target,
-        _project_evaluator_relation(project_evaluators, dialect),
-        database_now,
-        dialect,
-    ).subquery("eligible_pairs")
 
 
 def _work_insert_statement(
@@ -636,11 +623,16 @@ class EvalSweeper(DaemonTask):
         )
         rows: Sequence[Any] = ()
         page_project_evaluator_id_per_row: Sequence[int] = ()
+        page_entity_rowids: Sequence[int] = ()
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
-            page_project_evaluator_id_per_row = tuple(
-                await session.scalars(select(eligible_page.c.project_evaluator_id))
-            )
-            page_row_count = len(page_project_evaluator_id_per_row)
+            page_keys = (
+                await session.execute(
+                    select(eligible_page.c.project_evaluator_id, eligible_page.c.entity_rowid)
+                )
+            ).all()
+            page_project_evaluator_id_per_row = tuple(key.project_evaluator_id for key in page_keys)
+            page_entity_rowids = tuple(key.entity_rowid for key in page_keys)
+            page_row_count = len(page_keys)
         else:
             rows = (await session.execute(select(eligible_page))).all()
             page_row_count = len(rows)
@@ -681,9 +673,7 @@ class EvalSweeper(DaemonTask):
         if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
             if not page_project_evaluator_ids:
                 return 0, eligible_pair_count
-            page_ids = tuple(
-                dict.fromkeys(await session.scalars(select(eligible_page.c.entity_rowid)))
-            )
+            page_ids = tuple(dict.fromkeys(page_entity_rowids))
             if not page_ids:
                 return 0, eligible_pair_count
             page_ids_parameter = bindparam(
