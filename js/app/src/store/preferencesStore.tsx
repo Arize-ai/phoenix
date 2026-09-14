@@ -120,6 +120,10 @@ export interface PreferencesProps {
    */
   hideExpectedAnnotationsInMetadata: boolean;
   /**
+   * How many rows an evaluator playground run evaluates at once.
+   */
+  evaluatorPlaygroundRunConcurrency: number;
+  /**
    * Whether or not the span details are in annotating mode
    */
   isAnnotatingSpans: boolean;
@@ -244,6 +248,7 @@ export interface PreferencesState extends PreferencesProps {
   setHideExpectedAnnotationsInMetadata: (
     hideExpectedAnnotationsInMetadata: boolean
   ) => void;
+  setEvaluatorPlaygroundRunConcurrency: (concurrency: number) => void;
   /**
    * Setter for enabling/disabling span annotating
    */
@@ -406,6 +411,14 @@ export const createPreferencesStore = (
     ) => {
       set({ hideExpectedAnnotationsInMetadata }, false, {
         type: "setHideExpectedAnnotationsInMetadata",
+      });
+    },
+    evaluatorPlaygroundRunConcurrency: 3,
+    setEvaluatorPlaygroundRunConcurrency: (
+      evaluatorPlaygroundRunConcurrency
+    ) => {
+      set({ evaluatorPlaygroundRunConcurrency }, false, {
+        type: "setEvaluatorPlaygroundRunConcurrency",
       });
     },
     isAnnotatingSpans: false,

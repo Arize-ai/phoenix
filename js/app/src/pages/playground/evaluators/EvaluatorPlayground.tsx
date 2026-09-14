@@ -20,14 +20,14 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { CredentialsDropdown } from "@phoenix/pages/playground/PlaygroundCredentialsDropdown";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
+import {
+  DEFAULT_SAMPLE_SIZE,
+  EvaluatorPlaygroundConfigButton,
+  parseSampleSize,
+} from "./EvaluatorPlaygroundConfigButton";
 import { EvaluatorPlaygroundFrame } from "./EvaluatorPlaygroundFrame";
 import { EvaluatorPlaygroundRunButton } from "./EvaluatorPlaygroundRunButton";
 import { EvaluatorPlaygroundSaveFilterMenu } from "./EvaluatorPlaygroundSaveFilterMenu";
-import {
-  EvaluatorPlaygroundSettingsButton,
-  DEFAULT_SAMPLE_SIZE,
-  parseSampleSize,
-} from "./EvaluatorPlaygroundSettingsButton";
 import type {
   EvaluatorPlaygroundSource,
   EvaluatorPlaygroundSourceKind,
@@ -100,6 +100,12 @@ export default function EvaluatorPlayground() {
   const setHideExpectedAnnotations = usePreferencesContext(
     (state) => state.setHideExpectedAnnotationsInMetadata
   );
+  const runConcurrency = usePreferencesContext(
+    (state) => state.evaluatorPlaygroundRunConcurrency
+  );
+  const setRunConcurrency = usePreferencesContext(
+    (state) => state.setEvaluatorPlaygroundRunConcurrency
+  );
 
   const source = readEvaluatorPlaygroundSource(searchParams);
   // The segmented control's choice before a dataset or project is picked.
@@ -138,6 +144,7 @@ export default function EvaluatorPlayground() {
     // Span rows stand in for a scheduled online run, so they fail wherever the
     // live one would; dataset rows keep the preview's plain limits.
     applyOnlineEvaluationLimits: source?.kind === "project",
+    concurrency: runConcurrency,
   });
 
   const { flush: flushExpectedOutputs } = useEvaluatorPlaygroundExpectedOutputs(
@@ -262,7 +269,7 @@ export default function EvaluatorPlayground() {
 
   const providers = getConfiguredProviders(slots, visibleSlotIds);
 
-  // Slots whose draft is complete enough to execute. Run all and a row's play
+  // Slots whose draft is complete enough to execute. Run and a row's play
   // button need every visible slot ready; a column's play needs only its own.
   const runnableSlots = visibleSlotIds.filter(
     (slotId) => !!slots[slotId]?.preview && !slots[slotId]?.validationError
@@ -282,9 +289,23 @@ export default function EvaluatorPlayground() {
     <EvaluatorPlaygroundFrame
       actions={
         <Flex direction="row" gap="size-100" alignItems="center">
-          {providers.length ? (
-            <CredentialsDropdown providers={providers} isDisabled={isRunning} />
-          ) : null}
+          <CredentialsDropdown providers={providers} isDisabled={isRunning} />
+          <EvaluatorPlaygroundConfigButton
+            sampleSize={sampleSize}
+            rowNoun={sourceKind === "project" ? "spans" : "examples"}
+            onSampleSizeChange={(size) => {
+              void expectedOutputQueue.flushNow();
+              changeParam(
+                "sampleSize",
+                size === DEFAULT_SAMPLE_SIZE ? null : String(size)
+              );
+            }}
+            concurrency={runConcurrency}
+            onConcurrencyChange={setRunConcurrency}
+            hideExpectedAnnotations={hideExpectedAnnotations}
+            onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
+            isDisabled={isRunning}
+          />
           <EvaluatorPlaygroundRunButton
             isRunning={isRunning}
             isDisabled={!canRun}
@@ -421,20 +442,6 @@ export default function EvaluatorPlayground() {
                   }
                 />
               ) : null}
-              <EvaluatorPlaygroundSettingsButton
-                sampleSize={sampleSize}
-                rowNoun={sourceKind === "project" ? "spans" : "examples"}
-                onSampleSizeChange={(size) => {
-                  void expectedOutputQueue.flushNow();
-                  changeParam(
-                    "sampleSize",
-                    size === DEFAULT_SAMPLE_SIZE ? null : String(size)
-                  );
-                }}
-                hideExpectedAnnotations={hideExpectedAnnotations}
-                onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
-                isDisabled={isRunning}
-              />
             </EvaluatorPlaygroundSourceStrip>
           }
         >
@@ -548,15 +555,19 @@ function writeSlotSelectionParams(
     );
 }
 
+/** Offered when no LLM slot names a provider, so API Keys is always at hand. */
+const DEFAULT_CREDENTIAL_PROVIDERS: ModelProvider[] = ["OPENAI", "ANTHROPIC"];
+
 /**
  * The providers the LLM slots are configured to call, so the API Keys
- * dropdown offers exactly the credential fields those runs will need.
+ * dropdown offers exactly the credential fields those runs will need; the
+ * common providers when no slot names one.
  */
 function getConfiguredProviders(
   slots: Partial<Record<SlotId, SlotSnapshot>>,
   visibleSlotIds: SlotId[]
-) {
-  return Array.from(
+): ModelProvider[] {
+  const configured = Array.from(
     new Set(
       visibleSlotIds.flatMap((slotId) => {
         const provider =
@@ -567,6 +578,8 @@ function getConfiguredProviders(
       })
     )
   );
+
+  return configured.length ? configured : DEFAULT_CREDENTIAL_PROVIDERS;
 }
 
 /** The results panel before a dataset or project is chosen. */

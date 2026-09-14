@@ -36,12 +36,15 @@ export function useEvaluatorPlaygroundRuns({
   slots,
   sampleKey,
   applyOnlineEvaluationLimits,
+  concurrency,
 }: {
   examples: SampleExample[];
   slots: Partial<Record<SlotId, SlotSnapshot>>;
   sampleKey: string;
   /** Fail wherever a scheduled online run would; on for span rows. */
   applyOnlineEvaluationLimits: boolean;
+  /** Rows evaluated at the same time. */
+  concurrency: number;
 }) {
   const environment = useRelayEnvironment();
   const credentials = useCredentialsContext((state) => state);
@@ -109,6 +112,7 @@ export function useEvaluatorPlaygroundRuns({
 
     await runEvaluatorSample({
       items: requests,
+      concurrency,
       execute: async ({ slot, preview, controller, example }) => {
         if (controller.signal.aborted)
           return { status: "error", error: "Stopped" };

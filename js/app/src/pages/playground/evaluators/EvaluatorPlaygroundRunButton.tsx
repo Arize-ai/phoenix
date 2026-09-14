@@ -67,7 +67,7 @@ export function EvaluatorPlaygroundRunButton({
       }
       onPress={toggle}
     >
-      {isRunning ? "Stop" : "Run all"}
+      {isRunning ? "Stop" : "Run"}
     </Button>
   );
 }

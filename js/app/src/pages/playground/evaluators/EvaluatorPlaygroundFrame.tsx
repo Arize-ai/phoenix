@@ -2,7 +2,15 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { Group } from "react-resizable-panels";
 
-import { Flex, Loading, PageHeader, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  PageHeader,
+  View,
+} from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 
 import { PlaygroundModeSelect } from "../PlaygroundModeSelect";
@@ -15,7 +23,7 @@ export function EvaluatorPlaygroundFrame({
 }: PropsWithChildren<{ actions?: ReactNode }>) {
   return (
     <div css={frameCSS}>
-      <View borderBottomColor="default" borderBottomWidth="thin">
+      <View borderBottomColor="default" borderBottomWidth="thin" flex="none">
         <PageHeader
           title="Playground"
           extra={
@@ -38,12 +46,28 @@ export function EvaluatorPlaygroundLoading() {
   return (
     <EvaluatorPlaygroundFrame
       actions={
-        <EvaluatorPlaygroundRunButton
-          isRunning={false}
-          isDisabled
-          onRun={() => {}}
-          onStop={() => {}}
-        />
+        // Stand-ins for the page's controls, so the header keeps its width.
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Button
+            size="S"
+            isDisabled
+            leadingVisual={<Icon svg={<Icons.Key />} />}
+          >
+            API Keys
+          </Button>
+          <Button
+            size="S"
+            isDisabled
+            aria-label="Playground Settings"
+            leadingVisual={<Icon svg={<Icons.Options />} />}
+          />
+          <EvaluatorPlaygroundRunButton
+            isRunning={false}
+            isDisabled
+            onRun={() => {}}
+            onStop={() => {}}
+          />
+        </Flex>
       }
     >
       <Group orientation="vertical" style={{ flex: 1, minHeight: 0 }}>
