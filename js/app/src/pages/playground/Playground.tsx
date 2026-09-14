@@ -108,10 +108,11 @@ import {
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
-import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import {
+  arePlaygroundTaskParamsEqual,
+  getPlaygroundTaskParams,
   resolvePlaygroundDatasetId,
-  setPromptParams,
+  setPlaygroundTaskParams,
 } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { PlaygroundProps } from "@phoenix/store";
 import {
@@ -670,43 +671,25 @@ function PlaygroundContent() {
     : null;
   const { appendedMessagesPath, availablePaths } = playgroundDatasetState ?? {};
 
-  // Derive prompt params from all instances for URL sync.
-  // Only re-render when the prompt params actually change.
-  const instancePromptParams = usePlaygroundContext(
-    (state) =>
-      state.instances
-        .map((instance): PromptParam | null =>
-          instance.prompt
-            ? {
-                promptId: instance.prompt.id,
-                promptVersionId: instance.prompt.version,
-                tagName: instance.prompt.tag,
-              }
-            : null
-        )
-        .filter((param): param is PromptParam => param != null),
-    (left, right) =>
-      left.length === right.length &&
-      left.every(
-        (param, index) =>
-          param.promptId === right[index].promptId &&
-          param.promptVersionId === right[index].promptVersionId &&
-          param.tagName === right[index].tagName
-      )
+  // Derive the task params from all instances for URL sync.
+  // Only re-render when the params actually change.
+  const taskParams = usePlaygroundContext(
+    (state) => getPlaygroundTaskParams(state.instances),
+    arePlaygroundTaskParamsEqual
   );
 
-  // Sync prompt state from the store to URL search params.
+  // Sync task state from the store to URL search params.
   // Uses replace to avoid polluting browser history.
   useEffect(() => {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        setPromptParams({ searchParams: next, prompts: instancePromptParams });
+        setPlaygroundTaskParams({ searchParams: next, tasks: taskParams });
         return next;
       },
       { replace: true }
     );
-  }, [instancePromptParams, setSearchParams]);
+  }, [taskParams, setSearchParams]);
 
   // Soft block at the router level:
   // - Ephemeral experiment running: will stop on disconnect, user must stay or accept

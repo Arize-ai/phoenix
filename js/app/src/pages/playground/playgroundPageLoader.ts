@@ -1,17 +1,28 @@
 import type { LoaderFunctionArgs } from "react-router";
 
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
-import { parsePromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import type {
+  EvaluatorTaskParam,
+  PromptParam,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import {
+  parseEvaluatorTaskParams,
+  parsePromptParams,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type {
   PlaygroundInstance,
   PlaygroundProps,
   PlaygroundStateByDatasetId,
 } from "@phoenix/store";
-import { createNormalizedPlaygroundInstance } from "@phoenix/store";
+import {
+  createEvaluatorTaskInstance,
+  createNormalizedPlaygroundInstance,
+} from "@phoenix/store";
 
 import { fetchExperimentPlaygroundProps } from "./experimentRehydration";
+import { fetchPlaygroundEvaluatorAsInstance } from "./fetchPlaygroundEvaluator";
 
 /**
  * A playground instance as returned by the fetch layer, before a
@@ -27,6 +38,11 @@ export type PlaygroundPageLoaderData =
   | {
       source: "prompt";
       promptParams: PromptParam[];
+      instances: PlaygroundInstanceWithoutId[];
+      templateFormat: TemplateFormat;
+    }
+  | {
+      source: "evaluator";
       instances: PlaygroundInstanceWithoutId[];
       templateFormat: TemplateFormat;
     }
@@ -64,7 +80,7 @@ function buildPlaygroundInstancesFromLoaderData(
 ): PlaygroundInstance[] | undefined {
   if (
     !loaderData ||
-    loaderData.source !== "prompt" ||
+    loaderData.source === "experiment" ||
     loaderData.instances.length === 0
   ) {
     return undefined;
@@ -116,11 +132,55 @@ export function buildPlaygroundPropsFromLoaderData(
 }
 
 /**
+ * Loads the evaluator tasks the URL names, one instance per position. A
+ * task that fails to load (deleted, built-in) is skipped; a page with no
+ * loadable task opens on a fresh LLM evaluator draft so the kind the URL
+ * asked for is kept.
+ */
+async function loadEvaluatorTaskInstances(
+  evaluators: EvaluatorTaskParam[]
+): Promise<Extract<PlaygroundPageLoaderData, { source: "evaluator" }>> {
+  const fetches = evaluators.map((param) => {
+    const source = param.datasetEvaluatorId
+      ? {
+          type: "datasetEvaluator" as const,
+          datasetEvaluatorId: param.datasetEvaluatorId,
+        }
+      : param.evaluatorId
+        ? { type: "evaluator" as const, evaluatorId: param.evaluatorId }
+        : null;
+    return source
+      ? fetchPlaygroundEvaluatorAsInstance(source).catch(() => null)
+      : Promise.resolve(null);
+  });
+  const loaded = (await Promise.all(fetches)).filter(
+    (result) => result != null
+  );
+  if (loaded.length === 0) {
+    return {
+      source: "evaluator",
+      instances: [createEvaluatorTaskInstance({ kind: "LLM" })],
+      templateFormat: TemplateFormats.Mustache,
+    };
+  }
+  return {
+    source: "evaluator",
+    instances: loaded.map((result) => result.instance),
+    // The page has one format; the first judge prompt's is as good a pick
+    // as any, and code evaluators have no say.
+    templateFormat:
+      loaded.find((result) => result.templateFormat != null)?.templateFormat ??
+      TemplateFormats.Mustache,
+  };
+}
+
+/**
  * Loader for the /playground route.
  *
- * Supports two sources:
- * - promptId/promptVersionId/promptTagName URL params → load from prompt version
+ * Supports three sources:
  * - experimentId URL param → load from experiment task config
+ * - evaluator{n}/datasetEvaluator{n} URL params, or taskKind=evaluator → evaluator tasks
+ * - promptId/promptVersionId/promptTagName URL params → load from prompt version
  *
  * Returns `null` when no params are present (default playground).
  */
@@ -128,8 +188,6 @@ export const playgroundPageLoader = async ({
   request,
 }: LoaderFunctionArgs): Promise<PlaygroundPageLoaderData> => {
   const url = new URL(request.url);
-
-  if (url.searchParams.get("mode") === "evaluators") return null;
 
   // Check for experiment rehydration first
   const experimentId = url.searchParams.get("experimentId");
@@ -145,6 +203,11 @@ export const playgroundPageLoader = async ({
       };
     }
     return null;
+  }
+
+  const evaluatorTasks = parseEvaluatorTaskParams(url.searchParams);
+  if (evaluatorTasks.isEvaluatorKind) {
+    return loadEvaluatorTaskInstances(evaluatorTasks.evaluators);
   }
 
   // Fall back to prompt params
