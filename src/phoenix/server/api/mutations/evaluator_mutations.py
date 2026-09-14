@@ -70,7 +70,7 @@ from phoenix.server.api.types.SandboxConfig import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.online_eval.session_policy import (
-    DEFAULT_SESSION_EVALUATION_DELAY_SECONDS,
+    DEFAULT_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
 )
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
@@ -455,7 +455,7 @@ def _materialize_project_evaluator_evaluation_delay(
     span evaluator is refused rather than stored as a setting that never applies.
     """
     if evaluation_delay_seconds is None:
-        return DEFAULT_SESSION_EVALUATION_DELAY_SECONDS
+        return DEFAULT_EVALUATION_DELAY_SECONDS
     if evaluation_target is EvaluationTarget.SPAN:
         raise BadRequest(
             "evaluationDelaySeconds is not accepted for SPAN evaluators: span scheduling "
@@ -650,7 +650,7 @@ class CreateProjectLLMEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
             "once, and later activity does not schedule another evaluation."
         ),
     )
@@ -678,7 +678,7 @@ class UpdateProjectLLMEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit to preserve the current setting, or use null "
-            f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
+            f"to store the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} "
             "seconds. A session is evaluated only once, and later activity does not schedule "
             "another evaluation."
         ),
@@ -708,7 +708,7 @@ class AddProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
             "once, and later activity does not schedule another evaluation."
         ),
     )
@@ -742,7 +742,7 @@ class CreateProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit or use null to store the current default of "
-            f"{DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A session is evaluated only "
             "once, and later activity does not schedule another evaluation."
         ),
     )
@@ -777,7 +777,7 @@ class UpdateProjectCodeEvaluatorInput:
             f"{MINIMUM_EVALUATION_DELAY_SECONDS} seconds. Only SESSION scheduling honors a "
             "delay, so a value supplied for a SPAN target is rejected, and TRACE evaluators "
             "are stored but not scheduled. Omit to preserve the current setting, or use null "
-            f"to store the current default of {DEFAULT_SESSION_EVALUATION_DELAY_SECONDS} "
+            f"to store the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} "
             "seconds. A session is evaluated only once, and later activity does not schedule "
             "another evaluation."
         ),
