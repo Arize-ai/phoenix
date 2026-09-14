@@ -20,14 +20,15 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { CredentialsDropdown } from "@phoenix/pages/playground/PlaygroundCredentialsDropdown";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import {
-  DEFAULT_SAMPLE_SIZE,
-  EvaluatorPlaygroundConfigButton,
-  parseSampleSize,
-} from "./EvaluatorPlaygroundConfigButton";
+import { EvaluatorPlaygroundConfigButton } from "./EvaluatorPlaygroundConfigButton";
 import { EvaluatorPlaygroundFrame } from "./EvaluatorPlaygroundFrame";
 import { EvaluatorPlaygroundRunButton } from "./EvaluatorPlaygroundRunButton";
 import { EvaluatorPlaygroundSaveFilterMenu } from "./EvaluatorPlaygroundSaveFilterMenu";
+import {
+  DEFAULT_SAMPLE_SIZE,
+  EvaluatorPlaygroundSettingsButton,
+  parseSampleSize,
+} from "./EvaluatorPlaygroundSettingsButton";
 import type {
   EvaluatorPlaygroundSource,
   EvaluatorPlaygroundSourceKind,
@@ -291,19 +292,8 @@ export default function EvaluatorPlayground() {
         <Flex direction="row" gap="size-100" alignItems="center">
           <CredentialsDropdown providers={providers} isDisabled={isRunning} />
           <EvaluatorPlaygroundConfigButton
-            sampleSize={sampleSize}
-            rowNoun={sourceKind === "project" ? "spans" : "examples"}
-            onSampleSizeChange={(size) => {
-              void expectedOutputQueue.flushNow();
-              changeParam(
-                "sampleSize",
-                size === DEFAULT_SAMPLE_SIZE ? null : String(size)
-              );
-            }}
             concurrency={runConcurrency}
             onConcurrencyChange={setRunConcurrency}
-            hideExpectedAnnotations={hideExpectedAnnotations}
-            onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
             isDisabled={isRunning}
           />
           <EvaluatorPlaygroundRunButton
@@ -442,6 +432,20 @@ export default function EvaluatorPlayground() {
                   }
                 />
               ) : null}
+              <EvaluatorPlaygroundSettingsButton
+                sampleSize={sampleSize}
+                rowNoun={sourceKind === "project" ? "spans" : "examples"}
+                onSampleSizeChange={(size) => {
+                  void expectedOutputQueue.flushNow();
+                  changeParam(
+                    "sampleSize",
+                    size === DEFAULT_SAMPLE_SIZE ? null : String(size)
+                  );
+                }}
+                hideExpectedAnnotations={hideExpectedAnnotations}
+                onHideExpectedAnnotationsChange={setHideExpectedAnnotations}
+                isDisabled={isRunning}
+              />
             </EvaluatorPlaygroundSourceStrip>
           }
         >
