@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-run-chat harbor-view \
+	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -112,8 +112,7 @@ help: ## Show this help message
 	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run-chat$(NC)          - Run the trial through the agent session chat route (docker only)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the PXI chat-agent trial on docker (HARBOR_TASK=..., HARBOR_MODEL=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -519,10 +518,10 @@ endif
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
-# The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
+# Container assets are staged into the task's Docker build context by stage_harbor_task_environments.sh.
 define check-harbor-staged
-	@test -f $(HARBOR_TASK)/environment/run_headless_agent.py || \
-		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
+	@test -f $(HARBOR_TASK)/environment/start_phoenix_server.sh || \
+		{ echo -e "$(RED)Missing staged assets in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 
 harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
@@ -544,14 +543,7 @@ harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK
 	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
 	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
-harbor-run: ## Run the real headless-agent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
-	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor headless-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
-	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
-		-a evals.harbor.agents.phoenix_headless_agent:PhoenixHeadlessAgent \
-		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
-
-harbor-run-chat: ## Run the Harbor trial through the agent session chat route (docker only; HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ATTEMPTS=...)
+harbor-run: ## Run the PXI chat-agent Harbor trial on docker (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ATTEMPTS=...)
 	$(check-harbor-staged)
 	@echo -e "$(CYAN)Running Harbor chat-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on docker...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \

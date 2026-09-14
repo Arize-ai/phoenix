@@ -8,6 +8,7 @@ browser assistant and the ``pxi`` CLI use.
 
 import asyncio
 import json
+import os
 import re
 import shlex
 import tempfile
@@ -35,6 +36,7 @@ _SERVER_LOG = "/var/lib/phoenix-eval/server.log"
 _STEPS_DIR = "/logs/agent/steps"
 _LATEST_LINK = "/logs/agent/latest"
 _STEP_CONFIG_PATH = "step-config.json"
+_TRACE_ENDPOINT_ENV_VAR = "HARBOR_PHOENIX_COLLECTOR_ENDPOINT"
 
 
 class PhoenixChatAgent(BaseAgent):
@@ -88,6 +90,9 @@ class PhoenixChatAgent(BaseAgent):
                 edit_permission=edit_permission,
                 mutations_enabled=allow_mutations,
                 approve=lambda _part: approve_tool_calls,
+                # The container's server exports to the same endpoint; see
+                # start_phoenix_server.sh.
+                export_remote_traces=bool(os.getenv(_TRACE_ENDPOINT_ENV_VAR)),
             )
             transcript = await client.list_messages(self._session_id)
         finally:
