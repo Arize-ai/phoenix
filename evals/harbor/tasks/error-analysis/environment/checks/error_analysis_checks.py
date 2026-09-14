@@ -26,7 +26,8 @@ NOTE_NAME = "note"
 
 
 def load_truth() -> dict[str, Any]:
-    return json.loads((DATA_DIR / "ground_truth.json").read_text())
+    truth: dict[str, Any] = json.loads((DATA_DIR / "ground_truth.json").read_text())
+    return truth
 
 
 def connect() -> sqlite3.Connection:
@@ -242,11 +243,11 @@ def load_sidecars(
     row = connection.execute(query, params).fetchone()
     if row is None or row[0] is None:
         return {}
-    from bashkit import Bash, BuiltinResult
+    from bashkit import Bash, BuiltinContext, BuiltinResult
 
     async def phoenix_gql_stub(
-        _ctx,
-    ):  # the snapshot records this builtin; restoring needs a stand-in
+        _ctx: BuiltinContext,
+    ) -> BuiltinResult:  # the snapshot records this builtin; restoring needs a stand-in
         return BuiltinResult(
             stdout="", stderr="phoenix-gql is unavailable in the verifier", exit_code=1
         )
@@ -323,12 +324,13 @@ def judge(system: str, user: str) -> dict[str, Any] | None:
             messages=[{"role": "user", "content": user}],
         )
         text = "".join(
-            block.text for block in response.content if getattr(block, "type", "") == "text"
+            block.text for block in response.content if isinstance(block, anthropic.types.TextBlock)
         )
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             try:
-                return json.loads(match.group(0))
+                verdict: dict[str, Any] = json.loads(match.group(0))
+                return verdict
             except json.JSONDecodeError:
                 continue
     return {"error": "judge returned no usable JSON after 3 attempts", "raw": text[:500]}
