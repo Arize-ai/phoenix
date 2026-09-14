@@ -132,18 +132,19 @@ class TestTracer:
         assert project_session.end_time == returned_trace.end_time
         assert project_session.last_span_ingested_at is not None
 
-        # the session is persisted by cascade from the trace, so read it back
-        # from a separate session to confirm the timestamp reaches the database
         async with db() as session:
             session.add_all(returned_traces)
             await session.flush()
 
         async with db() as session:
+            persisted_trace = await session.get(models.Trace, returned_trace.id)
             persisted_project_session = await session.scalar(
                 select(models.ProjectSession).where(
                     models.ProjectSession.session_id == "session-abc"
                 )
             )
+        assert persisted_trace is not None
+        assert persisted_trace.last_span_ingested_at is not None
         assert persisted_project_session is not None
         assert persisted_project_session.last_span_ingested_at is not None
 

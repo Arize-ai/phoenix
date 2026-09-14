@@ -127,6 +127,27 @@ async def test_session_liveness_update_is_monotonic(db: DbSessionFactory) -> Non
     assert last_span_ingested_at == future_ingested_at
 
 
+async def test_span_batch_stamps_trace_liveness(db: DbSessionFactory) -> None:
+    trace_id = "3" * 32
+    session_id = "trace-liveness"
+    inserter = BulkInserter(
+        db,
+        event_queue=SimpleQueue(),
+        span_cost_calculator=MagicMock(),
+        initial_batch_of_spans=[
+            (_span(trace_id=trace_id, span_id="6" * 16, session_id=session_id), "project")
+        ],
+    )
+
+    await inserter._insert_spans(1)
+
+    async with db() as session:
+        last_span_ingested_at = await session.scalar(
+            select(models.Trace.last_span_ingested_at).where(models.Trace.trace_id == trace_id)
+        )
+    assert last_span_ingested_at is not None
+
+
 async def test_session_liveness_failure_does_not_rollback_inserted_spans(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
