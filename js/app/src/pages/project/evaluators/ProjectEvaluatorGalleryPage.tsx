@@ -993,24 +993,21 @@ function EvaluatorInputSummary({
       <Text elementType="h3" size="S" weight="heavy">
         Inputs
       </Text>
-      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
-        <List size="S">
-          {inputs.map((input) => (
-            <ListItem key={input.name}>
-              <Flex direction="column" gap="size-25">
-                <Text size="S" fontFamily="mono" css={inputNameCSS}>
-                  {input.name}
+      <List size="S" css={inputListCSS}>
+        {inputs.map((input) => (
+          <ListItem key={input.name}>
+            <code css={inputNameCSS}>{input.name}</code>
+            {input.description ? (
+              <>
+                {" "}
+                <Text size="S" color="text-700">
+                  {input.description}
                 </Text>
-                {input.description ? (
-                  <Text size="XS" color="text-700">
-                    {input.description}
-                  </Text>
-                ) : null}
-              </Flex>
-            </ListItem>
-          ))}
-        </List>
-      </div>
+              </>
+            ) : null}
+          </ListItem>
+        ))}
+      </List>
     </Flex>
   );
 }
@@ -1353,8 +1350,31 @@ const listSectionWellCSS = css`
   padding: var(--global-dimension-size-50);
 `;
 
+const inputListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+
+  && li {
+    padding: 0;
+  }
+
+  && li:not(:first-of-type)::after {
+    content: none;
+  }
+`;
+
 const inputNameCSS = css`
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 100%;
+  padding: var(--global-dimension-size-25) var(--global-dimension-size-75);
   overflow-wrap: anywhere;
+  border-radius: var(--global-rounding-small);
+  background-color: var(--global-color-blue-100);
+  color: var(--global-color-blue-1000);
+  font-size: var(--global-font-size-xs);
+  line-height: var(--global-line-height-xs);
 `;
 
 const promptPreviewMessageCSS = css`
