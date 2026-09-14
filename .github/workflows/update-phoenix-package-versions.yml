@@ -33,13 +33,23 @@ jobs:
           ref: main
           persist-credentials: false
 
-      - name: Validate version input
+      - name: Validate inputs
         run: |
           echo "Dispatch trigger: $PACKAGE_NAME $PACKAGE_VERSION"
-          
+
+          # The `choice` input constrains the dispatch UI but not the API, which
+          # accepts any string.
+          case "$PACKAGE_NAME" in
+            arize-phoenix-client|arize-phoenix-evals|arize-phoenix-otel) ;;
+            *)
+              echo "::error::Unsupported package: '$PACKAGE_NAME'"
+              exit 1
+              ;;
+          esac
+
           # Validate version format (basic semver check)
           if ! echo "$PACKAGE_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'; then
-            echo "❌ Error: Invalid version format: $PACKAGE_VERSION"
+            echo "::error::Invalid version format: '$PACKAGE_VERSION'"
             echo "Expected semantic version (e.g., 1.2.3, 1.2.3-alpha.1, 1.2.3+build.1)"
             exit 1
           fi
@@ -49,13 +59,12 @@ jobs:
         run: |
           # Extract current version from pyproject.toml
           CURRENT_VERSION=$(grep -E "^\s*\"$PACKAGE_NAME>=" pyproject.toml | head -n 1 | sed -n "s/.*$PACKAGE_NAME>=\([0-9.]*\).*/\1/p")
-          
+
           if [ -z "$CURRENT_VERSION" ]; then
-            echo "needs_update=false" >> $GITHUB_OUTPUT
-            echo "❌ Error: Could not find $PACKAGE_NAME dependency in pyproject.toml"
-            exit 0
+            echo "::error::Could not find $PACKAGE_NAME dependency in pyproject.toml"
+            exit 1
           fi
-          
+
           if [ "$CURRENT_VERSION" != "$PACKAGE_VERSION" ]; then
             echo "needs_update=true" >> $GITHUB_OUTPUT
             echo "📦 Update needed for $PACKAGE_NAME: $CURRENT_VERSION → $PACKAGE_VERSION"
@@ -112,17 +121,32 @@ jobs:
         id: verify-changed-files
         if: steps.check-update.outputs.needs_update == 'true'
         run: |
-          # Safety check: verify that sed actually modified the file
           if git diff --exit-code pyproject.toml; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "⚠️  Warning: No changes detected - sed may have failed silently"
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "✓ Changes verified:"
-            git diff pyproject.toml
+            echo "::error::No changes detected — sed failed silently"
+            exit 1
           fi
 
+          # The bump must land on the single floor line and nowhere else, so that
+          # any upper bound and the inline rationale comment on that line survive.
+          NUMSTAT=$(git diff --numstat -- pyproject.toml)
+          if [ "$NUMSTAT" != "$(printf '1\t1\tpyproject.toml')" ]; then
+            echo "::error::Expected exactly one changed line in pyproject.toml, got: $NUMSTAT"
+            git diff pyproject.toml
+            exit 1
+          fi
+
+          CHANGED_LINE=$(git diff -U0 -- pyproject.toml | grep -E '^\+[^+]' | sed 's/^+//')
+          {
+            echo "changed=true"
+            echo "changed_line<<EOF"
+            echo "$CHANGED_LINE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "✓ Changes verified:"
+          git diff pyproject.toml
+
       - name: Create Pull Request
+        id: create-pr
         if: steps.check-update.outputs.needs_update == 'true' && steps.verify-changed-files.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
@@ -140,3 +164,19 @@ jobs:
           branch: update-phoenix-${{ env.PACKAGE_NAME }}-${{ env.PACKAGE_VERSION }}
           base: main
           delete-branch: true
+
+      - name: Record result in job summary
+        if: steps.check-update.outputs.needs_update == 'true' && steps.verify-changed-files.outputs.changed == 'true'
+        env:
+          CHANGED_LINE: ${{ steps.verify-changed-files.outputs.changed_line }}
+          PR_URL: ${{ steps.create-pr.outputs.pull-request-url }}
+          PR_OPERATION: ${{ steps.create-pr.outputs.pull-request-operation }}
+        run: |
+          {
+            echo "## Dependency floor bump"
+            echo ""
+            echo "- Package: \`$PACKAGE_NAME\`"
+            echo "- Version: \`$PACKAGE_VERSION\`"
+            echo "- Changed line: \`$CHANGED_LINE\`"
+            echo "- Pull request: ${PR_URL:-none} (${PR_OPERATION:-no operation})"
+          } >> "$GITHUB_STEP_SUMMARY"
