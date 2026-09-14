@@ -46,7 +46,7 @@ const listBoxCSS = css`
     }
 
     &[data-disabled] {
-      cursor: default;
+      cursor: not-allowed;
     }
 
     &[data-selected] {
