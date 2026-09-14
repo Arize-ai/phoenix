@@ -8,17 +8,17 @@
     "start": "tsx main.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.109",
-    "@arizeai/openinference-semantic-conventions": "^2.9.0",
+    "@ai-sdk/openai": "^3.0.112",
+    "@arizeai/openinference-semantic-conventions": "^2.10.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
-    "ai": "^6.0.277",
+    "ai": "^6.0.282",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
