@@ -12,6 +12,7 @@ import argparse
 import asyncio
 import json
 import re
+import sys
 from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -62,23 +63,28 @@ async def iter_sse_chunks(lines: AsyncIterator[str]) -> AsyncIterator[BaseChunk]
             yield chunk
 
 
-class StreamError(Exception):
-    """The server emitted an ``error`` chunk during the turn."""
+async def accumulate_assistant_message(
+    chunks: AsyncIterator[BaseChunk],
+) -> tuple[Message, list[str]]:
+    """The reduced assistant message plus any ``error`` chunks the server emitted.
 
-
-async def accumulate_assistant_message(chunks: AsyncIterator[BaseChunk]) -> Message:
+    A server error (a usage limit, a provider failure) ends the turn; the message
+    reduced so far is still the agent's output for that turn and is returned for
+    grading rather than raised.
+    """
     errors: list[str] = []
     latest: Any = None
     async for message in read_ui_message_stream(
         stream=iter_chunks_with_error_parts(chunks), on_error=lambda e: errors.append(str(e))
     ):
         latest = message
-    if errors:
-        raise StreamError("; ".join(errors))
     if latest is None:
-        raise RuntimeError("The chat stream ended without producing an assistant message")
+        raise RuntimeError(
+            "The chat stream ended without producing an assistant message"
+            + (f": {'; '.join(errors)}" if errors else "")
+        )
     dumped: Message = latest.model_dump(mode="json", by_alias=True, exclude_none=True)
-    return dumped
+    return dumped, errors
 
 
 def builtin_model_selection(harbor_model_name: str) -> dict[str, Any]:
@@ -144,6 +150,7 @@ class Turn:
     """Everything one user instruction produced, across approval continuations."""
 
     assistant_messages: list[Message] = field(default_factory=list)
+    stream_errors: list[str] = field(default_factory=list)
 
     @property
     def final_message(self) -> Message:
@@ -224,13 +231,14 @@ class AgentSessionChatClient:
             "exportRemoteTraces": export_remote_traces,
         }
         turn = Turn()
-        message = await self._chat(
+        message, errors = await self._chat(
             session_id,
             {**base_body, "message": user_message(instruction), "lastMessageId": last_message_id},
         )
         turn.assistant_messages.append(message)
-        while approvals := pending_approvals(message):
-            message = await self._chat(
+        turn.stream_errors.extend(errors)
+        while not errors and (approvals := pending_approvals(message)):
+            message, errors = await self._chat(
                 session_id,
                 {
                     **base_body,
@@ -242,9 +250,10 @@ class AgentSessionChatClient:
                 },
             )
             turn.assistant_messages.append(message)
+            turn.stream_errors.extend(errors)
         return turn
 
-    async def _chat(self, session_id: str, body: dict[str, Any]) -> Message:
+    async def _chat(self, session_id: str, body: dict[str, Any]) -> tuple[Message, list[str]]:
         for attempt in range(_BUSY_RETRY_ATTEMPTS):
             try:
                 return await self._stream_chat(session_id, body)
@@ -254,7 +263,9 @@ class AgentSessionChatClient:
                 await asyncio.sleep(_BUSY_RETRY_DELAY_SECONDS)
         raise AssertionError("unreachable")
 
-    async def _stream_chat(self, session_id: str, body: dict[str, Any]) -> Message:
+    async def _stream_chat(
+        self, session_id: str, body: dict[str, Any]
+    ) -> tuple[Message, list[str]]:
         async with self._http.stream(
             "POST",
             f"/v1/agent_sessions/{session_id}/chat",
@@ -329,6 +340,9 @@ async def run(args: argparse.Namespace) -> None:
         _dump_json({"tool_calls": count_tool_calls(turn.assistant_messages)})
     )
     args.out_dir.joinpath("usage.json").write_text(_dump_json(turn.usage))
+    args.out_dir.joinpath("stream_errors.json").write_text(_dump_json(turn.stream_errors))
+    for error in turn.stream_errors:
+        print(f"warning: the server ended the turn with an error: {error}", file=sys.stderr)
     if args.latest_symlink is not None:
         args.latest_symlink.parent.mkdir(parents=True, exist_ok=True)
         args.latest_symlink.unlink(missing_ok=True)
