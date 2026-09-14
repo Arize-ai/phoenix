@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, Literal, Optional, get_args
 
+import httpx
 import yaml
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -17,8 +18,13 @@ from mcp_types import ToolAnnotations
 from pydantic import Field
 from typing_extensions import TypeGuard
 
-from phoenix.config import get_env_skills_paths, get_env_skills_visibility
+from phoenix.config import get_env_skills_paths, get_env_skills_visibility, get_working_dir
 from phoenix.server.agents.prompts.templating import get_template
+from phoenix.server.mcp.skills.github import (
+    GitHubSkillSource,
+    is_github_source,
+    materialize_github_source,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -221,11 +227,36 @@ def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Ski
     return tuple(skills.values())
 
 
+def resolve_skill_roots(
+    entries: Sequence[str],
+    *,
+    cache_dir: Optional[Path] = None,
+    client: Optional[httpx.Client] = None,
+) -> tuple[Path, ...]:
+    """Turn configured skills entries into local directories, in order.
+
+    A local path is resolved against the working directory. A ``github:`` entry
+    is fetched into ``cache_dir`` (``PHOENIX_WORKING_DIR/skills`` by default),
+    which is only touched when such an entry exists. ``client`` overrides the
+    GitHub API client, for tests.
+    """
+    roots: list[Path] = []
+    for entry in entries:
+        if is_github_source(entry):
+            if cache_dir is None:
+                cache_dir = get_working_dir() / "skills"
+            source = GitHubSkillSource.parse(entry)
+            roots.append(materialize_github_source(source, cache_dir=cache_dir, client=client))
+        else:
+            roots.append(Path(entry).expanduser().resolve())
+    return tuple(roots)
+
+
 def load_external_skills() -> tuple[Skill, ...]:
     builtin_skills = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
     explicit = get_env_skills_visibility() == "explicit"
     skills: dict[str, Skill] = {}
-    for root in get_env_skills_paths():
+    for root in resolve_skill_roots(get_env_skills_paths()):
         for skill in _load_root(root, explicit=explicit):
             if skill.name in builtin_skills:
                 logger.error(
@@ -350,6 +381,8 @@ __all__ = [
     "Skill",
     "SkillReference",
     "load_skills",
+    "load_configured_skills",
     "register_skill_tools",
+    "resolve_skill_roots",
     "get_skill_instructions",
 ]

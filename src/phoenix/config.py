@@ -57,6 +57,20 @@ ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
 Comma-separated skill directories or directories containing skills, loaded at startup.
 For example: "./.agents/skills,/opt/skills/team-analysis". Paths are on the Phoenix
 server, relative to its working directory. Unset means no external skills.
+
+An entry of the form 'github:owner/repo[/path/in/repo][@ref]' names a directory of a
+GitHub repository instead, where ref is a branch, tag, or commit SHA and defaults to
+the default branch: 'github:acme/skills' is the repository root at its default branch,
+'github:acme/skills/skills/triage@v1.4.0' a directory at a tag. The ref is resolved to
+a commit at startup and that commit is downloaded once into PHOENIX_WORKING_DIR/skills;
+a branch or tag is re-resolved on each start, falling back to the last resolved commit
+when GitHub cannot be reached.
+"""
+ENV_PHOENIX_SKILLS_GITHUB_TOKEN = "PHOENIX_SKILLS_GITHUB_TOKEN"
+"""
+GitHub token used to fetch 'github:' entries of PHOENIX_SKILLS_PATHS. Required for
+private repositories; raises the API rate limit for public ones. Unset means
+unauthenticated requests.
 """
 ENV_PHOENIX_SKILLS_VISIBILITY = "PHOENIX_SKILLS_VISIBILITY"
 """
@@ -3888,11 +3902,18 @@ def get_env_postgres_azure_scope() -> str:
     )
 
 
-def get_env_skills_paths() -> tuple[Path, ...]:
+def get_env_skills_paths() -> tuple[str, ...]:
+    """The configured skills sources, verbatim: local paths and ``github:`` entries.
+
+    Interpreting an entry (resolving a path against the working directory, or
+    fetching a GitHub repository) is left to the skills loader.
+    """
     value = getenv(ENV_PHOENIX_SKILLS_PATHS, "")
-    return tuple(
-        Path(path.strip()).expanduser().resolve() for path in value.split(",") if path.strip()
-    )
+    return tuple(path.strip() for path in value.split(",") if path.strip())
+
+
+def get_env_skills_github_token() -> Optional[str]:
+    return getenv(ENV_PHOENIX_SKILLS_GITHUB_TOKEN) or None
 
 
 SkillsVisibilityMode = Literal["all", "explicit"]
