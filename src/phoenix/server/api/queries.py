@@ -1733,7 +1733,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[AgentSkill]:
-        skills = info.context.get_request().app.state.pxi_skills
+        skills = info.context.get_request().app.state.agent_skills
         return [
             AgentSkill(
                 name=skill.name,

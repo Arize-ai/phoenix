@@ -1215,7 +1215,7 @@ def create_app(
 
     app.openapi = _openapi  # type: ignore[method-assign]
     configured_skills = load_configured_skills()
-    app.state.pxi_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), configured_skills)
+    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), configured_skills)
     mcp_http_app = None
     mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
@@ -1260,7 +1260,7 @@ def create_app(
             monty_consumer="agent",
             read_only=True,
             db=db,
-            additional_skills=app.state.pxi_skills,
+            additional_skills=app.state.agent_skills,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox

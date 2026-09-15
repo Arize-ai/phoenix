@@ -3358,7 +3358,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     model_transcript_messages
                 )
                 if body.requested_skills:
-                    available_skills = request.app.state.pxi_skills
+                    available_skills = request.app.state.agent_skills
                     forced_skills = resolve_requested_skills(
                         messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,

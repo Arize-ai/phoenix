@@ -62,8 +62,7 @@ ENV_PHOENIX_SKILLS_VISIBILITY = "PHOENIX_SKILLS_VISIBILITY"
 """
 External skill visibility: "all" (default) ignores visibility metadata; "explicit"
 requires metadata.arize-phoenix-visibility: visible in `SKILL.md` frontmatter.
-Missing metadata or hidden excludes a skill in explicit mode. Bundled skills
-are unaffected. Restart Phoenix after changing skills or configuration.
+Missing metadata or hidden excludes a skill in explicit mode.
 """
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
