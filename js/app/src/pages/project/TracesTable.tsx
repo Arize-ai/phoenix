@@ -165,9 +165,7 @@ type RootSpan = NonNullable<
   TracesTable_traces$data["traces"]["edges"][number]["trace"]["rootSpan"]
 >;
 
-const TableBody = <
-  T extends RootSpan & IAdditionalSpansRow,
->({
+const TableBody = <T extends RootSpan & IAdditionalSpansRow>({
   table,
 }: {
   table: Table<T>;
