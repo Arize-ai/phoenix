@@ -70,11 +70,25 @@ class TestAdvertisedInstructions:
 
 
 class TestTools:
-    async def test_load_skill_returns_the_file_verbatim(self) -> None:
+    async def test_load_skill_preserves_the_file_before_the_reference_inventory(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             loaded = await _text(client, "load_skill", skill_name="phoenix-graphql")
 
-        assert loaded == (_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+        assert loaded.startswith((_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8"))
+
+    @pytest.mark.parametrize("skill_name", ["experiments", "phoenix-graphql"])
+    async def test_load_skill_lists_only_its_own_references(self, skill_name: str) -> None:
+        skill = next(skill for skill in load_skills(PXI_SKILLS_ROOTS) if skill.name == skill_name)
+        async with Client(_server(*PXI_SKILLS_ROOTS)) as client:
+            loaded = await _text(client, "load_skill", skill_name=skill_name)
+        inventory = loaded.removeprefix(skill.text)
+        assert f"References for {skill_name}:" in inventory
+        if skill.references:
+            for reference in skill.references:
+                assert reference.name in inventory
+        else:
+            assert "none" in inventory
+            assert "references/experiments.md" not in inventory
 
     async def test_load_skill_reference_returns_the_file(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
