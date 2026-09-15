@@ -108,7 +108,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
+	@echo -e "  harbor-stage-environments - Build the Phoenix wheel, stage each Harbor task environment, and pack the px CLI"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run one agent on the task (HARBOR_AGENT=..., HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
@@ -538,10 +538,15 @@ HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VER
 	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
 # The wheel, container assets, and fixture database are staged into the task's Docker build
-# context by stage_harbor_task_environments.sh.
+# context by stage_harbor_task_environments.sh, which also packs the px CLI tarballs the
+# claude-code-cli agent uploads into its own sandbox.
 define check-harbor-staged
 	@test -d $(HARBOR_TASK)/environment/container_assets -a -f $(HARBOR_TASK)/environment/data/phoenix.db || \
 		{ echo -e "$(RED)Missing staged assets in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
+endef
+define check-harbor-cli-tarballs
+	@ls dist/phoenix-cli/*.tgz >/dev/null 2>&1 || \
+		{ echo -e "$(RED)Missing px CLI tarballs in dist/phoenix-cli/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 
 harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
@@ -561,6 +566,7 @@ harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK
 
 harbor-run: ## Run one agent on the Harbor task (HARBOR_AGENT=..., HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
 	$(check-harbor-staged)
+	$(if $(filter claude-code-cli,$(HARBOR_AGENT)),$(check-harbor-cli-tarballs))
 	@test -n "$(HARBOR_AGENT_ARGS)" || \
 		{ echo -e "$(RED)Unknown HARBOR_AGENT '$(HARBOR_AGENT)'; use phoenix-chat-agent, claude-code-mcp, or claude-code-cli$(NC)"; exit 1; }
 	@echo -e "$(CYAN)Running Harbor $(HARBOR_AGENT) trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
@@ -569,6 +575,7 @@ harbor-run: ## Run one agent on the Harbor task (HARBOR_AGENT=..., HARBOR_TASK=.
 
 harbor-compare: ## Run every agent on the error-analysis task in one Daytona job (HARBOR_ARGS=... for plugin flags)
 	$(check-harbor-staged)
+	$(check-harbor-cli-tarballs)
 	@echo -e "$(CYAN)Running the Harbor agent comparison job...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -c evals/harbor/jobs/error-analysis.yaml -k $(HARBOR_ATTEMPTS) $(HARBOR_ARGS) --yes
 

@@ -1,25 +1,3 @@
-"""Claude Code agents for the Phoenix Harbor tasks.
-
-Two thin subclasses of Harbor's installed ``ClaudeCode`` agent, one per external surface
-Phoenix ships for coding agents:
-
-* ``ClaudeCodeMcpAgent`` registers the Phoenix remote MCP server that the task's Phoenix
-  instance mounts at ``/mcp``. The server serves the error-analysis skill itself, so
-  nothing is installed on disk.
-* ``ClaudeCodeCliAgent`` points the preinstalled ``@arizeai/phoenix-cli`` at the task's
-  Phoenix instance, installing it only when the image lacks it or a version override is
-  given. Pass the public skills with Harbor's ``--skill`` flag; Harbor uploads them and
-  registers them with Claude Code.
-
-Both run with Harbor's defaults for Claude Code (``bypassPermissions``), so the comparison
-against the PXI chat agent, whose tool calls are auto-approved, does not measure approval
-friction. Run multi-step tasks with ``--resume-trajectory`` so step 2 continues step 1's
-conversation, the way the chat agent continues its agent session.
-
-After each step the agent writes the final reply to ``/logs/agent/steps/<n>/answer.md``,
-where the task verifiers read it.
-"""
-
 from __future__ import annotations
 
 import shlex
@@ -36,6 +14,10 @@ PHOENIX_URL = "http://127.0.0.1:6006"
 _STEPS_DIR = "/logs/agent/steps"
 _STREAM_LOG = "/logs/agent/claude-code.txt"
 _SERVER_LOG = "/var/lib/phoenix-eval/server.log"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_CLI_TARBALLS_DIR = _REPO_ROOT / "dist" / "phoenix-cli"
+_CLI_INSTALL_SCRIPT = Path(__file__).with_name("install_phoenix_cli.sh")
+_CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
 
 # Claude Code's --print mode ends its stream-json output with a single ``result`` event
 # whose ``result`` field is the final reply text.
@@ -115,19 +97,16 @@ class ClaudeCodeCliAgent(_PhoenixClaudeCode):
     def name() -> str:
         return "claude-code-cli"
 
-    def __init__(
-        self, logs_dir: Path, *args: Any, phoenix_cli_version: str | None = None, **kwargs: Any
-    ) -> None:
-        self._phoenix_cli_version = phoenix_cli_version
-        super().__init__(logs_dir, *args, **kwargs)
-
     async def install(self, environment: BaseEnvironment) -> None:
         await super().install(environment)
-        if self._phoenix_cli_version is None:
-            preinstalled = await environment.exec("px --version")
-            if preinstalled.return_code == 0:
-                return
-        spec = "@arizeai/phoenix-cli" + (
-            f"@{self._phoenix_cli_version}" if self._phoenix_cli_version else ""
-        )
-        await self.exec_as_agent(environment, f"npm install -g {shlex.quote(spec)} && px --version")
+        if not any(_CLI_TARBALLS_DIR.glob("*.tgz")):
+            raise RuntimeError(
+                f"No px CLI tarballs in {_CLI_TARBALLS_DIR}; "
+                "run 'make harbor-stage-environments' first"
+            )
+        tarballs_dir = f"{_CLI_UPLOAD_DIR}/tarballs"
+        script = f"{_CLI_UPLOAD_DIR}/{_CLI_INSTALL_SCRIPT.name}"
+        await environment.exec(f"mkdir -p {tarballs_dir}", user="root")
+        await environment.upload_dir(_CLI_TARBALLS_DIR, tarballs_dir)
+        await environment.upload_file(_CLI_INSTALL_SCRIPT, script)
+        await self.exec_as_agent(environment, f"sh {script} {tarballs_dir} && px --version")

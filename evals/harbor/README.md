@@ -10,7 +10,10 @@ pip install "arize-phoenix-client[harbor]"
 
 Build Phoenix and stage each task's build context (from the repository root): the wheel,
 the container assets, and the task's fixture database, which is baked into the image from
-`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`.
+`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`. The same command packs the px
+CLI and its workspace dependencies from source into `dist/phoenix-cli/`, outside every
+build context, so the `claude-code-cli` agent tests the checkout's CLI without exposing it
+to the other agents.
 
 ```bash
 make harbor-stage-environments
@@ -48,7 +51,7 @@ attributable to the surface:
 | --- | --- | --- |
 | `phoenix-chat-agent` | PXI inside the Phoenix server | The agent session chat route; sidecars live in the PXI virtual shell |
 | `claude-code-mcp` | Claude Code | The remote MCP server at `/mcp`, which also serves the error-analysis skill |
-| `claude-code-cli` | Claude Code | `@arizeai/phoenix-cli` with `PHOENIX_ENDPOINT` set, plus the four public skills from `.agents/skills/` passed with `--skill` |
+| `claude-code-cli` | Claude Code | `@arizeai/phoenix-cli` installed from the `dist/phoenix-cli/` tarballs with `PHOENIX_ENDPOINT` set, plus the four public skills from `.agents/skills/` passed with `--skill` |
 
 The Claude Code agents are subclasses of Harbor's installed `claude-code` agent in
 `evals/harbor/agents/claude_code_agents.py`. They run with Harbor's default
@@ -57,6 +60,10 @@ The Claude Code agents are subclasses of Harbor's installed `claude-code` agent 
 the Anthropic API, so pass an `anthropic/` model. After each step they write the final reply
 to `/logs/agent/steps/<n>/answer.md`; the verifier reads sidecars from `/app/.px/coding` on
 disk when present and from the PXI snapshot otherwise.
+
+The `claude-code-cli` agent uploads the packed tarballs into its own sandbox during install
+and runs `evals/harbor/agents/install_phoenix_cli.sh`, which turns each tarball into an npm
+override so the workspace packages resolve to the local builds.
 
 Test the Harbor plugin against a local Phoenix server with the direct task path used by
 the PXI workflow:
