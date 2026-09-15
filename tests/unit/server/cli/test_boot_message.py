@@ -98,6 +98,28 @@ def test_render_uses_uniform_dividers_and_places_tracing_section_last() -> None:
     assert "Tracing" in headers[-1]
 
 
+def test_render_omits_skills_section_without_external_skills() -> None:
+    rendered = _boot_message().render(unicode_ok=True)
+
+    assert "Skills" not in rendered
+
+
+def test_render_lists_every_external_skills_path() -> None:
+    message = replace(
+        _boot_message(),
+        skills_paths=["/opt/skills/team", "/home/me/.agents/skills"],
+        skills_visibility="explicit",
+    )
+
+    rendered = message.render(unicode_ok=True)
+
+    lines = rendered.splitlines()
+    assert any("Skills" in line and line.startswith("──") for line in lines)
+    assert "  External skills     /opt/skills/team" in lines
+    assert "                      /home/me/.agents/skills" in lines
+    assert "  Visibility          explicit" in lines
+
+
 def test_render_omits_development_section_by_default() -> None:
     rendered = _boot_message().render(unicode_ok=True)
 
