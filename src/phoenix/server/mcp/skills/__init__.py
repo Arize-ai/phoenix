@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import logging
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -18,6 +19,8 @@ from typing_extensions import TypeGuard
 
 from phoenix.config import get_env_skills_paths, get_env_skills_visibility
 from phoenix.server.agents.prompts.templating import get_template
+
+logger = logging.getLogger(__name__)
 
 SkillVisibility = Literal["visible", "hidden"]
 
@@ -193,28 +196,58 @@ def _skill_directories(root: Path) -> list[Path]:
     return sorted(filter(_is_skill_directory, root.iterdir()))
 
 
+def _load_root(root: Path, *, explicit: bool) -> Iterator[Skill]:
+    if not root.is_dir():
+        raise ValueError(f"Skills root {root} is not a directory")
+    for directory in _skill_directories(root):
+        skill = Skill.from_directory(directory)
+        if explicit and skill.visibility != "visible":
+            continue
+        yield skill
+
+
 @lru_cache(maxsize=None)
 def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Skill, ...]:
     """Every skill under ``roots``: root order first, name order within a root."""
     skills: dict[str, Skill] = {}
     for root in roots:
-        if not root.is_dir():
-            raise ValueError(f"Skills root {root} is not a directory")
-        for directory in _skill_directories(root):
-            skill = Skill.from_directory(directory)
-            if explicit and skill.visibility != "visible":
-                continue
+        for skill in _load_root(root, explicit=explicit):
             if skill.name in skills:
                 raise ValueError(
                     f"Skill {skill.name!r} is defined in both "
-                    f"{skills[skill.name].path} and {directory}"
+                    f"{skills[skill.name].path} and {skill.path}"
                 )
             skills[skill.name] = skill
     return tuple(skills.values())
 
 
 def load_external_skills() -> tuple[Skill, ...]:
-    return load_skills(get_env_skills_paths(), explicit=get_env_skills_visibility() == "explicit")
+    """Skills from ``PHOENIX_SKILLS_PATHS``, minus any that would clash.
+
+    A name already taken by a bundled Phoenix skill, or by an earlier external
+    skill, is logged and skipped rather than failing startup.
+    """
+    bundled = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
+    explicit = get_env_skills_visibility() == "explicit"
+    skills: dict[str, Skill] = {}
+    for root in get_env_skills_paths():
+        for skill in _load_root(root, explicit=explicit):
+            if skill.name in bundled:
+                logger.error(
+                    "Ignoring external skill %r at %s: the name is taken by a built-in skill",
+                    skill.name,
+                    skill.path,
+                )
+            elif skill.name in skills:
+                logger.error(
+                    "Ignoring external skill %r at %s: already defined at %s",
+                    skill.name,
+                    skill.path,
+                    skills[skill.name].path,
+                )
+            else:
+                skills[skill.name] = skill
+    return tuple(skills.values())
 
 
 def merge_skills(*skill_sets: Sequence[Skill]) -> tuple[Skill, ...]:
