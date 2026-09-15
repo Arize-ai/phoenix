@@ -773,6 +773,7 @@ function PlaygroundContent() {
                   <PlaygroundTaskInstance
                     instanceId={instanceId}
                     datasetId={datasetId}
+                    splitIds={splitIds}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
                   />

@@ -17,11 +17,13 @@ import { usePlaygroundInstanceSourceLoader } from "./usePlaygroundInstanceSource
 export function PlaygroundTaskInstance({
   instanceId,
   datasetId,
+  splitIds,
   appendedMessagesPath,
   availablePaths,
 }: {
   instanceId: number;
   datasetId: string | null;
+  splitIds?: string[];
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
 }) {
@@ -42,7 +44,11 @@ export function PlaygroundTaskInstance({
   if (taskKind === "evaluator") {
     return (
       <Suspense fallback={<Loading size="S" />}>
-        <EvaluatorTaskEditor instanceId={instanceId} datasetId={datasetId} />
+        <EvaluatorTaskEditor
+          instanceId={instanceId}
+          datasetId={datasetId}
+          splitIds={splitIds}
+        />
       </Suspense>
     );
   }

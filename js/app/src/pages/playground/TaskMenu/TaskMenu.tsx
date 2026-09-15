@@ -150,7 +150,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
           <Truncate maxWidth="var(--text-max-width)" title={label ?? undefined}>
             {label ?? (
               <Text color="text-500" fontStyle="italic">
-                Select a prompt
+                Select a task
               </Text>
             )}
           </Truncate>

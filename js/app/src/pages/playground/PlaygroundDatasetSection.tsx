@@ -26,6 +26,7 @@ import type {
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
+import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
@@ -38,6 +39,12 @@ import { PlaygroundExperimentToolbar } from "./PlaygroundExperimentToolbar";
  * fallback in Playground.tsx so the two stay in sync.
  */
 export const IO_PANEL_PROPS = { id: "io", minSize: "15%" } as const;
+
+// Stable empties for evaluator pages, where dataset evaluators play no part:
+// an evaluator task is the judge, so nothing scores it and no annotation
+// rows are laid out under its cells.
+const NO_EVALUATOR_MAPPINGS = {};
+const NO_EVALUATOR_OUTPUT_CONFIGS: never[] = [];
 
 export function PlaygroundDatasetSection({
   datasetId,
@@ -248,6 +255,9 @@ export function PlaygroundDatasetSection({
     );
     return datasetEvaluatorsToAnnotationConfigs(selectedEvaluators);
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
+  const isEvaluatorKind = usePlaygroundContext(
+    (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
+  );
 
   // We want to re-mount the context when the dataset or the splits change
   const key = `${datasetId}-${splitIds?.join("-")}`;
@@ -286,8 +296,16 @@ export function PlaygroundDatasetSection({
           <PlaygroundDatasetExamplesTable
             datasetId={datasetId}
             splitIds={splitIds}
-            evaluatorMappings={selectedEvaluatorWithInputMapping}
-            evaluatorOutputConfigs={evaluatorOutputConfigs}
+            evaluatorMappings={
+              isEvaluatorKind
+                ? NO_EVALUATOR_MAPPINGS
+                : selectedEvaluatorWithInputMapping
+            }
+            evaluatorOutputConfigs={
+              isEvaluatorKind
+                ? NO_EVALUATOR_OUTPUT_CONFIGS
+                : evaluatorOutputConfigs
+            }
           />
         </PlaygroundDatasetExamplesTableProvider>
       </Flex>

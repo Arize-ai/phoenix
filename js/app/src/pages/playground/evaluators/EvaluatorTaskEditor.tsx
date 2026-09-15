@@ -64,6 +64,7 @@ import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 import { extractPathsFromDatasetExamples } from "@phoenix/utils/objectUtils";
 
 import type { EvaluatorTaskEditorQuery } from "./__generated__/EvaluatorTaskEditorQuery.graphql";
+import { EvaluatorTaskMappingSource } from "./EvaluatorTaskMappingSource";
 import { EvaluatorTaskOutput } from "./EvaluatorTaskOutput";
 import { EvaluatorTaskSaveButton } from "./EvaluatorTaskSaveButton";
 import {
@@ -90,9 +91,11 @@ const EMPTY_SANDBOX_CONFIGS: SandboxConfigs = [];
 export function EvaluatorTaskEditor({
   instanceId,
   datasetId,
+  splitIds,
 }: {
   instanceId: number;
   datasetId: string | null;
+  splitIds?: string[];
 }) {
   const evaluator = usePlaygroundContext((state) =>
     getPlaygroundEvaluatorTask(selectPlaygroundInstance(instanceId)(state))
@@ -108,11 +111,13 @@ export function EvaluatorTaskEditor({
         <CodeEvaluatorTaskEditor
           instanceId={instanceId}
           datasetId={datasetId}
+          splitIds={splitIds}
         />
       ) : (
         <EvaluatorTaskEditorContent
           instanceId={instanceId}
           datasetId={datasetId}
+          splitIds={splitIds}
           kind="LLM"
           sandboxConfigs={EMPTY_SANDBOX_CONFIGS}
         />
@@ -124,9 +129,11 @@ export function EvaluatorTaskEditor({
 function CodeEvaluatorTaskEditor({
   instanceId,
   datasetId,
+  splitIds,
 }: {
   instanceId: number;
   datasetId: string | null;
+  splitIds?: string[];
 }) {
   const data = useLazyLoadQuery<EvaluatorTaskEditorQuery>(
     graphql`
@@ -176,6 +183,7 @@ function CodeEvaluatorTaskEditor({
     <EvaluatorTaskEditorContent
       instanceId={instanceId}
       datasetId={datasetId}
+      splitIds={splitIds}
       kind="CODE"
       sandboxConfigs={sandboxConfigs}
     />
@@ -191,11 +199,13 @@ const FALLBACK_CODE: PlaygroundEvaluatorTaskCode = {
 function EvaluatorTaskEditorContent({
   instanceId,
   datasetId,
+  splitIds,
   kind,
   sandboxConfigs,
 }: {
   instanceId: number;
   datasetId: string | null;
+  splitIds?: string[];
   kind: PlaygroundEvaluatorTaskKind;
   sandboxConfigs: SandboxConfigs;
 }) {
@@ -404,6 +414,11 @@ function EvaluatorTaskEditorContent({
           ) : null}
         </Flex>
       </Flex>
+      {/* Renders nothing; it keeps the mapping sample on the dataset's first
+          example, and suspends on its own so the editor stays put. */}
+      <Suspense fallback={null}>
+        <EvaluatorTaskMappingSource datasetId={datasetId} splitIds={splitIds} />
+      </Suspense>
       <Tabs
         css={taskTabsCSS}
         selectedKey={selectedTab}
@@ -450,13 +465,13 @@ function EvaluatorTaskEditorContent({
             <EvaluatorTaskNameField />
             {outputNames.length > 1 ? (
               <Select
-                aria-label="Output to compare"
+                aria-label="Output"
                 value={selectedOutputName || null}
                 onChange={(key) => {
                   if (key != null) setSelectedOutput(String(key));
                 }}
               >
-                <Label>Output to compare</Label>
+                <Label>Output</Label>
                 <Button>
                   <SelectValue />
                   <SelectChevronUpDownIcon />

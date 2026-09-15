@@ -18,6 +18,7 @@ import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDat
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
+import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
@@ -54,6 +55,9 @@ export function PlaygroundExperimentToolbar({
   onEditingEvaluatorChange,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
+  // Dataset evaluators score a prompt's outputs; an evaluator task is the
+  // judge itself, so there is nothing to attach to it.
+  const isPromptKind = getPlaygroundTaskKind(instances) === "prompt";
   const recordExperiments = usePlaygroundContext(
     (state) => state.recordExperiments
   );
@@ -101,22 +105,24 @@ export function PlaygroundExperimentToolbar({
           Record
         </Switch>
       )}
-      <PlaygroundEvaluatorSelect
-        evaluators={datasetEvaluators}
-        selectedIds={selectedDatasetEvaluatorIds}
-        onSelectionChange={onSelectionChange}
-        datasetId={datasetId}
-        updateConnectionIds={updateConnectionIds}
-        onEvaluatorCreated={onEvaluatorCreated}
-        query={query}
-        isDisabled={isRunning}
-        isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
-        onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
-        isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
-        onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
-        editingEvaluator={editingEvaluator}
-        onEditingEvaluatorChange={onEditingEvaluatorChange}
-      />
+      {isPromptKind ? (
+        <PlaygroundEvaluatorSelect
+          evaluators={datasetEvaluators}
+          selectedIds={selectedDatasetEvaluatorIds}
+          onSelectionChange={onSelectionChange}
+          datasetId={datasetId}
+          updateConnectionIds={updateConnectionIds}
+          onEvaluatorCreated={onEvaluatorCreated}
+          query={query}
+          isDisabled={isRunning}
+          isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+          onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
+          isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+          onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
+          editingEvaluator={editingEvaluator}
+          onEditingEvaluatorChange={onEditingEvaluatorChange}
+        />
+      ) : null}
       <PlaygroundDatasetSelect isDisabled={isRunning} />
       <PlaygroundExperimentSettingsButton
         isDisabled={isRunning}
