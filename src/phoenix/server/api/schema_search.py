@@ -309,6 +309,9 @@ def _mutation_only_types(schema: GraphQLSchema) -> set[str]:
     )
     only = {t.name for t in from_mutation} - {t.name for t in elsewhere}
     # Payloads: object types returned only by mutation fields or by other payloads.
+    # The query root is a root, not a payload, even though some mutations return
+    # it so a client can refetch after a write.
+    roots = {t.name for t in (schema.query_type, schema.subscription_type) if t is not None}
     returned: dict[str, set[str]] = defaultdict(set)
     for t in (*others, mutation):
         for f in t.fields.values():
@@ -317,7 +320,7 @@ def _mutation_only_types(schema: GraphQLSchema) -> set[str]:
     while changed:
         changed = False
         for name, parents in returned.items():
-            if name not in only and parents <= only | {mutation.name}:
+            if name not in only | roots and parents <= only | {mutation.name}:
                 only.add(name)
                 changed = True
     return only

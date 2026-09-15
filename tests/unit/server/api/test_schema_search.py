@@ -198,6 +198,15 @@ def test_excluded_mutations_take_their_inputs_and_payloads_with_them(
     assert "disabled" not in search(index, "span cost")
 
 
+def test_query_root_survives_mutation_exclusion(graphql_schema: GraphQLSchema) -> None:
+    # Some mutations return Query so a client can refetch after a write. That
+    # must not make the root itself a mutation-only payload.
+    index = build_index(graphql_schema, include_mutations=False)
+    assert first_line(lookup(index, "Query")) == "type Query {"
+    assert any(u.kind == "field" and u.parent == "Query" for u in index.units)
+    assert first_line(lookup(index, "Query.projects")).startswith("Query.projects(")
+
+
 def test_root_type_names_come_from_the_schema() -> None:
     schema = build_schema(
         "schema { query: RootQuery mutation: RootMutation }\n"
