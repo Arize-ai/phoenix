@@ -219,6 +219,54 @@ def test_root_type_names_come_from_the_schema() -> None:
     without = build_index(schema, include_mutations=False)
     assert not any(u.kind == "mutation" for u in without.units)
     assert lookup(without, "doIt").startswith("-- doIt is a mutation.")
+    disabled = "-- RootMutation is the mutation root. -- Mutations are disabled"
+    assert lookup(without, "RootMutation").startswith(disabled)
+    assert search(without, "rootmutation").startswith(disabled)
+
+
+def test_subscription_only_types_are_never_indexed() -> None:
+    schema = build_schema(
+        "schema { query: Query subscription: Subscription }\n"
+        "type Query { hello(shared: SharedInput): String }\n"
+        "type Subscription { stream(input: StreamInput!, shared: SharedInput): StreamPayload! }\n"
+        "input StreamInput { n: Int }\n"
+        "input SharedInput { n: Int }\n"
+        "interface StreamPayload { id: ID }\n"
+        "type Chunk implements StreamPayload { id: ID, text: String }"
+    )
+    names = {u.name for u in build_index(schema).units}
+    assert "Subscription" not in names
+    assert "StreamInput" not in names and "StreamPayload" not in names
+    # An implementation delivered only through a hidden root's interface goes too.
+    assert "Chunk" not in names
+    assert "SharedInput" in names
+
+
+def test_union_members_are_reached_through_the_union_field() -> None:
+    schema = build_schema(
+        "type Query { thing: Thing }\n"
+        "type Thing { data: Data }\n"
+        "union Data = A | B\n"
+        "type A { x: Int }\n"
+        "type B { y: Int }"
+    )
+    index = build_index(schema)
+    assert index.via("A") == "Query.thing > Thing.data"
+    assert first_line(search(index, "x")) == "A.x: Int  via Query.thing > Thing.data"
+    assert reach_paths(index, "B") == [("Query.thing", "Thing.data")]
+    assert "# reached through:" in lookup(index, "B")
+
+
+def test_enums_returned_by_fields_say_so() -> None:
+    schema = build_schema(
+        "type Query { status: Status, items(sort: Dir): [Int] }\n"
+        "enum Status { ACTIVE ARCHIVED }\n"
+        "enum Dir { ASC DESC }"
+    )
+    index = build_index(schema)
+    assert lookup(index, "Status").endswith("# used by Query.status")
+    assert lookup(index, "Dir").endswith("# used by Query.items")
+    assert first_line(search(index, "archived")) == "enum Status.ARCHIVED  used by Query.status"
 
 
 def test_oversized_queries_are_bounded(index: Index) -> None:
@@ -253,6 +301,13 @@ def test_misses_say_so(index: Index) -> None:
     assert search(index, "zzqx").startswith("-- No type")
     assert search(index, "the of").startswith("-- Empty query")
     assert lookup(index, "NoSuchType").startswith("-- No type")
+    assert lookup(index, "NoSuchType.field").startswith("-- No type")
+    assert lookup(index, "Project.nonexistent").startswith(
+        "-- Project has no field 'nonexistent'. Try search('Project nonexistent')."
+    )
+    text = search(index, "Project.nonexistent")
+    assert first_line(text) == "-- Project has no field 'nonexistent'. Closest matches:"
+    assert len(text.splitlines()) > 1
 
 
 @pytest.mark.parametrize(
