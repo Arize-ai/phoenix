@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<832db0d0a1cfcb31aa20194c63094f1d>>
+ * @generated SignedSource<<9b38b2e98d07dc5da1c58f5777c7fde5>>
  * @lightSyntaxTransform
  */
 
@@ -11,8 +11,6 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type ProjectEvaluatorRunStatus = "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
-export type ProjectEvaluatorSchedulabilityReason = "DISABLED";
-export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;
@@ -32,8 +30,6 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
     readonly queuedCount: number;
     readonly status: ProjectEvaluatorRunStatus;
   };
-  readonly schedulabilityReason: ProjectEvaluatorSchedulabilityReason | null;
-  readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
   readonly traceProject: {
     readonly id: string;
   };
@@ -73,20 +69,6 @@ return {
       "args": null,
       "kind": "ScalarField",
       "name": "evaluationTarget",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "schedulabilityStatus",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "schedulabilityReason",
       "storageKey": null
     },
     {
@@ -198,6 +180,6 @@ return {
 };
 })();
 
-(node as any).hash = "c3fdc9accab5e671bda4d192a270c76b";
+(node as any).hash = "25bb14ad8a6acf10fd19699d02866397";
 
 export default node;

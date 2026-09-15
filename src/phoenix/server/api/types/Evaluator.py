@@ -51,8 +51,6 @@ from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.online_eval.session_policy import (
     DEFAULT_EVALUATION_DELAY_SECONDS,
     MINIMUM_EVALUATION_DELAY_SECONDS,
-    SchedulabilityReason,
-    schedulability_reason,
 )
 
 if TYPE_CHECKING:
@@ -87,12 +85,6 @@ class EvaluationTarget(Enum):
     SPAN = "SPAN"
     TRACE = "TRACE"
     SESSION = "SESSION"
-
-
-@strawberry.enum
-class ProjectEvaluatorSchedulabilityStatus(Enum):
-    SCHEDULABLE = "SCHEDULABLE"
-    NOT_SCHEDULABLE = "NOT_SCHEDULABLE"
 
 
 @strawberry.enum(
@@ -175,19 +167,6 @@ def _project_evaluator_run_summary(counts: ProjectEvaluatorRunCounts) -> Project
         dropped_count=counts.dropped,
         last_error=counts.last_error,
     )
-
-
-# The reason vocabulary is declared beside the conditions it names, in session_policy;
-# this only registers it with the schema under its GraphQL name.
-strawberry.enum(SchedulabilityReason, name="ProjectEvaluatorSchedulabilityReason")
-
-
-def _project_evaluator_schedulability(
-    record: models.ProjectEvaluator,
-) -> tuple[ProjectEvaluatorSchedulabilityStatus, Optional[SchedulabilityReason]]:
-    if (reason := schedulability_reason(record)) is not None:
-        return ProjectEvaluatorSchedulabilityStatus.NOT_SCHEDULABLE, reason
-    return ProjectEvaluatorSchedulabilityStatus.SCHEDULABLE, None
 
 
 @strawberry.type
@@ -1370,31 +1349,6 @@ class ProjectEvaluator(Node):
     async def evaluation_target(self, info: Info[Context, None]) -> EvaluationTarget:
         record = await self._get_record(info)
         return EvaluationTarget(record.evaluation_target)
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Whether this project evaluator is currently eligible for scheduling."
-    )
-    async def schedulability_status(
-        self,
-        info: Info[Context, None],
-    ) -> ProjectEvaluatorSchedulabilityStatus:
-        record = await self._get_record(info)
-        status, _ = _project_evaluator_schedulability(record)
-        return status
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "Machine-readable reason the project evaluator is not schedulable, or null when "
-            "it is schedulable."
-        )
-    )
-    async def schedulability_reason(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[SchedulabilityReason]:
-        record = await self._get_record(info)
-        _, reason = _project_evaluator_schedulability(record)
-        return reason
 
     @strawberry.field
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:

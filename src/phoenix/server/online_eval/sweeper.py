@@ -7,7 +7,6 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from functools import partial
 from secrets import token_hex
 from typing import Any, Callable, Optional, Sequence
 
@@ -58,7 +57,6 @@ from phoenix.server.online_eval.derivation import (
     sample_key,
 )
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
-from phoenix.server.online_eval.session_policy import project_evaluator_is_schedulable
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG,
     ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
@@ -107,7 +105,6 @@ class _SweepTarget:
     # A due-horizon watermark is written before lock-time re-filtering can drop a page row,
     # so this gate must never let a dropped row become eligible again.
     is_evaluable: Callable[[], ColumnElement[bool]]
-    project_evaluator_is_schedulable: Callable[[type[models.ProjectEvaluator]], ColumnElement[bool]]
     lease_name_prefix: str
 
 
@@ -127,10 +124,6 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
             )
         ),
         is_evaluable=lambda: models.ProjectSession.content_complete.is_(True),
-        project_evaluator_is_schedulable=partial(
-            project_evaluator_is_schedulable,
-            evaluation_target="SESSION",
-        ),
         lease_name_prefix=_SESSION_SWEEP_LEASE_NAME,
     ),
     "TRACE": _SweepTarget(
@@ -148,10 +141,6 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
             )
         ),
         is_evaluable=lambda: true(),
-        project_evaluator_is_schedulable=partial(
-            project_evaluator_is_schedulable,
-            evaluation_target="TRACE",
-        ),
         lease_name_prefix=_TRACE_SWEEP_LEASE_NAME,
     ),
 }
@@ -565,7 +554,8 @@ class EvalSweeper(DaemonTask):
                     models.ProjectEvaluator.evaluator_id == polymorphic_evaluator.id,
                 )
                 .where(
-                    self._target.project_evaluator_is_schedulable(models.ProjectEvaluator),
+                    models.ProjectEvaluator.enabled,
+                    models.ProjectEvaluator.evaluation_target == self._evaluation_target,
                 )
             )
         ).all()

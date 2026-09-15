@@ -242,18 +242,6 @@ export function formatSamplingRate(samplingRate: number): string {
   return samplingRateFormatter.format(samplingRate);
 }
 
-/** Every reason the server can report, including ones this build predates. */
-export function getSchedulabilityExplanation(
-  reason: string | null | undefined
-): string {
-  switch (reason) {
-    case "DISABLED":
-      return "This evaluator is disabled. Enable it to resume scheduling.";
-    default:
-      return "This evaluator does not meet the current scheduling requirements.";
-  }
-}
-
 export type ProjectEvaluatorRunSummary = {
   status: string;
   lastRunAt: string | null;
@@ -280,54 +268,40 @@ const STATUS_COLOR_BY_VARIANT: Record<BadgeVariant, string> = {
   default: "var(--global-color-gray-300)",
 };
 
-/**
- * The one status a row reports. A configuration that keeps the evaluator from
- * ever being scheduled outranks whatever its past runs say, because clearing it
- * is the only thing that will change the rest.
- */
+/** The one status a row reports, read from its most recent runs. */
 export function getProjectEvaluatorStatus({
-  schedulabilityStatus,
-  schedulabilityReason,
   runSummary,
 }: {
-  schedulabilityStatus: string;
-  schedulabilityReason: string | null | undefined;
   // Narrowed so status cells can render without fetching run counts.
   runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
   const status =
-    schedulabilityStatus === "NOT_SCHEDULABLE"
+    runSummary.status === "ERROR"
       ? {
-          label: "Not scheduled",
-          variant: "warning" as const,
-          explanation: getSchedulabilityExplanation(schedulabilityReason),
+          label: "Error",
+          variant: "danger" as const,
+          explanation:
+            "The most recent evaluation run failed and will not be retried.",
         }
-      : runSummary.status === "ERROR"
+      : runSummary.status === "RUNNING"
         ? {
-            label: "Error",
-            variant: "danger" as const,
+            label: "Running",
+            variant: "success" as const,
             explanation:
-              "The most recent evaluation run failed and will not be retried.",
+              "Evaluation runs are completing and writing annotations.",
           }
-        : runSummary.status === "RUNNING"
+        : runSummary.status === "QUEUED"
           ? {
-              label: "Running",
-              variant: "success" as const,
-              explanation:
-                "Evaluation runs are completing and writing annotations.",
+              label: "Queued",
+              variant: "info" as const,
+              explanation: "Evaluations are waiting to run.",
             }
-          : runSummary.status === "QUEUED"
-            ? {
-                label: "Queued",
-                variant: "info" as const,
-                explanation: "Evaluations are waiting to run.",
-              }
-            : {
-                label: "Never ran",
-                variant: "default" as const,
-                explanation:
-                  "No evaluations have been scheduled for this evaluator yet.",
-              };
+          : {
+              label: "Never ran",
+              variant: "default" as const,
+              explanation:
+                "No evaluations have been scheduled for this evaluator yet.",
+            };
   return { ...status, color: STATUS_COLOR_BY_VARIANT[status.variant] };
 }
 

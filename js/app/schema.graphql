@@ -3391,14 +3391,6 @@ type ProjectEvaluator implements Node {
   SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
   """
   evaluationTarget: EvaluationTarget!
-
-  """Whether this project evaluator is currently eligible for scheduling."""
-  schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus!
-
-  """
-  Machine-readable reason the project evaluator is not schedulable, or null when it is schedulable.
-  """
-  schedulabilityReason: ProjectEvaluatorSchedulabilityReason
   runSummary: ProjectEvaluatorRunSummary!
 
   """
@@ -3496,15 +3488,6 @@ type ProjectEvaluatorRunSummary {
 
   """The most recent evaluation error, or null if none was recorded."""
   lastError: String
-}
-
-enum ProjectEvaluatorSchedulabilityReason {
-  DISABLED
-}
-
-enum ProjectEvaluatorSchedulabilityStatus {
-  SCHEDULABLE
-  NOT_SCHEDULABLE
 }
 
 """The filter key and value for project connections"""

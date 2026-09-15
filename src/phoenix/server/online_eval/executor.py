@@ -66,7 +66,6 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.session_policy import (
     ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    project_evaluator_is_schedulable,
 )
 from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
@@ -109,7 +108,6 @@ class OnlineEvalStoragePaused(Exception):
 class HydrationFailureReason(str, Enum):
     PROJECT_EVALUATOR_MISSING = "PROJECT_EVALUATOR_MISSING"
     PROJECT_EVALUATOR_DISABLED = "PROJECT_EVALUATOR_DISABLED"
-    PROJECT_EVALUATOR_NOT_SCHEDULABLE = "PROJECT_EVALUATOR_NOT_SCHEDULABLE"
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
@@ -428,7 +426,6 @@ async def _load_session_context(
 class _EvaluationTargetSpec:
     """What one evaluation target contributes to hydration and publication."""
 
-    requires_schedulable_evaluator: bool
     load_context: _TargetContextLoader
     target_column: str
     annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
@@ -439,7 +436,6 @@ class _EvaluationTargetSpec:
 
 _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] = {
     "SPAN": _EvaluationTargetSpec(
-        requires_schedulable_evaluator=False,
         load_context=_load_span_context,
         target_column="span_rowid",
         annotation_table=models.SpanAnnotation,
@@ -448,7 +444,6 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         insert_event=SpanAnnotationInsertEvent,
     ),
     "SESSION": _EvaluationTargetSpec(
-        requires_schedulable_evaluator=True,
         load_context=_load_session_context,
         target_column="project_session_id",
         annotation_table=models.ProjectSessionAnnotation,
@@ -520,14 +515,7 @@ class OnlineEvalExecutor:
         )
         rows = (
             await session.execute(
-                select(
-                    models.ProjectEvaluator,
-                    polymorphic,
-                    project_evaluator_is_schedulable(
-                        models.ProjectEvaluator,
-                        evaluation_target="SESSION",
-                    ).label("session_schedulable"),
-                )
+                select(models.ProjectEvaluator, polymorphic)
                 .outerjoin(
                     polymorphic,
                     models.ProjectEvaluator.evaluator_id == polymorphic.id,
@@ -536,8 +524,8 @@ class OnlineEvalExecutor:
             )
         ).all()
         rows_by_project_evaluator_id = {
-            project_evaluator.id: (project_evaluator, evaluator, bool(session_schedulable))
-            for project_evaluator, evaluator, session_schedulable in rows
+            project_evaluator.id: (project_evaluator, evaluator)
+            for project_evaluator, evaluator in rows
         }
 
         preliminary: list[Optional[HydrationFailure]] = []
@@ -548,16 +536,12 @@ class OnlineEvalExecutor:
             if row is None:
                 failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_MISSING)
             else:
-                project_evaluator, evaluator, session_schedulable = row
+                project_evaluator, evaluator = row
                 target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
                 if not project_evaluator.enabled:
                     failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_DISABLED)
                 elif target_spec is None:
                     failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
-                elif target_spec.requires_schedulable_evaluator and not session_schedulable:
-                    failure = HydrationFailure(
-                        HydrationFailureReason.PROJECT_EVALUATOR_NOT_SCHEDULABLE
-                    )
                 elif evaluator is None:
                     failure = HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
                 elif (

@@ -17,8 +17,6 @@ filterCondition
 samplingRate
 evaluationTarget
 evaluationDelaySeconds
-schedulabilityStatus
-schedulabilityReason
 traceProject { name description }
 enabled
 inputMapping { literalMapping pathMapping }
@@ -246,8 +244,6 @@ async def test_project_code_evaluator_crud_and_connection(
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "SPAN"
     assert created["evaluationDelaySeconds"] == 300
-    assert created["schedulabilityStatus"] == "SCHEDULABLE"
-    assert created["schedulabilityReason"] is None
     assert created["inputMapping"] == _mapping(output="value")
     assert created["evaluator"]["kind"] == "CODE"
 
@@ -281,8 +277,6 @@ async def test_project_code_evaluator_crud_and_connection(
     updated = update_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert updated["name"] == "updated-code"
     assert updated["evaluationTarget"] == "SPAN"
-    assert updated["schedulabilityStatus"] == "NOT_SCHEDULABLE"
-    assert updated["schedulabilityReason"] == "DISABLED"
     assert updated["inputMapping"] == _mapping(context="override")
     assert updated["evaluator"]["name"] == "updated-code"
 
@@ -326,8 +320,6 @@ async def test_project_code_evaluator_crud_and_connection(
     omitted = omitted_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert omitted["inputMapping"] == _mapping(context="override")
     assert omitted["enabled"] is False
-    assert omitted["schedulabilityStatus"] == "NOT_SCHEDULABLE"
-    assert omitted["schedulabilityReason"] == "DISABLED"
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
@@ -360,8 +352,6 @@ async def test_project_code_evaluator_crud_and_connection(
     inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert inherited["inputMapping"] == _mapping(output="inherited")
     assert inherited["evaluationDelaySeconds"] == 300
-    assert inherited["schedulabilityStatus"] == "SCHEDULABLE"
-    assert inherited["schedulabilityReason"] is None
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
