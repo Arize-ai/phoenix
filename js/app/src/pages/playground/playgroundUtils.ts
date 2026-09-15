@@ -55,6 +55,7 @@ import {
   createNormalizedPlaygroundInstance,
   generateMessageId,
   generateToolId,
+  getTemplateVariablesPath,
 } from "@phoenix/store/playground";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
@@ -63,8 +64,8 @@ import {
 } from "@phoenix/utils/jsonUtils";
 
 import type {
-  ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
+  PromptTaskInput,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
   ChatCompletionInput,
@@ -2254,26 +2255,23 @@ export const getChatCompletionInput = ({
 };
 
 /**
- * Gets chat completion input for running over a dataset.
- *
- * Builds the same hub-and-spoke ChatCompletionOverDatasetInput shape as
- * getChatCompletionInput, but uses the store's templateFormat (MUSTACHE /
- * F_STRING / NONE) rather than hardcoding "NONE", so dataset-level variable
- * substitution still works.
+ * The prompt task a dataset run creates an experiment for: the instance's
+ * prompt version and connection, the dataset paths it reads, and the dataset
+ * evaluators that score its outputs. Uses the store's templateFormat
+ * (MUSTACHE / F_STRING / NONE) rather than hardcoding "NONE", so dataset-level
+ * variable substitution still works.
  */
-export const getChatCompletionOverDatasetInput = ({
+export const getPromptTaskInput = ({
   playgroundStore,
   instanceId,
   credentials,
   datasetId,
-  splitIds,
   evaluatorMappings,
 }: {
   playgroundStore: PlaygroundStore;
   instanceId: number;
   credentials: CredentialsState;
   datasetId: string;
-  splitIds?: string[];
   /**
    * Record of datasetEvaluatorId to name and input mappings
    */
@@ -2281,7 +2279,7 @@ export const getChatCompletionOverDatasetInput = ({
     string,
     { name: string; inputMapping: EvaluatorInputMappingInput }
   >;
-}): ChatCompletionOverDatasetInput => {
+}): PromptTaskInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
     instanceId,
@@ -2291,11 +2289,8 @@ export const getChatCompletionOverDatasetInput = ({
   const {
     instances,
     templateFormat,
-    repetitions,
     allInstanceMessages: instanceMessages,
     stateByDatasetId,
-    recordExperiments,
-    nextExperimentScaffold,
     streaming,
   } = playgroundStore.getState();
 
@@ -2329,18 +2324,25 @@ export const getChatCompletionOverDatasetInput = ({
       baseChatCompletionVariables.invocationParameters ?? [],
   });
 
-  const playgroundDatasetState = stateByDatasetId[datasetId];
-  const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
-    playgroundDatasetState ?? {};
+  const { appendedMessagesPath } = stateByDatasetId[datasetId] ?? {};
+
+  // The prompt kind's path; the server reads an empty one as the example root.
+  const templateVariablesPath =
+    getTemplateVariablesPath({
+      stateByDatasetId,
+      datasetId,
+      taskKind: "prompt",
+    }) ?? "";
 
   return {
     promptVersion,
+    promptVersionId: instance.prompt?.version ?? null,
+    promptName: instance.prompt?.name,
     connectionConfig: baseChatCompletionVariables.connectionConfig,
     headers: baseChatCompletionVariables.headers,
-    credentials: baseChatCompletionVariables.credentials,
-    repetitions,
-    datasetId,
-    splitIds: splitIds ?? null,
+    appendedMessagesPath,
+    templateVariablesPath,
+    streamModelOutput: streaming,
     evaluators: Object.entries(evaluatorMappings).map(
       ([datasetEvaluatorId, { name, inputMapping }]) => ({
         id: datasetEvaluatorId,
@@ -2348,16 +2350,6 @@ export const getChatCompletionOverDatasetInput = ({
         inputMapping,
       })
     ),
-    appendedMessagesPath,
-    templateVariablesPath: templateVariablesPath ?? "",
-    promptName: instance.prompt?.name,
-    promptVersionId: instance.prompt?.version ?? null,
-    createEphemeralExperiment: !recordExperiments,
-    experimentName: nextExperimentScaffold?.name ?? null,
-    experimentDescription: nextExperimentScaffold?.description ?? null,
-    experimentMetadata: nextExperimentScaffold?.metadata ?? null,
-    streamModelOutput: streaming,
-    maxConcurrency: maxConcurrency ?? 10,
   };
 };
 

@@ -128,3 +128,25 @@ function createPierreTheme(theme: PierreTheme) {
 
 export const pierreLight = createPierreTheme(pierreLightTheme);
 export const pierreDark = createPierreTheme(pierreDarkTheme);
+
+/**
+ * The JSON token colors of the editor theme, for read-only renderings that
+ * skip the editor (see `JSONPreview`) but should look like it.
+ */
+function jsonTokenColors(theme: PierreTheme) {
+  const color = (scope: string) =>
+    scopeColor(theme, scope) ?? theme.colors["editor.foreground"];
+
+  return {
+    key: color("entity.other.attribute-name"),
+    string: color("string"),
+    number: color("constant.numeric"),
+    literal: color("constant.numeric"),
+    punctuation: color("punctuation"),
+  };
+}
+
+export const pierreTokenColors = {
+  light: jsonTokenColors(pierreLightTheme),
+  dark: jsonTokenColors(pierreDarkTheme),
+};

@@ -625,40 +625,14 @@ input ChatCompletionInput {
   streamModelOutput: Boolean! = true
 }
 
-input ChatCompletionOverDatasetInput {
-  promptVersionId: ID = null
-  promptVersion: ChatPromptVersionInput!
-  connectionConfig: ConnectionConfigInput = null
-  headers: JSON = null
-  credentials: [GenerativeCredentialInput!]
-  repetitions: Int!
-  datasetId: ID!
-  datasetVersionId: ID = null
-  splitIds: [ID!] = null
-  experimentName: String = null
-  experimentDescription: String = null
-  experimentMetadata: JSON = null
-  promptName: Identifier = null
-  evaluators: [PlaygroundEvaluatorInput!]! = []
-
-  """
-  Dot-notation path to messages in dataset example input to append to prompt
-  """
-  appendedMessagesPath: String = null
-
-  """
-  Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
-  """
-  templateVariablesPath: String = "input"
-  tracingEnabled: Boolean! = true
-  streamModelOutput: Boolean! = true
-  createEphemeralExperiment: Boolean = false
-  maxConcurrency: Int! = 10
-}
-
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   message: String!
   span: Span
   experimentRun: ExperimentRun
@@ -667,17 +641,32 @@ type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayloa
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   span: Span
   experimentRun: ExperimentRun
 }
@@ -1304,6 +1293,28 @@ type DatasetExample implements Node {
   datasetSplits: [DatasetSplit!]!
 }
 
+type DatasetExampleCalibrationLabel {
+  annotationName: String!
+  label: String
+  score: Float
+  explanation: String
+}
+
+input DatasetExampleCalibrationLabelInput {
+  exampleId: ID!
+  expectedRevisionId: ID!
+  annotationName: String!
+  label: String
+  score: Float = null
+  explanation: String = null
+}
+
+type DatasetExampleCalibrationLabelsPayload {
+  dataset: Dataset!
+  version: DatasetVersion!
+  examples: [DatasetExample!]!
+}
+
 """A connection to a list of items."""
 type DatasetExampleConnection {
   """Pagination data for this connection"""
@@ -1341,8 +1352,10 @@ type DatasetExampleRevision implements ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!
+  revisionId: ID!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+  calibrationLabels: [DatasetExampleCalibrationLabel!]!
 }
 
 type DatasetExperimentAnnotationSummary {
@@ -1815,6 +1828,11 @@ type EvalWorkItemId {
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   evaluatorName: String!
   experimentRunEvaluation: ExperimentRunAnnotation
   trace: Trace
@@ -1985,6 +2003,26 @@ input EvaluatorSort {
   dir: SortDir!
 }
 
+type EvaluatorTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  evaluatorKind: EvaluatorKind!
+  inputMapping: EvaluatorInputMapping!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+
+  """
+  The evaluator as it was run: an inline LLM judge prompt, inline code, or a stored evaluator's id. Use to rehydrate the playground.
+  """
+  definition: JSON!
+}
+
+input EvaluatorTaskInput {
+  """The evaluator, inline or stored, in the shape the evaluator test uses"""
+  evaluator: EvaluatorPreviewInput!
+  inputMapping: EvaluatorInputMappingInput!
+}
+
 interface ExampleRevision {
   input: JSON!
   output: JSON!
@@ -2106,6 +2144,11 @@ type ExperimentJob implements Node {
   Task configuration snapshot. Use to rehydrate the playground with the exact settings used for this experiment.
   """
   taskConfig: PromptTaskConfig
+
+  """
+  Evaluator task configuration snapshot of an experiment whose task is an evaluator. Null for prompt and eval-only experiments.
+  """
+  evaluatorTaskConfig: EvaluatorTaskConfig
 
   """Dataset evaluators attached to this experiment job."""
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
@@ -2357,6 +2400,36 @@ type ExperimentTag implements Node {
   description: String
 }
 
+input ExperimentTaskInput @oneOf {
+  prompt: PromptTaskInput
+  evaluator: EvaluatorTaskInput
+}
+
+input ExperimentsOverDatasetInput {
+  datasetId: ID!
+  datasetVersionId: ID = null
+  splitIds: [ID!] = null
+
+  """
+  Run only these examples of the dataset, as a row's play button does; every example of the dataset or its splits when omitted.
+  """
+  exampleIds: [ID!] = null
+  repetitions: Int! = 1
+
+  """The concurrency budget of each experiment"""
+  maxConcurrency: Int! = 10
+  credentials: [GenerativeCredentialInput!]
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = null
+  createEphemeralExperiment: Boolean = false
+
+  """
+  One experiment is created per task, in this order. The tasks must all be prompts or all be evaluators.
+  """
+  tasks: [ExperimentTaskInput!]!
+}
+
 type FailureDetail {
   workItem: ExperimentLogWorkItemId
   errorType: String!
@@ -2412,6 +2485,11 @@ input FreeformAnnotationConfigInput {
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   name: String!
   arguments: String!
 }
@@ -2758,6 +2836,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
+  setDatasetExampleCalibrationLabels(input: SetDatasetExampleCalibrationLabelsInput!): DatasetExampleCalibrationLabelsPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
@@ -3999,6 +4078,28 @@ type PromptTaskConfig implements Node {
   customProvider: GenerativeModelCustomProvider
 }
 
+input PromptTaskInput {
+  promptVersionId: ID = null
+  promptVersion: ChatPromptVersionInput!
+  promptName: Identifier = null
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
+
+  """
+  Dot-notation path to messages in dataset example input to append to prompt
+  """
+  appendedMessagesPath: String = null
+
+  """
+  Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
+  """
+  templateVariablesPath: String = "input"
+  streamModelOutput: Boolean! = true
+
+  """Dataset evaluators to run on this prompt's outputs"""
+  evaluators: [PlaygroundEvaluatorInput!]! = []
+}
+
 union PromptTemplate = PromptStringTemplate | PromptChatTemplate
 
 enum PromptTemplateFormat {
@@ -4477,6 +4578,11 @@ input SetAgentTraceRecordingInput {
   allowRemoteExport: Boolean!
 }
 
+input SetDatasetExampleCalibrationLabelsInput {
+  datasetId: ID!
+  labels: [DatasetExampleCalibrationLabelInput!]!
+}
+
 input SetDatasetExampleSplitsInput {
   exampleId: ID!
   datasetSplitIds: [ID!]!
@@ -4871,7 +4977,7 @@ type StopExperimentPayload {
 
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
-  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
+  experimentsOverDataset(input: ExperimentsOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {
@@ -4903,6 +5009,11 @@ type TestGenerativeModelCustomProviderCredentialsResult {
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   content: String!
 }
 
@@ -4993,6 +5104,11 @@ type TokenUsage {
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   id: String!
   function: FunctionCallChunk!
 }

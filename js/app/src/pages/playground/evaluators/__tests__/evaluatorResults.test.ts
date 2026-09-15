@@ -1,0 +1,203 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  createEvaluatorContext,
+  createEvaluatorMappingSource,
+  matchesExpectedOutput,
+  getEvaluatorAnnotationName,
+  getExpectedOutputIssue,
+  getExpectedVerdict,
+  toEvaluatorOutput,
+} from "../evaluatorResults";
+
+describe("evaluator results", () => {
+  it("keeps annotations, expected outputs included, out of whole-object evaluator mappings", () => {
+    const metadata = {
+      customer: "test",
+      annotations: {
+        quality: [{ label: "pass", annotator_kind: "HUMAN" }],
+      },
+    };
+
+    const context = createEvaluatorContext({
+      input: { question: "hello" },
+      output: { response: "hello" },
+      metadata,
+    });
+
+    expect(context.reference).toEqual({});
+    expect(context.output).toEqual({ response: "hello" });
+    expect(context.metadata).toEqual({ customer: "test" });
+    expect(metadata).toHaveProperty("annotations");
+  });
+  it("offers an example's context as a dataset-grain mapping source, wrapping primitive fields", () => {
+    expect(
+      createEvaluatorMappingSource({
+        input: "What is 2 + 2?",
+        output: { answer: "4" },
+        metadata: { annotations: { quality: [] }, topic: "math" },
+      })
+    ).toEqual({
+      input: { value: "What is 2 + 2?" },
+      output: { answer: "4" },
+      reference: {},
+      metadata: { topic: "math" },
+    });
+  });
+  it("reduces an output config to the labels, scores and bounds a cell validates against", () => {
+    expect(
+      toEvaluatorOutput({
+        name: "quality",
+        optimizationDirection: "MAXIMIZE",
+        values: [
+          { label: "pass", score: 1 },
+          { label: "unsure" },
+          { label: "fail", score: 0 },
+        ],
+      })
+    ).toEqual({
+      name: "quality",
+      labels: ["pass", "unsure", "fail"],
+      labelScores: { pass: 1, fail: 0 },
+      lowerBound: null,
+      upperBound: null,
+    });
+    expect(
+      toEvaluatorOutput({
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+      })
+    ).toEqual({
+      name: "score",
+      labels: [],
+      labelScores: {},
+      lowerBound: 0,
+      upperBound: 1,
+    });
+  });
+  it("flags expected outputs the selected output config can no longer produce", () => {
+    const categorical = {
+      name: "quality",
+      labels: ["pass", "fail"],
+      labelScores: { pass: 1, fail: 0 },
+      lowerBound: null,
+      upperBound: null,
+    };
+
+    const continuous = {
+      name: "score",
+      labels: [],
+      labelScores: {},
+      lowerBound: 0,
+      upperBound: 1,
+    };
+
+    expect(
+      getExpectedOutputIssue({
+        expected: { label: "pass" },
+        output: categorical,
+      })
+    ).toBeNull();
+    expect(
+      getExpectedOutputIssue({
+        expected: { label: "good" },
+        output: categorical,
+      })
+    ).toMatch(/not one of this output's labels/);
+    expect(
+      getExpectedOutputIssue({
+        expected: { label: null, score: 1.5 },
+        output: continuous,
+      })
+    ).toMatch(/above/);
+    expect(
+      getExpectedOutputIssue({
+        expected: { label: null, score: 0.5 },
+        output: continuous,
+      })
+    ).toBeNull();
+    // Without a config to check against there is nothing to flag.
+    expect(
+      getExpectedOutputIssue({ expected: { label: "good" }, output: undefined })
+    ).toBeNull();
+
+    const prediction = {
+      status: "success" as const,
+      label: "pass",
+      score: 1,
+      explanation: null,
+    };
+
+    expect(
+      getExpectedVerdict({
+        prediction,
+        expected: { label: "good" },
+        output: categorical,
+      })
+    ).toBe("invalid");
+    expect(
+      getExpectedVerdict({
+        prediction,
+        expected: { label: "fail" },
+        output: categorical,
+      })
+    ).toBe("mismatch");
+    expect(
+      getExpectedVerdict({
+        prediction,
+        expected: { label: "pass" },
+        output: categorical,
+      })
+    ).toBe("match");
+    expect(
+      getExpectedVerdict({
+        prediction: undefined,
+        expected: { label: "pass" },
+        output: categorical,
+      })
+    ).toBeNull();
+  });
+  it("matches server annotation names for single and multiple outputs", () => {
+    expect(
+      getEvaluatorAnnotationName({
+        evaluatorName: "judge",
+        outputName: "quality",
+        outputCount: 1,
+      })
+    ).toBe("judge");
+    expect(
+      getEvaluatorAnnotationName({
+        evaluatorName: "judge",
+        outputName: "quality",
+        outputCount: 2,
+      })
+    ).toBe("judge.quality");
+  });
+});
+
+describe("independent expected outputs", () => {
+  it("matches labels and scores independently without a baseline", () => {
+    const prediction = {
+      status: "success" as const,
+      label: "pass",
+      score: 0.75,
+      explanation: null,
+    };
+
+    expect(
+      matchesExpectedOutput(prediction, { label: null, score: 0.75 })
+    ).toBe(true);
+    expect(matchesExpectedOutput(prediction, { label: "pass" })).toBe(true);
+    expect(matchesExpectedOutput(prediction, { label: "pass", score: 1 })).toBe(
+      false
+    );
+    expect(
+      matchesExpectedOutput(
+        { status: "error", error: "failed" },
+        { label: "pass" }
+      )
+    ).toBe(false);
+  });
+});

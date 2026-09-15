@@ -114,6 +114,12 @@ export interface PreferencesProps {
    */
   playgroundStreamingEnabled: boolean;
   /**
+   * Whether the evaluator playground's metadata cells leave out the example's
+   * `annotations` key, where expected outputs are recorded. On by default: the
+   * expected value already shows in each evaluator cell's band.
+   */
+  hideExpectedAnnotationsInMetadata: boolean;
+  /**
    * Whether or not the span details are in annotating mode
    */
   isAnnotatingSpans: boolean;
@@ -232,6 +238,12 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for enabling/disabling playground streaming
    */
   setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
+  /**
+   * Sets whether the evaluator playground's metadata cells hide `annotations`.
+   */
+  setHideExpectedAnnotationsInMetadata: (
+    hideExpectedAnnotationsInMetadata: boolean
+  ) => void;
   /**
    * Setter for enabling/disabling span annotating
    */
@@ -386,6 +398,14 @@ export const createPreferencesStore = (
     setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
       set({ playgroundStreamingEnabled }, false, {
         type: "setPlaygroundStreamingEnabled",
+      });
+    },
+    hideExpectedAnnotationsInMetadata: true,
+    setHideExpectedAnnotationsInMetadata: (
+      hideExpectedAnnotationsInMetadata
+    ) => {
+      set({ hideExpectedAnnotationsInMetadata }, false, {
+        type: "setHideExpectedAnnotationsInMetadata",
       });
     },
     isAnnotatingSpans: false,

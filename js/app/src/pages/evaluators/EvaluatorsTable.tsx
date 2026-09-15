@@ -24,12 +24,17 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 import { Link, useNavigate } from "react-router";
 
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, LinkButton, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { ProjectToken } from "@phoenix/components/project";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { ACTIONS_COLUMN_ID } from "@phoenix/components/table";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -107,6 +112,9 @@ const readRow = (row: EvaluatorsTable_row$key) => {
         }
         datasetEvaluators {
           id
+          evaluator {
+            kind
+          }
           name
           description
           updatedAt
@@ -472,6 +480,42 @@ export const EvaluatorsTable = ({
         size: 160,
         cell: TimestampCell,
       },
+      {
+        // Pinned to the right edge like the prompts table's actions column.
+        id: ACTIONS_COLUMN_ID,
+        header: "",
+        size: 130,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const kind =
+            row.original.rowType === "evaluator"
+              ? row.original.data.kind
+              : row.original.data.evaluator.kind;
+
+          if (kind === "BUILTIN") return null;
+          const params = new URLSearchParams();
+
+          if (row.original.rowType === "datasetEvaluator") {
+            params.set("datasetId", row.original.data.dataset.id);
+            params.set("datasetEvaluator0", row.original.data.id);
+          } else params.set("evaluator0", row.original.data.id);
+
+          return (
+            <Flex direction="row" justifyContent="end" width="100%">
+              <StopPropagation>
+                <LinkButton
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                  size="S"
+                  aria-label="Open in playground"
+                  to={`/playground?${params}`}
+                >
+                  Playground
+                </LinkButton>
+              </StopPropagation>
+            </Flex>
+          );
+        },
+      },
     ];
     return cols;
   }, []);
@@ -490,6 +534,7 @@ export const EvaluatorsTable = ({
       sorting,
       expanded,
       columnSizing,
+      columnPinning: { right: [ACTIONS_COLUMN_ID] },
     },
     columnResizeMode: "onChange",
     onSortingChange: setSorting,
@@ -585,6 +630,7 @@ export const EvaluatorsTable = ({
                   colSpan={header.colSpan}
                   key={header.id}
                   style={{
+                    ...getCommonPinningStyles(header.column),
                     width: `calc(var(--header-${header.id}-size) * 1px)`,
                   }}
                 >
@@ -658,6 +704,7 @@ export const EvaluatorsTable = ({
                     <td
                       key={cell.id}
                       style={{
+                        ...getCommonPinningStyles(cell.column),
                         width: `calc(var(${colSizeVar}) * 1px)`,
                         maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                         overflow: "hidden",

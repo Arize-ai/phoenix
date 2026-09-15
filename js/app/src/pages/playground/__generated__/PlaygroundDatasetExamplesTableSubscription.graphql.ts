@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<202fc3c85057504511af507f5b466f3c>>
+ * @generated SignedSource<<6ee83261abfe4c4a58f6361c7b06cc73>>
  * @lightSyntaxTransform
  */
 
@@ -13,32 +13,47 @@ export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
+export type Language = "PYTHON" | "TYPESCRIPT";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
-export type ChatCompletionOverDatasetInput = {
-  appendedMessagesPath?: string | null;
-  connectionConfig?: ConnectionConfigInput | null;
+export type ExperimentsOverDatasetInput = {
   createEphemeralExperiment?: boolean | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
-  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
+  exampleIds?: ReadonlyArray<string> | null;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;
-  headers?: any | null;
   maxConcurrency?: number;
+  repetitions?: number;
+  splitIds?: ReadonlyArray<string> | null;
+  tasks: ReadonlyArray<ExperimentTaskInput>;
+};
+export type GenerativeCredentialInput = {
+  envVarName: string;
+  value: string;
+};
+export type ExperimentTaskInput = {
+  evaluator?: never;
+  prompt: PromptTaskInput;
+} | {
+  evaluator: EvaluatorTaskInput;
+  prompt?: never;
+};
+export type PromptTaskInput = {
+  appendedMessagesPath?: string | null;
+  connectionConfig?: ConnectionConfigInput | null;
+  evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
+  headers?: any | null;
   promptName?: string | null;
   promptVersion: ChatPromptVersionInput;
   promptVersionId?: string | null;
-  repetitions: number;
-  splitIds?: ReadonlyArray<string> | null;
   streamModelOutput?: boolean;
   templateVariablesPath?: string | null;
-  tracingEnabled?: boolean;
 };
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
@@ -234,10 +249,6 @@ export type ConnectionConfigInput = {
   project?: string | null;
   regionName?: string | null;
 };
-export type GenerativeCredentialInput = {
-  envVarName: string;
-  value: string;
-};
 export type PlaygroundEvaluatorInput = {
   description?: string | null;
   id: string;
@@ -287,13 +298,53 @@ export type FreeformAnnotationConfigInput = {
   threshold?: number | null;
   upperBound?: number | null;
 };
+export type EvaluatorTaskInput = {
+  evaluator: EvaluatorPreviewInput;
+  inputMapping: EvaluatorInputMappingInput;
+};
+export type EvaluatorPreviewInput = {
+  builtInEvaluatorId: string;
+  codeEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineLlmEvaluator: InlineLLMEvaluatorInput;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId: string;
+  inlineCodeEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
+  inlineCodeEvaluator: InlineCodeEvaluatorInput;
+  inlineLlmEvaluator?: never;
+};
+export type InlineLLMEvaluatorInput = {
+  description?: string | null;
+  name: string;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  promptVersion: ChatPromptVersionInput;
+};
+export type InlineCodeEvaluatorInput = {
+  description?: string | null;
+  language: Language;
+  name: string;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  sandboxConfigId?: string | null;
+  sourceCode: string;
+};
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
-  input: ChatCompletionOverDatasetInput;
+  input: ExperimentsOverDatasetInput;
 };
 export type PlaygroundDatasetExamplesTableSubscription$data = {
-  readonly chatCompletionOverDataset: {
+  readonly experimentsOverDataset: {
     readonly __typename: "ChatCompletionSubscriptionError";
     readonly datasetExampleId: string | null;
+    readonly experimentId: string | null;
     readonly experimentRun: {
       readonly id: string;
     } | null;
@@ -320,9 +371,11 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly experiment: {
       readonly id: string;
     };
+    readonly experimentId: string | null;
   } | {
     readonly __typename: "ChatCompletionSubscriptionResult";
     readonly datasetExampleId: string | null;
+    readonly experimentId: string | null;
     readonly experimentRun: {
       readonly id: string;
     } | null;
@@ -348,6 +401,7 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly datasetExampleId: string | null;
     readonly error: string | null;
     readonly evaluatorName: string;
+    readonly experimentId: string | null;
     readonly experimentRunEvaluation: {
       readonly annotatorKind: ExperimentRunAnnotatorKind;
       readonly explanation: string | null;
@@ -367,10 +421,12 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
     readonly __typename: "TextChunk";
     readonly content: string;
     readonly datasetExampleId: string | null;
+    readonly experimentId: string | null;
     readonly repetitionNumber: number | null;
   } | {
     readonly __typename: "ToolCallChunk";
     readonly datasetExampleId: string | null;
+    readonly experimentId: string | null;
     readonly function: {
       readonly arguments: string;
       readonly name: string;
@@ -414,52 +470,61 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "datasetExampleId",
+  "name": "experimentId",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "repetitionNumber",
+  "name": "datasetExampleId",
   "storageKey": null
 },
 v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "repetitionNumber",
+  "storageKey": null
+},
+v6 = {
   "kind": "InlineFragment",
   "selections": [
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
       "name": "content",
       "storageKey": null
-    },
-    (v3/*:: as any*/),
-    (v4/*:: as any*/)
+    }
   ],
   "type": "TextChunk",
   "abstractKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "kind": "InlineFragment",
   "selections": [
-    (v6/*:: as any*/),
     (v3/*:: as any*/),
     (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v7/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -468,7 +533,7 @@ v8 = {
       "name": "function",
       "plural": false,
       "selections": [
-        (v7/*:: as any*/),
+        (v8/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -483,12 +548,13 @@ v8 = {
   "type": "ToolCallChunk",
   "abstractKey": null
 },
-v9 = [
-  (v6/*:: as any*/)
+v10 = [
+  (v7/*:: as any*/)
 ],
-v10 = {
+v11 = {
   "kind": "InlineFragment",
   "selections": [
+    (v3/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -496,21 +562,21 @@ v10 = {
       "kind": "LinkedField",
       "name": "experiment",
       "plural": false,
-      "selections": (v9/*:: as any*/),
+      "selections": (v10/*:: as any*/),
       "storageKey": null
     }
   ],
   "type": "ChatCompletionSubscriptionExperiment",
   "abstractKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "traceId",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "Span",
@@ -518,7 +584,7 @@ v12 = {
   "name": "span",
   "plural": false,
   "selections": [
-    (v6/*:: as any*/),
+    (v7/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -569,7 +635,7 @@ v12 = {
       "kind": "LinkedField",
       "name": "project",
       "plural": false,
-      "selections": (v9/*:: as any*/),
+      "selections": (v10/*:: as any*/),
       "storageKey": null
     },
     {
@@ -580,39 +646,41 @@ v12 = {
       "name": "context",
       "plural": false,
       "selections": [
-        (v11/*:: as any*/)
+        (v12/*:: as any*/)
       ],
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "ExperimentRun",
   "kind": "LinkedField",
   "name": "experimentRun",
   "plural": false,
-  "selections": (v9/*:: as any*/),
+  "selections": (v10/*:: as any*/),
   "storageKey": null
-},
-v14 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v3/*:: as any*/),
-    (v4/*:: as any*/),
-    (v12/*:: as any*/),
-    (v13/*:: as any*/)
-  ],
-  "type": "ChatCompletionSubscriptionResult",
-  "abstractKey": null
 },
 v15 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
     (v4/*:: as any*/),
+    (v5/*:: as any*/),
+    (v13/*:: as any*/),
+    (v14/*:: as any*/)
+  ],
+  "type": "ChatCompletionSubscriptionResult",
+  "abstractKey": null
+},
+v16 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v3/*:: as any*/),
+    (v4/*:: as any*/),
+    (v5/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -620,20 +688,20 @@ v15 = {
       "name": "message",
       "storageKey": null
     },
-    (v12/*:: as any*/),
-    (v13/*:: as any*/)
+    (v13/*:: as any*/),
+    (v14/*:: as any*/)
   ],
   "type": "ChatCompletionSubscriptionError",
   "abstractKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluatorName",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "concreteType": "ExperimentRunAnnotation",
@@ -641,8 +709,8 @@ v17 = {
   "name": "experimentRunEvaluation",
   "plural": false,
   "selections": [
-    (v6/*:: as any*/),
     (v7/*:: as any*/),
+    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -688,14 +756,14 @@ v17 = {
   ],
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "projectId",
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -714,22 +782,23 @@ return {
         "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
-        "name": "chatCompletionOverDataset",
+        "name": "experimentsOverDataset",
         "plural": false,
         "selections": [
           (v2/*:: as any*/),
-          (v5/*:: as any*/),
-          (v8/*:: as any*/),
-          (v10/*:: as any*/),
-          (v14/*:: as any*/),
+          (v6/*:: as any*/),
+          (v9/*:: as any*/),
+          (v11/*:: as any*/),
           (v15/*:: as any*/),
+          (v16/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
-              (v16/*:: as any*/),
+              (v5/*:: as any*/),
               (v17/*:: as any*/),
+              (v18/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -738,12 +807,12 @@ return {
                 "name": "trace",
                 "plural": false,
                 "selections": [
-                  (v11/*:: as any*/),
-                  (v18/*:: as any*/)
+                  (v12/*:: as any*/),
+                  (v19/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v19/*:: as any*/)
+              (v20/*:: as any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -766,22 +835,23 @@ return {
         "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
-        "name": "chatCompletionOverDataset",
+        "name": "experimentsOverDataset",
         "plural": false,
         "selections": [
           (v2/*:: as any*/),
-          (v5/*:: as any*/),
-          (v8/*:: as any*/),
-          (v10/*:: as any*/),
-          (v14/*:: as any*/),
+          (v6/*:: as any*/),
+          (v9/*:: as any*/),
+          (v11/*:: as any*/),
           (v15/*:: as any*/),
+          (v16/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*:: as any*/),
               (v4/*:: as any*/),
-              (v16/*:: as any*/),
+              (v5/*:: as any*/),
               (v17/*:: as any*/),
+              (v18/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -790,13 +860,13 @@ return {
                 "name": "trace",
                 "plural": false,
                 "selections": [
-                  (v11/*:: as any*/),
-                  (v18/*:: as any*/),
-                  (v6/*:: as any*/)
+                  (v12/*:: as any*/),
+                  (v19/*:: as any*/),
+                  (v7/*:: as any*/)
                 ],
                 "storageKey": null
               },
-              (v19/*:: as any*/)
+              (v20/*:: as any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -807,16 +877,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "05cb4d6b7ab41e566e27ca08e220c0c0",
+    "cacheID": "ef702999b5fc30945054e610dd4b0cc5",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ExperimentsOverDatasetInput!\n) {\n  experimentsOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      content\n    }\n    ... on ToolCallChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experimentId\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      message\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on EvaluationChunk {\n      experimentId\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e035a08659fb9434a83d35b0b5de6b13";
+(node as any).hash = "923946b95ed51fc7866c415bbcc2392f";
 
 export default node;

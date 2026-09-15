@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import ConfigDict, Field, StringConstraints, model_validator
+from pydantic.alias_generators import to_camel
 
 from phoenix.server.api.types.node import (
     CodeEvaluatorNodeId,
@@ -94,10 +95,31 @@ PlaygroundModelUIContext = Annotated[
 ]
 
 
+class PlaygroundPromptTaskUIContext(BaseUIContext):
+    kind: Literal["prompt"] = "prompt"
+
+
+class PlaygroundEvaluatorTaskUIContext(BaseUIContext):
+    """An evaluator draft judged over the dataset; its judge prompt is the instance's prompt."""
+
+    kind: Literal["evaluator"] = "evaluator"
+    evaluator_kind: Literal["LLM", "CODE"]
+    name: str
+    is_dirty: bool = False
+
+
+PlaygroundInstanceTaskUIContext = Annotated[
+    PlaygroundPromptTaskUIContext | PlaygroundEvaluatorTaskUIContext,
+    Field(discriminator="kind"),
+]
+
+
 class PlaygroundInstanceUIContext(BaseUIContext):
     instance_id: int
     model: PlaygroundModelUIContext | None = None
     experiment_id: ExperimentNodeId | None = None
+    # Absent for older clients, which only ever mounted prompt instances.
+    task: PlaygroundInstanceTaskUIContext | None = None
 
 
 class PlaygroundEvaluatorUIContext(BaseUIContext):
@@ -115,7 +137,14 @@ class PlaygroundExperimentScaffoldUIContext(BaseUIContext):
 
 
 class PlaygroundUIContext(BaseUIContext):
+    # Persisted agent sessions carry the contexts of the turn that wrote them. Earlier
+    # builds of the evaluator playground wrote `mode`, `evaluatorSlots` and `sampleSize`
+    # here; those fields are gone, and a session that recorded them must still load.
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, extra="ignore")
+
     type: Literal["playground"]
+    # Every instance on the page holds the same kind of task.
+    task_kind: Literal["prompt", "evaluator"] = "prompt"
     record_experiments: bool = True
     repetitions: int = 1
     next_experiment_scaffold: PlaygroundExperimentScaffoldUIContext | None = None
