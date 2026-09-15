@@ -501,13 +501,16 @@ HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # CLI and the public Phoenix skills). The Claude Code agents resume their session across
 # steps and only speak the Anthropic API, so HARBOR_MODEL must be an anthropic/ model.
 HARBOR_AGENT ?= phoenix-chat-agent
+# Keep in sync with the kwargs.version pins in evals/harbor/jobs/error-analysis.yaml.
+HARBOR_CLAUDE_CODE_VERSION ?= 2.1.267
+HARBOR_CLAUDE_CODE_ARGS := --resume-trajectory --agent-kwarg version=$(HARBOR_CLAUDE_CODE_VERSION)
 HARBOR_PUBLIC_SKILLS := $(addprefix .agents/skills/,phoenix-cli phoenix-error-analysis phoenix-evals phoenix-tracing)
 ifeq ($(HARBOR_AGENT),phoenix-chat-agent)
 HARBOR_AGENT_ARGS := -a evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
 else ifeq ($(HARBOR_AGENT),claude-code-mcp)
-HARBOR_AGENT_ARGS := -a evals.harbor.agents.claude_code_agents:ClaudeCodeMcpAgent --resume-trajectory
+HARBOR_AGENT_ARGS := -a evals.harbor.agents.claude_code_agents:ClaudeCodeMcpAgent $(HARBOR_CLAUDE_CODE_ARGS)
 else ifeq ($(HARBOR_AGENT),claude-code-cli)
-HARBOR_AGENT_ARGS := -a evals.harbor.agents.claude_code_agents:ClaudeCodeCliAgent --resume-trajectory \
+HARBOR_AGENT_ARGS := -a evals.harbor.agents.claude_code_agents:ClaudeCodeCliAgent $(HARBOR_CLAUDE_CODE_ARGS) \
 	$(foreach skill,$(HARBOR_PUBLIC_SKILLS),--skill $(skill))
 endif
 # Extra arguments for harbor-compare, e.g. --plugin arize-phoenix ...

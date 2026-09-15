@@ -20,11 +20,15 @@ agents:
     model_name: anthropic/claude-fable-5-1
     extra_allowed_hosts: [api.anthropic.com]
     resume_trajectory: true
+    kwargs:
+      version: "2.1.267"
   - name: claude-code-cli
     import_path: evals.harbor.agents.claude_code_agents:ClaudeCodeCliAgent
     model_name: anthropic/claude-fable-5-1
     extra_allowed_hosts: [api.anthropic.com]
     resume_trajectory: true
+    kwargs:
+      version: "2.1.267"
     skills:
       - .agents/skills/phoenix-cli
       - .agents/skills/phoenix-error-analysis
