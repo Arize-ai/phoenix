@@ -146,28 +146,38 @@ def test_mutation_lookup_prints_its_input_closure(index: Index) -> None:
     assert text.rstrip().splitlines()[-1].startswith("# DatasetMutationPayload:")
 
 
-def test_type_lookup_prints_the_path_as_pruned_sdl(index: Index) -> None:
+def test_type_lookup_prints_one_line_paths(index: Index) -> None:
     text = lookup(index, "Experiment")
-    assert "# reached through:" in text
-    assert "type Dataset implements Node {\n" in text
-    assert "  experiments(" in text
-    assert "  baselineExperiment: Experiment\n" in text
-    # The pruned Dataset carries only the fields on the paths, not all 22.
-    assert "  exampleCount(" not in text
+    assert "# via Dataset.experiments" in text
+    assert "# via Dataset.baselineExperiment" in text
+    assert "type Dataset" not in text
     assert "# ExperimentRun:" in text
     assert "# ExperimentRunConnection" not in text
 
 
 def test_field_lookup_prints_the_path_to_its_parent(index: Index) -> None:
     text = lookup(index, "Span.costSummary")
-    assert "type Query {\n  getSpanByOtelId(spanId: String!): Span\n}" in text
-    assert "type Span implements Node {\n  costSummary: SpanCostSummary\n}" in text
+    assert "# via Query.getSpanByOtelId > Span.costSummary" in text
+    assert "type Query" not in text
+
+
+def test_types_render_one_member_per_line_with_trailing_descriptions() -> None:
+    schema = build_schema(
+        '"""A thing."""\ntype Query { """The id. Never null."""\nid: ID, n(k: Int = 1): Int }'
+    )
+    text = lookup(build_index(schema), "Query")
+    assert text.splitlines()[:3] == [
+        "type Query {  # A thing.",
+        "  id: ID  # The id.",
+        "  n(k: Int = 1): Int",
+    ]
+    assert '"""' not in text
 
 
 def test_abstract_types_list_their_possible_types(index: Index) -> None:
     union = lookup(index, "PromptTemplate")
-    assert "# possible types: PromptStringTemplate, PromptChatTemplate" in union
-    assert "# reached through:" in union
+    assert first_line(union) == "union PromptTemplate = PromptStringTemplate | PromptChatTemplate"
+    assert "# via PromptVersion.template" in union
     node = lookup(index, "Node")
     possible = next(line for line in node.splitlines() if line.startswith("# possible types: "))
     assert "Project" in possible and "Experiment" in possible
@@ -254,7 +264,7 @@ def test_union_members_are_reached_through_the_union_field() -> None:
     assert index.via("A") == "Query.thing > Thing.data"
     assert first_line(search(index, "x")) == "A.x: Int  via Query.thing > Thing.data"
     assert reach_paths(index, "B") == [("Query.thing", "Thing.data")]
-    assert "# reached through:" in lookup(index, "B")
+    assert "# via Query.thing > Thing.data" in lookup(index, "B")
 
 
 def test_cut_member_stubs_explain_their_marker() -> None:
