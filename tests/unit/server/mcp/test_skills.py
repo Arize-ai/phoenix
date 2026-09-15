@@ -19,7 +19,7 @@ from phoenix.server.mcp.skills import (
     PXI_SKILLS_ROOTS,
     SHARED_SKILLS_ROOT,
     Skill,
-    load_configured_skills,
+    load_external_skills,
     load_skills,
     merge_skills,
 )
@@ -327,7 +327,7 @@ async def test_configured_visibility_controls_instructions_and_tools(
     monkeypatch.delenv("PHOENIX_SKILLS_VISIBILITY", raising=False)
     if mode:
         monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", mode)
-    skills = load_configured_skills()
+    skills = load_external_skills()
     expected = {"opted-in"} if mode == "explicit" else {"opted-in", "opted-out", "unmarked"}
     assert {skill.name for skill in skills} == expected
     async with Client(_server(SHARED_SKILLS_ROOT, additional_skills=skills)) as client:
@@ -348,13 +348,13 @@ def test_configured_paths_are_comma_separated(
     _write_skill(tmp_path / "first" / "a-skill")
     _write_skill(tmp_path / "second" / "b-skill")
     monkeypatch.setenv("PHOENIX_SKILLS_PATHS", f" {tmp_path / 'first'}, ,{tmp_path / 'second'},")
-    assert [skill.name for skill in load_configured_skills()] == ["a-skill", "b-skill"]
+    assert [skill.name for skill in load_external_skills()] == ["a-skill", "b-skill"]
 
 
 def test_invalid_visibility(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", "true")
     with pytest.raises(ValueError, match="PHOENIX_SKILLS_VISIBILITY"):
-        load_configured_skills()
+        load_external_skills()
 
 
 def test_individual_skill_symlink_and_relative_path(
@@ -364,7 +364,7 @@ def test_individual_skill_symlink_and_relative_path(
     (tmp_path / "a-skill").symlink_to(tmp_path / "installed" / "a-skill", target_is_directory=True)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PHOENIX_SKILLS_PATHS", "./a-skill")
-    assert [skill.name for skill in load_configured_skills()] == ["a-skill"]
+    assert [skill.name for skill in load_external_skills()] == ["a-skill"]
 
 
 def test_visibility_is_part_of_the_cache_key(tmp_path: Path) -> None:

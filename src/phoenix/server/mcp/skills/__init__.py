@@ -123,18 +123,22 @@ def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
         raise ValueError(f"{source}: frontmatter must be a mapping")
     description = " ".join(_required_string(mapping, "description", source).split())
     summary = _get_frontmatter_value_if_exists_and_is_string(mapping, "summary", source)
-    metadata = mapping.get("metadata") or {}
+    return _Frontmatter(
+        name=_required_string(mapping, "name", source),
+        description=description,
+        summary=summary.strip() if summary else _truncate(description, _SUMMARY_MAX_CHARS),
+        visibility=_parse_visibility(mapping, source),
+    )
+
+
+def _parse_visibility(frontmatter: dict[str, Any], source: Path) -> Optional[SkillVisibility]:
+    metadata = frontmatter.get("metadata") or {}
     if not isinstance(metadata, dict):
         raise ValueError(f"{source}: metadata must be a mapping")
     visibility = metadata.get(_VISIBILITY_METADATA_KEY)
     if visibility is not None and not _is_skill_visibility(visibility):
         raise ValueError(f"{source}: {_VISIBILITY_METADATA_KEY} must be 'visible' or 'hidden'")
-    return _Frontmatter(
-        name=_required_string(mapping, "name", source),
-        description=description,
-        summary=summary.strip() if summary else _truncate(description, _SUMMARY_MAX_CHARS),
-        visibility=visibility,
-    )
+    return visibility
 
 
 def _required_string(frontmatter: dict[str, Any], key: str, source: Path) -> str:
@@ -178,6 +182,17 @@ def _scan_references(skill_dir: Path) -> tuple[SkillReference, ...]:
     )
 
 
+def _is_skill_directory(path: Path) -> bool:
+    return (path / _SKILL_FILE).is_file()
+
+
+def _skill_directories(root: Path) -> list[Path]:
+    """``root`` itself when it is a skill, otherwise its skill children by name."""
+    if _is_skill_directory(root):
+        return [root]
+    return sorted(filter(_is_skill_directory, root.iterdir()))
+
+
 @lru_cache(maxsize=None)
 def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Skill, ...]:
     """Every skill under ``roots``: root order first, name order within a root."""
@@ -185,12 +200,7 @@ def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Ski
     for root in roots:
         if not root.is_dir():
             raise ValueError(f"Skills root {root} is not a directory")
-        directories = (
-            [root]
-            if (root / _SKILL_FILE).is_file()
-            else sorted(child for child in root.iterdir() if (child / _SKILL_FILE).is_file())
-        )
-        for directory in directories:
+        for directory in _skill_directories(root):
             skill = Skill.from_directory(directory)
             if explicit and skill.visibility != "visible":
                 continue
@@ -203,7 +213,7 @@ def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Ski
     return tuple(skills.values())
 
 
-def load_configured_skills() -> tuple[Skill, ...]:
+def load_external_skills() -> tuple[Skill, ...]:
     return load_skills(get_env_skills_paths(), explicit=get_env_skills_visibility() == "explicit")
 
 
