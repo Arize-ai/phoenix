@@ -32,6 +32,7 @@ import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEval
 
 import { PlaygroundDatasetExamplesTable } from "./PlaygroundDatasetExamplesTable";
 import { PlaygroundDatasetExamplesTableProvider } from "./PlaygroundDatasetExamplesTableContext";
+import { PlaygroundDatasetExamplesTablePreferencesProvider } from "./PlaygroundDatasetExamplesTablePreferences";
 import { PlaygroundExperimentToolbar } from "./PlaygroundExperimentToolbar";
 
 /**
@@ -261,56 +262,64 @@ export function PlaygroundDatasetSection({
     (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
   );
 
+  // Reported by the table as examples load; the toolbar's column selector
+  // needs it to show the metadata column's state.
+  const [hasExampleMetadata, setHasExampleMetadata] = useState(false);
+
   // We want to re-mount the context when the dataset or the splits change
   const key = `${datasetId}-${splitIds?.join("-")}`;
   return (
-    <TitledPanel
-      ref={panelRef}
-      resizable
-      headingLevel={2}
-      title="Experiment"
-      extra={
-        <PlaygroundExperimentToolbar
-          datasetId={datasetId}
-          datasetEvaluators={datasetEvaluators}
-          selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
-          onSelectionChange={setSelectedDatasetEvaluatorIds}
-          updateConnectionIds={
-            data.dataset.datasetEvaluators?.__id != null
-              ? [data.dataset.datasetEvaluators.__id]
-              : []
-          }
-          onEvaluatorCreated={onEvaluatorCreated}
-          query={data}
-          isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
-          onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
-          isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
-          onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
-          editingEvaluator={editingEvaluator}
-          onEditingEvaluatorChange={setEditingEvaluator}
-        />
-      }
-      panelProps={IO_PANEL_PROPS}
-      onCollapseChange={onPanelCollapseChange}
-    >
-      <Flex direction={"column"} height={"100%"}>
-        <PlaygroundDatasetExamplesTableProvider key={key}>
-          <PlaygroundDatasetExamplesTable
+    <PlaygroundDatasetExamplesTablePreferencesProvider>
+      <TitledPanel
+        ref={panelRef}
+        resizable
+        headingLevel={2}
+        title="Experiment"
+        extra={
+          <PlaygroundExperimentToolbar
             datasetId={datasetId}
-            splitIds={splitIds}
-            evaluatorMappings={
-              isEvaluatorKind
-                ? NO_EVALUATOR_MAPPINGS
-                : selectedEvaluatorWithInputMapping
+            hasExampleMetadata={hasExampleMetadata}
+            datasetEvaluators={datasetEvaluators}
+            selectedDatasetEvaluatorIds={selectedDatasetEvaluatorIds}
+            onSelectionChange={setSelectedDatasetEvaluatorIds}
+            updateConnectionIds={
+              data.dataset.datasetEvaluators?.__id != null
+                ? [data.dataset.datasetEvaluators.__id]
+                : []
             }
-            evaluatorOutputConfigs={
-              isEvaluatorKind
-                ? NO_EVALUATOR_OUTPUT_CONFIGS
-                : evaluatorOutputConfigs
-            }
+            onEvaluatorCreated={onEvaluatorCreated}
+            query={data}
+            isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+            onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
+            isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+            onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
+            editingEvaluator={editingEvaluator}
+            onEditingEvaluatorChange={setEditingEvaluator}
           />
-        </PlaygroundDatasetExamplesTableProvider>
-      </Flex>
-    </TitledPanel>
+        }
+        panelProps={IO_PANEL_PROPS}
+        onCollapseChange={onPanelCollapseChange}
+      >
+        <Flex direction={"column"} height={"100%"}>
+          <PlaygroundDatasetExamplesTableProvider key={key}>
+            <PlaygroundDatasetExamplesTable
+              datasetId={datasetId}
+              splitIds={splitIds}
+              evaluatorMappings={
+                isEvaluatorKind
+                  ? NO_EVALUATOR_MAPPINGS
+                  : selectedEvaluatorWithInputMapping
+              }
+              evaluatorOutputConfigs={
+                isEvaluatorKind
+                  ? NO_EVALUATOR_OUTPUT_CONFIGS
+                  : evaluatorOutputConfigs
+              }
+              onHasMetadataChange={setHasExampleMetadata}
+            />
+          </PlaygroundDatasetExamplesTableProvider>
+        </Flex>
+      </TitledPanel>
+    </PlaygroundDatasetExamplesTablePreferencesProvider>
   );
 }

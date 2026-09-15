@@ -66,6 +66,7 @@ import {
   ExperimentCostAndLatencySummary,
   type ExperimentCostAndLatencySummaryExperiment,
   ExperimentInputCell,
+  ExperimentMetadataCell,
   ExperimentReferenceOutputCell,
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
@@ -115,6 +116,12 @@ import {
 } from "./evaluatorCells";
 import { getEvaluatorTaskName } from "./evaluators/evaluatorTaskSnapshot";
 import {
+  ANNOTATIONS_KEY,
+  getDisplayedMetadata,
+  getExampleColumnVisibility,
+  hasDisplayableMetadata,
+} from "./exampleColumns";
+import {
   createExperimentsOverDatasetRouter,
   type ExperimentsOverDatasetEvent,
 } from "./experimentsOverDatasetEvents";
@@ -134,6 +141,7 @@ import {
   type Span,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
+import { usePlaygroundDatasetExamplesTablePreferences } from "./PlaygroundDatasetExamplesTablePreferences";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
@@ -836,6 +844,7 @@ export function PlaygroundDatasetExamplesTable({
   splitIds,
   evaluatorMappings,
   evaluatorOutputConfigs,
+  onHasMetadataChange,
 }: {
   datasetId: string;
   splitIds?: string[];
@@ -844,6 +853,11 @@ export function PlaygroundDatasetExamplesTable({
    * Record of evaluator id to name and input mappings
    */
   evaluatorMappings: PlaygroundEvaluatorMappings;
+  /**
+   * Called with whether a loaded example has metadata to show, for the
+   * toolbar's column selector, which has no rows of its own to look at.
+   */
+  onHasMetadataChange: (hasMetadata: boolean) => void;
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -1339,6 +1353,30 @@ export function PlaygroundDatasetExamplesTable({
     [tableData]
   );
 
+  // The metadata column shows itself while a loaded example has metadata and
+  // no column choice is stored; the toolbar's selector shows the same state.
+  const hasMetadata = useMemo(
+    () => tableData.some((row) => hasDisplayableMetadata(row.metadata)),
+    [tableData]
+  );
+
+  useEffect(() => {
+    onHasMetadataChange(hasMetadata);
+  }, [hasMetadata, onHasMetadataChange]);
+
+  const storedVisibility = usePlaygroundDatasetExamplesTablePreferences(
+    (state) => state.columnVisibility
+  );
+
+  const setColumnVisibility = usePlaygroundDatasetExamplesTablePreferences(
+    (state) => state.setColumnVisibility
+  );
+
+  const columnVisibility = useMemo(
+    () => getExampleColumnVisibility({ hasMetadata, storedVisibility }),
+    [hasMetadata, storedVisibility]
+  );
+
   const reloadExamples = useCallback(() => {
     refetch({}, { fetchPolicy: "network-only" });
   }, [refetch]);
@@ -1521,6 +1559,24 @@ export function PlaygroundDatasetExamplesTable({
         ),
         size: 200,
       },
+      {
+        header: "metadata",
+        accessorKey: "metadata",
+        cell: ({ row }) => {
+          const { value, isHidingAnnotations } = getDisplayedMetadata(
+            row.original.metadata
+          );
+
+          return (
+            <ExperimentMetadataCell
+              value={value}
+              height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+              extra={isHidingAnnotations ? <HiddenAnnotationsNotice /> : null}
+            />
+          );
+        },
+        size: 200,
+      },
       ...playgroundInstanceOutputColumns,
     ],
     [
@@ -1533,6 +1589,8 @@ export function PlaygroundDatasetExamplesTable({
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onChange",
   });
@@ -1581,6 +1639,7 @@ export function PlaygroundDatasetExamplesTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     table.getState().columnSizing,
     columns.length,
+    columnVisibility,
   ]);
 
   return (
@@ -1743,6 +1802,28 @@ export function PlaygroundDatasetExamplesTable({
         </div>
       </PlaygroundExpectedOutputsProvider>
     </InstanceVariablesProvider>
+  );
+}
+
+/**
+ * Says that the metadata cell leaves out the `annotations` key, and why: it
+ * holds the expected outputs, which the evaluator cells already show.
+ */
+function HiddenAnnotationsNotice() {
+  return (
+    <TooltipTrigger>
+      <IconButton
+        size="S"
+        aria-label={`The "${ANNOTATIONS_KEY}" key is hidden in this cell`}
+      >
+        <Icon svg={<Icons.Info />} />
+      </IconButton>
+      <Tooltip>
+        <TooltipArrow />
+        The &quot;{ANNOTATIONS_KEY}&quot; key is hidden. It holds the expected
+        outputs recorded for evaluators; the example details show it in full.
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
 

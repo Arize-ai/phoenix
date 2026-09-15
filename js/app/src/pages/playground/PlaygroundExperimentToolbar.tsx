@@ -17,6 +17,7 @@ import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playgro
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
+import { PlaygroundExampleColumnSelector } from "@phoenix/pages/playground/PlaygroundExampleColumnSelector";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -25,6 +26,8 @@ type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
 
 type PlaygroundExperimentToolbarProps = {
   datasetId: string;
+  /** Whether a loaded example has metadata to show; see the column selector. */
+  hasExampleMetadata: boolean;
   datasetEvaluators: (DatasetEvaluatorNode & EvaluatorItem)[];
   selectedDatasetEvaluatorIds: string[];
   onSelectionChange: (ids: string[]) => void;
@@ -41,6 +44,7 @@ type PlaygroundExperimentToolbarProps = {
 
 export function PlaygroundExperimentToolbar({
   datasetId,
+  hasExampleMetadata,
   datasetEvaluators,
   selectedDatasetEvaluatorIds,
   onSelectionChange,
@@ -125,6 +129,7 @@ export function PlaygroundExperimentToolbar({
         />
       ) : null}
       <PlaygroundDatasetSelect isDisabled={isRunning} />
+      <PlaygroundExampleColumnSelector hasMetadata={hasExampleMetadata} />
       <PlaygroundExperimentSettingsButton
         isDisabled={isRunning}
         datasetId={datasetId}

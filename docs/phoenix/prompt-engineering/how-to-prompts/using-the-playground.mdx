@@ -58,6 +58,8 @@ Phoenix lets you run a prompt (or multiple prompts) on a dataset. Simply [load a
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" />
 </Frame>
 
+The table shows each example's **input** and **reference output** beside the tasks' columns. Use **Columns** in the experiment toolbar to show or hide those and the example's **metadata**. Metadata starts hidden unless the loaded examples carry some, your choice is remembered in the browser, and the metadata cell leaves out the `annotations` key that holds expected outputs recorded for evaluators.
+
 ### Configuring Dataset Paths
 
 By default, the playground reads template variables from `input`, so `{question}` will resolve against `input.question` automatically. If your dataset examples store inputs under a different nested object, you can configure where the playground should read prompt variables from:
