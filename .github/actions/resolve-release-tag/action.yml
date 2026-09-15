@@ -1,9 +1,9 @@
-name: Resolve a release tag to a commit on the default branch
+name: Resolve a release tag to a commit on the release branch
 description: >-
   Resolve a release tag to its commit and fail unless that commit is reachable
-  from the default branch. Release jobs publish whatever they check out, so
-  this refuses a tag that was moved onto a commit that never landed on the
-  default branch. It is defense in depth, not the access control: the
+  from the release branch (main unless overridden). Release jobs publish
+  whatever they check out, so this refuses a tag that was moved onto a commit
+  that never landed on that branch. It is defense in depth, not the access control: the
   workflow that runs it comes from the ref the release was dispatched from,
   so it only guards a release dispatched from a trusted ref. Restricting who
   can create or move release tags, and which branches may deploy to the
@@ -14,26 +14,37 @@ inputs:
   tag:
     description: Tag name to resolve, without the refs/tags/ prefix.
     required: true
+  branch:
+    description: >-
+      Branch the tagged commit must be reachable from. Defaults to main
+      rather than the event's default branch because not every event carries
+      a repository payload.
+    required: false
+    default: main
 
 outputs:
   revision:
     description: >-
-      Full SHA of the commit the tag points at, verified to be on the default
+      Full SHA of the commit the tag points at, verified to be on the
       branch.
     value: ${{ steps.resolve.outputs.revision }}
 
 runs:
   using: composite
   steps:
-    - name: Resolve tag and verify it is on the default branch
+    - name: Resolve tag and verify it is on the branch
       id: resolve
       shell: bash
       env:
         TAG: ${{ inputs.tag }}
-        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        BRANCH: ${{ inputs.branch }}
         GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
+        if [ -z "$BRANCH" ]; then
+          echo "::error::No branch to verify tag ${TAG} against"
+          exit 1
+        fi
         # ls-remote lists the peeled `^{}` line after an annotated tag's own
         # line, so the last line is the commit for both tag types.
         REVISION=$(git ls-remote origin "refs/tags/${TAG}" "refs/tags/${TAG}^{}" | tail -n1 | cut -f1)
@@ -43,15 +54,15 @@ runs:
         fi
         # The compare API needs no local history (release jobs use shallow
         # checkouts). identical/behind: every commit at the tag is on the
-        # default branch. ahead/diverged: at least one is not. per_page=1
-        # trims the commit and file lists; status covers the full range.
-        STATUS=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${DEFAULT_BRANCH}...${REVISION}?per_page=1" --jq .status)
+        # branch. ahead/diverged: at least one is not. per_page=1 trims the
+        # commit and file lists; status covers the full range.
+        STATUS=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BRANCH}...${REVISION}?per_page=1" --jq .status)
         case "$STATUS" in
           identical|behind) ;;
           *)
-            echo "::error::Tag ${TAG} (${REVISION}) is ${STATUS} relative to ${DEFAULT_BRANCH}. Release tags must point at a commit that is already on ${DEFAULT_BRANCH}."
+            echo "::error::Tag ${TAG} (${REVISION}) is ${STATUS} relative to ${BRANCH}. Release tags must point at a commit that is already on ${BRANCH}."
             exit 1
             ;;
         esac
-        echo "Tag ${TAG} -> ${REVISION} (on ${DEFAULT_BRANCH})"
+        echo "Tag ${TAG} -> ${REVISION} (on ${BRANCH})"
         echo "revision=${REVISION}" >> "$GITHUB_OUTPUT"
