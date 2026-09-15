@@ -187,11 +187,9 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
     if not allow_mutations:
         return
 
-    # Annotated destructive so the client is the one that asks. This surface has
-    # no approval step of its own: nothing here can reach a person, and a client
-    # driving it unattended has nobody to ask. What bounds the call is the
-    # caller's own permissions, enforced by the same resolvers the GraphQL
-    # endpoint runs.
+    # Annotated destructive: this transport has no approval step, so any
+    # confirmation is the client's. The call is bounded by the caller's own
+    # permissions, enforced by the same resolvers the GraphQL endpoint runs.
     @mcp.tool(
         tags={_GRAPHQL_TAG},
         annotations=_DEFAULT_ANNOTATIONS,

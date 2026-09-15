@@ -323,8 +323,8 @@ class TestMutationTool:
 
     Nothing here can reach a person to ask. The gates are the caller's own
     permissions, enforced by the same resolvers the GraphQL endpoint runs, and a
-    destructive annotation that tells the client to confirm. A deployment that
-    wants neither gate to be the last word turns the tool off.
+    destructive annotation that tells the client to confirm. A read-only
+    deployment does not register the tool at all.
     """
 
     @pytest.fixture
