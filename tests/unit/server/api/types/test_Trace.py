@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Any, NamedTuple, Optional
 
@@ -417,118 +418,61 @@ async def test_trace_spans_pagination_parametrized(
             assert actual_end_cursor.rowid == spans[0].id
 
 
-async def test_trace_spans_root_spans_only(
+async def test_trace_root_span_is_the_earliest_orphan_aware_root(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """Test root_spans_only parameter for trace spans connection."""
+    """``spans`` lists every span; ``rootSpan`` is the earliest span with no parent or with a
+    parent that was never received."""
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
 
-        # Create spans with different parent relationships:
-        # - root_span_1: parent_id=None (true root span)
-        # - child_span_1: parent_id=root_span_1.span_id (child span)
-        # - orphan_span_1: parent_id=non_existent_span_id (orphan span)
-        # - root_span_2: parent_id=None (true root span)
+        orphan_span = await _add_span(session, trace, start_time=base_time)
+        orphan_span.name = "orphan-span"
+        orphan_span.parent_id = token_hex(8)  # Non-existent parent ID
 
-        root_span_1 = await _add_span(session, trace)
+        root_span_1 = await _add_span(session, trace, start_time=base_time + timedelta(seconds=1))
         root_span_1.name = "root-span-1"
-        root_span_1.parent_id = None
 
-        child_span_1 = await _add_span(session, trace, parent_span=root_span_1)
-        child_span_1.name = "child-span-1"
+        child_span = await _add_span(
+            session, trace, parent_span=root_span_1, start_time=base_time + timedelta(seconds=2)
+        )
+        child_span.name = "child-span"
 
-        orphan_span_1 = await _add_span(session, trace)
-        orphan_span_1.name = "orphan-span-1"
-        orphan_span_1.parent_id = token_hex(8)  # Non-existent parent ID
-
-        root_span_2 = await _add_span(session, trace)
+        root_span_2 = await _add_span(session, trace, start_time=base_time + timedelta(seconds=3))
         root_span_2.name = "root-span-2"
-        root_span_2.parent_id = None
 
         await session.commit()
 
     trace_gid = str(GlobalID(Trace.__name__, str(trace.id)))
 
-    query = """
-        query ($traceId: ID!, $first: Int!, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
-            node(id: $traceId) {
-                ... on Trace {
-                    spans(first: $first, rootSpansOnly: $rootSpansOnly, orphanSpanAsRootSpan: $orphanSpanAsRootSpan) {
-                        edges {
-                            node {
-                                id
-                                name
-                            }
-                        }
+    response = await gql_client.execute(
+        query="""
+            query ($traceId: ID!) {
+                node(id: $traceId) {
+                    ... on Trace {
+                        rootSpan { name }
+                        spans(first: 10) { edges { node { name } } }
                     }
                 }
             }
-        }
-    """
-
-    # Test 1: root_spans_only=False (default) - should return all spans
-    response = await gql_client.execute(
-        query=query,
-        variables={"traceId": trace_gid, "first": 10, "rootSpansOnly": False},
+        """,
+        variables={"traceId": trace_gid},
     )
     assert not response.errors
     assert (data := response.data) is not None
-    edges = data["node"]["spans"]["edges"]
-    assert len(edges) == 4
-    span_names = {edge["node"]["name"] for edge in edges}
-    assert span_names == {"root-span-1", "child-span-1", "orphan-span-1", "root-span-2"}
-
-    # Test 2: root_spans_only=True, orphan_span_as_root_span=True - should include both NULL and orphan spans
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "traceId": trace_gid,
-            "first": 10,
-            "rootSpansOnly": True,
-            "orphanSpanAsRootSpan": True,
-        },
-    )
-    assert not response.errors
-    assert (data := response.data) is not None
-    edges = data["node"]["spans"]["edges"]
-    assert len(edges) == 3
-    span_names = {edge["node"]["name"] for edge in edges}
-    assert span_names == {"root-span-1", "orphan-span-1", "root-span-2"}
-    # Child span should not be included
-    assert "child-span-1" not in span_names
-
-    # Test 3: root_spans_only=True, orphan_span_as_root_span=False - should only include NULL parent_id spans
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "traceId": trace_gid,
-            "first": 10,
-            "rootSpansOnly": True,
-            "orphanSpanAsRootSpan": False,
-        },
-    )
-    assert not response.errors
-    assert (data := response.data) is not None
-    edges = data["node"]["spans"]["edges"]
-    assert len(edges) == 2
-    span_names = {edge["node"]["name"] for edge in edges}
-    assert span_names == {"root-span-1", "root-span-2"}
-    # Orphan span and child span should not be included
-    assert "orphan-span-1" not in span_names
-    assert "child-span-1" not in span_names
+    assert data["node"]["rootSpan"] == {"name": "orphan-span"}
+    span_names = {edge["node"]["name"] for edge in data["node"]["spans"]["edges"]}
+    assert span_names == {"orphan-span", "root-span-1", "child-span", "root-span-2"}
 
 
-async def test_trace_spans_root_spans_only_cross_trace_parent(
+async def test_trace_root_span_treats_cross_trace_parent_as_orphan(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """Test that orphan span detection correctly filters by trace.
-
-    This test verifies that a span with a parent_id from a different trace
-    is correctly identified as an orphan (root span) in the current trace.
-    """
+    """A span whose parent id lives in another trace is an orphan, and so the root, here."""
     async with db() as session:
         project = await _add_project(session)
 
@@ -550,39 +494,18 @@ async def test_trace_spans_root_spans_only_cross_trace_parent(
 
     trace_2_gid = str(GlobalID(Trace.__name__, str(trace_2.id)))
 
-    query = """
-        query ($traceId: ID!, $first: Int!, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
-            node(id: $traceId) {
-                ... on Trace {
-                    spans(first: $first, rootSpansOnly: $rootSpansOnly, orphanSpanAsRootSpan: $orphanSpanAsRootSpan) {
-                        edges {
-                            node {
-                                id
-                                name
-                            }
-                        }
+    response = await gql_client.execute(
+        query="""
+            query ($traceId: ID!) {
+                node(id: $traceId) {
+                    ... on Trace {
+                        rootSpan { name }
                     }
                 }
             }
-        }
-    """
-
-    # Test: root_spans_only=True, orphan_span_as_root_span=True
-    # The span_in_trace_2 should be identified as an orphan (root span)
-    # because its parent_id doesn't exist in trace_2, even though it exists in trace_1
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "traceId": trace_2_gid,
-            "first": 10,
-            "rootSpansOnly": True,
-            "orphanSpanAsRootSpan": True,
-        },
+        """,
+        variables={"traceId": trace_2_gid},
     )
     assert not response.errors
     assert (data := response.data) is not None
-    edges = data["node"]["spans"]["edges"]
-    assert len(edges) == 1
-    assert edges[0]["node"]["name"] == "span-in-trace-2"
-    # Verify it's correctly identified as a root span (orphan)
-    # because its parent exists in a different trace
+    assert data["node"]["rootSpan"] == {"name": "span-in-trace-2"}

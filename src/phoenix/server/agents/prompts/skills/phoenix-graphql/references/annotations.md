@@ -20,7 +20,7 @@ Annotations are named labels/scores attached to spans, traces, sessions, or expe
 - Per trace / session: `Trace.traceAnnotations { ... }` and `ProjectSession.sessionAnnotations { ... }`; notes are the entries with `name == "note"`.
 - Project-wide discovery and rollups: `Project.spanAnnotationNames`, `Project.spanAnnotationSummary`, `Project.traceAnnotationNames`, `Project.traceAnnotationSummary` — use these to learn which annotation names exist before drilling in.
 - In a span `filterCondition`, reference span annotations as `annotations['<name>'].label` / `.score` / `.explanation` (or the legacy `evals['<name>']`). Use the bare `annotations['<name>']` form to test existence.
-- Reference trace annotations as `trace_annotations['<name>'].label` / `.score` / `.explanation`, or use the bare form to test existence. A match returns spans belonging to the annotated trace; combine with `rootSpansOnly: true` to return one root span per matching trace.
+- Reference trace annotations as `trace_annotations['<name>'].label` / `.score` / `.explanation`, or use the bare form to test existence. A match returns spans belonging to the annotated trace; add `parent_id is None` to the same condition to return only root spans.
 
 ## Example
 
@@ -51,8 +51,7 @@ query PoorQualityTraces($id: ID!) {
     ... on Project {
       spans(
         first: 20
-        rootSpansOnly: true
-        filterCondition: "trace_annotations['quality'].label == 'poor'"
+        filterCondition: "parent_id is None and trace_annotations['quality'].label == 'poor'"
       ) {
         edges { node { spanId name trace { traceId } } }
       }

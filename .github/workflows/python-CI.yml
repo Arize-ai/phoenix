@@ -95,7 +95,10 @@ jobs:
               - "src/phoenix/server/mcp/skills/**"
               - "src/phoenix/server/agents/prompts/skills/**"
               - "js/app/schema.graphql"
+              - "src/phoenix/trace/dsl/**"
+              - "scripts/ci/skill_examples.py"
               - "scripts/ci/test_skill_graphql_examples.py"
+              - "scripts/ci/test_skill_filter_dsl_examples.py"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -330,7 +333,7 @@ jobs:
         run: make check-filter-dsl-snippets
 
   check-skill-graphql-examples:
-    name: Check Skill GraphQL Examples
+    name: Check Skill Examples
     needs: changes
     if: ${{ needs.changes.outputs.skill_graphql_examples == 'true' }}
     strategy:
@@ -353,6 +356,8 @@ jobs:
           version-file: "pyproject.toml"
       - name: Check skill GraphQL examples against the exported schema
         run: make check-skill-graphql-examples
+      - name: Check skill filter conditions against the Python filters
+        run: make check-skill-filter-examples
 
   doctests:
     name: Doctests

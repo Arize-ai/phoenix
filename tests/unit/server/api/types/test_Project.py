@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from random import random
 from secrets import token_hex
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 
 import httpx
 import pandas as pd
@@ -1310,7 +1310,6 @@ async def test_project_spans(
               filterCondition: $filterCondition
               first: $first
               last: $last
-              rootSpansOnly: false
               sort: $sort
             ) {
               edges {
@@ -2950,65 +2949,48 @@ class TestProject:
         assert await _matched("'%' in any_input") == {_gid(sessions[2])}
         assert await _matched("'_' in any_output") == {_gid(sessions[3])}
 
-    @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
-    async def test_root_spans_only_with_orphan_spans(
+    async def test_root_span_clause_paginates_by_start_time(
         self,
         _orphan_spans: _Data,
         httpx_client: httpx.AsyncClient,
-        orphan_span_as_root_span: bool,
     ) -> None:
-        """Test pagination of root spans with orphan span handling.
-
-        This test verifies that:
-        1. Root spans are correctly identified based on orphan_span_as_root_span setting
-        2. Pagination works correctly when fetching spans in chunks
-        3. Spans are properly filtered and sorted
-        """
+        """``parent_span is None`` lists every root candidate (no parent, or a parent that was
+        never received), newest first, and pages by cursor alongside a trace filter."""
         project = _orphan_spans.projects[0]
-
-        root_spans = _representative_root_spans(
-            _orphan_spans.spans,
-            orphan_span_as_root_span,
-        )
-        filtered_spans = [span for span in root_spans if "2" in span.attributes["input"]["value"]]
-
-        # Sort spans by start time and ID
-        sorted_spans = sorted(filtered_spans, key=lambda t: (t.start_time, t.id), reverse=True)
-
-        # Convert to global IDs for comparison
-        gids = list(map(_gid, sorted_spans))
+        existing_span_ids = {s.span_id for s in _orphan_spans.spans}
+        roots = [
+            s
+            for s in _orphan_spans.spans
+            if s.parent_id is None or s.parent_id not in existing_span_ids
+        ]
+        roots.sort(key=lambda s: (s.start_time, s.id), reverse=True)
+        gids = list(map(_gid, roots))
         n = len(gids)
-        first = n // 2 + 1  # Request half the spans plus one
+        first = n // 2 + 1
 
-        # Test pagination
         cursor = ""
         for i in range(n):
             expected = gids[i : i + first]
-
-            # Construct GraphQL query
             field = (
                 "spans("
-                f"rootSpansOnly:true,"
-                f"orphanSpanAsRootSpan:{str(orphan_span_as_root_span).lower()},"
+                'filterCondition:"parent_span is None",'
+                'traceFilterCondition:"num_spans > 0",'
                 "sort:{col:startTime,dir:desc},"
-                "filterCondition:\"'2' in input.value\","
-                f"first:{str(first)},"
+                f"first:{first},"
                 f'after:"{cursor}"'
                 "){edges{node{id}cursor}}"
             )
-
-            # Execute query and verify results
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
 
-    async def test_parent_is_none_matches_orphan_aware_root_spans_only(
+    async def test_parent_span_is_none_matches_orphan_aware_roots(
         self,
         _orphan_spans: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """The DSL predicate selects every orphan-aware root candidate, while
-        ``rootSpansOnly`` selects one representative candidate per trace.
+        """``parent_span is None`` selects every orphan-aware root candidate: a span with no
+        parent, or one whose parent id references no span in the table.
         """
         project = _orphan_spans.projects[0]
 
@@ -3032,109 +3014,8 @@ class TestProject:
             project,
             httpx_client,
         )
-        flag_res = await self._node(
-            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
-            project,
-            httpx_client,
-        )
         dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
-        flag_ids = {e["node"]["id"] for e in flag_res["edges"]}
         assert dsl_ids == expected
-        assert flag_ids == {
-            _gid(span) for span in _representative_root_spans(_orphan_spans.spans, True)
-        }
-        assert flag_ids <= dsl_ids
-
-    @pytest.mark.parametrize(
-        "condition,orphan_span_as_root_span",
-        [
-            pytest.param("parent_span is None", True, id="orphan-aware-both"),
-            pytest.param("parent_id is None", True, id="strict-condition-orphan-aware-flag"),
-            pytest.param("parent_id is None", False, id="strict-both"),
-            pytest.param("parent_span is None", False, id="orphan-aware-condition-strict-flag"),
-            # Disjunction where every branch is strict-scoped: the flag skip now
-            # fires off an `or`, so the rows must still match the flag alone.
-            pytest.param(
-                "(parent_id is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                True,
-                id="disjunction-all-strict-orphan-flag",
-            ),
-            pytest.param(
-                "(parent_id is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                False,
-                id="disjunction-all-strict-strict-flag",
-            ),
-            # Negated root predicate: `not (parent_id is not None)` is strict-scoped,
-            # so the skip fires off a `not` and must not change the result.
-            pytest.param(
-                "not (parent_id is not None) and '1' in input.value",
-                True,
-                id="negated-predicate-strict-orphan-flag",
-            ),
-            pytest.param(
-                "not (parent_id is not None) and '1' in input.value",
-                False,
-                id="negated-predicate-strict-strict-flag",
-            ),
-            # A form the analyzer does *not* recognize (De Morgan over a compound):
-            # it under-claims, so the flag's scoping is applied as well. Pinned
-            # because an under-claim must stay harmless -- redundant SQL, same rows.
-            pytest.param(
-                "not (parent_id is not None or '9' in input.value)",
-                True,
-                id="unrecognized-form-flag-still-applied",
-            ),
-            # Disjunction whose branches mix strict and orphan-aware: scoped to
-            # orphan-aware (the wider), so it may skip the orphan-aware flag but
-            # not the strict one.
-            pytest.param(
-                "(parent_span is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                True,
-                id="disjunction-mixed-orphan-flag",
-            ),
-            pytest.param(
-                "(parent_span is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                False,
-                id="disjunction-mixed-strict-flag",
-            ),
-        ],
-    )
-    async def test_root_predicate_and_flag_together_match_the_flag_alone(
-        self,
-        _orphan_spans: _Data,
-        httpx_client: httpx.AsyncClient,
-        condition: str,
-        orphan_span_as_root_span: bool,
-    ) -> None:
-        """Combining `rootSpansOnly` with a root predicate intersects both scopes.
-
-        `rootSpansOnly` chooses a single representative per trace; an explicit
-        predicate can then remove that representative without promoting another
-        candidate from the same trace.
-        """
-        project = _orphan_spans.projects[0]
-        orphan_arg = str(orphan_span_as_root_span).lower()
-
-        async def span_ids(field: str) -> set[str]:
-            result = await self._node(field, project, httpx_client)
-            return {e["node"]["id"] for e in result["edges"]}
-
-        both = await span_ids(
-            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
-            f'filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
-        )
-        flag_only = await span_ids(
-            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
-            "first:100){edges{node{id}}}"
-        )
-        condition_only = await span_ids(
-            f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
-        )
-        assert both == flag_only & condition_only
 
     async def test_analyze_span_filter_condition_tracks_actual_query_scope(
         self,
@@ -3175,21 +3056,6 @@ class TestProject:
         # The verdict is only meaningful if the predicate actually narrowed the
         # result; a silently dropped predicate would make these equal.
         assert scoped_ids < unscoped_ids
-        # The boolean arguments additionally choose one representative per trace,
-        # so applying the filter to that view is the intersection of both scopes.
-        flag_only_res = await self._node(
-            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
-            project,
-            httpx_client,
-        )
-        flag_res = await self._node(
-            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,"
-            f'filterCondition:"{user_condition}",first:100){{edges{{node{{id}}}}}}',
-            project,
-            httpx_client,
-        )
-        flag_only_ids = {e["node"]["id"] for e in flag_only_res["edges"]}
-        assert {e["node"]["id"] for e in flag_res["edges"]} == scoped_ids & flag_only_ids
 
     @pytest.fixture
     async def _time_series_data(
@@ -4983,60 +4849,31 @@ async def test_project_filter_and_sort(
     assert project_names == expected_names
 
 
-async def test_paginate_spans_by_trace_start_time(
+async def test_root_span_clause_pages_every_root_candidate(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """Test the _paginate_span_by_trace_start_time optimization function.
-
-    This function is triggered when:
-    - rootSpansOnly: true
-    - No filter_condition
-    - sort.col is SpanColumn.startTime
+    """``spans(filterCondition: "parent_span is None")`` is how the traces table lists roots.
 
     Key behaviors tested:
-    - Returns one representative span per trace (not all spans)
-    - Orders by trace start time (not span start time)
-    - Uses cursors based on trace rowids + start times (unusual!)
-    - Handles orphan spans based on orphan_span_as_root_span parameter
-    - Supports time range filtering on trace start times
-    - May return empty edges while has_next_page=True when traces have no matching spans
-    - **RETRY LOGIC**: When insufficient edges are found (len(edges) < first) but has_next_page=True,
-      the function automatically retries pagination with larger batch sizes (max(first, 1000))
-      up to 10 times (retries=10) to collect enough spans. This handles cases where many traces
-      exist but lack matching root spans.
-
-    Implementation Details:
-    - Uses CTEs (Common Table Expressions) for efficient trace-based pagination
-    - PostgreSQL: Uses DISTINCT ON for deduplication
-    - SQLite: Uses Python groupby() for deduplication (too complex for SQLite DISTINCT)
-    - SQL ordering: trace start_time -> trace id -> span start_time (ASC for earliest) -> span id (DESC)
-    - Cursors contain trace rowid + trace start_time, NOT span data
-    - Over-fetches by 1 trace to determine has_next_page efficiently
+    - Every root candidate is returned: spans with no parent, and orphans whose parent was
+      never received. Child spans are not.
+    - Ordering and time-range filtering are by span start time
+    - Cursors page without skipping or repeating
 
     Test Data Setup:
     ================
-    Creates 5 traces with start times at hours 1, 2, 3, 4, 5:
+    Creates 5 traces with start times at hours 1, 2, 3, 4, 5. Each trace holds two root
+    candidates (a root or orphan at +10 min and a second one at +30 min); even traces also
+    hold a child span under the first root.
 
-    Trace Index | Hour | Real Root Span | Orphan Span  | Additional Spans | Expected Name
-    ------------|------|----------------|--------------|------------------|---------------
-    0 (even)    |  1   |      ✓         |      ✗       | +2nd root span   | root-span-1
-    1 (odd)     |  2   |      ✗         |      ✓       | +2nd orphan span | orphan-span-2
-    2 (even)    |  3   |      ✓         |      ✗       | +2nd root span   | root-span-3
-    3 (odd)     |  4   |      ✗         |      ✓       | +2nd orphan span | orphan-span-4
-    4 (even)    |  5   |      ✓         |      ✗       | +2nd root span   | root-span-5
-
-    Key Testing Points:
-    - ALL traces have multiple candidate spans to test "earliest span per trace" selection
-    - Trace 1: 2 root spans → Returns earliest (root-span-1, not second-root-span-1)
-    - Trace 2: 2 orphan spans → Returns earliest (orphan-span-2, not second-orphan-span-2)
-    - Trace 3: 2 root spans → Returns earliest (root-span-3, not second-root-span-3)
-    - Trace 4: 2 orphan spans → Returns earliest (orphan-span-4, not second-orphan-span-4)
-    - Trace 5: 2 root spans → Returns earliest (root-span-5, not second-root-span-5)
-    - Comprehensive test of SQL ordering: ORDER BY span.start_time ASC, span.id DESC
-
-    With orphan_span_as_root_span=false: Only returns real root spans 1, 3, 5 (3 total)
-    With orphan_span_as_root_span=true:  Returns all spans 1, 2, 3, 4, 5 (5 total)
+    Trace Index | Hour | Root candidates
+    ------------|------|-----------------------------------------------
+    0 (even)    |  1   | root-span-1, second-root-span-1 (+ child-span-1)
+    1 (odd)     |  2   | orphan-span-2, second-orphan-span-2
+    2 (even)    |  3   | root-span-3, second-root-span-3 (+ child-span-3)
+    3 (odd)     |  4   | orphan-span-4, second-orphan-span-4
+    4 (even)    |  5   | root-span-5, second-root-span-5 (+ child-span-5)
     """
     # ========================================
     # SETUP: Create test data
@@ -5167,278 +5004,25 @@ async def test_paginate_spans_by_trace_start_time(
 
         project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
 
-    # ========================================
-    # TEST 1: Basic pagination with orphan_span_as_root_span=false
-    # Expected: Only real root spans (1, 3, 5) returned, NOT orphan spans (2, 4)
-    # ========================================
     query = """
-        query ($projectId: ID!, $first: Int!, $after: String) {
+        query ($projectId: ID!, $first: Int!, $after: String, $timeRange: TimeRange) {
             node(id: $projectId) {
                 ... on Project {
                     spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: false,  # ← Exclude orphan spans
+                        filterCondition: "parent_span is None",
                         sort: {col: startTime, dir: desc},
                         first: $first,
-                        after: $after
-                    ) {
-                        edges {
-                            node {
-                                id
-                                name
-                            }
-                            cursor
-                        }
-                        pageInfo {
-                            hasNextPage
-                            hasPreviousPage
-                            startCursor
-                            endCursor
-                        }
-                    }
-                }
-            }
-        }
-    """
-
-    # Page 1: Request first 2 spans in descending order (by trace start time)
-    # Expected: Only root-span-5 (trace 5 is latest, and only that trace has a real root span)
-    # Note: trace 4 has an orphan span, but it's excluded by orphanSpanAsRootSpan=false
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "first": 2,
-        },
-    )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    page = data["node"]["spans"]
-    edges = page["edges"]
-    page_info = page["pageInfo"]
-
-    assert len(edges) == 2
-    assert edges[0]["node"]["name"] == "root-span-5"
-    assert edges[1]["node"]["name"] == "root-span-3"
-    assert page_info["hasNextPage"] is True  # More traces to check
-    assert page_info["hasPreviousPage"] is False
-
-    # Verify cursor contains trace rowid (5) and trace start time (05:00:00)
-    # This demonstrates the unusual "trace-based cursors" behavior
-    assert (
-        base64.b64decode(page_info["startCursor"].encode())
-        == b"5:DATETIME:2024-01-01T05:00:00+00:00"
-    )
-    assert (
-        base64.b64decode(page_info["endCursor"].encode()) == b"3:DATETIME:2024-01-01T03:00:00+00:00"
-    )
-
-    # Page 2: Continue pagination after trace 5
-    # Expected: root-span-3 (trace 3 is next latest with real root span)
-    # Note: trace 4 is skipped because it only has orphan span (excluded)
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "first": 3,
-            "after": base64.b64encode(b"5:DATETIME:2024-01-01T05:00:00+00:00").decode(),
-        },
-    )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    page = data["node"]["spans"]
-    edges = page["edges"]
-    page_info = page["pageInfo"]
-
-    assert len(edges) == 2
-    assert edges[0]["node"]["name"] == "root-span-3"
-    assert edges[1]["node"]["name"] == "root-span-1"
-    assert page_info["hasNextPage"] is False
-    assert page_info["hasPreviousPage"] is False
-    assert (
-        base64.b64decode(page_info["startCursor"].encode())
-        == b"4:DATETIME:2024-01-01T04:00:00+00:00"  # Trace 3 yielded the span
-    )
-    assert (
-        base64.b64decode(page_info["endCursor"].encode()) == b"1:DATETIME:2024-01-01T01:00:00+00:00"
-    )
-
-    # Page 3: Continue pagination after trace 3
-    # Expected: root-span-1 (trace 1 is oldest with real root span)
-    # Note: trace 2 is skipped because it only has orphan span (excluded)
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "first": 4,
-            "after": base64.b64encode(b"3:DATETIME:2024-01-01T03:00:00+00:00").decode(),
-        },
-    )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    page = data["node"]["spans"]
-    edges = page["edges"]
-    page_info = page["pageInfo"]
-
-    # Should return root-span-1 (oldest real root span)
-    assert len(edges) == 1
-    assert edges[0]["node"]["name"] == "root-span-1"
-    assert page_info["hasNextPage"] is False  # No more traces
-    assert page_info["hasPreviousPage"] is False
-    assert (
-        base64.b64decode(page_info["startCursor"].encode())
-        == b"2:DATETIME:2024-01-01T02:00:00+00:00"
-    )
-    assert (
-        base64.b64decode(page_info["endCursor"].encode()) == b"1:DATETIME:2024-01-01T01:00:00+00:00"
-    )
-
-    # ========================================
-    # TEST 2: Ascending order (orphan_span_as_root_span=false)
-    # Expected: Same spans but in reverse order: root-span-1, root-span-3, root-span-5
-    # ========================================
-    response = await gql_client.execute(
-        query=query.replace("dir: desc", "dir: asc"),
-        variables={
-            "projectId": project_gid,
-            "first": 2,
-        },
-    )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    asc_page = data["node"]["spans"]
-    edges = asc_page["edges"]
-    page_info = asc_page["pageInfo"]
-
-    # Should return first span in ascending order (oldest trace with real root span)
-    assert len(edges) == 2
-    assert edges[0]["node"]["name"] == "root-span-1"
-    assert edges[1]["node"]["name"] == "root-span-3"
-    assert page_info["hasNextPage"] is True
-
-    # ========================================
-    # TEST 3: Bulk query (orphan_span_as_root_span=false)
-    # Expected: All 3 real root spans at once
-    # ========================================
-    response = await gql_client.execute(
-        query=query,
-        variables={
-            "projectId": project_gid,
-            "first": 10,
-        },
-    )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    all_spans = data["node"]["spans"]
-    edges = all_spans["edges"]
-    page_info = all_spans["pageInfo"]
-    span_names = [edge["node"]["name"] for edge in edges]
-
-    # Should return all 3 real root spans (excluding orphan spans 2, 4)
-    # IMPORTANT: Returns earliest root span per trace (ALL traces have multiple candidates):
-    # - Trace 1: root-span-1 (NOT second-root-span-1 which has later start time)
-    # - Trace 3: root-span-3 (NOT second-root-span-3 which has later start time)
-    # - Trace 5: root-span-5 (NOT second-root-span-5 which has later start time)
-    assert len(edges) == 3
-    assert span_names == [
-        "root-span-5",
-        "root-span-3",
-        "root-span-1",
-    ]
-    assert page_info["hasNextPage"] is False
-
-    # ========================================
-    # TEST 4: Time range filtering (orphan_span_as_root_span=false)
-    # Filter: hours 2-4 (includes traces 2, 3, 4)
-    # Expected: Only root-span-3 (trace 3 has real root span, traces 2&4 have orphans)
-    # ========================================
-    time_range_query = """
-        query ($projectId: ID!, $first: Int!, $timeRange: TimeRange) {
-            node(id: $projectId) {
-                ... on Project {
-                    spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: false,  # ← Exclude orphan spans
-                        sort: {col: startTime, dir: desc},
-                        first: $first,
+                        after: $after,
                         timeRange: $timeRange
                     ) {
                         edges {
                             node {
-                                id
-                                name
-                            }
-                        }
-                        pageInfo {
-                            hasNextPage
-                        }
-                    }
-                }
-            }
-        }
-    """
-
-    response = await gql_client.execute(
-        query=time_range_query,
-        variables={
-            "projectId": project_gid,
-            "first": 10,
-            "timeRange": {
-                "start": (base_time + timedelta(hours=2)).isoformat(),  # 02:00:00
-                "end": (base_time + timedelta(hours=4)).isoformat(),  # 04:00:00
-            },
-        },
-    )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    filtered_spans = data["node"]["spans"]
-    edges = filtered_spans["edges"]
-
-    # Time range includes traces 2, 3, 4:
-    # - Trace 2 (hour 2): has orphan span → excluded by orphanSpanAsRootSpan=false
-    # - Trace 3 (hour 3): has real root span → included
-    # - Trace 4 (hour 4): has orphan span → excluded by orphanSpanAsRootSpan=false
-    assert len(edges) == 1
-    assert edges[0]["node"]["name"] == "root-span-3"
-
-    # ========================================
-    # TEST 5: Include orphan spans (orphanSpanAsRootSpan=true)
-    # Expected: All 5 spans returned (3 real roots + 2 orphans)
-    # ========================================
-    orphan_query = """
-        query ($projectId: ID!, $first: Int!, $after: String) {
-            node(id: $projectId) {
-                ... on Project {
-                    spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: true,
-                        sort: {col: startTime, dir: desc},
-                        first: $first,
-                        after: $after
-                    ) {
-                        edges {
-                            node {
-                                id
                                 name
                             }
                             cursor
                         }
                         pageInfo {
                             hasNextPage
-                            hasPreviousPage
-                            startCursor
                             endCursor
                         }
                     }
@@ -5447,143 +5031,66 @@ async def test_paginate_spans_by_trace_start_time(
         }
     """
 
-    # Test 5a: Basic pagination with orphans included
-    # Expected: Now returns 2 spans per page instead of 1 (includes orphan spans)
-    response = await gql_client.execute(
-        query=orphan_query,
-        variables={
-            "projectId": project_gid,
-            "first": 2,
-        },
-    )
+    async def fetch(**variables: Any) -> dict[str, Any]:
+        response = await gql_client.execute(
+            query=variables.pop("query", query),
+            variables={"projectId": project_gid, **variables},
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        return cast(dict[str, Any], data["node"]["spans"])
 
-    assert not response.errors
-    assert (data := response.data) is not None
+    def names(page: dict[str, Any]) -> list[str]:
+        return [edge["node"]["name"] for edge in page["edges"]]
 
-    page = data["node"]["spans"]
-    edges = page["edges"]
-    page_info = page["pageInfo"]
-
-    # Should return 2 spans: both real root and orphan spans
-    assert len(edges) == 2
-    assert edges[0]["node"]["name"] == "root-span-5"  # Real root span from trace 5 (latest)
-    assert edges[1]["node"]["name"] == "orphan-span-4"  # Orphan span from trace 4 (2nd latest)
-    assert page_info["hasNextPage"] is True
-
-    # Test 5b: Bulk query with orphans included
-    # Expected: All 5 spans (3 real + 2 orphan) vs 3 spans when orphans excluded
-    response = await gql_client.execute(
-        query=orphan_query,
-        variables={
-            "projectId": project_gid,
-            "first": 10,
-        },
-    )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    all_spans = data["node"]["spans"]
-    edges = all_spans["edges"]
-    page_info = all_spans["pageInfo"]
-    span_names = [edge["node"]["name"] for edge in edges]
-
-    # Should return ALL 5 spans (3 real root spans + 2 orphan spans) in descending order
-    # IMPORTANT: Returns earliest span per trace (ALL traces have multiple candidates):
-    # - Trace 1: root-span-1 (NOT second-root-span-1)
-    # - Trace 2: orphan-span-2 (NOT second-orphan-span-2)
-    # - Trace 3: root-span-3 (NOT second-root-span-3)
-    # - Trace 4: orphan-span-4 (NOT second-orphan-span-4)
-    # - Trace 5: root-span-5 (NOT second-root-span-5)
-    assert len(edges) == 5
-    assert span_names == [
+    newest_first = [
+        "second-root-span-5",
         "root-span-5",
+        "second-orphan-span-4",
         "orphan-span-4",
+        "second-root-span-3",
         "root-span-3",
+        "second-orphan-span-2",
         "orphan-span-2",
+        "second-root-span-1",
         "root-span-1",
     ]
-    assert page_info["hasNextPage"] is False
 
-    # Test 5c: Ascending order with orphans included
-    # Expected: Same 5 spans but in reverse order
-    response = await gql_client.execute(
-        query=orphan_query.replace("dir: desc", "dir: asc"),
-        variables={"projectId": project_gid, "first": 3},
-    )
+    # Bulk: every root candidate, no child spans.
+    page = await fetch(first=100)
+    assert names(page) == newest_first
+    assert page["pageInfo"]["hasNextPage"] is False
 
-    assert not response.errors
-    assert (data := response.data) is not None
+    # Cursor pagination, three at a time, covers the same list once.
+    seen: list[str] = []
+    after = None
+    while True:
+        page = await fetch(first=3, after=after)
+        seen.extend(names(page))
+        if not page["pageInfo"]["hasNextPage"]:
+            break
+        after = page["pageInfo"]["endCursor"]
+    assert seen == newest_first
 
-    asc_page = data["node"]["spans"]
-    edges = asc_page["edges"]
-    span_names = [edge["node"]["name"] for edge in edges]
+    # Ascending order.
+    page = await fetch(first=3, query=query.replace("dir: desc", "dir: asc"))
+    assert names(page) == ["root-span-1", "second-root-span-1", "orphan-span-2"]
+    assert page["pageInfo"]["hasNextPage"] is True
 
-    # Should return first 3 spans in ascending order (includes orphan span 2)
-    assert len(edges) == 3
-    assert span_names == [
-        "root-span-1",
-        "orphan-span-2",
-        "root-span-3",
-    ]
-
-    # Test 5d: Time range filtering with orphans included
-    orphan_time_range_query = """
-        query ($projectId: ID!, $first: Int!, $timeRange: TimeRange) {
-            node(id: $projectId) {
-                ... on Project {
-                    spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: true,
-                        sort: {col: startTime, dir: desc},
-                        first: $first,
-                        timeRange: $timeRange
-                    ) {
-                        edges {
-                            node {
-                                id
-                                name
-                            }
-                        }
-                        pageInfo {
-                            hasNextPage
-                        }
-                    }
-                }
-            }
-        }
-    """
-
-    # Expected: Now returns 2 spans (includes orphan span 2) vs 1 span when orphans excluded
-    response = await gql_client.execute(
-        query=orphan_time_range_query,
-        variables={
-            "projectId": project_gid,
-            "first": 10,
-            "timeRange": {
-                "start": (base_time + timedelta(hours=2)).isoformat(),  # 02:00:00
-                "end": (base_time + timedelta(hours=4)).isoformat(),  # 04:00:00
-            },
+    # Time range on span start time: [02:00, 04:00) keeps the roots of traces 2 and 3.
+    page = await fetch(
+        first=100,
+        timeRange={
+            "start": (base_time + timedelta(hours=2)).isoformat(),
+            "end": (base_time + timedelta(hours=4)).isoformat(),
         },
     )
-
-    assert not response.errors
-    assert (data := response.data) is not None
-
-    filtered_spans = data["node"]["spans"]
-    edges = filtered_spans["edges"]
-    span_names = [edge["node"]["name"] for edge in edges]
-
-    # Time range includes traces 2, 3, 4 - with orphans included:
-    # - Trace 2 (hour 2): has orphan span → NOW INCLUDED
-    # - Trace 3 (hour 3): has real root span → included
-    # - Trace 4 (hour 4): has orphan span → NOW INCLUDED
-    # But trace 4 is excluded by time range end=04:00:00 (exclusive), so only traces 2 & 3
-    assert len(edges) == 2
-    assert span_names == [
+    assert names(page) == [
+        "second-root-span-3",
         "root-span-3",
+        "second-orphan-span-2",
         "orphan-span-2",
-    ]  # Descending order: trace 3, then trace 2
+    ]
 
 
 async def test_cost_summary_returns_expected_results(
