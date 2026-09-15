@@ -10,7 +10,12 @@ from phoenix.server.api.helpers.evaluator_comparison import (
     ComparisonTimeSeriesPoint,
     SideSummary,
 )
+from phoenix.server.api.helpers.evaluator_distribution import DistributionSummary
 from phoenix.server.api.types.Evaluator import EvaluationTarget
+from phoenix.server.api.types.EvaluatorDistribution import (
+    EvaluatorLabelCount,
+    EvaluatorScoreValueCount,
+)
 
 _SHARED_POPULATION = (
     "Computed over the shared population: entities in the selected time range "
@@ -53,7 +58,7 @@ class EvaluatorComparisonStatistics:
     )
 
 
-@strawberry.type(description=_SHARED_POPULATION)
+@strawberry.type(description="Shared comparison summaries and full-population distributions.")
 class EvaluatorComparisonSide:
     annotation_name: str = strawberry.field(
         description="The annotation name this evaluator writes its results under."
@@ -81,20 +86,39 @@ class EvaluatorComparisonSide:
     flag_rate: Optional[float] = strawberry.field(
         description="flaggedCount over the shared population size."
     )
-    mean_score: Optional[float] = strawberry.field(
-        description="Mean of this evaluator's non-null scores over the shared population."
+    shared_mean_score: Optional[float] = strawberry.field(
+        description=(
+            "Mean of this evaluator's non-null scores over the shared comparison population."
+        )
+    )
+    all_evaluated_mean_score: Optional[float] = strawberry.field(
+        description=(
+            "Mean of all finite scores from this evaluator in the selected target time range."
+        )
     )
     score_bin_counts: Optional[list[int]] = strawberry.field(
         description=(
-            "Score histogram over the shared population: counts in 10 fixed bins over "
-            "the side's score domain (the config's bounds when both are set, else "
-            "[0, 1]), out-of-range scores clamped into the edge bins. Null for "
-            "categorical sides — their distribution is the confusion matrix marginal."
+            "Histogram of all finite scores from this evaluator in range. Null when exact "
+            "scoreValueCounts are used or scores are unavailable."
         )
     )
     score_bin_edges: Optional[list[float]] = strawberry.field(
         description=(
-            "The 11 bin edges scoreBinCounts is computed over; null for categorical sides."
+            "Edges for scoreBinCounts, with one more edge than counts. Lower edges are inclusive; "
+            "upper edges are exclusive except the final edge is inclusive. The domain covers "
+            "configured bounds and observed finite scores. Null when no histogram is used."
+        )
+    )
+    score_value_counts: Optional[list[EvaluatorScoreValueCount]] = strawberry.field(
+        description=(
+            "Exact finite score counts across all results, ascending by score; null for histograms."
+        )
+    )
+    label_counts: Optional[list[EvaluatorLabelCount]] = strawberry.field(
+        description=(
+            "Label counts across all results, independent of score availability. Configured order, "
+            "then alphabetical, with a synthetic Other group last when categories are folded. "
+            "Null when labels are unavailable."
         )
     )
 
@@ -129,8 +153,8 @@ class EvaluatorComparisonTimeSeries:
 
 @strawberry.type(
     description=(
-        "Pairwise comparison of two project evaluators' results over one shared "
-        "population. Confusion matrix rows follow sideA.labels and columns follow "
+        "Pairwise statistics over shared results and per-evaluator distributions over all results. "
+        "Confusion matrix rows follow sideA.labels and columns follow "
         "sideB.labels."
     )
 )
@@ -153,7 +177,9 @@ class ProjectEvaluatorComparison:
     )
 
 
-def to_gql_comparison_side(summary: SideSummary) -> EvaluatorComparisonSide:
+def to_gql_comparison_side(
+    summary: SideSummary, distribution: DistributionSummary
+) -> EvaluatorComparisonSide:
     return EvaluatorComparisonSide(
         annotation_name=summary.annotation_name,
         labels=list(summary.labels),
@@ -161,13 +187,12 @@ def to_gql_comparison_side(summary: SideSummary) -> EvaluatorComparisonSide:
         threshold=summary.threshold,
         flagged_count=summary.flagged_count,
         flag_rate=summary.flag_rate,
-        mean_score=summary.mean_score,
-        score_bin_counts=list(summary.score_bin_counts)
-        if summary.score_bin_counts is not None
-        else None,
-        score_bin_edges=list(summary.score_bin_edges)
-        if summary.score_bin_edges is not None
-        else None,
+        shared_mean_score=summary.mean_score,
+        all_evaluated_mean_score=distribution.all_evaluated_mean_score,
+        score_bin_edges=distribution.score_bin_edges,
+        score_bin_counts=distribution.score_bin_counts,
+        score_value_counts=distribution.score_value_counts,
+        label_counts=distribution.label_counts,
     )
 
 
@@ -176,12 +201,14 @@ def to_gql_comparison(
     coverage: EvaluatorComparisonCoverage,
     result: ComparisonResult,
     time_series_points: Sequence[ComparisonTimeSeriesPoint],
+    distribution_a: DistributionSummary,
+    distribution_b: DistributionSummary,
 ) -> ProjectEvaluatorComparison:
     return ProjectEvaluatorComparison(
         evaluation_target=evaluation_target,
         coverage=coverage,
-        side_a=to_gql_comparison_side(result.side_a),
-        side_b=to_gql_comparison_side(result.side_b),
+        side_a=to_gql_comparison_side(result.side_a, distribution_a),
+        side_b=to_gql_comparison_side(result.side_b, distribution_b),
         confusion_matrix=[list(row) for row in result.matrix],
         statistics=EvaluatorComparisonStatistics(
             agreement=result.agreement,

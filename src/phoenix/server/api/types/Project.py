@@ -2,6 +2,7 @@ import ast
 import json
 import logging
 import operator
+import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -44,6 +45,10 @@ from phoenix.server.api.helpers.evaluator_comparison import (
     ComparisonAccumulator,
     fill_comparison_time_series,
     make_side_binning,
+)
+from phoenix.server.api.helpers.evaluator_distribution import (
+    MAX_DISTRIBUTION_LABELS,
+    DistributionAccumulator,
 )
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
@@ -2547,9 +2552,9 @@ class Project(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Compare two of this project's evaluators over one shared population: "
-            "entities in the time range evaluated by both. Returns coverage, a "
-            "confusion matrix over binned labels, and agreement statistics. Time "
+            "Compare two of this project's evaluators in a time range. Returns coverage "
+            "and distributions over each evaluator's results, plus a confusion matrix "
+            "and agreement statistics over results evaluated by both. Time "
             "filtering follows the annotation metrics fields: spans and traces "
             "filter on trace start time, sessions on session start time."
         )
@@ -2603,7 +2608,7 @@ class Project(Node):
         binning_b = make_side_binning(name_b, config_b, threshold_b)
 
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        pairs_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
+        population_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
             dialect=info.context.db.dialect,
             project_rowid=self.id,
             evaluation_target=evaluation_target,
@@ -2625,8 +2630,50 @@ class Project(Node):
                     only_a = entity_count
                 else:
                     only_b = entity_count
+            population = population_stmt.subquery("distribution_population")
+            distributions = []
+            for side, config in [("a", config_a), ("b", config_b)]:
+                score = population.c[f"score_{side}"]
+                label = population.c[f"label_{side}"]
+                finite_score = case((score.between(-sys.float_info.max, sys.float_info.max), score))
+                minimum, maximum, distinct_scores, label_count = (
+                    await session.execute(
+                        select(
+                            func.min(finite_score),
+                            func.max(finite_score),
+                            func.count(distinct(finite_score)),
+                            func.count(distinct(label)),
+                        )
+                    )
+                ).one()
+                labels = (
+                    (
+                        await session.scalars(
+                            select(label)
+                            .where(label.is_not(None))
+                            .group_by(label)
+                            .order_by(func.count().desc(), label)
+                            .limit(MAX_DISTRIBUTION_LABELS)
+                        )
+                    ).all()
+                    if label_count
+                    else []
+                )
+                distributions.append(
+                    DistributionAccumulator(
+                        config, minimum, maximum, distinct_scores, labels, label_count
+                    )
+                )
+            distribution_a, distribution_b = distributions
             bucket_timestamps: dict[Any, datetime] = {}
-            async for row in await session.stream(pairs_stmt):
+            async for row in await session.stream(population_stmt):
+                shared = bool(row.has_a and row.has_b)
+                if row.has_a:
+                    distribution_a.add(row.label_a, row.score_a)
+                if row.has_b:
+                    distribution_b.add(row.label_b, row.score_b)
+                if not shared:
+                    continue
                 bucket = bucket_timestamps.get(row.bucket)
                 if bucket is None:
                     bucket = bucket_timestamps[row.bucket] = _as_datetime(row.bucket)
@@ -2650,6 +2697,8 @@ class Project(Node):
             ),
             result=result,
             time_series_points=time_series_points,
+            distribution_a=distribution_a.result(),
+            distribution_b=distribution_b.result(),
         )
 
     @strawberry.field
@@ -3128,10 +3177,10 @@ def _evaluator_comparison_stmts(
     stride: _TimeBinStride,
     utc_offset_minutes: int,
 ) -> tuple[Select[Any], Select[Any], Select[Any]]:
-    """Build the pair, coverage, and total-entity statements for one evaluation level.
+    """Build the population, coverage, and total-entity statements for one evaluation level.
 
-    The pair statement yields one row per entity annotated by both evaluators
-    in range — (bucket, label_a, score_a, label_b, score_b) — deduplicating
+    The population statement yields one row per entity annotated by either evaluator
+    in range, including presence flags and both values, deduplicating
     multiple annotation identifiers per (entity, name) to the most recently
     updated. The coverage statement counts entities grouped by which
     evaluators annotated them, and the total statement counts all entities of
@@ -3216,19 +3265,16 @@ def _evaluator_comparison_stmts(
     # The time bucket is computed once per output group (all of an entity's
     # rows share one entity_time, so max() is exact), not once per row.
     bucket = date_trunc(dialect, stride, func.max(latest.c.entity_time), utc_offset_minutes)
-    pairs: Select[Any] = (
-        select(
-            bucket.label("bucket"),
-            func.max(case((is_a, latest.c.label))).label("label_a"),
-            func.max(case((is_a, latest.c.score))).label("score_a"),
-            func.max(case((~is_a, latest.c.label))).label("label_b"),
-            func.max(case((~is_a, latest.c.score))).label("score_b"),
-        )
-        .group_by(latest.c.entity_id)
-        .having(func.max(case((is_a, 1), else_=0)) == 1)
-        .having(func.max(case((~is_a, 1), else_=0)) == 1)
-    )
-    return pairs, coverage, total
+    population: Select[Any] = select(
+        bucket.label("bucket"),
+        func.max(case((is_a, 1), else_=0)).label("has_a"),
+        func.max(case((~is_a, 1), else_=0)).label("has_b"),
+        func.max(case((is_a, latest.c.label))).label("label_a"),
+        func.max(case((is_a, latest.c.score))).label("score_a"),
+        func.max(case((~is_a, latest.c.label))).label("label_b"),
+        func.max(case((~is_a, latest.c.score))).label("score_b"),
+    ).group_by(latest.c.entity_id)
+    return population, coverage, total
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
