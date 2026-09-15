@@ -2,15 +2,12 @@ import { css } from "@emotion/react";
 import { useFragment } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import { Alert, Card, Text, View } from "@phoenix/components";
+import { Card, Text } from "@phoenix/components";
 import {
   EvaluatorDetailList,
   EvaluatorDetailRow,
 } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
-import type {
-  ProjectEvaluatorScopeDetails_projectEvaluator$data,
-  ProjectEvaluatorScopeDetails_projectEvaluator$key,
-} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopeDetails_projectEvaluator.graphql";
+import type { ProjectEvaluatorScopeDetails_projectEvaluator$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorScopeDetails_projectEvaluator.graphql";
 import {
   formatEvaluationDelay,
   formatEvaluationTarget,
@@ -45,8 +42,6 @@ export function ProjectEvaluatorScopeDetails({
         filterCondition
         samplingRate
         evaluationDelaySeconds
-        schedulabilityStatus
-        schedulabilityReason
       }
     `,
     projectEvaluatorRef
@@ -87,33 +82,6 @@ export function ProjectEvaluatorScopeDetails({
           </EvaluatorDetailRow>
         ) : null}
       </EvaluatorDetailList>
-      {projectEvaluator.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
-        <View
-          paddingX="size-200"
-          paddingBottom="size-200"
-          paddingTop="size-100"
-        >
-          <Alert variant="warning" title="This evaluator is not scheduled">
-            {getSchedulabilityExplanation(
-              projectEvaluator.schedulabilityReason
-            )}
-          </Alert>
-        </View>
-      ) : null}
     </Card>
   );
-}
-
-/** Every reason the server can report, including ones this build predates. */
-function getSchedulabilityExplanation(
-  reason: ProjectEvaluatorScopeDetails_projectEvaluator$data["schedulabilityReason"]
-): string {
-  switch (reason) {
-    case "DISABLED":
-      return "Enable this evaluator to resume scheduling.";
-    case "TRACE_TARGET_UNSUPPORTED":
-      return "Trace evaluators are not scheduled yet.";
-    default:
-      return "This evaluator does not meet the scheduling requirements.";
-  }
 }

@@ -3,6 +3,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Optional, Sequence
 
+from sqlalchemy import select
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.expression import Select
 from sqlalchemy.sql.selectable import ScalarSelect
 
@@ -48,6 +50,15 @@ def compile_trace_filter(trace_filter_condition: str) -> TraceFilter:
     """Compile a trace filter expression, reporting an unusable one as ``BadRequest``."""
     with trace_filter_errors():
         return TraceFilter(condition=trace_filter_condition)
+
+
+def validate_trace_filter_condition(trace_filter_condition: str) -> None:
+    """Compile a trace filter for every supported database dialect."""
+    with trace_filter_errors():
+        trace_filter = compile_trace_filter(trace_filter_condition)
+        stmt = trace_filter(select(models.Trace))
+        str(stmt.compile(dialect=sqlite.dialect()))
+        str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
 
 
 def get_filtered_trace_rowids_subquery(

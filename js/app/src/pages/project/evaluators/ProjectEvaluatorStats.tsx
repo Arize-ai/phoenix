@@ -61,8 +61,6 @@ export function ProjectEvaluatorStats({
       fragment ProjectEvaluatorStats_projectEvaluator on ProjectEvaluator {
         createdAt
         evaluationTarget
-        schedulabilityStatus
-        schedulabilityReason
         project {
           id
         }
@@ -198,11 +196,7 @@ function ProjectEvaluatorActivityPanel({
   projectEvaluator: ProjectEvaluatorStats_projectEvaluator$data;
 }) {
   const { runSummary } = projectEvaluator;
-  const status = getProjectEvaluatorStatus({
-    schedulabilityStatus: projectEvaluator.schedulabilityStatus,
-    schedulabilityReason: projectEvaluator.schedulabilityReason,
-    runSummary,
-  });
+  const status = getProjectEvaluatorStatus({ runSummary });
   const { shortDateFormatter, fullTimeFormatter } = useTimeFormatters();
   return (
     <ChartPanel
