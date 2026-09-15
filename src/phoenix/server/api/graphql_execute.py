@@ -23,9 +23,9 @@ from phoenix.server.api.context import Context
 
 # An operation larger than this is refused unexecuted. Admission rather than
 # transport: the reason a caller should split the work does not depend on how
-# the operation arrived. Generous next to the SQL surface's 2 KiB because a
-# GraphQL document carries its own fragments and variable definitions.
-MAX_QUERY_BYTES = 16 * 1024
+# the operation arrived. The same 2 KiB as the SQL surface: an operation that
+# needs more is reading too much at once and should be split.
+MAX_QUERY_BYTES = 2 * 1024
 
 
 class GraphQLRefusalCode(str, Enum):
