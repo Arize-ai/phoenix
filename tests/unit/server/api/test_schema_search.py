@@ -190,6 +190,18 @@ def test_field_lookup_prints_the_path_to_its_parent(index: Index) -> None:
     assert "type Query" not in text
 
 
+def test_top_hit_follows_the_list_in_full(index: Index) -> None:
+    text = search(index, "trace by otel id")
+    assert "# Query.getTraceByOtelId in full:" in text
+    assert "\nQuery.getTraceByOtelId(traceId: String!): Trace\n" in text
+    assert "# Trace: id, traceId" in text
+    mutations = search(index, "deleting a dataset")
+    assert "# deleteDataset in full:" in mutations
+    assert "input DeleteDatasetInput {" in mutations
+    # A shared or abstract top hit is not expanded.
+    assert " in full:" not in search(index, "experiment run error")
+
+
 def test_field_lookup_inlines_its_inputs_and_return_members(index: Index) -> None:
     text = lookup(index, "Project.traceCountByStatusTimeSeries")
     assert "input TimeRange {" in text
@@ -351,7 +363,7 @@ def test_oversized_queries_are_bounded(index: Index) -> None:
     started = time.perf_counter()
     text = search(index, query)
     assert time.perf_counter() - started < 2.0
-    assert text.splitlines()[-1].endswith("more; narrow the search")
+    assert any(line.endswith("more; narrow the search") for line in text.splitlines())
 
 
 def test_cached_index_is_built_once_per_schema_and_setting(graphql_schema: GraphQLSchema) -> None:

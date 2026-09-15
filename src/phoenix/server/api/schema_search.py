@@ -671,6 +671,7 @@ def _owner_header(index: Index, owner: str) -> str:
 
 
 _MUTATIONS_DISABLED = "-- Mutations are disabled for this session and are not listed."
+_TOP_HIT_BUDGET = 1500
 
 
 def _names_excluded_mutation(index: Index, terms: Sequence[str]) -> bool:
@@ -751,8 +752,13 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
             opened.add(parent)
             ordered.append((False, _owner_header(index, parent)))
             ordered.extend((True, hit) for hit in by_parent[parent])
+    # The best hit, when it is one field or mutation, follows the list in full so
+    # a search whose top hit is right needs no second call.
+    top = next(iter(groups.values()))
+    expand = len(top) == 1 and top[0].kind in ("field", "mutation")
+    detail_budget = min(_TOP_HIT_BUDGET, budget // 3) if expand else 0
     lines: list[str] = []
-    used = sum(len(n) + 1 for n in note) + len(_PAGINATION_LEGEND) + 1
+    used = sum(len(n) + 1 for n in note) + len(_PAGINATION_LEGEND) + 1 + detail_budget
     shown = 0
     for i, (is_hit, line) in enumerate(ordered):
         trailer = f"... {len(entries) - shown} more; narrow the search"
@@ -764,6 +770,12 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
         lines.append(line)
         used += len(line) + 1
         shown += is_hit
+    if expand:
+        u = top[0]
+        key = u.name if u.kind == "mutation" else f"{u.parent}.{u.name}"
+        header = f"# {key} in full:"
+        lines.append(header)
+        lines.append(_within(_lookup_parts(index, key), detail_budget - len(header) - 1))
     return "\n".join([_with_legend("\n".join(lines)), *note])
 
 
@@ -892,17 +904,28 @@ def _within(parts: Sequence[str], budget: int) -> str:
 
 def lookup(index: Index, name: str, budget: int = 4000) -> str:
     """One type, ``Type.field``, or mutation rendered in full with the path that reaches it."""
+    return _with_legend(_budgeted(_lookup_parts(index, name), budget))
+
+
+def _budgeted(parts: Sequence[str], budget: int) -> str:
+    """``parts`` within ``budget``, leaving room for the pagination key if it is due."""
+    if any(_uses_pagination(part) for part in parts):
+        budget -= len(_PAGINATION_LEGEND) + 1
+    return _within(parts, budget)
+
+
+def _lookup_parts(index: Index, name: str) -> list[str]:
     key = name.strip().lower()
     u = index.by_key.get(key)
     if u is None:
         if key in index.excluded_mutations:
-            return f"-- {name.strip()} is a mutation. {_MUTATIONS_DISABLED}"
+            return [f"-- {name.strip()} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, key):
-            return f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"
+            return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
         if unknown := _unknown_member(index, key):
             owner, member = unknown
-            return f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."
-        return f"-- No type, field, or mutation named {name!r}. Try search('{name}')."
+            return [f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."]
+        return [f"-- No type, field, or mutation named {name!r}. Try search('{name}')."]
     schema = index.schema
     parts: list[str]
     if u.kind == "type":
@@ -945,6 +968,4 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
             parts.extend(_field_dependencies(index, u))
         else:
             parts.append(f"# {u.kind} for {', '.join(index.used_by.get(u.parent, [])[:3])}")
-    if any(_uses_pagination(part) for part in parts):
-        budget -= len(_PAGINATION_LEGEND) + 1
-    return _with_legend(_within(parts, budget))
+    return parts
