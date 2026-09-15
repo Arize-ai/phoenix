@@ -17,8 +17,6 @@ filterCondition
 samplingRate
 evaluationTarget
 evaluationDelaySeconds
-schedulabilityStatus
-schedulabilityReason
 traceProject { name description }
 enabled
 inputMapping { literalMapping pathMapping }
@@ -246,8 +244,6 @@ async def test_project_code_evaluator_crud_and_connection(
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "SPAN"
     assert created["evaluationDelaySeconds"] == 300
-    assert created["schedulabilityStatus"] == "SCHEDULABLE"
-    assert created["schedulabilityReason"] is None
     assert created["inputMapping"] == _mapping(output="value")
     assert created["evaluator"]["kind"] == "CODE"
 
@@ -281,8 +277,6 @@ async def test_project_code_evaluator_crud_and_connection(
     updated = update_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert updated["name"] == "updated-code"
     assert updated["evaluationTarget"] == "SPAN"
-    assert updated["schedulabilityStatus"] == "NOT_SCHEDULABLE"
-    assert updated["schedulabilityReason"] == "DISABLED"
     assert updated["inputMapping"] == _mapping(context="override")
     assert updated["evaluator"]["name"] == "updated-code"
 
@@ -326,8 +320,6 @@ async def test_project_code_evaluator_crud_and_connection(
     omitted = omitted_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert omitted["inputMapping"] == _mapping(context="override")
     assert omitted["enabled"] is False
-    assert omitted["schedulabilityStatus"] == "NOT_SCHEDULABLE"
-    assert omitted["schedulabilityReason"] == "DISABLED"
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
@@ -360,8 +352,6 @@ async def test_project_code_evaluator_crud_and_connection(
     inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert inherited["inputMapping"] == _mapping(output="inherited")
     assert inherited["evaluationDelaySeconds"] == 300
-    assert inherited["schedulabilityStatus"] == "SCHEDULABLE"
-    assert inherited["schedulabilityReason"] is None
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
@@ -827,6 +817,28 @@ async def test_session_filter_validation_uses_session_dsl(
     invalid_result = await gql_client.execute(_CREATE_CODE, {"input": invalid_input})
     assert invalid_result.errors
     assert "Invalid filter condition:" in str(invalid_result.errors)
+    assert await _row_counts(db) == before
+
+
+async def test_trace_filter_validation_uses_trace_dsl(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> None:
+    project = await _add_project(db)
+    # Span-element iteration compiles in the trace DSL and not in the span DSL.
+    condition = "any(span.span_kind == 'LLM' for span in spans)"
+    valid_input = _code_create_input(project, sandbox_config, filter_condition=condition)
+    valid_input["evaluationTarget"] = "TRACE"
+
+    valid_result = await gql_client.execute(_CREATE_CODE, {"input": valid_input})
+
+    assert valid_result.data and not valid_result.errors
+    before = await _row_counts(db)
+    span_input = _code_create_input(project, sandbox_config, filter_condition=condition)
+    span_result = await gql_client.execute(_CREATE_CODE, {"input": span_input})
+    assert span_result.errors
+    assert "Invalid filter condition:" in str(span_result.errors)
     assert await _row_counts(db) == before
 
 
