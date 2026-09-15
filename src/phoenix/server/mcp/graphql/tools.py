@@ -10,6 +10,7 @@ from pydantic import TypeAdapter
 from phoenix.server.api.graphql_execute import (
     MAX_QUERY_BYTES,
     GraphQLRefusal,
+    admit,
     execute_operation,
     validate_document,
 )
@@ -18,6 +19,7 @@ from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
     ExecuteGraphqlOutput,
     ExecuteGraphqlResultEnvelope,
+    ValidateGraphqlEnvelope,
 )
 from phoenix.server.mcp_server import _META_ANNOTATIONS, _current_mcp_principal
 
@@ -137,16 +139,18 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         permission error, leaving the rest of `data` populated -- so check
         `errors` even when `data` is present.
 
-        With `validate_only=True`, the document is checked against the schema
-        and not executed. That answers whether it typechecks; it does not check
-        the values in `variables`, and it does not evaluate permissions, which
-        run only during execution. A clean result is not a guarantee the query
-        will succeed.
+        With `validate_only=True`, the document is admitted and checked against
+        the schema, and not executed; the answer is `{valid, notes}`. A document
+        this tool would refuse to run is refused here too. Validation does not
+        check the values in `variables`, and it does not evaluate permissions,
+        which run only during execution, so `valid` is not a guarantee the
+        query will succeed.
         """
         try:
             if validate_only:
+                admit(query, allow_mutations=False)
                 validate_document(_schema(), query)
-                return ExecuteGraphqlResultEnvelope(data=None, errors=[])
+                return ValidateGraphqlEnvelope.passed()
             outcome = await execute_operation(
                 _schema(),
                 query=query,
