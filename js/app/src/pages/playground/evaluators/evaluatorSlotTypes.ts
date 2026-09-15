@@ -1,8 +1,6 @@
 import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
-import type { EvaluatorAgentSlot } from "./evaluatorAgentSlot";
-
 export const EVALUATOR_SLOT_IDS = ["A", "B", "C", "D"] as const;
 
 export type SlotId = (typeof EVALUATOR_SLOT_IDS)[number];
@@ -47,30 +45,6 @@ export type SlotSnapshot = {
   preview: EvaluatorPreviewInput | null;
   inputMapping: EvaluatorInputMapping;
   validationError: string | null;
-};
-
-export type EvaluatorSlotProps = {
-  registerAgentSlot?: (slot: SlotId, host: EvaluatorAgentSlot) => () => void;
-  slotId: SlotId;
-  datasetId: string | null;
-  initialEvaluatorId?: string | null;
-  initialDatasetEvaluatorId?: string | null;
-  sampleContext: {
-    input: unknown;
-    output: unknown;
-    reference: unknown;
-    metadata: unknown;
-  };
-  onChange: (snapshot: SlotSnapshot) => void;
-  /**
-   * Removes this slot from the comparison. Any slot can be removed while more than one remains.
-   */
-  onRemove?: () => void;
-  isRunning: boolean;
-  onSelectionChange?: (selection: {
-    evaluatorId: string | null;
-    datasetEvaluatorId: string | null;
-  }) => void;
 };
 
 /** The position of a slot in the comparison, for the alphabetic index icon. */

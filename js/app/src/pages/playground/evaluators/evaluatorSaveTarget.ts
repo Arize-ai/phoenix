@@ -1,5 +1,5 @@
 /**
- * What Save writes for a slot, decided from the evaluator loaded into it and
+ * What Save writes for an evaluator task, decided from the evaluator loaded into it and
  * the dataset the playground is on.
  *
  * - `update`: the evaluator is already on this dataset, so Save changes it in
@@ -8,7 +8,7 @@
  *   are shared, so Save updates the evaluator and adds it to the dataset.
  * - `create`: a fresh draft, or an LLM evaluator that is not on this dataset.
  *   LLM evaluators have no attach mutation, so Save creates a copy on this
- *   dataset; the slot then points at the copy and later saves update it.
+ *   dataset; the task then points at the copy and later saves update it.
  */
 export type EvaluatorSaveTarget =
   | { action: "create" }
@@ -26,9 +26,9 @@ export function getEvaluatorSaveTarget({
   selectedDatasetEvaluator,
   datasetId,
 }: {
-  /** The shared evaluator loaded into the slot; null for a new draft. */
+  /** The shared evaluator loaded into the task; null for a new draft. */
   source: EvaluatorSaveSource | null;
-  /** The binding loaded into the slot, when the slot was opened from one. */
+  /** The binding loaded into the task, when the task was opened from one. */
   selectedDatasetEvaluator: { id: string; datasetId: string } | null;
   datasetId: string | null;
 }): EvaluatorSaveTarget {

@@ -86,15 +86,7 @@ import {
   setTemplateVariablesPathOperation,
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
-import {
-  Button,
-  Flex,
-  Icon,
-  Icons,
-  Loading,
-  PageHeader,
-  View,
-} from "@phoenix/components";
+import { Flex, Loading, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -119,9 +111,10 @@ import {
   type AgentClientActionResult,
   waitForRegisteredClientActions,
 } from "@phoenix/store/agentStore";
+import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
+import { EvaluatorPlaygroundEmptySource } from "./evaluators";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -138,10 +131,10 @@ import {
 } from "./PlaygroundDatasetSection";
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
-import { PlaygroundModeSelect } from "./PlaygroundModeSelect";
 import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
-import { PlaygroundTemplate } from "./PlaygroundTemplate";
+import { PlaygroundTaskInstance } from "./PlaygroundTaskInstance";
+import { PlaygroundCompareMenu } from "./TaskMenu";
 import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
@@ -207,19 +200,16 @@ export function Playground(
       defaultModelName={defaultModelName}
     >
       <div css={playgroundWrapCSS}>
-        {/* The panels below shrink, not the header, so both modes' panels
-            start at the same line. */}
+        {/* The panels below shrink, not the header, so the header controls
+            stay put whatever kind of task the page holds. */}
         <View borderBottomColor="default" borderBottomWidth="thin" flex="none">
           <PageHeader
             title="Playground"
             extra={
-              <Flex direction="row" gap="size-300" alignItems="center">
-                <PlaygroundModeSelect />
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <PlaygroundCredentialsDropdown />
-                  <PlaygroundConfigButton />
-                  <PlaygroundRunButton />
-                </Flex>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <PlaygroundCredentialsDropdown />
+                <PlaygroundConfigButton />
+                <PlaygroundRunButton />
               </Flex>
             }
           />
@@ -230,26 +220,6 @@ export function Playground(
         <PlaygroundExamplePage />
       </Suspense>
     </PlaygroundProvider>
-  );
-}
-
-function AddPromptButton() {
-  const addInstance = usePlaygroundContext((state) => state.addInstance);
-  const instances = usePlaygroundContext((state) => state.instances);
-  const numInstances = instances.length;
-  const isRunning = instances.some((instance) => instance.activeRunId != null);
-  return (
-    <Button
-      size="S"
-      aria-label="add prompt"
-      leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
-      isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
-      onPress={() => {
-        addInstance({ type: "duplicate" });
-      }}
-    >
-      Compare
-    </Button>
   );
 }
 
@@ -293,6 +263,9 @@ function PlaygroundContent() {
     return serializedSplitIds.split("\0");
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
+  const taskKind = usePlaygroundContext((state) =>
+    getPlaygroundTaskKind(state.instances)
+  );
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -312,7 +285,7 @@ function PlaygroundContent() {
     );
     return instance?.experiment ?? null;
   });
-  const anyDirtyPromptInstances = usePlaygroundContext((state) =>
+  const anyDirtyInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
   );
   const recordExperiments = usePlaygroundContext(
@@ -698,9 +671,9 @@ function PlaygroundContent() {
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
       const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
-      return (isRunning || anyDirtyPromptInstances) && goingToNewPage;
+      return (isRunning || anyDirtyInstances) && goingToNewPage;
     },
-    [isRunning, anyDirtyPromptInstances]
+    [isRunning, anyDirtyInstances]
   );
   const blocker = useBlocker(shouldBlockUnload);
 
@@ -720,16 +693,19 @@ function PlaygroundContent() {
     return undefined;
   }, [isRunning]);
 
-  // The mounted panel set varies by mode; passing panelIds keys each mode's
-  // saved layout separately so switching modes doesn't clobber the other's
+  // The mounted panel set varies with the input; passing panelIds keys each
+  // set's saved layout separately so switching doesn't clobber the other's.
+  // Evaluator tasks have no manual input, so without a dataset they show the
+  // same two panels as a dataset does.
+  const hasIOPanel = isDatasetMode || taskKind === "evaluator";
   const panelIds = useMemo(
     () =>
-      isDatasetMode
+      hasIOPanel
         ? ["prompts", "io"]
         : templateFormat !== TemplateFormats.NONE
           ? ["prompts", "input", "output"]
           : ["prompts", "output"],
-    [isDatasetMode, templateFormat]
+    [hasIOPanel, templateFormat]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "playground-panels-v2",
@@ -772,11 +748,13 @@ function PlaygroundContent() {
         <TitledPanel
           ref={promptsPanelRef}
           headingLevel={2}
-          title="Prompts"
+          title={taskKind === "evaluator" ? "Evaluators" : "Prompts"}
           extra={
             <Flex direction="row" gap="size-100" alignItems="center">
-              <TemplateFormatRadioGroup size="S" />
-              <AddPromptButton />
+              {taskKind === "prompt" ? (
+                <TemplateFormatRadioGroup size="S" />
+              ) : null}
+              <PlaygroundCompareMenu />
             </Flex>
           }
           panelProps={{ id: "prompts", minSize: "15%" }}
@@ -789,11 +767,12 @@ function PlaygroundContent() {
               {instanceIds.map((instanceId) => (
                 <View
                   flex="1 1 0px"
-                  key={`${instanceId}-prompt`}
+                  key={`${instanceId}-task`}
                   minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                 >
-                  <PlaygroundTemplate
-                    playgroundInstanceId={instanceId}
+                  <PlaygroundTaskInstance
+                    instanceId={instanceId}
+                    datasetId={datasetId}
                     appendedMessagesPath={appendedMessagesPath}
                     availablePaths={availablePaths}
                   />
@@ -838,6 +817,20 @@ function PlaygroundContent() {
               }
             />
           </Suspense>
+        ) : taskKind === "evaluator" ? (
+          <TitledPanel
+            ref={ioPanelRef}
+            headingLevel={2}
+            resizable
+            title="Experiment"
+            extra={<PlaygroundDatasetSelect />}
+            panelProps={IO_PANEL_PROPS}
+            onCollapseChange={(collapsed) =>
+              handleSectionCollapse(collapsed, "io")
+            }
+          >
+            <EvaluatorPlaygroundEmptySource />
+          </TitledPanel>
         ) : (
           <>
             {templateFormat !== TemplateFormats.NONE ? (
