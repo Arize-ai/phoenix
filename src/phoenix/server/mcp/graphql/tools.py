@@ -20,8 +20,10 @@ from phoenix.server.api.graphql_execute import (
 from phoenix.server.api.schema_search import cached_index, describe
 from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
+    ExecuteGraphqlMutationOutput,
     ExecuteGraphqlOutput,
     ExecuteGraphqlResultEnvelope,
+    ValidateGraphqlEnvelope,
 )
 from phoenix.server.mcp_server import (
     _DEFAULT_ANNOTATIONS,
@@ -44,6 +46,11 @@ _EXECUTE_GRAPHQL_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "oneOf": TypeAdapter(ExecuteGraphqlOutput).json_schema()["anyOf"],
     "$defs": TypeAdapter(ExecuteGraphqlOutput).json_schema().get("$defs", {}),
+}
+_EXECUTE_GRAPHQL_MUTATION_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "oneOf": TypeAdapter(ExecuteGraphqlMutationOutput).json_schema()["anyOf"],
+    "$defs": TypeAdapter(ExecuteGraphqlMutationOutput).json_schema().get("$defs", {}),
 }
 
 
@@ -169,13 +176,13 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
     @mcp.tool(
         tags={_GRAPHQL_TAG},
         annotations=_DEFAULT_ANNOTATIONS,
-        output_schema=_EXECUTE_GRAPHQL_OUTPUT_SCHEMA,
+        output_schema=_EXECUTE_GRAPHQL_MUTATION_OUTPUT_SCHEMA,
     )
     async def executeGraphqlMutation(
         mutation: str,
         variables: Optional[dict[str, Any]] = None,
         validate_only: bool = False,
-    ) -> ExecuteGraphqlOutput:
+    ) -> ExecuteGraphqlMutationOutput:
         """Execute a GraphQL mutation against Phoenix's API. This changes stored data.
 
         Confirm the change with the person you are acting for before calling
