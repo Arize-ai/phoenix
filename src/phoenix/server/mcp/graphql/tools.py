@@ -126,7 +126,7 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         that succeeded; an `error` key means nothing executed.
 
         Queries only. A document containing a mutation or a subscription is
-        refused unexecuted, as is one over 16 KiB.
+        refused unexecuted, as is one over the size limit the schema tool states.
 
         Fields you may not read fail individually at execution with a
         permission error, leaving the rest of `data` populated -- so check
