@@ -67,6 +67,42 @@ def coerce_otlp_span_attributes(
         yield key, value
 
 
+# OpenInference namespaces whose keys are positional (``<namespace>.<index>.…``).
+# Two mappings of the same data can disagree on the index base — a client-side
+# mapping that skips ``gen_ai.system_instructions`` numbers the first user message
+# 0, while the synthesized one numbers it 1 — so merging them key by key
+# interleaves them into entries that never existed. These namespaces are therefore
+# merged all-or-nothing.
+_POSITIONAL_NAMESPACES = (
+    SpanAttributes.LLM_INPUT_MESSAGES,
+    SpanAttributes.LLM_OUTPUT_MESSAGES,
+    SpanAttributes.LLM_TOOLS,
+    SpanAttributes.RETRIEVAL_DOCUMENTS,
+)
+
+
+def _merge_synthesized_attributes(
+    raw_attributes: dict[str, Any],
+    synthesized: Mapping[str, Any],
+) -> None:
+    """Merge synthesized OpenInference attributes into the span's own attributes.
+
+    Attributes already on the span always win. Scalar keys are filled in
+    individually; a positional namespace is skipped in full when the span already
+    carries any key under it, so a partial client-side mapping is kept internally
+    consistent rather than gap-filled from a differently indexed one.
+    """
+    occupied = tuple(
+        f"{namespace}."
+        for namespace in _POSITIONAL_NAMESPACES
+        if any(key.startswith(f"{namespace}.") for key in raw_attributes)
+    )
+    for key, value in synthesized.items():
+        if occupied and key.startswith(occupied):
+            continue
+        raw_attributes.setdefault(key, value)
+
+
 def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     trace_id = cast(TraceID, _decode_identifier(otlp_span.trace_id))
     span_id = cast(SpanID, _decode_identifier(otlp_span.span_id))
@@ -77,10 +113,9 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
 
     raw_attributes = dict(_decode_key_values(otlp_span.attributes))
     # Synthesize OpenInference attrs from any OTel gen_ai.* semconv attributes.
-    # ``setdefault`` means existing OI attributes win — relevant for spans that
-    # were dual-emitted by an instrumentation that already set OI keys directly.
-    for key, value in get_openinference_attributes(raw_attributes).items():
-        raw_attributes.setdefault(key, value)
+    # Existing OI attributes win — relevant for spans that were dual-emitted by
+    # an instrumentation that already set OI keys directly.
+    _merge_synthesized_attributes(raw_attributes, get_openinference_attributes(raw_attributes))
     attributes = unflatten(load_json_strings(coerce_otlp_span_attributes(raw_attributes.items())))
     span_kind = SpanKind(get_attribute_value(attributes, OPENINFERENCE_SPAN_KIND))
 
