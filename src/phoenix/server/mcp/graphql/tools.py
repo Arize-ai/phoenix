@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+import re
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from fastmcp import FastMCP
 from pydantic import TypeAdapter
@@ -14,7 +15,7 @@ from phoenix.server.api.graphql_execute import (
     execute_operation,
     validate_document,
 )
-from phoenix.server.api.schema_search import cached_index, lookup, lookup_many
+from phoenix.server.api.schema_search import cached_index, lookup, lookup_many, search_many
 from phoenix.server.api.schema_search import search as search_schema
 from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
@@ -42,6 +43,12 @@ _EXECUTE_GRAPHQL_OUTPUT_SCHEMA: dict[str, Any] = {
     "oneOf": TypeAdapter(ExecuteGraphqlOutput).json_schema()["anyOf"],
     "$defs": TypeAdapter(ExecuteGraphqlOutput).json_schema().get("$defs", {}),
 }
+
+
+def _listed(value: Union[str, list[str], None]) -> list[str]:
+    """``value`` as the non-empty strings it holds, whether one string or a list."""
+    items = [value] if isinstance(value, str) else list(value or [])
+    return [item.strip() for item in items if item and item.strip()]
 
 
 def _preamble(query_root: str) -> str:
@@ -88,8 +95,8 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
     # `{"result": <the same text>}` adds no structure to read.
     @mcp.tool(tags={_GRAPHQL_TAG}, annotations=_META_ANNOTATIONS, output_schema=None)
     async def describeGraphqlSchema(
-        search: Optional[str] = None,
-        names: Optional[list[str]] = None,
+        search: Optional[Union[str, list[str]]] = None,
+        names: Optional[Union[str, list[str]]] = None,
     ) -> str:
         """Search Phoenix's GraphQL schema for the types and fields to write an operation.
 
@@ -97,25 +104,29 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         asked for. With no arguments it returns the query root, which is where
         every read begins.
 
-        `search` is free text ("cost summary time range", "annotate spans"). It
-        returns ranked field signatures grouped under the types that own them,
-        followed by the best hit in full. `names` lists exact `Type`,
-        `Type.field`, or mutation names; each comes back in full, with the paths
-        that reach it, the input types it takes, and the members it returns.
-        Pass both to look names up and search in one call.
+        `search` is free text ("cost summary time range", "annotate spans"), one
+        string or a list of them. Each returns ranked field signatures grouped
+        under the types that own them, followed by the best hit in full. `names`
+        is exact `Type`, `Type.field`, or mutation names, as a list or one
+        comma-separated string; each comes back in full, with the paths that
+        reach it, the input types it takes, and the members it returns. Pass
+        both to look names up and search in one call; several of either share
+        the answer's budget.
 
         Name the return types and input types you see rather than repeating the
         same search terms.
         """
         index = cached_index(_schema()._schema, include_mutations=allow_mutations)
-        wanted = [n.strip() for n in names or [] if n.strip()]
-        terms = (search or "").strip()
+        wanted = [n for item in _listed(names) for n in re.split(r"[,\s]+", item) if n]
+        queries = _listed(search)
         parts = [_preamble(index.query_root)]
         if wanted:
             parts.append(lookup_many(index, wanted, _SEARCH_BUDGET))
-        if terms:
-            parts.append(search_schema(index, terms, _SEARCH_BUDGET))
-        if not wanted and not terms:
+        if len(queries) == 1:
+            parts.append(search_schema(index, queries[0], _SEARCH_BUDGET))
+        elif queries:
+            parts.append(search_many(index, queries, _SEARCH_BUDGET))
+        if not wanted and not queries:
             parts.append(lookup(index, index.query_root))
         return "\n\n".join(parts)
 
