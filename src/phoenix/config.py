@@ -3895,15 +3895,15 @@ def get_env_skills_paths() -> tuple[Path, ...]:
     )
 
 
-SkillsVisibility = Literal["all", "explicit"]
+SkillsVisibilityMode = Literal["all", "explicit"]
 
 
-def _is_skills_visibility(value: str) -> TypeGuard[SkillsVisibility]:
-    return value in get_args(SkillsVisibility)
+def _is_skills_visibility_mode(value: str) -> TypeGuard[SkillsVisibilityMode]:
+    return value in get_args(SkillsVisibilityMode)
 
 
-def get_env_skills_visibility() -> SkillsVisibility:
+def get_env_skills_visibility() -> SkillsVisibilityMode:
     value = getenv(ENV_PHOENIX_SKILLS_VISIBILITY, "all")
-    if not _is_skills_visibility(value):
+    if not _is_skills_visibility_mode(value):
         raise ValueError(f"{ENV_PHOENIX_SKILLS_VISIBILITY} must be 'all' or 'explicit'")
     return value
