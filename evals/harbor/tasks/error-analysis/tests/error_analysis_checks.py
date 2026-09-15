@@ -24,6 +24,9 @@ REWARD_PATH = Path(os.environ.get("PHOENIX_EVAL_REWARD_PATH", "/logs/verifier/re
 JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "claude-sonnet-5")
 WORKSPACE_ROOT = "/home/user/workspace"
 SIDECAR_DIR = f"{WORKSPACE_ROOT}/.px/coding"
+# Coding agents such as Claude Code run in the container's working directory and leave
+# their sidecars on disk there.
+SIDECAR_DISK_DIR = Path(os.environ.get("PHOENIX_EVAL_SIDECAR_DIR", "/app/.px/coding"))
 NOTE_NAME = "note"
 
 EntityKind = Literal["span", "trace", "session"]
@@ -232,11 +235,41 @@ def is_generic_name(name: str, blocklist: list[str]) -> bool:
 def load_sidecars(
     connection: sqlite3.Connection, session_rowid: int | None
 ) -> dict[str, list[dict[str, Any]]]:
-    """``{filename: rows}`` for every JSONL file under ``.px/coding`` in the agent's virtual shell.
+    """``{filename: rows}`` for every JSONL file under the agent's ``.px/coding``.
 
-    The PXI bash tool is an in-process virtual shell whose filesystem is
-    snapshotted into ``agent_session_snapshots``; nothing lands on the container disk.
+    A coding agent writes the sidecars to the container disk, under its working
+    directory. The PXI bash tool is an in-process virtual shell whose filesystem is
+    snapshotted into ``agent_session_snapshots``, so when nothing is on disk the
+    sidecars are read out of the latest snapshot instead.
     """
+    if SIDECAR_DISK_DIR.is_dir():
+        sidecars = {
+            path.name: _parse_jsonl(path.read_text(errors="replace"))
+            for path in sorted(SIDECAR_DISK_DIR.glob("*.jsonl"))
+        }
+        if sidecars:
+            return sidecars
+    return _load_snapshot_sidecars(connection, session_rowid)
+
+
+def _parse_jsonl(text: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            parsed = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            rows.append(parsed)
+    return rows
+
+
+def _load_snapshot_sidecars(
+    connection: sqlite3.Connection, session_rowid: int | None
+) -> dict[str, list[dict[str, Any]]]:
     query = "SELECT bashkit_snapshot FROM agent_session_snapshots"
     params: tuple[Any, ...] = ()
     if session_rowid is not None:
@@ -265,18 +298,7 @@ def load_sidecars(
             continue
         content = shell.read_file(f"{SIDECAR_DIR}/{filename}")
         text = content.decode("utf-8") if isinstance(content, (bytes, bytearray)) else str(content)
-        rows = []
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                parsed = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, dict):
-                rows.append(parsed)
-        sidecars[filename] = rows
+        sidecars[filename] = _parse_jsonl(text)
     return sidecars
 
 
