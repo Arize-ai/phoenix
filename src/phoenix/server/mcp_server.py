@@ -488,8 +488,7 @@ def build_phoenix_mcp_server(
         skills_roots: Directories whose skill folders this consumer receives.
             Empty by default: no skill tools, and no skill instructions
             advertised.
-        external_skills: Already-loaded skills to serve in addition to those
-            under ``skills_roots``.
+        external_skills: User-configured skills.
 
     Returns:
         The server, and — when code mode is enabled — the sandbox adapter backed
