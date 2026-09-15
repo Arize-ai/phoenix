@@ -98,15 +98,6 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   GitHub tools        {{ enabled if assistant_config.github_enabled else disabled }}
 
 {% endif %}
-{% if skills_paths %}
-{{ header("📚", "Skills") }}
-  External skills     {{ skills_paths[0] }}
-{% for path in skills_paths[1:] %}
-                      {{ path }}
-{% endfor %}
-  Visibility          {{ skills_visibility }}
-
-{% endif %}
 {% if dev_mode or debug_logging or dev_vite_url or debugpy_url %}
 {{ header("🐛", "Development") }}
 {% if dev_mode %}
@@ -134,6 +125,15 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   REST API            {{ rest_api_url }}
   GraphQL API         {{ graphql_url }}
   MCP server          {{ mcp_url or disabled }}
+{% if skills_paths %}
+  External skills     {{ skills_paths[0] }}
+{% for path in skills_paths[1:] %}
+                      {{ path }}
+{% endfor %}
+  Skills visibility   {{ skills_visibility }}
+{% else %}
+  External skills     {{ not_configured }}
+{% endif %}
 {% if read_only %}
   Mode                Read-only
 {% endif %}
