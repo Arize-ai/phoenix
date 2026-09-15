@@ -24,6 +24,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
 import {
   getOptimizationBounds,
   getPositiveOptimization,
@@ -67,6 +68,7 @@ import {
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
 const OTHER_CATEGORY = "other" as const;
@@ -701,7 +703,7 @@ function EvaluatorGallery() {
                       <Text size="S" weight="heavy">
                         {evaluator.name}
                       </Text>
-                      <EvaluatorTemplateCardSubtitle
+                      <EvaluatorTypeSummary
                         evaluatorKind={getCustomEvaluatorKind(evaluator)}
                       />
                     </Flex>
@@ -766,7 +768,7 @@ function EvaluatorGallery() {
                       <Text size="S" weight="heavy">
                         {template.name}
                       </Text>
-                      <EvaluatorTemplateCardSubtitle
+                      <EvaluatorTypeSummary
                         evaluatorKind="LLM"
                         evaluationTargets={[template.scope ?? "SPAN"]}
                       />
@@ -845,24 +847,34 @@ function EvaluatorGalleryAddMenu({
   );
 }
 
-function EvaluatorTemplateCardSubtitle({
+const CODE_LANGUAGE_LABELS = {
+  PYTHON: "Python",
+  TYPESCRIPT: "TypeScript",
+} satisfies Record<CodeProjectEvaluatorDetails["language"], string>;
+
+function EvaluatorTypeSummary({
   evaluatorKind,
+  language,
   evaluationTargets,
 }: {
   evaluatorKind: "CODE" | "LLM";
+  language?: CodeProjectEvaluatorDetails["language"];
   evaluationTargets?: readonly [
     ProjectEvaluatorTarget,
     ...ProjectEvaluatorTarget[],
   ];
 }) {
   const kindLabel = evaluatorKind === "LLM" ? "LLM" : "Code";
+  const languageLabel = language ? CODE_LANGUAGE_LABELS[language] : undefined;
   const targetsLabel = evaluationTargets
     ?.map((target) => capitalize(formatEvaluationTargetPlural(target)))
     .join(", ");
-  const summary = [kindLabel, targetsLabel].filter(Boolean).join(" • ");
+  const summary = [kindLabel, languageLabel, targetsLabel]
+    .filter(Boolean)
+    .join(" • ");
   return (
     <Text
-      className="project-evaluator-gallery__template-card-subtitle"
+      className="project-evaluator-gallery__evaluator-type-summary"
       size="XS"
       color="text-500"
       fontFamily="mono"
@@ -916,18 +928,28 @@ function CustomEvaluatorDetailsHeader({
   evaluator: LlmProjectEvaluatorDetails | CodeProjectEvaluatorDetails;
 }) {
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <EvaluatorCategoryIcon section={CUSTOM_EVALUATORS_SECTION} />
-        <Heading level={2}>{evaluator.name}</Heading>
+    <Flex direction="column" gap="size-50">
+      <Flex direction="column" gap="size-25">
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <EvaluatorCategoryIcon section={CUSTOM_EVALUATORS_SECTION} />
+          <Heading level={2}>{evaluator.name}</Heading>
+        </Flex>
+        <EvaluatorTypeSummary
+          evaluatorKind={
+            evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE"
+          }
+          language={
+            evaluator.__typename === "CodeEvaluator"
+              ? evaluator.language
+              : undefined
+          }
+        />
       </Flex>
-      <Text
-        size="S"
-        color={evaluator.description ? "text-700" : "text-500"}
-        css={evaluator.description ? undefined : emptyDescriptionCSS}
-      >
-        {evaluator.description || "No description"}
-      </Text>
+      {evaluator.description ? (
+        <Text size="S" color="text-700">
+          {evaluator.description}
+        </Text>
+      ) : null}
     </Flex>
   );
 }
@@ -950,27 +972,30 @@ function EvaluatorOutputSummary({
               {config.name}
             </Text>
           ) : null}
-          <dl className="project-evaluator-gallery__definition-list">
-            <div>
-              <dt>
-                <Text size="XS" color="text-500">
-                  Optimization
-                </Text>
-              </dt>
-              <dd>
-                <Text size="S">
-                  {capitalize(config.optimizationDirection.toLowerCase())}
-                </Text>
-              </dd>
-            </div>
-          </dl>
+          {/* AnnotationValues shows its own OptimizationDirectionIndicator, so
+              the standalone Optimization row is only needed without it. */}
           {config.__typename === "CategoricalAnnotationConfig" &&
           config.values.length > 0 ? (
             <AnnotationValues
               values={config.values}
               optimizationDirection={config.optimizationDirection}
             />
-          ) : null}
+          ) : (
+            <dl className="project-evaluator-gallery__definition-list">
+              <div>
+                <dt>
+                  <Text size="XS" color="text-500">
+                    Optimization
+                  </Text>
+                </dt>
+                <dd>
+                  <OptimizationDirectionIndicator
+                    optimizationDirection={config.optimizationDirection}
+                  />
+                </dd>
+              </div>
+            </dl>
+          )}
         </Flex>
       ))}
     </Flex>
@@ -993,24 +1018,21 @@ function EvaluatorInputSummary({
       <Text elementType="h3" size="S" weight="heavy">
         Inputs
       </Text>
-      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
-        <List size="S">
-          {inputs.map((input) => (
-            <ListItem key={input.name}>
-              <Flex direction="column" gap="size-25">
-                <Text size="S" fontFamily="mono" css={inputNameCSS}>
-                  {input.name}
+      <List size="S" css={plainDetailsListCSS}>
+        {inputs.map((input) => (
+          <ListItem key={input.name}>
+            <code css={inputNameCSS}>{input.name}</code>
+            {input.description ? (
+              <>
+                {" "}
+                <Text size="S" color="text-700">
+                  {input.description}
                 </Text>
-                {input.description ? (
-                  <Text size="XS" color="text-700">
-                    {input.description}
-                  </Text>
-                ) : null}
-              </Flex>
-            </ListItem>
-          ))}
-        </List>
-      </div>
+              </>
+            ) : null}
+          </ListItem>
+        ))}
+      </List>
     </Flex>
   );
 }
@@ -1023,7 +1045,7 @@ function AnnotationValues({
     readonly label: string;
     readonly score: number | null;
   }>;
-  optimizationDirection: string;
+  optimizationDirection: EvaluatorOptimizationDirection;
 }) {
   const optimizationBounds = getOptimizationBounds({
     annotationType: "CATEGORICAL",
@@ -1032,38 +1054,46 @@ function AnnotationValues({
   });
   return (
     <Flex direction="column" gap="size-75">
-      <Text elementType="h3" size="S" weight="heavy">
-        Annotation values
-      </Text>
-      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
-        <List size="S">
-          {values.map(({ label, score }) => (
-            <ListItem key={label}>
-              <Flex
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                gap="size-100"
-              >
-                <Text size="S">{label}</Text>
-                <Text size="XS" color="text-500">
-                  <AnnotationScoreText
-                    elementType="span"
-                    fontFamily="mono"
-                    size="XS"
-                    positiveOptimization={getPositiveOptimization({
-                      score,
-                      ...optimizationBounds,
-                    })}
-                  >
-                    {score ?? "—"}
-                  </AnnotationScoreText>
-                </Text>
-              </Flex>
-            </ListItem>
-          ))}
-        </List>
-      </div>
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="size-100"
+      >
+        <Text elementType="h3" size="S" weight="heavy">
+          Annotation values
+        </Text>
+        <OptimizationDirectionIndicator
+          optimizationDirection={optimizationDirection}
+        />
+      </Flex>
+      <List size="S" css={plainDetailsListCSS}>
+        {values.map(({ label, score }) => (
+          <ListItem key={label}>
+            <Flex
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              gap="size-100"
+            >
+              <Text size="S">{label}</Text>
+              <Text size="XS" color="text-500">
+                <AnnotationScoreText
+                  elementType="span"
+                  fontFamily="mono"
+                  size="XS"
+                  positiveOptimization={getPositiveOptimization({
+                    score,
+                    ...optimizationBounds,
+                  })}
+                >
+                  {score ?? "—"}
+                </AnnotationScoreText>
+              </Text>
+            </Flex>
+          </ListItem>
+        ))}
+      </List>
     </Flex>
   );
 }
@@ -1091,20 +1121,8 @@ function LlmCustomEvaluatorDetails({
           ]
         : [];
   return (
-    <Flex direction="column" gap="size-200" height="100%">
+    <Flex direction="column" gap="size-300" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
-      <dl className="project-evaluator-gallery__definition-list">
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Type
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">LLM</Text>
-          </dd>
-        </div>
-      </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <EvaluatorPromptPreview messages={messages} />
@@ -1125,30 +1143,8 @@ function CodeCustomEvaluatorDetails({
   onDuplicateEvaluator: () => void;
 }) {
   return (
-    <Flex direction="column" gap="size-200" height="100%">
+    <Flex direction="column" gap="size-300" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
-      <dl className="project-evaluator-gallery__definition-list">
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Type
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">Code</Text>
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Language
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">{capitalize(evaluator.language.toLowerCase())}</Text>
-          </dd>
-        </div>
-      </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <Flex direction="column" gap="size-75">
@@ -1193,11 +1189,11 @@ function EvaluatorPromptPreview({
       <Text elementType="h3" size="S" weight="heavy">
         Prompt
       </Text>
-      <div css={detailsSectionWellCSS}>
+      <div css={[detailsSectionWellCSS, promptPreviewWellCSS]}>
         <ExpandableContent
           height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
           expandedBehavior="grow"
-          overlayBackgroundColor="var(--global-background-color-100)"
+          overlayBackgroundColor="var(--global-color-gray-100)"
         >
           <Flex direction="column" gap="size-150">
             {messages.map((message) => (
@@ -1254,11 +1250,17 @@ function EvaluatorTemplateDetails({
   const messages = getProjectEvaluatorTemplateMessages(template);
   const category = getGalleryCategory(template.category);
   return (
-    <Flex direction="column" gap="size-200" height="100%">
-      <Flex direction="column" gap="size-100">
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <EvaluatorCategoryIcon section={category} />
-          <Heading level={2}>{template.name}</Heading>
+    <Flex direction="column" gap="size-300" height="100%">
+      <Flex direction="column" gap="size-50">
+        <Flex direction="column" gap="size-25">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <EvaluatorCategoryIcon section={category} />
+            <Heading level={2}>{template.name}</Heading>
+          </Flex>
+          <EvaluatorTypeSummary
+            evaluatorKind="LLM"
+            evaluationTargets={[template.scope ?? "SPAN"]}
+          />
         </Flex>
         {template.details ? (
           <Text size="S" color="text-700">
@@ -1266,44 +1268,6 @@ function EvaluatorTemplateDetails({
           </Text>
         ) : null}
       </Flex>
-      <dl className="project-evaluator-gallery__definition-list project-evaluator-gallery__definition-list--even">
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Type
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">LLM</Text>
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Target
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">
-              {template.scope
-                ? capitalize(formatEvaluationTargetPlural(template.scope))
-                : "—"}
-            </Text>
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Optimization
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">
-              {capitalize(template.optimizationDirection.toLowerCase())}
-            </Text>
-          </dd>
-        </div>
-      </dl>
       <EvaluatorInputSummary
         inputs={(template.inputs ?? []).map((input) => ({
           name: input.name,
@@ -1349,12 +1313,35 @@ const detailsSectionWellCSS = css`
   padding: var(--global-dimension-size-150);
 `;
 
-const listSectionWellCSS = css`
-  padding: var(--global-dimension-size-50);
+const promptPreviewWellCSS = css`
+  background-color: var(--global-color-gray-100);
+`;
+
+const plainDetailsListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+
+  && li {
+    padding: 0;
+  }
+
+  && li:not(:first-of-type)::after {
+    content: none;
+  }
 `;
 
 const inputNameCSS = css`
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 100%;
+  padding: var(--global-dimension-size-25) var(--global-dimension-size-75);
   overflow-wrap: anywhere;
+  border-radius: var(--global-rounding-small);
+  background-color: var(--global-color-blue-100);
+  color: var(--global-color-blue-1000);
+  font-size: var(--global-font-size-xs);
+  line-height: var(--global-line-height-xs);
 `;
 
 const promptPreviewMessageCSS = css`
@@ -1366,10 +1353,6 @@ const codePreviewWellCSS = css`
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
-`;
-
-const emptyDescriptionCSS = css`
-  font-style: italic;
 `;
 
 function capitalize(value: string): string {
@@ -1592,7 +1575,7 @@ const galleryCSS = css`
     scroll-margin-top: var(--global-dimension-size-100);
   }
 
-  .project-evaluator-gallery__template-card-subtitle {
+  .project-evaluator-gallery__evaluator-type-summary {
     width: 100%;
   }
 
@@ -1610,13 +1593,6 @@ const galleryCSS = css`
 
     dd {
       margin: 0;
-    }
-  }
-
-  .project-evaluator-gallery__definition-list--even {
-    > div {
-      flex: 1 1 0;
-      min-width: 0;
     }
   }
 
