@@ -27,6 +27,7 @@ import {
 import { useSearchParams } from "react-router";
 import { requestSubscription } from "relay-runtime";
 
+import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   Alert,
   ExpandableContent,
@@ -75,6 +76,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { getPlaygroundEvaluatorTask } from "@phoenix/store/playground";
 import {
   assertUnreachable,
   isStringArray,
@@ -96,6 +98,14 @@ import type {
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import {
+  getEvaluatorTaskAnnotation,
+  PlaygroundEvaluatorColumnHeader,
+  PlaygroundEvaluatorExampleCell,
+  PlaygroundExpectedOutputsProvider,
+  PlaygroundExpectedOutputsStatus,
+} from "./evaluatorCells";
+import { getEvaluatorTaskName } from "./evaluators/evaluatorTaskSnapshot";
 import {
   createExperimentsOverDatasetRouter,
   type ExperimentsOverDatasetEvent,
@@ -817,6 +827,9 @@ export function PlaygroundDatasetExamplesTable({
   const setInstanceExperiment = usePlaygroundContext(
     (state) => state.setInstanceExperiment
   );
+  const runPlaygroundInstances = usePlaygroundContext(
+    (state) => state.runPlaygroundInstances
+  );
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
@@ -1180,40 +1193,48 @@ export function PlaygroundDatasetExamplesTable({
     tableContainerRef.current = el;
     setTableContainerEl(el);
   }, []);
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    PlaygroundDatasetExamplesTableRefetchQuery,
-    PlaygroundDatasetExamplesTableFragment$key
-  >(
-    graphql`
-      fragment PlaygroundDatasetExamplesTableFragment on Dataset
-      @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
-      @argumentDefinitions(
-        datasetVersionId: { type: "ID" }
-        splitIds: { type: "[ID!]" }
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 20 }
-      ) {
-        examples(
-          datasetVersionId: $datasetVersionId
-          splitIds: $splitIds
-          first: $first
-          after: $after
-        ) @connection(key: "PlaygroundDatasetExamplesTable_examples") {
-          edges {
-            example: node {
-              id
-              revision {
-                input
-                output
-                metadata
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<
+      PlaygroundDatasetExamplesTableRefetchQuery,
+      PlaygroundDatasetExamplesTableFragment$key
+    >(
+      graphql`
+        fragment PlaygroundDatasetExamplesTableFragment on Dataset
+        @refetchable(queryName: "PlaygroundDatasetExamplesTableRefetchQuery")
+        @argumentDefinitions(
+          datasetVersionId: { type: "ID" }
+          splitIds: { type: "[ID!]" }
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 20 }
+        ) {
+          examples(
+            datasetVersionId: $datasetVersionId
+            splitIds: $splitIds
+            first: $first
+            after: $after
+          ) @connection(key: "PlaygroundDatasetExamplesTable_examples") {
+            edges {
+              example: node {
+                id
+                revision {
+                  input
+                  output
+                  metadata
+                  revisionId
+                  calibrationLabels {
+                    annotationName
+                    label
+                    score
+                    explanation
+                  }
+                }
               }
             }
           }
         }
-      }
-    `,
-    dataset
-  );
+      `,
+      dataset
+    );
 
   // Refetch the data when the dataset version changes
   const tableData = useMemo(
@@ -1226,11 +1247,20 @@ export function PlaygroundDatasetExamplesTable({
           input: revision.input,
           output: revision.output,
           metadata: revision.metadata,
+          revisionId: revision.revisionId,
+          calibrationLabels: revision.calibrationLabels,
         };
       }),
     [data]
   );
   type TableRow = (typeof tableData)[number];
+  const revisionIdByExampleId = useMemo(
+    () => new Map(tableData.map((row) => [row.id, row.revisionId])),
+    [tableData]
+  );
+  const reloadExamples = useCallback(() => {
+    refetch({}, { fetchPolicy: "network-only" });
+  }, [refetch]);
 
   const exampleIds = useMemo(() => {
     return tableData.map((row) => row.id);
@@ -1268,6 +1298,54 @@ export function PlaygroundDatasetExamplesTable({
     return instances.map((instance, index) => {
       const isRunning = instance.activeRunId !== null;
       const experimentId = instance.experiment?.id ?? null;
+      const evaluator = getPlaygroundEvaluatorTask(instance);
+      if (evaluator) {
+        const label = getInstanceLabel(index);
+        const evaluatorName = getEvaluatorTaskName(evaluator, index);
+        const annotation = getEvaluatorTaskAnnotation({
+          evaluator,
+          position: index,
+        });
+        return {
+          id: `instance-${instance.id}`,
+          // The header reads the rows off the table so the columns need not
+          // be rebuilt as pages of examples load.
+          header: ({ table }) => (
+            <PlaygroundEvaluatorColumnHeader
+              instanceId={instance.id}
+              index={index}
+              name={evaluatorName}
+              annotationName={annotation.name}
+              output={annotation.output}
+              examples={table.options.data}
+              isRunning={isRunning}
+              canRun={!hasSomeRunIds}
+              onRun={() => runPlaygroundInstances([instance.id])}
+            />
+          ),
+          cell: ({ row }) => (
+            <PlaygroundEvaluatorExampleCell
+              instanceId={instance.id}
+              label={label}
+              evaluatorName={evaluatorName}
+              annotationName={annotation.name}
+              output={annotation.output}
+              exampleId={row.original.id}
+              position={row.index + 1}
+              calibrationLabels={row.original.calibrationLabels}
+              isRunning={isRunning}
+              onViewTracePress={(traceId, projectId, name) => {
+                setSelectedTraceInfo({
+                  traceId,
+                  projectId,
+                  evaluatorName: name,
+                });
+              }}
+            />
+          ),
+          size: 320,
+        };
+      }
       return {
         id: `instance-${instance.id}`,
         header: () => (
@@ -1306,7 +1384,9 @@ export function PlaygroundDatasetExamplesTable({
       };
     });
   }, [
+    hasSomeRunIds,
     instances,
+    runPlaygroundInstances,
     templateVariablesPath,
     setSelectedExampleIndex,
     evaluatorOutputConfigs,
@@ -1420,151 +1500,160 @@ export function PlaygroundDatasetExamplesTable({
 
   return (
     <InstanceVariablesProvider>
-      {apiError && (
-        <Alert
-          variant="danger"
-          banner
-          dismissable
-          onDismissClick={() => setApiError(null)}
-        >
-          {apiError}
-        </Alert>
-      )}
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-          height: 100%;
-          scrollbar-gutter: stable;
-        `}
-        ref={tableContainerCallbackRef}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      <PlaygroundExpectedOutputsProvider
+        datasetId={datasetId}
+        getRevisionId={(exampleId) => revisionIdByExampleId.get(exampleId)}
       >
-        <table
-          css={css(tableCSS, borderedTableCSS)}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+        {apiError && (
+          <Alert
+            variant="danger"
+            banner
+            dismissable
+            onDismissClick={() => setApiError(null)}
+          >
+            {apiError}
+          </Alert>
+        )}
+        <PlaygroundExpectedOutputsStatus onReloadExamples={reloadExamples} />
+        <div
+          css={css`
+            flex: 1 1 auto;
+            overflow: auto;
+            height: 100%;
+            scrollbar-gutter: stable;
+          `}
+          ref={tableContainerCallbackRef}
+          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    style={{
-                      width: `calc(var(--header-${header?.id}-size) * 1px)`,
-                    }}
-                  >
-                    <div>
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </div>
-                    <div
-                      {...{
-                        onMouseDown: header.getResizeHandler(),
-                        onTouchStart: header.getResizeHandler(),
-                        className: `resizer ${
-                          header.column.getIsResizing() ? "isResizing" : ""
-                        }`,
+          <table
+            css={css(tableCSS, borderedTableCSS)}
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      style={{
+                        width: `calc(var(--header-${header?.id}-size) * 1px)`,
                       }}
-                    />
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <TableEmpty />
-          ) : table.getState().columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody
-              table={table}
-              tableContainerRef={tableContainerRef}
-              estimatedRowHeight={estimatedRowHeight}
-            />
-          ) : (
-            <TableBody
-              table={table}
-              tableContainerRef={tableContainerRef}
-              estimatedRowHeight={estimatedRowHeight}
-            />
-          )}
-        </table>
-        <ViewportModalOverlay
-          isOpen={selectedExampleIndex !== null}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setSelectedExampleIndex(null);
-            }
-          }}
-        >
-          <ViewportModal size="fullscreen">
-            {selectedExampleIndex !== null &&
-              exampleIds[selectedExampleIndex] &&
-              baseExperimentId != null &&
-              isStringArray(compareExperimentIds) && (
-                <ExperimentCompareDetailsDialog
-                  datasetId={datasetId}
-                  datasetVersionId={datasetVersionId}
-                  selectedExampleIndex={selectedExampleIndex}
-                  selectedExampleId={exampleIds[selectedExampleIndex]}
-                  baseExperimentId={baseExperimentId}
-                  compareExperimentIds={compareExperimentIds}
-                  exampleIds={exampleIds}
-                  onExampleChange={(exampleIndex) => {
-                    if (
-                      exampleIndex === exampleIds.length - 1 &&
-                      !isLoadingNext &&
-                      hasNext
-                    ) {
-                      loadNext(PAGE_SIZE);
-                    }
-                    if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
-                      setSelectedExampleIndex(exampleIndex);
-                    }
-                  }}
-                  openTraceDialog={(traceId, projectId) => {
-                    setSelectedTraceInfo({ traceId, projectId });
-                  }}
-                />
-              )}
-          </ViewportModal>
-        </ViewportModalOverlay>
-        <ViewportModalOverlay
-          isOpen={selectedTraceInfo !== null}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setSelectedTraceInfo(null);
-              setSearchParams(
-                (prev) => {
-                  const newParams = new URLSearchParams(prev);
-                  newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-                  return newParams;
-                },
-                { replace: true }
-              );
-            }
-          }}
-        >
-          <ViewportModal size="fullscreen">
-            {selectedTraceInfo && (
-              <PlaygroundRunTraceDetailsDialog
-                traceId={selectedTraceInfo.traceId}
-                projectId={selectedTraceInfo.projectId}
-                title={
-                  selectedTraceInfo.evaluatorName
-                    ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
-                    : "Experiment Run Trace"
-                }
+                    >
+                      <div>
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </div>
+                      <div
+                        {...{
+                          onMouseDown: header.getResizeHandler(),
+                          onTouchStart: header.getResizeHandler(),
+                          className: `resizer ${
+                            header.column.getIsResizing() ? "isResizing" : ""
+                          }`,
+                        }}
+                      />
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {isEmpty ? (
+              <TableEmpty />
+            ) : table.getState().columnSizingInfo.isResizingColumn ? (
+              <MemoizedTableBody
+                table={table}
+                tableContainerRef={tableContainerRef}
+                estimatedRowHeight={estimatedRowHeight}
+              />
+            ) : (
+              <TableBody
+                table={table}
+                tableContainerRef={tableContainerRef}
+                estimatedRowHeight={estimatedRowHeight}
               />
             )}
-          </ViewportModal>
-        </ViewportModalOverlay>
-      </div>
+          </table>
+          <ViewportModalOverlay
+            isOpen={selectedExampleIndex !== null}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setSelectedExampleIndex(null);
+              }
+            }}
+          >
+            <ViewportModal size="fullscreen">
+              {selectedExampleIndex !== null &&
+                exampleIds[selectedExampleIndex] &&
+                baseExperimentId != null &&
+                isStringArray(compareExperimentIds) && (
+                  <ExperimentCompareDetailsDialog
+                    datasetId={datasetId}
+                    datasetVersionId={datasetVersionId}
+                    selectedExampleIndex={selectedExampleIndex}
+                    selectedExampleId={exampleIds[selectedExampleIndex]}
+                    baseExperimentId={baseExperimentId}
+                    compareExperimentIds={compareExperimentIds}
+                    exampleIds={exampleIds}
+                    onExampleChange={(exampleIndex) => {
+                      if (
+                        exampleIndex === exampleIds.length - 1 &&
+                        !isLoadingNext &&
+                        hasNext
+                      ) {
+                        loadNext(PAGE_SIZE);
+                      }
+                      if (
+                        exampleIndex >= 0 &&
+                        exampleIndex < exampleIds.length
+                      ) {
+                        setSelectedExampleIndex(exampleIndex);
+                      }
+                    }}
+                    openTraceDialog={(traceId, projectId) => {
+                      setSelectedTraceInfo({ traceId, projectId });
+                    }}
+                  />
+                )}
+            </ViewportModal>
+          </ViewportModalOverlay>
+          <ViewportModalOverlay
+            isOpen={selectedTraceInfo !== null}
+            onOpenChange={(isOpen) => {
+              if (!isOpen) {
+                setSelectedTraceInfo(null);
+                setSearchParams(
+                  (prev) => {
+                    const newParams = new URLSearchParams(prev);
+                    newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+                    return newParams;
+                  },
+                  { replace: true }
+                );
+              }
+            }}
+          >
+            <ViewportModal size="fullscreen">
+              {selectedTraceInfo && (
+                <PlaygroundRunTraceDetailsDialog
+                  traceId={selectedTraceInfo.traceId}
+                  projectId={selectedTraceInfo.projectId}
+                  title={
+                    selectedTraceInfo.evaluatorName
+                      ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
+                      : "Experiment Run Trace"
+                  }
+                />
+              )}
+            </ViewportModal>
+          </ViewportModalOverlay>
+        </div>
+      </PlaygroundExpectedOutputsProvider>
     </InstanceVariablesProvider>
   );
 }

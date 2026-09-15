@@ -1,6 +1,6 @@
+import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
+import type { EvaluatorMappingSource } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
-
-import type { SlotId, SlotOutput } from "./evaluatorSlotTypes";
 
 export type SampleExample = {
   id: string;
@@ -57,6 +57,28 @@ export function createEvaluatorContext(
   };
 }
 
+/**
+ * The evaluator context of an example as the mapping editor's sample, at
+ * dataset grain. A primitive field is wrapped so it still offers a path to
+ * map a variable to.
+ */
+export function createEvaluatorMappingSource(
+  example: Pick<SampleExample, "input" | "output" | "metadata">
+): EvaluatorMappingSource<"dataset"> {
+  const context = createEvaluatorContext(example);
+
+  return {
+    input: asMappingRecord(context.input),
+    output: asMappingRecord(context.output),
+    reference: context.reference,
+    metadata: context.metadata,
+  };
+}
+
+function asMappingRecord(value: unknown): Record<string, unknown> {
+  return isStringKeyedObject(value) ? value : { value };
+}
+
 /** Single-output evaluators name annotations after the evaluator; multi-output
  * evaluators prefix the configured output name with the evaluator name. */
 export function getEvaluatorAnnotationName({
@@ -77,9 +99,42 @@ export type ExpectedOutput = {
   explanation?: string | null;
 };
 
-export type SlotExpectations = Partial<
-  Record<SlotId, Partial<Record<string, ExpectedOutput>>>
->;
+/**
+ * One output of an evaluator, reduced to what a results cell needs to render
+ * and validate an expected output against it: the allowed labels and their
+ * configured scores for a categorical output, the bounds for a numeric one.
+ */
+export type EvaluatorOutput = {
+  name: string;
+  labels: string[];
+  labelScores: Partial<Record<string, number>>;
+  lowerBound: number | null;
+  upperBound: number | null;
+};
+
+export function toEvaluatorOutput(config: AnnotationConfig): EvaluatorOutput {
+  if ("values" in config) {
+    return {
+      name: config.name,
+      labels: config.values.map((value) => value.label),
+      labelScores: Object.fromEntries(
+        config.values.flatMap((value) =>
+          value.score != null ? [[value.label, value.score]] : []
+        )
+      ),
+      lowerBound: null,
+      upperBound: null,
+    };
+  }
+
+  return {
+    name: config.name,
+    labels: [],
+    labelScores: {},
+    lowerBound: config.lowerBound ?? null,
+    upperBound: config.upperBound ?? null,
+  };
+}
 
 export function matchesExpectedOutput(
   prediction: EvaluatorPrediction | undefined,
@@ -93,17 +148,17 @@ export function matchesExpectedOutput(
 }
 
 /**
- * Why an expected output can no longer be produced by the slot's selected
- * output, or null when it still can. This replaces content hashing: the only
- * way an expectation goes stale is the output config moving out from under it,
- * and that is checked directly.
+ * Why an expected output can no longer be produced by the evaluator's output,
+ * or null when it still can. This replaces content hashing: the only way an
+ * expectation goes stale is the output config moving out from under it, and
+ * that is checked directly.
  */
 export function getExpectedOutputIssue({
   expected,
   output,
 }: {
   expected: ExpectedOutput;
-  output: SlotOutput | undefined;
+  output: EvaluatorOutput | undefined;
 }): string | null {
   if (!output) return null;
 
@@ -128,9 +183,10 @@ export function getExpectedOutputIssue({
 export type ExpectedVerdict = "match" | "mismatch" | "invalid" | null;
 
 /**
- * How an expected output stands against the slot: invalid when the output
- * config can no longer produce it, otherwise compared with the prediction when
- * there is one. Agreement is only ever counted over valid expectations.
+ * How an expected output stands against the evaluator: invalid when the
+ * output config can no longer produce it, otherwise compared with the
+ * prediction when there is one. Agreement is only ever counted over valid
+ * expectations.
  */
 export function getExpectedVerdict({
   prediction,
@@ -139,7 +195,7 @@ export function getExpectedVerdict({
 }: {
   prediction: EvaluatorPrediction | undefined;
   expected: ExpectedOutput | undefined;
-  output: SlotOutput | undefined;
+  output: EvaluatorOutput | undefined;
 }): ExpectedVerdict {
   if (!expected) return null;
 

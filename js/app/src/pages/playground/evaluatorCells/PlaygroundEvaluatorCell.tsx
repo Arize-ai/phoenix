@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Pressable } from "react-aria-components";
 
@@ -24,70 +25,67 @@ import { CellTop } from "@phoenix/components/table";
 import { PlaygroundErrorWrap } from "@phoenix/pages/playground/PlaygroundErrorWrap";
 
 import type {
+  EvaluatorOutput,
   EvaluatorPrediction,
-  EvaluatorResult,
   ExpectedOutput,
   ExpectedVerdict,
-} from "../evaluatorResults";
+} from "../evaluators/evaluatorResults";
 import {
   getExpectedOutputIssue,
   getExpectedVerdict,
-} from "../evaluatorResults";
-import type { SlotId, SlotOutput } from "../evaluatorSlotTypes";
+} from "../evaluators/evaluatorResults";
 import { EvaluatorOutputValue } from "./EvaluatorOutputValue";
 import { ExpectedOutputForm } from "./ExpectedOutputForm";
 
 /**
- * One evaluator's result for one example, rendered the way experiment rows
- * render annotations: a quiet label · score value with the details in a rich
- * tooltip and the explanation beneath, then the expected output as a band
- * along the bottom. Annotating happens against the result: thumbs up records it
- * as the expected output, thumbs down opens the form to record what it should
- * have been. The band shows what is recorded and, when it disagrees with the
- * result, says so; pressing it opens the same form.
+ * One evaluator task's verdict on one example, rendered the way experiment
+ * rows render annotations: a quiet label · score value with the details in a
+ * rich tooltip and the explanation beneath, then the expected output as a
+ * band along the bottom. Annotating happens against the verdict: thumbs up
+ * records it as the expected output, thumbs down opens the form to record
+ * what it should have been. The band shows what is recorded and, when it
+ * disagrees with the verdict, says so; pressing it opens the same form.
  */
-export function EvaluatorCell({
-  slot,
+export function PlaygroundEvaluatorCell({
+  label,
   name,
   position,
-  result,
-  isLoading,
+  prediction,
   isPending,
   expected,
   output,
-  slotRevision,
   isDisabled,
   onSave,
+  extra,
 }: {
-  slot: SlotId;
+  /** The evaluator's column letter, for the labels of its controls. */
+  label: string;
+  /** The evaluator's name, for the verdict's tooltip. */
   name: string;
   position: number;
-  result?: EvaluatorResult;
-  isLoading: boolean;
+  prediction?: EvaluatorPrediction;
+  /** The run is under way and has not judged this example yet. */
   isPending: boolean;
   expected?: ExpectedOutput;
-  /** The slot's selected output, which the expected output must fit. */
-  output?: SlotOutput;
-  /** The slot's current draft revision, to tell whether the result is stale. */
-  slotRevision?: string;
+  /** The evaluator's reviewed output, which the expected output must fit. */
+  output?: EvaluatorOutput;
   isDisabled: boolean;
   onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
+  /** Controls for the cell's top strip: repetitions, the trace. */
+  extra?: ReactNode;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-
-  if (isLoading && isEditing) setIsEditing(false);
-  const prediction = result?.status === "success" ? result : null;
-  const verdict = getExpectedVerdict({ prediction: result, expected, output });
+  const verdictValue = prediction?.status === "success" ? prediction : null;
+  const verdict = getExpectedVerdict({ prediction, expected, output });
   const issue = expected ? getExpectedOutputIssue({ expected, output }) : null;
-  const isStale = !!result && result.revision !== slotRevision;
-  const canAnnotate = !!prediction && !isDisabled;
+  const canAnnotate = !!verdictValue && !isDisabled;
 
   const value = (
     <span
       css={valueCSS}
-      aria-label={`Evaluator ${slot} result for example ${position}`}
+      aria-label={`Evaluator ${label} result for example ${position}`}
     >
-      <PredictionValue result={result} isPending={isPending} />
+      <PredictionValue prediction={prediction} isPending={isPending} />
     </span>
   );
 
@@ -98,12 +96,8 @@ export function EvaluatorCell({
       minWidth={0}
       justifyContent="space-between"
     >
-      <CellTop>
-        <EvaluatorCellStatus
-          result={result}
-          isPending={isPending}
-          isStale={isStale}
-        />
+      <CellTop extra={extra}>
+        <EvaluatorCellStatus prediction={prediction} isPending={isPending} />
       </CellTop>
       <Flex direction="column" gap="size-50" css={resultRegionCSS}>
         <Flex
@@ -113,13 +107,13 @@ export function EvaluatorCell({
           justifyContent="space-between"
           minWidth={0}
         >
-          {prediction ? (
+          {verdictValue ? (
             <AnnotationTooltip
               annotation={{
                 name,
-                label: prediction.label,
-                score: prediction.score,
-                explanation: prediction.explanation,
+                label: verdictValue.label,
+                score: verdictValue.score,
+                explanation: verdictValue.explanation,
               }}
             >
               <Pressable>{value}</Pressable>
@@ -127,10 +121,10 @@ export function EvaluatorCell({
           ) : (
             value
           )}
-          {/* Annotate the result. Both stay in place and read their state from
+          {/* Annotate the verdict. Both stay in place and read their state from
               the expected output, so agreeing twice clears it — an easy undo.
               Nothing to agree with yet means nothing to show. */}
-          {prediction ? (
+          {verdictValue ? (
             <Flex direction="row" gap="size-25" alignItems="center" flex="none">
               <TooltipTrigger>
                 <IconButton
@@ -140,16 +134,16 @@ export function EvaluatorCell({
                   isDisabled={!canAnnotate}
                   aria-label={
                     verdict === "match"
-                      ? `Clear expected output for evaluator ${slot}, example ${position}`
-                      : `Agree with evaluator ${slot}'s result for example ${position}`
+                      ? `Clear expected output for evaluator ${label}, example ${position}`
+                      : `Agree with evaluator ${label}'s result for example ${position}`
                   }
                   onPress={() => {
                     if (verdict === "match") void onSave(null);
-                    else if (prediction)
+                    else
                       void onSave({
-                        label: prediction.label,
-                        score: prediction.score,
-                        explanation: prediction.explanation,
+                        label: verdictValue.label,
+                        score: verdictValue.score,
+                        explanation: verdictValue.explanation,
                       });
                   }}
                 >
@@ -168,7 +162,7 @@ export function EvaluatorCell({
                   color={verdict === "mismatch" ? "danger" : "text-500"}
                   aria-pressed={verdict === "mismatch"}
                   isDisabled={!canAnnotate}
-                  aria-label={`Disagree with evaluator ${slot}'s result for example ${position}`}
+                  aria-label={`Disagree with evaluator ${label}'s result for example ${position}`}
                   onPress={() => setIsEditing(true)}
                 >
                   <Icon svg={<Icons.ThumbsDown />} />
@@ -181,22 +175,22 @@ export function EvaluatorCell({
             </Flex>
           ) : null}
         </Flex>
-        {prediction?.explanation ? (
+        {verdictValue?.explanation ? (
           // Same treatment as the trace annotations list — muted, clamped,
           // full text on hover — but clamped to the room this row gives it.
           <Truncate
             maxLines={EXPLANATION_MAX_LINES}
-            title={prediction.explanation}
+            title={verdictValue.explanation}
           >
             <Text size="S" color="text-500">
-              {prediction.explanation}
+              {verdictValue.explanation}
             </Text>
           </Truncate>
         ) : null}
       </Flex>
-      {/* Always present, like the annotation band under a prompt playground
-          output: a cell with no expected output shows the same "--" placeholder
-          that band shows before an evaluator has run. The band is the editor's
+      {/* Always present, like the annotation band under a prompt output: a
+          cell with no expected output shows the same "--" placeholder that
+          band shows before an evaluator has run. The band is the editor's
           trigger, so the form opens from it whether reached by press or by
           thumbs down. */}
       <DialogTrigger isOpen={isEditing} onOpenChange={setIsEditing}>
@@ -206,7 +200,7 @@ export function EvaluatorCell({
             css={expectedBandCSS}
             data-verdict={verdict ?? undefined}
             disabled={isDisabled}
-            aria-label={`Expected output for evaluator ${slot}, example ${position}. Press to edit.`}
+            aria-label={`Expected output for evaluator ${label}, example ${position}. Press to edit.`}
           >
             <Flex
               direction="row"
@@ -236,12 +230,12 @@ export function EvaluatorCell({
         <Popover placement="bottom start">
           <PopoverArrow />
           <Dialog
-            aria-label={`Expected output for evaluator ${slot}`}
+            aria-label={`Expected output for evaluator ${label}`}
             style={{ width: 320 }}
           >
             {isEditing ? (
               <ExpectedOutputForm
-                slot={slot}
+                label={label}
                 expected={expected}
                 output={output}
                 isDisabled={isDisabled}
@@ -259,8 +253,8 @@ export function EvaluatorCell({
 /**
  * How the recorded expectation stands, shown on the band itself so the
  * comparison reads where the expected value is rather than as a mark against
- * the result: nothing while they agree, a note when they differ, and a warning
- * when the output config can no longer produce the expected value.
+ * the verdict: nothing while they agree, a note when they differ, and a
+ * warning when the output config can no longer produce the expected value.
  */
 function ExpectedBandStatus({
   verdict,
@@ -335,8 +329,8 @@ const expectedBandCSS = css`
   }
 `;
 
-// The result value sits flush with the thumbs beside it and yields to them
-// when the column is narrow.
+// The verdict sits flush with the thumbs beside it and yields to them when
+// the column is narrow.
 const valueCSS = css`
   display: flex;
   align-items: center;
@@ -363,25 +357,22 @@ const bandStatusCSS = css`
   }
 `;
 
-// Lines of explanation that fit an evaluator cell at that row height: the row is
-// the example content plus its header strip; the evaluator cell spends its own
-// strip, the value row, padding, and the expected band, leaving about six
-// 20px lines. Clamping to that fills the cell without growing the row.
+// Lines of explanation that fit an evaluator cell at the table's row height:
+// the row is the example content plus its header strip; the evaluator cell
+// spends its own strip, the value row, padding, and the expected band, leaving
+// about six 20px lines. Clamping to that fills the cell without growing the row.
 const EXPLANATION_MAX_LINES = 6;
 
 /**
- * The strip above an evaluator result, the counterpart of the prompt
- * playground's run status bar. Evaluator previews report no timing or cost, so
- * this shows what the cell itself knows: queued, done, failed, or outdated.
+ * The strip above an evaluator verdict, the counterpart of the prompt cell's
+ * run status. It says what the cell itself knows: queued, done, or failed.
  */
 function EvaluatorCellStatus({
-  result,
+  prediction,
   isPending,
-  isStale,
 }: {
-  result?: EvaluatorPrediction;
+  prediction?: EvaluatorPrediction;
   isPending: boolean;
-  isStale: boolean;
 }) {
   if (isPending) {
     return (
@@ -392,24 +383,22 @@ function EvaluatorCellStatus({
     );
   }
 
-  if (!result) return <Text color="text-500">Ready</Text>;
+  if (!prediction) return <Text color="text-500">Ready</Text>;
 
-  if (result.status === "error") return <Text color="danger">Failed</Text>;
-
-  if (isStale) return <Text color="warning">Evaluator changed since run</Text>;
+  if (prediction.status === "error") return <Text color="danger">Failed</Text>;
 
   return <Text color="text-500">Evaluated</Text>;
 }
 
-/** The evaluator's output for one example, or why there isn't one yet. */
+/** The evaluator's verdict for one example, or why there isn't one yet. */
 function PredictionValue({
-  result,
+  prediction,
   isPending,
 }: {
-  result?: EvaluatorPrediction;
+  prediction?: EvaluatorPrediction;
   isPending: boolean;
 }) {
-  if (!result) {
+  if (!prediction) {
     return isPending ? (
       <ProgressCircle isIndeterminate size="S" aria-label="Evaluating" />
     ) : (
@@ -417,8 +406,10 @@ function PredictionValue({
     );
   }
 
-  if (result.status === "error")
-    return <PlaygroundErrorWrap>{result.error}</PlaygroundErrorWrap>;
+  if (prediction.status === "error")
+    return <PlaygroundErrorWrap>{prediction.error}</PlaygroundErrorWrap>;
 
-  return <EvaluatorOutputValue label={result.label} score={result.score} />;
+  return (
+    <EvaluatorOutputValue label={prediction.label} score={prediction.score} />
+  );
 }

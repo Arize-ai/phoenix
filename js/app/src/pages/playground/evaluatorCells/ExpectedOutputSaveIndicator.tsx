@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 import { Icon, Icons, Text } from "@phoenix/components";
 import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 
-import type { ExpectedOutputSaveStatus } from "../expectedOutputQueue";
+import type { ExpectedOutputSaveStatus } from "../evaluators/expectedOutputQueue";
 
 /**
  * Where queued annotations stand. Annotations show as recorded the moment they are

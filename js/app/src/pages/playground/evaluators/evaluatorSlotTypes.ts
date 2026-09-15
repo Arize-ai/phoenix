@@ -1,6 +1,8 @@
 import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
+import type { EvaluatorOutput, ExpectedOutput } from "./evaluatorResults";
+
 export const EVALUATOR_SLOT_IDS = ["A", "B", "C", "D"] as const;
 
 export type SlotId = (typeof EVALUATOR_SLOT_IDS)[number];
@@ -21,19 +23,12 @@ export function setVisibleEvaluatorSlots(
   slots.forEach((slot) => params.append("evaluatorSlot", slot));
 }
 
-/**
- * One output of a slot's evaluator, reduced to what the results table needs
- * to render and validate an expected output against it: the allowed labels
- * and their configured scores for a categorical output, the bounds for a
- * continuous one.
- */
-export type SlotOutput = {
-  name: string;
-  labels: string[];
-  labelScores: Partial<Record<string, number>>;
-  lowerBound: number | null;
-  upperBound: number | null;
-};
+/** A slot's output, in the shape the results cells describe an output. */
+export type SlotOutput = EvaluatorOutput;
+
+export type SlotExpectations = Partial<
+  Record<SlotId, Partial<Record<string, ExpectedOutput>>>
+>;
 
 export type SlotSnapshot = {
   revision: string;

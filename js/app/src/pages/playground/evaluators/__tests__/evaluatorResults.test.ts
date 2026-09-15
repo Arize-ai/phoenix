@@ -7,10 +7,12 @@ import {
 
 import {
   createEvaluatorContext,
+  createEvaluatorMappingSource,
   matchesExpectedOutput,
   getEvaluatorAnnotationName,
   getExpectedOutputIssue,
   getExpectedVerdict,
+  toEvaluatorOutput,
 } from "../evaluatorResults";
 import {
   getVisibleEvaluatorSlots,
@@ -36,6 +38,53 @@ describe("evaluator results", () => {
     expect(context.output).toEqual({ response: "hello" });
     expect(context.metadata).toEqual({ customer: "test" });
     expect(metadata).toHaveProperty("annotations");
+  });
+  it("offers an example's context as a dataset-grain mapping source, wrapping primitive fields", () => {
+    expect(
+      createEvaluatorMappingSource({
+        input: "What is 2 + 2?",
+        output: { answer: "4" },
+        metadata: { annotations: { quality: [] }, topic: "math" },
+      })
+    ).toEqual({
+      input: { value: "What is 2 + 2?" },
+      output: { answer: "4" },
+      reference: {},
+      metadata: { topic: "math" },
+    });
+  });
+  it("reduces an output config to the labels, scores and bounds a cell validates against", () => {
+    expect(
+      toEvaluatorOutput({
+        name: "quality",
+        optimizationDirection: "MAXIMIZE",
+        values: [
+          { label: "pass", score: 1 },
+          { label: "unsure" },
+          { label: "fail", score: 0 },
+        ],
+      })
+    ).toEqual({
+      name: "quality",
+      labels: ["pass", "unsure", "fail"],
+      labelScores: { pass: 1, fail: 0 },
+      lowerBound: null,
+      upperBound: null,
+    });
+    expect(
+      toEvaluatorOutput({
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+      })
+    ).toEqual({
+      name: "score",
+      labels: [],
+      labelScores: {},
+      lowerBound: 0,
+      upperBound: 1,
+    });
   });
   it("flags expected outputs the selected output config can no longer produce", () => {
     const categorical = {

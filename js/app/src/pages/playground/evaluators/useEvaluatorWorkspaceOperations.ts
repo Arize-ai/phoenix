@@ -10,13 +10,16 @@ import type {
   SampleExample,
   EvaluatorRun,
   ExpectedOutput,
-  SlotExpectations,
 } from "./evaluatorResults";
 import {
   EVALUATOR_SLOT_IDS,
   setVisibleEvaluatorSlots,
 } from "./evaluatorSlotTypes";
-import type { SlotId, SlotSnapshot } from "./evaluatorSlotTypes";
+import type {
+  SlotExpectations,
+  SlotId,
+  SlotSnapshot,
+} from "./evaluatorSlotTypes";
 import { createLatestValue } from "./latestValue";
 import { useEvaluatorPlaygroundAgent } from "./useEvaluatorPlaygroundAgent";
 import type { EvaluatorWorkspaceRead } from "./useEvaluatorPlaygroundAgent";

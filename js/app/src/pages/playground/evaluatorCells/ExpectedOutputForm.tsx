@@ -13,27 +13,30 @@ import {
 } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { ExpectedOutput } from "../evaluatorResults";
-import type { SlotId, SlotOutput } from "../evaluatorSlotTypes";
+import type {
+  EvaluatorOutput,
+  ExpectedOutput,
+} from "../evaluators/evaluatorResults";
 import { ExpectedLabelSelect } from "./ExpectedLabelSelect";
 
 /**
  * The expected-output editor shown in the band's popover. Its fields follow
- * the slot's selected output config: a choice of that output's labels (with
- * the label's configured score) for a categorical output, otherwise a score
+ * the evaluator's output config: a choice of that output's labels (with the
+ * label's configured score) for a categorical output, otherwise a score
  * within the output's bounds and a free label.
  */
 export function ExpectedOutputForm({
-  slot,
+  label: evaluatorLabel,
   expected,
   output,
   isDisabled,
   onSave,
   onClose,
 }: {
-  slot: SlotId;
+  /** The evaluator's column letter, to title the form. */
+  label: string;
   expected?: ExpectedOutput;
-  output?: SlotOutput;
+  output?: EvaluatorOutput;
   isDisabled: boolean;
   onSave: (output: ExpectedOutput | null) => Promise<UIOperationResult>;
   onClose: () => void;
@@ -52,7 +55,7 @@ export function ExpectedOutputForm({
   return (
     <View padding="size-200">
       <Flex direction="column" gap="size-200">
-        <Text weight="heavy">Expected output · {slot}</Text>
+        <Text weight="heavy">Expected output · {evaluatorLabel}</Text>
         {draft.isCategorical ? (
           <CategoricalExpectedFields
             labels={output?.labels ?? []}
@@ -117,7 +120,7 @@ function getExpectedDraft({
 }: {
   label: string;
   score: number | null;
-  output?: SlotOutput;
+  output?: EvaluatorOutput;
 }) {
   const labels = output?.labels ?? [];
   const isCategorical = labels.length > 0;
@@ -181,7 +184,7 @@ function ScoredExpectedFields({
   onLabelChange,
   onScoreChange,
 }: {
-  output?: SlotOutput;
+  output?: EvaluatorOutput;
   label: string;
   score: number | null;
   isScoreInBounds: boolean;
