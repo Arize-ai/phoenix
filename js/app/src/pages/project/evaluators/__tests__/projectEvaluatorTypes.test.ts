@@ -64,28 +64,8 @@ const runSummary = {
 };
 
 describe("getProjectEvaluatorStatus", () => {
-  it("reports the run status of a schedulable evaluator", () => {
-    expect(
-      getProjectEvaluatorStatus({
-        schedulabilityStatus: "SCHEDULABLE",
-        schedulabilityReason: null,
-        runSummary,
-      }).label
-    ).toBe("Running");
-  });
-
-  it("reports a blocking configuration ahead of past runs", () => {
-    expect(
-      getProjectEvaluatorStatus({
-        schedulabilityStatus: "NOT_SCHEDULABLE",
-        schedulabilityReason: "DISABLED",
-        runSummary,
-      })
-    ).toMatchObject({
-      label: "Not scheduled",
-      explanation:
-        "This evaluator is disabled. Enable it to resume scheduling.",
-    });
+  it("reports the run status of the evaluator's most recent runs", () => {
+    expect(getProjectEvaluatorStatus({ runSummary }).label).toBe("Running");
   });
 });
 
