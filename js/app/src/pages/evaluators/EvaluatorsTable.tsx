@@ -497,12 +497,12 @@ export const EvaluatorsTable = ({
               : row.original.data.evaluator.kind;
 
           if (kind === "BUILTIN") return null;
-          const params = new URLSearchParams({ mode: "evaluators" });
+          const params = new URLSearchParams();
 
           if (row.original.rowType === "datasetEvaluator") {
             params.set("datasetId", row.original.data.dataset.id);
-            params.set("datasetEvaluatorA", row.original.data.id);
-          } else params.set("evaluatorA", row.original.data.id);
+            params.set("datasetEvaluator0", row.original.data.id);
+          } else params.set("evaluator0", row.original.data.id);
 
           return (
             <StopPropagation>
@@ -510,13 +510,13 @@ export const EvaluatorsTable = ({
                 <LinkButton
                   size="S"
                   variant="quiet"
-                  aria-label="Open in evaluator playground"
+                  aria-label="Open in playground"
                   leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   to={`/playground?${params}`}
                 />
                 <Tooltip>
                   <TooltipArrow />
-                  Open in evaluator playground
+                  Open in playground
                 </Tooltip>
               </TooltipTrigger>
             </StopPropagation>

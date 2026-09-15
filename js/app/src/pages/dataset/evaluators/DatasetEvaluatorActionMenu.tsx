@@ -55,7 +55,7 @@ export function DatasetEvaluatorActionMenu({
               switch (action) {
                 case "playground":
                   void navigate(
-                    `/playground?${new URLSearchParams({ mode: "evaluators", datasetId, datasetEvaluatorA: datasetEvaluatorId })}`
+                    `/playground?${new URLSearchParams({ datasetId, datasetEvaluator0: datasetEvaluatorId })}`
                   );
                   break;
                 case DatasetEvaluatorAction.EDIT:
@@ -76,7 +76,7 @@ export function DatasetEvaluatorActionMenu({
                   alignItems="center"
                 >
                   <Icon svg={<Icons.PlayCircle />} />
-                  <Text>Open in evaluator playground</Text>
+                  <Text>Open in playground</Text>
                 </Flex>
               </MenuItem>
             ) : null}

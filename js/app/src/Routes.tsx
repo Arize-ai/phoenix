@@ -928,7 +928,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment with prompts or compare LLM and code evaluators on a dataset. Evaluator mode supports mode=evaluators, repeatable evaluatorSlot (A-D), evaluatorA-evaluatorD or datasetEvaluatorA-datasetEvaluatorD, datasetId, splitId, sampleSize, and resultFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3 or datasetEvaluator0-datasetEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
             },
             navigation: {
               section: "Pages",
@@ -946,7 +946,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment with prompts or compare LLM and code evaluators on a dataset. Evaluator mode supports mode=evaluators, repeatable evaluatorSlot (A-D), evaluatorA-evaluatorD or datasetEvaluatorA-datasetEvaluatorD, datasetId, splitId, sampleSize, and resultFilter. Prompt mode supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                  "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3 or datasetEvaluator0-datasetEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
               },
             }}
           />
