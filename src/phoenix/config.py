@@ -129,7 +129,6 @@ available function. Set to False to present the group-gated progressive-
 disclosure tool list instead. Has no effect unless PHOENIX_ENABLE_MCP_SERVER is
 also set.
 """
-ENV_PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS = "PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS"
 """
 Whether the mounted MCP server exposes a GraphQL mutation tool. Defaults to
 False, and has no effect on a read-only deployment, which refuses writes
@@ -3670,10 +3669,6 @@ def get_env_enable_mcp_server() -> bool:
 
 def get_env_mcp_code_mode() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
-
-
-def get_env_mcp_graphql_mutations() -> bool:
-    return _bool_val(ENV_PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:
