@@ -38,7 +38,6 @@ class PhoenixChatAgent(BaseAgent):
             )
         self._step += 1
         out_dir = f"{_STEPS_DIR}/{self._step}"
-        await self._exec(environment, f"sh {_ASSETS_DIR}/start_phoenix_server.sh", timeout_sec=180)
         await self._upload_instruction(environment, instruction)
         command = [
             f"python {_ASSETS_DIR}/chat_client.py",
@@ -75,10 +74,8 @@ class PhoenixChatAgent(BaseAgent):
             instruction_file.unlink()
 
     @staticmethod
-    async def _exec(
-        environment: BaseEnvironment, command: str, timeout_sec: int | None = None
-    ) -> str:
-        result = await environment.exec(command, timeout_sec=timeout_sec)
+    async def _exec(environment: BaseEnvironment, command: str) -> str:
+        result = await environment.exec(command)
         if result.return_code != 0:
             raise RuntimeError(
                 result.stderr

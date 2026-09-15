@@ -1,4 +1,4 @@
 #!/bin/sh
 # Harbor runs this task hook in the agent environment before the step's
-# agent, so the fixtures exist no matter which agent (or oracle) runs.
-python /opt/phoenix-eval/fetch_fixtures.py --task error-analysis
+# agent, so the server is serving the fixture no matter which agent runs.
+sh /opt/phoenix-eval/start_phoenix_server.sh

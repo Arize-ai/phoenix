@@ -1,6 +1,6 @@
 #!/bin/sh
 # Start Phoenix against the fixture database unless it is already serving.
-# Idempotent so the agent can run it before every step.
+# Idempotent so the step hook can run it before every step.
 set -eu
 PORT="${PHOENIX_PORT:-6006}"
 STATE_DIR=/var/lib/phoenix-eval
