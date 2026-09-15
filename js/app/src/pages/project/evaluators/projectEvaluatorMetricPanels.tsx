@@ -1,5 +1,5 @@
+import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
-import type { ProjectEvaluatorResultAnnotation } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import {
   DeferredProjectMetricPanel,
   getProjectMetricChart,
