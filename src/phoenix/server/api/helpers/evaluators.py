@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal, Optional
 
 from pydantic import (
@@ -28,6 +29,21 @@ if TYPE_CHECKING:
         AnnotationConfigInput,
     )
     from phoenix.server.api.input_types.PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
+
+
+def get_project_evaluator_annotation_names(
+    project_evaluator_name: str,
+    output_configs: Sequence[OutputConfigType],
+) -> list[str]:
+    """The names this evaluator's runs persist annotations under.
+
+    Mirrors `BaseEvaluator.evaluate`: a lone output config (or none declared)
+    writes under the project evaluator's own name; multiple configs each write
+    under `"{name}.{config_name}"`.
+    """
+    if len(output_configs) > 1:
+        return [f"{project_evaluator_name}.{config.name}" for config in output_configs]
+    return [project_evaluator_name]
 
 
 def validate_evaluator_prompt_and_configs(
