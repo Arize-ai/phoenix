@@ -610,6 +610,8 @@ export function ExperimentsTable({
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
                 size="S"
+                canRenameExperiment
+                experimentName={row.original.name}
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
                   refetch({}, { fetchPolicy: "network-only" });
