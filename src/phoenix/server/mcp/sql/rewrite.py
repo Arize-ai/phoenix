@@ -1525,30 +1525,36 @@ def _substitute_latency_ms(root: exp.Expression, ctx: RewriteContext) -> exp.Exp
                 # Subtracting two timestamps gives an interval; EXTRACT(EPOCH ...)
                 # converts it to seconds. The function call parenthesises itself,
                 # so only the interval subtraction needs a Paren of its own.
-                elapsed: exp.Expression = exp.Extract(
+                elapsed = exp.Extract(
                     this=exp.var("EPOCH"),
                     expression=exp.paren(exp.Sub(this=end, expression=start)),
                 )
-            else:
-                # 'subsec' keeps the fractional part; without it unixepoch
-                # truncates to whole seconds and every sub-second span reads 0.
-                elapsed = exp.paren(
-                    exp.Sub(
-                        this=exp.Anonymous(
-                            this="unixepoch", expressions=[end, exp.Literal.string("subsec")]
-                        ),
-                        expression=exp.Anonymous(
-                            this="unixepoch", expressions=[start, exp.Literal.string("subsec")]
-                        ),
-                    )
+                milliseconds: exp.Expression = exp.Mul(
+                    this=elapsed, expression=exp.Literal.number(1000)
                 )
-            # Parenthesised as a whole, not just the subtraction inside it. The
+            else:
+                # time_sub (sqlean's time extension) returns exact integer
+                # nanoseconds, unlike unixepoch(..., 'subsec') which keeps only
+                # milliseconds.
+                nanoseconds = exp.Anonymous(
+                    this="time_sub",
+                    expressions=[
+                        exp.Anonymous(this="time_parse", expressions=[end]),
+                        exp.Anonymous(this="time_parse", expressions=[start]),
+                    ],
+                )
+                # typed=True stops sqlglot wrapping the dividend in CAST(... AS
+                # REAL); the real divisor already makes the division real.
+                milliseconds = exp.Div(
+                    this=nanoseconds, expression=exp.Literal.number("1000000.0"), typed=True
+                )
+            # Parenthesised as a whole, not just the arithmetic inside it. The
             # substituted node takes the place of a *column*, so it must bind as
             # tightly as one wherever it lands. Without the outer parens
             # `1000 / latency_ms` renders as `1000 / <elapsed> * 1000`, which
             # regroups to `(1000 / elapsed) * 1000` and answers 10^6 times too
             # large -- silently, since the result is a plausible float.
-            milliseconds = exp.paren(exp.Mul(this=elapsed, expression=exp.Literal.number(1000)))
+            milliseconds = exp.paren(milliseconds)
             # Aliased in the select list so the result carries the name the
             # caller asked for. Without it the column comes back as `?column?`
             # on Postgres and as the expression text on SQLite, so a column the

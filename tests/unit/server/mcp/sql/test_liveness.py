@@ -115,6 +115,15 @@ PERMITTED = [
         "SELECT strftime('%Y-%m-%d %H', start_time) AS v FROM spans GROUP BY v",
         id="strftime-hour-bucket",
     ),
+    pytest.param(
+        "SELECT time_fmt_datetime(time_trunc(time_parse(start_time), 'hour')) AS v "
+        "FROM spans GROUP BY v",
+        id="time_trunc-hour-bucket",
+    ),
+    pytest.param(
+        "SELECT time_sub(time_parse(end_time), time_parse(start_time)) AS v FROM spans",
+        id="time_sub-elapsed-nanoseconds",
+    ),
     pytest.param("SELECT latency_ms AS v FROM spans", id="latency_ms-virtual-column"),
     pytest.param("SELECT row_number() OVER (ORDER BY id) AS v FROM spans", id="row_number"),
     pytest.param("SELECT rank() OVER (ORDER BY id) AS v FROM spans", id="rank"),

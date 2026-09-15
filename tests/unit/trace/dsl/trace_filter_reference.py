@@ -78,8 +78,7 @@ class ReferenceTrace:
 
     @property
     def latency_ms(self) -> float:
-        # SQL rounds trace latency before filtering, so the reference follows that contract.
-        return round((self.end_time - self.start_time).total_seconds() * 1000, 1)
+        return (self.end_time - self.start_time).total_seconds() * 1000
 
     @property
     def root_span(self) -> Optional[ReferenceSpan]:
