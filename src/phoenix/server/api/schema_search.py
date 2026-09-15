@@ -36,7 +36,6 @@ from graphql import (
 from graphql.language import print_ast
 from graphql.pyutils import Undefined
 from graphql.utilities import ast_from_value
-from graphql.utilities.print_schema import print_type
 
 __all__ = [
     "READ_ROOTS",
@@ -723,31 +722,37 @@ def _neighbors(index: Index, t: _ObjectLike) -> Iterator[GraphQLNamedType]:
         yield n
 
 
-def _print_pruned(t: _ObjectLike, field_names: Sequence[str]) -> str:
-    """The type with only the named fields, as SDL an agent can copy from."""
-    keyword = "interface" if isinstance(t, GraphQLInterfaceType) else "type"
-    implements = ""
-    if t.interfaces:
-        implements = " implements " + " & ".join(i.name for i in t.interfaces)
-    body = "\n".join(f"  {_signature(f, t.fields[f])}" for f in field_names)
-    return f"{keyword} {t.name}{implements} {{\n{body}\n}}"
+def _print_compact(t: GraphQLNamedType) -> str:
+    """The type as SDL with one line per member and descriptions as trailing comments."""
+    note = f"  # {_first_sentence(t.description)}" if t.description else ""
+    if isinstance(t, GraphQLUnionType):
+        return f"union {t.name} = {' | '.join(m.name for m in t.types)}{note}"
+    if isinstance(t, GraphQLScalarType):
+        return f"scalar {t.name}{note}"
+    members: list[tuple[str, Optional[str]]]
+    if isinstance(t, GraphQLEnumType):
+        head = f"enum {t.name}"
+        members = [(v, value.description) for v, value in t.values.items()]
+    elif isinstance(t, GraphQLInputObjectType):
+        head = f"input {t.name}"
+        members = [(_signature(n, f), f.description) for n, f in t.fields.items()]
+    else:
+        assert isinstance(t, (GraphQLObjectType, GraphQLInterfaceType))
+        keyword = "interface" if isinstance(t, GraphQLInterfaceType) else "type"
+        implements = ""
+        if t.interfaces:
+            implements = " implements " + " & ".join(i.name for i in t.interfaces)
+        head = f"{keyword} {t.name}{implements}"
+        members = [(_signature(n, f), f.description) for n, f in t.fields.items()]
+    lines = [f"{head} {{{note}"]
+    lines.extend(f"  {sig}" + (f"  # {_first_sentence(d)}" if d else "") for sig, d in members)
+    lines.append("}")
+    return "\n".join(lines)
 
 
-def _pruned_path_types(index: Index, paths: Iterable[tuple[str, ...]]) -> list[str]:
-    """Every type on the paths, pruned to the fields the paths use, root first."""
-    fields_by_type: dict[str, list[str]] = {}
-    for path in paths:
-        for hop in path:
-            type_name, field_name = hop.split(".", 1)
-            fields = fields_by_type.setdefault(type_name, [])
-            if field_name not in fields:
-                fields.append(field_name)
-    parts: list[str] = []
-    for type_name, fields in fields_by_type.items():
-        t = index.schema.type_map[type_name]
-        if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
-            parts.append(_print_pruned(t, fields))
-    return parts
+def _path_lines(paths: Iterable[tuple[str, ...]]) -> list[str]:
+    """One ``# via`` line per path of ``Type.field`` hops."""
+    return [f"# via {' > '.join(path)}" for path in paths]
 
 
 def _within(parts: Sequence[str], budget: int) -> str:
@@ -796,19 +801,18 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
     parts: list[str]
     if u.kind == "type":
         t = schema.type_map[u.name]
-        parts = [print_type(t)]
+        parts = [_print_compact(t)]
         if isinstance(t, GraphQLInputObjectType):
             parts.append(f"# input for {', '.join(index.used_by.get(u.name, [])[:4])}")
         elif isinstance(t, GraphQLEnumType):
             parts.append(f"# used by {', '.join(index.used_by.get(u.name, [])[:4])}")
         else:
-            if isinstance(t, (GraphQLInterfaceType, GraphQLUnionType)):
+            if isinstance(t, GraphQLInterfaceType):
                 possible = ", ".join(p.name for p in schema.get_possible_types(t))
                 if possible:
                     parts.append(f"# possible types: {possible}")
             if paths := reach_paths(index, u.name):
-                parts.append("# reached through:")
-                parts.extend(_pruned_path_types(index, paths))
+                parts.extend(_path_lines(paths))
             elif sources := index.returned_by.get(u.name):
                 parts.append(f"# returned by {', '.join(sources[:4])}")
             if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
@@ -821,7 +825,8 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
         if u.description:
             parts.append(f"# {u.description}")
         parts.extend(
-            print_type(t) for t in _input_closure(get_named_type(a.type) for a in f.args.values())
+            _print_compact(t)
+            for t in _input_closure(get_named_type(a.type) for a in f.args.values())
         )
         parts.extend(_stubs([get_named_type(f.type)]))
     else:
@@ -830,9 +835,7 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
             parts.append(f"# {u.description}")
         if u.kind == "field":
             hop = f"{u.parent}.{u.name}"
-            paths = [(*p, hop) for p in reach_paths(index, u.parent)] or [(hop,)]
-            parts.append("# reached through:")
-            parts.extend(_pruned_path_types(index, paths))
+            parts.extend(_path_lines((*p, hop) for p in reach_paths(index, u.parent)))
         else:
             parts.append(f"# {u.kind} for {', '.join(index.used_by.get(u.parent, [])[:3])}")
     return _within(parts, budget)
