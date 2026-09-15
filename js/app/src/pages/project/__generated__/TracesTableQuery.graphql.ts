@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7716369e1f83bbfa33dbd3831aa006e2>>
+ * @generated SignedSource<<23a2d980e617fa721d054969b5d51371>>
  * @lightSyntaxTransform
  */
 
@@ -36,7 +36,7 @@ export type TracesTableQuery$variables = {
 };
 export type TracesTableQuery$data = {
   readonly node: {
-    readonly " $fragmentSpreads": FragmentRefs<"TracesTable_spans">;
+    readonly " $fragmentSpreads": FragmentRefs<"TracesTable_traces">;
   };
 };
 export type TracesTableQuery = {
@@ -169,11 +169,6 @@ v19 = {
 v20 = [
   (v8/*:: as any*/),
   (v9/*:: as any*/),
-  {
-    "kind": "Literal",
-    "name": "rootSpansOnly",
-    "value": true
-  },
   (v10/*:: as any*/),
   {
     "kind": "Variable",
@@ -484,7 +479,7 @@ return {
               (v11/*:: as any*/)
             ],
             "kind": "FragmentSpread",
-            "name": "TracesTable_spans"
+            "name": "TracesTable_traces"
           }
         ],
         "storageKey": null
@@ -643,110 +638,251 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "traceAnnotationNames",
+                "name": "traceAnnotationsNames",
                 "storageKey": null
               },
               {
-                "alias": "rootSpans",
+                "alias": null,
                 "args": (v20/*:: as any*/),
-                "concreteType": "SpanConnection",
+                "concreteType": "TraceConnection",
                 "kind": "LinkedField",
-                "name": "spans",
+                "name": "traces",
                 "plural": false,
                 "selections": [
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "SpanEdge",
+                    "concreteType": "TraceEdge",
                     "kind": "LinkedField",
                     "name": "edges",
                     "plural": true,
                     "selections": [
                       {
-                        "alias": "rootSpan",
+                        "alias": "trace",
                         "args": null,
-                        "concreteType": "Span",
+                        "concreteType": "Trace",
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v13/*:: as any*/),
-                          (v21/*:: as any*/),
-                          (v14/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "metadata",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "statusCode",
-                            "storageKey": null
-                          },
-                          (v22/*:: as any*/),
-                          (v23/*:: as any*/),
-                          (v24/*:: as any*/),
-                          (v25/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "cumulativeTokenCountTotal",
-                            "storageKey": null
-                          },
-                          (v26/*:: as any*/),
-                          (v28/*:: as any*/),
-                          (v29/*:: as any*/),
-                          (v30/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "Trace",
+                            "concreteType": "Span",
                             "kind": "LinkedField",
-                            "name": "trace",
+                            "name": "rootSpan",
                             "plural": false,
                             "selections": [
                               (v13/*:: as any*/),
-                              (v31/*:: as any*/),
+                              (v21/*:: as any*/),
+                              (v14/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
                                 "kind": "ScalarField",
-                                "name": "userId",
+                                "name": "metadata",
                                 "storageKey": null
                               },
                               {
                                 "alias": null,
                                 "args": null,
                                 "kind": "ScalarField",
-                                "name": "numSpans",
+                                "name": "statusCode",
                                 "storageKey": null
                               },
+                              (v22/*:: as any*/),
+                              (v23/*:: as any*/),
+                              (v24/*:: as any*/),
+                              (v25/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
-                                "concreteType": "SpanCostSummary",
+                                "kind": "ScalarField",
+                                "name": "cumulativeTokenCountTotal",
+                                "storageKey": null
+                              },
+                              (v26/*:: as any*/),
+                              (v28/*:: as any*/),
+                              (v29/*:: as any*/),
+                              (v30/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "Trace",
                                 "kind": "LinkedField",
-                                "name": "costSummary",
+                                "name": "trace",
                                 "plural": false,
                                 "selections": [
+                                  (v13/*:: as any*/),
+                                  (v31/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
-                                    "concreteType": "CostBreakdown",
+                                    "kind": "ScalarField",
+                                    "name": "userId",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "numSpans",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SpanCostSummary",
                                     "kind": "LinkedField",
-                                    "name": "total",
+                                    "name": "costSummary",
                                     "plural": false,
                                     "selections": [
                                       {
                                         "alias": null,
                                         "args": null,
+                                        "concreteType": "CostBreakdown",
+                                        "kind": "LinkedField",
+                                        "name": "total",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "cost",
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": "summaryTraceAnnotations",
+                                    "args": (v32/*:: as any*/),
+                                    "concreteType": "TraceAnnotation",
+                                    "kind": "LinkedField",
+                                    "name": "traceAnnotations",
+                                    "plural": true,
+                                    "selections": (v35/*:: as any*/),
+                                    "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
+                                  },
+                                  {
+                                    "alias": "summaryTraceAnnotationSummaries",
+                                    "args": (v32/*:: as any*/),
+                                    "concreteType": "AnnotationSummary",
+                                    "kind": "LinkedField",
+                                    "name": "traceAnnotationSummaries",
+                                    "plural": true,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
                                         "kind": "ScalarField",
-                                        "name": "cost",
+                                        "name": "count",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "scoreCount",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "labelCount",
+                                        "storageKey": null
+                                      },
+                                      (v36/*:: as any*/),
+                                      (v37/*:: as any*/),
+                                      (v14/*:: as any*/)
+                                    ],
+                                    "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
+                                  }
+                                ],
+                                "storageKey": null
+                              },
+                              (v38/*:: as any*/),
+                              (v39/*:: as any*/),
+                              (v40/*:: as any*/),
+                              (v41/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": [
+                                  {
+                                    "kind": "Variable",
+                                    "name": "first",
+                                    "variableName": "numDescendants"
+                                  }
+                                ],
+                                "concreteType": "SpanConnection",
+                                "kind": "LinkedField",
+                                "name": "descendants",
+                                "plural": false,
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SpanEdge",
+                                    "kind": "LinkedField",
+                                    "name": "edges",
+                                    "plural": true,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "Span",
+                                        "kind": "LinkedField",
+                                        "name": "node",
+                                        "plural": false,
+                                        "selections": [
+                                          (v13/*:: as any*/),
+                                          (v21/*:: as any*/),
+                                          (v14/*:: as any*/),
+                                          {
+                                            "alias": "statusCode",
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "propagatedStatusCode",
+                                            "storageKey": null
+                                          },
+                                          (v22/*:: as any*/),
+                                          (v23/*:: as any*/),
+                                          (v24/*:: as any*/),
+                                          (v25/*:: as any*/),
+                                          (v26/*:: as any*/),
+                                          {
+                                            "alias": "cumulativeTokenCountTotal",
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "tokenCountTotal",
+                                            "storageKey": null
+                                          },
+                                          (v28/*:: as any*/),
+                                          (v29/*:: as any*/),
+                                          (v30/*:: as any*/),
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "concreteType": "Trace",
+                                            "kind": "LinkedField",
+                                            "name": "trace",
+                                            "plural": false,
+                                            "selections": [
+                                              (v13/*:: as any*/),
+                                              (v31/*:: as any*/)
+                                            ],
+                                            "storageKey": null
+                                          },
+                                          (v38/*:: as any*/),
+                                          (v39/*:: as any*/),
+                                          (v40/*:: as any*/),
+                                          (v41/*:: as any*/)
+                                        ],
                                         "storageKey": null
                                       }
                                     ],
@@ -754,140 +890,11 @@ return {
                                   }
                                 ],
                                 "storageKey": null
-                              },
-                              {
-                                "alias": "summaryTraceAnnotations",
-                                "args": (v32/*:: as any*/),
-                                "concreteType": "TraceAnnotation",
-                                "kind": "LinkedField",
-                                "name": "traceAnnotations",
-                                "plural": true,
-                                "selections": (v35/*:: as any*/),
-                                "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
-                              },
-                              {
-                                "alias": "summaryTraceAnnotationSummaries",
-                                "args": (v32/*:: as any*/),
-                                "concreteType": "AnnotationSummary",
-                                "kind": "LinkedField",
-                                "name": "traceAnnotationSummaries",
-                                "plural": true,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "count",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "scoreCount",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "labelCount",
-                                    "storageKey": null
-                                  },
-                                  (v36/*:: as any*/),
-                                  (v37/*:: as any*/),
-                                  (v14/*:: as any*/)
-                                ],
-                                "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                               }
                             ],
                             "storageKey": null
                           },
-                          (v38/*:: as any*/),
-                          (v39/*:: as any*/),
-                          (v40/*:: as any*/),
-                          (v41/*:: as any*/),
-                          {
-                            "alias": null,
-                            "args": [
-                              {
-                                "kind": "Variable",
-                                "name": "first",
-                                "variableName": "numDescendants"
-                              }
-                            ],
-                            "concreteType": "SpanConnection",
-                            "kind": "LinkedField",
-                            "name": "descendants",
-                            "plural": false,
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "SpanEdge",
-                                "kind": "LinkedField",
-                                "name": "edges",
-                                "plural": true,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "Span",
-                                    "kind": "LinkedField",
-                                    "name": "node",
-                                    "plural": false,
-                                    "selections": [
-                                      (v13/*:: as any*/),
-                                      (v21/*:: as any*/),
-                                      (v14/*:: as any*/),
-                                      {
-                                        "alias": "statusCode",
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "propagatedStatusCode",
-                                        "storageKey": null
-                                      },
-                                      (v22/*:: as any*/),
-                                      (v23/*:: as any*/),
-                                      (v24/*:: as any*/),
-                                      (v25/*:: as any*/),
-                                      (v26/*:: as any*/),
-                                      {
-                                        "alias": "cumulativeTokenCountTotal",
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "tokenCountTotal",
-                                        "storageKey": null
-                                      },
-                                      (v28/*:: as any*/),
-                                      (v29/*:: as any*/),
-                                      (v30/*:: as any*/),
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "concreteType": "Trace",
-                                        "kind": "LinkedField",
-                                        "name": "trace",
-                                        "plural": false,
-                                        "selections": [
-                                          (v13/*:: as any*/),
-                                          (v31/*:: as any*/)
-                                        ],
-                                        "storageKey": null
-                                      },
-                                      (v38/*:: as any*/),
-                                      (v39/*:: as any*/),
-                                      (v40/*:: as any*/),
-                                      (v41/*:: as any*/)
-                                    ],
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              }
-                            ],
-                            "storageKey": null
-                          }
+                          (v13/*:: as any*/)
                         ],
                         "storageKey": null
                       },
@@ -901,7 +908,7 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "Span",
+                        "concreteType": "Trace",
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
@@ -943,18 +950,17 @@ return {
                 "storageKey": null
               },
               {
-                "alias": "rootSpans",
+                "alias": null,
                 "args": (v20/*:: as any*/),
                 "filters": [
                   "sort",
-                  "rootSpansOnly",
                   "traceFilterCondition",
                   "timeRange"
                 ],
                 "handle": "connection",
-                "key": "TracesTable_rootSpans",
+                "key": "TracesTable_traces",
                 "kind": "LinkedHandle",
-                "name": "spans"
+                "name": "traces"
               }
             ],
             "type": "Project",
@@ -966,16 +972,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "13f133c61108580771035ff6431380ee",
+    "cacheID": "8c2f1a78a83a6b47a84ea65ed0479fa2",
     "id": null,
     "metadata": {},
     "name": "TracesTableQuery",
     "operationKind": "query",
-    "text": "query TracesTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $numDescendants: Int = 50\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $traceFilterCondition: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...TracesTable_spans_BLnO5\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationNames\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_spans_BLnO5 on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        statusMessage\n        startTime\n        endTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          userId\n          numSpans\n          costSummary {\n            total {\n              cost\n            }\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        ...AnnotationSummaryGroup\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: $numDescendants) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              endTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n                createdAt\n              }\n              ...AnnotationSummaryGroup\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracesTableQuery(\n  $after: String = null\n  $first: Int = 30\n  $numDescendants: Int = 50\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $traceFilterCondition: String = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...TracesTable_traces_BLnO5\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationsNames\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TracesTable_traces_BLnO5 on Project {\n  id\n  name\n  ...ProjectAnnotationConfigsByNameFragment\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  traces(first: $first, after: $after, sort: $sort, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n    edges {\n      trace: node {\n        rootSpan {\n          id\n          spanKind\n          name\n          metadata\n          statusCode\n          statusMessage\n          startTime\n          endTime\n          latencyMs\n          cumulativeTokenCountTotal\n          parentId\n          input {\n            value: truncatedValue\n          }\n          output {\n            value: truncatedValue\n          }\n          spanId\n          trace {\n            id\n            traceId\n            userId\n            numSpans\n            costSummary {\n              total {\n                cost\n              }\n            }\n            ...TraceAnnotationSummaryGroup\n          }\n          spanAnnotations {\n            id\n            name\n            label\n            score\n            annotatorKind\n            createdAt\n          }\n          ...AnnotationSummaryGroup\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n          descendants(first: $numDescendants) {\n            edges {\n              node {\n                id\n                spanKind\n                name\n                statusCode: propagatedStatusCode\n                statusMessage\n                startTime\n                endTime\n                latencyMs\n                parentId\n                cumulativeTokenCountTotal: tokenCountTotal\n                input {\n                  value: truncatedValue\n                }\n                output {\n                  value: truncatedValue\n                }\n                spanId\n                trace {\n                  id\n                  traceId\n                }\n                spanAnnotations {\n                  id\n                  name\n                  label\n                  score\n                  annotatorKind\n                  createdAt\n                }\n                ...AnnotationSummaryGroup\n                documentRetrievalMetrics {\n                  evaluationName\n                  ndcg\n                  precision\n                  hit\n                }\n              }\n            }\n          }\n        }\n        id\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9a65fd03128e6daf24bf3b4887765164";
+(node as any).hash = "a0df172ca43c0ca3b62d45da2a6790f3";
 
 export default node;

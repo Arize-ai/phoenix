@@ -425,9 +425,9 @@ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' |
 Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
 
 `getProjectByName(name:)` targets one project; `projects(first: 1)` picks an
-arbitrary one. There is no `traces` connection. To list traces, query `spans`
-with `filterCondition: "parent_id is None"`, which keeps root spans (usually
-one per trace). See [Filter expressions](#filter-expressions) below.
+arbitrary one. `traces` lists traces newest first, one node per trace with its
+`rootSpan`; `spans` lists individual spans. Both take filter conditions, covered
+in [Filter expressions](#filter-expressions) below.
 
 ### Filter expressions
 
@@ -444,10 +444,25 @@ examples for each.
 | `traceFilterCondition` | whole traces | `traceFilterVocabulary` |
 | `sessionFilterCondition` | sessions | `sessionFilterVocabulary` |
 
-**Root spans.** There is no `traces` connection and no root-span argument.
-`filterCondition: "parent_id is None"` keeps spans with no parent id, usually
-one per trace; `parent_span is None` also keeps orphans whose parent was never
-received. Either clause composes with the rest of the filter:
+**Traces.** `traces` returns one node per trace, newest first, each with its
+representative `rootSpan` (the earliest span with no parent, or whose parent was
+never received). `traceFilterCondition` keeps matching traces and `sort` orders
+by a root-span column:
+
+```bash
+px api graphql '{
+  getProjectByName(name: "default") { traces(
+    first: 20
+    traceFilterCondition: "error_count > 0 and latency_ms > 1000"
+    sort: { col: startTime, dir: desc }
+  ) { edges { node { traceId latencyMs numSpans rootSpan { spanId name statusCode } } } } }
+}' | jq '.data.getProjectByName.traces.edges[].node'
+```
+
+**Root spans in a span query.** There is no root-span argument on `spans`.
+`filterCondition: "parent_id is None"` keeps spans with no parent id;
+`parent_span is None` also keeps orphans whose parent was never received.
+Either clause composes with the rest of the filter:
 
 ```bash
 px api graphql '{
@@ -477,8 +492,8 @@ px api graphql '{
 }' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
-**Traces.** `traceFilterCondition` keeps the spans of matching traces and
-composes with `filterCondition`:
+**Trace filter on spans.** On `spans`, `traceFilterCondition` keeps the spans
+of matching traces and composes with `filterCondition`:
 
 ```bash
 px api graphql '{

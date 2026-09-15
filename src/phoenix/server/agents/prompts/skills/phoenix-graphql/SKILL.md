@@ -41,11 +41,11 @@ Per-entity field references and examples are split into reference files. Load **
 
 These apply to every entity:
 
-- **Pagination** is Relay-style: `first`/`after` args; responses have `edges { node { ... } }` and `pageInfo { hasNextPage endCursor }`. Cursors are opaque strings. Some connections (e.g. `Project.spans`, `Experiment.runs`, `ProjectSession.traces`) are forward-only.
+- **Pagination** is Relay-style: `first`/`after` args; responses have `edges { node { ... } }` and `pageInfo { hasNextPage endCursor }`. Cursors are opaque strings. Some connections (e.g. `Project.traces`, `Project.spans`, `Experiment.runs`, `ProjectSession.traces`) are forward-only.
 - **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. OpenTelemetry hex IDs come from `Span.spanId` and `Trace.traceId` — use those for OTel lookups. Note a `Span` has **no** `traceId` field; read it via the nested `trace { traceId }`. Never mix global IDs with OTel IDs.
 - **`TimeRange`** input: `{ start: DateTime, end: DateTime }` — ISO 8601 strings; `end` is exclusive; both optional.
 - **`SpanSort`** input: `{ col: SpanColumn, dir: SortDir }`, e.g. `{ col: startTime, dir: desc }`. Useful `SpanColumn` values: `startTime`, `latencyMs`, `tokenCountTotal`, `cumulativeTokenCountTotal`, `tokenCostTotal`.
-- **Filter conditions** (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`) are Python boolean expressions, one language each for spans, traces, and sessions, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `'timeout' in output.value`, `annotations['Hallucination'].label == 'hallucinated'`. Root spans are the clause `parent_id is None`. Unknown span filter names compile as attribute paths and match nothing, so read `references/filter-expressions.md` before writing a condition.
+- **Filter conditions** (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`) are Python boolean expressions, one language each for spans, traces, and sessions, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `'timeout' in output.value`, `annotations['Hallucination'].label == 'hallucinated'`. To list traces use `Project.traces` (one node per trace with `rootSpan`); in a span query, root spans are the clause `parent_id is None`. Unknown span filter names compile as attribute paths and match nothing, so read `references/filter-expressions.md` before writing a condition.
 
 ### Efficiency rules
 

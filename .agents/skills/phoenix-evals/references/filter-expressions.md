@@ -7,7 +7,7 @@ language. The vocabularies do not mix.
 | Language | Argument | Keeps | Accepted on |
 | --- | --- | --- | --- |
 | Span filter | `filterCondition` | individual spans | `Project.spans`, `Trace.spans`, project aggregates (`recordCount`, `tokenCountTotal`, `costSummary`, `latencyMsQuantile`, ...), `SpanQuery().where(...)` in the Python client, the UI spans filter bar |
-| Trace filter | `traceFilterCondition` | every span of a matching trace | `Project.spans`, the UI traces filter bar, the `filter` query param on `GET /v1/projects/{id}/traces` |
+| Trace filter | `traceFilterCondition` | matching traces (on `spans`: every span of a matching trace) | `Project.traces`, `Project.spans`, the UI traces filter bar, the `filter` query param on `GET /v1/projects/{id}/traces` |
 | Session filter | `sessionFilterCondition` | sessions | `Project.sessions`, project aggregates, the UI sessions filter bar |
 
 `filterCondition` and `traceFilterCondition` compose on `Project.spans`: matching spans inside
@@ -67,7 +67,8 @@ against the vocabulary before concluding there is no data.
 
 ### Root spans
 
-There is no `traces` connection and no root-span argument. Root-span scoping is a clause in
+To list traces, use `Project.traces`: one node per trace with its representative `rootSpan`.
+In a span query there is no root-span argument; root-span scoping is a clause in
 `filterCondition`, and it composes with everything else.
 
 | Clause | Keeps | Use when |
