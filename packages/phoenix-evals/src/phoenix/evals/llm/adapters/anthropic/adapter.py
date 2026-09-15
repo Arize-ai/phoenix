@@ -90,12 +90,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         try:
             response = self.client.messages.create(model=self.model, messages=messages, **kwargs)
-            if hasattr(response.content[0], "text"):
-                return cast(str, response.content[0].text)
-            else:
-                raise ValueError(
-                    f"Anthropic returned unexpected content format: {response.content}"
-                )
+            return self._extract_response_text(response.content)
         except Exception as e:
             logger.error(f"Anthropic completion failed: {e}")
             raise
@@ -117,10 +112,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             response = await self.client.messages.create(
                 model=self.model, messages=messages, **kwargs
             )
-            if hasattr(response.content[0], "text"):
-                return cast(str, response.content[0].text)
-            else:
-                raise ValueError("Anthropic returned unexpected content format")
+            return self._extract_response_text(response.content)
         except Exception as e:
             logger.error(f"Anthropic async completion failed: {e}")
             raise
@@ -270,6 +262,29 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         # Join all text parts with newlines
         return "\n".join(text_parts)
+
+    def _extract_response_text(self, content: Any) -> str:
+        """Extract the text from an Anthropic response's content blocks.
+
+        Scans every block rather than assuming the text is first: with
+        extended thinking enabled (``thinking={...}`` kwarg), the response
+        leads with one or more ``thinking``/``redacted_thinking`` blocks
+        before the ``text`` block.
+
+        Args:
+            content: ``response.content`` — a list of SDK content-block objects.
+
+        Returns:
+            The first text block's content.
+
+        Raises:
+            ValueError: If no block in ``content`` has a ``text`` attribute.
+        """
+        for block in content:
+            if hasattr(block, "text"):
+                return cast(str, block.text)
+
+        raise ValueError(f"Anthropic returned unexpected content format: {content}")
 
     def _transform_messages_to_anthropic(self, messages: List[Message]) -> list[dict[str, Any]]:
         """Transform List[Message] TypedDict to Anthropic message format.
