@@ -121,17 +121,6 @@ available function. Set to False to present the group-gated progressive-
 disclosure tool list instead. Has no effect unless PHOENIX_ENABLE_MCP_SERVER is
 also set.
 """
-"""
-Whether the mounted MCP server exposes a GraphQL mutation tool. Defaults to
-False, and has no effect on a read-only deployment, which refuses writes
-regardless.
-
-Off by default because this surface has no approval step of its own. A mutation
-runs as soon as it is called, bounded by the caller's own permissions and by
-whatever confirmation the MCP client chooses to require from the destructive
-tool annotation. Enable it for clients that confirm writes with a person
-present; leave it off for unattended ones.
-"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
