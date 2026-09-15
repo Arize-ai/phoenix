@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
@@ -45,8 +45,8 @@ import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
 
 type RootSpan = NonNullable<
-  NonNullable<TraceDetailsQuery$data["project"]["trace"]>["rootSpan"]
->;
+  TraceDetailsQuery$data["project"]["trace"]
+>["rootSpans"]["edges"][number]["span"];
 
 type CostSummary = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -72,11 +72,18 @@ export function TraceDetails(props: TraceDetailsProps) {
               id
               projectSessionId
               ...ConnectedTraceTree
-              rootSpan {
-                statusCode
-                id
-                spanId
-                parentId
+              rootSpans: spans(
+                first: 1
+                filterCondition: "parent_span is None"
+              ) {
+                edges {
+                  span: node {
+                    statusCode
+                    id
+                    spanId
+                    parentId
+                  }
+                }
               }
               latencyMs
               costSummary {
@@ -104,9 +111,13 @@ export function TraceDetails(props: TraceDetailsProps) {
   const traceLatencyMs =
     data.project.trace?.latencyMs != null ? data.project.trace.latencyMs : null;
   const costSummary = data?.project?.trace?.costSummary;
-  const rootSpan: RootSpan | null | undefined = data.project.trace?.rootSpan;
+  const rootSpans: RootSpan[] = useMemo(() => {
+    const gqlSpans = data.project.trace?.rootSpans.edges || [];
+    return gqlSpans.map((node) => node.span);
+  }, [data]);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
-  invariant(rootSpan, "The trace must have a root span");
+  invariant(rootSpans.length > 0, "At least one root must be resolvable");
+  const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
