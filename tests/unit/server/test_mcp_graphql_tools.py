@@ -167,9 +167,27 @@ async def test_validate_only_accepts_a_good_document_without_running_it(
     )
     content = result.structured_content
     assert content is not None
-    # `boom` always raises, so data proves nothing executed.
-    assert content["data"] is None
-    assert content["errors"] == []
+    # `boom` always raises at execution, so a valid answer proves nothing ran.
+    assert content["valid"] is True
+    assert content["notes"]
+    assert "data" not in content and "error" not in content
+
+
+async def test_validate_only_refuses_what_execution_would_refuse(graphql_mcp: FastMCP) -> None:
+    for document, code in [
+        ('mutation { deleteDataset(datasetId: "1") }', GraphQLRefusalCode.MUTATION_NOT_ALLOWED),
+        ("subscription { anything }", GraphQLRefusalCode.SUBSCRIPTION_NOT_SUPPORTED),
+        (
+            "{ datasets { name " + "# padding\n" * MAX_QUERY_BYTES + " } }",
+            GraphQLRefusalCode.QUERY_TOO_LARGE,
+        ),
+    ]:
+        result = await graphql_mcp.call_tool(
+            "executeGraphqlQuery", {"query": document, "validate_only": True}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == code.value
 
 
 async def test_validate_only_rejects_an_unknown_field(graphql_mcp: FastMCP) -> None:
