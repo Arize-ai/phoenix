@@ -84,6 +84,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   getPlaygroundEvaluatorTask,
   getPlaygroundTaskKind,
@@ -1362,11 +1363,20 @@ export function PlaygroundDatasetExamplesTable({
     [tableData]
   );
 
+  // Whether the metadata cells leave the `annotations` key out; a per-browser
+  // setting behind the toolbar's gear.
+  const hideAnnotations = usePreferencesContext(
+    (state) => state.hideExpectedAnnotationsInMetadata
+  );
+
   // The metadata column shows itself while a loaded example has metadata and
   // no column choice is stored; the toolbar's selector shows the same state.
   const hasMetadata = useMemo(
-    () => tableData.some((row) => hasDisplayableMetadata(row.metadata)),
-    [tableData]
+    () =>
+      tableData.some((row) =>
+        hasDisplayableMetadata(row.metadata, { hideAnnotations })
+      ),
+    [tableData, hideAnnotations]
   );
 
   useEffect(() => {
@@ -1573,7 +1583,8 @@ export function PlaygroundDatasetExamplesTable({
         accessorKey: "metadata",
         cell: ({ row }) => {
           const { value, isHidingAnnotations } = getDisplayedMetadata(
-            row.original.metadata
+            row.original.metadata,
+            { hideAnnotations }
           );
 
           return (
@@ -1591,6 +1602,7 @@ export function PlaygroundDatasetExamplesTable({
     [
       annotationListHeight,
       evaluatorOutputConfigs,
+      hideAnnotations,
       playgroundInstanceOutputColumns,
       setSearchParams,
     ]
@@ -1815,8 +1827,8 @@ export function PlaygroundDatasetExamplesTable({
 }
 
 /**
- * Says that the metadata cell leaves out the `annotations` key, and why: it
- * holds the expected outputs, which the evaluator cells already show.
+ * Says that the metadata cell leaves out the `annotations` key, why, and
+ * where to turn that off.
  */
 function HiddenAnnotationsNotice() {
   return (
@@ -1830,7 +1842,8 @@ function HiddenAnnotationsNotice() {
       <Tooltip>
         <TooltipArrow />
         The &quot;{ANNOTATIONS_KEY}&quot; key is hidden. It holds the expected
-        outputs recorded for evaluators; the example details show it in full.
+        outputs recorded for evaluators. Turn off &quot;Hide expected
+        annotations&quot; in the experiment settings to see it.
       </Tooltip>
     </TooltipTrigger>
   );

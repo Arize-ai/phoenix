@@ -10,45 +10,64 @@ const EXPECTED_OUTPUTS = {
   judge: [{ label: "pass", annotator_kind: "HUMAN" }],
 };
 
+const HIDING = { hideAnnotations: true };
+const SHOWING = { hideAnnotations: false };
+
 describe("getDisplayedMetadata", () => {
   it("leaves the annotations key out and says so", () => {
     expect(
-      getDisplayedMetadata({
-        customer: "acme",
-        annotations: EXPECTED_OUTPUTS,
-      })
+      getDisplayedMetadata(
+        { customer: "acme", annotations: EXPECTED_OUTPUTS },
+        HIDING
+      )
     ).toEqual({ value: { customer: "acme" }, isHidingAnnotations: true });
   });
 
   it("passes metadata without annotations through untouched", () => {
     const metadata = { customer: "acme", tags: ["a"] };
 
-    expect(getDisplayedMetadata(metadata)).toEqual({
+    expect(getDisplayedMetadata(metadata, HIDING)).toEqual({
       value: metadata,
       isHidingAnnotations: false,
     });
-    expect(getDisplayedMetadata(null)).toEqual({
+    expect(getDisplayedMetadata(null, HIDING)).toEqual({
       value: null,
+      isHidingAnnotations: false,
+    });
+  });
+
+  it("shows the whole value once the setting is off", () => {
+    const metadata = { customer: "acme", annotations: EXPECTED_OUTPUTS };
+
+    expect(getDisplayedMetadata(metadata, SHOWING)).toEqual({
+      value: metadata,
       isHidingAnnotations: false,
     });
   });
 });
 
 describe("hasDisplayableMetadata", () => {
-  it("counts only keys besides annotations", () => {
-    expect(hasDisplayableMetadata({ customer: "acme" })).toBe(true);
+  it("counts only keys besides annotations while they are hidden", () => {
+    expect(hasDisplayableMetadata({ customer: "acme" }, HIDING)).toBe(true);
     expect(
-      hasDisplayableMetadata({
-        customer: "acme",
-        annotations: EXPECTED_OUTPUTS,
-      })
+      hasDisplayableMetadata(
+        { customer: "acme", annotations: EXPECTED_OUTPUTS },
+        HIDING
+      )
     ).toBe(true);
-    expect(hasDisplayableMetadata({ annotations: EXPECTED_OUTPUTS })).toBe(
-      false
-    );
-    expect(hasDisplayableMetadata({})).toBe(false);
-    expect(hasDisplayableMetadata(null)).toBe(false);
-    expect(hasDisplayableMetadata("acme")).toBe(false);
+    expect(
+      hasDisplayableMetadata({ annotations: EXPECTED_OUTPUTS }, HIDING)
+    ).toBe(false);
+    expect(hasDisplayableMetadata({}, HIDING)).toBe(false);
+    expect(hasDisplayableMetadata(null, HIDING)).toBe(false);
+    expect(hasDisplayableMetadata("acme", HIDING)).toBe(false);
+  });
+
+  it("counts annotations once they show", () => {
+    expect(
+      hasDisplayableMetadata({ annotations: EXPECTED_OUTPUTS }, SHOWING)
+    ).toBe(true);
+    expect(hasDisplayableMetadata({}, SHOWING)).toBe(false);
   });
 });
 

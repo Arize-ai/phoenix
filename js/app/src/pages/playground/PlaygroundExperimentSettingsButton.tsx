@@ -1,5 +1,6 @@
 import {
   Button,
+  Checkbox,
   ComboBox,
   ComboBoxItem,
   Dialog,
@@ -16,6 +17,7 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   getPlaygroundTaskKind,
   getTemplateVariablesPath,
@@ -72,6 +74,16 @@ export function PlaygroundExperimentSettingsButton({
   );
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
+  );
+
+  // A per-browser preference: the metadata cells leave the `annotations` key
+  // out until this is turned off.
+  const hideExpectedAnnotations = usePreferencesContext(
+    (state) => state.hideExpectedAnnotationsInMetadata
+  );
+
+  const setHideExpectedAnnotations = usePreferencesContext(
+    (state) => state.setHideExpectedAnnotationsInMetadata
   );
 
   return (
@@ -137,6 +149,19 @@ export function PlaygroundExperimentSettingsButton({
                   Path to messages from the dataset to append to prompts
                 </Text>
               </TextField>
+              <Flex direction="column" gap="size-50">
+                <Checkbox
+                  isSelected={hideExpectedAnnotations}
+                  onChange={setHideExpectedAnnotations}
+                >
+                  Hide expected annotations in metadata cells
+                </Checkbox>
+                <Text size="XS" color="text-700">
+                  Expected outputs are stored under the example&apos;s
+                  &quot;annotations&quot; key and already show in each
+                  evaluator&apos;s expected band.
+                </Text>
+              </Flex>
             </Flex>
           </View>
         </Dialog>

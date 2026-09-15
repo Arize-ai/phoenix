@@ -20,6 +20,14 @@ export const EXAMPLE_COLUMN_LABELS: Record<ExampleColumn, string> = {
 /** Where an example keeps its annotations, expected outputs included. */
 export const ANNOTATIONS_KEY = "annotations";
 
+export type MetadataDisplayOptions = {
+  /**
+   * Leave the `annotations` key out. It holds the expected outputs, which the
+   * evaluator cells already show; the experiment settings turn this off.
+   */
+  hideAnnotations: boolean;
+};
+
 export type DisplayedMetadata = {
   /** The metadata as the cell shows it. */
   value: unknown;
@@ -28,13 +36,18 @@ export type DisplayedMetadata = {
 };
 
 /**
- * Expected outputs live under the metadata's `annotations` key as bookkeeping
- * for the evaluator cells, which show them in their own band. The metadata
- * cell leaves that key out so the column shows what the example says about
- * itself; the example details show the whole value.
+ * The example's metadata as the metadata cell shows it: whole, or without the
+ * `annotations` key so the column shows what the example says about itself.
  */
-export function getDisplayedMetadata(metadata: unknown): DisplayedMetadata {
-  if (!isStringKeyedObject(metadata) || !(ANNOTATIONS_KEY in metadata)) {
+export function getDisplayedMetadata(
+  metadata: unknown,
+  { hideAnnotations }: MetadataDisplayOptions
+): DisplayedMetadata {
+  if (
+    !hideAnnotations ||
+    !isStringKeyedObject(metadata) ||
+    !(ANNOTATIONS_KEY in metadata)
+  ) {
     return { value: metadata, isHidingAnnotations: false };
   }
 
@@ -45,11 +58,16 @@ export function getDisplayedMetadata(metadata: unknown): DisplayedMetadata {
   return { value, isHidingAnnotations: true };
 }
 
-/** True when the metadata holds something besides annotations. */
-export function hasDisplayableMetadata(metadata: unknown): boolean {
+/** True when the metadata cell would show something. */
+export function hasDisplayableMetadata(
+  metadata: unknown,
+  { hideAnnotations }: MetadataDisplayOptions
+): boolean {
   return (
     isStringKeyedObject(metadata) &&
-    Object.keys(metadata).some((key) => key !== ANNOTATIONS_KEY)
+    Object.keys(metadata).some(
+      (key) => !hideAnnotations || key !== ANNOTATIONS_KEY
+    )
   );
 }
 
