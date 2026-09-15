@@ -1,0 +1,5 @@
+{
+  "kind": "integer",
+  "value": 117,
+  "source": "solution/solve.sh against the seeded image; matches /seed/summary.json traceCount"
+}

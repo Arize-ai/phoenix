@@ -1,0 +1,10 @@
+{
+  "kind": "number",
+  "value": [
+    0.7949,
+    14.6067
+  ],
+  "places": 1,
+  "require_all": true,
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; short (<15 spans) 5/629 ERROR spans, long (>=40 spans) 312/2136"
+}

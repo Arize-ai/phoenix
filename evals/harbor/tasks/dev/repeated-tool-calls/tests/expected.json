@@ -1,0 +1,18 @@
+{
+  "kind": "all",
+  "checks": [
+    {
+      "kind": "name",
+      "aliases": [
+        [
+          "FinderTool"
+        ]
+      ]
+    },
+    {
+      "kind": "integer",
+      "value": 24
+    }
+  ],
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; next is SearchInformationTool at 20 in another trace"
+}

@@ -1,0 +1,15 @@
+# Codex answering through the px CLI, which the agent image keeps off PATH
+# until a condition adds it.
+# Run: make harbor-bench CONDITION=codex-cli
+jobs_dir: evals/harbor/.jobs
+n_concurrent_trials: 2
+extra_instructions:
+  - Use the px CLI (the Phoenix CLI, already installed and configured) for anything involving Phoenix data.
+agents:
+  - name: codex
+    model_name: openai/gpt-5.6
+    kwargs:
+      reasoning_effort: high
+      web_search: disabled
+    env:
+      PATH: /opt/px/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

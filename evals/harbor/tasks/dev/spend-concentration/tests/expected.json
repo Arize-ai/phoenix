@@ -1,0 +1,9 @@
+{
+  "kind": "number",
+  "value": [
+    45.3221,
+    43.0521
+  ],
+  "places": 1,
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; 10% of 117 traces is ambiguous: top 12 traces (ceil) give 45.3%, top 11 (floor) give 43.1%"
+}

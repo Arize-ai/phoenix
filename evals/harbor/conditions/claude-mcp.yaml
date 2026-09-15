@@ -1,0 +1,16 @@
+# Claude Code answering through the Phoenix MCP server.
+# Run: make harbor-bench CONDITION=claude-mcp
+jobs_dir: evals/harbor/.jobs
+n_concurrent_trials: 2
+extra_instructions:
+  - Use the Phoenix MCP server for anything involving Phoenix data.
+agents:
+  - name: claude-code
+    model_name: anthropic/claude-opus-5
+    kwargs:
+      reasoning_effort: high
+      disallowed_tools: WebSearch,WebFetch
+    mcp_servers:
+      - name: phoenix
+        transport: streamable-http
+        url: http://127.0.0.1:6006/mcp

@@ -1,0 +1,16 @@
+# Codex answering through the Phoenix MCP server.
+# Run: make harbor-bench CONDITION=codex-mcp
+jobs_dir: evals/harbor/.jobs
+n_concurrent_trials: 2
+extra_instructions:
+  - Use the Phoenix MCP server for anything involving Phoenix data.
+agents:
+  - name: codex
+    model_name: openai/gpt-5.6
+    kwargs:
+      reasoning_effort: high
+      web_search: disabled
+    mcp_servers:
+      - name: phoenix
+        transport: streamable-http
+        url: http://127.0.0.1:6006/mcp

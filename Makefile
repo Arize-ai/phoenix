@@ -40,6 +40,7 @@ NC := \033[0m # No Color
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples gen-otel-models \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
+	harbor-seed harbor-images harbor-bench harbor-bench-oracle \
 	clean clean-all
 
 help: ## Show this help message
@@ -114,6 +115,10 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
+	@echo -e "  harbor-seed               - Download the TRAIL rows for the tool benchmark seed (needs HF_TOKEN)"
+	@echo -e "  harbor-images             - Build the tool benchmark images from this checkout (TAG=..., IMAGES=all|phoenix|agent)"
+	@echo -e "  $(YELLOW)harbor-bench$(NC)             - Run one benchmark condition (CONDITION=..., SPLIT=..., TASKS=..., REPS=..., NAME=...)"
+	@echo -e "  harbor-bench-oracle       - Run the reference solutions through the verifiers (SPLIT=..., TASKS=...)"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + TypeScript workspace)"
@@ -552,6 +557,43 @@ harbor-run: ## Run the real headless-agent Harbor trial (HARBOR_TASK=..., HARBOR
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs
+
+#-----------------------------------------------------------------------------
+# Phoenix tool benchmark (evals/harbor): MCP, CLI, and skills under Harbor
+#-----------------------------------------------------------------------------
+BENCH_DIR := evals/harbor
+BENCH_VENV := $(BENCH_DIR)/.venv/bin
+BENCH_TRAIL := $(BENCH_DIR)/.cache/trail-gaia.json
+# Which condition file under evals/harbor/conditions/ to run.
+CONDITION ?= claude-mcp
+# Task split directory under evals/harbor/tasks/; also names the Phoenix dataset.
+SPLIT ?= dev
+# Optional space-separated task names; empty runs the whole split.
+TASKS ?=
+REPS ?= 1
+# Phoenix experiment and Harbor job name; a fresh name starts a new experiment.
+NAME ?= $(CONDITION)-$(shell date -u +%Y%m%dT%H%M%SZ)
+BENCH_RUN = $(BENCH_VENV)/harbor run --config $(BENCH_DIR)/conditions/$(1).yaml \
+	--path $(BENCH_DIR)/tasks/$(SPLIT) $(foreach t,$(TASKS),--include-task-name $(t)) \
+	--plugin arize-phoenix --plugin-kwarg dataset=phoenix-tools-$(SPLIT) \
+	--plugin-kwarg experiment_name=$(2) --job-name $(2) --n-attempts $(REPS) --yes
+
+$(BENCH_VENV)/harbor: $(BENCH_DIR)/pyproject.toml
+	uv sync --project $(BENCH_DIR) --python 3.13
+
+harbor-seed: $(BENCH_VENV)/harbor ## Download the TRAIL rows for the tool benchmark seed (needs HF_TOKEN)
+	@test -f $(BENCH_TRAIL) && echo "TRAIL rows already cached at $(BENCH_TRAIL)" || \
+		$(BENCH_VENV)/python $(BENCH_DIR)/scripts/download_trail.py --output $(BENCH_TRAIL)
+
+harbor-images: ## Build the tool benchmark images from this checkout (TAG=..., IMAGES=all|phoenix|agent)
+	./$(BENCH_DIR)/scripts/build_images.sh
+
+harbor-bench: $(BENCH_VENV)/harbor ## Run one benchmark condition (CONDITION=..., SPLIT=..., TASKS=..., REPS=..., NAME=...)
+	@echo -e "$(CYAN)Running condition $(CONDITION) on $(SPLIT) as $(NAME)...$(NC)"
+	$(call BENCH_RUN,$(CONDITION),$(NAME))
+
+harbor-bench-oracle: $(BENCH_VENV)/harbor ## Run the reference solutions through the verifiers (SPLIT=..., TASKS=...)
+	$(call BENCH_RUN,oracle,oracle-$(shell date -u +%Y%m%dT%H%M%SZ))
 
 #=============================================================================
 # Cleanup

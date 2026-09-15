@@ -1,0 +1,30 @@
+{
+  "kind": "name",
+  "require_all": true,
+  "allow_hedging": true,
+  "aliases": [
+    [
+      "forward"
+    ],
+    [
+      "unexpected",
+      "unsupported",
+      "does not accept",
+      "doesn't accept",
+      "not accepted",
+      "invalid keyword",
+      "invalid argument",
+      "wrong argument",
+      "not a valid"
+    ],
+    [
+      "page_down",
+      "url",
+      "arguments",
+      "query",
+      "''",
+      "empty"
+    ]
+  ],
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; every PageDownTool ERROR span's status message is a TypeError: forward() got an unexpected keyword argument, with one of the listed argument names (or an empty one). The answer must mention forward, the mismatch, and an offending argument"
+}

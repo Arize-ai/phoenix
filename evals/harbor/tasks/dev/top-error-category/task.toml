@@ -1,0 +1,12 @@
+[environment]
+docker_image = "phoenix-bench-agent:local"
+network_mode = "allowlist"
+allowed_hosts = ["api.anthropic.com", "api.openai.com"]
+cpus = 2
+memory_mb = 4096
+
+[agent]
+timeout_sec = 600
+
+[verifier]
+timeout_sec = 120
