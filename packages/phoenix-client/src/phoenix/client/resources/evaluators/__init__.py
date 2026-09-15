@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import List, Literal, Optional, Union, cast
+from typing import List, Optional, Union, cast
 
 import httpx
 
@@ -16,6 +16,16 @@ from phoenix.client.constants.server_requirements import (
     LIST_EVALUATORS,
     PATCH_EVALUATOR,
 )
+from phoenix.client.resources.evaluators.dataset_evaluators import (
+    AsyncDatasetEvaluators,
+    DatasetEvaluators,
+)
+from phoenix.client.types.evaluators import (
+    EvaluatorDefinition,
+    EvaluatorOutputConfig,
+    EvaluatorType,
+    Language,
+)
 from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.encode_path_param import encode_path_param
 from phoenix.client.utils.server_requirements import (
@@ -26,26 +36,6 @@ from phoenix.client.utils.server_requirements import (
 logger = logging.getLogger(__name__)
 
 _PAGE_SIZE = 100
-
-EvaluatorDefinition = Union[
-    v1.LLMEvaluatorDefinition,
-    v1.CodeEvaluatorDefinition,
-    v1.BuiltInEvaluatorDefinition,
-]
-"""A shared evaluator definition. The ``type`` field discriminates the variants."""
-
-EvaluatorType = Literal["llm", "code", "builtin"]
-"""A kind of evaluator definition, as accepted by the ``type`` filter of :meth:`Evaluators.list`."""
-
-EvaluatorOutputConfig = Union[
-    v1.CategoricalAnnotationConfigData,
-    v1.ContinuousAnnotationConfigData,
-    v1.FreeformAnnotationConfigData,
-]
-"""An output configuration accepted by code evaluators."""
-
-Language = Literal["PYTHON", "TYPESCRIPT"]
-"""The language a code evaluator is written in."""
 
 
 def _build_llm_patch(
@@ -186,6 +176,14 @@ class Evaluators:
                 source_code="def evaluate(output: str) -> float:\\n    return 1.0\\n",
             )
             print(version["id"], version["was_created"])
+
+            # Bind an evaluator to a dataset
+            client.evaluators.dataset_evaluators.create(
+                dataset="golden-questions",
+                name="exact-match",
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+            )
     """
 
     def __init__(
@@ -201,6 +199,16 @@ class Evaluators:
         """
         self._client = client
         self._guard = _guard or ServerVersionGuard(client)
+        self._dataset_evaluators = DatasetEvaluators(client, _guard=self._guard)
+
+    @property
+    def dataset_evaluators(self) -> DatasetEvaluators:
+        """Bindings between datasets and evaluators.
+
+        Returns:
+            DatasetEvaluators: The dataset evaluator bindings client.
+        """
+        return self._dataset_evaluators
 
     def list(
         self,
@@ -619,6 +627,14 @@ class AsyncEvaluators:
                 source_code="def evaluate(output: str) -> float:\\n    return 1.0\\n",
             )
             print(version["id"], version["was_created"])
+
+            # Bind an evaluator to a dataset
+            await client.evaluators.dataset_evaluators.create(
+                dataset="golden-questions",
+                name="exact-match",
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+            )
     """
 
     def __init__(
@@ -634,6 +650,16 @@ class AsyncEvaluators:
         """
         self._client = client
         self._guard = _guard or AsyncServerVersionGuard(client)
+        self._dataset_evaluators = AsyncDatasetEvaluators(client, _guard=self._guard)
+
+    @property
+    def dataset_evaluators(self) -> AsyncDatasetEvaluators:
+        """Bindings between datasets and evaluators.
+
+        Returns:
+            AsyncDatasetEvaluators: The dataset evaluator bindings client.
+        """
+        return self._dataset_evaluators
 
     async def list(
         self,

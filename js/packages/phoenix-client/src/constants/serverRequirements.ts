@@ -273,6 +273,48 @@ export const CREATE_EVALUATOR_VERSION: RouteRequirement = {
   minServerVersion: [21, 0, 0],
 };
 
+export const CREATE_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/datasets/{dataset_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const LIST_DATASET_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/datasets/{dataset_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const GET_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/dataset_evaluators/{dataset_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const PATCH_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/dataset_evaluators/{dataset_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/dataset_evaluators/{dataset_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_DATASET_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/dataset_evaluators/delete",
+  minServerVersion: [21, 0, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -315,4 +357,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   PATCH_EVALUATOR,
   LIST_EVALUATOR_VERSIONS,
   CREATE_EVALUATOR_VERSION,
+  CREATE_DATASET_EVALUATOR,
+  LIST_DATASET_EVALUATORS,
+  GET_DATASET_EVALUATOR,
+  PATCH_DATASET_EVALUATOR,
+  DELETE_DATASET_EVALUATOR,
+  DELETE_DATASET_EVALUATORS,
 ] as const;

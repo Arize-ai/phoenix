@@ -80,3 +80,54 @@ export type EvaluatorInputMapping = components["schemas"]["InputMapping"];
  */
 export type EvaluatorOutputConfig =
   CodeEvaluatorDefinition["output_configs"][number];
+
+/**
+ * A binding between a dataset and an evaluator, as returned by the Phoenix
+ * REST API.
+ */
+export type DatasetEvaluator = components["schemas"]["DatasetEvaluator"];
+
+/**
+ * A new LLM evaluator to create alongside a binding.
+ */
+export type NewLLMEvaluator = components["schemas"]["NewLLMEvaluator"];
+
+/**
+ * A new code evaluator to create alongside a binding.
+ */
+export type NewCodeEvaluator = components["schemas"]["NewCodeEvaluator"];
+
+/**
+ * The evaluator a dataset binding creates or references: a new LLM or code
+ * evaluator, or `{ type: "reference", evaluator_id }` for an existing one.
+ */
+export type DatasetEvaluatorInput =
+  components["schemas"]["CreateDatasetEvaluatorRequest"]["evaluator"];
+
+/**
+ * Fields that can change on a dataset binding. Omitted fields keep their
+ * current values.
+ */
+export type DatasetEvaluatorPatch =
+  components["schemas"]["PatchDatasetEvaluatorRequest"];
+
+/**
+ * Identifies a dataset by ID or by name. The server accepts either in the
+ * `dataset_identifier` path parameter.
+ */
+export type DatasetIdentifier =
+  | { dataset: string }
+  | { datasetId: string }
+  | { datasetName: string };
+
+/**
+ * Resolves a {@link DatasetIdentifier} to the string the REST
+ * `dataset_identifier` path parameter expects.
+ */
+export function resolveDatasetIdentifier(
+  identifier: DatasetIdentifier
+): string {
+  if ("dataset" in identifier) return identifier.dataset;
+  if ("datasetId" in identifier) return identifier.datasetId;
+  return identifier.datasetName;
+}
