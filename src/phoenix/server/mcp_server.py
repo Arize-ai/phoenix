@@ -48,7 +48,7 @@ from mcp_types import ToolAnnotations
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
-from phoenix.config import get_env_mcp_code_mode, get_env_mcp_graphql_mutations
+from phoenix.config import get_env_mcp_code_mode
 from phoenix.server.bearer_auth import (
     INTERNAL_PRINCIPAL_SCOPE_KEY,
     PhoenixUser,
@@ -579,7 +579,7 @@ def create_phoenix_mcp_app(
         # A read-only deployment refuses writes at the resolver anyway; not
         # registering the tool means a client is told so before it composes a
         # mutation rather than after.
-        graphql_mutations=get_env_mcp_graphql_mutations() and not read_only,
+        graphql_mutations=not read_only,
         skills_roots=(SHARED_SKILLS_ROOT,),
     )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then

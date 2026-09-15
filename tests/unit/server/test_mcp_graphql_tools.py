@@ -397,15 +397,10 @@ class TestMutationTool:
         assert content is not None
         assert content["error"]["code"] == GraphQLRefusalCode.NOT_A_MUTATION.value
 
-    def test_on_by_default_in_config(self) -> None:
-        from phoenix.config import get_env_mcp_graphql_mutations
-
-        assert get_env_mcp_graphql_mutations() is True
-
     def test_a_read_only_deployment_never_registers_it(self) -> None:
         """Registering it there would advertise a write the resolvers would refuse."""
         source = Path(phoenix.server.mcp_server.__file__).read_text()
-        assert "graphql_mutations=get_env_mcp_graphql_mutations() and not read_only," in source
+        assert "graphql_mutations=not read_only," in source
 
     def test_pxi_never_registers_it(self) -> None:
         """PXI's writes go through `phoenix-gql`, which asks the user first."""
