@@ -2,7 +2,15 @@ import { css } from "@emotion/react";
 import { graphql, useFragment } from "react-relay";
 import { Pie, PieChart, Sector, type PieSectorShapeProps } from "recharts";
 
-import { ColorSwatch, Text } from "@phoenix/components";
+import {
+  ColorSwatch,
+  Flex,
+  RichTooltip,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@phoenix/components";
 import {
   type AnnotationOptimizationConfig,
   getPositiveOptimizationFromConfig,
@@ -10,6 +18,7 @@ import {
 import {
   ChartPanel,
   ChartPanelStrip,
+  ChartTooltipItem,
   CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
 } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareStats_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_comparison.graphql";
@@ -90,9 +99,18 @@ const evaluatorSummaryHeaderCSS = css`
   }
 `;
 
-const DONUT_SIZE = 112;
-const DONUT_INNER_RADIUS = 46;
-const DONUT_OUTER_RADIUS = 54;
+const donutTooltipListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+`;
+
+const DONUT_SIZE = 104;
+const DONUT_INNER_RADIUS = 40;
+const DONUT_OUTER_RADIUS = 50;
 
 function DonutSector({ payload, ...props }: PieSectorShapeProps) {
   return <Sector {...props} fill={payload?.color} />;
@@ -127,68 +145,123 @@ function StatValueWithDetail({
 function FlagRateDonut({
   color,
   evaluatedByBoth,
+  evaluationTargetsPlural,
   flaggedCount,
   flagRate,
 }: {
   color: string;
   evaluatedByBoth: number;
+  evaluationTargetsPlural: string;
   flaggedCount: number | null;
   flagRate: number | null;
 }) {
+  const notFlaggedCount = Math.max(evaluatedByBoth - (flaggedCount ?? 0), 0);
   const chartData = [
     { name: "flagged", value: flaggedCount ?? 0, color },
     {
       name: "not flagged",
-      value: Math.max(evaluatedByBoth - (flaggedCount ?? 0), 0),
+      value: notFlaggedCount,
       color: "var(--global-color-gray-300)",
     },
   ];
   const formattedRate = formatNullableRate(flagRate);
   const formattedCount = formatNullableInt(flaggedCount);
+  const hasFlaggedMetrics = flaggedCount != null && flagRate != null;
 
   return (
-    <div role="img" aria-label={`${formattedRate}; ${formattedCount} flagged`}>
-      <PieChart width={DONUT_SIZE} height={DONUT_SIZE} aria-hidden="true">
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          innerRadius={DONUT_INNER_RADIUS}
-          outerRadius={DONUT_OUTER_RADIUS}
-          stroke="transparent"
-          strokeWidth={0}
-          startAngle={90}
-          endAngle={-270}
-          isAnimationActive={false}
-          shape={DonutSector}
-        />
-        <text
-          x="50%"
-          y="40%"
-          textAnchor="middle"
-          dominantBaseline="central"
-          fill="var(--global-text-color-900)"
-          fontFamily="var(--global-font-family-mono)"
-          fontSize="var(--global-font-size-s)"
-          fontWeight="var(--font-weight-heavy)"
+    <TooltipTrigger delay={0}>
+      <TriggerWrap>
+        <div
+          role="img"
+          aria-label={`${formattedRate}; ${formattedCount} flagged`}
         >
-          {formattedRate}
-        </text>
-        <text
-          x="50%"
-          y="64%"
-          textAnchor="middle"
-          dominantBaseline="central"
-          fill="var(--global-text-color-700)"
-          fontFamily="var(--global-font-family-mono)"
-          fontSize="var(--global-font-size-xxs)"
-        >
-          {`${formattedCount} flagged`}
-        </text>
-      </PieChart>
-    </div>
+          <PieChart
+            width={DONUT_SIZE}
+            height={DONUT_SIZE}
+            aria-hidden="true"
+            accessibilityLayer={false}
+          >
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={DONUT_INNER_RADIUS}
+              outerRadius={DONUT_OUTER_RADIUS}
+              stroke="transparent"
+              strokeWidth={0}
+              startAngle={90}
+              endAngle={-270}
+              isAnimationActive={false}
+              rootTabIndex={-1}
+              shape={DonutSector}
+            />
+            <text
+              x="50%"
+              y="42%"
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="var(--global-text-color-900)"
+              fontFamily="var(--global-font-family-mono)"
+              fontSize="var(--global-font-size-s)"
+              fontWeight="var(--font-weight-heavy)"
+            >
+              {formattedRate}
+            </text>
+            <text
+              x="50%"
+              y="58%"
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="var(--global-text-color-700)"
+              fontFamily="var(--global-font-family-mono)"
+              fontSize="var(--global-font-size-xxs)"
+            >
+              {`${formattedCount} flagged`}
+            </text>
+          </PieChart>
+        </div>
+      </TriggerWrap>
+      <RichTooltip placement="bottom">
+        <View width="size-2400">
+          {hasFlaggedMetrics ? (
+            <ul css={donutTooltipListCSS}>
+              <li>
+                <ChartTooltipItem
+                  color={color}
+                  name="flagged"
+                  shape="square"
+                  value={`${formattedCount} · ${formattedRate}`}
+                />
+              </li>
+              <li>
+                <ChartTooltipItem
+                  color="var(--global-color-gray-300)"
+                  name="not flagged"
+                  shape="square"
+                  value={`${formatInt(notFlaggedCount)} · ${formatPercent(
+                    (1 - flagRate) * 100
+                  )}`}
+                />
+              </li>
+            </ul>
+          ) : (
+            <Flex direction="column" gap="size-50">
+              <ChartTooltipItem
+                color="var(--global-color-gray-300)"
+                name={`shared ${evaluationTargetsPlural}`}
+                shape="square"
+                value={formatInt(evaluatedByBoth)}
+              />
+              <Text color="text-700" size="S">
+                No optimization direction
+              </Text>
+            </Flex>
+          )}
+        </View>
+      </RichTooltip>
+    </TooltipTrigger>
   );
 }
 
@@ -215,6 +288,7 @@ function EvaluatorSummary({
   annotationName,
   color,
   evaluatedByBoth,
+  evaluationTargetsPlural,
   flaggedCount,
   flagRate,
   meanScore,
@@ -224,6 +298,7 @@ function EvaluatorSummary({
   annotationName: string;
   color: string;
   evaluatedByBoth: number;
+  evaluationTargetsPlural: string;
   flaggedCount: number | null;
   flagRate: number | null;
   meanScore: number | null;
@@ -245,6 +320,7 @@ function EvaluatorSummary({
       <FlagRateDonut
         color={color}
         evaluatedByBoth={evaluatedByBoth}
+        evaluationTargetsPlural={evaluationTargetsPlural}
         flaggedCount={flaggedCount}
         flagRate={flagRate}
       />
@@ -309,6 +385,9 @@ export function ProjectEvaluatorCompareStats({
     comparisonRef
   );
   const { coverage, statistics } = comparison;
+  const evaluationTargetsPlural = formatEvaluationTargetPlural(
+    comparison.evaluationTarget
+  );
   const kappaGloss = getKappaGloss(statistics.cohensKappa);
   const evaluatedByBothShareOfRange =
     coverage.totalInRange === 0
@@ -370,11 +449,7 @@ export function ProjectEvaluatorCompareStats({
                 }
               />
             </StatField>
-            <StatField
-              label={`${formatEvaluationTargetPlural(
-                comparison.evaluationTarget
-              )} in range`}
-            >
+            <StatField label={`${evaluationTargetsPlural} in range`}>
               <Text size="S">{formatInt(coverage.totalInRange)}</Text>
             </StatField>
             <StatField
@@ -422,7 +497,7 @@ export function ProjectEvaluatorCompareStats({
           actions={
             <Text size="S" color="text-700">
               {formatInt(coverage.evaluatedByBoth)} shared{" "}
-              {formatEvaluationTargetPlural(comparison.evaluationTarget)}
+              {evaluationTargetsPlural}
             </Text>
           }
           headingLevel={3}
@@ -434,6 +509,7 @@ export function ProjectEvaluatorCompareStats({
               annotationName={comparison.sideA.annotationName}
               color={EVALUATOR_COMPARE_COLORS.a}
               evaluatedByBoth={coverage.evaluatedByBoth}
+              evaluationTargetsPlural={evaluationTargetsPlural}
               flaggedCount={comparison.sideA.flaggedCount}
               flagRate={comparison.sideA.flagRate}
               meanScore={comparison.sideA.meanScore}
@@ -444,6 +520,7 @@ export function ProjectEvaluatorCompareStats({
               annotationName={comparison.sideB.annotationName}
               color={EVALUATOR_COMPARE_COLORS.b}
               evaluatedByBoth={coverage.evaluatedByBoth}
+              evaluationTargetsPlural={evaluationTargetsPlural}
               flaggedCount={comparison.sideB.flaggedCount}
               flagRate={comparison.sideB.flagRate}
               meanScore={comparison.sideB.meanScore}

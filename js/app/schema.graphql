@@ -1914,16 +1914,14 @@ type EvaluatorComparisonSide {
   labels: [String!]!
 
   """
-  Which of `labels` count as flagged; scored configs without an optimization direction assume MINIMIZE, and unscored categorical configs return null.
+  Which of `labels` count as flagged; null when the evaluator's config does not determine flag semantics.
   """
   flaggedLabels: [String!]
 
   """The flag threshold used to bin scores; null for categorical sides."""
   threshold: Float
 
-  """
-  Entities this evaluator flags over the shared population, using the same direction fallback as `flaggedLabels`.
-  """
+  """Entities this evaluator flags, over the shared population."""
   flaggedCount: Int
 
   """flaggedCount over the shared population size."""

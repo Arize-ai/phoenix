@@ -38,9 +38,10 @@ export function ProjectEvaluatorCompareSelect({
   options: ProjectEvaluatorCompareOption[];
   onSelectionChange: (evaluatorId: string) => void;
 }) {
+  const accessibleLabel = `${label}: ${selectedEvaluator.name}`;
   return (
     <Select
-      aria-label={label}
+      aria-label={accessibleLabel}
       size="S"
       value={selectedEvaluator.id}
       onChange={(key) => {
@@ -52,7 +53,9 @@ export function ProjectEvaluatorCompareSelect({
     >
       <Button>
         <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <ColorSwatch color={color} size="M" />
+          <span aria-hidden="true">
+            <ColorSwatch color={color} size="M" />
+          </span>
           <Truncate maxWidth="100%">{selectedEvaluator.name}</Truncate>
         </Flex>
         <SelectChevronUpDownIcon />
