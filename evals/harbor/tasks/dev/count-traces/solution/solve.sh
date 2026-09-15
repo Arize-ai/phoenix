@@ -1,5 +1,5 @@
 #!/bin/sh
-# Reference solution through the px CLI: read the project's trace count.
+# Read the seeded project's trace count through px.
 set -eu
 /opt/px/bin/px api graphql '{ projects(first: 100) { edges { node { name traceCount } } } }' \
   | python3 -c 'import json, sys

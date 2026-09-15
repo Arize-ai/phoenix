@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reference solution: the control task asks for a fixed reply."""
+"""Write the fixed response for the control task."""
 
 answer = "ok"
 

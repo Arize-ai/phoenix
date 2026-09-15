@@ -1,9 +1,6 @@
-# Coding-agent container. Both agents are preinstalled so Harbor's adapters
-# skip their network install. The px CLI and the verifier toolchain live under
-# /opt, off PATH. The `agent-cli` target puts px on PATH; CLI conditions select
-# that image through a compose overlay, so MCP conditions never see px.
-# Build context (staged by scripts/build_images.sh):
-#   evals/__init__.py, evals/harbor/__init__.py, evals/harbor/lib/   grading library
+# Both coding agents are preinstalled so Harbor does not install them during
+# a trial. Oracle solutions call /opt/px/bin/px directly; the agent-cli target
+# also puts px on PATH. The verifier stays off PATH in both images.
 FROM node:22-bookworm-slim AS agent
 ARG CLAUDE_CODE_VERSION=2.1.267
 ARG CODEX_VERSION=0.154.0

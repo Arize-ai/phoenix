@@ -8,7 +8,6 @@ from typing import Any
 
 
 def read_trajectory(path: Path) -> dict[str, Any] | None:
-    """Load a trajectory file, or None when it is absent or malformed."""
     try:
         value = json.loads(path.read_text())
     except (OSError, ValueError):

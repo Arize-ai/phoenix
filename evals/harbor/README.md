@@ -4,10 +4,10 @@ Harbor tasks and tooling for evaluating agents against Phoenix. Harbor runs the 
 and the verifiers. The `arize-phoenix` Harbor plugin writes the results to a Phoenix of
 your choice as versioned datasets, experiments, scores, and ATIF traces.
 
-Two things live here. The Phoenix tool benchmark, documented first, compares coding
-agents that reach Phoenix through the MCP server, the `px` CLI, or skills. The PXI
-headless-agent task in `tasks/regression-triage` is the original multi-step Harbor task
-for Phoenix's in-app agent, documented at the end.
+This directory contains two evaluation suites. The Phoenix tool benchmark compares
+coding agents that reach Phoenix through the MCP server or the `px` CLI. The
+`tasks/regression-triage` suite is the original multi-step Harbor task for Phoenix's
+in-app agent.
 
 ## Phoenix tool benchmark
 
@@ -83,15 +83,20 @@ with any other Harbor flags.
 
 ### What lands in Phoenix
 
-- One dataset per split, versioned by task content. Every condition runs the same task
-  files, so all conditions share a dataset version and their experiments compare
-  directly.
+- One dataset per split, versioned by the selected task content. Runs share a dataset
+  version only when they use the same `SPLIT` and `TASKS` selection.
 - One experiment per run, named by `NAME`.
 - On each run, Harbor's token counts, cost, and latency, an `infra_ok` evaluation that
   is `0` when Harbor recorded any exception, and the agent's ATIF trace.
 - From the verifier, `reward` (0 or 1), `tool_call_count`, and `agent_turn_count`. The
   two counts come from the ATIF trajectory. The oracle has no trajectory, so its runs
   omit them.
+
+For the current tasks, `reward` is the final correctness score: `1` when the answer
+matcher passes and `0` when it fails. Tool-call and turn counts are separate efficiency
+measurements. They do not change `reward`. The plugin also adds `infra_ok` as a separate
+execution-health score; Phoenix records these values but does not combine or recalculate
+them.
 
 ### Inside a trial
 
@@ -102,17 +107,17 @@ Harbor enforces the policy by putting every service in one network namespace. Th
 why the agent reaches Phoenix at `http://127.0.0.1:6006` and the MCP server at
 `http://127.0.0.1:6006/mcp` rather than by service name, and why `PHOENIX_ENDPOINT`
 points `px` at localhost. The condition files disable web search and fetch tools. If a
-teammate's Docker cannot run the allowlist, the fallback would be a task compose file
-with an internal network and an allowlisting proxy. Nobody has needed it yet, so it does
-not exist.
+Docker runtime cannot run the allowlist, Harbor rejects the trial before it starts.
 
 There are two agent images. `phoenix-bench-agent` keeps `px` under `/opt/px`, off
-`PATH`, so MCP conditions never see it. `phoenix-bench-agent-cli` is the same image with
-`px` symlinked onto `PATH`; CLI conditions select it through the
-`conditions/images/cli.yaml` compose overlay. Setting `PATH` through the agent's `env`
-does not reach Codex's shells, which is why the image differs rather than the
-environment. The verifier toolchain, a venv with the Phoenix client plus `lib/`, lives
-under `/opt/verifier` in both images and is never on `PATH`.
+`PATH`, because the oracle solutions call it by absolute path. The
+`phoenix-bench-agent-cli` image adds `px` to `PATH`; CLI conditions select it through
+the `conditions/images/cli.yaml` compose overlay. Setting `PATH` through the agent's
+`env` does not reach Codex's shells, so the image supplies the executable instead. This
+separation is a convenience, not an isolation boundary: an MCP agent can still discover
+`/opt/px/bin/px` or call Phoenix over HTTP, and the current correctness reward does not
+check interface use. The verifier venv lives under `/opt/verifier` in both images and is
+also off `PATH`.
 
 Verification runs in Harbor's shared mode. After the agent finishes, Harbor copies the
 task's `tests/` to `/tests` in the agent container and runs `test.sh` there with Phoenix
@@ -132,13 +137,13 @@ tasks/dev/<name>/
   solution/solve.sh              a reference solution through px, run by the oracle
 ```
 
-For a question with a checkable answer, `test.sh` is one line that calls the shared
-grader, and `expected.json` says how to compare. The supported kinds:
+For a question with a checkable answer, `test.sh` calls the shared grader and
+`expected.json` defines the comparison. These are the supported forms:
 
 ```json
 {"kind": "integer", "value": 117}
 {"kind": "number", "value": 16.0022, "places": 2}
-{"kind": "number", "value": [45.32, 43.05], "places": 1}                 // any listed value
+{"kind": "number", "value": [45.32, 43.05], "places": 1}
 {"kind": "number", "value": [0.79, 14.61], "places": 1, "require_all": true}
 {"kind": "name", "aliases": [["PageDownTool", "page_down"]]}
 {"kind": "name", "aliases": [["forward"], ["unexpected", "unsupported"]], "require_all": true, "allow_hedging": true}
@@ -146,18 +151,21 @@ grader, and `expected.json` says how to compare. The supported kinds:
 {"kind": "all", "checks": [{"kind": "name", "aliases": [["FinderTool"]]}, {"kind": "integer", "value": 24}]}
 ```
 
-An answer that hedges between candidates, such as "117 or 118" or "about 117", fails
-unless `allow_hedging` is set. Keep a `source` field in `expected.json` that says how
-the value was derived.
+A value list accepts any listed value unless `require_all` is `true`. The matchers
+remove Markdown emphasis and normalize whitespace before comparing. Integer, number,
+and name checks reject phrases such as "117 or 118" and "about 117". Name checks can
+set `allow_hedging` to skip that rejection. Keep a `source` field in `expected.json`
+that explains how the reference value was derived.
 
 For a task that changes Phoenix state, write your own `test.sh`. The verifier venv has
 `phoenix.client`, so query Phoenix at `http://127.0.0.1:6006`, decide the reward, and
-call `evals.harbor.lib.grade.write_reward(reward, **extra)` so the standard
-measurements are attached. Every finite numeric key you pass becomes an evaluation.
+call `evals.harbor.lib.grade.write_reward(reward, **extra)` to attach the ATIF
+measurements. The plugin records each extra numeric key as a separate evaluation.
 
 Then run `make harbor-bench-oracle TASKS=<name>`. The oracle runs `solution/solve.sh`
-and the verifier with no model calls. Its answer is the reference to record in
-`expected.json`, and a reward of `1` confirms the verifier accepts it.
+and the verifier with no model calls. Its answer provides the reference for
+`expected.json`. A reward of `1` confirms that the verifier accepts the reference; it
+does not show that incorrect answers fail.
 
 ### Adding a condition
 
@@ -242,7 +250,7 @@ uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
   harbor run -p evals/harbor/tasks/regression-triage -a oracle -e docker \
   --plugin arize-phoenix \
   --plugin-kwarg endpoint=http://127.0.0.1:6006 \
-  --plugin-kwarg trace_mode=none \
+  --plugin-kwarg trace_mode=null \
   --yes
 ```
 

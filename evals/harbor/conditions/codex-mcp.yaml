@@ -1,5 +1,3 @@
-# Codex answering through the Phoenix MCP server.
-# Run: make harbor-bench CONDITION=codex-mcp
 jobs_dir: evals/harbor/.jobs
 n_concurrent_trials: 2
 extra_instructions:

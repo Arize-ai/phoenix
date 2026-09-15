@@ -1,25 +1,13 @@
-"""Grade a task from its answer file and write Harbor's reward.json.
+"""Grade an answer file and write Harbor's ``reward.json``.
 
 Usage inside a task verifier::
 
     PYTHONPATH=/opt/verifier /opt/verifier/bin/python -m evals.harbor.lib.grade \
         --expected /tests/expected.json
 
-``expected.json`` describes the comparison::
-
-    {"kind": "integer", "value": 117}
-    {"kind": "number", "value": 12.34, "places": 2}
-    {"kind": "number", "value": [61.2, 61.9], "places": 1}
-    {"kind": "number", "value": [4.4, 9.8], "places": 1, "require_all": true}
-    {"kind": "name", "aliases": [["PageDownTool", "page_down"]]}
-    {"kind": "name", "aliases": [["forward"], ["unexpected", "unsupported"]],
-     "require_all": true, "allow_hedging": true}
-    {"kind": "exact", "value": "ok"}
-    {"kind": "all", "checks": [{"kind": "name", ...}, {"kind": "integer", ...}]}
-
-A ``value`` list accepts any of its entries unless ``require_all`` is set.
-Verifiers that check Phoenix state instead of an answer file can call
-:func:`write_reward` directly.
+Expected specs support ``integer``, ``number``, ``name``, normalized ``exact``,
+and recursive ``all`` checks. A value list accepts any entry unless
+``require_all`` is set. State verifiers can call :func:`write_reward` directly.
 """
 
 from __future__ import annotations
@@ -37,7 +25,6 @@ REWARD_PATH = Path("/logs/verifier/reward.json")
 
 
 def grade_answer(text: str, expected: dict[str, Any]) -> bool:
-    """Apply the comparison described by ``expected`` to the answer text."""
     kind = expected.get("kind")
     raw = expected.get("value")
     values = [value for value in (raw if isinstance(raw, list) else [raw]) if value is not None]
@@ -72,7 +59,7 @@ def write_reward(
     reward_path: Path = REWARD_PATH,
     **extra: float,
 ) -> dict[str, float]:
-    """Write reward.json with the reward, ATIF measurements, and any extra scores."""
+    """Write the reward, ATIF measurements, and extra scores."""
     scores: dict[str, float] = {"reward": float(reward)}
     scores.update(atif.measurements(atif.read_trajectory(trajectory_path)))
     scores.update({key: float(value) for key, value in extra.items()})

@@ -1,11 +1,6 @@
 #!/bin/bash
-# Build the two benchmark images from this checkout.
-#   phoenix-bench-phoenix:<TAG>  Phoenix server wheel + seeded TRAIL database
-#   phoenix-bench-agent:<TAG>    coding agents, verifier toolchain, px off PATH (MCP conditions)
-#   phoenix-bench-agent-cli:<TAG>  the same with px on PATH (CLI conditions)
-# TAG defaults to "local". IMAGES selects "all" (default), "phoenix", or "agent";
-# rebuild only the agent image after changing lib/ or the pinned tool versions.
-# Requires the TRAIL rows from scripts/download_trail.py.
+# Build the Phoenix, base-agent, and CLI-agent images from this checkout.
+# TAG defaults to "local". IMAGES selects "all", "phoenix", or "agent".
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 HERE="$ROOT/evals/harbor"

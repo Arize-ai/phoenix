@@ -21,35 +21,29 @@ _HEDGE = re.compile(
 
 
 def plain(text: object) -> str:
-    """Strip Markdown emphasis and surrounding whitespace."""
     if not isinstance(text, str):
         return ""
     return " ".join(_MARKUP.sub("", text).split())
 
 
 def hedged(text: str) -> bool:
-    """True when the answer offers alternatives or expresses uncertainty."""
     return bool(_HEDGE.search(text))
 
 
 def integers(text: str) -> list[int]:
-    """Every standalone integer in the text, thousands separators removed."""
     return [int(match.replace(",", "")) for match in _INTEGER.findall(text)]
 
 
 def numbers(text: str) -> list[Decimal]:
-    """Every standalone number in the text, thousands separators removed."""
     return [Decimal(match.replace(",", "")) for match in _NUMBER.findall(text)]
 
 
 def match_integer(answer: object, expected: int) -> bool:
-    """The answer states the expected integer and does not hedge."""
     text = plain(answer)
     return not hedged(text) and expected in integers(text)
 
 
 def match_number(answer: object, expected: float | int | str, places: int) -> bool:
-    """The answer states a number equal to the expected one when both are rounded."""
     text = plain(answer)
     if hedged(text):
         return False
@@ -85,5 +79,4 @@ def match_name(
 
 
 def match_exact(answer: object, expected: str) -> bool:
-    """The answer equals the expected text after trimming."""
     return plain(answer) == expected.strip()

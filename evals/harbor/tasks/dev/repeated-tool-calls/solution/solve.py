@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reference solution through the px CLI: fetch the project's spans over GraphQL."""
+"""Find the highest per-trace call count for one tool."""
 
 import json
 import subprocess

@@ -1,7 +1,6 @@
-# Launcher environment for running the benchmark: Harbor, the Phoenix plugin,
-# and the TRAIL downloader. Harbor needs Python 3.12+, so this stays separate
-# from the repository's Python 3.10 environment. The grading library in lib/
-# has no dependencies and is tested from the repository root instead.
+# Python 3.13 environment for Harbor, the Phoenix plugin, and the TRAIL
+# downloader. The dependency-free grading library also runs in the
+# repository's Python 3.10 tests.
 [project]
 name = "phoenix-harbor-bench"
 version = "0.0.0"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reference solution through the px CLI: fetch the project's spans over GraphQL."""
+"""Compute span error rates for short and long traces."""
 
 import json
 import subprocess

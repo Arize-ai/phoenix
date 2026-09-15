@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reference solution through the px CLI: fetch the project's spans over GraphQL."""
+"""Compute the cost share of the most expensive tenth of traces."""
 
 import json
 import math

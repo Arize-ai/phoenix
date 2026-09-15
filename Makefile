@@ -559,19 +559,15 @@ harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs
 
 #-----------------------------------------------------------------------------
-# Phoenix tool benchmark (evals/harbor): MCP, CLI, and skills under Harbor
+# Phoenix tool benchmark (evals/harbor): MCP and CLI under Harbor
 #-----------------------------------------------------------------------------
 BENCH_DIR := evals/harbor
 BENCH_VENV := $(BENCH_DIR)/.venv/bin
 BENCH_TRAIL := $(BENCH_DIR)/.cache/trail-gaia.json
-# Which condition file under evals/harbor/conditions/ to run.
 CONDITION ?= claude-mcp
-# Task split directory under evals/harbor/tasks/; also names the Phoenix dataset.
 SPLIT ?= dev
-# Optional space-separated task names; empty runs the whole split.
 TASKS ?=
 REPS ?= 1
-# Phoenix experiment and Harbor job name; a fresh name starts a new experiment.
 NAME ?= $(CONDITION)-$(shell date -u +%Y%m%dT%H%M%SZ)
 BENCH_RUN = $(BENCH_VENV)/harbor run --config $(BENCH_DIR)/conditions/$(1).yaml \
 	--path $(BENCH_DIR)/tasks/$(SPLIT) $(foreach t,$(TASKS),--include-task-name $(t)) \

@@ -1,6 +1,3 @@
-# Codex answering through the px CLI. The images/cli.yaml overlay selects the
-# agent image that has px on PATH.
-# Run: make harbor-bench CONDITION=codex-cli
 jobs_dir: evals/harbor/.jobs
 n_concurrent_trials: 2
 environment:

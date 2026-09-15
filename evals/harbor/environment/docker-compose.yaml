@@ -1,7 +1,3 @@
-# Shared by every task through a symlink at tasks/<split>/<task>/environment/docker-compose.yaml.
-# Harbor merges this over its own compose definition of `main`, whose image
-# comes from [environment].docker_image in task.toml.
-#
 # Every task uses Harbor's allowlist network policy. Harbor enforces it by
 # placing all services in one network namespace, which is why the agent
 # reaches Phoenix at 127.0.0.1 rather than by service name. Running these

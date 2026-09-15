@@ -1,6 +1,5 @@
-# Reference run: Harbor's built-in oracle executes each task's solution/solve.sh
-# inside the agent container. Use it to validate tasks and verifiers without
-# paying for model calls. The dataset is supplied at launch (see make harbor-bench).
+# Runs task solutions through their verifiers without model calls.
+# The launch command supplies the dataset.
 jobs_dir: evals/harbor/.jobs
 n_concurrent_trials: 2
 agents:

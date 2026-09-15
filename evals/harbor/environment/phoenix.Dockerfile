@@ -1,9 +1,5 @@
-# Phoenix server under test, with the TRAIL seed already loaded into /data.
-# Build context (staged by scripts/build_images.sh):
-#   wheels/arize_phoenix-*.whl   server wheel built from the checkout under test
-#   seed/trail-gaia.json         TRAIL rows downloaded by scripts/download_trail.py
-#   seed/load_patronus_trail.py  repository loader script
-#   seed/seed.py                 runs the loader against a throwaway server
+# Build Phoenix from the checkout and seed /data. The throwaway seed stage
+# keeps the raw TRAIL rows out of the final image.
 FROM python:3.13-slim-bookworm AS base
 COPY wheels/ /wheels/
 RUN pip install --no-cache-dir /wheels/*.whl

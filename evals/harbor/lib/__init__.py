@@ -1,6 +1,5 @@
 """Shared grading helpers for the Phoenix tool benchmark.
 
-This package must stay pure Python 3.10 with no third-party imports: it is
-unit-tested from the repository root and copied into the agent image, where
-task verifiers import it.
+The repository's Python 3.10 tests and the agent image both import this
+package, so it has no third-party dependencies.
 """
