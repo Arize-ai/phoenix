@@ -242,6 +242,13 @@ export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"s
     metadata: {},
   };
 
+export const TRACE_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"trace"> =
+  {
+    input: "",
+    output: "",
+    metadata: {},
+  };
+
 /**
  * How each grain reads a payload declared to be one of its records: its own
  * fields, validated against its own vocabulary and nothing else.
@@ -267,6 +274,15 @@ const READ_MAPPING_SOURCE_BY_GRAIN: {
     output,
     metadata:
       isStringKeyedObject(metadata) && isStringKeyedObject(metadata.attributes)
+        ? metadata
+        : {},
+  }),
+  trace: ({ input, output, metadata }) => ({
+    input,
+    output,
+    metadata:
+      isStringKeyedObject(metadata) &&
+      isStringKeyedObject(metadata.trace_annotations)
         ? metadata
         : {},
   }),
@@ -303,6 +319,7 @@ const MAPPING_SOURCE_DEFAULT_BY_GRAIN: {
 } = {
   dataset: EVALUATOR_MAPPING_SOURCE_DEFAULT,
   span: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  trace: TRACE_EVALUATOR_MAPPING_SOURCE_DEFAULT,
   session: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
 };
 
