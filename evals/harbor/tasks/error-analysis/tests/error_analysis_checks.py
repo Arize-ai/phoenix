@@ -1,8 +1,10 @@
 """Shared verifier logic for the error-analysis Harbor task.
 
-Both step verifiers import this module. Paths default to the Harbor container
-layout and can be overridden through environment variables so the checks also
-run against a local Phoenix server and a local logs directory.
+Both step verifiers import this module. Harbor uploads it, with the ground truth
+beside it, into ``/tests`` only when the verifier runs, so nothing here is visible
+to the agent. Paths default to the Harbor container layout and can be overridden
+through environment variables so the checks also run against a local Phoenix
+server and a local logs directory.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ EntityKind = Literal["span", "trace", "session"]
 
 
 def load_truth() -> dict[str, Any]:
-    truth: dict[str, Any] = json.loads((DATA_DIR / "ground_truth.json").read_text())
+    truth: dict[str, Any] = json.loads(Path(__file__).with_name("ground_truth.json").read_text())
     return truth
 
 

@@ -4,13 +4,16 @@
 Writes what a correct PXI run would leave behind: open-coding notes on the planted
 spans plus a mirrored sidecar in a bashkit snapshot for step 1, and per-dimension
 annotation configs, labels, and the axial sidecar for step 2. Writes straight to
-the fixture database, so it does not start the Phoenix server.
+the fixture database, so it does not need the Phoenix server. Carries its own copy
+of the planted defects: the verifier's ground truth lives in ``/tests``, which
+Harbor uploads only after the agent phase.
 """
 
 import base64
 import json
 import os
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,11 +23,58 @@ from bashkit import Bash
 DATA_DIR = Path(os.environ.get("PHOENIX_EVAL_DATA_DIR", "/data"))
 AGENT_LOGS_DIR = Path(os.environ.get("PHOENIX_EVAL_AGENT_LOGS_DIR", "/logs/agent"))
 STATE_DIR = Path(os.environ.get("PHOENIX_EVAL_STATE_DIR", "/var/lib/phoenix-eval"))
+PROJECT_NAME = "mobile-review-queue"
 IDENTIFIER = "coding-run:mobile-review-queue-oracle"
 SLUG = IDENTIFIER.replace(":", "-")
 WORKSPACE = "/home/user/workspace"
 NOTES_SIDECAR = f"{WORKSPACE}/.px/coding/{SLUG}.jsonl"
 AXIAL_SIDECAR = f"{WORKSPACE}/.px/coding/{SLUG}-axial.jsonl"
+
+
+@dataclass(frozen=True)
+class Planted:
+    root_span_id: str
+    defect: str
+    dimensions: tuple[str, ...]
+
+
+PLANTED = (
+    Planted(
+        root_span_id="c6bb315b72f5901b",
+        defect=(
+            "Precise dollar breakdown ($29 subscription + $28.40 overage = $57.40) with no invoice, usage record, or tool span anywhere in the trace, and the arithmetic is wrong: 14,200 tokens at $0.002 per 1k tokens is $0.028, not $28.40. Either observation identifies this defect."
+        ),
+        dimensions=("answer_grounding",),
+    ),
+    Planted(
+        root_span_id="e48658f76d82752c",
+        defect=(
+            "Asserts '30-day window', 'damage photos attached', and a $84.99 refund amount that appear nowhere in the input, and claims 'Initiating refund' although the trace has no TOOL or API span, so no action was executed."
+        ),
+        dimensions=("answer_grounding", "action_execution"),
+    ),
+    Planted(
+        root_span_id="197df13dae636230",
+        defect=(
+            "Answers 'Q2 revenue grew 18% QoQ' plus three named drivers from an 'uploaded board deck' while the trace contains no retriever span, document context, or citation; the LLM input is just the user sentence."
+        ),
+        dimensions=("answer_grounding", "retrieval_instrumentation"),
+    ),
+    Planted(
+        root_span_id="055f0b2012a73f08",
+        defect=(
+            "Invents deal-level evidence ('two of the five largest deals renew in Q3', 'both flagged budget reviews') with no retrieval or tool span, compounding the unverified claims of the prior turn."
+        ),
+        dimensions=("answer_grounding", "retrieval_instrumentation"),
+    ),
+    Planted(
+        root_span_id="328b89964b1a9bd4",
+        defect=(
+            "Both spans carry status ERROR with message 'model timeout' yet a complete French haiku was returned as output, so the error status and the produced output contradict each other."
+        ),
+        dimensions=("runtime_health",),
+    ),
+)
 
 DIMENSIONS = {
     "answer_grounding": {
@@ -127,7 +177,8 @@ def ensure_agent_session(connection: sqlite3.Connection) -> int:
         return int(row[0])
     cursor = connection.execute(
         "INSERT INTO agent_sessions(project_name, title, model_provider, model_name, is_ephemeral)"
-        " VALUES ('mobile-review-queue', 'oracle', 'ANTHROPIC', 'oracle', 0)"
+        " VALUES (?, 'oracle', 'ANTHROPIC', 'oracle', 0)",
+        (PROJECT_NAME,),
     )
     assert cursor.lastrowid is not None
     return int(cursor.lastrowid)
@@ -151,19 +202,19 @@ def upsert_span_annotation(
     )
 
 
-def step_1(connection: sqlite3.Connection, truth: dict[str, Any]) -> str:
+def step_1(connection: sqlite3.Connection) -> str:
     session_rowid = ensure_agent_session(connection)
     shell = load_shell(connection, session_rowid)
-    for planted in truth["planted_traces"]:
-        rowid = span_rowid(connection, planted["root_span_id"])
-        upsert_span_annotation(connection, rowid, "note", None, planted["defect"])
+    for planted in PLANTED:
+        rowid = span_rowid(connection, planted.root_span_id)
+        upsert_span_annotation(connection, rowid, "note", None, planted.defect)
         append_line(
             shell,
             NOTES_SIDECAR,
             {
                 "entity_kind": "span",
-                "entity_id": planted["root_span_id"],
-                "note": planted["defect"],
+                "entity_id": planted.root_span_id,
+                "note": planted.defect,
                 "identifier": IDENTIFIER,
                 "ts": now(),
             },
@@ -172,11 +223,11 @@ def step_1(connection: sqlite3.Connection, truth: dict[str, Any]) -> str:
     return global_id("AgentSession", session_rowid)
 
 
-def step_2(connection: sqlite3.Connection, truth: dict[str, Any]) -> str:
+def step_2(connection: sqlite3.Connection) -> str:
     session_rowid = ensure_agent_session(connection)
     shell = load_shell(connection, session_rowid)
     project_id = connection.execute(
-        "SELECT id FROM projects WHERE name = ?", (truth["project_name"],)
+        "SELECT id FROM projects WHERE name = ?", (PROJECT_NAME,)
     ).fetchone()[0]
     for name, spec in DIMENSIONS.items():
         config = {
@@ -199,20 +250,20 @@ def step_2(connection: sqlite3.Connection, truth: dict[str, Any]) -> str:
             " VALUES (?, ?)",
             (project_id, config_id),
         )
-    for planted in truth["planted_traces"]:
-        rowid = span_rowid(connection, planted["root_span_id"])
-        for dimension in planted["dimensions"]:
+    for planted in PLANTED:
+        rowid = span_rowid(connection, planted.root_span_id)
+        for dimension in planted.dimensions:
             label = LABEL_FOR[dimension]
-            upsert_span_annotation(connection, rowid, dimension, label, planted["defect"])
+            upsert_span_annotation(connection, rowid, dimension, label, planted.defect)
             append_line(
                 shell,
                 AXIAL_SIDECAR,
                 {
                     "entity_kind": "span",
-                    "entity_id": planted["root_span_id"],
+                    "entity_id": planted.root_span_id,
                     "annotation_name": dimension,
                     "axial_label": label,
-                    "explanation": planted["defect"],
+                    "explanation": planted.defect,
                     "identifier": IDENTIFIER,
                     "ts": now(),
                 },
@@ -223,10 +274,9 @@ def step_2(connection: sqlite3.Connection, truth: dict[str, Any]) -> str:
 
 def main() -> None:
     step = bump_step()
-    truth = json.loads((DATA_DIR / "ground_truth.json").read_text())
     connection = sqlite3.connect(DATA_DIR / "phoenix.db")
     with connection:
-        session_id = (step_1 if step == 1 else step_2)(connection, truth)
+        session_id = (step_1 if step == 1 else step_2)(connection)
     connection.close()
     answer = (STEP1_ANSWER if step == 1 else STEP2_ANSWER).format(identifier=IDENTIFIER)
     out = AGENT_LOGS_DIR / "steps" / str(step)

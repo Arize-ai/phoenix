@@ -2,10 +2,8 @@
 and the reply stopped at an offer to continue with axial coding."""
 
 import json
-import sys
 
-sys.path.insert(0, "/opt/error-analysis/checks")
-import error_analysis_checks as ea  # noqa: E402
+import error_analysis_checks as ea
 
 STEP = 1
 # The second quarterly-report turn compounds the first, so a reviewer may fold both into
