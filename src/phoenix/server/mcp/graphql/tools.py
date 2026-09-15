@@ -14,7 +14,8 @@ from phoenix.server.api.graphql_execute import (
     execute_operation,
     validate_document,
 )
-from phoenix.server.api.schema_search import cached_index, lookup, search
+from phoenix.server.api.schema_search import cached_index, lookup, lookup_many
+from phoenix.server.api.schema_search import search as search_schema
 from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
     ExecuteGraphqlOutput,
@@ -86,26 +87,37 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
     # a verbatim repeat: the text block is what every client can read, and
     # `{"result": <the same text>}` adds no structure to read.
     @mcp.tool(tags={_GRAPHQL_TAG}, annotations=_META_ANNOTATIONS, output_schema=None)
-    async def describeGraphqlSchema(search_terms: Optional[str] = None) -> str:
+    async def describeGraphqlSchema(
+        search: Optional[str] = None,
+        names: Optional[list[str]] = None,
+    ) -> str:
         """Search Phoenix's GraphQL schema for the types and fields to write an operation.
 
         The schema is far too large to read whole, so this returns only the part
-        that matches. With no arguments it returns the query root, which is
-        where every read begins.
+        asked for. With no arguments it returns the query root, which is where
+        every read begins.
 
-        `search_terms` is either free text ("cost summary time range", "annotate
-        spans") or one exact name. Free text returns ranked one-line field
-        signatures, each marked with the type that owns it. An exact `Type`,
-        `Type.field`, or mutation name returns that definition in full, together
-        with the paths that reach it from a root and the input types it needs.
+        `search` is free text ("cost summary time range", "annotate spans"). It
+        returns ranked field signatures grouped under the types that own them,
+        followed by the best hit in full. `names` lists exact `Type`,
+        `Type.field`, or mutation names; each comes back in full, with the paths
+        that reach it, the input types it takes, and the members it returns.
+        Pass both to look names up and search in one call.
 
-        Search again with the return types and input types you see rather than
-        repeating the same terms.
+        Name the return types and input types you see rather than repeating the
+        same search terms.
         """
         index = cached_index(_schema()._schema, include_mutations=allow_mutations)
-        if not (terms := (search_terms or "").strip()):
-            return "\n\n".join([_preamble(index.query_root), lookup(index, index.query_root)])
-        return "\n\n".join([_preamble(index.query_root), search(index, terms, _SEARCH_BUDGET)])
+        wanted = [n.strip() for n in names or [] if n.strip()]
+        terms = (search or "").strip()
+        parts = [_preamble(index.query_root)]
+        if wanted:
+            parts.append(lookup_many(index, wanted, _SEARCH_BUDGET))
+        if terms:
+            parts.append(search_schema(index, terms, _SEARCH_BUDGET))
+        if not wanted and not terms:
+            parts.append(lookup(index, index.query_root))
+        return "\n\n".join(parts)
 
     @mcp.tool(
         tags={_GRAPHQL_TAG},
