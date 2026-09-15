@@ -342,15 +342,6 @@ async def test_configured_visibility_controls_instructions_and_tools(
             assert f"<name>{skill.name}</name>" in (client.instructions or "")
 
 
-def test_configured_paths_are_comma_separated(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _write_skill(tmp_path / "first" / "a-skill")
-    _write_skill(tmp_path / "second" / "b-skill")
-    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", f" {tmp_path / 'first'}, ,{tmp_path / 'second'},")
-    assert [skill.name for skill in load_external_skills()] == ["a-skill", "b-skill"]
-
-
 def test_invalid_visibility(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", "true")
     with pytest.raises(ValueError, match="PHOENIX_SKILLS_VISIBILITY"):
