@@ -2,6 +2,7 @@ export * from "./annotationConfig";
 export * from "./auth";
 export * from "./profile";
 export * from "./project";
+export * from "./projectEvaluator";
 export * from "./trace";
 export * from "./span";
 export * from "./dataset";
