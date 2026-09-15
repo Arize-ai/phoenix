@@ -28,21 +28,26 @@ jobs:
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
       proto: ${{ steps.filter.outputs.proto }}
       prompts: ${{ steps.filter.outputs.prompts }}
-      phoenix: ${{ steps.filter.outputs.phoenix }}
-      phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
-      phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
-      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
+      phoenix: ${{ steps.filter.outputs.phoenix == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_client: ${{ steps.filter.outputs.phoenix_client == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_evals: ${{ steps.filter.outputs.phoenix_evals == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+      phoenix_otel: ${{ steps.filter.outputs.phoenix_otel == 'true' && steps.bookkeeping.outputs.only != 'true' }}
       migrations: ${{ steps.filter.outputs.migrations }}
       ddl: ${{ steps.filter.outputs.ddl }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
+      # Gated twin of uv_lock for the suites; check-lockfile keeps the raw value.
+      deps: ${{ steps.filter.outputs.uv_lock == 'true' && steps.bookkeeping.outputs.only != 'true' }}
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
       mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
+      bookkeeping_detector: ${{ steps.filter.outputs.bookkeeping_detector }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          # The bookkeeping detector diffs the merge commit against its parent.
+          fetch-depth: 2
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
@@ -96,6 +101,21 @@ jobs:
               - "src/phoenix/server/agents/prompts/skills/**"
               - "js/app/schema.graphql"
               - "scripts/ci/test_skill_graphql_examples.py"
+            bookkeeping_detector:
+              - "scripts/ci/bookkeeping_only.py"
+              - "scripts/ci/test_bookkeeping_only.py"
+      # A release PR bumps versions and appends changelogs; there is nothing in
+      # it for the package suites to exercise. Decided from the diff, never from
+      # a branch name or label: the aggregators below pass when their jobs skip,
+      # so a signal the PR author picks would merge untested code.
+      - name: Detect a bookkeeping-only change
+        id: bookkeeping
+        # The base branch's copy, so a pull request that edits the detector is
+        # judged by the one it is replacing. Unreadable or failing runs the
+        # suites: losing the optimization is fine, failing this job is not.
+        run: |
+          git show HEAD^1:scripts/ci/bookkeeping_only.py > "$RUNNER_TEMP/detector.py" || exit 0
+          python3 "$RUNNER_TEMP/detector.py" || exit 0
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -296,6 +316,24 @@ jobs:
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
+
+  test-bookkeeping-detector:
+    name: Test Bookkeeping Detector
+    needs: changes
+    if: ${{ needs.changes.outputs.bookkeeping_detector == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci/
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.14"
+      - name: Test the detector
+        run: python3 -m unittest discover -s scripts/ci -p 'test_bookkeeping_only.py'
 
   check-filter-dsl-snippets:
     name: Check Filter DSL Snippets
@@ -540,7 +578,7 @@ jobs:
     name: Type Check Python
     runs-on: ${{ matrix.os }}
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.uv_lock == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.deps == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -578,7 +616,7 @@ jobs:
     name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})
     runs-on: oss-4-core-runner
     needs: changes
-    if: ${{ (needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.uv_lock == 'true') && github.event_name == 'pull_request' }}
+    if: ${{ (needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.deps == 'true') && github.event_name == 'pull_request' }}
     strategy:
       fail-fast: false
       matrix:
@@ -630,7 +668,7 @@ jobs:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
     needs: changes
-    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.phoenix_client == 'true' || needs.changes.outputs.uv_lock == 'true' }}
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.phoenix_client == 'true' || needs.changes.outputs.deps == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -811,6 +849,7 @@ jobs:
       - build-graphql-schema
       - check-filter-dsl-snippets
       - check-skill-graphql-examples
+      - test-bookkeeping-detector
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
