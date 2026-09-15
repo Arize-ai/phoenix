@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 
 import pytest
@@ -36,7 +37,16 @@ def index(graphql_schema: GraphQLSchema) -> Index:
 
 
 def first_line(text: str) -> str:
-    return text.splitlines()[0]
+    """The first hit or definition line, with a grouped hit re-joined to its owner."""
+    lines = text.splitlines()
+    if (
+        len(lines) > 1
+        and lines[1].startswith("  ")
+        and not lines[0].startswith(("type ", "enum ", "input ", "interface ", "union "))
+    ):
+        owner, _, via = lines[0].partition("  via ")
+        return f"{owner}.{lines[1].strip()}" + (f"  via {via}" if via else "")
+    return lines[0]
 
 
 def test_every_read_root_exists(graphql_schema: GraphQLSchema) -> None:
@@ -65,8 +75,9 @@ def test_top_line(index: Index, query: str, expected: str) -> None:
 
 
 def test_status_code_finds_the_status_code_fields(index: Index) -> None:
-    top = search(index, "status_code").splitlines()[:2]
-    assert all(line.startswith("Span.") and "StatusCode" in line for line in top)
+    top = search(index, "status_code").splitlines()[:3]
+    assert top[0] == "Span"
+    assert all(line.startswith("  ") and "StatusCode" in line for line in top[1:])
 
 
 def test_description_only_match(index: Index) -> None:
@@ -152,7 +163,7 @@ def test_optional_pagination_arguments_collapse_to_one_marker(index: Index) -> N
     # A required `first` stays visible: the caller must pass it.
     assert "spans(first: Int!, timeRange: TimeRange, last: Int," in lookup(index, "Project.spans")
     hits = search(index, "prompts")
-    assert "Query.prompts(\u2026, filter: PromptFilter" in hits
+    assert "\n  prompts(\u2026, filter: PromptFilter" in hits
     assert hits.splitlines()[-1].startswith("# \u2026 = ")
     assert "\u2026" not in lookup(index, "Span.spanAnnotations")
 
@@ -301,6 +312,18 @@ def test_cut_member_stubs_explain_their_marker() -> None:
     assert "+N" not in lookup(index, "Big")
 
 
+def test_single_owner_hits_group_under_their_owner(index: Index) -> None:
+    lines = search(index, "projects").splitlines()
+    headers = [i for i, line in enumerate(lines) if re.fullmatch(r"[A-Z]\w*(  via .*)?", line)]
+    assert lines[headers[0]].split("  ")[0] in {"Query", "Project"}
+    # Every header is followed by at least one indented hit, and owners appear once.
+    owners = [lines[i].split("  ")[0] for i in headers]
+    assert len(owners) == len(set(owners))
+    assert all(lines[i + 1].startswith("  ") for i in headers)
+    text = search(index, "annotate spans")
+    assert text.startswith("Span\n  spanAnnotations(")
+
+
 def test_enums_returned_by_fields_say_so() -> None:
     schema = build_schema(
         "type Query { status: Status, items(sort: Dir): [Int] }\n"
@@ -331,8 +354,9 @@ def test_cached_index_is_built_once_per_schema_and_setting(graphql_schema: Graph
 def test_budget_bounds_a_broad_search(index: Index) -> None:
     text = search(index, "id", budget=800)
     assert len(text) <= 800
-    assert text.splitlines()[-1].startswith("... ")
-    assert "more; narrow the search" in text
+    assert any(
+        line.startswith("... ") and "more; narrow the search" in line for line in text.splitlines()
+    )
 
 
 def test_input_types_are_labelled_by_their_mutation(index: Index) -> None:
@@ -372,7 +396,7 @@ def test_tokenizer(identifier: str, expected: list[str]) -> None:
 
 
 def test_plural_query_terms_match_singular_identifiers(index: Index) -> None:
-    assert "Project.spanAnnotationNames" in search(index, "span annotations names")
+    assert "  spanAnnotationNames: [String!]!" in search(index, "span annotations names")
 
 
 def test_every_connection_has_edges_node(graphql_schema: GraphQLSchema) -> None:

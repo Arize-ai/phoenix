@@ -1,7 +1,7 @@
 """Searchable sub-graph of the GraphQL schema for agents.
 
 The full schema is far too large for a model's context. ``build_index`` runs
-once per schema; ``search`` returns ranked one-line hits for a free-text
+once per schema; ``search`` returns ranked hits for a free-text
 query and ``lookup`` renders one type, field, or mutation in full with the
 path that reaches it. Every renderer works to a character budget.
 """
@@ -646,9 +646,27 @@ def _line(index: Index, group: Sequence[Unit], terms: Sequence[str]) -> str:
         if len(group) > 6:
             on += f" +{len(group) - 6}"
         line = f"{u.signature}  # on {on}"
+    return line + _matched_description(u, terms)
+
+
+def _matched_description(u: Unit, terms: Sequence[str]) -> str:
+    """The description, quoted, when the query matched inside it."""
     if u.description and any(term in u.terms["desc"] for term in terms):
-        line += f'  "{_first_sentence(u.description)}"'
-    return line
+        return f'  "{_first_sentence(u.description)}"'
+    return ""
+
+
+def _entry(index: Index, group: Sequence[Unit], terms: Sequence[str]) -> tuple[Optional[str], str]:
+    """A hit as ``(owner, line)``: fields with one owner are listed under it."""
+    u = group[0]
+    if len(group) == 1 and u.kind == "field":
+        return u.parent, f"  {u.signature}{_matched_description(u, terms)}"
+    return None, _line(index, group, terms)
+
+
+def _owner_header(index: Index, owner: str) -> str:
+    via = index.via(owner)
+    return f"{owner}  via {via}" if via and via != owner else owner
 
 
 _MUTATIONS_DISABLED = "-- Mutations are disabled for this session and are not listed."
@@ -679,7 +697,10 @@ def _unknown_member(index: Index, key: str) -> Optional[tuple[str, str]]:
 
 
 def search(index: Index, query: str, budget: int = 1500) -> str:
-    """Ranked one-line hits for a free-text query, within ``budget`` characters.
+    """Ranked hits for a free-text query, within ``budget`` characters.
+
+    Each hit is one line. Fields with a single owner are listed under a header
+    naming that owner and the path that reaches it.
 
     A query that exactly names a type, ``Type.field``, or mutation is a lookup.
     """
@@ -713,16 +734,35 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     if not groups:
         miss = f"-- No type, field, argument, enum value, or description matched {query!r}."
         return "\n".join([miss, *note])
+    # Hits with one owner sit under that owner's header, which appears where the
+    # owner's best hit ranks; every other hit keeps its own rank position.
+    entries = [_entry(index, group, terms) for group in groups.values()]
+    by_parent: dict[str, list[str]] = defaultdict(list)
+    for parent, text in entries:
+        if parent is not None:
+            by_parent[parent].append(text)
+    ordered: list[tuple[bool, str]] = []  # (counts as a hit, line)
+    opened: set[str] = set()
+    for parent, text in entries:
+        if parent is None:
+            ordered.append((True, text))
+        elif parent not in opened:
+            opened.add(parent)
+            ordered.append((False, _owner_header(index, parent)))
+            ordered.extend((True, hit) for hit in by_parent[parent])
     lines: list[str] = []
     used = sum(len(n) + 1 for n in note) + len(_PAGINATION_LEGEND) + 1
-    for i, group in enumerate(groups.values()):
-        line = _line(index, group, terms)
-        trailer = f"... {len(groups) - i} more; narrow the search"
-        if used + len(line) + 1 + len(trailer) > budget:
+    shown = 0
+    for i, (is_hit, line) in enumerate(ordered):
+        trailer = f"... {len(entries) - shown} more; narrow the search"
+        # A header only goes in with the hit that follows it.
+        need = len(line) + 1 if is_hit else len(line) + 1 + len(ordered[i + 1][1]) + 1
+        if used + need + len(trailer) > budget:
             lines.append(trailer)
             break
         lines.append(line)
         used += len(line) + 1
+        shown += is_hit
     return "\n".join([_with_legend("\n".join(lines)), *note])
 
 

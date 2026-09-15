@@ -280,7 +280,7 @@ async def test_help_reflects_permissions(
 async def test_schema_search_finds_a_field(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql schema echo")
     assert result["exitCode"] == 0
-    assert result["stdout"].startswith("Query.echo(text: String!): String!")
+    assert result["stdout"].startswith("Query\n  echo(text: String!): String!")
 
 
 async def test_schema_lookup_prints_a_type(run_bash: RunBash) -> None:
