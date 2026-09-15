@@ -6,9 +6,10 @@ Phoenix ships for coding agents:
 * ``ClaudeCodeMcpAgent`` registers the Phoenix remote MCP server that the task's Phoenix
   instance mounts at ``/mcp``. The server serves the error-analysis skill itself, so
   nothing is installed on disk.
-* ``ClaudeCodeCliAgent`` installs ``@arizeai/phoenix-cli`` and points it at the task's
-  Phoenix instance. Pass the public skills with Harbor's ``--skill`` flag; Harbor uploads
-  them and registers them with Claude Code.
+* ``ClaudeCodeCliAgent`` points the preinstalled ``@arizeai/phoenix-cli`` at the task's
+  Phoenix instance, installing it only when the image lacks it or a version override is
+  given. Pass the public skills with Harbor's ``--skill`` flag; Harbor uploads them and
+  registers them with Claude Code.
 
 Both run with Harbor's defaults for Claude Code (``bypassPermissions``), so the comparison
 against the PXI chat agent, whose tool calls are auto-approved, does not measure approval
@@ -122,6 +123,10 @@ class ClaudeCodeCliAgent(_PhoenixClaudeCode):
 
     async def install(self, environment: BaseEnvironment) -> None:
         await super().install(environment)
+        if self._phoenix_cli_version is None:
+            preinstalled = await environment.exec("px --version")
+            if preinstalled.return_code == 0:
+                return
         spec = "@arizeai/phoenix-cli" + (
             f"@{self._phoenix_cli_version}" if self._phoenix_cli_version else ""
         )
