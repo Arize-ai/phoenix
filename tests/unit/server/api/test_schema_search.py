@@ -418,6 +418,19 @@ def test_input_types_are_labelled_by_their_mutation(index: Index) -> None:
     assert "node(id:)" not in text
 
 
+def test_relay_wrappers_say_what_they_wrap(index: Index) -> None:
+    connection = "-- SpanConnection is a connection over Span: select `edges { node { ... } }` and `pageInfo`. Look up Span."
+    assert lookup(index, "SpanConnection") == connection
+    assert search(index, "SpanConnection") == connection
+    assert lookup(index, "SpanConnection.edges") == connection
+    assert lookup(index, "SpanEdge") == (
+        "-- SpanEdge is a connection edge over Span: select `node { ... }`. Look up Span."
+    )
+    assert lookup(index, "PageInfo").startswith(
+        "-- PageInfo is Relay pagination plumbing: hasNextPage"
+    )
+
+
 def test_misses_say_so(index: Index) -> None:
     assert search(index, "zzqx").startswith("-- No type")
     assert search(index, "the of").startswith("-- Empty query")
