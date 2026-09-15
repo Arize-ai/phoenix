@@ -1,0 +1,25 @@
+# Every task uses Harbor's allowlist network policy. Harbor enforces it by
+# placing all services in one network namespace, which is why the agent
+# reaches Phoenix at 127.0.0.1 rather than by service name. Running these
+# tasks with a public network policy would break that addressing.
+services:
+  main:
+    environment:
+      PHOENIX_ENDPOINT: http://127.0.0.1:6006
+      PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES: "true"
+      NO_COLOR: "1"
+    depends_on:
+      phoenix:
+        condition: service_healthy
+  phoenix:
+    image: phoenix-bench-phoenix:local
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6006/healthz', timeout=2)"
+      interval: 2s
+      timeout: 5s
+      retries: 60
+      start_period: 5s

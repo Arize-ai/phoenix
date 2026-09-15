@@ -341,6 +341,7 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
+  "evals/harbor/tasks/(dev|test)/",
   "examples/",
   "packages/",
   "scripts/",

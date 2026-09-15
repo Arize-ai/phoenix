@@ -1,0 +1,17 @@
+{
+  "kind": "integer",
+  "value": 117,
+  "source": "solution/solve.sh against the seeded image; matches /seed/summary.json traceCount",
+  "accept": [
+    "117",
+    "There are **117** traces in research-assistant.",
+    "117 traces (3,579 spans)"
+  ],
+  "reject": [
+    "118",
+    "117 or 118",
+    "about 117",
+    "1,170",
+    ""
+  ]
+}

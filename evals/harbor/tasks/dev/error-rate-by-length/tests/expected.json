@@ -1,0 +1,44 @@
+{
+  "kind": "labeled_number",
+  "places": 1,
+  "labels": {
+    "short": {
+      "aliases": [
+        "short",
+        "shorter",
+        "fewer than 15",
+        "less than 15",
+        "under 15",
+        "<15",
+        "< 15"
+      ],
+      "value": 0.7949
+    },
+    "long": {
+      "aliases": [
+        "long",
+        "longer",
+        "40 or more",
+        "at least 40",
+        ">=40",
+        ">= 40",
+        "40+"
+      ],
+      "value": 14.6067
+    }
+  },
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; short (<15 spans) 5/629 ERROR spans, long (>=40 spans) 312/2136",
+  "accept": [
+    "Short: 0.8%; Long: 14.6%",
+    "Yes. Short traces (<15 spans) had a 0.79% error rate, compared with 14.61% for long traces (>=40 spans).",
+    "Under 15 spans: 0.8%.\nAt least 40 spans: 14.6%.",
+    "14.6% for longer runs and 0.8% for shorter ones, so yes."
+  ],
+  "reject": [
+    "Short: 14.6%; Long: 0.8%",
+    "The two rates were 0.8% and 14.6%.",
+    "Short: 0.8%",
+    "Short: 0.8%; Long: 14.6% or 15.2%",
+    "Short: 1.2%; Long: 14.6%"
+  ]
+}

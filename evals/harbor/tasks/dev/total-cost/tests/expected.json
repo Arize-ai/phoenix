@@ -1,0 +1,18 @@
+{
+  "kind": "number",
+  "value": 16.0022467,
+  "places": 2,
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; Phoenix project costSummary.total.cost",
+  "accept": [
+    "$16.00",
+    "16.0022 USD",
+    "The run cost $16.00 in total."
+  ],
+  "reject": [
+    "$16.10",
+    "about $16",
+    "$16.00 or $16.01",
+    "16.5",
+    ""
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "kind": "integer",
+  "value": 78,
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows",
+  "accept": [
+    "78",
+    "The largest trace made 78 LLM calls."
+  ],
+  "reject": [
+    "77",
+    "78 or 79",
+    "roughly 78",
+    ""
+  ]
+}

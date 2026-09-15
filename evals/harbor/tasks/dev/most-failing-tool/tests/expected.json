@@ -1,0 +1,21 @@
+{
+  "kind": "name",
+  "aliases": [
+    [
+      "PageDownTool",
+      "page_down"
+    ]
+  ],
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; 109 ERROR tool spans, next is TextInspectorTool at 29. Aliases: span name and tool.name attribute",
+  "accept": [
+    "PageDownTool",
+    "page_down failed most often (109 errors).",
+    "**PageDownTool** with 109 failures, then TextInspectorTool with 29."
+  ],
+  "reject": [
+    "TextInspectorTool",
+    "PageDown",
+    "PageDownTool or TextInspectorTool",
+    ""
+  ]
+}

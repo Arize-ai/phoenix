@@ -1,0 +1,18 @@
+{
+  "kind": "number",
+  "value": 45.3221,
+  "places": 1,
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; the top 12 traces (10% of 117, rounded up) of $16.00 total",
+  "accept": [
+    "45.3%",
+    "The top 12 traces account for 45.3% of the $16.00 total.",
+    "45.32 percent"
+  ],
+  "reject": [
+    "43.1%",
+    "about 45%",
+    "45.3% or 43.1%",
+    "12",
+    ""
+  ]
+}

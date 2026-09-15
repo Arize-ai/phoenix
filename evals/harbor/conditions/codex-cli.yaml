@@ -1,0 +1,13 @@
+jobs_dir: evals/harbor/.jobs
+n_concurrent_trials: 2
+environment:
+  extra_docker_compose:
+    - evals/harbor/conditions/images/cli.yaml
+extra_instructions:
+  - Use the px CLI (the Phoenix CLI, already installed and configured) for anything involving Phoenix data.
+agents:
+  - name: codex
+    model_name: openai/gpt-5.6
+    kwargs:
+      reasoning_effort: high
+      web_search: disabled
