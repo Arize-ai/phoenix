@@ -49,6 +49,7 @@ __all__ = [
     "lookup_many",
     "reach_paths",
     "search",
+    "search_many",
     "tokenize",
 ]
 
@@ -915,6 +916,28 @@ def _within(parts: Sequence[str], budget: int) -> str:
 def lookup(index: Index, name: str, budget: int = 4000) -> str:
     """One type, ``Type.field``, or mutation rendered in full with the path that reaches it."""
     return _with_legend(_budgeted(_lookup_parts(index, name), budget))
+
+
+def search_many(index: Index, queries: Sequence[str], budget: int = 4000) -> str:
+    """One ranked answer per query, each within an equal share of ``budget``.
+
+    The pagination key and the mutations note are fixed lines, so they appear
+    once at the end rather than under every answer.
+    """
+    share = max(budget // max(len(queries), 1), 300)
+    trailing = (_PAGINATION_LEGEND, _MUTATIONS_DISABLED)
+    sections: list[str] = []
+    seen: list[str] = []
+    for query in queries:
+        kept: list[str] = []
+        for line in search(index, query, share).splitlines():
+            if line in trailing:
+                if line not in seen:
+                    seen.append(line)
+            else:
+                kept.append(line)
+        sections.append("\n".join(kept))
+    return "\n".join(["\n\n".join(sections), *seen])
 
 
 def lookup_many(index: Index, names: Sequence[str], budget: int = 4000) -> str:

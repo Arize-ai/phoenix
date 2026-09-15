@@ -18,6 +18,7 @@ from phoenix.server.api.schema_search import (
     lookup_many,
     reach_paths,
     search,
+    search_many,
     tokenize,
 )
 
@@ -189,6 +190,20 @@ def test_field_lookup_prints_the_path_to_its_parent(index: Index) -> None:
     text = lookup(index, "Span.costSummary")
     assert "# via Query.getSpanByOtelId > Span.costSummary" in text
     assert "type Query" not in text
+
+
+def test_several_searches_answer_together(index: Index) -> None:
+    text = search_many(index, ["session duration", "prompts"], budget=3000)
+    first, second = text.split("\n\n", 1)
+    assert first_line(first).startswith("Project.averageSessionDurationMs")
+    assert "\n  prompts(\u2026, " in second
+    assert text.count("# \u2026 = ") == 1
+    assert text.splitlines()[-1].startswith("# \u2026 = ")
+    assert len(text) <= 3000 + 80
+    hidden = build_index(index.schema, include_mutations=False)
+    text = search_many(hidden, ["delete dataset", "clone prompt"])
+    assert text.count("-- Mutations are disabled") == 1
+    assert text.splitlines()[-1].startswith("-- Mutations are disabled")
 
 
 def test_several_exact_names_are_each_looked_up(index: Index) -> None:
