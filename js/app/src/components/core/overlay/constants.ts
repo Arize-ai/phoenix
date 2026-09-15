@@ -50,3 +50,13 @@ export const DRAWER_SIDE_NAV_GAP_PX = 28;
  * exactly 80; the values drift independently on purpose).
  */
 export const DRAWER_VISIBLE_GUTTER_PX = 80;
+
+/** How long a popover or modal takes to enter or exit. */
+export const OVERLAY_ANIMATION_DURATION_MS = 200;
+
+/**
+ * How long the modal backdrop takes to enter or exit. Longer than
+ * {@link OVERLAY_ANIMATION_DURATION_MS} so the backdrop outlasts the modal
+ * it hosts.
+ */
+export const MODAL_BACKDROP_ANIMATION_DURATION_MS = 300;

@@ -1118,6 +1118,21 @@ async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql
 
 
 @pytest.mark.postgres_only
+async def test_quoted_char_cast_is_the_one_byte_type(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """`"char"` must reach the engine quoted, so it is the 1-byte type, not bpchar.
+
+    Executed rather than rendered because the two types accept the same cast
+    and differ only in the answer: 65 is 'A' as `"char"` and '6' as `CHAR`.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db, ExecuteParams(sql='SELECT CAST(65 AS "char") AS v')
+    )
+    assert result.envelope.rows == [["A"]]
+
+
+@pytest.mark.postgres_only
 @pytest.mark.parametrize(
     ("key", "expected"),
     [

@@ -1596,12 +1596,18 @@ def test_recursive_cte_without_the_keyword_names_the_self_join() -> None:
     assert "self-join" in caught.value.message
 
 
-def test_quoted_char_cast_is_refused_as_lossy() -> None:
-    with pytest.raises(AnalyticsSqlError) as caught:
-        parse_sql('SELECT CAST(65 AS "char")', dialect="postgresql")
-    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
-    assert "bpchar" in caught.value.message
-    assert '"char"' in caught.value.message
+def test_quoted_char_cast_keeps_its_quotes() -> None:
+    """PostgreSQL's `"char"` is a 1-byte type; CHAR is bpchar.
+
+    CAST(65 AS "char") is 'A' and CAST(65 AS CHAR) is '6', so folding the
+    quotes away changes the answer.
+    """
+    _, rendered = admit_sql(
+        'SELECT CAST(65 AS "char") AS v',
+        allowlist=load_allowlist("postgresql"),
+        dialect="postgresql",
+    )
+    assert 'AS "char"' in rendered
 
 
 def test_group_by_all_is_refused() -> None:

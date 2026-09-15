@@ -997,9 +997,8 @@ def _build_message_metadata_chunk(
     *,
     turn_trace_context: TurnTraceContext | None,
     session_id: str,
-    usage: RequestUsage,
+    usage: RequestUsage | None = None,
 ) -> MessageMetadataChunk:
-    """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     return MessageMetadataChunk(
         message_metadata=MessageMetadata(
             phoenix=_build_phoenix_assistant_message_metadata(
@@ -1064,6 +1063,14 @@ def _get_last_user_text(messages: Iterable[UIMessage]) -> str | None:
                 return text or None
         return None
     return None
+
+
+def _get_assistant_text(message: UIMessage) -> str | None:
+    if message.role != "assistant":
+        return None
+    return (
+        "".join(part.text for part in message.parts if isinstance(part, TextUIPart)).strip() or None
+    )
 
 
 def _build_exception_event(*, message: str, timestamp: datetime) -> Event:
@@ -1318,14 +1325,7 @@ def _close_superseded_turn_trace(
         session_id=session_id,
     )
     trailing_message = messages[-1] if messages else None
-    output_text: str | None = None
-    if trailing_message is not None and trailing_message.role == "assistant":
-        output_text = (
-            "".join(
-                part.text for part in trailing_message.parts if isinstance(part, TextUIPart)
-            ).strip()
-            or None
-        )
+    output_text = _get_assistant_text(trailing_message) if trailing_message is not None else None
     _emit_turn_root_span(
         tracer=tracer,
         turn_ids=turn_ids,
@@ -3614,6 +3614,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         assert _is_async_generator(raw_stream)
 
                         async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                            # A client that stops the turn never receives the completion
+                            # metadata, so the trace context is sent up front.
+                            turn_trace_context_streamed = resolved_turn_trace_context is None
                             # Forced skills are streamed as their own `load_skill` steps so
                             # the browser transcript matches what the model received. They
                             # are emitted once, right after the stream's opening `start`
@@ -3629,6 +3632,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                             emitted_at=datetime.now(timezone.utc),
                                         )
                                     yield agent_message_chunk
+                                    if not turn_trace_context_streamed and isinstance(
+                                        agent_message_chunk,
+                                        StartChunk,
+                                    ):
+                                        yield _build_message_metadata_chunk(
+                                            turn_trace_context=resolved_turn_trace_context,
+                                            session_id=otel_session_id,
+                                        )
+                                        turn_trace_context_streamed = True
                                     if not forced_skills_streamed and isinstance(
                                         agent_message_chunk,
                                         StartChunk,
@@ -3705,12 +3717,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 summary_task.cancel()
                         if tracer is not None:
                             if turn_is_terminal or stream_error is not None:
+                                turn_output_text = (
+                                    turn_final_output_text
+                                    if turn_is_terminal
+                                    else _get_assistant_text(message_state.message)
+                                )
                                 _emit_turn_root_span(
                                     tracer=tracer,
                                     turn_ids=turn_ids,
                                     session_id=otel_session_id,
                                     input_text=_get_last_user_text(transcript_messages),
-                                    output_text=turn_final_output_text,
+                                    output_text=turn_output_text,
                                     error_message=(
                                         None
                                         if stream_error is None

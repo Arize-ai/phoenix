@@ -554,8 +554,8 @@ def _repair_quoted_json_path(root: exp.Expression, ctx: RewriteContext) -> exp.E
     the accessor the caller wrote -- which matters on SQLite, where `->` and
     `json_extract` return different types.
 
-    Workaround for https://github.com/tobymao/sqlglot/issues/8251, open
-    upstream.
+    Workaround for https://github.com/tobymao/sqlglot/issues/8251, fixed
+    upstream but unreleased at the pinned version.
     """
     changed = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
@@ -605,20 +605,11 @@ def _canonicalize_postgres_json_extract_function(
     Only a ``JSONPath`` operand can supply the key arguments, so that is the
     condition for the rewrite; ``only_json_types`` then separates the two
     spellings that carry a path, marking the operator, which already renders
-    correctly.
-
-    Any other operand renders inline as ``a -> operand``, and an operand that is
-    itself an operator regroups when it does: ``json_extract(a, 'x' || 'y')``
-    emits ``a -> 'x' || 'y'``, which PostgreSQL reads as ``(a -> 'x') || 'y'``
-    because ``->`` and ``||`` share a precedence class and associate left. That
-    is a different statement, so such an operand is parenthesised. It can only
-    arise from the function spelling: written as an operator, the same text
-    groups that way in the parser too, and the extraction is not the top node.
+    correctly. Any other operand renders inline as ``a -> operand``.
     """
     if ctx.dialect != "postgresql":
         return root
     changed = False
-    parenthesised = False
     for node in list(root.find_all(exp.JSONExtract, exp.JSONExtractScalar)):
         inner = _strip_parens(node.expression)
         if not isinstance(inner, exp.JSONPath):
@@ -633,27 +624,14 @@ def _canonicalize_postgres_json_extract_function(
                 ctx.notes
             ):
                 ctx.notes.append(_COMPUTED_JSON_KEY_NOTE)
-            operand = node.expression
-            # Binary and Unary cover the infix and prefix operators; Predicate
-            # adds the comparison forms that are neither, such as BETWEEN and
-            # IN. exp.Paren is itself a Unary, and an already-parenthesised
-            # operand renders unambiguously.
-            # Workaround for https://github.com/tobymao/sqlglot/issues/8211,
-            # fixed upstream but unreleased at the pinned version.
-            if isinstance(operand, (exp.Binary, exp.Unary, exp.Predicate)) and not isinstance(
-                operand, exp.Paren
-            ):
-                node.set("expression", exp.Paren(this=operand))
-                parenthesised = True
             continue
         if node.args.get("only_json_types") is not None:
             continue
         # A root-only path selects the whole document. It has no keys to pass,
-        # and `json_extract_path(doc)` is not a signature PostgreSQL defines,
-        # so the path operators express it instead: `#> '{}'` is the document,
-        # `#>> '{}'` is the document as text.
-        # Workaround for https://github.com/tobymao/sqlglot/issues/8232, fixed
-        # upstream but unreleased at the pinned version.
+        # and the generator spells it `json_extract_path(doc, VARIADIC '{}')`,
+        # which PostgreSQL defines over json, not jsonb. The path operators
+        # express it instead: `#> '{}'` is the document, `#>> '{}'` is the
+        # document as text.
         if _json_path_is_root_only(inner):
             whole = (
                 exp.JSONBExtractScalar
@@ -678,8 +656,6 @@ def _canonicalize_postgres_json_extract_function(
             )
         )
         changed = True
-    if parenthesised:
-        ctx.applied.append("json_operand_parens")
     if changed:
         ctx.applied.append("jsonb_extract_path")
     return root

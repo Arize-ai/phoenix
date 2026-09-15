@@ -1,4 +1,5 @@
-import { fetchQuery, graphql } from "react-relay";
+import { commitLocalUpdate, fetchQuery, graphql } from "react-relay";
+import { ConnectionHandler } from "relay-runtime";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
@@ -50,7 +51,7 @@ export interface DatasetStoreState extends DatasetStoreProps {
   /**
    * Refreshes the latest version of the dataset
    */
-  refreshLatestVersion: () => void;
+  refreshLatestVersion: () => Promise<void>;
   /**
    * Set the metric charts to show above the experiments table
    */
@@ -72,14 +73,29 @@ export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
             set({ isRefreshingLatestVersion: true }, false, {
               type: "refreshLatestVersionInit",
             });
-            const newVersion = await fetchLatestVersion({
-              datasetId: dataset.datasetId,
-            });
-            set(
-              { latestVersion: newVersion, isRefreshingLatestVersion: false },
-              false,
-              { type: "refreshLatestVersionSuccess" }
-            );
+            try {
+              const newVersion = await fetchLatestVersion({
+                datasetId: dataset.datasetId,
+              });
+              if (newVersion) {
+                prependVersionToHistory({
+                  datasetId: dataset.datasetId,
+                  versionId: newVersion.id,
+                });
+              }
+              set(
+                { latestVersion: newVersion, isRefreshingLatestVersion: false },
+                false,
+                { type: "refreshLatestVersionSuccess" }
+              );
+            } catch (error) {
+              // Leave `latestVersion` alone — a failed refresh must not look like
+              // a successful one — but never strand the in-flight flag.
+              set({ isRefreshingLatestVersion: false }, false, {
+                type: "refreshLatestVersionError",
+              });
+              throw error;
+            }
           },
           experimentsMetricChartKeys: DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
           setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => {
@@ -156,4 +172,55 @@ async function fetchLatestVersion({
   const latestVersion =
     (versions && versions.length && versions[0].version) || null;
   return latestVersion;
+}
+
+/**
+ * The `@connection` key of the versions table on the dataset's Versions tab.
+ * Kept in sync with `DatasetHistoryTable_versions` in `DatasetHistoryTable`.
+ */
+const HISTORY_CONNECTION_KEY = "DatasetHistoryTable_versions";
+
+/**
+ * Adds a newly created version to the top of the Versions tab's list.
+ *
+ * The Versions tab is its own route, and its loader renders from the Relay
+ * store when the list is already cached, so a version created from another
+ * tab would otherwise stay missing until a full reload. The list is sorted
+ * newest first, matching where the version is inserted. Nothing happens when
+ * the list has never been loaded or already holds the version.
+ */
+function prependVersionToHistory({
+  datasetId,
+  versionId,
+}: {
+  datasetId: string;
+  versionId: string;
+}) {
+  commitLocalUpdate(RelayEnvironment, (store) => {
+    const dataset = store.get(datasetId);
+    const version = store.get(versionId);
+    if (!dataset || !version) {
+      return;
+    }
+    const connection = ConnectionHandler.getConnection(
+      dataset,
+      HISTORY_CONNECTION_KEY
+    );
+    if (!connection) {
+      return;
+    }
+    const isListed = (connection.getLinkedRecords("edges") ?? []).some(
+      (edge) => edge?.getLinkedRecord("node")?.getDataID() === versionId
+    );
+    if (isListed) {
+      return;
+    }
+    const edge = ConnectionHandler.createEdge(
+      store,
+      connection,
+      version,
+      "DatasetVersionEdge"
+    );
+    ConnectionHandler.insertEdgeBefore(connection, edge);
+  });
 }

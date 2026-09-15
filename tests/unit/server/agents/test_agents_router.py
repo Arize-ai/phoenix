@@ -2337,16 +2337,20 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
     )
     assert response.status_code == 200
 
-    # The stream carries pydantic-ai's own metadata chunk too; the Phoenix one
-    # is identified by its sessionId payload.
+    # The stream carries pydantic-ai's own metadata chunk too; the Phoenix ones
+    # are identified by their sessionId payload.
     phoenix_metadata_chunks = [
         chunk["messageMetadata"]
         for chunk in _stream_chunks(response.text)
         if chunk.get("type") == "message-metadata" and "phoenix" in chunk["messageMetadata"]
     ]
-    assert len(phoenix_metadata_chunks) == 1
-    assert phoenix_metadata_chunks[0]["phoenix"]["turnTraceContext"]["traceId"] == trace_id
-    assert phoenix_metadata_chunks[0]["phoenix"]["turnTraceContext"]["rootSpanId"] == root_span_id
+    assert len(phoenix_metadata_chunks) == 2
+    for phoenix_metadata_chunk in phoenix_metadata_chunks:
+        turn_trace_context = phoenix_metadata_chunk["phoenix"]["turnTraceContext"]
+        assert turn_trace_context["traceId"] == trace_id
+        assert turn_trace_context["rootSpanId"] == root_span_id
+    assert "usage" not in phoenix_metadata_chunks[0]["phoenix"]
+    assert phoenix_metadata_chunks[-1]["phoenix"]["usage"] is not None
 
     async with db() as session:
         agent_session_rowid = await session.scalar(select(models.AgentSession.id))
@@ -4543,15 +4547,60 @@ async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
     assert "data-transcript-persisted" not in response.text
 
 
+async def test_turn_trace_context_is_streamed_before_the_response(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A client that stops a turn never receives the completion metadata, so
+    the turn's trace context is streamed right after the opening ``start``
+    chunk: the partial response can link to its trace without a reload."""
+    await _enable_local_trace_recording(app)
+    _mock_traced_test_model(monkeypatch)
+    session_id = "18181818-1818-4818-8818-181818181818"
+    agent_session_id = await _create_agent_session_row(db, title="Already titled")
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("trace me"), recordLocalTraces=True),
+    )
+    assert response.status_code == 200
+
+    chunks = _stream_chunks(response.text)
+    chunk_types = [chunk.get("type") for chunk in chunks]
+    first_phoenix_metadata_index = next(
+        index
+        for index, chunk in enumerate(chunks)
+        if chunk.get("type") == "message-metadata" and "phoenix" in chunk["messageMetadata"]
+    )
+    assert chunk_types[first_phoenix_metadata_index - 1] == "start"
+    assert first_phoenix_metadata_index < chunk_types.index("text-delta")
+    streamed_turn_trace_context = chunks[first_phoenix_metadata_index]["messageMetadata"][
+        "phoenix"
+    ]["turnTraceContext"]
+    assert streamed_turn_trace_context is not None
+
+    async with db() as session:
+        agent_session = await session.scalar(select(models.AgentSession))
+        assert agent_session is not None
+        messages = await _load_session_messages(session, agent_session.id)
+    persisted_turn_trace_context = messages[-1]["metadata"]["phoenix"]["turnTraceContext"]
+    assert persisted_turn_trace_context == streamed_turn_trace_context
+
+
 async def test_client_disconnect_persists_partial_turn(
     db: DbSessionFactory,
+    app: FastAPI,
     asgi_app: ASGIApp,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Interrupting a streaming turn — the UI stop button, a CLI interrupt, or
     a dropped SSE connection — persists the partial turn and releases the turn
-    lock, so clients can reload the transcript and resume with a follow-up
-    message instead of snapping back to the pre-turn state."""
+    lock, and records the partial response on the errored turn span, so clients
+    can reload the transcript and resume with a follow-up message instead of
+    snapping back to the pre-turn state."""
+    await _enable_local_trace_recording(app)
 
     async def stream_function(
         messages: list[ModelMessage],
@@ -4572,7 +4621,11 @@ async def test_client_disconnect_persists_partial_turn(
     session_id = "17171717-1717-4717-8717-171717171717"
     agent_session_id = await _create_agent_session_row(db, title="Already titled")
     request_body = json.dumps(
-        _chat_body(session_id, _user_message("interrupt me", message_id=_message_uuid("stop-1")))
+        _chat_body(
+            session_id,
+            _user_message("interrupt me", message_id=_message_uuid("stop-1")),
+            recordLocalTraces=True,
+        )
     ).encode()
 
     # Drive the ASGI app directly: httpx's ASGI transport cannot emit the
@@ -4625,6 +4678,7 @@ async def test_client_disconnect_persists_partial_turn(
         # The interrupted turn released its lock, so a follow-up can claim it.
         assert agent_session.heartbeat_at is None
         messages = await _load_session_messages(session, agent_session.id)
+        root_span = await session.scalar(select(models.Span).where(models.Span.name == "pxi.turn"))
 
     assert [message["role"] for message in messages] == ["user", "assistant"]
     assistant_message = messages[-1]
@@ -4633,6 +4687,9 @@ async def test_client_disconnect_persists_partial_turn(
     # The text streamed before the disconnect is kept and finalized.
     assert text_parts[0]["text"].startswith("partial")
     assert text_parts[0]["state"] == "done"
+    assert root_span is not None
+    assert root_span.status_code == "ERROR"
+    assert root_span.output_value == text_parts[0]["text"].strip()
     # The persisted message is flagged interrupted so clients can render the
     # cut-off turn distinctly (including when no parts streamed at all).
     assert assistant_message["metadata"]["phoenix"]["type"] == "assistant"

@@ -936,7 +936,7 @@ class Project(Node):
         description="Names of all available annotations for traces. "
         "(The list contains no duplicates.)"
     )  # type: ignore
-    async def trace_annotations_names(
+    async def trace_annotation_names(
         self,
         info: Info[Context, None],
     ) -> list[str]:

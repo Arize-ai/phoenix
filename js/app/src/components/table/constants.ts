@@ -17,3 +17,11 @@ export const ACTIONS_COLUMN_ID = "actions";
 export const CHECKBOX_COLUMN_PINNING = {
   left: [CHECKBOX_COLUMN_ID],
 } satisfies ColumnPinningState;
+
+/**
+ * Pins the row-actions column to the right so it stays visible while a
+ * table's other columns scroll horizontally.
+ */
+export const ACTIONS_COLUMN_PINNING = {
+  right: [ACTIONS_COLUMN_ID],
+} satisfies ColumnPinningState;
