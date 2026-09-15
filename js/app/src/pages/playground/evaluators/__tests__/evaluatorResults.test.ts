@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   configureEvaluatorPlaygroundOperation,
@@ -11,7 +11,6 @@ import {
   getEvaluatorAnnotationName,
   getExpectedOutputIssue,
   getExpectedVerdict,
-  runEvaluatorSample,
 } from "../evaluatorResults";
 import {
   getVisibleEvaluatorSlots,
@@ -135,87 +134,6 @@ describe("evaluator results", () => {
         outputCount: 2,
       })
     ).toBe("judge.quality");
-  });
-  it("limits concurrency and associates out-of-order results with their examples", async () => {
-    let active = 0;
-    let peak = 0;
-    const results = new Map<number, string>();
-    await runEvaluatorSample({
-      items: [1, 2, 3, 4, 5],
-      concurrency: 2,
-      signal: new AbortController().signal,
-      execute: async (item) => {
-        active++;
-        peak = Math.max(peak, active);
-        await Promise.resolve();
-
-        if (item % 2) await Promise.resolve();
-        active--;
-
-        return {
-          status: "success",
-          label: String(item),
-          score: null,
-          explanation: null,
-        };
-      },
-      onResult: (item, prediction) => {
-        if (prediction.status === "success" && prediction.label != null)
-          results.set(item, prediction.label);
-      },
-    });
-    expect(peak).toBe(2);
-    expect([...results.entries()].sort()).toEqual([
-      [1, "1"],
-      [2, "2"],
-      [3, "3"],
-      [4, "4"],
-      [5, "5"],
-    ]);
-  });
-  it("stops scheduling and suppresses in-flight completions after cancellation", async () => {
-    const controller = new AbortController();
-    const onResult = vi.fn();
-
-    const execute = vi.fn(async () => {
-      controller.abort();
-
-      return {
-        status: "success" as const,
-        label: "pass",
-        score: null,
-        explanation: null,
-      };
-    });
-
-    await runEvaluatorSample({
-      items: [1, 2, 3],
-      concurrency: 1,
-      signal: controller.signal,
-      execute,
-      onResult,
-    });
-    expect(execute).toHaveBeenCalledTimes(1);
-    expect(onResult).not.toHaveBeenCalled();
-  });
-  it("preserves successful rows after an individual request fails", async () => {
-    const results: string[] = [];
-    await runEvaluatorSample({
-      items: [1, 2],
-      signal: new AbortController().signal,
-      execute: async (item) => {
-        if (item === 1) throw new Error("failed");
-
-        return {
-          status: "success",
-          label: "pass",
-          score: null,
-          explanation: null,
-        };
-      },
-      onResult: (_, result) => results.push(result.status),
-    });
-    expect(results.sort()).toEqual(["error", "success"]);
   });
 });
 

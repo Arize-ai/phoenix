@@ -71,51 +71,6 @@ export function getEvaluatorAnnotationName({
   return outputCount > 1 ? `${evaluatorName}.${outputName}` : evaluatorName;
 }
 
-/**
- * One request per example preserves identity despite flattened preview results.
- * Aborting `signal` stops scheduling; results that land afterwards are dropped.
- */
-export async function runEvaluatorSample<T>({
-  items,
-  concurrency = 3,
-  signal,
-  execute,
-  onResult,
-}: {
-  items: readonly T[];
-  concurrency?: number;
-  signal?: AbortSignal;
-  execute: (item: T) => Promise<EvaluatorPrediction>;
-  onResult: (item: T, result: EvaluatorPrediction) => void;
-}) {
-  let nextIndex = 0;
-
-  async function worker() {
-    while (!signal?.aborted && nextIndex < items.length) {
-      const item = items[nextIndex++];
-      let result: EvaluatorPrediction;
-
-      try {
-        result = await execute(item);
-      } catch (error) {
-        result = {
-          status: "error",
-          error: error instanceof Error ? error.message : "Evaluation failed",
-        };
-      }
-
-      if (!signal?.aborted) onResult(item, result);
-    }
-  }
-
-  await Promise.all(
-    Array.from(
-      { length: Math.min(Math.max(1, concurrency), items.length) },
-      worker
-    )
-  );
-}
-
 export type ExpectedOutput = {
   label: string | null;
   score?: number | null;
