@@ -4,7 +4,7 @@
 # Add the Phoenix plugin to record one experiment per agent on the same dataset:
 #   make harbor-compare HARBOR_ARGS='--plugin arize-phoenix --plugin-kwarg endpoint=... \
 #     --plugin-kwarg "experiment_name_template={job.name} · {agent.name}"'
-# Network: the task allows nothing by itself. Each agent names its LLM provider host,
+# Network: the task allows nothing by itself. Each agent names its LLM provider hosts,
 # granted during its run only; the environment grants the Phoenix docs hosts to every
 # agent for the whole trial. To export PXI traces, add the results Phoenix host with
 # HARBOR_ARGS='--allow-environment-host <host> ...'.
@@ -14,7 +14,8 @@ agents:
   - name: phoenix-chat-agent
     import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
     model_name: anthropic/claude-fable-5-1
-    extra_allowed_hosts: [api.anthropic.com]
+    # PXI speaks both providers, so an openai/ model works here without touching the hosts.
+    extra_allowed_hosts: [api.anthropic.com, api.openai.com]
   - name: claude-code-mcp
     import_path: evals.harbor.agents.claude_code_agents:ClaudeCodeMcpAgent
     model_name: anthropic/claude-fable-5-1

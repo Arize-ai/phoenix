@@ -27,12 +27,11 @@ HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}"
 HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}"
 HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-}"
 
-# The verifier's LLM judge (error_analysis_checks.judge) calls Anthropic. The agent-phase
-# hosts do not carry over to verification, so the judge's host is granted here, for the
-# verifier phase only.
+# The verifier's LLM judge (error_analysis_checks.judge) calls its provider, and the
+# agent-phase hosts do not carry over to verification. Nothing the verifier does needs
+# sealing, so it runs with public network access rather than a second allowlist.
 [verifier]
-network_mode = "allowlist"
-allowed_hosts = ["api.anthropic.com"]
+network_mode = "public"
 
 [[steps]]
 name = "step_01_open_coding"

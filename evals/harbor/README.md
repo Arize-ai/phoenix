@@ -163,7 +163,7 @@ new provider or operator.
 | Level | Set in | Applies to | Used for |
 | --- | --- | --- | --- |
 | Task baseline | `[environment]` in `task.toml` | the whole trial | nothing: `network_mode = "allowlist"` with no hosts |
-| Verifier phase | `[verifier]` in `task.toml` | verification only | the LLM judge's provider |
+| Verifier phase | `[verifier]` in `task.toml` | verification only | `network_mode = "public"`: the LLM judge reaches its provider without a second allowlist |
 | Job environment | `environment.extra_allowed_hosts` in the job file, or `--allow-environment-host` | the whole trial, every agent | the Phoenix docs hosts; the results Phoenix host when exporting |
 | Agent | `extra_allowed_hosts` on an agent entry, or `--allow-agent-host` | that agent's run only | the agent's LLM provider |
 
