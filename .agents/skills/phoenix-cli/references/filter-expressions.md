@@ -152,37 +152,37 @@ Unknown names fall back to attribute paths, so these are not errors.
 ```python span-filter
 parent_id is None
 parent_span is None
-parent_id is None and status_code == 'ERROR'
+parent_id is None and status_code == "ERROR"
 parent_id is None and latency_ms > 5000
-span_kind == 'LLM' and 'gpt-4o' in llm.model_name
-span_kind in ['LLM', 'RETRIEVER']
-span_kind == 'TOOL' and tool.name == 'search'
-status_code == 'ERROR' and 'timeout' in status_message
-'refund' in input.value
-'refund' in input.value or 'refund' in output.value
+span_kind == "LLM" and "gpt-4o" in llm.model_name
+span_kind in ["LLM", "RETRIEVER"]
+span_kind == "TOOL" and tool.name == "search"
+status_code == "ERROR" and "timeout" in status_message
+"refund" in input.value
+"refund" in input.value or "refund" in output.value
 output.value is None
-metadata['topic'] == 'billing'
-metadata['tier'] != 'premium' or metadata['tier'] is None
-user.id == 'u1'
-float(metadata['retry_count']) > 1
-'true' in str(metadata['flag'])
-attributes['tags'][0] == 'urgent'
-start_time > '2026-09-01T00:00:00Z' and end_time < '2026-09-02T00:00:00Z'
+metadata["topic"] == "billing"
+metadata["tier"] != "premium" or metadata["tier"] is None
+user.id == "u1"
+float(metadata["retry_count"]) > 1
+"true" in str(metadata["flag"])
+attributes["tags"][0] == "urgent"
+start_time > "2026-09-01T00:00:00Z" and end_time < "2026-09-02T00:00:00Z"
 500 < latency_ms <= 2000
 cumulative_llm_token_count_total > 10000
 llm.token_count.total > 4000
 total_cost > 0.01
-any(d.token_type == 'input' and d.tokens > 1000 for d in cost_details)
+any(d.token_type == "input" and d.tokens > 1000 for d in cost_details)
 sum(d.cost for d in cost_details) > 0.01
-annotations['correctness'].label == 'incorrect'
-annotations['hallucination'].score > 0.5
-annotations['correctness'].label is None
-annotations['correctness']
-evals['correctness'].label == 'incorrect'
-trace_annotations['quality'].label == 'poor'
-parent_id is None and trace_annotations['quality'].score < 0.5
-not span_kind == 'LLM'
-span_kind == 'LLM' and (latency_ms > 5000 or status_code == 'ERROR')
+annotations["correctness"].label == "incorrect"
+annotations["hallucination"].score > 0.5
+annotations["correctness"].label is None
+annotations["correctness"]
+evals["correctness"].label == "incorrect"
+trace_annotations["quality"].label == "poor"
+parent_id is None and trace_annotations["quality"].score < 0.5
+not span_kind == "LLM"
+span_kind == "LLM" and (latency_ms > 5000 or status_code == "ERROR")
 ```
 
 ## Trace filter
@@ -218,19 +218,19 @@ loop variable's fields.
 ```python trace-filter
 error_count > 0 and latency_ms > 1000
 num_spans > 10 and total_cost > 0.25
-'refund' in input
+"refund" in input
 output is None
-user.id == 'u1'
-metadata['topic'] == 'support'
-attributes['llm.model_name'] == 'gpt-4o'
-trace_annotations['quality'].score < 0.5
-start_time >= '2026-07-01T00:00:00Z'
-any(span.status_code == 'ERROR' for span in spans)
-any(span.span_kind == 'LLM' and span.latency_ms > 5000 for span in spans)
-any(span.parent_span is None and span.status_code == 'ERROR' for span in spans)
-any(span.parent_span.span_kind == 'LLM' and span.span_kind == 'TOOL' for span in spans)
-any(annotation.label == 'hallucinated' for annotation in span_annotations)
-len([span for span in spans if span.span_kind == 'TOOL']) > 3
+user.id == "u1"
+metadata["topic"] == "support"
+attributes["llm.model_name"] == "gpt-4o"
+trace_annotations["quality"].score < 0.5
+start_time >= "2026-07-01T00:00:00Z"
+any(span.status_code == "ERROR" for span in spans)
+any(span.span_kind == "LLM" and span.latency_ms > 5000 for span in spans)
+any(span.parent_span is None and span.status_code == "ERROR" for span in spans)
+any(span.parent_span.span_kind == "LLM" and span.span_kind == "TOOL" for span in spans)
+any(annotation.label == "hallucinated" for annotation in span_annotations)
+len([span for span in spans if span.span_kind == "TOOL"]) > 3
 sum(detail.cost for detail in span_cost_details if detail.is_prompt) > 0.10
 ```
 
@@ -262,10 +262,10 @@ Names are strict, as in the trace filter.
 num_traces > 5 and total_cost > 0.50
 num_traces_with_error / num_traces > 0.2
 duration_ms > 60000
-'refund' in any_input
+"refund" in any_input
 last_output is not None
-session_annotations['Quality'].score <= 0.5
-any(span.status_code == 'ERROR' for span in spans)
+session_annotations["Quality"].score <= 0.5
+any(span.status_code == "ERROR" for span in spans)
 all(trace.latency_ms < 30000 for trace in traces)
-any(len([span for span in trace.spans if span.span_kind == 'TOOL']) > 5 for trace in traces)
+any(len([span for span in trace.spans if span.span_kind == "TOOL"]) > 5 for trace in traces)
 ```
