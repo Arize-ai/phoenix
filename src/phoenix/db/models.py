@@ -208,7 +208,6 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "FAILED",
     "EXPIRED",
     "SUPERSEDED",
-    "CONTENT_LOST",
     "FILTERED_OUT",
     "SAMPLED_OUT",
 ]
@@ -833,14 +832,6 @@ class ProjectSession(HasId):
     last_span_ingested_at: Mapped[Optional[datetime]] = mapped_column(
         UtcTimeStamp,
         nullable=True,
-    )
-    # Deliberately one-way: once content is destroyed, nothing sets this back to true.
-    # Re-admitting a trimmed session would need a design for what its earlier
-    # evaluations mean, which does not exist yet.
-    content_complete: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        server_default=text("true"),
     )
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
