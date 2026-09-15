@@ -190,6 +190,7 @@ class Index:
     used_by: Mapping[str, list[str]]  # input or enum type -> referencing "Type.field"
     returned_by: Mapping[str, list[str]]  # object type -> "Type.field" returning it
     by_key: Mapping[str, Unit]  # lowercase "Type", "Type.field", "mutationName"
+    plumbing: Mapping[str, str]  # lowercase name -> Relay wrapper type left out of the index
 
     def depth(self, type_name: str) -> int:
         return self.nearest.get(type_name, ("", _MAX_DEPTH, ()))[1]
@@ -491,6 +492,7 @@ def build_index(
     for sources in returned_by.values():
         sources.sort(key=lambda s: (rank.get(s.split(".")[0], len(rank)), s))
 
+    plumbing = {t.name.lower(): t.name for t in schema.type_map.values() if _is_relay_plumbing(t)}
     by_key: dict[str, Unit] = {}
     for u in units:
         if u.kind == "type":
@@ -514,6 +516,7 @@ def build_index(
         used_by=dict(used_by),
         returned_by=dict(returned_by),
         by_key=by_key,
+        plumbing=plumbing,
     )
 
 
@@ -687,8 +690,32 @@ def _is_exact(index: Index, key: str) -> bool:
     return (
         key in index.by_key
         or key in index.excluded_mutations
+        or key in index.plumbing
         or _is_hidden_mutation_root(index, key)
     )
+
+
+def _plumbing_miss(index: Index, key: str) -> Optional[str]:
+    """What a Relay wrapper is and what to look up instead. They are left out of
+    the index because a selection passes through them, never stops at them."""
+    name = index.plumbing.get(key)
+    if name is None:
+        return None
+    t = index.schema.type_map[name]
+    assert isinstance(t, GraphQLObjectType)
+    node = _node_type(t)
+    if node is not t:
+        return (
+            f"-- {name} is a connection over {node.name}: select "
+            f"`edges {{ node {{ ... }} }}` and `pageInfo`. Look up {node.name}."
+        )
+    if "node" in t.fields:
+        inner = get_named_type(t.fields["node"].type).name
+        return (
+            f"-- {name} is a connection edge over {inner}: select `node {{ ... }}`. "
+            f"Look up {inner}."
+        )
+    return f"-- {name} is Relay pagination plumbing: {', '.join(t.fields)}."
 
 
 def _is_hidden_mutation_root(index: Index, key: str) -> bool:
@@ -961,6 +988,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [f"-- {name.strip()} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
+        if wrapper := _plumbing_miss(index, key.partition(".")[0]):
+            return [wrapper]
         if unknown := _unknown_member(index, key):
             owner, member = unknown
             return [f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."]
