@@ -6,6 +6,7 @@ the mount receives the shared root alone; the in-process agent adds its own.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -364,7 +365,32 @@ def test_visibility_is_part_of_the_cache_key(tmp_path: Path) -> None:
     assert load_skills((tmp_path,), explicit=True) == ()
 
 
-def test_external_skill_cannot_override_bundled_skill(tmp_path: Path) -> None:
+def test_external_skill_cannot_override_bundled_skill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     _write_skill(tmp_path / "datasets")
-    with pytest.raises(ValueError, match="'datasets' is defined in both"):
-        merge_skills(load_skills(PXI_SKILLS_ROOTS), load_skills((tmp_path,)))
+    _write_skill(tmp_path / "a-skill")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.name for skill in skills] == ["a-skill"]
+    assert "Ignoring external skill 'datasets'" in caplog.text
+    assert "taken by a built-in skill" in caplog.text
+    merge_skills(load_skills(PXI_SKILLS_ROOTS), skills)
+
+
+def test_external_skill_duplicates_keep_the_first_and_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_skill(tmp_path / "one" / "a-skill")
+    _write_skill(tmp_path / "two" / "a-skill")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", f"{tmp_path / 'one'},{tmp_path / 'two'}")
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.path for skill in skills] == [tmp_path / "one" / "a-skill"]
+    assert "Ignoring external skill 'a-skill'" in caplog.text
+    assert str(tmp_path / "two" / "a-skill") in caplog.text
