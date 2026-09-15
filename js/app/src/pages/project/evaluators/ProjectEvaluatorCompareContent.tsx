@@ -10,6 +10,7 @@ import { ProjectEvaluatorCompareStats } from "@phoenix/pages/project/evaluators/
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 
 import { ProjectEvaluatorCompareDistributions } from "./ProjectEvaluatorCompareDistributions";
+import { ProjectEvaluatorCompareTargets } from "./ProjectEvaluatorCompareTargets";
 
 const comparisonPanelsCSS = css`
   display: grid;
@@ -66,6 +67,7 @@ export function ProjectEvaluatorCompareContent({
                 onlyB
                 totalInRange
               }
+              ...ProjectEvaluatorCompareTargets_comparison
               ...ProjectEvaluatorCompareStats_comparison
               ...ProjectEvaluatorCompareDistributions_comparison
               ...ProjectEvaluatorCompareMatrix_comparison
@@ -114,6 +116,15 @@ export function ProjectEvaluatorCompareContent({
           evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
         />
       </div>
+      <ProjectEvaluatorCompareTargets
+        key={`${evaluatorAId}:${evaluatorBId}`}
+        projectId={projectId}
+        comparisonRef={comparison}
+        evaluatorAName={evaluatorAName}
+        evaluatorBName={evaluatorBName}
+        evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
+        evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
+      />
     </Flex>
   );
 }

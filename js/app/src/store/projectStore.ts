@@ -47,10 +47,17 @@ const makeProjectStoreKey = (projectId: string) =>
 
 export type CreateProjectStoreProps = {
   projectId: string;
+  /** Keep embedded tables' display preferences separate from project tabs. */
+  scope?: string;
+  showTableAside?: boolean;
+  metricChartKeys?: ProjectState["metricChartKeys"];
 };
 
 export function createProjectStore({
   projectId,
+  scope,
+  showTableAside = true,
+  metricChartKeys = DEFAULT_METRIC_CHART_KEYS,
 }: CreateProjectStoreProps): ProjectStore {
   const state = create<ProjectState>()(
     persist(
@@ -59,13 +66,13 @@ export function createProjectStore({
         setDefaultTab: (tab: ProjectTab) => {
           set({ defaultTab: tab }, false, { type: "setDefaultTab" });
         },
-        showTableAside: true,
+        showTableAside,
         setShowTableAside: (showTableAside: boolean) => {
           set({ showTableAside }, false, {
             type: "setShowTableAside",
           });
         },
-        metricChartKeys: DEFAULT_METRIC_CHART_KEYS,
+        metricChartKeys,
         setMetricChartKeys: (
           view: MetricChartTableView,
           keys: ProjectMetricChartKey[]
@@ -80,7 +87,7 @@ export function createProjectStore({
         },
       })),
       {
-        name: makeProjectStoreKey(projectId),
+        name: `${makeProjectStoreKey(projectId)}${scope ? `-${scope}` : ""}`,
         merge: (persistedState, currentState) => {
           const merged = {
             ...currentState,

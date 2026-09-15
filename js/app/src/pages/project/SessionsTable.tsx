@@ -12,6 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import type { ReactNode } from "react";
 import React, {
   startTransition,
   Suspense,
@@ -76,6 +77,7 @@ import {
   SessionFilterConditionField,
   useSessionFilterVocabulary,
 } from "./SessionFilterConditionField";
+import { useSessionFilters } from "./SessionFiltersContext";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
@@ -90,6 +92,7 @@ import {
   normalizeAnnotationColumnOrder,
 } from "./tableUtils";
 type SessionsTableProps = {
+  emptyState?: ReactNode;
   project: SessionsTable_sessions$key;
 };
 
@@ -132,12 +135,12 @@ const TableBody = <T extends { id: string }>({
 }) => {
   "use no memo";
   const navigate = useNavigate();
-  const { sessionId } = useParams();
+  const { sessionId, targetId } = useParams();
   const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.id === sessionId;
+        const isSelected = row.original.id === (sessionId ?? targetId);
         return (
           <tr
             key={row.id}
@@ -179,11 +182,12 @@ export const MemoizedTableBody = React.memo(
 ) as typeof TableBody;
 
 export function SessionsTable(props: SessionsTableProps) {
+  const { filterCondition: initialFilterCondition } = useSessionFilters();
   // we need a reference to the scrolling element for pagination logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =
-    useState<string>("");
+    useState<string>(initialFilterCondition);
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the current
@@ -736,7 +740,7 @@ export function SessionsTable(props: SessionsTableProps) {
                       ))}
                   </thead>
                   {isEmpty ? (
-                    <SessionsTableEmpty />
+                    (props.emptyState ?? <SessionsTableEmpty />)
                   ) : columnSizingInfo.isResizingColumn ? (
                     <MemoizedTableBody table={table} />
                   ) : (

@@ -167,14 +167,15 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { traceId } = useParams();
+  const { traceId, targetId } = useParams();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
         const isSelected =
           selectedSpanNodeId === row.original.id ||
-          (!selectedSpanNodeId && row.original.trace.traceId === traceId);
+          (!selectedSpanNodeId &&
+            row.original.trace.traceId === (traceId ?? targetId));
         return (
           <tr
             key={row.id}
@@ -243,6 +244,7 @@ const MetadataCell = <TData extends { metadata: unknown }, TValue>({
 
 export function SpansTable(props: SpansTableProps) {
   const { projectEvaluatorId } = props;
+  const { persistToUrl } = useSpanFilterActions();
   const [searchParams, setSearchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
@@ -272,21 +274,25 @@ export function SpansTable(props: SpansTableProps) {
   useEffect(() => {
     setSearchParamsRef.current = setSearchParams;
   }, [setSearchParams]);
-  const writeFilterConditionParam = useCallback((condition: string) => {
-    setSearchParamsRef.current(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        // Written even when empty. An absent param means "no filter was
-        // applied here", which seeds the default; an empty one means the
-        // filter was deliberately cleared. Deleting it instead would make
-        // those two indistinguishable, so clearing the filter would not
-        // survive a reload -- the default would come back.
-        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
-        return next;
-      },
-      { replace: true }
-    );
-  }, []);
+  const writeFilterConditionParam = useCallback(
+    (condition: string) => {
+      if (!persistToUrl) return;
+      setSearchParamsRef.current(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          // Written even when empty. An absent param means "no filter was
+          // applied here", which seeds the default; an empty one means the
+          // filter was deliberately cleared. Deleting it instead would make
+          // those two indistinguishable, so clearing the filter would not
+          // survive a reload -- the default would come back.
+          next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [persistToUrl]
+  );
   const handleValidFilterCondition = useCallback(
     ({
       condition,
