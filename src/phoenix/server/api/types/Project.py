@@ -40,7 +40,7 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
 )
-from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
@@ -83,7 +83,6 @@ from phoenix.server.session_filters import (
 )
 from phoenix.server.trace_filters import (
     TraceFilterConditionError,
-    apply_trace_filter_to_page,
     compile_trace_filter,
     get_filtered_trace_rowids_subquery,
     trace_filter_errors,
@@ -608,8 +607,8 @@ class Project(Node):
         "Python boolean expression over span fields (span_kind, status_code, latency_ms, "
         "parent_id, attributes, annotations[...], ...), not a substring of the span's "
         "input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` "
-        "to also count orphan spans whose parent was never received; to list traces, use "
-        "`traces`. traceFilterCondition is a trace filter expression (see "
+        "to also count orphan spans whose parent was never received. traceFilterCondition is a "
+        "trace filter expression (see "
         "traceFilterVocabulary) that keeps the spans of matching traces; the two arguments "
         "compose.",
     )  # type: ignore[untyped-decorator]
@@ -695,102 +694,6 @@ class Project(Node):
             except StopAsyncIteration:
                 has_next_page = False
 
-        return connection_from_cursors_and_nodes(
-            cursors_and_nodes,
-            has_previous_page=False,
-            has_next_page=has_next_page,
-        )
-
-    @strawberry.field(
-        extensions=[RequireForwardPaginationExtension()],
-        description="Traces in the project, one node per trace, newest first by default. Each "
-        "trace exposes its representative root span as `rootSpan`; `sort` orders traces by a "
-        "column of that root span. traceFilterCondition is a trace filter expression (see "
-        "traceFilterVocabulary). For span-level questions use `spans` with a filterCondition.",
-    )  # type: ignore[untyped-decorator]
-    async def traces(
-        self,
-        info: Info[Context, None],
-        first: int,
-        time_range: Optional[TimeRange] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        sort: Optional[SpanSort] = UNSET,
-        trace_filter_condition: Optional[str] = UNSET,
-    ) -> Connection[Trace]:
-        if not sort or sort.col is SpanColumn.startTime:
-            return await _paginate_traces_by_start_time(
-                db=info.context.db,
-                project_rowid=self.id,
-                first=first,
-                time_range=time_range or None,
-                after=after or None,
-                sort=sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
-                trace_filter_condition=trace_filter_condition or None,
-            )
-        start_time = time_range.start if time_range else None
-        end_time = time_range.end if time_range else None
-        representative_root_spans = representative_root_span_by_trace(
-            project_rowids=[self.id],
-            start_time=start_time,
-            end_time=end_time,
-        ).subquery()
-        stmt = (
-            select(models.Span.id, models.Span.trace_rowid)
-            .select_from(models.Span)
-            .join(
-                representative_root_spans,
-                models.Span.id == representative_root_spans.c[TRACE_SPAN_ROWID],
-            )
-        )
-        if trace_filter_condition:
-            filtered_trace_rowids = get_filtered_trace_rowids_subquery(
-                trace_filter_condition=trace_filter_condition,
-                project_rowids=[self.id],
-                start_time=start_time,
-                end_time=end_time,
-                lowering="probe",
-            )
-            stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
-        sort_config = sort.update_orm_expr(stmt)
-        stmt = sort_config.stmt
-        cursor_rowid_column: Any = models.Span.id
-        if sort_config.dir is SortDir.desc:
-            cursor_rowid_column = desc(cursor_rowid_column)
-        if after:
-            cursor = Cursor.from_string(after)
-            if cursor.sort_column:
-                sort_column = cursor.sort_column
-                compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
-                if sort_column.type is CursorSortColumnDataType.NULL:
-                    stmt = stmt.where(sort_config.orm_expression.is_(None))
-                    stmt = stmt.where(compare(models.Span.id, cursor.rowid))
-                else:
-                    stmt = stmt.where(
-                        compare(
-                            tuple_(sort_config.orm_expression, models.Span.id),
-                            (sort_column.value, cursor.rowid),
-                        )
-                    )
-            else:
-                stmt = stmt.where(models.Span.id > cursor.rowid)
-        stmt = stmt.order_by(cursor_rowid_column).limit(first + 1)
-        cursors_and_nodes: list[tuple[Cursor, Trace]] = []
-        async with info.context.db.read() as session:
-            records = await session.stream(stmt)
-            async for span_rowid, trace_rowid, sort_value in islice(records, first):
-                cursor = Cursor(
-                    rowid=span_rowid,
-                    sort_column=CursorSortColumn(
-                        type=sort_config.column_data_type,
-                        value=sort_value,
-                    ),
-                )
-                cursors_and_nodes.append((cursor, Trace(id=trace_rowid)))
-            has_next_page = True
-            try:
-                await records.__anext__()
-            except StopAsyncIteration:
-                has_next_page = False
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
             has_previous_page=False,
@@ -2944,75 +2847,6 @@ def _as_datetime(value: Any) -> datetime:
     if isinstance(value, str):
         return cast(datetime, normalize_datetime(datetime.fromisoformat(value), timezone.utc))
     raise ValueError(f"Cannot convert {value} to datetime")
-
-
-async def _paginate_traces_by_start_time(
-    db: DbSessionFactory,
-    project_rowid: int,
-    first: int,
-    time_range: Optional[TimeRange] = None,
-    after: Optional[CursorString] = None,
-    sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
-    trace_filter_condition: Optional[str] = None,
-) -> Connection[Trace]:
-    """One node per trace, ordered by trace start time.
-
-    Cursors carry the trace rowid and start time, so a page is one indexed range scan over
-    ``traces`` regardless of how many spans the project holds.
-    """
-    descending = sort.dir is SortDir.desc
-    stmt = select(models.Trace).where(models.Trace.project_rowid == project_rowid)
-    if time_range:
-        if time_range.start:
-            stmt = stmt.where(time_range.start <= models.Trace.start_time)
-        if time_range.end:
-            stmt = stmt.where(models.Trace.start_time < time_range.end)
-    if trace_filter_condition:
-        stmt = apply_trace_filter_to_page(
-            stmt,
-            trace_filter_condition=trace_filter_condition,
-            project_rowids=[project_rowid],
-            start_time=time_range.start if time_range else None,
-            end_time=time_range.end if time_range else None,
-            lowering="probe",
-        )
-    if after:
-        cursor = Cursor.from_string(after)
-        assert cursor.sort_column
-        compare = operator.lt if descending else operator.gt
-        stmt = stmt.where(
-            compare(
-                tuple_(models.Trace.start_time, models.Trace.id),
-                (cursor.sort_column.value, cursor.rowid),
-            )
-        )
-    if descending:
-        stmt = stmt.order_by(models.Trace.start_time.desc(), models.Trace.id.desc())
-    else:
-        stmt = stmt.order_by(models.Trace.start_time.asc(), models.Trace.id.asc())
-    stmt = stmt.limit(first + 1)  # overfetch by one to determine whether there's a next page
-    cursors_and_nodes: list[tuple[Cursor, Trace]] = []
-    async with db.read() as session:
-        traces = await session.stream_scalars(stmt)
-        async for trace in islice(traces, first):
-            cursor = Cursor(
-                rowid=trace.id,
-                sort_column=CursorSortColumn(
-                    type=CursorSortColumnDataType.DATETIME,
-                    value=trace.start_time,
-                ),
-            )
-            cursors_and_nodes.append((cursor, Trace(id=trace.id, db_record=trace)))
-        has_next_page = True
-        try:
-            await traces.__anext__()
-        except StopAsyncIteration:
-            has_next_page = False
-    return connection_from_cursors_and_nodes(
-        cursors_and_nodes,
-        has_previous_page=False,
-        has_next_page=has_next_page,
-    )
 
 
 def to_gql_project(project: models.Project) -> Project:

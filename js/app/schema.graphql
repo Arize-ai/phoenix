@@ -3058,14 +3058,9 @@ type Project implements Node {
   trace(traceId: ID!): Trace
 
   """
-  Spans in the project. filterCondition is a span filter expression: a Python boolean expression over span fields (span_kind, status_code, latency_ms, parent_id, attributes, annotations[...], ...), not a substring of the span's input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` to also count orphan spans whose parent was never received; to list traces, use `traces`. traceFilterCondition is a trace filter expression (see traceFilterVocabulary) that keeps the spans of matching traces; the two arguments compose.
+  Spans in the project. filterCondition is a span filter expression: a Python boolean expression over span fields (span_kind, status_code, latency_ms, parent_id, attributes, annotations[...], ...), not a substring of the span's input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` to also count orphan spans whose parent was never received. traceFilterCondition is a trace filter expression (see traceFilterVocabulary) that keeps the spans of matching traces; the two arguments compose.
   """
   spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, filterCondition: String, traceFilterCondition: String): SpanConnection!
-
-  """
-  Traces in the project, one node per trace, newest first by default. Each trace exposes its representative root span as `rootSpan`; `sort` orders traces by a column of that root span. traceFilterCondition is a trace filter expression (see traceFilterVocabulary). For span-level questions use `spans` with a filterCondition.
-  """
-  traces(first: Int!, timeRange: TimeRange, after: String, sort: SpanSort, traceFilterCondition: String): TraceConnection!
 
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).

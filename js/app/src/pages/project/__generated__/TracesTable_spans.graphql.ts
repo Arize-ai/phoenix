@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9051da38fb368a06982d3cceff5394a8>>
+ * @generated SignedSource<<c2bf3f89e54a0ba42d5f50daeaa6ecd3>>
  * @lightSyntaxTransform
  */
 
@@ -12,117 +12,115 @@ export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
-export type TracesTable_traces$data = {
+export type TracesTable_spans$data = {
   readonly id: string;
   readonly name: string;
-  readonly traces: {
+  readonly rootSpans: {
     readonly edges: ReadonlyArray<{
-      readonly trace: {
-        readonly rootSpan: {
-          readonly cumulativeTokenCountTotal: number | null;
-          readonly descendants: {
-            readonly edges: ReadonlyArray<{
-              readonly node: {
-                readonly cumulativeTokenCountTotal: number | null;
-                readonly documentRetrievalMetrics: ReadonlyArray<{
-                  readonly evaluationName: string;
-                  readonly hit: number | null;
-                  readonly ndcg: number | null;
-                  readonly precision: number | null;
-                }>;
-                readonly endTime: string | null;
+      readonly rootSpan: {
+        readonly cumulativeTokenCountTotal: number | null;
+        readonly descendants: {
+          readonly edges: ReadonlyArray<{
+            readonly node: {
+              readonly cumulativeTokenCountTotal: number | null;
+              readonly documentRetrievalMetrics: ReadonlyArray<{
+                readonly evaluationName: string;
+                readonly hit: number | null;
+                readonly ndcg: number | null;
+                readonly precision: number | null;
+              }>;
+              readonly endTime: string | null;
+              readonly id: string;
+              readonly input: {
+                readonly value: string;
+              } | null;
+              readonly latencyMs: number | null;
+              readonly name: string;
+              readonly output: {
+                readonly value: string;
+              } | null;
+              readonly parentId: string | null;
+              readonly spanAnnotations: ReadonlyArray<{
+                readonly annotatorKind: AnnotatorKind;
+                readonly createdAt: string;
                 readonly id: string;
-                readonly input: {
-                  readonly value: string;
-                } | null;
-                readonly latencyMs: number | null;
+                readonly label: string | null;
                 readonly name: string;
-                readonly output: {
-                  readonly value: string;
-                } | null;
-                readonly parentId: string | null;
-                readonly spanAnnotations: ReadonlyArray<{
-                  readonly annotatorKind: AnnotatorKind;
-                  readonly createdAt: string;
-                  readonly id: string;
-                  readonly label: string | null;
-                  readonly name: string;
-                  readonly score: number | null;
-                }>;
-                readonly spanId: string;
-                readonly spanKind: SpanKind;
-                readonly startTime: string;
-                readonly statusCode: SpanStatusCode;
-                readonly statusMessage: string;
-                readonly trace: {
-                  readonly id: string;
-                  readonly traceId: string;
-                };
-                readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+                readonly score: number | null;
+              }>;
+              readonly spanId: string;
+              readonly spanKind: SpanKind;
+              readonly startTime: string;
+              readonly statusCode: SpanStatusCode;
+              readonly statusMessage: string;
+              readonly trace: {
+                readonly id: string;
+                readonly traceId: string;
               };
-            }>;
-          };
-          readonly documentRetrievalMetrics: ReadonlyArray<{
-            readonly evaluationName: string;
-            readonly hit: number | null;
-            readonly ndcg: number | null;
-            readonly precision: number | null;
-          }>;
-          readonly endTime: string | null;
-          readonly id: string;
-          readonly input: {
-            readonly value: string;
-          } | null;
-          readonly latencyMs: number | null;
-          readonly metadata: string | null;
-          readonly name: string;
-          readonly output: {
-            readonly value: string;
-          } | null;
-          readonly parentId: string | null;
-          readonly spanAnnotations: ReadonlyArray<{
-            readonly annotatorKind: AnnotatorKind;
-            readonly createdAt: string;
-            readonly id: string;
-            readonly label: string | null;
-            readonly name: string;
-            readonly score: number | null;
-          }>;
-          readonly spanId: string;
-          readonly spanKind: SpanKind;
-          readonly startTime: string;
-          readonly statusCode: SpanStatusCode;
-          readonly statusMessage: string;
-          readonly trace: {
-            readonly costSummary: {
-              readonly total: {
-                readonly cost: number | null;
-              };
+              readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
             };
-            readonly id: string;
-            readonly numSpans: number;
-            readonly traceId: string;
-            readonly userId: string | null;
-            readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
-          };
-          readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+          }>;
+        };
+        readonly documentRetrievalMetrics: ReadonlyArray<{
+          readonly evaluationName: string;
+          readonly hit: number | null;
+          readonly ndcg: number | null;
+          readonly precision: number | null;
+        }>;
+        readonly endTime: string | null;
+        readonly id: string;
+        readonly input: {
+          readonly value: string;
         } | null;
+        readonly latencyMs: number | null;
+        readonly metadata: string | null;
+        readonly name: string;
+        readonly output: {
+          readonly value: string;
+        } | null;
+        readonly parentId: string | null;
+        readonly spanAnnotations: ReadonlyArray<{
+          readonly annotatorKind: AnnotatorKind;
+          readonly createdAt: string;
+          readonly id: string;
+          readonly label: string | null;
+          readonly name: string;
+          readonly score: number | null;
+        }>;
+        readonly spanId: string;
+        readonly spanKind: SpanKind;
+        readonly startTime: string;
+        readonly statusCode: SpanStatusCode;
+        readonly statusMessage: string;
+        readonly trace: {
+          readonly costSummary: {
+            readonly total: {
+              readonly cost: number | null;
+            };
+          };
+          readonly id: string;
+          readonly numSpans: number;
+          readonly traceId: string;
+          readonly userId: string | null;
+          readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
+        };
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
   };
   readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
-  readonly " $fragmentType": "TracesTable_traces";
+  readonly " $fragmentType": "TracesTable_spans";
 };
-export type TracesTable_traces$key = {
-  readonly " $data"?: TracesTable_traces$data;
-  readonly " $fragmentSpreads": FragmentRefs<"TracesTable_traces">;
+export type TracesTable_spans$key = {
+  readonly " $data"?: TracesTable_spans$data;
+  readonly " $fragmentSpreads": FragmentRefs<"TracesTable_spans">;
 };
 
 import TracesTableQuery_graphql from './TracesTableQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
-  "traces"
+  "rootSpans"
 ],
 v1 = {
   "alias": null,
@@ -372,7 +370,7 @@ return {
       }
     }
   },
-  "name": "TracesTable_traces",
+  "name": "TracesTable_spans",
   "selections": [
     (v1/*:: as any*/),
     (v2/*:: as any*/),
@@ -392,8 +390,13 @@ return {
       "name": "SpanColumnSelector_traceAnnotations"
     },
     {
-      "alias": "traces",
+      "alias": "rootSpans",
       "args": [
+        {
+          "kind": "Literal",
+          "name": "filterCondition",
+          "value": "parent_span is None"
+        },
         {
           "kind": "Variable",
           "name": "sort",
@@ -410,205 +413,194 @@ return {
           "variableName": "traceFilterCondition"
         }
       ],
-      "concreteType": "TraceConnection",
+      "concreteType": "SpanConnection",
       "kind": "LinkedField",
-      "name": "__TracesTable_traces_connection",
+      "name": "__TracesTable_rootSpans_connection",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "TraceEdge",
+          "concreteType": "SpanEdge",
           "kind": "LinkedField",
           "name": "edges",
           "plural": true,
           "selections": [
             {
-              "alias": "trace",
+              "alias": "rootSpan",
               "args": null,
-              "concreteType": "Trace",
+              "concreteType": "Span",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
               "selections": [
+                (v1/*:: as any*/),
+                (v3/*:: as any*/),
+                (v2/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "Span",
+                  "kind": "ScalarField",
+                  "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "statusCode",
+                  "storageKey": null
+                },
+                (v4/*:: as any*/),
+                (v5/*:: as any*/),
+                (v6/*:: as any*/),
+                (v7/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeTokenCountTotal",
+                  "storageKey": null
+                },
+                (v8/*:: as any*/),
+                (v10/*:: as any*/),
+                (v11/*:: as any*/),
+                (v12/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "Trace",
                   "kind": "LinkedField",
-                  "name": "rootSpan",
+                  "name": "trace",
                   "plural": false,
                   "selections": [
                     (v1/*:: as any*/),
-                    (v3/*:: as any*/),
-                    (v2/*:: as any*/),
+                    (v13/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "metadata",
+                      "name": "userId",
                       "storageKey": null
                     },
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "statusCode",
+                      "name": "numSpans",
                       "storageKey": null
                     },
-                    (v4/*:: as any*/),
-                    (v5/*:: as any*/),
-                    (v6/*:: as any*/),
-                    (v7/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
-                      "kind": "ScalarField",
-                      "name": "cumulativeTokenCountTotal",
-                      "storageKey": null
-                    },
-                    (v8/*:: as any*/),
-                    (v10/*:: as any*/),
-                    (v11/*:: as any*/),
-                    (v12/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "Trace",
+                      "concreteType": "SpanCostSummary",
                       "kind": "LinkedField",
-                      "name": "trace",
+                      "name": "costSummary",
                       "plural": false,
                       "selections": [
-                        (v1/*:: as any*/),
-                        (v13/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
-                          "name": "userId",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "numSpans",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "SpanCostSummary",
+                          "concreteType": "CostBreakdown",
                           "kind": "LinkedField",
-                          "name": "costSummary",
+                          "name": "total",
                           "plural": false,
                           "selections": [
                             {
                               "alias": null,
                               "args": null,
-                              "concreteType": "CostBreakdown",
-                              "kind": "LinkedField",
-                              "name": "total",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "cost",
-                                  "storageKey": null
-                                }
-                              ],
+                              "kind": "ScalarField",
+                              "name": "cost",
                               "storageKey": null
                             }
                           ],
                           "storageKey": null
-                        },
-                        {
-                          "args": null,
-                          "kind": "FragmentSpread",
-                          "name": "TraceAnnotationSummaryGroup"
                         }
                       ],
                       "storageKey": null
                     },
-                    (v14/*:: as any*/),
-                    (v15/*:: as any*/),
-                    (v16/*:: as any*/),
+                    {
+                      "args": null,
+                      "kind": "FragmentSpread",
+                      "name": "TraceAnnotationSummaryGroup"
+                    }
+                  ],
+                  "storageKey": null
+                },
+                (v14/*:: as any*/),
+                (v15/*:: as any*/),
+                (v16/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": [
+                    {
+                      "kind": "Variable",
+                      "name": "first",
+                      "variableName": "numDescendants"
+                    }
+                  ],
+                  "concreteType": "SpanConnection",
+                  "kind": "LinkedField",
+                  "name": "descendants",
+                  "plural": false,
+                  "selections": [
                     {
                       "alias": null,
-                      "args": [
-                        {
-                          "kind": "Variable",
-                          "name": "first",
-                          "variableName": "numDescendants"
-                        }
-                      ],
-                      "concreteType": "SpanConnection",
+                      "args": null,
+                      "concreteType": "SpanEdge",
                       "kind": "LinkedField",
-                      "name": "descendants",
-                      "plural": false,
+                      "name": "edges",
+                      "plural": true,
                       "selections": [
                         {
                           "alias": null,
                           "args": null,
-                          "concreteType": "SpanEdge",
+                          "concreteType": "Span",
                           "kind": "LinkedField",
-                          "name": "edges",
-                          "plural": true,
+                          "name": "node",
+                          "plural": false,
                           "selections": [
+                            (v1/*:: as any*/),
+                            (v3/*:: as any*/),
+                            (v2/*:: as any*/),
+                            {
+                              "alias": "statusCode",
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "propagatedStatusCode",
+                              "storageKey": null
+                            },
+                            (v4/*:: as any*/),
+                            (v5/*:: as any*/),
+                            (v6/*:: as any*/),
+                            (v7/*:: as any*/),
+                            (v8/*:: as any*/),
+                            {
+                              "alias": "cumulativeTokenCountTotal",
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "tokenCountTotal",
+                              "storageKey": null
+                            },
+                            (v10/*:: as any*/),
+                            (v11/*:: as any*/),
+                            (v12/*:: as any*/),
                             {
                               "alias": null,
                               "args": null,
-                              "concreteType": "Span",
+                              "concreteType": "Trace",
                               "kind": "LinkedField",
-                              "name": "node",
+                              "name": "trace",
                               "plural": false,
                               "selections": [
                                 (v1/*:: as any*/),
-                                (v3/*:: as any*/),
-                                (v2/*:: as any*/),
-                                {
-                                  "alias": "statusCode",
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "propagatedStatusCode",
-                                  "storageKey": null
-                                },
-                                (v4/*:: as any*/),
-                                (v5/*:: as any*/),
-                                (v6/*:: as any*/),
-                                (v7/*:: as any*/),
-                                (v8/*:: as any*/),
-                                {
-                                  "alias": "cumulativeTokenCountTotal",
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "tokenCountTotal",
-                                  "storageKey": null
-                                },
-                                (v10/*:: as any*/),
-                                (v11/*:: as any*/),
-                                (v12/*:: as any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "concreteType": "Trace",
-                                  "kind": "LinkedField",
-                                  "name": "trace",
-                                  "plural": false,
-                                  "selections": [
-                                    (v1/*:: as any*/),
-                                    (v13/*:: as any*/)
-                                  ],
-                                  "storageKey": null
-                                },
-                                (v14/*:: as any*/),
-                                (v15/*:: as any*/),
-                                (v16/*:: as any*/)
+                                (v13/*:: as any*/)
                               ],
                               "storageKey": null
-                            }
+                            },
+                            (v14/*:: as any*/),
+                            (v15/*:: as any*/),
+                            (v16/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -631,7 +623,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "Trace",
+              "concreteType": "Span",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -683,6 +675,6 @@ return {
 };
 })();
 
-(node as any).hash = "a0df172ca43c0ca3b62d45da2a6790f3";
+(node as any).hash = "ecd2b25fcf05120a75d45782fa89471b";
 
 export default node;

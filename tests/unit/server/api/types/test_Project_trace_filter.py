@@ -106,7 +106,7 @@ async def test_project_spans_trace_filter_condition_composes_with_span_filter(
 
 
 @pytest.mark.parametrize("broken_tree", ["two_roots", "root_and_orphan"])
-async def test_project_trace_filter_keeps_one_representative_root_per_trace(
+async def test_project_trace_filter_lists_every_root_candidate(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     broken_tree: Literal["two_roots", "root_and_orphan"],
@@ -126,11 +126,12 @@ async def test_project_trace_filter_keeps_one_representative_root_per_trace(
           query($id: ID!) {
             node(id: $id) {
               ... on Project {
-                traces(
+                spans(
                   first: 100
+                  filterCondition: "parent_span is None"
                   sort: {col: startTime, dir: desc}
                   traceFilterCondition: "num_spans > 0"
-                ) { edges { node { rootSpan { name } } } }
+                ) { edges { node { name } } }
               }
             }
           }
@@ -140,9 +141,10 @@ async def test_project_trace_filter_keeps_one_representative_root_per_trace(
 
     assert not response.errors
     assert response.data is not None
-    assert response.data["node"]["traces"]["edges"] == [
-        {"node": {"rootSpan": {"name": "first-root"}}}
-    ]
+    assert {edge["node"]["name"] for edge in response.data["node"]["spans"]["edges"]} == {
+        "first-root",
+        "second-root",
+    }
 
 
 @pytest.mark.parametrize(
@@ -152,13 +154,14 @@ async def test_project_trace_filter_keeps_one_representative_root_per_trace(
         pytest.param("{col: latencyMs, dir: desc}", id="root-span-column-path"),
     ],
 )
-async def test_project_traces_read_the_displayed_orphan_aware_root(
+async def test_trace_filter_reads_the_displayed_orphan_aware_root(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     sort: str,
 ) -> None:
-    """The trace filter's root-span reads and ``rootSpan`` bind to the same span: the
-    earliest root candidate, counting an orphan whose parent was never received."""
+    """The trace filter's root-span reads bind to the displayed root: the earliest root
+    candidate, counting an orphan whose parent was never received. A matching trace then
+    contributes every root candidate to the span listing."""
     start_time = datetime.fromisoformat("2026-07-01T00:00:00+00:00")
     async with db() as session:
         project = await _add_project(session)
@@ -170,24 +173,25 @@ async def test_project_traces_read_the_displayed_orphan_aware_root(
             start_time=start_time,
         )
         orphan.parent_id = "missing-parent"
-        await _add_span(
+        strict_root = await _add_span(
             session,
             trace,
             attributes={"input": {"value": "strict"}},
             start_time=start_time + timedelta(seconds=1),
         )
 
-    async def matching_roots(condition: str) -> list[dict[str, Any]]:
+    async def matching_roots(condition: str) -> set[str]:
         response = await gql_client.execute(
             query=f"""
               query($id: ID!) {{
                 node(id: $id) {{
                   ... on Project {{
-                    traces(
+                    spans(
                       first: 100
+                      filterCondition: "parent_span is None"
                       sort: {sort}
                       traceFilterCondition: "{condition}"
-                    ) {{ edges {{ node {{ rootSpan {{ id }} }} }} }}
+                    ) {{ edges {{ node {{ id }} }} }}
                   }}
                 }}
               }}
@@ -196,147 +200,13 @@ async def test_project_traces_read_the_displayed_orphan_aware_root(
         )
         assert not response.errors
         assert response.data is not None
-        return list(response.data["node"]["traces"]["edges"])
+        return {edge["node"]["id"] for edge in response.data["node"]["spans"]["edges"]}
 
-    assert await matching_roots("input == 'orphan'") == [
-        {"node": {"rootSpan": {"id": str(GlobalID("Span", str(orphan.id)))}}}
-    ]
-    assert await matching_roots("input == 'strict'") == []
-
-
-async def test_project_traces_general_path_keeps_one_representative_root_per_trace(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-) -> None:
-    start_time = datetime.fromisoformat("2026-07-01T00:00:00+00:00")
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project, start_time=start_time)
-        representative = await _add_span(
-            session,
-            trace,
-            attributes={"input": {"value": "representative"}},
-            start_time=start_time,
-        )
-        await _add_span(
-            session,
-            trace,
-            attributes={"input": {"value": "other"}},
-            start_time=start_time + timedelta(seconds=1),
-        )
-
-    response = await gql_client.execute(
-        query="""
-          query($id: ID!) {
-            node(id: $id) {
-              ... on Project {
-                traces(
-                  first: 100
-                  sort: {col: latencyMs, dir: desc}
-                  traceFilterCondition: "input == 'representative'"
-                ) { edges { node { rootSpan { id } } } }
-              }
-            }
-          }
-        """,
-        variables={"id": _project_id(project)},
-    )
-
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["traces"]["edges"] == [
-        {"node": {"rootSpan": {"id": str(GlobalID("Span", str(representative.id)))}}}
-    ]
-
-
-async def test_project_traces_general_path_keeps_orphan_with_foreign_parent_id_collision(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        orphan_trace = await _add_trace(session, project)
-        orphan = await _add_span(session, orphan_trace)
-        foreign_trace = await _add_trace(session, project)
-        foreign_root = await _add_span(session, foreign_trace)
-        orphan.parent_id = foreign_root.span_id
-
-    response = await gql_client.execute(
-        query="""
-          query($id: ID!) {
-            node(id: $id) {
-              ... on Project {
-                traces(
-                  first: 100
-                  sort: {col: latencyMs, dir: desc}
-                  traceFilterCondition: "num_spans > 0"
-                ) { edges { node { rootSpan { id } } } }
-              }
-            }
-          }
-        """,
-        variables={"id": _project_id(project)},
-    )
-
-    assert not response.errors
-    assert response.data is not None
-    assert {
-        edge["node"]["rootSpan"]["id"] for edge in response.data["node"]["traces"]["edges"]
-    } == {
+    assert await matching_roots("input == 'orphan'") == {
         str(GlobalID("Span", str(orphan.id))),
-        str(GlobalID("Span", str(foreign_root.id))),
+        str(GlobalID("Span", str(strict_root.id))),
     }
-
-
-async def test_project_trace_filter_preserves_trace_start_time_window(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-) -> None:
-    window_start = datetime.fromisoformat("2026-07-01T00:00:00+00:00")
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(
-            session,
-            project,
-            start_time=window_start,
-            end_time=window_start + timedelta(hours=3),
-        )
-        root = await _add_span(
-            session,
-            trace,
-            start_time=window_start + timedelta(hours=2),
-            end_time=window_start + timedelta(hours=3),
-        )
-
-    response = await gql_client.execute(
-        query="""
-          query($id: ID!, $timeRange: TimeRange!) {
-            node(id: $id) {
-              ... on Project {
-                traces(
-                  first: 100
-                  sort: {col: startTime, dir: desc}
-                  timeRange: $timeRange
-                  traceFilterCondition: "num_spans > 0"
-                ) { edges { node { rootSpan { id } } } }
-              }
-            }
-          }
-        """,
-        variables={
-            "id": _project_id(project),
-            "timeRange": {
-                "start": window_start.isoformat(),
-                "end": (window_start + timedelta(hours=1)).isoformat(),
-            },
-        },
-    )
-
-    assert not response.errors
-    assert response.data is not None
-    assert response.data["node"]["traces"]["edges"] == [
-        {"node": {"rootSpan": {"id": str(GlobalID("Span", str(root.id)))}}}
-    ]
+    assert await matching_roots("input == 'strict'") == set()
 
 
 async def test_validate_trace_filter_condition(

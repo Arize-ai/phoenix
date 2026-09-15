@@ -2949,23 +2949,22 @@ class TestProject:
         assert await _matched("'%' in any_input") == {_gid(sessions[2])}
         assert await _matched("'_' in any_output") == {_gid(sessions[3])}
 
-    async def test_traces_paginate_by_start_time(
+    async def test_root_span_clause_paginates_by_start_time(
         self,
         _orphan_spans: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """``traces`` lists one node per trace, newest first, and pages by cursor.
-
-        Each node resolves the trace's representative root span: the earliest span with no
-        parent, or whose parent was never received.
-        """
+        """``parent_span is None`` lists every root candidate (no parent, or a parent that was
+        never received), newest first, and pages by cursor alongside a trace filter."""
         project = _orphan_spans.projects[0]
-        traces = sorted(_orphan_spans.traces, key=lambda t: (t.start_time, t.id), reverse=True)
-        representative_by_trace = {
-            span.trace_rowid: _gid(span)
-            for span in _representative_root_spans(_orphan_spans.spans, True)
-        }
-        gids = [str(GlobalID("Trace", str(trace.id))) for trace in traces]
+        existing_span_ids = {s.span_id for s in _orphan_spans.spans}
+        roots = [
+            s
+            for s in _orphan_spans.spans
+            if s.parent_id is None or s.parent_id not in existing_span_ids
+        ]
+        roots.sort(key=lambda s: (s.start_time, s.id), reverse=True)
+        gids = list(map(_gid, roots))
         n = len(gids)
         first = n // 2 + 1
 
@@ -2973,26 +2972,25 @@ class TestProject:
         for i in range(n):
             expected = gids[i : i + first]
             field = (
-                "traces("
-                "sort:{col:startTime,dir:desc},"
+                "spans("
+                'filterCondition:"parent_span is None",'
                 'traceFilterCondition:"num_spans > 0",'
+                "sort:{col:startTime,dir:desc},"
                 f"first:{first},"
                 f'after:"{cursor}"'
-                "){edges{node{id rootSpan{id}}cursor}}"
+                "){edges{node{id}cursor}}"
             )
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
-            for edge, trace in zip(res["edges"], traces[i : i + first]):
-                assert edge["node"]["rootSpan"]["id"] == representative_by_trace[trace.id]
             cursor = res["edges"][0]["cursor"]
 
-    async def test_traces_root_spans_are_the_representative_orphan_aware_roots(
+    async def test_parent_span_is_none_matches_orphan_aware_roots(
         self,
         _orphan_spans: _Data,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """``parent_span is None`` selects every orphan-aware root candidate, while
-        ``traces { rootSpan }`` resolves one representative candidate per trace.
+        """``parent_span is None`` selects every orphan-aware root candidate: a span with no
+        parent, or one whose parent id references no span in the table.
         """
         project = _orphan_spans.projects[0]
 
@@ -3016,18 +3014,8 @@ class TestProject:
             project,
             httpx_client,
         )
-        traces_res = await self._node(
-            "traces(first:100){edges{node{rootSpan{id}}}}",
-            project,
-            httpx_client,
-        )
         dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
-        root_ids = {e["node"]["rootSpan"]["id"] for e in traces_res["edges"]}
         assert dsl_ids == expected
-        assert root_ids == {
-            _gid(span) for span in _representative_root_spans(_orphan_spans.spans, True)
-        }
-        assert root_ids <= dsl_ids
 
     async def test_analyze_span_filter_condition_tracks_actual_query_scope(
         self,
@@ -4861,30 +4849,31 @@ async def test_project_filter_and_sort(
     assert project_names == expected_names
 
 
-async def test_paginate_traces_by_start_time(
+async def test_root_span_clause_pages_every_root_candidate(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """``traces`` sorted by start time pages over the ``traces`` table directly.
+    """``spans(filterCondition: "parent_span is None")`` is how the traces table lists roots.
 
     Key behaviors tested:
-    - One node per trace, ordered by trace start time
-    - Cursors carry the trace rowid and trace start time
-    - ``rootSpan`` is the trace's earliest root candidate: a span with no parent, or an orphan
-      whose parent was never received; a later second candidate is never chosen
-    - Time range filtering applies to trace start times
+    - Every root candidate is returned: spans with no parent, and orphans whose parent was
+      never received. Child spans are not.
+    - Ordering and time-range filtering are by span start time
+    - Cursors page without skipping or repeating
 
     Test Data Setup:
     ================
-    Creates 5 traces with start times at hours 1, 2, 3, 4, 5:
+    Creates 5 traces with start times at hours 1, 2, 3, 4, 5. Each trace holds two root
+    candidates (a root or orphan at +10 min and a second one at +30 min); even traces also
+    hold a child span under the first root.
 
-    Trace Index | Hour | Real Root Span | Orphan Span  | Additional Spans | Expected rootSpan
-    ------------|------|----------------|--------------|------------------|------------------
-    0 (even)    |  1   |      ✓         |      ✗       | +2nd root span   | root-span-1
-    1 (odd)     |  2   |      ✗         |      ✓       | +2nd orphan span | orphan-span-2
-    2 (even)    |  3   |      ✓         |      ✗       | +2nd root span   | root-span-3
-    3 (odd)     |  4   |      ✗         |      ✓       | +2nd orphan span | orphan-span-4
-    4 (even)    |  5   |      ✓         |      ✗       | +2nd root span   | root-span-5
+    Trace Index | Hour | Root candidates
+    ------------|------|-----------------------------------------------
+    0 (even)    |  1   | root-span-1, second-root-span-1 (+ child-span-1)
+    1 (odd)     |  2   | orphan-span-2, second-orphan-span-2
+    2 (even)    |  3   | root-span-3, second-root-span-3 (+ child-span-3)
+    3 (odd)     |  4   | orphan-span-4, second-orphan-span-4
+    4 (even)    |  5   | root-span-5, second-root-span-5 (+ child-span-5)
     """
     # ========================================
     # SETUP: Create test data
@@ -5019,7 +5008,8 @@ async def test_paginate_traces_by_start_time(
         query ($projectId: ID!, $first: Int!, $after: String, $timeRange: TimeRange) {
             node(id: $projectId) {
                 ... on Project {
-                    traces(
+                    spans(
+                        filterCondition: "parent_span is None",
                         sort: {col: startTime, dir: desc},
                         first: $first,
                         after: $after,
@@ -5027,17 +5017,12 @@ async def test_paginate_traces_by_start_time(
                     ) {
                         edges {
                             node {
-                                id
-                                rootSpan {
-                                    name
-                                }
+                                name
                             }
                             cursor
                         }
                         pageInfo {
                             hasNextPage
-                            hasPreviousPage
-                            startCursor
                             endCursor
                         }
                     }
@@ -5053,61 +5038,59 @@ async def test_paginate_traces_by_start_time(
         )
         assert not response.errors
         assert (data := response.data) is not None
-        return cast(dict[str, Any], data["node"]["traces"])
+        return cast(dict[str, Any], data["node"]["spans"])
 
-    def root_names(page: dict[str, Any]) -> list[str]:
-        return [edge["node"]["rootSpan"]["name"] for edge in page["edges"]]
+    def names(page: dict[str, Any]) -> list[str]:
+        return [edge["node"]["name"] for edge in page["edges"]]
 
-    def decoded(cursor: str) -> bytes:
-        return base64.b64decode(cursor.encode())
+    newest_first = [
+        "second-root-span-5",
+        "root-span-5",
+        "second-orphan-span-4",
+        "orphan-span-4",
+        "second-root-span-3",
+        "root-span-3",
+        "second-orphan-span-2",
+        "orphan-span-2",
+        "second-root-span-1",
+        "root-span-1",
+    ]
 
-    # Page 1: newest two traces. Each resolves its earliest root candidate, never the
-    # later "second-*" span.
-    page = await fetch(first=2)
-    assert root_names(page) == ["root-span-5", "orphan-span-4"]
-    assert page["pageInfo"]["hasNextPage"] is True
-    assert page["pageInfo"]["hasPreviousPage"] is False
-    # Cursors carry the trace rowid and the trace start time.
-    assert decoded(page["pageInfo"]["startCursor"]) == b"5:DATETIME:2024-01-01T05:00:00+00:00"
-    assert decoded(page["pageInfo"]["endCursor"]) == b"4:DATETIME:2024-01-01T04:00:00+00:00"
-
-    # Page 2: continue after trace 4.
-    page = await fetch(first=2, after=page["pageInfo"]["endCursor"])
-    assert root_names(page) == ["root-span-3", "orphan-span-2"]
-    assert page["pageInfo"]["hasNextPage"] is True
-    assert decoded(page["pageInfo"]["endCursor"]) == b"2:DATETIME:2024-01-01T02:00:00+00:00"
-
-    # Page 3: the last trace.
-    page = await fetch(first=2, after=page["pageInfo"]["endCursor"])
-    assert root_names(page) == ["root-span-1"]
+    # Bulk: every root candidate, no child spans.
+    page = await fetch(first=100)
+    assert names(page) == newest_first
     assert page["pageInfo"]["hasNextPage"] is False
-    assert decoded(page["pageInfo"]["endCursor"]) == b"1:DATETIME:2024-01-01T01:00:00+00:00"
+
+    # Cursor pagination, three at a time, covers the same list once.
+    seen: list[str] = []
+    after = None
+    while True:
+        page = await fetch(first=3, after=after)
+        seen.extend(names(page))
+        if not page["pageInfo"]["hasNextPage"]:
+            break
+        after = page["pageInfo"]["endCursor"]
+    assert seen == newest_first
 
     # Ascending order.
     page = await fetch(first=3, query=query.replace("dir: desc", "dir: asc"))
-    assert root_names(page) == ["root-span-1", "orphan-span-2", "root-span-3"]
+    assert names(page) == ["root-span-1", "second-root-span-1", "orphan-span-2"]
     assert page["pageInfo"]["hasNextPage"] is True
 
-    # Bulk: every trace, one node each.
-    page = await fetch(first=10)
-    assert root_names(page) == [
-        "root-span-5",
-        "orphan-span-4",
-        "root-span-3",
-        "orphan-span-2",
-        "root-span-1",
-    ]
-    assert page["pageInfo"]["hasNextPage"] is False
-
-    # Time range on trace start time: [02:00, 04:00) keeps traces 2 and 3.
+    # Time range on span start time: [02:00, 04:00) keeps the roots of traces 2 and 3.
     page = await fetch(
-        first=10,
+        first=100,
         timeRange={
             "start": (base_time + timedelta(hours=2)).isoformat(),
             "end": (base_time + timedelta(hours=4)).isoformat(),
         },
     )
-    assert root_names(page) == ["root-span-3", "orphan-span-2"]
+    assert names(page) == [
+        "second-root-span-3",
+        "root-span-3",
+        "second-orphan-span-2",
+        "orphan-span-2",
+    ]
 
 
 async def test_cost_summary_returns_expected_results(

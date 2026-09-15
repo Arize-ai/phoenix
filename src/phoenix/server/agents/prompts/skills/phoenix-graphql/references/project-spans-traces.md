@@ -2,8 +2,7 @@
 
 ## Project
 
-- `Project.traces(first, after, timeRange, sort: SpanSort, traceFilterCondition: String)` → connection of `Trace`, one node per trace, newest first by default. Each node's `rootSpan` is the representative root span (the earliest span with no parent, or whose parent was never received); `sort` orders traces by a column of that span. The starting point for "list the traces that ...".
-- `Project.spans(first, after, timeRange, sort: SpanSort, filterCondition: String, traceFilterCondition: String)` → connection of `Span`, for span-level questions. There is no root-span argument: `filterCondition: "parent_id is None"` keeps root spans, and `parent_span is None` also counts orphans.
+- `Project.spans(first, after, timeRange, sort: SpanSort, filterCondition: String, traceFilterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** and no root-span argument: list traces with `spans(filterCondition: "parent_span is None")`, which keeps root spans including orphans whose parent was never received (what the UI's traces table runs), usually one per trace; `parent_id is None` keeps only spans with no parent id. Pair with `traceFilterCondition` to keep the roots of matching traces.
 - `Project.trace(traceId: ID!)` → `Trace` — lookup by OTel hex trace id.
 - Aggregates, most accepting `timeRange` and `filterCondition`: `traceCount`, `recordCount` (span count), `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `costSummary`, `latencyMsQuantile(probability: Float!)`, `spanLatencyMsQuantile(probability: Float!)`.
 - Discovery fields: `spanAnnotationNames`, `traceAnnotationNames`, `spanAnnotationSummary`, `documentEvaluationNames` — check which evals/annotations exist before querying them.
@@ -16,29 +15,26 @@ Key fields: `spanId` (OTel hex), `name`, `spanKind`, `statusCode`, `startTime`, 
 
 ## Trace
 
-Key fields: `traceId`, `latencyMs`, `numSpans`, `rootSpan { ... }` (the representative root span — use it for a one-line turn/trace summary), `spans(first, after, filterCondition)`, `projectSessionId`.
+Key fields: `traceId`, `latencyMs`, `numSpans`, `rootSpan { ... }` (the representative root span: the earliest span with no parent, or whose parent was never received — use it for a one-line turn/trace summary), `spans(first, after, filterCondition)`, `projectSessionId`.
 
 ## Examples
 
-Recent traces, slowest first, each summarized by its root span:
+Recent root spans (usually one per trace), slowest first:
 
 ```graphql
 query RecentTraces($id: ID!, $first: Int = 20) {
   node(id: $id) {
     ... on Project {
-      traces(first: $first, sort: { col: latencyMs, dir: desc }) {
+      spans(first: $first, filterCondition: "parent_span is None", sort: { col: latencyMs, dir: desc }) {
         edges {
           node {
-            traceId
+            spanId
+            name
             latencyMs
-            numSpans
-            rootSpan {
-              spanId
-              name
-              statusCode
-              startTime
-              cumulativeTokenCountTotal
-            }
+            statusCode
+            startTime
+            cumulativeTokenCountTotal
+            trace { traceId numSpans }
           }
         }
         pageInfo { hasNextPage endCursor }
@@ -48,14 +44,19 @@ query RecentTraces($id: ID!, $first: Int = 20) {
 }
 ```
 
-Errored traces from the last hour:
+Root spans of errored traces in a time window:
 
 ```graphql
 query ErroredTraces($id: ID!, $timeRange: TimeRange) {
   node(id: $id) {
     ... on Project {
-      traces(first: 20, timeRange: $timeRange, traceFilterCondition: "error_count > 0") {
-        edges { node { traceId latencyMs rootSpan { name input { truncatedValue } } } }
+      spans(
+        first: 20
+        timeRange: $timeRange
+        filterCondition: "parent_span is None"
+        traceFilterCondition: "error_count > 0"
+      ) {
+        edges { node { name latencyMs input { truncatedValue } trace { traceId } } }
       }
     }
   }

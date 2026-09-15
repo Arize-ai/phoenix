@@ -21,7 +21,7 @@ export const ProjectPageQueriesTracesQuery = graphql`
         name
         hasTraces
       }
-      ...TracesTable_traces
+      ...TracesTable_spans
         @arguments(traceFilterCondition: $traceFilterCondition)
     }
   }

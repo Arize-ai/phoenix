@@ -89,9 +89,9 @@ import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   SpanStatusCode,
-  TracesTable_traces$data,
-  TracesTable_traces$key,
-} from "./__generated__/TracesTable_traces.graphql";
+  TracesTable_spans$data,
+  TracesTable_spans$key,
+} from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { withFilterConditionParam } from "./filterConditionParam";
@@ -119,7 +119,7 @@ import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionF
 import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
-  project: TracesTable_traces$key;
+  project: TracesTable_spans$key;
   /**
    * The settled condition `project` was loaded with; the rows on hand already
    * match it.
@@ -158,14 +158,10 @@ type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
   children: NestedSpanTableRow<TSpan>[];
 };
 
-/**
- * The representative root span of a trace row. Traces without one are not shown.
- */
-type RootSpan = NonNullable<
-  TracesTable_traces$data["traces"]["edges"][number]["trace"]["rootSpan"]
->;
-
-const TableBody = <T extends RootSpan & IAdditionalSpansRow>({
+const TableBody = <
+  T extends TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"] &
+    IAdditionalSpansRow,
+>({
   table,
 }: {
   table: Table<T>;
@@ -315,9 +311,9 @@ export function TracesTable(props: TracesTableProps) {
     tableProps: rowsExpandedTableProps,
   } = useTableRowsExpanded();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
-    usePaginationFragment<TracesTableQuery, TracesTable_traces$key>(
+    usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
-        fragment TracesTable_traces on Project
+        fragment TracesTable_spans on Project
         @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
@@ -334,100 +330,99 @@ export function TracesTable(props: TracesTableProps) {
           ...ProjectAnnotationConfigsByNameFragment
           ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
-          traces(
+          rootSpans: spans(
             first: $first
             after: $after
             sort: $sort
+            filterCondition: "parent_span is None"
             traceFilterCondition: $traceFilterCondition
             timeRange: $timeRange
-          ) @connection(key: "TracesTable_traces") {
+          ) @connection(key: "TracesTable_rootSpans") {
             edges {
-              trace: node {
-                rootSpan {
+              rootSpan: node {
+                id
+                spanKind
+                name
+                metadata
+                statusCode
+                statusMessage
+                startTime
+                endTime
+                latencyMs
+                cumulativeTokenCountTotal
+                parentId
+                input {
+                  value: truncatedValue
+                }
+                output {
+                  value: truncatedValue
+                }
+                spanId
+                trace {
                   id
-                  spanKind
-                  name
-                  metadata
-                  statusCode
-                  statusMessage
-                  startTime
-                  endTime
-                  latencyMs
-                  cumulativeTokenCountTotal
-                  parentId
-                  input {
-                    value: truncatedValue
-                  }
-                  output {
-                    value: truncatedValue
-                  }
-                  spanId
-                  trace {
-                    id
-                    traceId
-                    userId
-                    numSpans
-                    costSummary {
-                      total {
-                        cost
-                      }
+                  traceId
+                  userId
+                  numSpans
+                  costSummary {
+                    total {
+                      cost
                     }
-                    ...TraceAnnotationSummaryGroup
                   }
-                  spanAnnotations {
-                    id
-                    name
-                    label
-                    score
-                    annotatorKind
-                    createdAt
-                  }
-                  ...AnnotationSummaryGroup
-                  documentRetrievalMetrics {
-                    evaluationName
-                    ndcg
-                    precision
-                    hit
-                  }
-                  descendants(first: $numDescendants) {
-                    edges {
-                      node {
+                  ...TraceAnnotationSummaryGroup
+                }
+                spanAnnotations {
+                  id
+                  name
+                  label
+                  score
+                  annotatorKind
+                  createdAt
+                }
+                ...AnnotationSummaryGroup
+                documentRetrievalMetrics {
+                  evaluationName
+                  ndcg
+                  precision
+                  hit
+                }
+                descendants(first: $numDescendants) {
+                  edges {
+                    node {
+                      id
+                      spanKind
+                      name
+                      statusCode: propagatedStatusCode
+                      statusMessage
+                      startTime
+                      endTime
+                      latencyMs
+                      parentId
+                      cumulativeTokenCountTotal: tokenCountTotal
+                      input {
+                        value: truncatedValue
+                      }
+                      output {
+                        value: truncatedValue
+                      }
+                      spanId
+                      trace {
                         id
-                        spanKind
+                        traceId
+                      }
+                      spanAnnotations {
+                        id
                         name
-                        statusCode: propagatedStatusCode
-                        statusMessage
-                        startTime
-                        endTime
-                        latencyMs
-                        parentId
-                        cumulativeTokenCountTotal: tokenCountTotal
-                        input {
-                          value: truncatedValue
-                        }
-                        output {
-                          value: truncatedValue
-                        }
-                        spanId
-                        trace {
-                          id
-                          traceId
-                        }
-                        spanAnnotations {
-                          id
-                          name
-                          label
-                          score
-                          annotatorKind
-                          createdAt
-                        }
-                        ...AnnotationSummaryGroup
-                        documentRetrievalMetrics {
-                          evaluationName
-                          ndcg
-                          precision
-                          hit
-                        }
+                        label
+                        score
+                        annotatorKind
+                        createdAt
+                      }
+                      ...AnnotationSummaryGroup
+                      documentRetrievalMetrics {
+                        evaluationName
+                        ndcg
+                        precision
+                        hit
                       }
                     }
                   }
@@ -457,15 +452,8 @@ export function TracesTable(props: TracesTableProps) {
       (name) => traceAnnotationColumnVisibility[name]
     );
   }, [traceAnnotationColumnVisibility]);
-  const rootSpans = useMemo(
-    () =>
-      data.traces.edges.flatMap(({ trace }) =>
-        trace.rootSpan ? [trace.rootSpan] : []
-      ),
-    [data.traces.edges]
-  );
   const tableData = useMemo(() => {
-    return rootSpans.map((rootSpan) => {
+    return data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
       const spanTree = createSpanTree([
         rootSpan,
@@ -502,10 +490,11 @@ export function TracesTable(props: TracesTableProps) {
       }
       return root as SpanRowType;
     });
-  }, [rootSpans]);
+  }, [data]);
   type TableRow = (typeof tableData)[number];
   // descendant rows do not select the trace fields the column reads
-  type RootSpanTrace = RootSpan["trace"];
+  type RootSpanTrace =
+    (typeof data.rootSpans.edges)[number]["rootSpan"]["trace"];
   const { selectRow } = useShiftClickRowSelection<TableRow>({
     resetKey: tableData,
   });
@@ -984,7 +973,7 @@ export function TracesTable(props: TracesTableProps) {
       return undefined;
     }
     setTraceSequence(
-      rootSpans.map((rootSpan) => ({
+      data.rootSpans.edges.map(({ rootSpan }) => ({
         traceId: rootSpan.trace.traceId,
         spanId: rootSpan.id,
       }))
@@ -992,7 +981,7 @@ export function TracesTable(props: TracesTableProps) {
     return () => {
       setTraceSequence([]);
     };
-  }, [rootSpans, setTraceSequence]);
+  }, [data.rootSpans.edges, setTraceSequence]);
 
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);

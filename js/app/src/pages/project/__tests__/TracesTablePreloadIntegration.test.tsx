@@ -123,7 +123,7 @@ vi.mock("../TableMetricsChartSelector", () => ({
   TableMetricsChartSelector: () => null,
 }));
 
-import type { TracesTable_traces$key } from "../__generated__/TracesTable_traces.graphql";
+import type { TracesTable_spans$key } from "../__generated__/TracesTable_spans.graphql";
 import { TraceFiltersProvider } from "../TraceFiltersContext";
 import { TracesTable } from "../TracesTable";
 
@@ -144,7 +144,7 @@ describe("TracesTable preload integration", () => {
       data: {
         id: "project-integration",
         name: "integration project",
-        traces: { edges: [] },
+        rootSpans: { edges: [] },
       },
       hasNext: false,
       isLoadingNext: false,
@@ -168,7 +168,7 @@ describe("TracesTable preload integration", () => {
             ]}
           >
             <TraceFiltersProvider>
-              <TracesTable project={{} as TracesTable_traces$key} seed={seed} />
+              <TracesTable project={{} as TracesTable_spans$key} seed={seed} />
             </TraceFiltersProvider>
             <SearchProbe />
           </MemoryRouter>
