@@ -35,6 +35,7 @@ Per-entity field references and examples are split into reference files. Load **
 - `references/experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
 - `references/prompts.md` — Prompt and PromptVersion: versions, templates, tags.
 - `references/annotations.md` — Span/Trace/Session/ExperimentRun annotation fields, how to read them, and the mutations that write notes, labels, and annotation configs.
+- `references/filter-expressions.md` — the span, trace, and session filter languages (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`): exhaustive vocabulary, operators, root-span scoping, and compiled examples. Load it before writing any condition beyond the one-liners below.
 
 ### Conventions
 
@@ -44,7 +45,7 @@ These apply to every entity:
 - **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. OpenTelemetry hex IDs come from `Span.spanId` and `Trace.traceId` — use those for OTel lookups. Note a `Span` has **no** `traceId` field; read it via the nested `trace { traceId }`. Never mix global IDs with OTel IDs.
 - **`TimeRange`** input: `{ start: DateTime, end: DateTime }` — ISO 8601 strings; `end` is exclusive; both optional.
 - **`SpanSort`** input: `{ col: SpanColumn, dir: SortDir }`, e.g. `{ col: startTime, dir: desc }`. Useful `SpanColumn` values: `startTime`, `latencyMs`, `tokenCountTotal`, `cumulativeTokenCountTotal`, `tokenCostTotal`.
-- **`filterCondition`** is a Python-like DSL string over span fields, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `latency_ms > 1000`, `'timeout' in output.value`, `annotations['Hallucination'].label == 'hallucinated'`, or `trace_annotations['quality'].score < 0.5`. `annotations[...]` references annotations on an individual span; `trace_annotations[...]` matches every span belonging to an annotated trace. Combine clauses with `and`/`or`.
+- **`filterCondition`** is a span filter expression: a Python boolean expression over span fields, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `latency_ms > 1000`, `'timeout' in output.value`, `annotations['Hallucination'].label == 'hallucinated'`, or `trace_annotations['quality'].score < 0.5`. Root spans are a clause: `parent_id is None`, or `parent_span is None` to also count orphans. Combine clauses with `and`/`or`/`not`. Unknown names compile as attribute paths and match nothing, so check spelling against `references/filter-expressions.md`. `traceFilterCondition` and `sessionFilterCondition` are separate languages with their own vocabularies, covered in the same reference.
 
 ### Efficiency rules
 

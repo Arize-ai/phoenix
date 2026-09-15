@@ -613,7 +613,16 @@ class Project(Node):
                 return None
         return Trace(id=trace.id, db_record=trace)
 
-    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
+    @strawberry.field(
+        extensions=[RequireForwardPaginationExtension()],
+        description="Spans in the project. filterCondition is a span filter expression: a "
+        "Python boolean expression over span fields (span_kind, status_code, latency_ms, "
+        "parent_id, attributes, annotations[...], ...), not a substring of the span's "
+        "input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` "
+        "to also count orphan spans whose parent was never received. traceFilterCondition is "
+        "a trace filter expression (see traceFilterVocabulary) that keeps the spans of matching "
+        "traces; the two arguments compose.",
+    )  # type: ignore[untyped-decorator]
     async def spans(
         self,
         info: Info[Context, None],

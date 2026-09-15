@@ -3056,6 +3056,10 @@ type Project implements Node {
   """
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
+
+  """
+  Spans in the project. filterCondition is a span filter expression: a Python boolean expression over span fields (span_kind, status_code, latency_ms, parent_id, attributes, annotations[...], ...), not a substring of the span's input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` to also count orphan spans whose parent was never received. traceFilterCondition is a trace filter expression (see traceFilterVocabulary) that keeps the spans of matching traces; the two arguments compose.
+  """
   spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean @deprecated(reason: "Express root-span scoping in `filterCondition` instead: `parent_id is None` keeps only spans with no parent id, and `parent_span is None` also treats orphan spans (whose parent is absent) as roots. A filter composes with every other clause and is how the UI's spans table scopes to root spans."), filterCondition: String, traceFilterCondition: String, orphanSpanAsRootSpan: Boolean = true @deprecated(reason: "Deprecated along with `rootSpansOnly`. Choose the behavior in `filterCondition` instead: `parent_span is None` treats orphans as roots, `parent_id is None` does not. With `traceFilterCondition`, this argument still selects the root span the trace vocabulary (`input`, `output`, `metadata`, ...) reads from; that policy has no `filterCondition` equivalent.")): SpanConnection!
 
   """
@@ -4825,6 +4829,10 @@ type Trace implements Node {
   Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket.
   """
   errorsByType: [SpanErrorTypeCount!]!
+
+  """
+  Spans in the trace. filterCondition is a span filter expression: a Python boolean expression over span fields, not a substring of the span's input/output. `parent_id is None` selects the trace's root span(s).
+  """
   spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean @deprecated(reason: "Express root-span scoping in `filterCondition` instead: `parent_id is None` keeps only spans with no parent id, and `parent_span is None` also treats orphan spans (whose parent is absent) as roots. A filter composes with every other clause and is how the UI's spans table scopes to root spans."), orphanSpanAsRootSpan: Boolean = true @deprecated(reason: "Deprecated along with `rootSpansOnly`. Choose the behavior in `filterCondition` instead: `parent_span is None` treats orphans as roots, `parent_id is None` does not."), filterCondition: String): SpanConnection!
 
   """Annotations associated with the trace."""

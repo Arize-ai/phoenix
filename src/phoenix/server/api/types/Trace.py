@@ -281,7 +281,12 @@ class Trace(Node):
             SpanErrorTypeCount(exception_type=exc_type, count=count) for exc_type, count in rows
         ]
 
-    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
+    @strawberry.field(
+        extensions=[RequireForwardPaginationExtension()],
+        description="Spans in the trace. filterCondition is a span filter expression: a Python "
+        "boolean expression over span fields, not a substring of the span's input/output. "
+        "`parent_id is None` selects the trace's root span(s).",
+    )  # type: ignore[untyped-decorator]
     async def spans(
         self,
         info: Info[Context, None],

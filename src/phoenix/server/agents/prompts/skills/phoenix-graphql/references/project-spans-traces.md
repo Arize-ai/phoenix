@@ -2,12 +2,12 @@
 
 ## Project
 
-- `Project.spans(timeRange, first, after, sort: SpanSort, filterCondition: String, traceFilterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(filterCondition: "parent_id is None")` for root spans, usually one per trace though fragmented traces can have several. `parent_span is None` also counts orphans, as the deprecated `rootSpansOnly` did.
+- `Project.spans(timeRange, first, after, sort: SpanSort, filterCondition: String, traceFilterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(filterCondition: "parent_id is None")` for root spans, usually one per trace though fragmented traces can have several. `parent_span is None` also counts orphans (spans whose parent was never received).
 - `Project.trace(traceId: ID!)` → `Trace` — lookup by OTel hex trace id.
 - Aggregates, most accepting `timeRange` and `filterCondition`: `traceCount`, `recordCount` (span count), `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `costSummary`, `latencyMsQuantile(probability: Float!)`, `spanLatencyMsQuantile(probability: Float!)`.
 - Discovery fields: `spanAnnotationNames`, `traceAnnotationNames`, `spanAnnotationSummary`, `documentEvaluationNames` — check which evals/annotations exist before querying them.
 - `validateSpanFilterCondition(condition: String!)` — check a filter string without running it.
-- `filterCondition` is a span filter expression. The user-facing grammar reference (operators, attribute/annotation access, substring search, `is None`) is the [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions) doc; the enforced grammar lives in `internal_docs/specs/span-filter-dsl.md`.
+- `filterCondition` is a span filter expression and `traceFilterCondition` a trace filter expression; both languages are specified in `references/filter-expressions.md` (vocabulary, operators, root-span scoping, compiled examples).
 
 ## Span
 

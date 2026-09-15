@@ -425,26 +425,97 @@ px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' |
 Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
 
 `getProjectByName(name:)` targets one project; `projects(first: 1)` picks an
-arbitrary one. There is no `traces` connection: for root spans (usually one per
-trace), filter `spans` with `parent_id is None`. `parent_span is None` also
-counts orphans, as the deprecated `rootSpansOnly` did.
+arbitrary one. There is no `traces` connection. To list traces, query `spans`
+with `filterCondition: "parent_id is None"`, which keeps root spans (usually
+one per trace). See the span filter reference below.
 
 ### Span filter expressions
 
-`Project.spans` takes a `filterCondition` — a Python expression over per-span
-values, the same language the UI's **spans** filter bar compiles. (The traces
-tab compiles the separate trace-level language described below.) Annotations are reached through three
-subscript accessors, and **the accessor picks the level**:
+`Project.spans` (and `Trace.spans`, plus the project aggregates `recordCount`,
+`tokenCountTotal`, `costSummary`, `latencyMsQuantile`, ...) take a
+`filterCondition`: a **Python boolean expression** over per-span values,
+compiled to SQL. It is the language the UI's **spans** filter bar compiles and
+the same one `SpanQuery().where(...)` sends from the Python client. The traces
+and sessions tabs compile the separate languages described below, and the
+three vocabularies do not mix.
+
+**Root spans are a filter clause.** There is no root-span argument.
+
+| Clause | Keeps |
+| ------ | ----- |
+| `parent_id is None` | spans with no parent id (the default choice) |
+| `parent_span is None` | those plus **orphans**, spans whose parent was never received |
+
+Root clauses compose with everything else, and a root span is *usually* one
+per trace (fragmented traces can have several):
+
+```bash
+px api graphql '{
+  getProjectByName(name: "default") { spans(
+    first: 20
+    filterCondition: "parent_id is None and status_code == \"ERROR\""
+    sort: { col: startTime, dir: desc }
+  ) { edges { node { spanId name latencyMs } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
+```
+
+**Vocabulary (exhaustive):**
+
+| Name | Type | Notes |
+| ---- | ---- | ----- |
+| `span_id`, `trace_id`, `parent_id` | string | OTel hex ids |
+| `name` | string | `'chat' in name` for substring search |
+| `span_kind` | enum | `'CHAIN'`, `'LLM'`, `'RETRIEVER'`, `'EMBEDDING'`, `'TOOL'`, `'AGENT'`, `'RERANKER'`, `'GUARDRAIL'`, `'EVALUATOR'`, `'PROMPT'`, `'UNKNOWN'`; literals are uppercased for you |
+| `status_code` | enum | `'OK'`, `'ERROR'`, `'UNSET'`; literals are uppercased for you |
+| `status_message` | string | error text |
+| `latency_ms` | number | |
+| `start_time`, `end_time` | datetime | ISO 8601 literal **with an offset**: `'2026-09-01T00:00:00Z'` |
+| `cumulative_llm_token_count_prompt` / `_completion` / `_total` | number | span plus descendants |
+| `llm.token_count.prompt` / `.completion` / `.total` | number | this span alone |
+| `total_cost`, `prompt_cost`, `completion_cost` | number | `0` when the span has no cost row |
+| `cost_details` | collection | iterable only: `any(d.cost > 0.01 for d in cost_details)`; elements have `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` |
+| `parent_span` | reserved | **only** `is None` / `is not None`; `parent_span.name` is rejected |
+| `annotations['name']`, `evals['name']` | annotation | on the span itself (`evals` is a legacy alias) |
+| `trace_annotations['name']` | annotation | on the span's containing trace |
+| `attributes[...]`, `metadata[...]`, any other dotted name | attribute | JSON attribute path; type unknown until read |
+
+Legacy spellings still accepted: `context.span_id`, `context.trace_id`,
+`cumulative_token_count.prompt|completion|total`.
+
+**Every other identifier is an attribute path.** That is how `llm.model_name`
+and `input.value` work, and it is why a mistake compiles and matches nothing
+instead of erroring. Names that look right but silently match nothing here:
+`error_count`, `num_spans`, `token_count_total`, bare `input` / `output`,
+`user_id`, `is_root`, `null`, an unquoted string (`span_kind == LLM` reads
+`LLM` as an attribute), `annotations.q.label` (must be subscripted), and
+`attributes.llm.model_name` (write `llm.model_name` or
+`attributes['llm.model_name']`). When a filter returns nothing, check the
+spelling against the table before concluding there is no data, or run
+`validateSpanFilterCondition(condition: "...") { isValid errorMessage }` on
+`Project`.
+
+**Attributes, input, output.** Span I/O text is `input.value` / `output.value`
+(`input.mime_type` for the type); `'refund' in output.value` is the substring
+search and `output.value is None` finds spans without output. `llm.model_name`,
+`attributes['llm.model_name']`, and `attributes['llm']['model_name']` are the
+same attribute; `metadata['k']` is `attributes['metadata']['k']`; integer
+subscripts index arrays (`attributes['tags'][0]`). An attribute compared
+against a number is read as a number, against `True` / `False` as a boolean,
+otherwise as text; `float(x)` / `int(x)` / `str(x)` force a read and are the
+**only** functions allowed.
+
+**Annotations.** Each accessor exposes `.label`, `.score`, `.explanation`, and
+`.identifier`; the bare accessor (`annotations['quality']`) is an existence
+check. **The accessor picks the level**, and the wrong level fails silently:
 
 | Accessor | Matches annotations on | Written by |
 | -------- | ---------------------- | ---------- |
 | `annotations["name"]` | the span itself | `px span annotate`, `px span add-note` |
-| `evals["name"]` | the span itself (accepted alongside `annotations`) | same as above |
+| `evals["name"]` | the span itself (legacy alias) | same as above |
 | `trace_annotations["name"]` | the span's parent **trace** | `px trace annotate`, `px trace add-note` |
 
-Each yields `.label`, `.score`, and `.explanation`. `trace_annotations` joins a
-span through its trace row ID, so every span in an annotated trace matches — add
-`parent_id is None` to the same condition when you want root spans only:
+`trace_annotations` matches every span of an annotated trace, so add
+`parent_id is None` when you want one row per trace:
 
 ```bash
 px api graphql '{
@@ -455,22 +526,57 @@ px api graphql '{
 }' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
-Picking the wrong accessor fails silently rather than erroring: filtering with
-`annotations[...]` for an annotation that was written at the trace level joins
-against span annotations and matches nothing.
+**Operators and literals:**
 
-Which accessors a filter accepts depends on the filter, and only the span filter accepts more than one:
+| Category | Accepted | Rejected |
+| -------- | -------- | -------- |
+| Comparison | `==` `!=` `<` `<=` `>` `>=`, chained (`500 < latency_ms <= 2000`) | `=` |
+| Missing values | `is None`, `is not None` | `is null`, `null`, `is` with any other value |
+| Membership | `x in [...]` (exact), `'text' in field` (case-insensitive substring), `not in` | `None` in a list, a literal on the left, `like` |
+| Logic | `and`, `or`, `not`, parentheses | `&&`, `\|\|`, `&`, `\|`, `!` |
+| Arithmetic | `+` `-` `*` `/` `%` | `**`, `//`, bitwise |
+| Calls | `float(x)`, `int(x)`, `str(x)`; `any`/`all`/`len`/`sum`/`max`/`min` over `cost_details` only | method calls, `len(name)`, `bool(x)` |
+| Strings | single or double quotes | unquoted |
+| Numbers | unquoted (`latency_ms > 100`) | quoted (`latency_ms > '100'`) |
+| Booleans | `True`, `False` as operands | `true`, `false`, or a bare `True` as the whole condition |
 
-| Filter | Accepted annotation accessors |
-| ------ | ----------------------------- |
-| `filterCondition` (span) | `annotations[...]`, `evals[...]`, `trace_annotations[...]` |
-| `traceFilterCondition` (trace) | `trace_annotations[...]` |
-| `sessionFilterCondition` (session) | `session_annotations[...]` |
+Rules that differ from Python:
 
-An accessor used at the wrong level is a compile error, not a silent miss —
-e.g. `annotations[...]` in a trace filter fails with `` `annotations[...]` is
-not available in the trace filter; use `trace_annotations[...]` for trace
-annotations, or iterate `span_annotations` for span-level annotations ``.
+- **A missing value fails every comparison, including `!=`.** A span without
+  `metadata['tier']` matches neither `== 'premium'` nor `!= 'premium'`; write
+  `metadata['tier'] != 'premium' or metadata['tier'] is None`.
+- **Every operand of `and` / `or` / `not` must be a condition.** `name == 'x'
+  and metadata['flag']` is rejected; write `metadata['flag'] == True`.
+- **Enums fold case, text does not.** `span_kind == 'llm'` matches `LLM`;
+  `name == 'llm'` is exact. Substring `in` ignores case everywhere.
+
+Every line below compiles as a span filter:
+
+```python span-filter
+parent_id is None
+parent_span is None
+parent_id is None and latency_ms > 5000
+span_kind == 'LLM' and 'gpt-4o' in llm.model_name
+span_kind in ['LLM', 'RETRIEVER']
+span_kind == 'TOOL' and tool.name == 'search'
+status_code == 'ERROR' and 'timeout' in status_message
+'refund' in input.value or 'refund' in output.value
+output.value is None
+metadata['topic'] == 'billing'
+metadata['tier'] != 'premium' or metadata['tier'] is None
+float(metadata['retry_count']) > 1
+start_time > '2026-09-01T00:00:00Z' and end_time < '2026-09-02T00:00:00Z'
+cumulative_llm_token_count_total > 10000
+total_cost > 0.01
+any(d.token_type == 'input' and d.tokens > 1000 for d in cost_details)
+annotations['correctness'].label == 'incorrect'
+annotations['hallucination'].score > 0.5
+annotations['correctness'].label is None
+annotations['correctness']
+trace_annotations['quality'].label == 'poor'
+parent_id is None and trace_annotations['quality'].score < 0.5
+span_kind == 'LLM' and (latency_ms > 5000 or status_code == 'ERROR')
+```
 
 ### Trace filter expressions
 
@@ -521,7 +627,7 @@ the iterables `spans`, `trace_annotations`, `span_annotations`, and
 `latency_ms`, the `cumulative_*` subtree rollups, and the relations
 `parent_span`, `children`, `siblings`, `annotations`, and `cost_details`:
 
-```python
+```python trace-filter
 any(span.span_kind == "LLM" and span.latency_ms > 5000 for span in spans)
 any(span.parent_span.span_kind == "LLM" and span.span_kind == "TOOL" for span in spans)
 any(annotation.label == "hallucinated" for annotation in span_annotations)
@@ -532,7 +638,10 @@ span filter:
 
 - **Unknown names are rejected**, with a `did you mean "…"?` suggestion. Span
   filters instead read an unknown name as an attribute path, so a typo there
-  matches nothing; here a typo is an explicit error.
+  matches nothing; here a typo is an explicit error. Span-grain names
+  (`span_kind`, `status_code`, `parent_id`, `input.value`) are unknown here;
+  ask span-level questions with a comprehension over `spans`, and read root
+  I/O as bare `input` / `output`.
 - **Rollups are `0`, never null.** `error_count == 0` matches traces with no
   errors; there is no missing case to test with `is None`.
 - **Datetime literals need an explicit offset** — `start_time >=

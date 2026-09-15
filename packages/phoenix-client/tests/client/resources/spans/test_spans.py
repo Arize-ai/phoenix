@@ -1,3 +1,5 @@
+import json
+import warnings
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -460,3 +462,41 @@ async def test_async_get_spans_with_span_ids_calls_guard_before_request() -> Non
         await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
             project_identifier="my-project", span_ids=["span-1"]
         )
+
+
+def _make_dataframe_handler(expected_root_spans_only: object) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url).endswith("/v1/spans")
+        body = json.loads(request.content)
+        assert body["root_spans_only"] == expected_root_spans_only
+        return httpx.Response(200, json={"data": []})
+
+    return httpx.MockTransport(handler)
+
+
+class TestGetSpansDataframeRootSpansOnlyDeprecation:
+    def test_root_spans_only_warns_and_is_still_sent(self) -> None:
+        client = httpx.Client(
+            transport=_make_dataframe_handler(expected_root_spans_only=True),
+            base_url="http://test",
+        )
+        with pytest.warns(DeprecationWarning, match="parent_span is None"):
+            Spans(client).get_spans_dataframe(root_spans_only=True)
+
+    def test_omitting_root_spans_only_does_not_warn(self) -> None:
+        client = httpx.Client(
+            transport=_make_dataframe_handler(expected_root_spans_only=None),
+            base_url="http://test",
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            Spans(client).get_spans_dataframe()
+
+    @pytest.mark.anyio
+    async def test_async_root_spans_only_warns(self) -> None:
+        client = httpx.AsyncClient(
+            transport=_make_dataframe_handler(expected_root_spans_only=False),
+            base_url="http://test",
+        )
+        with pytest.warns(DeprecationWarning, match="root_spans_only is deprecated"):
+            await AsyncSpans(client).get_spans_dataframe(root_spans_only=False)
