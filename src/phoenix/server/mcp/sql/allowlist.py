@@ -136,15 +136,11 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # cost is bounded by that document's size. `@>` and `<@` also test
             # array containment, bounded the same way.
             #
-            # SQLGlot models PostgreSQL `?` (key exists) as JSONBContains, whose
-            # sql name is jsonb_contains. That is a name collision: PostgreSQL's
-            # jsonb_contains is the `@>` support function; `?` is jsonb_exists.
-            # After parse, `jsonb_contains(x, y)` and `x ? y` are the same node,
-            # so we emit `?`. Do not rewrite this class to `@>` — that would
-            # change real `?` queries. `@>` is ArrayContainsAll.
-            # Workaround for https://github.com/tobymao/sqlglot/issues/8152,
-            # fixed upstream but unreleased at the pinned version.
+            # `?` (key exists) is JSONBContainsTopKey. JSONBContains is the
+            # `jsonb_contains(x, y)` function, PostgreSQL's support function for
+            # `@>`; the operator itself is ArrayContainsAll.
             exp.JSONBContains,
+            exp.JSONBContainsTopKey,
             exp.JSONBContainsAnyTopKeys,
             exp.JSONBContainsAllTopKeys,
             exp.ArrayContainsAll,

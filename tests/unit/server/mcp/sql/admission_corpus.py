@@ -456,7 +456,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT attributes ? 'session' AS v FROM spans",
         expect=AdmissionOutcome.ADMIT,
-        note="key existence, the first question anyone asks of a JSONB column; the operator form of a key-existence test; its refusal names the parser class jsonb_contains, which is not PostgreSQL's function for it",
+        note="key existence, the first question anyone asks of a JSONB column; the operator form of a key-existence test",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -510,7 +510,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT attributes ? 'session' AS v FROM spans",
         expect=AdmissionOutcome.FUNCTION_NOT_ALLOWED,
-        note="declared asymmetry: SQLite has no key-existence operator, so the question is asked with json_extract(...) IS NOT NULL or json_each; the refusal names the parser class jsonb_contains rather than the operator written",
+        note="declared asymmetry: SQLite has no key-existence operator, so the question is asked with json_extract(...) IS NOT NULL or json_each",
         dialect="sqlite",
     ),
     AdmissionCase(
@@ -717,7 +717,7 @@ CASES: tuple[AdmissionCase, ...] = (
             "GROUP BY GROUPING SETS ((status_code), (span_kind), ()) LIMIT 20"
         ),
         expect=AdmissionOutcome.ADMIT,
-        note="SQLGlot cannot parse GROUPING SETS with LIMIT attached; peel the clause, parse, and put it back so the engine still sees the caller's limit",
+        note="GROUPING SETS with LIMIT attached parses as written and the engine sees the caller's limit",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -831,7 +831,7 @@ CASES: tuple[AdmissionCase, ...] = (
     AdmissionCase(
         sql="SELECT name, COUNT(*) FROM spans GROUP BY ROLLUP(name) LIMIT 5",
         expect=AdmissionOutcome.ADMIT,
-        note="GROUPING SETS LIMIT recovery must also match ROLLUP( without a space before the parenthesis",
+        note="ROLLUP( without a space before the parenthesis, followed by LIMIT, parses as written",
         dialect="postgresql",
     ),
     AdmissionCase(
@@ -872,8 +872,8 @@ CASES: tuple[AdmissionCase, ...] = (
     ),
     AdmissionCase(
         sql='SELECT CAST(65 AS "char")',
-        expect=AdmissionOutcome.UNSUPPORTED_SYNTAX,
-        note='parser folds quoted `"char"` to CHAR (bpchar); PostgreSQL\'s `"char"` is a 1-byte type',
+        expect=AdmissionOutcome.ADMIT,
+        note='quoted `"char"` is PostgreSQL\'s 1-byte type, distinct from CHAR (bpchar); the parser keeps the quotes',
         dialect="postgresql",
     ),
     AdmissionCase(
