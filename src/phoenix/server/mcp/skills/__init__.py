@@ -222,17 +222,12 @@ def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Ski
 
 
 def load_external_skills() -> tuple[Skill, ...]:
-    """Skills from ``PHOENIX_SKILLS_PATHS``, minus any that would clash.
-
-    A name already taken by a bundled Phoenix skill, or by an earlier external
-    skill, is logged and skipped rather than failing startup.
-    """
-    bundled = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
+    builtin_skills = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
     explicit = get_env_skills_visibility() == "explicit"
     skills: dict[str, Skill] = {}
     for root in get_env_skills_paths():
         for skill in _load_root(root, explicit=explicit):
-            if skill.name in bundled:
+            if skill.name in builtin_skills:
                 logger.error(
                     "Ignoring external skill %r at %s: the name is taken by a built-in skill",
                     skill.name,
