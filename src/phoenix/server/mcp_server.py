@@ -467,7 +467,7 @@ def build_phoenix_mcp_server(
     read_only: bool = False,
     db: "DbSessionFactory",
     skills_roots: Sequence[Path] = (),
-    additional_skills: Sequence[Skill] = (),
+    external_skills: Sequence[Skill] = (),
 ) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
     """Derive an MCP server from ``app``'s REST API.
 
@@ -488,7 +488,7 @@ def build_phoenix_mcp_server(
         skills_roots: Directories whose skill folders this consumer receives.
             Empty by default: no skill tools, and no skill instructions
             advertised.
-        additional_skills: Mounted skills shared with other consumers.
+        external_skills: Mounted skills shared with other consumers.
 
     Returns:
         The server, and — when code mode is enabled — the sandbox adapter backed
@@ -504,7 +504,7 @@ def build_phoenix_mcp_server(
         base_url=_INTERNAL_BASE_URL,
     )
     openapi_spec = app.openapi()
-    skills = merge_skills(load_skills(tuple(skills_roots)), additional_skills)
+    skills = merge_skills(load_skills(tuple(skills_roots)), external_skills)
     mcp: FastMCP = FastMCP.from_openapi(
         openapi_spec=openapi_spec,
         client=client,
@@ -570,7 +570,7 @@ def create_phoenix_mcp_app(
         code_mode=get_env_mcp_code_mode(),
         db=db,
         skills_roots=(SHARED_SKILLS_ROOT,),
-        additional_skills=(load_external_skills() if external_skills is None else external_skills),
+        external_skills=(load_external_skills() if external_skills is None else external_skills),
     )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".
