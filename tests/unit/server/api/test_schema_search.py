@@ -15,6 +15,7 @@ from phoenix.server.api.schema_search import (
     build_index,
     cached_index,
     lookup,
+    lookup_many,
     reach_paths,
     search,
     tokenize,
@@ -188,6 +189,21 @@ def test_field_lookup_prints_the_path_to_its_parent(index: Index) -> None:
     text = lookup(index, "Span.costSummary")
     assert "# via Query.getSpanByOtelId > Span.costSummary" in text
     assert "type Query" not in text
+
+
+def test_several_exact_names_are_each_looked_up(index: Index) -> None:
+    text = search(index, "TimeRange, TimeBinConfig TimeBinScale")
+    assert text == lookup_many(index, ["TimeRange", "TimeBinConfig", "TimeBinScale"])
+    blocks = text.split("\n\n")
+    assert [first_line(b) for b in blocks] == [
+        "input TimeRange {",
+        "input TimeBinConfig {",
+        "enum TimeBinScale {",
+    ]
+    # One unknown name makes it a free-text search again.
+    assert "in full:" in search(index, "TimeRange bogus")
+    assert lookup_many(index, ["Span", "NoSuch"]).endswith("named 'NoSuch'. Try search('NoSuch').")
+    assert len(lookup_many(index, ["Project", "Span"], budget=1000)) <= 1000 + 80
 
 
 def test_top_hit_follows_the_list_in_full(index: Index) -> None:
