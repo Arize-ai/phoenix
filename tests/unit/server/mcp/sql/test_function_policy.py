@@ -49,7 +49,7 @@ DIALECTS: list[SupportedSQLDialectName] = ["postgresql", "sqlite"]
 #
 # Both backends carry more than the 34-class portable set, because each spells
 # JSON access, date bucketing and percentiles in grammar the other cannot run:
-# 18 more on Postgres, 10 on SQLite.
+# 19 more on Postgres, 10 on SQLite.
 EXPECTED_ALLOWED_BY_DIALECT: dict[SupportedSQLDialectName, int] = {"postgresql": 53, "sqlite": 44}
 EXPECTED_EXCLUDED = 7
 
