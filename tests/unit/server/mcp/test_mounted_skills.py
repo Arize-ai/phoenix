@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import httpx2
@@ -27,7 +26,7 @@ def mounted_skills(
         (directory / "SKILL.md").write_text(
             f"---\nname: {name}\ndescription: Team instructions\n{metadata}---\nTeam workflow\n"
         )
-    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", json.dumps([str(tmp_path)]))
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
     monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", request.param)
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)

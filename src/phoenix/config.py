@@ -29,7 +29,7 @@ from ldap3.core.exceptions import LDAPInvalidDnError
 from ldap3.utils.dn import parse_dn
 from pydantic import SecretStr
 from starlette.datastructures import URL
-from typing_extensions import TypeAlias, get_args
+from typing_extensions import TypeAlias, TypeGuard, get_args
 
 from phoenix.utilities.logging import log_a_list
 
@@ -54,14 +54,14 @@ ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
 """
-JSON array of skill directories or directories containing skills, loaded at startup.
-For example: '["./.agents/skills", "/opt/skills/team-analysis"]'. Paths are on the
-Phoenix server, relative to its working directory. Unset means no external skills.
+Comma-separated skill directories or directories containing skills, loaded at startup.
+For example: "./.agents/skills,/opt/skills/team-analysis". Paths are on the Phoenix
+server, relative to its working directory. Unset means no external skills.
 """
 ENV_PHOENIX_SKILLS_VISIBILITY = "PHOENIX_SKILLS_VISIBILITY"
 """
-External skill visibility: all (default) ignores visibility metadata; explicit
-requires metadata.arize-phoenix-visibility: visible in SKILL.md frontmatter.
+External skill visibility: "all" (default) ignores visibility metadata; "explicit"
+requires metadata.arize-phoenix-visibility: visible in `SKILL.md` frontmatter.
 Missing metadata or hidden excludes a skill in explicit mode. Bundled skills
 are unaffected. Restart Phoenix after changing skills or configuration.
 """
@@ -3890,22 +3890,21 @@ def get_env_postgres_azure_scope() -> str:
 
 
 def get_env_skills_paths() -> tuple[Path, ...]:
-    value = getenv(ENV_PHOENIX_SKILLS_PATHS)
-    if value is None:
-        return ()
-    try:
-        paths = json.loads(value)
-    except ValueError as error:
-        raise ValueError(f"{ENV_PHOENIX_SKILLS_PATHS} must be a JSON array of paths") from error
-    if not isinstance(paths, list) or any(
-        not isinstance(path, str) or not path.strip() for path in paths
-    ):
-        raise ValueError(f"{ENV_PHOENIX_SKILLS_PATHS} must be a JSON array of non-empty paths")
-    return tuple(Path(path).expanduser().resolve() for path in paths)
+    value = getenv(ENV_PHOENIX_SKILLS_PATHS, "")
+    return tuple(
+        Path(path.strip()).expanduser().resolve() for path in value.split(",") if path.strip()
+    )
 
 
-def get_env_skills_visibility() -> Literal["all", "explicit"]:
+SkillsVisibility = Literal["all", "explicit"]
+
+
+def _is_skills_visibility(value: str) -> TypeGuard[SkillsVisibility]:
+    return value in get_args(SkillsVisibility)
+
+
+def get_env_skills_visibility() -> SkillsVisibility:
     value = getenv(ENV_PHOENIX_SKILLS_VISIBILITY, "all")
-    if value not in ("all", "explicit"):
+    if not _is_skills_visibility(value):
         raise ValueError(f"{ENV_PHOENIX_SKILLS_VISIBILITY} must be 'all' or 'explicit'")
-    return cast(Literal["all", "explicit"], value)
+    return value
