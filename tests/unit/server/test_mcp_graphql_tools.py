@@ -91,14 +91,31 @@ async def test_no_arguments_returns_the_query_root(graphql_mcp: FastMCP) -> None
 
 
 async def test_search_finds_a_field_by_free_text(graphql_mcp: FastMCP) -> None:
-    text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {"search_terms": "dataset"}))
+    text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {"search": "dataset"}))
     assert "datasets" in text
 
 
 async def test_exact_name_returns_the_whole_type(graphql_mcp: FastMCP) -> None:
-    text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {"search_terms": "Dataset"}))
+    text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {"names": ["Dataset"]}))
     assert "type Dataset" in text
     assert "name: String!" in text
+
+
+async def test_names_and_search_answer_in_one_call(graphql_mcp: FastMCP) -> None:
+    text = _text(
+        await graphql_mcp.call_tool(
+            "describeGraphqlSchema", {"names": ["Dataset", "Query.datasets"], "search": "name"}
+        )
+    )
+    blocks = text.split("\n\n")
+    assert blocks[0].startswith("# Phoenix GraphQL.")
+    assert blocks[1].startswith("type Dataset")
+    assert blocks[2].startswith("Query.datasets")
+    assert "  name: String!" in "\n\n".join(blocks[3:])
+    # An exact name given as free text is still a lookup, so the old habit works.
+    assert _text(
+        await graphql_mcp.call_tool("describeGraphqlSchema", {"search": "Dataset"})
+    ).startswith("# Phoenix GraphQL.")
 
 
 async def test_preamble_states_the_invariants_the_answers_do_not(graphql_mcp: FastMCP) -> None:
@@ -308,15 +325,11 @@ class TestRegistration:
     async def test_allow_mutations_lets_the_schema_tool_describe_them(self, app: Any) -> None:
         mcp = FastMCP("test")
         register_graphql_tools(mcp, app=app, allow_mutations=True)
-        text = _text(
-            await mcp.call_tool("describeGraphqlSchema", {"search_terms": "deleteDataset"})
-        )
+        text = _text(await mcp.call_tool("describeGraphqlSchema", {"names": ["deleteDataset"]}))
         assert "deleteDataset" in text
 
     async def test_mutations_are_hidden_from_the_schema_tool_by_default(self, app: Any) -> None:
         mcp = FastMCP("test")
         register_graphql_tools(mcp, app=app)
-        text = _text(
-            await mcp.call_tool("describeGraphqlSchema", {"search_terms": "deleteDataset"})
-        )
+        text = _text(await mcp.call_tool("describeGraphqlSchema", {"names": ["deleteDataset"]}))
         assert "Mutations are disabled" in text or "deleteDataset(" not in text
