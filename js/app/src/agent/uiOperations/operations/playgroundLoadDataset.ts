@@ -27,8 +27,7 @@ export const loadDatasetOperation = defineUIOperation({
   },
   defaultSuccessOutput: "Dataset loaded into the playground.",
   availability: {
-    routeHint:
-      "Prompt mode only (/playground?mode=prompts), not /playground?mode=evaluators",
+    routeHint: "/playground with prompt tasks",
   },
 });
 

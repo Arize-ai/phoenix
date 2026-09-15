@@ -8,7 +8,6 @@ import { datasetEvaluatorOperations } from "./operations/datasetEvaluators";
 import { datasetLabelOperations } from "./operations/datasetLabels";
 import { datasetSplitOperations } from "./operations/datasetSplits";
 import { datasetWriteOperations } from "./operations/datasetWrites";
-import { evaluatorPlaygroundOperations } from "./operations/evaluatorPlayground";
 import { experimentOperations } from "./operations/experiment";
 import { llmEvaluatorDraftOperations } from "./operations/llmEvaluatorDraft";
 import { navigationOperations } from "./operations/navigation";
@@ -37,7 +36,6 @@ const knownUIOperations: UIOperationDescriptor[] = [
   setTimeRangeOperation,
   ...spansFilterOperations,
   ...playgroundPromptOperations,
-  ...evaluatorPlaygroundOperations,
   ...playgroundPromptToolsOperations,
   ...playgroundSavePromptOperations,
   ...playgroundLoadDatasetOperations,

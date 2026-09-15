@@ -6,8 +6,7 @@ import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
 
 /** Route hint shared by every playground operation. */
-const PLAYGROUND_ROUTE_HINT =
-  "Prompt mode only (/playground?mode=prompts), not /playground?mode=evaluators";
+const PLAYGROUND_ROUTE_HINT = "/playground with prompt tasks";
 
 /**
  * Target for selecting a Phoenix built-in model provider.

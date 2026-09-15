@@ -36,8 +36,7 @@ export const savePromptOperation = defineUIOperation({
   },
   defaultSuccessOutput: "Prompt saved.",
   availability: {
-    routeHint:
-      "Prompt mode only (/playground?mode=prompts), not /playground?mode=evaluators",
+    routeHint: "/playground with prompt tasks",
   },
 });
 
