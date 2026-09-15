@@ -132,7 +132,7 @@ The accessor picks the level. The wrong level compiles and matches nothing.
 
 `trace_annotations[...]` matches every span of an annotated trace. Add `parent_id is None` to
 get one row per trace. Discover names with `Project.spanAnnotationNames` and
-`Project.traceAnnotationsNames`.
+`Project.traceAnnotationNames`.
 
 ### Spellings that compile and match nothing
 
