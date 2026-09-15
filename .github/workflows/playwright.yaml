@@ -53,6 +53,9 @@ jobs:
       # We're skipping WebKit because of recurring issues with caching,
       # despite always installing it on cache-hit.
       CI_PLAYWRIGHT_SKIP_WEBKIT: true
+      # Pushes and PRs run Chromium only; the nightly schedule and manual
+      # dispatch add Firefox.
+      CI_PLAYWRIGHT_SKIP_FIREFOX: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
     strategy:
       fail-fast: true
       matrix:
