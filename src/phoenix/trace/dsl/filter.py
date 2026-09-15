@@ -1348,6 +1348,10 @@ class SpanFilter:
         # table (an orphan), and it is the shape the existing root query uses to avoid
         # a measured PostgreSQL regression (see `query.py`). An `OR ... parent_id IS
         # NULL` form is intentionally NOT used here.
+        #
+        # The parent is matched within the span's own trace, so a `parent_id` answered
+        # only by a span in some *other* trace reads as an orphan rather than a child.
+        # See "Reserved -- parent_span" in `internal_docs/specs/span-filter-dsl.md`.
         parent_span = aliased(models.Span)
         # `Span` is named explicitly rather than left to auto-correlation, which omits
         # only a relation the immediately enclosing query selects from. This subquery
@@ -1359,7 +1363,10 @@ class SpanFilter:
         # the `is not None` form matched everything.
         parent_exists = (
             sqlalchemy.select(1)
-            .where(parent_span.span_id == models.Span.parent_id)
+            .where(
+                parent_span.span_id == models.Span.parent_id,
+                parent_span.trace_rowid == models.Span.trace_rowid,
+            )
             .correlate(models.Span)
             .exists()
         )
@@ -1461,32 +1468,62 @@ def root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
     condition decide? Callers layer their own question on top. A client asking
     "is this view root-scoped?" -- to choose between cumulative and per-span
     metric columns, say -- only needs to know whether the answer is ``None``. A
-    query builder that also has a `root_spans_only` flag compares the two and
-    can drop its flag when this scope is at least as narrow, which is worth
-    doing because applying both means paying for two correlated subqueries
-    (and, in the orphan-aware branch, a CTE over `spans`) that select what one
-    of them already selects.
+    query builder deciding whether a page of spans should be narrowed to one
+    root span per trace only needs the same yes/no. A caller that wants to
+    *replace* the condition with a root-span selection rather than layer one
+    onto it needs the stronger answer `sole_root_span_scope` gives.
     """
-    # Normalize exactly as `SpanFilter` does at construction, so the two entry
-    # points always analyze the same text. They diverged here once: a leading
-    # space parses as an `IndentationError`, so `" parent_id is None "`
-    # validated (stripped) while this function reported `None` (unstripped) --
-    # and the UI chose metric columns from the wrong verdict.
+    if (body := _analyzable_body(condition)) is None:
+        return None
+    return _scope_or_none(body)
+
+
+def sole_root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
+    """
+    The root-span restriction `condition` imposes when root-ness is the *only*
+    thing it restricts, or ``None`` otherwise.
+
+    `root_span_scope` answers "must every matching row be a root span?", which
+    ``parent_id is None and span_kind == 'LLM'`` satisfies while still
+    restricting further. A caller that means to stand a root-span selection in
+    for the condition -- rather than apply one alongside it -- needs to know
+    that nothing else would be lost, and that is what this adds: an answer only
+    for a condition that is a root predicate and nothing more.
+
+    Recognition is a bare predicate only, not the full boolean walk
+    `root_span_scope` does. Equivalent-but-wordier spellings
+    (``parent_id is None and True``) fall to ``None``, which is the safe
+    direction: the caller keeps applying the condition itself.
+    """
+    if (body := _analyzable_body(condition)) is None:
+        return None
+    return _root_predicate_scope(body)
+
+
+def _analyzable_body(condition: str) -> typing.Optional[ast.expr]:
+    """`condition` parsed for analysis, or ``None`` if there is nothing to read.
+
+    Shared by both analyses so they cannot disagree about what text they are
+    looking at. Normalization matches what `SpanFilter` does at construction,
+    for the same reason: the two entry points diverged here once -- a leading
+    space parses as an `IndentationError`, so `" parent_id is None "` validated
+    (stripped) while the analysis reported ``None`` (unstripped), and the UI
+    chose metric columns from the wrong verdict.
+    """
     if not (condition := condition.strip()):
         return None
     try:
-        body = ast.parse(condition, mode="eval").body
+        return ast.parse(condition, mode="eval").body
     except (SyntaxError, ValueError):
-        # `ValueError` is a NUL in the source. This entry point takes arbitrary
+        # `ValueError` is a NUL in the source. These entry points take arbitrary
         # strings from the API, so anything unparseable reads as "cannot tell".
         return None
     except RecursionError:
         # Deeply nested input, e.g. a long chain of `not`. Both the parser and
-        # the walk below recurse, and this entry point takes arbitrary strings
+        # the walks above recurse, and these entry points take arbitrary strings
         # straight from the API, so exhausting the stack has to read as "cannot
         # tell" rather than escaping to the caller.
         return None
-    return _scope_or_none(body)
 
 
 def _scope_or_none(body: ast.expr) -> typing.Optional[RootSpanScope]:

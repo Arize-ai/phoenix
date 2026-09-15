@@ -330,11 +330,16 @@ export function TracesTable(props: TracesTableProps) {
           ...ProjectAnnotationConfigsByNameFragment
           ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
+          # The literal is ORPHAN_AWARE_ROOT_SPANS_CONDITION, spelled out
+          # because Relay needs the query text to be static. Orphan-aware so a
+          # trace whose real root was never ingested still gets a row, and a
+          # root-scoped condition selects one span per trace -- which is what
+          # makes each row here a trace.
           rootSpans: spans(
             first: $first
             after: $after
             sort: $sort
-            rootSpansOnly: true
+            filterCondition: "parent_span is None"
             traceFilterCondition: $traceFilterCondition
             timeRange: $timeRange
           ) @connection(key: "TracesTable_rootSpans") {

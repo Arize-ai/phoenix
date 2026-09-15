@@ -40,10 +40,11 @@ export const setSpansFilterOperation = defineUIOperation({
     "\n\n" +
     "ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans " +
     "with no parent -- with the predicate `parent_id is None`; omit it to " +
-    "search every span. This is usually the top-level span of each trace, " +
-    "but nothing enforces one root per trace: a fragmented or partially " +
-    "ingested trace can have several, so do not treat the row count as a " +
-    "trace count. Do NOT restrict to root spans when narrowing to a " +
+    "search every span. A condition that is *only* that predicate returns " +
+    "one span per trace, so the row count is a trace count. Adding anything " +
+    "else to the condition makes it an ordinary filter over every root span, " +
+    "and a fragmented or partially ingested trace can contribute several. " +
+    "Do NOT restrict to root spans when narrowing to a " +
     "`span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, " +
     "EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost " +
     "always nested under a CHAIN/AGENT root, so combining them with a root " +

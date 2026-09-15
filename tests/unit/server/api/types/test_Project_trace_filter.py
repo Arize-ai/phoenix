@@ -128,8 +128,7 @@ async def test_project_trace_filter_keeps_one_representative_root_per_trace(
               ... on Project {
                 spans(
                   first: 100
-                  rootSpansOnly: true
-                  orphanSpanAsRootSpan: true
+                  filterCondition: "parent_span is None"
                   sort: {col: startTime, dir: desc}
                   traceFilterCondition: "num_spans > 0"
                 ) { edges { node { name } } }
@@ -175,8 +174,7 @@ async def test_project_trace_filter_uses_displayed_strict_root(
               ... on Project {
                 spans(
                   first: 100
-                  rootSpansOnly: true
-                  orphanSpanAsRootSpan: false
+                  filterCondition: "parent_id is None"
                   sort: {col: startTime, dir: desc}
                   traceFilterCondition: "input == 'strict'"
                 ) { edges { node { id } } }
@@ -223,9 +221,7 @@ async def test_project_spans_general_path_uses_displayed_strict_root(
               ... on Project {
                 spans(
                   first: 100
-                  rootSpansOnly: true
-                  orphanSpanAsRootSpan: false
-                  filterCondition: "name != ''"
+                  filterCondition: "name != '' and parent_id is None"
                   traceFilterCondition: "input == 'strict'"
                 ) { edges { node { id } } }
               }
@@ -270,9 +266,7 @@ async def test_project_spans_general_path_keeps_one_representative_root_per_trac
               ... on Project {
                 spans(
                   first: 100
-                  rootSpansOnly: true
-                  orphanSpanAsRootSpan: true
-                  filterCondition: "name != ''"
+                  filterCondition: "parent_span is None"
                   traceFilterCondition: "input == 'representative'"
                 ) { edges { node { id } } }
               }
@@ -308,9 +302,7 @@ async def test_project_spans_general_path_keeps_orphan_with_foreign_parent_id_co
               ... on Project {
                 spans(
                   first: 100
-                  rootSpansOnly: true
-                  orphanSpanAsRootSpan: true
-                  filterCondition: "name != ''"
+                  filterCondition: "name != '' and parent_span is None"
                   traceFilterCondition: "num_spans > 0"
                 ) { edges { node { id } } }
               }
@@ -355,7 +347,7 @@ async def test_project_trace_filter_preserves_trace_start_time_window(
               ... on Project {
                 spans(
                   first: 100
-                  rootSpansOnly: true
+                  filterCondition: "parent_span is None"
                   sort: {col: startTime, dir: desc}
                   timeRange: $timeRange
                   traceFilterCondition: "num_spans > 0"

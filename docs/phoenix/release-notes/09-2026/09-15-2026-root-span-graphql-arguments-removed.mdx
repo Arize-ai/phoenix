@@ -1,0 +1,75 @@
+---
+title: "09.15.2026: Root-Span GraphQL Arguments Removed"
+description: "The rootSpansOnly and orphanSpanAsRootSpan arguments are gone from the GraphQL spans connections; root-span scoping is expressed in the span filter DSL, which now looks for a parent within the trace."
+---
+
+Root-span scoping had two mechanisms. It now has one.
+
+# `rootSpansOnly` and `orphanSpanAsRootSpan` Removed from `spans`
+
+September 15, 2026
+
+**Breaking change in arize-phoenix 21.0.0**
+
+The `rootSpansOnly` and `orphanSpanAsRootSpan` arguments are removed from both GraphQL `spans`
+connections — `Project.spans` and `Trace.spans`. They are not deprecated; a query that still sends
+them fails validation. Root-span scoping belongs in `filterCondition`, where it composes with
+everything else in the query, as
+[the span filter DSL predicates](/docs/phoenix/release-notes/07-2026/07-28-2026-experiment-charts-span-downloads-and-root-span-filters)
+have done since arize-phoenix 19.7.0.
+
+| Before | After |
+|--------|-------|
+| `spans(rootSpansOnly: true)` | `spans(filterCondition: "parent_span is None")` |
+| `spans(rootSpansOnly: true, orphanSpanAsRootSpan: false)` | `spans(filterCondition: "parent_id is None")` |
+| `spans(rootSpansOnly: true, filterCondition: "status_code == 'ERROR'")` | `spans(filterCondition: "status_code == 'ERROR' and parent_span is None")` |
+
+- **`parent_span is None`** matches spans with no parent span present, so orphans count as roots —
+  what `orphanSpanAsRootSpan: true` (the old default) did.
+- **`parent_id is None`** matches only spans that carry no parent pointer at all — what
+  `orphanSpanAsRootSpan: false` did.
+
+On `Project.spans`, a condition that is *only* a root predicate returns **one span per trace**: the
+representative root the trace is displayed by, which is what the removed arguments selected. A
+fragmented trace with several parentless spans contributes one row, not several, and re-sorting
+that view reorders it rather than changing which spans it holds.
+
+Add anything else to the condition and it stays an ordinary filter: `parent_id is None and
+span_kind == 'LLM'` returns every root LLM span, not just the traces whose representative root
+happens to be an LLM. `Trace.spans` is span-grain throughout and returns every root span in the
+trace, as before.
+
+**If you already filtered with a root predicate and sent no flags** — which includes Phoenix's own
+spans table — a bare `parent_id is None` view changes from *every* strict root span, ordered by
+span start time, to *one* per trace, ordered by trace start time. The two differ only for traces
+with more than one parentless span. Keep the old behaviour by writing a condition that says
+something more, e.g. `parent_id is None and name != ''`.
+
+This only affects GraphQL. The REST span search keeps its `root_spans_only` and
+`orphan_span_as_root_span` query parameters, still deprecated in favor of the same predicates, and
+the Python client's `SpanQuery` is unchanged.
+
+# `parent_span` Resolves Within the Trace
+
+September 15, 2026
+
+**Available in arize-phoenix 21.0.0+**
+
+`parent_span is None` now looks for the parent among the spans of the *same* trace. A span whose
+`parent_id` is answered only by a span in some other trace names a parent that is not its own, so
+it is an orphan and the predicate matches it.
+
+Previously the lookup spanned the whole table, so such a span was treated as having a parent and
+dropped out of root-span views — which is where a broken trace tree most needs it, since that span
+may be the only one standing for its trace. The predicate now agrees with how Phoenix picks a
+trace's root span everywhere else. Span IDs are random 64-bit values, so this changes results only
+for instrumentation that reuses a span ID across traces.
+
+The change applies anywhere a span filter condition is accepted, including the filter bar on the
+spans and traces tables, the REST span search, and both client SDKs.
+
+<CardGroup cols={2}>
+  <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    The span filter grammar, including the root-span predicates
+  </Card>
+</CardGroup>

@@ -199,6 +199,13 @@ compatibility surface, not an implementation detail.
 supported. A span attribute literally named `parent_span` is still reachable as
 `attributes['parent_span']`.
 
+The parent is looked for **within the span's own trace**, since a parent span is
+in the same trace by definition. A `parent_id` answered only by a span in some
+other trace names a parent that is not this span's, so the span is an orphan and
+`parent_span is None` matches it. This is observable meaning, and it is the same
+pairing `representative_root_span_by_trace` uses, so one root-span rule serves
+the filter and the trace's displayed root alike.
+
 **Cost** — bare names reading this span's own cost row (`span_costs`, joined on
 demand — see [Cost names](#cost-names)):
 
@@ -661,7 +668,7 @@ matching row is guaranteed to be a root span. It answers one of:
 | Verdict | Meaning |
 |---|---|
 | `"strict"` | only spans with no parent pointer (`parent_id is None`) |
-| `"orphan_aware"` | no parent pointer, **or** a pointer to a span absent from the table |
+| `"orphan_aware"` | no parent pointer, **or** a pointer no span *in the same trace* answers |
 | `None` | cannot tell |
 
 `strict` is a subset of `orphan_aware`. The analysis is **sound, not complete**:
@@ -669,8 +676,30 @@ matching row is guaranteed to be a root span. It answers one of:
 that admits non-root spans yields `None`.
 
 Two consumers depend on it: the UI, to choose between cumulative and per-span
-metric columns; and the query builder, to drop a redundant `root_spans_only`
-flag rather than pay for two correlated subqueries.
+metric columns; and `Project.spans`, to settle which notion of root-ness
+`root_span.*` resolves through in an accompanying trace filter, so the span and
+trace grains cannot disagree about which span represents a trace. (That coupling
+costs some expressiveness: a strict span condition can no longer be paired with
+an orphan-aware `root_span.*` trace condition.)
+
+`sole_root_span_scope(condition)` answers the narrower question: the same
+verdict, but only when the condition is a **bare** root predicate and so
+restricts nothing else. Recognition is the bare predicate only, not the boolean
+walk — `parent_id is None and True` yields `None`, which is safe because the
+caller then applies the condition itself.
+
+That narrower answer is what decides the *shape* of a `Project.spans` query:
+
+- **Bare root predicate** — the page is the traces' representative root spans,
+  one row per trace (`representative_root_span_by_trace`). The condition is not
+  applied on top; the selection already implies it. Sorted by start time this is
+  served by the by-trace page, which bounds and orders by `traces.start_time`
+  with trace-rowid cursors rather than by `spans.start_time`; the row set is the
+  same either way, but the ordering and the time-window edge are not.
+- **Anything else** — an ordinary span filter over every matching row, root or
+  not. A root-scoped compound condition therefore returns all root spans that
+  match, not just the representative ones: a span the caller asked for must not
+  vanish because a sibling won the representative ranking.
 
 Because it is derived from the condition text, **a stored condition's scope
 verdict is part of its observable meaning.** Changing the analysis changes how

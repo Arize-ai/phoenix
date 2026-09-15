@@ -90,7 +90,7 @@ from phoenix.server.trace_filters import (
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
-from phoenix.trace.dsl.filter import root_span_scope
+from phoenix.trace.dsl.filter import root_span_scope, sole_root_span_scope
 
 logger = logging.getLogger(__name__)
 
@@ -602,7 +602,15 @@ class Project(Node):
                 return None
         return Trace(id=trace.id, db_record=trace)
 
-    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
+    @strawberry.field(
+        extensions=[RequireForwardPaginationExtension()],
+        description="Spans in the project. Root-span scoping lives in filterCondition: "
+        "`parent_span is None` counts a span whose parent was never ingested as a root, "
+        "`parent_id is None` matches only spans carrying no parent pointer. A condition "
+        "that is *only* such a predicate returns one span per trace -- the root that "
+        "trace is displayed by -- so the row count is a trace count; conjoin anything "
+        "else and it becomes an ordinary filter over every matching root span.",
+    )  # type: ignore[untyped-decorator]
     async def spans(
         self,
         info: Info[Context, None],
@@ -612,12 +620,42 @@ class Project(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         sort: Optional[SpanSort] = UNSET,
-        root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
-        orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
-        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
+        # Root-span scoping is expressed in `filter_condition` itself --
+        # `parent_id is None` for strict roots, `parent_span is None` to count
+        # orphans as roots -- so the shape of the query is read off the
+        # condition rather than taken from a separate flag. Two questions are
+        # asked of it, and they are not the same question:
+        #
+        #  - *which* notion of root-ness it names, which settles what
+        #    `root_span.*` resolves through in an accompanying trace filter, and
+        #  - whether root-ness is *all* it says, which settles the query's
+        #    shape: a condition that asks for nothing else is served by the
+        #    trace's representative root span, one row per trace.
+        #
+        # Anything else in the condition keeps it an ordinary span filter, so
+        # `parent_id is None and span_kind == 'LLM'` returns every root LLM span
+        # rather than only the traces whose representative root is an LLM.
+        root_scope = root_span_scope(filter_condition or "")
+        # Orphan-aware unless the condition names the strict form.
+        orphan_span_as_root_span = root_scope != "strict"
+        # Guarded on `root_scope`, which a sole scope implies, so an ordinary
+        # filter is not parsed a second time to be told it says nothing about
+        # root-ness.
+        selects_only_root_spans = (
+            root_scope is not None and sole_root_span_scope(filter_condition or "") is not None
+        )
+        # Built before either branch, because constructing it is what validates
+        # the condition, and a root-span page is served without applying it.
+        # Deferring would let a condition `validateSpanFilterCondition` rejects
+        # -- a full-width `ｐarent_id`, say, which the AST walks above normalize
+        # and the filter does not -- quietly return rows instead of erroring.
+        span_filter = SpanFilter(condition=filter_condition) if filter_condition else None
+        if selects_only_root_spans and sort and sort.col is SpanColumn.startTime:
+            # The by-trace page cannot apply a residual predicate, so only a
+            # condition with none to apply can be served from it.
             return await _paginate_span_by_trace_start_time(
                 db=info.context.db,
                 project_rowid=self.id,
@@ -646,20 +684,26 @@ class Project(Node):
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
                 lowering="probe",
-                orphan_span_as_root_span=bool(orphan_span_as_root_span),
+                orphan_span_as_root_span=orphan_span_as_root_span,
             )
             stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
-        if root_spans_only:
+        if selects_only_root_spans:
+            # One row per trace, matching the by-trace page above so that
+            # re-sorting reorders this view rather than changing which spans it
+            # holds. A fragmented trace can hold several parentless spans; this
+            # picks the one the trace is displayed by. The condition itself is
+            # not applied on top -- the selection already implies it, and
+            # applying it anyway would pay for a second correlated subquery
+            # selecting the same rows.
             representative_root_spans = representative_root_span_by_trace(
                 project_rowids=[self.id],
-                orphan_span_as_root_span=bool(orphan_span_as_root_span),
+                orphan_span_as_root_span=orphan_span_as_root_span,
             ).subquery()
             stmt = stmt.join(
                 representative_root_spans,
                 models.Span.id == representative_root_spans.c[TRACE_SPAN_ROWID],
             )
-        if filter_condition:
-            span_filter = SpanFilter(condition=filter_condition)
+        elif span_filter:
             stmt = span_filter(stmt)
         sort_config: Optional[SpanSortConfig] = None
         cursor_rowid_column: Any = models.Span.id
@@ -2870,7 +2914,7 @@ async def _paginate_span_by_trace_start_time(
     time_range: Optional[TimeRange] = None,
     after: Optional[CursorString] = None,
     sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
-    orphan_span_as_root_span: Optional[bool] = True,
+    orphan_span_as_root_span: bool = True,
     trace_filter_condition: Optional[str] = None,
     retries: int = 3,
 ) -> Connection[Span]:
@@ -2939,7 +2983,7 @@ async def _paginate_span_by_trace_start_time(
             start_time=time_range.start if time_range else None,
             end_time=time_range.end if time_range else None,
             lowering="probe",
-            orphan_span_as_root_span=bool(orphan_span_as_root_span),
+            orphan_span_as_root_span=orphan_span_as_root_span,
         )
 
     # Apply cursor pagination
@@ -2962,7 +3006,7 @@ async def _paginate_span_by_trace_start_time(
 
     representative_root_spans = representative_root_span_by_trace(
         keys=select(traces_cte.c.id),
-        orphan_span_as_root_span=bool(orphan_span_as_root_span),
+        orphan_span_as_root_span=orphan_span_as_root_span,
     ).subquery()
     stmt = select(
         traces_cte.c.id,

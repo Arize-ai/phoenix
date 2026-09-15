@@ -845,6 +845,7 @@
 - [08.17.2026: Trace Filter Expressions and Analytics SQL](https://arize.com/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql): Filter the traces table with a full expression language and query Phoenix with read-only SQL over MCP
 - [08.25.2026: Smarter PXI Workflows and Retrieval Evaluation](https://arize.com/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance): Run approval-gated multi-step PXI workflows across the UI and score retrievals from any source
 - [09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates): File GitHub issues from PXI, screen conversations for PII, and create prompt versions over REST
+- [09.15.2026: Root-Span GraphQL Arguments Removed](https://arize.com/docs/phoenix/release-notes/09-2026/09-15-2026-root-span-graphql-arguments-removed): Scope GraphQL spans connections to root spans with parent_span is None instead of the removed rootSpansOnly and orphanSpanAsRootSpan arguments
 
 ### 2025
 

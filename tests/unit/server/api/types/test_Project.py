@@ -1310,7 +1310,6 @@ async def test_project_spans(
               filterCondition: $filterCondition
               first: $first
               last: $last
-              rootSpansOnly: false
               sort: $sort
             ) {
               edges {
@@ -2054,6 +2053,40 @@ def _representative_root_spans(
         if candidates:
             representatives.append(min(candidates, key=lambda span: (span.start_time, -span.id)))
     return representatives
+
+
+def _root_span_gids(data: _Data, orphan_span_as_root_span: bool) -> set[str]:
+    """The global IDs a bare root predicate should select: one span per trace."""
+    return {_gid(span) for span in _representative_root_spans(data.spans, orphan_span_as_root_span)}
+
+
+def _all_root_span_gids(data: _Data, orphan_span_as_root_span: bool) -> set[str]:
+    """The global IDs every root-span *predicate* matches, representative or not.
+
+    What a condition that says more than root-ness selects from, since such a
+    condition stays an ordinary filter rather than collapsing to one row per
+    trace.
+    """
+    span_ids_by_trace: dict[int, set[str]] = {}
+    for span in data.spans:
+        span_ids_by_trace.setdefault(span.trace_rowid, set()).add(span.span_id)
+    return {
+        _gid(span)
+        for span in data.spans
+        if span.parent_id is None
+        or (
+            orphan_span_as_root_span
+            and span.parent_id not in span_ids_by_trace[span.trace_rowid]
+        )
+    }
+
+
+# The root-span predicates and the orphan-awareness each one asks for. Shared so the
+# tests below cannot disagree about which predicate means which scope.
+_ROOT_CONDITIONS = [
+    pytest.param("parent_span is None", True, id="orphan-aware"),
+    pytest.param("parent_id is None", False, id="strict"),
+]
 
 
 # The `_data` fixture's sessions 1 and 3 are the two whose root-span input/output carry this
@@ -2950,191 +2983,208 @@ class TestProject:
         assert await _matched("'%' in any_input") == {_gid(sessions[2])}
         assert await _matched("'_' in any_output") == {_gid(sessions[3])}
 
-    @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
-    async def test_root_spans_only_with_orphan_spans(
-        self,
-        _orphan_spans: _Data,
-        httpx_client: httpx.AsyncClient,
-        orphan_span_as_root_span: bool,
-    ) -> None:
-        """Test pagination of root spans with orphan span handling.
-
-        This test verifies that:
-        1. Root spans are correctly identified based on orphan_span_as_root_span setting
-        2. Pagination works correctly when fetching spans in chunks
-        3. Spans are properly filtered and sorted
-        """
-        project = _orphan_spans.projects[0]
-
-        root_spans = _representative_root_spans(
-            _orphan_spans.spans,
-            orphan_span_as_root_span,
-        )
-        filtered_spans = [span for span in root_spans if "2" in span.attributes["input"]["value"]]
-
-        # Sort spans by start time and ID
-        sorted_spans = sorted(filtered_spans, key=lambda t: (t.start_time, t.id), reverse=True)
-
-        # Convert to global IDs for comparison
-        gids = list(map(_gid, sorted_spans))
-        n = len(gids)
-        first = n // 2 + 1  # Request half the spans plus one
-
-        # Test pagination
-        cursor = ""
-        for i in range(n):
-            expected = gids[i : i + first]
-
-            # Construct GraphQL query
-            field = (
-                "spans("
-                f"rootSpansOnly:true,"
-                f"orphanSpanAsRootSpan:{str(orphan_span_as_root_span).lower()},"
-                "sort:{col:startTime,dir:desc},"
-                "filterCondition:\"'2' in input.value\","
-                f"first:{str(first)},"
-                f'after:"{cursor}"'
-                "){edges{node{id}cursor}}"
-            )
-
-            # Execute query and verify results
-            res = await self._node(field, project, httpx_client)
-            assert [e["node"]["id"] for e in res["edges"]] == expected
-            cursor = res["edges"][0]["cursor"]
-
-    async def test_parent_is_none_matches_orphan_aware_root_spans_only(
-        self,
-        _orphan_spans: _Data,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        """The DSL predicate selects every orphan-aware root candidate, while
-        ``rootSpansOnly`` selects one representative candidate per trace.
-        """
-        project = _orphan_spans.projects[0]
-
-        # Orphan-aware roots computed directly from the fixture: a NULL parent, or a
-        # parent_id that references no span in the table.
-        existing_span_ids = {s.span_id for s in _orphan_spans.spans}
-        expected = {
-            _gid(s)
-            for s in _orphan_spans.spans
-            if s.parent_id is None or s.parent_id not in existing_span_ids
-        }
-        # The fixture must exercise both kinds of root, or the test proves nothing.
-        assert any(s.parent_id is None for s in _orphan_spans.spans)
-        assert any(
-            s.parent_id is not None and s.parent_id not in existing_span_ids
-            for s in _orphan_spans.spans
-        )
-
-        dsl_res = await self._node(
-            'spans(filterCondition:"parent_span is None",first:100){edges{node{id}}}',
-            project,
-            httpx_client,
-        )
-        flag_res = await self._node(
-            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
-            project,
-            httpx_client,
-        )
-        dsl_ids = {e["node"]["id"] for e in dsl_res["edges"]}
-        flag_ids = {e["node"]["id"] for e in flag_res["edges"]}
-        assert dsl_ids == expected
-        assert flag_ids == {
-            _gid(span) for span in _representative_root_spans(_orphan_spans.spans, True)
-        }
-        assert flag_ids <= dsl_ids
-
-    @pytest.mark.parametrize(
-        "condition,orphan_span_as_root_span",
-        [
-            pytest.param("parent_span is None", True, id="orphan-aware-both"),
-            pytest.param("parent_id is None", True, id="strict-condition-orphan-aware-flag"),
-            pytest.param("parent_id is None", False, id="strict-both"),
-            pytest.param("parent_span is None", False, id="orphan-aware-condition-strict-flag"),
-            # Disjunction where every branch is strict-scoped: the flag skip now
-            # fires off an `or`, so the rows must still match the flag alone.
-            pytest.param(
-                "(parent_id is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                True,
-                id="disjunction-all-strict-orphan-flag",
-            ),
-            pytest.param(
-                "(parent_id is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                False,
-                id="disjunction-all-strict-strict-flag",
-            ),
-            # Negated root predicate: `not (parent_id is not None)` is strict-scoped,
-            # so the skip fires off a `not` and must not change the result.
-            pytest.param(
-                "not (parent_id is not None) and '1' in input.value",
-                True,
-                id="negated-predicate-strict-orphan-flag",
-            ),
-            pytest.param(
-                "not (parent_id is not None) and '1' in input.value",
-                False,
-                id="negated-predicate-strict-strict-flag",
-            ),
-            # A form the analyzer does *not* recognize (De Morgan over a compound):
-            # it under-claims, so the flag's scoping is applied as well. Pinned
-            # because an under-claim must stay harmless -- redundant SQL, same rows.
-            pytest.param(
-                "not (parent_id is not None or '9' in input.value)",
-                True,
-                id="unrecognized-form-flag-still-applied",
-            ),
-            # Disjunction whose branches mix strict and orphan-aware: scoped to
-            # orphan-aware (the wider), so it may skip the orphan-aware flag but
-            # not the strict one.
-            pytest.param(
-                "(parent_span is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                True,
-                id="disjunction-mixed-orphan-flag",
-            ),
-            pytest.param(
-                "(parent_span is None and '1' in input.value)"
-                " or (parent_id is None and '3' in input.value)",
-                False,
-                id="disjunction-mixed-strict-flag",
-            ),
-        ],
-    )
-    async def test_root_predicate_and_flag_together_match_the_flag_alone(
+    @pytest.mark.parametrize("condition,orphan_span_as_root_span", _ROOT_CONDITIONS)
+    async def test_root_span_condition_paginates_one_span_per_trace(
         self,
         _orphan_spans: _Data,
         httpx_client: httpx.AsyncClient,
         condition: str,
         orphan_span_as_root_span: bool,
     ) -> None:
-        """Combining `rootSpansOnly` with a root predicate intersects both scopes.
+        """A bare root predicate walks the traces, one representative span each.
 
-        `rootSpansOnly` chooses a single representative per trace; an explicit
-        predicate can then remove that representative without promoting another
-        candidate from the same trace.
+        Sorted by start time it is served by the by-trace page, whose cursors
+        track trace positions rather than span rowids, so paging a span at a
+        time is what exercises that.
         """
         project = _orphan_spans.projects[0]
-        orphan_arg = str(orphan_span_as_root_span).lower()
+        expected = [
+            _gid(span)
+            for span in sorted(
+                _representative_root_spans(_orphan_spans.spans, orphan_span_as_root_span),
+                key=lambda span: (span.start_time, span.id),
+                reverse=True,
+            )
+        ]
+        # More than one trace, or paging a span at a time proves nothing.
+        assert len(expected) > 1
+
+        collected: list[str] = []
+        cursor = ""
+        for _ in range(len(expected) + 2):
+            page = await self._node(
+                f'spans(filterCondition:"{condition}",'
+                "sort:{col:startTime,dir:desc},"
+                f'first:1,after:"{cursor}")'
+                "{edges{node{id}}pageInfo{hasNextPage endCursor}}",
+                project,
+                httpx_client,
+            )
+            collected.extend(edge["node"]["id"] for edge in page["edges"])
+            if not page["pageInfo"]["hasNextPage"]:
+                break
+            cursor = page["pageInfo"]["endCursor"]
+        else:
+            pytest.fail("pagination did not terminate")
+        assert collected == expected
+
+    @pytest.mark.parametrize(
+        "sort_arg",
+        [
+            pytest.param("", id="general-path"),
+            pytest.param("sort:{col:startTime,dir:desc},", id="by-trace-page"),
+        ],
+    )
+    async def test_root_span_condition_is_still_validated(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        sort_arg: str,
+    ) -> None:
+        """A root-scoped page is served without applying the condition, but the
+        condition still has to be one Phoenix accepts.
+
+        `ast.parse` NFKC-normalizes identifiers, so the root-span analysis reads
+        a full-width ``ｐarent_id`` as ``parent_id`` while the filter rejects it.
+        Were the filter built only when it is applied, that condition would
+        quietly return rows from a field that is supposed to reject it.
+        """
+        project = _orphan_spans.projects[0]
+        gid = str(GlobalID(Project.__name__, str(project.id)))
+        query = (
+            "query($id:ID!){node(id:$id){... on Project{"
+            f'spans({sort_arg}filterCondition:"ｐarent_id is None",first:100)'
+            "{edges{node{id}}}}}}"
+        )
+        response = await httpx_client.post(
+            "/graphql", json={"query": query, "variables": {"id": gid}}
+        )
+        assert response.status_code == 200
+        assert response.json().get("errors")
+
+    @pytest.mark.parametrize("condition,orphan_span_as_root_span", _ROOT_CONDITIONS)
+    async def test_root_span_condition_selects_representative_root_spans(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        condition: str,
+        orphan_span_as_root_span: bool,
+    ) -> None:
+        """A root predicate stands for the trace's displayed root span.
+
+        A fragmented trace holds several spans with no parent present, and the
+        connection returns the one the trace is displayed by rather than all of
+        them -- the scoping the removed ``rootSpansOnly`` argument used to do.
+        """
+        project = _orphan_spans.projects[0]
+
+        # The fixture must exercise both kinds of root, or the test proves nothing.
+        existing_span_ids = {span.span_id for span in _orphan_spans.spans}
+        assert any(span.parent_id is None for span in _orphan_spans.spans)
+        assert any(
+            span.parent_id is not None and span.parent_id not in existing_span_ids
+            for span in _orphan_spans.spans
+        )
+
+        result = await self._node(
+            f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}',
+            project,
+            httpx_client,
+        )
+        assert {edge["node"]["id"] for edge in result["edges"]} == _root_span_gids(
+            _orphan_spans, orphan_span_as_root_span
+        )
+
+    @pytest.mark.parametrize(
+        "condition,orphan_span_as_root_span",
+        [
+            # Only conditions that say more than root-ness; the bare predicates are
+            # pinned to an exact row set by the two tests above, on both paths.
+            #
+            # Disjunction where every branch is strict-scoped: the analyzer reads
+            # the scope off an `or`, so the rows must still be root spans.
+            pytest.param(
+                "(parent_id is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                False,
+                id="disjunction-all-strict",
+            ),
+            # Negated root predicate: `not (parent_id is not None)` is strict-scoped,
+            # so the scope is read off a `not`.
+            pytest.param(
+                "not (parent_id is not None) and '1' in input.value",
+                False,
+                id="negated-predicate-strict",
+            ),
+            # Disjunction whose branches mix strict and orphan-aware: scoped to
+            # orphan-aware, the wider of the two.
+            pytest.param(
+                "(parent_span is None and '1' in input.value)"
+                " or (parent_id is None and '3' in input.value)",
+                True,
+                id="disjunction-mixed",
+            ),
+        ],
+    )
+    async def test_condition_saying_more_than_root_ness_stays_a_filter(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        condition: str,
+        orphan_span_as_root_span: bool,
+    ) -> None:
+        """A condition that says more than root-ness filters rather than collapses.
+
+        Every row still has to be a root span, but the rows are drawn from *all*
+        of them, not just the one each trace is displayed by -- a span the user
+        asked for must not disappear because a sibling won the representative
+        ranking. The sort orders the result rather than changing it.
+        """
+        project = _orphan_spans.projects[0]
+        all_roots = _all_root_span_gids(_orphan_spans, orphan_span_as_root_span)
+        # The fixture has to hold roots beyond the representatives, or "drawn
+        # from all of them" is indistinguishable from the collapsed answer.
+        assert all_roots > _root_span_gids(_orphan_spans, orphan_span_as_root_span)
 
         async def span_ids(field: str) -> set[str]:
             result = await self._node(field, project, httpx_client)
-            return {e["node"]["id"] for e in result["edges"]}
+            return {edge["node"]["id"] for edge in result["edges"]}
 
-        both = await span_ids(
-            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
-            f'filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
-        )
-        flag_only = await span_ids(
-            f"spans(rootSpansOnly:true,orphanSpanAsRootSpan:{orphan_arg},"
-            "first:100){edges{node{id}}}"
-        )
-        condition_only = await span_ids(
+        unsorted_ids = await span_ids(
             f'spans(filterCondition:"{condition}",first:100){{edges{{node{{id}}}}}}'
         )
-        assert both == flag_only & condition_only
+        sorted_ids = await span_ids(
+            f'spans(filterCondition:"{condition}",'
+            "sort:{col:startTime,dir:desc},"
+            "first:100){edges{node{id}}}"
+        )
+        assert unsorted_ids
+        assert unsorted_ids <= all_roots
+        assert sorted_ids == unsorted_ids
+
+    async def test_unscoped_condition_is_not_narrowed_to_root_spans(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """The root-span narrowing is the condition's doing, not the field's.
+
+        A condition that says nothing about root-ness returns every span it
+        matches, children included.
+        """
+        project = _orphan_spans.projects[0]
+        expected = {
+            _gid(span) for span in _orphan_spans.spans if "2" in span.attributes["input"]["value"]
+        }
+        # The condition has to reach past the roots, or the test proves nothing.
+        assert expected - _root_span_gids(_orphan_spans, True)
+
+        result = await self._node(
+            "spans(filterCondition:\"'2' in input.value\",first:100){edges{node{id}}}",
+            project,
+            httpx_client,
+        )
+        assert {edge["node"]["id"] for edge in result["edges"]} == expected
 
     async def test_analyze_span_filter_condition_tracks_actual_query_scope(
         self,
@@ -3148,7 +3198,9 @@ class TestProject:
         condition.
         """
         project = _orphan_spans.projects[0]
-        user_condition = "'2' in input.value"
+        # A predicate every span satisfies, so the narrowing below is the root
+        # predicate's doing and nothing else's.
+        user_condition = "span_kind == 'CHAIN'"
         root_scoped = f"parent_span is None and {user_condition}"
 
         async def analyze(condition: str) -> bool:
@@ -3175,21 +3227,10 @@ class TestProject:
         # The verdict is only meaningful if the predicate actually narrowed the
         # result; a silently dropped predicate would make these equal.
         assert scoped_ids < unscoped_ids
-        # The boolean arguments additionally choose one representative per trace,
-        # so applying the filter to that view is the intersection of both scopes.
-        flag_only_res = await self._node(
-            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,first:100){edges{node{id}}}",
-            project,
-            httpx_client,
-        )
-        flag_res = await self._node(
-            "spans(rootSpansOnly:true,orphanSpanAsRootSpan:true,"
-            f'filterCondition:"{user_condition}",first:100){{edges{{node{{id}}}}}}',
-            project,
-            httpx_client,
-        )
-        flag_only_ids = {e["node"]["id"] for e in flag_only_res["edges"]}
-        assert {e["node"]["id"] for e in flag_res["edges"]} == scoped_ids & flag_only_ids
+        # A root-scoped verdict means every row is a root span. The condition
+        # says more than root-ness, so it filters rather than collapsing to the
+        # traces' displayed roots.
+        assert scoped_ids == _all_root_span_gids(_orphan_spans, True)
 
     @pytest.fixture
     async def _time_series_data(
@@ -4990,15 +5031,15 @@ async def test_paginate_spans_by_trace_start_time(
     """Test the _paginate_span_by_trace_start_time optimization function.
 
     This function is triggered when:
-    - rootSpansOnly: true
-    - No filter_condition
+    - filter_condition is a bare root predicate (`parent_id is None` /
+      `parent_span is None`), so there is no residual predicate to apply
     - sort.col is SpanColumn.startTime
 
     Key behaviors tested:
     - Returns one representative span per trace (not all spans)
     - Orders by trace start time (not span start time)
     - Uses cursors based on trace rowids + start times (unusual!)
-    - Handles orphan spans based on orphan_span_as_root_span parameter
+    - Counts orphan spans as roots for `parent_span is None` but not `parent_id is None`
     - Supports time range filtering on trace start times
     - May return empty edges while has_next_page=True when traces have no matching spans
     - **RETRY LOGIC**: When insufficient edges are found (len(edges) < first) but has_next_page=True,
@@ -5035,8 +5076,8 @@ async def test_paginate_spans_by_trace_start_time(
     - Trace 5: 2 root spans → Returns earliest (root-span-5, not second-root-span-5)
     - Comprehensive test of SQL ordering: ORDER BY span.start_time ASC, span.id DESC
 
-    With orphan_span_as_root_span=false: Only returns real root spans 1, 3, 5 (3 total)
-    With orphan_span_as_root_span=true:  Returns all spans 1, 2, 3, 4, 5 (5 total)
+    With `parent_id is None`:   Only returns real root spans 1, 3, 5 (3 total)
+    With `parent_span is None`: Returns all spans 1, 2, 3, 4, 5 (5 total)
     """
     # ========================================
     # SETUP: Create test data
@@ -5176,8 +5217,7 @@ async def test_paginate_spans_by_trace_start_time(
             node(id: $projectId) {
                 ... on Project {
                     spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: false,  # ← Exclude orphan spans
+                        filterCondition: "parent_id is None",  # ← Exclude orphan spans
                         sort: {col: startTime, dir: desc},
                         first: $first,
                         after: $after
@@ -5203,7 +5243,7 @@ async def test_paginate_spans_by_trace_start_time(
 
     # Page 1: Request first 2 spans in descending order (by trace start time)
     # Expected: Only root-span-5 (trace 5 is latest, and only that trace has a real root span)
-    # Note: trace 4 has an orphan span, but it's excluded by orphanSpanAsRootSpan=false
+    # Note: trace 4 has an orphan span, but it's excluded by `parent_id is None`
     response = await gql_client.execute(
         query=query,
         variables={
@@ -5367,8 +5407,7 @@ async def test_paginate_spans_by_trace_start_time(
             node(id: $projectId) {
                 ... on Project {
                     spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: false,  # ← Exclude orphan spans
+                        filterCondition: "parent_id is None",  # ← Exclude orphan spans
                         sort: {col: startTime, dir: desc},
                         first: $first,
                         timeRange: $timeRange
@@ -5407,14 +5446,14 @@ async def test_paginate_spans_by_trace_start_time(
     edges = filtered_spans["edges"]
 
     # Time range includes traces 2, 3, 4:
-    # - Trace 2 (hour 2): has orphan span → excluded by orphanSpanAsRootSpan=false
+    # - Trace 2 (hour 2): has orphan span → excluded by `parent_id is None`
     # - Trace 3 (hour 3): has real root span → included
-    # - Trace 4 (hour 4): has orphan span → excluded by orphanSpanAsRootSpan=false
+    # - Trace 4 (hour 4): has orphan span → excluded by `parent_id is None`
     assert len(edges) == 1
     assert edges[0]["node"]["name"] == "root-span-3"
 
     # ========================================
-    # TEST 5: Include orphan spans (orphanSpanAsRootSpan=true)
+    # TEST 5: Include orphan spans (`parent_span is None`)
     # Expected: All 5 spans returned (3 real roots + 2 orphans)
     # ========================================
     orphan_query = """
@@ -5422,8 +5461,7 @@ async def test_paginate_spans_by_trace_start_time(
             node(id: $projectId) {
                 ... on Project {
                     spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: true,
+                        filterCondition: "parent_span is None",
                         sort: {col: startTime, dir: desc},
                         first: $first,
                         after: $after
@@ -5533,8 +5571,7 @@ async def test_paginate_spans_by_trace_start_time(
             node(id: $projectId) {
                 ... on Project {
                     spans(
-                        rootSpansOnly: true,
-                        orphanSpanAsRootSpan: true,
+                        filterCondition: "parent_span is None",
                         sort: {col: startTime, dir: desc},
                         first: $first,
                         timeRange: $timeRange

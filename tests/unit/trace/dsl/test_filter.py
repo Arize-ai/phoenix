@@ -22,7 +22,9 @@ from phoenix.trace.dsl.filter import (
     _apply_eval_aliasing,
     _get_attribute_keys_list,
     root_span_scope,
+    sole_root_span_scope,
 )
+from tests.unit._helpers import _add_project, _add_span, _add_trace
 
 
 @pytest.mark.parametrize(
@@ -1325,6 +1327,29 @@ async def test_parent_root_predicate_selects_expected_spans(
     assert span_ids == expected
 
 
+async def test_parent_root_predicate_looks_for_the_parent_within_the_trace(
+    db: DbSessionFactory,
+) -> None:
+    """A parent span is in the same trace by definition.
+
+    A `parent_id` answered only by a span in some *other* trace names a parent
+    that is not this span's, so the span is an orphan and `parent_span is None`
+    has to match it. Matching globally instead would hide it, and hide it
+    exactly where a broken tree makes it the only span standing for its trace.
+    """
+    async with db() as session:
+        project = await _add_project(session)
+        home = await _add_span(session, await _add_trace(session, project))
+        elsewhere = await _add_span(session, await _add_trace(session, project))
+        # `elsewhere` carries a parent_id that exists -- but in the other trace.
+        elsewhere.parent_id = home.span_id
+
+    f = SpanFilter("parent_span is None")
+    async with db() as session:
+        span_ids = set(await session.scalars(f(select(models.Span.span_id))))
+    assert span_ids == {home.span_id, elsewhere.span_id}
+
+
 @pytest.fixture
 async def annotated_parent_predicate_project(
     db: DbSessionFactory, parent_predicate_project: None
@@ -1718,6 +1743,63 @@ def test_root_span_scope_survives_pathologically_nested_input(condition: str) ->
     deep enough to exhaust the stack has to read as "cannot tell" rather than
     escaping as a RecursionError."""
     assert root_span_scope(condition) in (None, "strict")
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        pytest.param("parent_id is None", "strict", id="strict"),
+        pytest.param("parent_span is None", "orphan_aware", id="orphan-aware"),
+        pytest.param("  parent_id is None  ", "strict", id="surrounding-whitespace"),
+        pytest.param("parent_span == None", "orphan_aware", id="eq-spelling"),
+        pytest.param("None is parent_id", "strict", id="reversed-operands"),
+        # Anything the condition restricts beyond root-ness disqualifies it, even
+        # a conjunct that restricts nothing: a caller stands a root-span
+        # selection in for the whole condition, so only a bare predicate is safe.
+        pytest.param("parent_id is None and span_kind == 'LLM'", None, id="conjunction"),
+        pytest.param("parent_id is None and True", None, id="trivial-conjunction"),
+        pytest.param(
+            "(parent_id is None) or (parent_span is None)",
+            None,
+            id="disjunction-of-root-predicates",
+        ),
+        pytest.param("not (parent_id is not None)", None, id="negated-form"),
+        pytest.param("parent_id is not None", None, id="non-root-predicate"),
+        pytest.param("", None, id="empty"),
+        pytest.param("   ", None, id="blank"),
+        pytest.param("parent_id is", None, id="unparseable"),
+    ],
+)
+def test_sole_root_span_scope_answers_only_for_a_bare_root_predicate(
+    condition: str,
+    expected: typing.Optional[RootSpanScope],
+) -> None:
+    """The caller replaces the condition with a root-span selection, so anything
+    else the condition restricts has to read as "cannot tell"."""
+    assert sole_root_span_scope(condition) == expected
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        # Strict bare predicates, where both analyses answer and must agree.
+        # `_ORPHAN_AWARE_BUT_NOT_STRICT_CONDITIONS` carries the orphan-aware ones.
+        "parent_id is None",
+        "None is parent_id",
+        # ...and conditions where only the wider analysis may answer.
+        *_CONDITIONS_ADMITTING_NON_ROOT_SPANS,
+        *_ORPHAN_AWARE_BUT_NOT_STRICT_CONDITIONS,
+        "parent_id is None and span_kind == 'LLM'",
+        "not (parent_id is not None)",
+    ],
+)
+def test_sole_root_span_scope_agrees_with_root_span_scope_where_it_answers(
+    condition: str,
+) -> None:
+    """A bare-predicate answer is still a root-span scope, and the narrower
+    analysis can never disagree with the wider one about which scope that is."""
+    scope = sole_root_span_scope(condition)
+    assert scope is None or scope == root_span_scope(condition)
 
 
 # Atoms for the generated corpus below. The root predicates appear in both

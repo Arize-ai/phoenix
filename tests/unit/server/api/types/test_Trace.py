@@ -417,11 +417,11 @@ async def test_trace_spans_pagination_parametrized(
             assert actual_end_cursor.rowid == spans[0].id
 
 
-async def test_trace_spans_root_spans_only(
+async def test_trace_spans_root_span_filter_conditions(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """Test root_spans_only parameter for trace spans connection."""
+    """Test the span filter DSL's root-span predicates on the trace spans connection."""
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -452,10 +452,10 @@ async def test_trace_spans_root_spans_only(
     trace_gid = str(GlobalID(Trace.__name__, str(trace.id)))
 
     query = """
-        query ($traceId: ID!, $first: Int!, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
+        query ($traceId: ID!, $first: Int!, $filterCondition: String) {
             node(id: $traceId) {
                 ... on Trace {
-                    spans(first: $first, rootSpansOnly: $rootSpansOnly, orphanSpanAsRootSpan: $orphanSpanAsRootSpan) {
+                    spans(first: $first, filterCondition: $filterCondition) {
                         edges {
                             node {
                                 id
@@ -468,10 +468,10 @@ async def test_trace_spans_root_spans_only(
         }
     """
 
-    # Test 1: root_spans_only=False (default) - should return all spans
+    # Test 1: no filter condition - should return all spans
     response = await gql_client.execute(
         query=query,
-        variables={"traceId": trace_gid, "first": 10, "rootSpansOnly": False},
+        variables={"traceId": trace_gid, "first": 10},
     )
     assert not response.errors
     assert (data := response.data) is not None
@@ -480,14 +480,13 @@ async def test_trace_spans_root_spans_only(
     span_names = {edge["node"]["name"] for edge in edges}
     assert span_names == {"root-span-1", "child-span-1", "orphan-span-1", "root-span-2"}
 
-    # Test 2: root_spans_only=True, orphan_span_as_root_span=True - should include both NULL and orphan spans
+    # Test 2: `parent_span is None` - should include both NULL and orphan spans
     response = await gql_client.execute(
         query=query,
         variables={
             "traceId": trace_gid,
             "first": 10,
-            "rootSpansOnly": True,
-            "orphanSpanAsRootSpan": True,
+            "filterCondition": "parent_span is None",
         },
     )
     assert not response.errors
@@ -499,14 +498,13 @@ async def test_trace_spans_root_spans_only(
     # Child span should not be included
     assert "child-span-1" not in span_names
 
-    # Test 3: root_spans_only=True, orphan_span_as_root_span=False - should only include NULL parent_id spans
+    # Test 3: `parent_id is None` - should only include NULL parent_id spans
     response = await gql_client.execute(
         query=query,
         variables={
             "traceId": trace_gid,
             "first": 10,
-            "rootSpansOnly": True,
-            "orphanSpanAsRootSpan": False,
+            "filterCondition": "parent_id is None",
         },
     )
     assert not response.errors
@@ -520,7 +518,7 @@ async def test_trace_spans_root_spans_only(
     assert "child-span-1" not in span_names
 
 
-async def test_trace_spans_root_spans_only_cross_trace_parent(
+async def test_trace_spans_root_span_filter_cross_trace_parent(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
@@ -551,10 +549,10 @@ async def test_trace_spans_root_spans_only_cross_trace_parent(
     trace_2_gid = str(GlobalID(Trace.__name__, str(trace_2.id)))
 
     query = """
-        query ($traceId: ID!, $first: Int!, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
+        query ($traceId: ID!, $first: Int!, $filterCondition: String) {
             node(id: $traceId) {
                 ... on Trace {
-                    spans(first: $first, rootSpansOnly: $rootSpansOnly, orphanSpanAsRootSpan: $orphanSpanAsRootSpan) {
+                    spans(first: $first, filterCondition: $filterCondition) {
                         edges {
                             node {
                                 id
@@ -567,7 +565,6 @@ async def test_trace_spans_root_spans_only_cross_trace_parent(
         }
     """
 
-    # Test: root_spans_only=True, orphan_span_as_root_span=True
     # The span_in_trace_2 should be identified as an orphan (root span)
     # because its parent_id doesn't exist in trace_2, even though it exists in trace_1
     response = await gql_client.execute(
@@ -575,8 +572,7 @@ async def test_trace_spans_root_spans_only_cross_trace_parent(
         variables={
             "traceId": trace_2_gid,
             "first": 10,
-            "rootSpansOnly": True,
-            "orphanSpanAsRootSpan": True,
+            "filterCondition": "parent_span is None",
         },
     )
     assert not response.errors

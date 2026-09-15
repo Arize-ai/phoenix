@@ -54,7 +54,9 @@ By default, the representative is chosen from the trace's orphan-aware root cand
 2. a span whose `parent_id` has no matching span in the same trace.
 
 An ID match in another trace does not make a candidate non-orphan.
-When `orphanSpanAsRootSpan` is false, only candidates with a null `parent_id` are considered.
+When the accompanying span `filterCondition` restricts to strict roots (`parent_id is None`),
+only candidates with a null `parent_id` are considered — the span and trace grains bind the
+same notion of root-ness, so a filtered view and the row it filters cannot disagree.
 Candidates are ranked by `start_time ASC, id DESC`, and the first is displayed and bound.
 The `id` tie-break makes malformed traces with several candidates deterministic. A trace with
 no candidate has no displayed-root values.

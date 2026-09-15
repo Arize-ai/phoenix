@@ -29,9 +29,10 @@ export const ProjectPageQueriesTracesQuery = graphql`
 
 // The spans table starts from a resolved filter condition, so this query
 // carries it rather than fetching every span and letting the table correct
-// itself on mount. `rootSpansOnly` rides along because it selects between
-// cumulative and per-span metric fields, and fetching the wrong set is what
-// would force a second round-trip.
+// itself on mount. `rootSpansOnly` rides along -- as a client-side fragment
+// argument, not a server one -- because it selects between cumulative and
+// per-span metric fields, and fetching the wrong set is what would force a
+// second round-trip.
 export const ProjectPageQueriesSpansQuery = graphql`
   query ProjectPageQueriesSpansQuery(
     $id: ID!

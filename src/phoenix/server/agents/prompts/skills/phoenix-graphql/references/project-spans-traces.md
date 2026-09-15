@@ -2,11 +2,12 @@
 
 ## Project
 
-- `Project.spans(timeRange, first, after, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(rootSpansOnly: true)` for root spans, which is usually one per trace though nothing enforces that -- fragmented traces can have several.
+- `Project.spans(timeRange, first, after, sort: SpanSort, filterCondition: String, traceFilterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `filterCondition: "parent_span is None"` for root spans, one per trace. There is no `rootSpansOnly` argument; root-span scoping lives in the filter expression.
 - `Project.trace(traceId: ID!)` → `Trace` — lookup by OTel hex trace id.
 - Aggregates, most accepting `timeRange` and `filterCondition`: `traceCount`, `recordCount` (span count), `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `costSummary`, `latencyMsQuantile(probability: Float!)`, `spanLatencyMsQuantile(probability: Float!)`.
 - Discovery fields: `spanAnnotationNames`, `traceAnnotationsNames`, `spanAnnotationSummary`, `documentEvaluationNames` — check which evals/annotations exist before querying them.
 - `validateSpanFilterCondition(condition: String!)` — check a filter string without running it.
+- Root-span predicates: `parent_span is None` treats a span whose parent was never ingested as a root; `parent_id is None` matches only spans that carry no parent pointer. Either one **on its own** selects one span per trace (the trace's displayed root), so the row count is a trace count; conjoin anything else and it becomes an ordinary filter over every root span.
 - `filterCondition` is a span filter expression. The user-facing grammar reference (operators, attribute/annotation access, substring search, `is None`) is the [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions) doc; the enforced grammar lives in `internal_docs/specs/span-filter-dsl.md`.
 
 ## Span
@@ -25,7 +26,11 @@ Recent root spans (one per trace), slowest first:
 query RecentTraces($id: ID!, $first: Int = 20) {
   node(id: $id) {
     ... on Project {
-      spans(first: $first, rootSpansOnly: true, sort: { col: latencyMs, dir: desc }) {
+      spans(
+        first: $first
+        filterCondition: "parent_span is None"
+        sort: { col: latencyMs, dir: desc }
+      ) {
         edges {
           node {
             spanId

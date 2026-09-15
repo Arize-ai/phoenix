@@ -45,7 +45,7 @@ examples:
             /**
              * Set the spans table filter. The filter is applied declaratively as a complete state: the freeform `condition` (Phoenix span filter DSL) describes the entire view, and the table is updated to exactly that state. There is no notion of leaving part of the filter unchanged — always send the whole condition. Pass an empty string to clear it.
 
-            ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans with no parent -- with the predicate `parent_id is None`; omit it to search every span. This is usually the top-level span of each trace, but nothing enforces one root per trace: a fragmented or partially ingested trace can have several, so do not treat the row count as a trace count. Do NOT restrict to root spans when narrowing to a `span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost always nested under a CHAIN/AGENT root, so combining them with a root predicate yields zero results even when matching spans exist. The same applies to anything that targets nested spans (specific tool names, status_code == 'ERROR' on inner calls, annotations attached to leaf spans). Trace annotations apply to every span in the annotated trace: combine a trace-annotation condition with `parent_id is None` to show only root spans from matching traces, or omit the root predicate to inspect every span belonging to those traces. The spans table starts at `parent_id is None`, so dropping that predicate is how you widen the view to every span.
+            ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans with no parent -- with the predicate `parent_id is None`; omit it to search every span. A condition that is *only* that predicate returns one span per trace, so the row count is a trace count. Adding anything else to the condition makes it an ordinary filter over every root span, and a fragmented or partially ingested trace can contribute several. Do NOT restrict to root spans when narrowing to a `span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost always nested under a CHAIN/AGENT root, so combining them with a root predicate yields zero results even when matching spans exist. The same applies to anything that targets nested spans (specific tool names, status_code == 'ERROR' on inner calls, annotations attached to leaf spans). Trace annotations apply to every span in the annotated trace: combine a trace-annotation condition with `parent_id is None` to show only root spans from matching traces, or omit the root predicate to inspect every span belonging to those traces. The spans table starts at `parent_id is None`, so dropping that predicate is how you widen the view to every span.
 
             DSL FIELDS:
               - Root spans: `parent_id is None` matches spans with no parent pointer, and is the table's default. `parent_span is None` is the wider form that also matches orphans -- spans whose parent was never ingested -- and is what to use when the user asks about orphans.
@@ -572,8 +572,9 @@ examples:
               args:
                 command: >-
                   phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project
-                  { spans(first: 5, rootSpansOnly: true, sort: {col: startTime,
-                  dir: desc}) { edges { node { startTime } } } } } }'
+                  { spans(first: 5, filterCondition: "parent_span is None",
+                  sort: {col: startTime, dir: desc}) { edges { node { startTime
+                  } } } } } }'
         - role: tool
           tool_call_id: t1
           name: bash

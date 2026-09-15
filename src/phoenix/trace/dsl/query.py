@@ -615,7 +615,16 @@ class SpanQuery(_HasTmpSuffix):
                 parent_spans = aliased(models.Span, name="parent_spans")
                 stmt = stmt.where(
                     ~select(1)
-                    .where(models.Span.parent_id == parent_spans.span_id)
+                    .where(
+                        models.Span.parent_id == parent_spans.span_id,
+                        # Scoped to the span's own trace, so that this flag and the
+                        # `parent_span is None` predicate that deprecates it select
+                        # the same rows. Without it the two disagree about a
+                        # `parent_id` answered only by a span in another trace, and
+                        # the redundancy check above would then drop a flag that is
+                        # *narrower* than the filter rather than wider.
+                        models.Span.trace_rowid == parent_spans.trace_rowid,
+                    )
                     .correlate(models.Span)
                     .exists(),
                     # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
@@ -853,12 +862,24 @@ def _get_spans_dataframe(
         if orphan_span_as_root_span:
             # Include both types of root spans
             parent_spans = aliased(models.Span, name="parent_spans")
-            candidate_spans = stmt.cte("candidate_spans")
-            stmt = select(candidate_spans).where(
+            # `trace_rowid` rides along only to scope the parent lookup to the span's
+            # own trace -- so that this flag and the `parent_span is None` predicate
+            # that deprecates it select the same rows -- and is projected back out so
+            # the frame keeps exactly the columns selected above.
+            trace_rowid_label = "__trace_rowid__"
+            candidate_spans = stmt.add_columns(
+                models.Span.trace_rowid.label(trace_rowid_label)
+            ).cte("candidate_spans")
+            stmt = select(
+                *(column for column in candidate_spans.c if column.name != trace_rowid_label)
+            ).where(
                 or_(
                     candidate_spans.c.parent_id.is_(None),
                     ~select(1)
-                    .where(candidate_spans.c.parent_id == parent_spans.span_id)
+                    .where(
+                        candidate_spans.c.parent_id == parent_spans.span_id,
+                        candidate_spans.c[trace_rowid_label] == parent_spans.trace_rowid,
+                    )
                     .correlate(candidate_spans)
                     .exists(),
                 ),
