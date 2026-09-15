@@ -1887,6 +1887,71 @@ enum EvaluatorColumn {
   updatedAt
 }
 
+type EvaluatorComparisonCoverage {
+  """Entities in range with results from both evaluators."""
+  evaluatedByBoth: Int!
+
+  """Entities in range evaluated only by evaluator A."""
+  onlyA: Int!
+
+  """Entities in range evaluated only by evaluator B."""
+  onlyB: Int!
+
+  """All entities of the compared level in the project and time range."""
+  totalInRange: Int!
+}
+
+"""
+Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable on both sides.
+"""
+type EvaluatorComparisonSide {
+  """The annotation name this evaluator writes its results under."""
+  annotationName: String!
+
+  """
+  Binned labels for this side, in matrix order. A continuous evaluator contributes flagged/not-flagged split at its threshold; a categorical evaluator contributes the labels present in range, capped with an 'other' fold.
+  """
+  labels: [String!]!
+
+  """
+  Which of `labels` count as flagged; null when the evaluator's config does not determine flag semantics.
+  """
+  flaggedLabels: [String!]
+
+  """The flag threshold used to bin scores; null for categorical sides."""
+  threshold: Float
+
+  """Entities this evaluator flags, over the shared population."""
+  flaggedCount: Int
+
+  """flaggedCount over the shared population size."""
+  flagRate: Float
+
+  """Mean of this evaluator's non-null scores over the shared population."""
+  meanScore: Float
+}
+
+"""
+Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable on both sides.
+"""
+type EvaluatorComparisonStatistics {
+  """
+  Share of the population where the two evaluators agree, reduced to flagged/not-flagged when both sides have determinable flag semantics, else to label equality when the label sets are identical; null otherwise.
+  """
+  agreement: Float
+
+  """Chance-corrected agreement over the same reduction as `agreement`."""
+  cohensKappa: Float
+
+  """
+  Spearman rank correlation over the raw score pairs; null unless both evaluators emit continuous scores.
+  """
+  spearmanRho: Float
+
+  """Population count minus agreements; null when `agreement` is null."""
+  disagreementCount: Int
+}
+
 """A connection to a list of items."""
 type EvaluatorConnection {
   """Pagination data for this connection"""
@@ -3344,6 +3409,11 @@ type Project implements Node {
   spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
+
+  """
+  Compare two of this project's evaluators over one shared population: entities in the time range evaluated by both. Returns coverage, a confusion matrix over binned labels, and agreement statistics. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
+  """
+  evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, thresholdA: Float = null, thresholdB: Float = null): ProjectEvaluatorComparison!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -3414,6 +3484,21 @@ type ProjectEvaluator implements Node {
   enabled: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""
+Pairwise comparison of two project evaluators' results over one shared population. Confusion matrix rows follow sideA.labels and columns follow sideB.labels.
+"""
+type ProjectEvaluatorComparison {
+  """The evaluation level both evaluators share."""
+  evaluationTarget: EvaluationTarget!
+  coverage: EvaluatorComparisonCoverage!
+  sideA: EvaluatorComparisonSide!
+  sideB: EvaluatorComparisonSide!
+
+  """Counts; rows follow sideA.labels, columns follow sideB.labels."""
+  confusionMatrix: [[Int!]!]!
+  statistics: EvaluatorComparisonStatistics!
 }
 
 """A connection to a list of items."""
