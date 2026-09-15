@@ -275,6 +275,15 @@ def _object_fields(t: GraphQLNamedType) -> Iterator[tuple[str, GraphQLField]]:
         yield from t.fields.items()
 
 
+def _returned_types(schema: GraphQLSchema, named: GraphQLNamedType) -> Iterator[GraphQLNamedType]:
+    """The types a field of type ``named`` delivers: the collapsed type itself and,
+    for a union, each of its members."""
+    node = _node_type(named)
+    yield node
+    if isinstance(node, GraphQLUnionType):
+        yield from schema.get_possible_types(node)
+
+
 def _input_closure(start: Iterable[GraphQLNamedType]) -> list[GraphQLNamedType]:
     seen: dict[str, GraphQLNamedType] = {}
     queue = deque(start)
@@ -289,38 +298,47 @@ def _input_closure(start: Iterable[GraphQLNamedType]) -> list[GraphQLNamedType]:
     return list(seen.values())
 
 
-def _mutation_only_types(schema: GraphQLSchema) -> set[str]:
-    """Types that exist only to serve mutations: their input closures and payloads."""
-    mutation = schema.mutation_type
-    if mutation is None:
+def _types_only_serving(schema: GraphQLSchema, hidden: Sequence[GraphQLObjectType]) -> set[str]:
+    """Types that exist only to serve the ``hidden`` roots: their input closures and payloads."""
+    if not hidden:
         return set()
+    hidden_names = {t.name for t in hidden}
     others = [
         t
         for t in schema.type_map.values()
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType))
-        and t is not mutation
+        and t.name not in hidden_names
         and not is_introspection_type(t)
     ]
-    from_mutation = _input_closure(
-        get_named_type(a.type) for f in mutation.fields.values() for a in f.args.values()
+    from_hidden = _input_closure(
+        get_named_type(a.type) for t in hidden for f in t.fields.values() for a in f.args.values()
     )
     elsewhere = _input_closure(
         get_named_type(a.type) for t in others for f in t.fields.values() for a in f.args.values()
     )
-    only = {t.name for t in from_mutation} - {t.name for t in elsewhere}
-    # Payloads: object types returned only by mutation fields or by other payloads.
-    # The query root is a root, not a payload, even though some mutations return
-    # it so a client can refetch after a write.
-    roots = {t.name for t in (schema.query_type, schema.subscription_type) if t is not None}
+    only = {t.name for t in from_hidden} - {t.name for t in elsewhere}
+    # Payloads: object types returned only by hidden-root fields or by other payloads.
+    # A root is never a payload, even though some mutations return the query root
+    # so a client can refetch after a write.
+    roots = {
+        t.name
+        for t in (schema.query_type, schema.mutation_type, schema.subscription_type)
+        if t is not None
+    } - hidden_names
     returned: dict[str, set[str]] = defaultdict(set)
-    for t in (*others, mutation):
+    for t in (*others, *hidden):
         for f in t.fields.values():
-            returned[_node_type(get_named_type(f.type)).name].add(t.name)
+            for target in _returned_types(schema, get_named_type(f.type)):
+                returned[target.name].add(t.name)
+                # A field typed as an interface delivers any of its implementations.
+                if isinstance(target, GraphQLInterfaceType):
+                    for impl in schema.get_possible_types(target):
+                        returned[impl.name].add(t.name)
     changed = True
     while changed:
         changed = False
         for name, parents in returned.items():
-            if name not in only | roots and parents <= only | {mutation.name}:
+            if name not in only | roots and parents <= only | hidden_names:
                 only.add(name)
                 changed = True
     return only
@@ -334,19 +352,22 @@ def build_index(
 ) -> Index:
     """Index every type, field, argument, input field, and enum value of ``schema``.
 
-    With ``include_mutations`` false the mutation root and every type that exists
-    only to serve it are left out, so a session that cannot run mutations is
-    never shown one. Their names are kept so a lookup can say why they are absent.
+    The subscription root and every type that exists only to serve it are left
+    out: nothing here can run a subscription. With ``include_mutations`` false the
+    mutation root and its private types are left out the same way, so a session
+    that cannot run mutations is never shown one. Mutation names are kept so a
+    lookup can say why they are absent.
     """
     query_root = schema.query_type.name if schema.query_type is not None else "Query"
     mutation = schema.mutation_type
     mutation_root = mutation.name if mutation is not None else None
-    excluded_types: set[str] = set()
+    hidden = [t for t in (schema.subscription_type,) if t is not None]
     excluded_mutations: dict[str, frozenset[str]] = {}
     if mutation is not None and not include_mutations:
-        excluded_types = _mutation_only_types(schema) | {mutation.name}
+        hidden.append(mutation)
         for fname in mutation.fields:
             excluded_mutations[fname.lower()] = frozenset(_ident_terms(fname))
+    excluded_types = _types_only_serving(schema, hidden) | {t.name for t in hidden}
 
     units: list[Unit] = []
     used_by: dict[str, list[str]] = defaultdict(list)
@@ -360,7 +381,10 @@ def build_index(
                 arg_terms = [tok for a in f.args for tok in (a.lower(), *_ident_terms(a))]
                 arg_desc = " ".join(a.description or "" for a in f.args.values())
                 named = get_named_type(f.type)
-                returned_by[_node_type(named).name].append(f"{t.name}.{fname}")
+                for target in _returned_types(schema, named):
+                    returned_by[target.name].append(f"{t.name}.{fname}")
+                if isinstance(named, GraphQLEnumType):
+                    used_by[named.name].append(f"{t.name}.{fname}")
                 units.append(
                     _unit(
                         kind,
@@ -410,12 +434,12 @@ def build_index(
         cur = queue.popleft()
         root, depth, hops = nearest[cur]
         for fname, f in _object_fields(schema.type_map[cur]):
-            nxt = _node_type(get_named_type(f.type))
-            if nxt.name not in nearest and isinstance(
-                nxt, (GraphQLObjectType, GraphQLInterfaceType)
-            ):
-                nearest[nxt.name] = (root, depth + 1, (*hops, f"{cur}.{fname}"))
-                queue.append(nxt.name)
+            for nxt in _returned_types(schema, get_named_type(f.type)):
+                if nxt.name not in nearest and isinstance(
+                    nxt, (GraphQLObjectType, GraphQLInterfaceType)
+                ):
+                    nearest[nxt.name] = (root, depth + 1, (*hops, f"{cur}.{fname}"))
+                    queue.append(nxt.name)
 
     # Entry points first: query-root fields, then fields on read roots, then the rest.
     rank = {r: i for i, r in enumerate(present_roots)}
@@ -594,14 +618,40 @@ def _names_excluded_mutation(index: Index, terms: Sequence[str]) -> bool:
     return any(tokens <= have for tokens in index.excluded_mutations.values())
 
 
+def _is_hidden_mutation_root(index: Index, key: str) -> bool:
+    return (
+        not index.includes_mutations
+        and index.mutation_root is not None
+        and key == index.mutation_root.lower()
+    )
+
+
+def _unknown_member(index: Index, key: str) -> Optional[tuple[str, str]]:
+    """``(Type, member)`` when ``key`` is ``Type.member`` for an indexed type that
+    has no such member."""
+    owner_key, dot, member = key.partition(".")
+    owner = index.by_key.get(owner_key)
+    if not dot or not member or owner is None or owner.kind != "type":
+        return None
+    return owner.name, member
+
+
 def search(index: Index, query: str, budget: int = 1500) -> str:
     """Ranked one-line hits for a free-text query, within ``budget`` characters.
 
     A query that exactly names a type, ``Type.field``, or mutation is a lookup.
     """
     key = query.strip().lower()
-    if key in index.by_key or key in index.excluded_mutations:
+    if (
+        key in index.by_key
+        or key in index.excluded_mutations
+        or _is_hidden_mutation_root(index, key)
+    ):
         return lookup(index, query)
+    if unknown := _unknown_member(index, key):
+        owner, member = unknown
+        body = search(index, f"{owner} {member}", budget)
+        return "\n".join([f"-- {owner} has no field {member!r}. Closest matches:", body])
     terms = _query_terms(query)
     if not terms:
         return (
@@ -725,6 +775,11 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
     if u is None:
         if key in index.excluded_mutations:
             return f"-- {name.strip()} is a mutation. {_MUTATIONS_DISABLED}"
+        if _is_hidden_mutation_root(index, key):
+            return f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"
+        if unknown := _unknown_member(index, key):
+            owner, member = unknown
+            return f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."
         return f"-- No type, field, or mutation named {name!r}. Try search('{name}')."
     schema = index.schema
     parts: list[str]
