@@ -10,13 +10,18 @@ import {
   createNormalizedPlaygroundInstance,
   createPlaygroundStore,
   DEFAULT_MAX_CONCURRENCY,
-  DEFAULT_TEMPLATE_VARIABLES_PATH,
   getInitialInstances,
 } from "../playgroundStore";
-import type {
-  CanonicalResponseFormat,
-  InitialPlaygroundState,
-  PlaygroundNormalizedInstance,
+import {
+  DEFAULT_TEMPLATE_VARIABLES_PATH,
+  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+  getTemplateVariablesPath,
+} from "../templateVariablesPath";
+import {
+  type CanonicalResponseFormat,
+  type InitialPlaygroundState,
+  type PlaygroundNormalizedInstance,
+  PlaygroundStateByDatasetIdSchema,
 } from "../types";
 
 /** The message ids of a chat template; every instance the store builds is one. */
@@ -1111,7 +1116,8 @@ describe("dataset-scoped state", () => {
 
     // verify templateVariablesPath is initialized to the default value
     expect(store.getState().stateByDatasetId[datasetId]).toEqual({
-      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      templateVariablesPathByTaskKind:
+        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
@@ -1136,7 +1142,8 @@ describe("dataset-scoped state", () => {
 
     // verify templateVariablesPath is initialized to the default value for the new dataset
     expect(store.getState().stateByDatasetId[newDatasetId]).toEqual({
-      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      templateVariablesPathByTaskKind:
+        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
@@ -1156,18 +1163,21 @@ describe("dataset-scoped state", () => {
     store.getState().setTemplateVariablesPath({
       templateVariablesPath: customPath,
       datasetId: datasetId1,
+      taskKind: "prompt",
     });
 
     // verify the custom path is set
     expect(
-      store.getState().stateByDatasetId[datasetId1].templateVariablesPath
+      store.getState().stateByDatasetId[datasetId1]
+        .templateVariablesPathByTaskKind.prompt
     ).toBe(customPath);
 
     // switch to dataset 2
     store.getState().setDatasetId(datasetId2);
     expect(store.getState().datasetId).toBe(datasetId2);
     expect(store.getState().stateByDatasetId[datasetId2]).toEqual({
-      templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      templateVariablesPathByTaskKind:
+        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
       maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
 
@@ -1177,8 +1187,161 @@ describe("dataset-scoped state", () => {
 
     // verify the custom path is still preserved
     expect(
-      store.getState().stateByDatasetId[datasetId1].templateVariablesPath
+      store.getState().stateByDatasetId[datasetId1]
+        .templateVariablesPathByTaskKind.prompt
     ).toBe(customPath);
+  });
+
+  it("keeps a template variables path per kind of task", () => {
+    const datasetId = "dataset-1";
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId,
+    });
+
+    store.getState().setTemplateVariablesPath({
+      templateVariablesPath: "output",
+      datasetId,
+      taskKind: "evaluator",
+    });
+
+    const { stateByDatasetId } = store.getState();
+    expect(stateByDatasetId[datasetId].templateVariablesPathByTaskKind).toEqual(
+      { prompt: DEFAULT_TEMPLATE_VARIABLES_PATH, evaluator: "output" }
+    );
+    expect(
+      getTemplateVariablesPath({
+        stateByDatasetId,
+        datasetId,
+        taskKind: "prompt",
+      })
+    ).toBe("input");
+    expect(
+      getTemplateVariablesPath({
+        stateByDatasetId,
+        datasetId,
+        taskKind: "evaluator",
+      })
+    ).toBe("output");
+  });
+
+  it("starts prompt tasks at input and evaluator tasks at the example root", () => {
+    const datasetId = "dataset-1";
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId,
+    });
+    const { stateByDatasetId } = store.getState();
+
+    expect(
+      getTemplateVariablesPath({
+        stateByDatasetId,
+        datasetId,
+        taskKind: "prompt",
+      })
+    ).toBe("input");
+    expect(
+      getTemplateVariablesPath({
+        stateByDatasetId,
+        datasetId,
+        taskKind: "evaluator",
+      })
+    ).toBeNull();
+    // A dataset without state yet reads the same defaults.
+    expect(
+      getTemplateVariablesPath({
+        stateByDatasetId,
+        datasetId: "unseen",
+        taskKind: "prompt",
+      })
+    ).toBe("input");
+    expect(
+      getTemplateVariablesPath({
+        stateByDatasetId,
+        datasetId: "unseen",
+        taskKind: "evaluator",
+      })
+    ).toBeNull();
+  });
+
+  it("keeps an explicit example-root choice for prompt tasks", () => {
+    const datasetId = "dataset-1";
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId,
+    });
+
+    store.getState().setTemplateVariablesPath({
+      templateVariablesPath: null,
+      datasetId,
+      taskKind: "prompt",
+    });
+
+    expect(
+      getTemplateVariablesPath({
+        stateByDatasetId: store.getState().stateByDatasetId,
+        datasetId,
+        taskKind: "prompt",
+      })
+    ).toBeNull();
+  });
+
+  it("creates a dataset's state with defaults when a setting lands first", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+
+    store
+      .getState()
+      .setAppendedMessagesPath({ path: "messages", datasetId: "dataset-1" });
+
+    expect(store.getState().stateByDatasetId["dataset-1"]).toEqual({
+      appendedMessagesPath: "messages",
+      templateVariablesPathByTaskKind:
+        DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+      maxConcurrency: DEFAULT_MAX_CONCURRENCY,
+    });
+  });
+
+  it("migrates persisted state that held one template variables path", () => {
+    expect(
+      PlaygroundStateByDatasetIdSchema.parse({
+        custom: { templateVariablesPath: "payload.inputs", maxConcurrency: 4 },
+        root: { templateVariablesPath: null, maxConcurrency: 10 },
+        unset: { maxConcurrency: 10 },
+        current: {
+          templateVariablesPathByTaskKind: {
+            prompt: "input",
+            evaluator: "output",
+          },
+          maxConcurrency: 2,
+        },
+      })
+    ).toEqual({
+      custom: {
+        templateVariablesPathByTaskKind: {
+          prompt: "payload.inputs",
+          evaluator: null,
+        },
+        maxConcurrency: 4,
+      },
+      root: {
+        templateVariablesPathByTaskKind: { prompt: null, evaluator: null },
+        maxConcurrency: 10,
+      },
+      unset: {
+        templateVariablesPathByTaskKind: { prompt: "input", evaluator: null },
+        maxConcurrency: 10,
+      },
+      current: {
+        templateVariablesPathByTaskKind: {
+          prompt: "input",
+          evaluator: "output",
+        },
+        maxConcurrency: 2,
+      },
+    });
   });
 });
 

@@ -19,6 +19,7 @@ import {
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import { createPlaygroundEvaluatorTask } from "./playgroundTask";
+import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND } from "./templateVariablesPath";
 import {
   type ChatMessage,
   type ExperimentScaffold,
@@ -34,7 +35,9 @@ import {
   type PlaygroundNormalizedInstance,
   type PlaygroundRepetitionStatus,
   type PlaygroundState,
+  type PlaygroundStateByDatasetId,
   PlaygroundStateByDatasetIdSchema,
+  type PlaygroundTaskKind,
   type PlaygroundTextCompletionTemplate,
 } from "./types";
 
@@ -482,12 +485,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
-        ? {
-            [props.datasetId]: {
-              templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
-              maxConcurrency: DEFAULT_MAX_CONCURRENCY,
-            },
-          }
+        ? { [props.datasetId]: createDatasetState() }
         : {},
     initialSelectedDatasetEvaluatorIds:
       props.selectedDatasetEvaluatorIds ?? null,
@@ -506,10 +504,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           stateByDatasetId: {
             ...get().stateByDatasetId,
-            [datasetId]: {
-              templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
-              maxConcurrency: DEFAULT_MAX_CONCURRENCY,
-            },
+            [datasetId]: createDatasetState(),
           },
         },
         false,
@@ -1197,7 +1192,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
+              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
               maxConcurrency,
             },
           },
@@ -1218,7 +1213,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
+              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
               appendedMessagesPath: path,
             },
           },
@@ -1232,17 +1227,25 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     setTemplateVariablesPath: ({
       templateVariablesPath,
       datasetId,
+      taskKind,
     }: {
       templateVariablesPath: string | null;
       datasetId: string;
+      taskKind: PlaygroundTaskKind;
     }) => {
+      const datasetState =
+        get().stateByDatasetId[datasetId] ?? createDatasetState();
+
       set(
         {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
-              templateVariablesPath: templateVariablesPath,
+              ...datasetState,
+              templateVariablesPathByTaskKind: {
+                ...datasetState.templateVariablesPathByTaskKind,
+                [taskKind]: templateVariablesPath,
+              },
             },
           },
         },
@@ -1264,7 +1267,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
+              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
               availablePaths,
             },
           },
@@ -1828,7 +1831,16 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   );
 };
 
-export const DEFAULT_TEMPLATE_VARIABLES_PATH = "input";
 export const DEFAULT_MAX_CONCURRENCY = 10;
+
+/** A dataset's settings before anyone changes them. */
+function createDatasetState(): PlaygroundStateByDatasetId[string] {
+  return {
+    templateVariablesPathByTaskKind: {
+      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+    },
+    maxConcurrency: DEFAULT_MAX_CONCURRENCY,
+  };
+}
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;

@@ -16,6 +16,10 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import {
+  getPlaygroundTaskKind,
+  getTemplateVariablesPath,
+} from "@phoenix/store/playground";
 
 const TEMPLATE_VARIABLES_PATH_OPTIONS = [
   {
@@ -47,12 +51,22 @@ export function PlaygroundExperimentSettingsButton({
   isDisabled?: boolean;
   datasetId: string;
 }) {
-  const playgroundDatasetState = usePlaygroundContext(
-    (state) => state.stateByDatasetId[datasetId]
+  const appendedMessagesPath = usePlaygroundContext(
+    (state) => state.stateByDatasetId[datasetId]?.appendedMessagesPath
   );
 
-  const { appendedMessagesPath, templateVariablesPath } =
-    playgroundDatasetState ?? {};
+  // Each kind of task keeps its own path; the gear edits the page's kind.
+  const taskKind = usePlaygroundContext((state) =>
+    getPlaygroundTaskKind(state.instances)
+  );
+
+  const templateVariablesPath = usePlaygroundContext((state) =>
+    getTemplateVariablesPath({
+      stateByDatasetId: state.stateByDatasetId,
+      datasetId,
+      taskKind: getPlaygroundTaskKind(state.instances),
+    })
+  );
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
@@ -75,7 +89,7 @@ export function PlaygroundExperimentSettingsButton({
             <Flex direction="column" gap="size-200">
               <ComboBox
                 label="Template variables path"
-                description="Path prefix for template variables"
+                description="Path prefix for template variables, kept per kind of task"
                 size="M"
                 placeholder="the root of the example"
                 selectedKey={templateVariablesPath ?? ""}
@@ -87,6 +101,7 @@ export function PlaygroundExperimentSettingsButton({
                     setTemplateVariablesPath({
                       templateVariablesPath: key || null,
                       datasetId,
+                      taskKind,
                     });
                   }
                 }}
@@ -94,6 +109,7 @@ export function PlaygroundExperimentSettingsButton({
                   setTemplateVariablesPath({
                     templateVariablesPath: value || null,
                     datasetId,
+                    taskKind,
                   });
                 }}
               >

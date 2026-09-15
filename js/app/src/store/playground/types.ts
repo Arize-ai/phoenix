@@ -10,6 +10,7 @@ import type {
 } from "@phoenix/types";
 
 import type { AnnotationConfig } from "../evaluatorStore";
+import { migrateTemplateVariablesPath } from "./templateVariablesPath";
 
 /**
  * Provider-agnostic canonical tool choice stored on PlaygroundInstance.
@@ -474,37 +475,50 @@ export interface PlaygroundProps {
   nextExperimentScaffold: ExperimentScaffold | null;
 }
 
+/**
+ * A dot-notation path prefix for template variables per kind of task, or null
+ * for the example root. Prompt tasks start at "input", so {{query}} resolves to
+ * input.query of the dataset example; evaluator tasks start at the root, where
+ * their input mapping addresses input, output and metadata.
+ */
+const TemplateVariablesPathByTaskKindSchema = z.object({
+  prompt: z.string().nullable(),
+  evaluator: z.string().nullable(),
+});
+
 export const PlaygroundStateByDatasetIdSchema = z.record(
   z.string(),
-  z.object({
-    /**
-     * Dot-notation path to messages in dataset example input to append to prompt.
-     * When set, messages at this path will be appended to the playground prompt
-     * after template variables are applied.
-     * @example "messages" or "input_messages"
-     * @default null
-     */
-    appendedMessagesPath: z.string().nullish(),
-    /**
-     * The maximum number of tasks/evals that will be run concurrently.
-     * @default 10
-     */
-    maxConcurrency: z.number().int().min(1).max(100).default(10),
-    /**
-     * Dot-notation path prefix for template variables when running over a dataset.
-     * Default 'input' means {{query}} resolves to input.query of the dataset example.
-     * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
-     * @example "input" or "reference" or null
-     * @default "input"
-     */
-    templateVariablesPath: z.string().nullish(),
-    /**
-     * Available paths for template variable autocomplete.
-     * These are extracted from dataset examples and cached per dataset.
-     * Not persisted - computed at runtime when dataset is loaded.
-     */
-    availablePaths: z.array(z.string()).optional(),
-  })
+  // Persisted state from before paths were kept per kind of task is migrated
+  // on the way in.
+  z.preprocess(
+    migrateTemplateVariablesPath,
+    z.object({
+      /**
+       * Dot-notation path to messages in dataset example input to append to prompt.
+       * When set, messages at this path will be appended to the playground prompt
+       * after template variables are applied.
+       * @example "messages" or "input_messages"
+       * @default null
+       */
+      appendedMessagesPath: z.string().nullish(),
+      /**
+       * The maximum number of tasks/evals that will be run concurrently.
+       * @default 10
+       */
+      maxConcurrency: z.number().int().min(1).max(100).default(10),
+      /**
+       * Where each kind of task reads its template variables from when running
+       * over the dataset; see {@link TemplateVariablesPathByTaskKindSchema}.
+       */
+      templateVariablesPathByTaskKind: TemplateVariablesPathByTaskKindSchema,
+      /**
+       * Available paths for template variable autocomplete.
+       * These are extracted from dataset examples and cached per dataset.
+       * Not persisted - computed at runtime when dataset is loaded.
+       */
+      availablePaths: z.array(z.string()).optional(),
+    })
+  )
 );
 
 export type PlaygroundStateByDatasetId = z.infer<
@@ -808,14 +822,17 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     datasetId: string;
   }) => void;
   /**
-   * Set the template variables path for dataset experiments
+   * Set the template variables path one kind of task uses for dataset
+   * experiments; the other kind's path is left alone.
    */
   setTemplateVariablesPath: ({
     templateVariablesPath,
     datasetId,
+    taskKind,
   }: {
     templateVariablesPath: string | null;
     datasetId: string;
+    taskKind: PlaygroundTaskKind;
   }) => void;
   /**
    * Set the available paths for template variable autocomplete.

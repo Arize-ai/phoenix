@@ -55,6 +55,7 @@ import {
   createNormalizedPlaygroundInstance,
   generateMessageId,
   generateToolId,
+  getTemplateVariablesPath,
 } from "@phoenix/store/playground";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
@@ -2323,8 +2324,15 @@ export const getPromptTaskInput = ({
       baseChatCompletionVariables.invocationParameters ?? [],
   });
 
-  const { appendedMessagesPath, templateVariablesPath } =
-    stateByDatasetId[datasetId] ?? {};
+  const { appendedMessagesPath } = stateByDatasetId[datasetId] ?? {};
+
+  // The prompt kind's path; the server reads an empty one as the example root.
+  const templateVariablesPath =
+    getTemplateVariablesPath({
+      stateByDatasetId,
+      datasetId,
+      taskKind: "prompt",
+    }) ?? "";
 
   return {
     promptVersion,
@@ -2333,7 +2341,7 @@ export const getPromptTaskInput = ({
     connectionConfig: baseChatCompletionVariables.connectionConfig,
     headers: baseChatCompletionVariables.headers,
     appendedMessagesPath,
-    templateVariablesPath: templateVariablesPath ?? "",
+    templateVariablesPath,
     streamModelOutput: streaming,
     evaluators: Object.entries(evaluatorMappings).map(
       ([datasetEvaluatorId, { name, inputMapping }]) => ({

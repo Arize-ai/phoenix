@@ -42,6 +42,9 @@ export const setTemplateVariablesPathOperation = defineUIOperation({
   description:
     "Set the dataset field path that playground template variables resolve against, " +
     "when a prompt references dataset fields outside the default `input` root. The " +
+    "path is kept per kind of task on the page: prompt tasks start at `input`, " +
+    "evaluator tasks at the example root, where their input mapping addresses " +
+    "`input`, `output` and `metadata`. The " +
     "path resolves against the whole example context `{input, reference, metadata}` " +
     "— e.g. `metadata` binds variables to each example's metadata. (Note this base " +
     "differs from `playground.messages.setPath`, which resolves inside the example's " +

@@ -84,7 +84,11 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { getPlaygroundEvaluatorTask } from "@phoenix/store/playground";
+import {
+  getPlaygroundEvaluatorTask,
+  getPlaygroundTaskKind,
+  getTemplateVariablesPath,
+} from "@phoenix/store/playground";
 import {
   assertUnreachable,
   isStringArray,
@@ -874,10 +878,15 @@ export function PlaygroundDatasetExamplesTable({
     projectId: string;
     evaluatorName?: string;
   } | null>(null);
-  const playgroundDatasetState = usePlaygroundContext((state) =>
-    datasetId ? state.stateByDatasetId[datasetId] : null
+  // Scopes the autocomplete paths and the prompt cells' variable checks to
+  // where the page's kind of task reads its variables from.
+  const templateVariablesPath = usePlaygroundContext((state) =>
+    getTemplateVariablesPath({
+      stateByDatasetId: state.stateByDatasetId,
+      datasetId,
+      taskKind: getPlaygroundTaskKind(state.instances),
+    })
   );
-  const { templateVariablesPath } = playgroundDatasetState ?? {};
   const setAvailablePaths = usePlaygroundContext(
     (state) => state.setAvailablePaths
   );
@@ -1492,7 +1501,7 @@ export function PlaygroundDatasetExamplesTable({
                 output: row.original.output,
                 metadata: row.original.metadata,
               }}
-              templateVariablesPath={templateVariablesPath ?? null}
+              templateVariablesPath={templateVariablesPath}
               evaluatorOutputConfigs={evaluatorOutputConfigs}
               onViewExperimentRunDetailsPress={() => {
                 setSelectedExampleIndex(row.index);

@@ -62,7 +62,7 @@ The table shows each example's **input** and **reference output** beside the tas
 
 ### Configuring Dataset Paths
 
-By default, the playground reads template variables from `input`, so `{question}` will resolve against `input.question` automatically. If your dataset examples store inputs under a different nested object, you can configure where the playground should read prompt variables from:
+For prompt tasks, the playground reads template variables from `input` by default, so `{question}` resolves against `input.question`. Evaluator tasks start at the example root instead, because an evaluator's input mapping addresses `input`, `output` and `metadata` directly. The path is remembered per dataset for each kind of task, so changing it for prompts leaves the evaluators' path alone. If your dataset examples store inputs under a different nested object, you can configure where the playground should read prompt variables from:
 
 1. Load a dataset
 2. Click the **settings button** (gear icon) in the experiment toolbar next to the dataset selector
