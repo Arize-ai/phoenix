@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from secrets import token_hex
-from typing import Sequence, cast
+from typing import Any, Sequence, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -1450,3 +1450,44 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
 
     metrics["ONLINE_EVAL_SWEEP_FAILURES"].inc.assert_called_once_with()
     assert metrics["ONLINE_EVAL_SWEEP_DURATION_SECONDS"].observe.call_count == 3
+
+
+async def test_filter_query_failure_attaches_project_evaluator_id(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+
+    async with db() as session:
+        project_evaluators = await sweeper._load_evaluators(session)
+        assert len(project_evaluators) > 0
+        pe = project_evaluators[0]
+        pe_with_filter = sweeper_module._SweepProjectEvaluator(
+            project_evaluator_id=pe.project_evaluator_id,
+            project_id=pe.project_id,
+            evaluator_id=pe.evaluator_id,
+            fingerprint=pe.fingerprint,
+            delay_seconds=pe.delay_seconds,
+            created_at=pe.created_at,
+            sweep_floor=pe.sweep_floor,
+            filter_condition="input.value == 'test'",
+            sampling_rate=pe.sampling_rate,
+        )
+
+        async def fail_scalars(*args: Any, **kwargs: Any) -> Any:
+            raise RuntimeError("simulated query failure")
+
+        monkeypatch.setattr(session, "scalars", fail_scalars)
+        database_now = await sweeper._database_now(session)
+        with pytest.raises(
+            RuntimeError,
+            match=f"project evaluator {pe.project_evaluator_id}",
+        ):
+            await sweeper._load_eligible_pairs(
+                session,
+                database_now,
+                [pe_with_filter],
+                limit=10,
+            )
