@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -38,7 +37,6 @@ export function DatasetEvaluatorActionMenu({
   updateConnectionIds?: string[];
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   return (
     <StopPropagation>
@@ -53,11 +51,6 @@ export function DatasetEvaluatorActionMenu({
           <Menu
             onAction={(action) => {
               switch (action) {
-                case "playground":
-                  void navigate(
-                    `/playground?${new URLSearchParams({ datasetId, datasetEvaluator0: datasetEvaluatorId })}`
-                  );
-                  break;
                 case DatasetEvaluatorAction.EDIT:
                   setIsEditDialogOpen(true);
                   break;
@@ -67,19 +60,6 @@ export function DatasetEvaluatorActionMenu({
               }
             }}
           >
-            {evaluatorKind !== "BUILTIN" ? (
-              <MenuItem id="playground">
-                <Flex
-                  direction="row"
-                  gap="size-75"
-                  justifyContent="start"
-                  alignItems="center"
-                >
-                  <Icon svg={<Icons.PlayCircle />} />
-                  <Text>Open in playground</Text>
-                </Flex>
-              </MenuItem>
-            ) : null}
             <MenuItem id={DatasetEvaluatorAction.EDIT}>
               <Flex
                 direction="row"
