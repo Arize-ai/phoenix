@@ -46,6 +46,7 @@ __all__ = [
     "build_index",
     "cached_index",
     "lookup",
+    "lookup_many",
     "reach_paths",
     "search",
     "tokenize",
@@ -680,6 +681,15 @@ def _names_excluded_mutation(index: Index, terms: Sequence[str]) -> bool:
     return any(tokens <= have for tokens in index.excluded_mutations.values())
 
 
+def _is_exact(index: Index, key: str) -> bool:
+    """Whether ``key`` names one type, field, or mutation, listed or hidden."""
+    return (
+        key in index.by_key
+        or key in index.excluded_mutations
+        or _is_hidden_mutation_root(index, key)
+    )
+
+
 def _is_hidden_mutation_root(index: Index, key: str) -> bool:
     return (
         not index.includes_mutations
@@ -707,12 +717,12 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     A query that exactly names a type, ``Type.field``, or mutation is a lookup.
     """
     key = query.strip().lower()
-    if (
-        key in index.by_key
-        or key in index.excluded_mutations
-        or _is_hidden_mutation_root(index, key)
-    ):
+    # A definition has its own budget: it is one answer, not a list to trim.
+    if _is_exact(index, key):
         return lookup(index, query)
+    names = [t for t in re.split(r"[,\s]+", query.strip()) if t]
+    if len(names) > 1 and all(_is_exact(index, n.lower()) for n in names):
+        return lookup_many(index, names)
     if unknown := _unknown_member(index, key):
         owner, member = unknown
         body = search(index, f"{owner} {member}", budget)
@@ -905,6 +915,12 @@ def _within(parts: Sequence[str], budget: int) -> str:
 def lookup(index: Index, name: str, budget: int = 4000) -> str:
     """One type, ``Type.field``, or mutation rendered in full with the path that reaches it."""
     return _with_legend(_budgeted(_lookup_parts(index, name), budget))
+
+
+def lookup_many(index: Index, names: Sequence[str], budget: int = 4000) -> str:
+    """Every name in full, each within an equal share of ``budget``."""
+    share = max(budget // max(len(names), 1), 300)
+    return _with_legend("\n\n".join(_budgeted(_lookup_parts(index, n), share) for n in names))
 
 
 def _budgeted(parts: Sequence[str], budget: int) -> str:
