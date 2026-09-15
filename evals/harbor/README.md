@@ -22,12 +22,6 @@ make harbor-stage-environments
 Each task keeps its grading material under `tests/`, which Harbor uploads only when the
 verifier runs, so the agent never sees the ground truth or the checks.
 
-Validate with the bundled oracle:
-
-```bash
-make harbor-oracle
-```
-
 Run one agent on the task:
 
 ```bash
@@ -57,9 +51,14 @@ The Claude Code agents are subclasses of Harbor's installed `claude-code` agent 
 `evals/harbor/agents/claude_code_agents.py`. They run with Harbor's default
 `bypassPermissions`, matching the chat agent's auto-approved tool calls, and with
 `--resume-trajectory` so step 2 continues step 1's conversation. Claude Code only speaks
-the Anthropic API, so pass an `anthropic/` model. After each step they write the final reply
-to `/logs/agent/steps/<n>/answer.md`; the verifier reads sidecars from `/app/.px/coding` on
-disk when present and from the PXI snapshot otherwise.
+the Anthropic API, so pass an `anthropic/` model.
+
+Every agent hands its work to the verifier through Harbor's own ATIF trajectory at
+`/logs/agent/trajectory.json`, which Harbor writes for Claude Code after each step and which
+`phoenix-chat-agent` builds from the turn's transcript in `populate_context_post_run`. The
+verifier takes the final reply from the last agent step, counts tool calls from the steps, and
+finds the PXI agent session through the trajectory's `session_id`. Sidecars are read from
+`/app/.px/coding` on disk when present and from the PXI snapshot otherwise.
 
 The `claude-code-cli` agent uploads the packed tarballs into its own sandbox during install
 and runs `evals/harbor/agents/install_phoenix_cli.sh`, which turns each tarball into an npm
@@ -73,8 +72,9 @@ make dev-backend
 # In another terminal:
 uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
-uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -p evals/harbor/tasks/error-analysis -a oracle -e docker \
+PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
+  harbor run -p evals/harbor/tasks/error-analysis \
+  -a evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent -m openai/gpt-6-astra -e docker \
   --plugin arize-phoenix \
   --plugin-kwarg endpoint=http://127.0.0.1:6006 \
   --plugin-kwarg trace_mode=null \

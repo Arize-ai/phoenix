@@ -1,3 +1,4 @@
+import json
 import os
 import shlex
 import tempfile
@@ -7,27 +8,31 @@ from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
+from evals.harbor.agents.atif import trajectory_from_ui_messages
+
 _ASSETS_DIR = "/opt/phoenix-eval"
 _STEPS_DIR = "/logs/agent/steps"
-_LATEST_LINK = "/logs/agent/latest"
 _INSTRUCTION_PATH = "/tmp/instruction.md"
-_SERVER_LOG = "/var/lib/phoenix-eval/server.log"
 _TRACE_ENDPOINT_ENV_VAR = "HARBOR_PHOENIX_COLLECTOR_ENDPOINT"
 
 
 class PhoenixChatAgent(BaseAgent):
     _step: int = 0
     _session_id: str | None = None
+    _phoenix_version: str | None = None
 
     @staticmethod
     def name() -> str:
         return "phoenix-chat-agent"
 
     def version(self) -> str | None:
-        return None
+        return self._phoenix_version
 
     async def setup(self, environment: BaseEnvironment) -> None:
-        return None
+        version = await self._exec(
+            environment, "python -c 'import phoenix; print(phoenix.__version__)'"
+        )
+        self._phoenix_version = version.strip() or None
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
@@ -45,23 +50,35 @@ class PhoenixChatAgent(BaseAgent):
             f"--instruction-file {_INSTRUCTION_PATH}",
             "--step-config step-config.json",
             f"--out-dir {out_dir}",
-            f"--latest-symlink {_LATEST_LINK}",
         ]
         if self._session_id is not None:
             command.append(f"--session-id {shlex.quote(self._session_id)}")
         if os.getenv(_TRACE_ENDPOINT_ENV_VAR):
             command.append("--export-remote-traces")
-        try:
-            await self._exec(environment, " ".join(command))
-        finally:
-            await self._collect_server_log(environment)
+        await self._exec(environment, " ".join(command))
         self._session_id = (await self._exec(environment, f"cat {out_dir}/session_id")).strip()
-        context.metadata = {"answer": await self._exec(environment, f"cat {out_dir}/answer.md")}
 
-    async def _collect_server_log(self, environment: BaseEnvironment) -> None:
-        result = await environment.exec(f"cat {_SERVER_LOG}")
-        self.logs_dir.mkdir(parents=True, exist_ok=True)
-        self.logs_dir.joinpath("phoenix-server.log").write_text(result.stdout or "")
+    def populate_context_post_run(self, context: AgentContext) -> None:
+        """Harbor calls this after downloading ``/logs/agent``; the turn's transcript becomes
+        the ATIF ``trajectory.json`` that Harbor uploads back for the verifier."""
+        turn_path = self.logs_dir / "steps" / str(self._step) / "turn_messages.json"
+        if not turn_path.exists():
+            self.logger.debug(f"No transcript at {turn_path}; skipping the ATIF trajectory")
+            return
+        trajectory = trajectory_from_ui_messages(
+            json.loads(turn_path.read_text()),
+            session_id=self._session_id,
+            agent_name=self.name(),
+            agent_version=self.version() or "unknown",
+            model_name=self.model_name,
+        )
+        self.logs_dir.joinpath("trajectory.json").write_text(
+            json.dumps(trajectory.to_json_dict(), indent=2, ensure_ascii=False)
+        )
+        if (metrics := trajectory.final_metrics) is not None:
+            context.n_input_tokens = metrics.total_prompt_tokens
+            context.n_cache_tokens = metrics.total_cached_tokens
+            context.n_output_tokens = metrics.total_completion_tokens
 
     @staticmethod
     async def _upload_instruction(environment: BaseEnvironment, instruction: str) -> None:

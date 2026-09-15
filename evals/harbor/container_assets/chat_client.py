@@ -11,9 +11,8 @@ so the stream is reduced by the server's own port of the AI SDK reducer.
 import argparse
 import asyncio
 import json
-import re
 import sys
-from collections.abc import AsyncIterator, Callable, Iterable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -123,21 +122,6 @@ def pending_approvals(message: Message) -> list[Part]:
     ]
 
 
-def count_tool_calls(messages: Iterable[Message]) -> int:
-    return sum(1 for message in messages for part in message["parts"] if _is_tool_part(part))
-
-
-def answer_text(message: Message) -> str:
-    return "".join(part["text"] for part in message["parts"] if part.get("type") == "text")
-
-
-def parse_json_answer(text: str) -> dict[str, Any]:
-    """The last fenced ```json block in the reply, or ``{}`` when there is none."""
-    blocks = re.findall(r"```json\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
-    parsed = json.loads(blocks[-1]) if blocks else {}
-    return parsed if isinstance(parsed, dict) else {}
-
-
 class SessionConflict(Exception):
     def __init__(self, code: str, detail: str) -> None:
         super().__init__(detail)
@@ -148,8 +132,13 @@ class SessionConflict(Exception):
 class Turn:
     """Everything one user instruction produced, across approval continuations."""
 
+    user_message: Message
     assistant_messages: list[Message] = field(default_factory=list)
     stream_errors: list[str] = field(default_factory=list)
+
+    @property
+    def messages(self) -> list[Message]:
+        return [self.user_message, *self.assistant_messages]
 
     @property
     def final_message(self) -> Message:
@@ -228,10 +217,10 @@ class AgentSessionChatClient:
             "recordLocalTraces": record_local_traces,
             "exportRemoteTraces": export_remote_traces,
         }
-        turn = Turn()
+        turn = Turn(user_message=user_message(instruction))
         message, errors = await self._chat(
             session_id,
-            {**base_body, "message": user_message(instruction), "lastMessageId": last_message_id},
+            {**base_body, "message": turn.user_message, "lastMessageId": last_message_id},
         )
         turn.assistant_messages.append(message)
         turn.stream_errors.extend(errors)
@@ -327,24 +316,14 @@ async def run(args: argparse.Namespace) -> None:
     finally:
         await client.aclose()
 
-    answer = answer_text(turn.final_message)
     args.out_dir.mkdir(parents=True, exist_ok=True)
     args.out_dir.joinpath("session_id").write_text(session_id + "\n")
-    args.out_dir.joinpath("answer.md").write_text(answer)
-    args.out_dir.joinpath("answer.json").write_text(_dump_json(parse_json_answer(answer)))
-    args.out_dir.joinpath("new_messages.json").write_text(_dump_json(turn.assistant_messages))
+    args.out_dir.joinpath("turn_messages.json").write_text(_dump_json(turn.messages))
     args.out_dir.joinpath("messages.json").write_text(_dump_json(transcript))
-    args.out_dir.joinpath("metrics.json").write_text(
-        _dump_json({"tool_calls": count_tool_calls(turn.assistant_messages)})
-    )
     args.out_dir.joinpath("usage.json").write_text(_dump_json(turn.usage))
     args.out_dir.joinpath("stream_errors.json").write_text(_dump_json(turn.stream_errors))
     for error in turn.stream_errors:
         print(f"warning: the server ended the turn with an error: {error}", file=sys.stderr)
-    if args.latest_symlink is not None:
-        args.latest_symlink.parent.mkdir(parents=True, exist_ok=True)
-        args.latest_symlink.unlink(missing_ok=True)
-        args.latest_symlink.symlink_to(args.out_dir)
 
 
 def main() -> None:
@@ -357,7 +336,6 @@ def main() -> None:
         "--session-id", default=None, help="Continue this session; omit to create one"
     )
     parser.add_argument("--step-config", type=Path, default=None)
-    parser.add_argument("--latest-symlink", type=Path, default=None)
     parser.add_argument("--export-remote-traces", action="store_true")
     asyncio.run(run(parser.parse_args()))
 

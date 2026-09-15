@@ -1,19 +1,17 @@
 """Step 2 verifier: axial coding produced granular per-dimension annotation configs and
 labelled the entities that carry open-coding notes, mirrored in the axial sidecar."""
 
-import json
-
 import error_analysis_checks as ea
 
-STEP = 2
 truth = ea.load_truth()
+trajectory = ea.load_trajectory()
 planted = {t["trace_id"] for t in truth["planted_traces"]}
 blocklist = truth["generic_config_names_blocklist"]
 
 with ea.connect() as connection:
     annotations = ea.fetch_annotations(connection)
     configs = ea.fetch_annotation_configs(connection, truth["project_name"])
-    sidecars = ea.load_sidecars(connection, ea.agent_session_rowid(STEP))
+    sidecars = ea.load_sidecars(connection, ea.agent_session_rowid(trajectory))
 
 notes = ea.notes(annotations)
 labels = ea.axial(annotations)
@@ -88,11 +86,9 @@ judge_ok = bool(
 )
 
 passed = configs_ok and labels_ok and sidecar_ok and judge_ok
-metrics_path = ea.step_dir(STEP) / "metrics.json"
-metrics = json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
 ea.write_reward(
     float(passed),
-    details={"tool_calls": metrics.get("tool_calls", 0), "label_count": len(labels)},
+    details={"tool_calls": ea.tool_call_count(trajectory), "label_count": len(labels)},
     configs_ok=configs_ok,
     labels_ok=labels_ok,
     sidecar_ok=sidecar_ok,

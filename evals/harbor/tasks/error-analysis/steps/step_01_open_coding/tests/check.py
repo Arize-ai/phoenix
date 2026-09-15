@@ -1,11 +1,8 @@
 """Step 1 verifier: open coding happened, is mirrored locally, found the planted defects,
 and the reply stopped at an offer to continue with axial coding."""
 
-import json
-
 import error_analysis_checks as ea
 
-STEP = 1
 # The second quarterly-report turn compounds the first, so a reviewer may fold both into
 # one note. The judge separately checks that the reply describes every defect.
 MIN_PLANTED_RECALL = 0.8
@@ -14,13 +11,14 @@ MIN_PLANTED_RECALL = 0.8
 MAX_FALSE_POSITIVES = 2
 
 truth = ea.load_truth()
+trajectory = ea.load_trajectory()
 planted = {t["trace_id"]: t for t in truth["planted_traces"]}
 unambiguously_clean = {t["trace_id"] for t in truth["clean_traces"] if "note" not in t}
 
 with ea.connect() as connection:
     annotations = ea.fetch_annotations(connection)
     configs = ea.fetch_annotation_configs(connection, truth["project_name"])
-    sidecars = ea.load_sidecars(connection, ea.agent_session_rowid(STEP))
+    sidecars = ea.load_sidecars(connection, ea.agent_session_rowid(trajectory))
 
 notes = ea.notes(annotations)
 identifier = ea.shared_identifier(notes)
@@ -38,7 +36,7 @@ coverage_ok = planted_recall >= MIN_PLANTED_RECALL and len(false_positives) <= M
 
 stopped_at_offer = not ea.axial(annotations) and not configs
 
-answer = ea.answer_text(STEP)
+answer = ea.final_reply(trajectory)
 defects = "\n".join(
     f"{i + 1}. [{t['session_id']} turn {t['turn']}] {t['defect']}"
     for i, t in enumerate(truth["planted_traces"])
@@ -70,11 +68,9 @@ judge_ok = bool(
 )
 
 passed = notes_ok and sidecar_ok and coverage_ok and stopped_at_offer and judge_ok
-metrics_path = ea.step_dir(STEP) / "metrics.json"
-metrics = json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
 ea.write_reward(
     float(passed),
-    details={"tool_calls": metrics.get("tool_calls", 0), "note_count": len(notes)},
+    details={"tool_calls": ea.tool_call_count(trajectory), "note_count": len(notes)},
     notes_ok=notes_ok,
     sidecar_ok=sidecar_ok,
     coverage_ok=coverage_ok,

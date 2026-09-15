@@ -47,20 +47,46 @@ def global_id(type_name: str, rowid: int) -> str:
     return base64.b64encode(f"{type_name}:{rowid}".encode()).decode()
 
 
-def step_dir(step: int) -> Path:
-    return AGENT_LOGS_DIR / "steps" / str(step)
+# --- the agent's ATIF trajectory -------------------------------------------------
+
+Trajectory = dict[str, Any]
 
 
-def answer_text(step: int) -> str:
-    path = step_dir(step) / "answer.md"
-    return path.read_text() if path.exists() else ""
-
-
-def agent_session_rowid(step: int) -> int | None:
-    path = step_dir(step) / "session_id"
+def load_trajectory() -> Trajectory:
+    """Harbor's ``trajectory.json`` for the agent run, or ``{}`` when the agent wrote none."""
+    path = AGENT_LOGS_DIR / "trajectory.json"
     if not path.exists():
-        return None
-    raw = path.read_text().strip()
+        return {}
+    loaded = json.loads(path.read_text())
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def agent_steps(trajectory: Trajectory) -> list[dict[str, Any]]:
+    return [s for s in trajectory.get("steps") or [] if s.get("source") == "agent"]
+
+
+def final_reply(trajectory: Trajectory) -> str:
+    """The text of the last agent step that said anything. With a resumed session the
+    trajectory spans every step, and the last message is still the current reply."""
+    for step in reversed(agent_steps(trajectory)):
+        message = step.get("message")
+        if isinstance(message, str) and message:
+            return message
+        if isinstance(message, list):
+            text = "".join(str(p.get("text", "")) for p in message if p.get("type") == "text")
+            if text:
+                return text
+    return ""
+
+
+def tool_call_count(trajectory: Trajectory) -> int:
+    return sum(len(step.get("tool_calls") or []) for step in agent_steps(trajectory))
+
+
+def agent_session_rowid(trajectory: Trajectory) -> int | None:
+    """The PXI agent session behind the trajectory's ``session_id``; ``None`` for agents
+    whose session id is not a Phoenix global id."""
+    raw = str(trajectory.get("session_id") or "")
     try:
         type_name, _, rowid = base64.b64decode(raw).decode().partition(":")
         if type_name == "AgentSession" and rowid.isdigit():
