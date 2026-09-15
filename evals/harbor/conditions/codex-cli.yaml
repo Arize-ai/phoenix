@@ -1,8 +1,11 @@
-# Codex answering through the px CLI, which the agent image keeps off PATH
-# until a condition adds it.
+# Codex answering through the px CLI. The images/cli.yaml overlay selects the
+# agent image that has px on PATH.
 # Run: make harbor-bench CONDITION=codex-cli
 jobs_dir: evals/harbor/.jobs
 n_concurrent_trials: 2
+environment:
+  extra_docker_compose:
+    - evals/harbor/conditions/images/cli.yaml
 extra_instructions:
   - Use the px CLI (the Phoenix CLI, already installed and configured) for anything involving Phoenix data.
 agents:
@@ -11,5 +14,3 @@ agents:
     kwargs:
       reasoning_effort: high
       web_search: disabled
-    env:
-      PATH: /opt/px/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

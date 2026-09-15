@@ -1,7 +1,8 @@
 #!/bin/bash
 # Build the two benchmark images from this checkout.
 #   phoenix-bench-phoenix:<TAG>  Phoenix server wheel + seeded TRAIL database
-#   phoenix-bench-agent:<TAG>    coding agents, px CLI, verifier toolchain
+#   phoenix-bench-agent:<TAG>    coding agents, verifier toolchain, px off PATH (MCP conditions)
+#   phoenix-bench-agent-cli:<TAG>  the same with px on PATH (CLI conditions)
 # TAG defaults to "local". IMAGES selects "all" (default), "phoenix", or "agent";
 # rebuild only the agent image after changing lib/ or the pinned tool versions.
 # Requires the TRAIL rows from scripts/download_trail.py.
@@ -36,6 +37,7 @@ if [ "$IMAGES" = all ] || [ "$IMAGES" = agent ]; then
   cp "$HERE/__init__.py" "$BUILD/agent/evals/harbor/"
   cp -R "$HERE/lib" "$BUILD/agent/evals/harbor/lib"
   find "$BUILD/agent" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
-  docker build -f "$HERE/environment/agent.Dockerfile" -t "phoenix-bench-agent:$TAG" "$BUILD/agent"
-  echo "Built phoenix-bench-agent:$TAG"
+  docker build -f "$HERE/environment/agent.Dockerfile" --target agent -t "phoenix-bench-agent:$TAG" "$BUILD/agent"
+  docker build -f "$HERE/environment/agent.Dockerfile" --target agent-cli -t "phoenix-bench-agent-cli:$TAG" "$BUILD/agent"
+  echo "Built phoenix-bench-agent:$TAG and phoenix-bench-agent-cli:$TAG"
 fi

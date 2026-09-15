@@ -1,9 +1,10 @@
 # Coding-agent container. Both agents are preinstalled so Harbor's adapters
 # skip their network install. The px CLI and the verifier toolchain live under
-# /opt so neither is on PATH unless a condition puts it there.
+# /opt, off PATH. The `agent-cli` target puts px on PATH; CLI conditions select
+# that image through a compose overlay, so MCP conditions never see px.
 # Build context (staged by scripts/build_images.sh):
 #   evals/__init__.py, evals/harbor/__init__.py, evals/harbor/lib/   grading library
-FROM node:22-bookworm-slim
+FROM node:22-bookworm-slim AS agent
 ARG CLAUDE_CODE_VERSION=2.1.267
 ARG CODEX_VERSION=0.154.0
 ARG PX_VERSION=1.18.2
@@ -18,3 +19,6 @@ RUN python3 -m venv /opt/verifier \
 COPY evals/ /opt/verifier/evals/
 RUN mkdir -p /workspace
 WORKDIR /workspace
+
+FROM agent AS agent-cli
+RUN ln -s /opt/px/bin/px /usr/local/bin/px

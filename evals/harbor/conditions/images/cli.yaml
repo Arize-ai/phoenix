@@ -1,0 +1,4 @@
+# Compose overlay for CLI conditions: swap the agent image for the one with px on PATH.
+services:
+  main:
+    image: phoenix-bench-agent-cli:local
