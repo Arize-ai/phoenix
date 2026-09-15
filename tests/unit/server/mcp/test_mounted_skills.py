@@ -56,7 +56,7 @@ async def test_mounted_skills_reach_mcp_pxi_picker_and_requested_loads(
     messages = inject_requested_skills(
         messages=[],
         requested_skill_names=["team-visible", "team-unmarked"],
-        available_skills=app.state.pxi_skills,
+        available_skills=app.state.agent_skills,
         message_factory=UIMessage,
     )
     assert len(messages) == (2 if mounted_skills == "all" else 1)
@@ -84,7 +84,7 @@ async def test_mounted_skills_reach_mcp_pxi_picker_and_requested_loads(
         result = await client.call_tool("load_skill", {"skill_name": "team-visible"})
         assert "Team workflow" in str(result.content)
 
-    app.state.pxi_skills = ()
+    app.state.agent_skills = ()
     response = await gql_client.execute(query="{ availableAgentSkills { name } }")
     assert not response.errors
     assert response.data == {"availableAgentSkills": []}
