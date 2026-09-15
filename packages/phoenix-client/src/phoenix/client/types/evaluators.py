@@ -10,6 +10,7 @@ __all__ = [
     "EvaluatorOutputConfig",
     "EvaluatorType",
     "Language",
+    "ProjectEvaluatorInput",
 ]
 
 EvaluatorDefinition = Union[
@@ -38,4 +39,12 @@ DatasetEvaluatorInput = Union[
     v1.ExistingEvaluator,
 ]
 """The evaluator a dataset binding creates or references. ``type`` is ``"llm"``,
+``"code"``, or ``"reference"``."""
+
+ProjectEvaluatorInput = Union[
+    v1.NewLLMEvaluator,
+    v1.NewCodeEvaluator,
+    v1.ExistingEvaluator,
+]
+"""The evaluator a project binding creates or references. ``type`` is ``"llm"``,
 ``"code"``, or ``"reference"``."""
