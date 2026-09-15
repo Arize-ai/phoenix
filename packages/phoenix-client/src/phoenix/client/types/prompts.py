@@ -79,6 +79,7 @@ class PromptVersion:
             "ZAI",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        custom_provider_id: Optional[str] = None,
     ) -> None:
         """
         Initializes a PromptVersion for syncing and template application
@@ -94,6 +95,10 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The
             format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
+            custom_provider_id (Optional[str]): The ID of a custom model
+                provider configured in Phoenix. The provider must be compatible
+                with ``model_provider``, which still determines the invocation
+                parameter format. Defaults to None.
         """
         self._template = v1.PromptChatTemplate(messages=prompt, type="chat")
         self._template_type: Literal["CHAT"] = "CHAT"
@@ -118,6 +123,7 @@ class PromptVersion:
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
+        self._custom_provider_id = custom_provider_id
         self._invocation_parameters: Union[
             v1.PromptOpenAIInvocationParameters,
             v1.PromptAzureOpenAIInvocationParameters,
@@ -227,10 +233,16 @@ class PromptVersion:
         return [
             "id",
             "format",
+            "custom_provider_id",
             "from_openai",
             "from_anthropic",
             "from_google_genai",
         ]
+
+    @property
+    def custom_provider_id(self) -> Optional[str]:
+        """The ID of the custom model provider this version targets, if any."""
+        return self._custom_provider_id
 
     @property
     def id(self) -> Optional[str]:
@@ -302,6 +314,7 @@ class PromptVersion:
             description=obj.get("description"),
             model_provider=obj["model_provider"],
             template_format=obj["template_format"],
+            custom_provider_id=obj.get("custom_provider_id"),
         )
         ans._invocation_parameters = obj["invocation_parameters"]
         if "tools" in obj:
@@ -330,6 +343,8 @@ class PromptVersion:
             ans["response_format"] = self._response_format
         if self._description is not None:
             ans["description"] = self._description
+        if self._custom_provider_id is not None:
+            ans["custom_provider_id"] = self._custom_provider_id
         return ans
 
     @classmethod

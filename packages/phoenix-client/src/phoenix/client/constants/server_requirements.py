@@ -97,6 +97,14 @@ PATCH_PROMPT = RouteRequirement(
     min_server_version=Version(19, 18, 0),
 )
 
+CREATE_PROMPT_CUSTOM_PROVIDER = ParameterRequirement(
+    parameter_name="custom_provider_id",
+    parameter_location="body",
+    route="POST /v1/prompts",
+    min_server_version=Version(21, 0, 0),
+    description="Prompt versions that target a custom model provider",
+)
+
 DELETE_PROMPT = RouteRequirement(
     method="DELETE",
     path="/v1/prompts/{prompt_identifier}",

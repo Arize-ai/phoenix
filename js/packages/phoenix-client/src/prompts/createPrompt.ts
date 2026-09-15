@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import { CREATE_PROMPT_CUSTOM_PROVIDER } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type {
   AnthropicInvocationParameters,
@@ -15,6 +16,7 @@ import type {
   XAIInvocationParameters,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
  * Parameters to create a prompt
@@ -66,6 +68,12 @@ export async function createPrompt({
   ...promptParams
 }: CreatePromptParams): Promise<PromptVersion> {
   const client = _client ?? createClient();
+  if (version.custom_provider_id != null) {
+    await ensureServerCapability({
+      client,
+      requirement: CREATE_PROMPT_CUSTOM_PROVIDER,
+    });
+  }
   const response = await client.POST("/v1/prompts", {
     body: {
       prompt: promptParams,
@@ -98,6 +106,14 @@ interface PromptVersionInputBase {
    * @default "MUSTACHE"
    */
   templateFormat?: PromptVersionData["template_format"];
+  /**
+   * The ID of a custom model provider configured in Phoenix. The provider must
+   * be compatible with `modelProvider`, which still determines the invocation
+   * parameter format.
+   *
+   * @requires Phoenix server >= 21.0.0 when set
+   */
+  customProviderId?: string;
 }
 
 export interface OpenAIPromptVersionInput extends PromptVersionInputBase {
@@ -169,138 +185,49 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
     modelName: model_name,
     template: templateMessages,
     templateFormat: template_format = "MUSTACHE",
-    invocationParameters: invocation_parameters,
+    customProviderId,
   } = params;
-  switch (model_provider) {
+  return {
+    description,
+    model_provider,
+    model_name,
+    template_type: "CHAT",
+    template_format,
+    template: {
+      type: "chat",
+      messages: templateMessages,
+    },
+    invocation_parameters: toInvocationParameters(params),
+    ...(customProviderId !== undefined
+      ? { custom_provider_id: customProviderId }
+      : {}),
+  };
+}
+
+function toInvocationParameters(
+  params: PromptVersionInput
+): PromptVersionData["invocation_parameters"] {
+  switch (params.modelProvider) {
     case "OPENAI":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "openai",
-          openai: invocation_parameters ?? {},
-        },
-      };
+      return { type: "openai", openai: params.invocationParameters ?? {} };
     case "AZURE_OPENAI":
       return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "azure_openai",
-          azure_openai: invocation_parameters ?? {},
-        },
+        type: "azure_openai",
+        azure_openai: params.invocationParameters ?? {},
       };
     case "ANTHROPIC":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "anthropic",
-          anthropic: invocation_parameters,
-        },
-      };
+      return { type: "anthropic", anthropic: params.invocationParameters };
     case "GOOGLE":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "google",
-          google: invocation_parameters ?? {},
-        },
-      };
+      return { type: "google", google: params.invocationParameters ?? {} };
     case "DEEPSEEK":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "deepseek",
-          deepseek: invocation_parameters ?? {},
-        },
-      };
+      return { type: "deepseek", deepseek: params.invocationParameters ?? {} };
     case "XAI":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "xai",
-          xai: invocation_parameters ?? {},
-        },
-      };
+      return { type: "xai", xai: params.invocationParameters ?? {} };
     case "OLLAMA":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "ollama",
-          ollama: invocation_parameters ?? {},
-        },
-      };
+      return { type: "ollama", ollama: params.invocationParameters ?? {} };
     case "AWS":
-      return {
-        description,
-        model_provider,
-        model_name,
-        template_type: "CHAT",
-        template_format,
-        template: {
-          type: "chat",
-          messages: templateMessages,
-        },
-        invocation_parameters: {
-          type: "aws",
-          aws: invocation_parameters ?? {},
-        },
-      };
+      return { type: "aws", aws: params.invocationParameters ?? {} };
     default:
-      return assertUnreachable(model_provider);
+      return assertUnreachable(params);
   }
 }
