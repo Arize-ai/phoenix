@@ -24,19 +24,19 @@ const EVALUATOR_QUICK_ACTIONS: EmptyStateQuickAction[] = [
     icon: <Icons.Edit />,
     label: "Improve an evaluator",
     prompt:
-      "Read the evaluator playground and help me improve an evaluator draft.",
+      "Read the evaluator task on the playground and help me improve its draft.",
   },
   {
     icon: <Icons.PlayCircle />,
     label: "Run evaluators",
     prompt:
-      "Run the visible evaluators on the selected sample and summarize the results.",
+      "Run the evaluator tasks over the selected dataset and summarize the results.",
   },
   {
     icon: <Icons.Code />,
     label: "Compare a code evaluator",
     prompt:
-      "Help me create a code evaluator in slot B that matches evaluator A in the evaluator playground.",
+      "Add a code evaluator task beside evaluator A that reproduces its judgment, so I can compare them.",
   },
 ];
 
@@ -150,7 +150,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
  */
 export function buildAgentQuickActions(
   contextTypes: readonly AgentContextType[],
-  playgroundMode: "prompts" | "evaluators" = "prompts"
+  playgroundTaskKind: "prompt" | "evaluator" = "prompt"
 ): EmptyStateQuickAction[] {
   const present = new Set(contextTypes);
   const actions: EmptyStateQuickAction[] = [];
@@ -162,7 +162,7 @@ export function buildAgentQuickActions(
     }
 
     const contextActions =
-      contextType === "playground" && playgroundMode === "evaluators"
+      contextType === "playground" && playgroundTaskKind === "evaluator"
         ? EVALUATOR_QUICK_ACTIONS
         : (QUICK_ACTIONS_BY_CONTEXT[contextType] ?? []);
 
@@ -203,15 +203,15 @@ function selectActiveContextKey(state: AgentState): string {
 export function useAgentQuickActions(): EmptyStateQuickAction[] {
   const contextKey = useAgentContext(selectActiveContextKey);
 
-  const playgroundMode = useAgentContext(
+  const playgroundTaskKind = useAgentContext(
     (state) =>
       selectActiveContexts(state).find(
         (context) => context.type === "playground"
-      )?.mode ?? "prompts"
+      )?.taskKind ?? "prompt"
   );
 
   return buildAgentQuickActions(
     contextKey ? (contextKey.split(",") as AgentContextType[]) : [],
-    playgroundMode
+    playgroundTaskKind
   );
 }

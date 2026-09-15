@@ -3306,31 +3306,6 @@ export interface components {
             /** Approval */
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
-        /** EvaluatorPlaygroundSlotUIContext */
-        EvaluatorPlaygroundSlotUIContext: {
-            /**
-             * Slot
-             * @enum {string}
-             */
-            slot: "A" | "B" | "C" | "D";
-            /** Name */
-            name: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "LLM" | "CODE";
-            /**
-             * Isdirty
-             * @default false
-             */
-            isDirty?: boolean;
-            /**
-             * Isrunning
-             * @default false
-             */
-            isRunning?: boolean;
-        };
         /** Experiment */
         Experiment: {
             /**
@@ -4509,6 +4484,29 @@ export interface components {
             /** Modelname */
             modelName: string;
         };
+        /**
+         * PlaygroundEvaluatorTaskUIContext
+         * @description An evaluator draft judged over the dataset; its judge prompt is the instance's prompt.
+         */
+        PlaygroundEvaluatorTaskUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "evaluator";
+            /**
+             * Evaluatorkind
+             * @enum {string}
+             */
+            evaluatorKind: "LLM" | "CODE";
+            /** Name */
+            name: string;
+            /**
+             * Isdirty
+             * @default false
+             */
+            isDirty?: boolean;
+        };
         /** PlaygroundEvaluatorUIContext */
         PlaygroundEvaluatorUIContext: {
             /** Datasetevaluatorid */
@@ -4545,6 +4543,16 @@ export interface components {
             model?: (components["schemas"]["PlaygroundBuiltinModelUIContext"] | components["schemas"]["PlaygroundCustomProviderModelUIContext"]) | null;
             /** Experimentid */
             experimentId?: string | null;
+            /** Task */
+            task?: (components["schemas"]["PlaygroundPromptTaskUIContext"] | components["schemas"]["PlaygroundEvaluatorTaskUIContext"]) | null;
+        };
+        /** PlaygroundPromptTaskUIContext */
+        PlaygroundPromptTaskUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "prompt";
         };
         /** PlaygroundUIContext */
         PlaygroundUIContext: {
@@ -4554,15 +4562,11 @@ export interface components {
              */
             type: "playground";
             /**
-             * Mode
-             * @default prompts
+             * Taskkind
+             * @default prompt
              * @enum {string}
              */
-            mode?: "prompts" | "evaluators";
-            /** Evaluatorslots */
-            evaluatorSlots?: components["schemas"]["EvaluatorPlaygroundSlotUIContext"][];
-            /** Samplesize */
-            sampleSize?: number | null;
+            taskKind?: "prompt" | "evaluator";
             /**
              * Recordexperiments
              * @default true

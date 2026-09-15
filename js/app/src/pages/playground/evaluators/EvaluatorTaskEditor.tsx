@@ -64,8 +64,11 @@ import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 import { extractPathsFromDatasetExamples } from "@phoenix/utils/objectUtils";
 
 import type { EvaluatorTaskEditorQuery } from "./__generated__/EvaluatorTaskEditorQuery.graphql";
+import { createEvaluatorTaskAgentHost } from "./evaluatorTaskAgent";
+import { useEvaluatorTaskAgentRegistry } from "./EvaluatorTaskAgentContext";
 import { EvaluatorTaskMappingSource } from "./EvaluatorTaskMappingSource";
 import { EvaluatorTaskOutput } from "./EvaluatorTaskOutput";
+import type { EvaluatorTaskSaveApi } from "./EvaluatorTaskSaveButton";
 import { EvaluatorTaskSaveButton } from "./EvaluatorTaskSaveButton";
 import {
   buildEvaluatorTaskFromStore,
@@ -81,6 +84,37 @@ import {
 type SandboxConfigs = ReturnType<typeof mapSandboxConfigOptions>;
 
 const EMPTY_SANDBOX_CONFIGS: SandboxConfigs = [];
+
+/**
+ * Why a draft of the task cannot run or be saved yet, or null. The judge
+ * prompt is checked by building its payload from the instance.
+ */
+function getTaskValidationError({
+  evaluator,
+  sandboxConfigs,
+  playgroundStore,
+  instanceId,
+  datasetId,
+}: {
+  evaluator: PlaygroundEvaluatorTask;
+  sandboxConfigs: SandboxConfigs;
+  playgroundStore: ReturnType<typeof usePlaygroundStore>;
+  instanceId: number;
+  datasetId: string | null;
+}): string | null {
+  return getEvaluatorTaskValidationError({
+    evaluator,
+    sandboxConfigs,
+    buildPreview: () =>
+      getEvaluatorTaskPreview({
+        evaluator,
+        name: evaluator.name.trim() || "evaluator",
+        playgroundStore,
+        instanceId,
+        datasetId,
+      }),
+  });
+}
 
 /**
  * The editor for an evaluator task. The shared evaluator components read
@@ -253,6 +287,42 @@ function EvaluatorTaskEditorContent({
   // an edit, so it leaves the dirty flag alone.
   const isFirstPublish = useRef(true);
 
+  // PXI: the Save button owns the save target and the write, and hands them
+  // over once its query resolves; the task's adapter registers only then.
+  const registry = useEvaluatorTaskAgentRegistry();
+  const [saveApi, setSaveApi] = useState<EvaluatorTaskSaveApi | null>(null);
+  // The adapter reads the editor's latest state through this ref, so it is
+  // created and registered once instead of on every render.
+  const agentState = useRef({ code, sandboxConfigs, datasetId });
+  useEffect(() => {
+    agentState.current = { code, sandboxConfigs, datasetId };
+  });
+  useEffect(() => {
+    if (!saveApi) {
+      return undefined;
+    }
+    const host = createEvaluatorTaskAgentHost({
+      instanceId,
+      store,
+      playgroundStore,
+      getCode: () => (kind === "CODE" ? agentState.current.code : null),
+      setCode,
+      getSandboxConfigs: () => agentState.current.sandboxConfigs,
+      getDatasetId: () => agentState.current.datasetId,
+      getValidationError: (task) =>
+        getTaskValidationError({
+          evaluator: task,
+          sandboxConfigs: agentState.current.sandboxConfigs,
+          playgroundStore,
+          instanceId,
+          datasetId: agentState.current.datasetId,
+        }),
+      getSaveTarget: saveApi.getSaveTarget,
+      save: saveApi.save,
+    });
+    return registry.register(instanceId, host);
+  }, [registry, instanceId, kind, store, playgroundStore, saveApi]);
+
   useEffect(() => {
     function publish() {
       const current = getPlaygroundEvaluatorTask(
@@ -267,17 +337,12 @@ function EvaluatorTaskEditorContent({
         current,
       });
       setValidationError(
-        getEvaluatorTaskValidationError({
+        getTaskValidationError({
           evaluator: next,
           sandboxConfigs,
-          buildPreview: () =>
-            getEvaluatorTaskPreview({
-              evaluator: next,
-              name: next.name.trim() || "evaluator",
-              playgroundStore,
-              instanceId,
-              datasetId,
-            }),
+          playgroundStore,
+          instanceId,
+          datasetId,
         })
       );
       if (
@@ -379,6 +444,7 @@ function EvaluatorTaskEditorContent({
               validationError={validationError}
               onNameRequired={() => setSelectedTab("output")}
               onSaved={setLoadedSandboxConfigId}
+              onSaveApiChange={setSaveApi}
             />
           </Suspense>
           {validationError ? (

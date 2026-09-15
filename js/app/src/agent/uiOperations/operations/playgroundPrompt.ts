@@ -10,9 +10,10 @@ import {
 
 import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
-
-/** Route hint shared by every playground operation. */
-const PLAYGROUND_ROUTE_HINT = "/playground with prompt tasks";
+import {
+  PLAYGROUND_PROMPT_ROUTE_HINT,
+  PLAYGROUND_ROUTE_HINT,
+} from "./playgroundRouteHints";
 
 /**
  * Documentation-only mirror of {@link PromptSnapshot} — what
@@ -20,7 +21,7 @@ const PLAYGROUND_ROUTE_HINT = "/playground with prompt tasks";
  * `outputSchema` on the descriptor type): the top-level field names are what
  * scripts branch on.
  */
-const promptSnapshotOutputSchema = z.object({
+export const promptSnapshotOutputSchema = z.object({
   instanceId: z.number(),
   index: z.number(),
   label: z.string(),
@@ -59,13 +60,15 @@ export const readPromptOperation = defineUIOperation({
     "`label` (A, B, C, D) shown to the user; use labels when discussing instances with " +
     "the user. " +
     "If there is exactly one playground instance, `instanceId` may be omitted. If " +
-    "there are multiple comparison instances, pass the specific `instanceId`.",
+    "there are multiple comparison instances, pass the specific `instanceId`. " +
+    "On an evaluator page the instance's prompt is the LLM evaluator's judge " +
+    "prompt; the rest of an evaluator task is read with `playground.evaluator.read`.",
   inputSchema: readPromptInputSchema,
   outputSchema: promptSnapshotOutputSchema,
   operationKind: "read",
   defaultSuccessOutput: "Prompt instance read.",
   availability: {
-    routeHint: PLAYGROUND_ROUTE_HINT,
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 
@@ -75,15 +78,17 @@ export const readPromptOperation = defineUIOperation({
 export const clonePromptInstanceOperation = defineUIOperation({
   name: "playground.instance.clone",
   description:
-    "Clone an existing playground prompt instance into a new comparison instance. " +
-    "Use this before proposing prompt edits when the user wants to compare a variant " +
-    "against the original. If there is exactly one playground instance, `instanceId` " +
-    "may be omitted. If there are multiple comparison instances, pass the specific " +
-    "`instanceId` to clone. Use the alphabetic labels (A, B, C, D) when discussing " +
-    "instances with the user, but pass numeric instance IDs when calling tools. The " +
-    "playground supports at most 4 comparison instances; this tool is rejected when " +
-    "4 instances already exist. The cloned instance receives fresh message IDs; call " +
-    "`playground.prompt.read` on the cloned instance before editing it.",
+    "Clone an existing playground instance — a prompt task or an evaluator task — " +
+    "into a new comparison instance. Use this before proposing edits when the user " +
+    "wants to compare a variant against the original. If there is exactly one " +
+    "playground instance, `instanceId` may be omitted. If there are multiple " +
+    "comparison instances, pass the specific `instanceId` to clone. Use the " +
+    "alphabetic labels (A, B, C, D) when discussing instances with the user, but " +
+    "pass numeric instance IDs when calling tools. The playground supports at most " +
+    "4 comparison instances; this tool is rejected when 4 instances already exist. " +
+    "The cloned instance receives fresh message IDs; call `playground.prompt.read` " +
+    "(or `playground.evaluator.read` for an evaluator task) on the clone before " +
+    "editing it.",
   inputSchema: clonePromptInstanceInputSchema,
   operationKind: "write",
   defaultSuccessOutput: "Prompt instance cloned.",
@@ -93,22 +98,31 @@ export const clonePromptInstanceOperation = defineUIOperation({
 });
 
 /**
- * The catalog entry replacing the `add_prompt_instance` client-action tool.
+ * The catalog entry for Compare: a comparison instance built from a task
+ * source, of the kind the page already holds.
  */
 export const addPromptInstanceOperation = defineUIOperation({
   name: "playground.instance.add",
   description:
-    "Add a fresh chat prompt instance to the mounted playground for comparison. " +
-    "Use this when the user wants a new prompt variant that starts from the default " +
-    "chat prompt messages instead of copying existing prompt messages. The new " +
-    "instance inherits runnable playground configuration from the current playground " +
-    "but has no saved prompt association. The playground supports at most 4 comparison " +
-    "instances; this tool is rejected when 4 instances already exist. The output " +
-    "includes an `addedInstance` snapshot with the instance ID, message IDs, and " +
-    "revision needed to edit the new instance.",
+    "Add a comparison instance to the mounted playground (at most 4; rejected while " +
+    "a run is active). `source` defaults to a new task of the page's kind: " +
+    '{type:"new",kind:"prompt"} on a prompt page, {type:"new",kind:"LLM"} on an ' +
+    'evaluator page. Other sources: {type:"new",kind:"CODE"}; a saved prompt ' +
+    '{type:"prompt",promptId,promptVersionId?,tagName?}; a saved evaluator ' +
+    '{type:"evaluator",evaluatorId} or {type:"datasetEvaluator",datasetEvaluatorId}; ' +
+    'or {type:"duplicate"} for a copy of the first instance. The page holds one kind ' +
+    "of task, so a source of the other kind is rejected: to switch kinds, call " +
+    "`playground.task.select` on a page with a single instance. A new task inherits " +
+    "the first instance's model and has no saved association. Awaits a saved " +
+    'source\'s load and returns {status:"added", addedInstance, message}, where ' +
+    "`addedInstance` is the `playground.prompt.read` snapshot for a prompt task or " +
+    "the `playground.evaluator.read` snapshot for an evaluator task — with the new " +
+    "numeric `instanceId` and the `revision` needed to edit it.",
   inputSchema: addPromptInstanceInputSchema,
   operationKind: "write",
-  defaultSuccessOutput: "Prompt instance added.",
+  // Awaits the fetch of a saved prompt or evaluator.
+  longRunning: true,
+  defaultSuccessOutput: "Instance added.",
   availability: {
     routeHint: PLAYGROUND_ROUTE_HINT,
   },
@@ -122,11 +136,12 @@ export const addPromptInstanceOperation = defineUIOperation({
 export const removePromptInstanceOperation = defineUIOperation({
   name: "playground.instance.remove",
   description:
-    "Remove one playground prompt instance. Use this only when the user asks to " +
-    "delete or remove a comparison instance. Pass the numeric `instanceId`; use " +
-    "alphabetic labels (A, B, C, D) only when discussing instances with the user. " +
-    "The playground must keep at least one prompt instance, so this tool is rejected " +
-    "when only one instance remains. The removal is a state change covered by the " +
+    "Remove one playground instance (a prompt or an evaluator task). Use this only " +
+    "when the user asks to delete or remove a comparison instance. Pass the numeric " +
+    "`instanceId`; use alphabetic labels (A, B, C, D) only when discussing instances " +
+    "with the user. The playground must keep at least one instance, so this tool is " +
+    "rejected when only one instance remains; removing every other instance also " +
+    "unlocks the page's task kind. The removal is a state change covered by the " +
     "script-level approval (write_description).",
   inputSchema: removePromptInstanceInputSchema,
   operationKind: "approval",
@@ -165,7 +180,10 @@ export const editPromptOperation = defineUIOperation({
     '{"type":"insert_message","afterMessageId":1,"role":"user",' +
     '"content":"new text"}; ' +
     '{"type":"delete_message","messageId":1}; ' +
-    '{"type":"reorder_messages","messageIds":[1,2,3]}.',
+    '{"type":"reorder_messages","messageIds":[1,2,3]}. ' +
+    "On an evaluator page this edits the LLM evaluator's judge prompt (the " +
+    "instance's prompt); its name, outputs and mapping are edited with " +
+    "`playground.evaluator.edit`.",
   inputSchema: editPromptInputSchema,
   // The approval resolution: `status` says what the user decided; on accept,
   // `revision` is the new token (valid as the next `expectedRevision`) and
@@ -193,7 +211,7 @@ export const editPromptOperation = defineUIOperation({
   },
   defaultSuccessOutput: "Prompt edits applied.",
   availability: {
-    routeHint: PLAYGROUND_ROUTE_HINT,
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 

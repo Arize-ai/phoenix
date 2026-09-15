@@ -8,14 +8,10 @@ const labels = (actions: ReturnType<typeof buildAgentQuickActions>) =>
   actions.map((action) => action.label);
 
 describe("buildAgentQuickActions", () => {
-  it("offers evaluator actions only in evaluator mode", () => {
-    expect(
-      labels(buildAgentQuickActions(["playground"], "evaluators"))
-    ).toEqual([
-      "Improve an evaluator",
-      "Run evaluators",
-      "Compare a code evaluator",
-    ]);
+  it("offers evaluator actions only for evaluator tasks", () => {
+    expect(labels(buildAgentQuickActions(["playground"], "evaluator"))).toEqual(
+      ["Improve an evaluator", "Run evaluators", "Compare a code evaluator"]
+    );
   });
   it("falls back to the generic defaults when no actionable context is active", () => {
     expect(buildAgentQuickActions([])).toBe(DEFAULT_QUICK_ACTIONS);

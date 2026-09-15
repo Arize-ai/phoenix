@@ -15,8 +15,8 @@ environment capability, not artifact kind. The `experiments` skill reads the sco
 here; the explanations you enable are its evidence channel when comparing runs.
 
 This skill is about the judgment itself, not the surface it is edited on. Evaluator form dialogs
-and the playground's evaluator mode (`/playground?mode=evaluators`) have their own mechanics; the
-`playground` skill covers the latter.
+and the playground's evaluator tasks have their own mechanics; the `playground` skill covers the
+latter.
 
 ## The Authoring Loop
 

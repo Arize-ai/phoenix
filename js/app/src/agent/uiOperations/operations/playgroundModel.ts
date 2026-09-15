@@ -4,9 +4,7 @@ import { listPlaygroundModelTargetsInputSchema } from "@phoenix/agent/tools/play
 
 import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
-
-/** Route hint shared by every playground operation. */
-const PLAYGROUND_ROUTE_HINT = "/playground with prompt tasks";
+import { PLAYGROUND_ROUTE_HINT } from "./playgroundRouteHints";
 
 /**
  * Target for selecting a Phoenix built-in model provider.
@@ -87,7 +85,7 @@ export const setPlaygroundModelOperation = defineUIOperation({
     "result (`builtinModels[].target` or `customProviderModels[].target`): " +
     "{type: 'builtin', provider, modelName} for Phoenix built-in providers, " +
     "{type: 'custom', customProviderId, modelName} for a configured custom " +
-    "provider.",
+    "provider. On an evaluator page this sets the LLM evaluator's judge model.",
   inputSchema: setPlaygroundModelInputSchema,
   operationKind: "write",
   defaultSuccessOutput: "Playground model updated.",

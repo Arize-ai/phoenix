@@ -26,6 +26,15 @@ export type PlaygroundExpectedOutputs = ExpectedOutputQueueState & {
     annotationName: string,
     output: ExpectedOutput | null
   ) => Promise<UIOperationResult>;
+  /**
+   * Record `output` and write it now, with whatever else is queued, resolving
+   * with the write's outcome. For callers that need the result, such as PXI.
+   */
+  saveNow: (
+    exampleId: string,
+    annotationName: string,
+    output: ExpectedOutput | null
+  ) => Promise<UIOperationResult>;
   /** Write whatever is queued now, after a failed batch. */
   retry: () => Promise<UIOperationResult>;
 };
@@ -63,6 +72,13 @@ export function PlaygroundExpectedOutputsProvider({
     },
     [enqueue]
   );
+  const saveNow = useCallback<PlaygroundExpectedOutputs["saveNow"]>(
+    (exampleId, annotationName, output) => {
+      enqueue(exampleId, annotationName, output);
+      return flushNow();
+    },
+    [enqueue, flushNow]
+  );
   const value = useMemo<PlaygroundExpectedOutputs>(
     () => ({
       overlay,
@@ -71,9 +87,10 @@ export function PlaygroundExpectedOutputsProvider({
       status,
       error,
       save,
+      saveNow,
       retry: flushNow,
     }),
-    [overlay, pendingCount, isSaving, status, error, save, flushNow]
+    [overlay, pendingCount, isSaving, status, error, save, saveNow, flushNow]
   );
   return (
     <PlaygroundExpectedOutputsContext.Provider value={value}>

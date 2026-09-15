@@ -13399,50 +13399,6 @@
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
       },
-      "EvaluatorPlaygroundSlotUIContext": {
-        "properties": {
-          "slot": {
-            "type": "string",
-            "enum": [
-              "A",
-              "B",
-              "C",
-              "D"
-            ],
-            "title": "Slot"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "LLM",
-              "CODE"
-            ],
-            "title": "Kind"
-          },
-          "isDirty": {
-            "type": "boolean",
-            "title": "Isdirty",
-            "default": false
-          },
-          "isRunning": {
-            "type": "boolean",
-            "title": "Isrunning",
-            "default": false
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "slot",
-          "name",
-          "kind"
-        ],
-        "title": "EvaluatorPlaygroundSlotUIContext"
-      },
       "Experiment": {
         "properties": {
           "id": {
@@ -16494,6 +16450,41 @@
         ],
         "title": "PlaygroundCustomProviderModelUIContext"
       },
+      "PlaygroundEvaluatorTaskUIContext": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "evaluator",
+            "title": "Kind",
+            "default": "evaluator"
+          },
+          "evaluatorKind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE"
+            ],
+            "title": "Evaluatorkind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "isDirty": {
+            "type": "boolean",
+            "title": "Isdirty",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evaluatorKind",
+          "name"
+        ],
+        "title": "PlaygroundEvaluatorTaskUIContext",
+        "description": "An evaluator draft judged over the dataset; its judge prompt is the instance's prompt."
+      },
       "PlaygroundEvaluatorUIContext": {
         "properties": {
           "datasetEvaluatorId": {
@@ -16608,6 +16599,31 @@
               }
             ],
             "title": "Experimentid"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PlaygroundPromptTaskUIContext"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PlaygroundEvaluatorTaskUIContext"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "evaluator": "#/components/schemas/PlaygroundEvaluatorTaskUIContext",
+                    "prompt": "#/components/schemas/PlaygroundPromptTaskUIContext"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
           }
         },
         "additionalProperties": false,
@@ -16617,6 +16633,19 @@
         ],
         "title": "PlaygroundInstanceUIContext"
       },
+      "PlaygroundPromptTaskUIContext": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "prompt",
+            "title": "Kind",
+            "default": "prompt"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PlaygroundPromptTaskUIContext"
+      },
       "PlaygroundUIContext": {
         "properties": {
           "type": {
@@ -16624,32 +16653,14 @@
             "const": "playground",
             "title": "Type"
           },
-          "mode": {
+          "taskKind": {
             "type": "string",
             "enum": [
-              "prompts",
-              "evaluators"
+              "prompt",
+              "evaluator"
             ],
-            "title": "Mode",
-            "default": "prompts"
-          },
-          "evaluatorSlots": {
-            "items": {
-              "$ref": "#/components/schemas/EvaluatorPlaygroundSlotUIContext"
-            },
-            "type": "array",
-            "title": "Evaluatorslots"
-          },
-          "sampleSize": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Samplesize"
+            "title": "Taskkind",
+            "default": "prompt"
           },
           "recordExperiments": {
             "type": "boolean",
@@ -16686,7 +16697,6 @@
             "title": "Evaluators"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "type"

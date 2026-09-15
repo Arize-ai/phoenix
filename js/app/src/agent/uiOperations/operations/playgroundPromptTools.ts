@@ -7,9 +7,17 @@ import {
 
 import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
+import { PLAYGROUND_PROMPT_ROUTE_HINT } from "./playgroundRouteHints";
 
-/** Route hint shared by every playground operation. */
-const PLAYGROUND_ROUTE_HINT = "/playground with prompt tasks";
+/**
+ * An LLM evaluator's judge tool is generated from its output configs when it
+ * runs, so the instance's tool list plays no part there.
+ */
+const EVALUATOR_TOOLS_NOTE =
+  " On an evaluator page the instance's prompt is the LLM evaluator's judge " +
+  "prompt, whose output tool is generated from the task's output configs at run " +
+  "time; tools listed or written here do not apply to evaluator tasks — change the " +
+  "outputs with `playground.evaluator.edit` instead.";
 
 /**
  * The catalog entry replacing the `read_prompt_tools` client-action tool.
@@ -28,7 +36,8 @@ export const readPromptToolsOperation = defineUIOperation({
     "If there is exactly one playground instance, `instanceId` may be omitted. If there " +
     "are multiple comparison instances, pass the specific `instanceId`. Vendor passthrough " +
     'tools (e.g. provider builtins like `web_search`) are surfaced with `kind: "raw"` ' +
-    "and an opaque `raw` blob; only function tools can be written via `playground.prompt.tools.write`.",
+    "and an opaque `raw` blob; only function tools can be written via `playground.prompt.tools.write`." +
+    EVALUATOR_TOOLS_NOTE,
   inputSchema: readPromptToolsInputSchema,
   // Documentation-only mirror of PromptToolsSnapshot.
   outputSchema: z.object({
@@ -41,7 +50,7 @@ export const readPromptToolsOperation = defineUIOperation({
   operationKind: "read",
   defaultSuccessOutput: "Prompt tools read.",
   availability: {
-    routeHint: PLAYGROUND_ROUTE_HINT,
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 
@@ -90,7 +99,8 @@ export const writePromptToolsOperation = defineUIOperation({
     '{"city":{"type":"string"}},"required":["city"]}}]}; ' +
     'delete only: {"instanceId":1,"expectedRevision":"prompt-tools-abc","deleteToolIds":[3,4]}. ' +
     "This tool only writes function tools; it does not author vendor passthrough tools " +
-    '(those appear in `playground.prompt.tools.read` with `kind: "raw"`), though it can delete them.',
+    '(those appear in `playground.prompt.tools.read` with `kind: "raw"`), though it can delete them.' +
+    EVALUATOR_TOOLS_NOTE,
   inputSchema: writePromptToolsInputSchema,
   // The batch outcome: per-entry created/updated statuses, the removed ids,
   // and the new `revision` (valid as the next `expectedRevision`).
@@ -114,7 +124,7 @@ export const writePromptToolsOperation = defineUIOperation({
   },
   defaultSuccessOutput: "Prompt tools updated.",
   availability: {
-    routeHint: PLAYGROUND_ROUTE_HINT,
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 

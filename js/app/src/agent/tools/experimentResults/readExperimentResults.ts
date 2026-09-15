@@ -14,9 +14,19 @@ type ExperimentRunAnnotation = {
   explanation: string | null;
 };
 
+/** An expected output recorded on the example, by annotation name. */
+type ExperimentRunExpectedOutput = {
+  annotationName: string;
+  label: string | null;
+  score: number | null;
+  explanation: string | null;
+};
+
 type ExperimentRunResult = {
   runId: string;
   exampleId: string;
+  /** The example's current revision; the guard `playground.expectedOutput.set` needs. */
+  revisionId: string;
   input: unknown;
   referenceOutput: unknown;
   metadata: unknown;
@@ -24,6 +34,7 @@ type ExperimentRunResult = {
   error: string | null;
   latencyMs: number;
   annotations: ExperimentRunAnnotation[];
+  expectedOutputs: ExperimentRunExpectedOutput[];
 };
 
 export type ExperimentResults = {
@@ -87,6 +98,7 @@ export function shapeExperimentResults({
     ({ node }) => ({
       runId: node.id,
       exampleId: node.example.id,
+      revisionId: node.example.revision.revisionId,
       input: node.example.revision.input,
       referenceOutput: node.example.revision.output,
       metadata: node.example.revision.metadata,
@@ -99,6 +111,14 @@ export function shapeExperimentResults({
         score: annotation.score ?? null,
         explanation: annotation.explanation ?? null,
       })),
+      expectedOutputs: node.example.revision.calibrationLabels.map(
+        (expected) => ({
+          annotationName: expected.annotationName,
+          label: expected.label ?? null,
+          score: expected.score ?? null,
+          explanation: expected.explanation ?? null,
+        })
+      ),
     })
   );
   const runs = failuresOnly ? allRuns.filter(isFailingRun) : allRuns;
@@ -183,9 +203,16 @@ export async function readExperimentResults({
                   example {
                     id
                     revision {
+                      revisionId
                       input
                       output
                       metadata
+                      calibrationLabels {
+                        annotationName
+                        label
+                        score
+                        explanation
+                      }
                     }
                   }
                 }

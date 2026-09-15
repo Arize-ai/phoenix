@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import {
-  Fragment,
   Suspense,
   useCallback,
   useEffect,
@@ -17,6 +16,11 @@ import { useBlocker, useSearchParams } from "react-router";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { createReadExperimentResultsClientAction } from "@phoenix/agent/tools/experimentResults";
 import { createSetAppendedMessagesPathClientAction } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
+import {
+  createEditEvaluatorTaskClientAction,
+  createReadEvaluatorTaskClientAction,
+  createSaveEvaluatorTaskClientAction,
+} from "@phoenix/agent/tools/playgroundEvaluator";
 import { createSetPlaygroundExperimentRecordingClientAction } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { createLoadDatasetClientAction } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
@@ -39,8 +43,10 @@ import { createSetPlaygroundRepetitionsClientAction } from "@phoenix/agent/tools
 import {
   createCancelPlaygroundRunClientAction,
   createRunPlaygroundClientAction,
+  getPlaygroundRunBlocker,
 } from "@phoenix/agent/tools/playgroundRun";
 import { createSavePromptClientAction } from "@phoenix/agent/tools/playgroundSavePrompt";
+import { createSelectTaskClientAction } from "@phoenix/agent/tools/playgroundTask";
 import { createSetTemplateVariablesPathClientAction } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { createSetVariableValuesClientAction } from "@phoenix/agent/tools/playgroundVariableValues";
 import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
@@ -56,6 +62,11 @@ import {
   readLlmEvaluatorDraftOperation,
   testLlmEvaluatorDraftOperation,
 } from "@phoenix/agent/uiOperations/operations/llmEvaluatorDraft";
+import {
+  editEvaluatorTaskOperation,
+  readEvaluatorTaskOperation,
+  saveEvaluatorTaskOperation,
+} from "@phoenix/agent/uiOperations/operations/playgroundEvaluator";
 import { loadDatasetOperation } from "@phoenix/agent/uiOperations/operations/playgroundLoadDataset";
 import {
   listPlaygroundModelTargetsOperation,
@@ -86,6 +97,7 @@ import {
   setTemplateVariablesPathOperation,
   setVariableValuesOperation,
 } from "@phoenix/agent/uiOperations/operations/playgroundSettings";
+import { selectTaskOperation } from "@phoenix/agent/uiOperations/operations/playgroundTask";
 import { Flex, Loading, PageHeader, View } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
@@ -114,7 +126,11 @@ import {
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
-import { EvaluatorPlaygroundEmptySource } from "./evaluators";
+import {
+  createEvaluatorTaskAgentRegistry,
+  EvaluatorPlaygroundEmptySource,
+  EvaluatorTaskAgentProvider,
+} from "./evaluators";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -298,11 +314,16 @@ function PlaygroundContent() {
   );
   const playgroundInstancesForAgent = usePlaygroundContext(
     (state) =>
-      state.instances.map((instance) =>
-        getPlaygroundInstanceForAgent(instance)
+      state.instances.map((instance, index) =>
+        getPlaygroundInstanceForAgent(instance, {
+          index,
+          isDirty: state.dirtyInstances[instance.id] === true,
+        })
       ),
     arePlaygroundInstancesForAgentEqual
   );
+  // The PXI adapters of the mounted evaluator task editors, by instance id.
+  const [evaluatorTaskAgents] = useState(createEvaluatorTaskAgentRegistry);
   const instanceIds = usePlaygroundContext(
     (state) => state.instances.map((instance) => instance.id),
     // only re-render when the instance ids change, not when the array is re-created
@@ -323,12 +344,14 @@ function PlaygroundContent() {
   const advertisedPlaygroundContext = useMemo(
     () =>
       buildPlaygroundAgentContext({
+        taskKind,
         recordExperiments,
         repetitions,
         nextExperimentScaffold: experimentScaffoldForAgent,
         instances: playgroundInstancesForAgent,
       }),
     [
+      taskKind,
       playgroundInstancesForAgent,
       recordExperiments,
       repetitions,
@@ -358,9 +381,15 @@ function PlaygroundContent() {
       setPendingLoadDataset,
       setPendingPromptToolWrite,
     } = agentStore.getState();
+    const waitForEvaluatorHost = evaluatorTaskAgents.waitFor;
+    const evaluatorTaskActionDeps = { playgroundStore, waitForEvaluatorHost };
     const unregister = registerUIOperations({
       agentStore,
       operations: [
+        {
+          descriptor: selectTaskOperation,
+          handler: createSelectTaskClientAction(evaluatorTaskActionDeps),
+        },
         {
           descriptor: readPromptOperation,
           handler: createReadPromptClientAction({ playgroundStore }),
@@ -371,7 +400,19 @@ function PlaygroundContent() {
         },
         {
           descriptor: addPromptInstanceOperation,
-          handler: createAddPromptInstanceClientAction({ playgroundStore }),
+          handler: createAddPromptInstanceClientAction(evaluatorTaskActionDeps),
+        },
+        {
+          descriptor: readEvaluatorTaskOperation,
+          handler: createReadEvaluatorTaskClientAction(evaluatorTaskActionDeps),
+        },
+        {
+          descriptor: editEvaluatorTaskOperation,
+          handler: createEditEvaluatorTaskClientAction(evaluatorTaskActionDeps),
+        },
+        {
+          descriptor: saveEvaluatorTaskOperation,
+          handler: createSaveEvaluatorTaskClientAction(evaluatorTaskActionDeps),
         },
         {
           descriptor: removePromptInstanceOperation,
@@ -402,7 +443,19 @@ function PlaygroundContent() {
         },
         {
           descriptor: runPlaygroundOperation,
-          handler: createRunPlaygroundClientAction({ playgroundStore }),
+          handler: createRunPlaygroundClientAction({
+            playgroundStore,
+            // Evaluator tasks need the page's dataset and a valid editor.
+            getRunBlocker: () =>
+              getPlaygroundRunBlocker({
+                instances: playgroundStore.getState().instances,
+                datasetId: resolvePlaygroundDatasetId({
+                  searchParams: searchParamsRef.current,
+                  storeDatasetId: playgroundStore.getState().datasetId,
+                }),
+                getEvaluatorHost: evaluatorTaskAgents.get,
+              }),
+          }),
         },
         {
           descriptor: readPlaygroundOutputOperation,
@@ -506,7 +559,7 @@ function PlaygroundContent() {
         }
       }
     };
-  }, [agentStore, playgroundStore, setSearchParams]);
+  }, [agentStore, evaluatorTaskAgents, playgroundStore, setSearchParams]);
 
   useEffect(
     () =>
@@ -738,7 +791,7 @@ function PlaygroundContent() {
   };
 
   return (
-    <Fragment key="playground-content">
+    <EvaluatorTaskAgentProvider registry={evaluatorTaskAgents}>
       <Group
         orientation="vertical"
         defaultLayout={defaultLayout}
@@ -886,6 +939,6 @@ function PlaygroundContent() {
           message="You have unsaved changes. Are you sure you want to leave?"
         />
       )}
-    </Fragment>
+    </EvaluatorTaskAgentProvider>
   );
 }

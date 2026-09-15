@@ -2,13 +2,11 @@ import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorMappingSource } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
-export type SampleExample = {
-  id: string;
-  revisionId: string;
+/** A dataset example's revision, as the evaluator context is built from it. */
+export type EvaluatorContextExample = {
   input: unknown;
   output: unknown;
   metadata: unknown;
-  calibrationLabels: ReadonlyArray<ExpectedOutput & { annotationName: string }>;
 };
 
 export type EvaluatorPrediction =
@@ -20,29 +18,12 @@ export type EvaluatorPrediction =
     }
   | { status: "error"; error: string };
 
-/** A prediction plus the slot revision that produced it, so a cell can tell
- * whether its result still describes the evaluator as currently drafted. Rows
- * can be run one at a time, so this is per result rather than per run. */
-export type EvaluatorResult = EvaluatorPrediction & { revision: string };
-
-export type EvaluatorRun = {
-  /** The slot revision of the most recent run request. */
-  revision: string;
-  sampleKey: string;
-  predictions: Partial<Record<string, EvaluatorResult>>;
-  /** Example ids awaiting a result from the current run. */
-  queued: readonly string[];
-  isRunning: boolean;
-};
-
 /**
  * Keep annotations out of evaluator context, even for whole-object mappings.
  * Expected outputs live in the example's annotations alongside any annotations
  * carried over from a span, and none of them should inform the judge.
  */
-export function createEvaluatorContext(
-  example: Pick<SampleExample, "input" | "output" | "metadata">
-) {
+export function createEvaluatorContext(example: EvaluatorContextExample) {
   const metadata = isStringKeyedObject(example.metadata)
     ? { ...example.metadata }
     : {};
@@ -63,7 +44,7 @@ export function createEvaluatorContext(
  * map a variable to.
  */
 export function createEvaluatorMappingSource(
-  example: Pick<SampleExample, "input" | "output" | "metadata">
+  example: EvaluatorContextExample
 ): EvaluatorMappingSource<"dataset"> {
   const context = createEvaluatorContext(example);
 

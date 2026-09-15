@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { UIOperationResult } from "@phoenix/agent/uiOperations/types";
 import { Button, Icon, Icons } from "@phoenix/components";
@@ -13,6 +13,7 @@ import { getPlaygroundEvaluatorTask } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import type { EvaluatorSaveTarget } from "./evaluatorSaveTarget";
 import {
   getEvaluatorTaskName,
   getEvaluatorTaskPreview,
@@ -23,6 +24,17 @@ import { useEvaluatorTaskSave } from "./useEvaluatorTaskSave";
 import { useEvaluatorTaskSaveTarget } from "./useEvaluatorTaskSaveTarget";
 
 const NAME_REQUIRED_ERROR = "Enter a name before saving.";
+
+/**
+ * The save half of the task's PXI adapter: what Save will do, and the write
+ * itself. Published once the save target is known, as one stable object
+ * that reads the latest state.
+ */
+export type EvaluatorTaskSaveApi = {
+  getSaveTarget: () => EvaluatorSaveTarget;
+  /** The write; `asNew` is the dialog's "Save as new". */
+  save: (options: { asNew: boolean }) => Promise<UIOperationResult>;
+};
 
 /**
  * Save for an evaluator task: the button, the dialog, and the write. Saving
@@ -37,6 +49,7 @@ export function EvaluatorTaskSaveButton({
   validationError,
   onNameRequired,
   onSaved,
+  onSaveApiChange,
 }: {
   instanceId: number;
   datasetId: string | null;
@@ -48,6 +61,8 @@ export function EvaluatorTaskSaveButton({
   onNameRequired: () => void;
   /** The sandbox the save bound, which the next save diffs against. */
   onSaved: (sandboxConfigId: string | null) => void;
+  /** Receives the save API on mount and null on unmount. */
+  onSaveApiChange?: (saveApi: EvaluatorTaskSaveApi | null) => void;
 }) {
   const playgroundStore = usePlaygroundStore();
   const store = useEvaluatorStoreInstance();
@@ -164,6 +179,21 @@ export function EvaluatorTaskSaveButton({
       return { ok: false, error: message };
     }
   }
+
+  // The PXI adapter calls save between renders, through one object that
+  // stays the same for the button's lifetime and reads the latest state.
+  const latest = useRef({ saveTarget, save });
+  useEffect(() => {
+    latest.current = { saveTarget, save };
+  });
+  const [saveApi] = useState<EvaluatorTaskSaveApi>(() => ({
+    getSaveTarget: () => latest.current.saveTarget,
+    save: (options) => latest.current.save(options),
+  }));
+  useEffect(() => {
+    onSaveApiChange?.(saveApi);
+    return () => onSaveApiChange?.(null);
+  }, [onSaveApiChange, saveApi]);
 
   const button = (
     <Button

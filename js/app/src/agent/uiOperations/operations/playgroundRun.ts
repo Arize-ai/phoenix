@@ -9,28 +9,31 @@ import {
 
 import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
-
-/** Route hint shared by every playground operation. */
-const PLAYGROUND_ROUTE_HINT = "/playground with prompt tasks";
+import { PLAYGROUND_ROUTE_HINT } from "./playgroundRouteHints";
 
 /**
  * The catalog entry replacing the `run_playground` client-action tool. The
- * input schema is reused from the existing tool module; the description moves
- * here verbatim from the Python `DESCRIPTION`.
+ * input schema is reused from the existing tool module.
  */
 export const runPlaygroundOperation = defineUIOperation({
   name: "playground.run",
   description:
-    "Run the currently mounted playground using the browser UI state. This starts " +
-    "the same run the user would start with the playground Run button, so it uses " +
-    "the current prompt instances, model settings, inputs, dataset selection, tools, " +
-    "and streaming preferences visible in the UI. It runs all current comparison " +
-    "instances together, and resolves only when the whole run ends (every instance " +
-    "finished, or the user stopped it) — await it, then read the results in the " +
-    "same script: `playground.experiment.readResults` for the scored per-example " +
-    "results when the run recorded experiments (its output includes the " +
-    "`experimentIds`), or `playground.run.readOutput` for the raw instance output " +
-    "otherwise.",
+    "Run every task in the currently mounted playground: the same run the user " +
+    "would start with the Run button. Prompt tasks run with the current prompts, " +
+    "model settings, inputs or dataset selection, tools and streaming preferences " +
+    "visible in the UI. Evaluator tasks run as experiments over the selected " +
+    "dataset (and splits), one experiment per task, judging each example and " +
+    "writing an annotation named after the task's `annotationName`; they need a " +
+    "dataset and a configuration without `validationError` (see " +
+    "`playground.evaluator.read`), and the run is rejected up front otherwise. " +
+    "Runs are recorded experiments when recording is on " +
+    "(`playground.experiment.setRecording`) and temporary ones otherwise, for both " +
+    "kinds. It runs all comparison instances together and resolves only when the " +
+    "whole run ends (every instance finished, or the user stopped it) — await it, " +
+    "then read the results in the same script: `playground.experiment.readResults` " +
+    "with one of the returned `experimentIds` (in instance order) for the scored " +
+    "per-example results when the run produced experiments, or " +
+    "`playground.run.readOutput` for the raw prompt output otherwise.",
   inputSchema: runPlaygroundInputSchema,
   operationKind: "write",
   longRunning: true,
@@ -92,18 +95,24 @@ export const readPlaygroundOutputOperation = defineUIOperation({
 export const readExperimentResultsOperation = defineUIOperation({
   name: "playground.experiment.readResults",
   description:
-    "Read the scored results of a recorded experiment. Pass one of the " +
-    "`experimentIds` returned by `playground.run`. Returns the experiment's " +
-    "status and metrics (run counts, error rate, latency, cost), per-evaluator " +
-    "annotation summaries (mean score, count, errors), and every run with its " +
-    "dataset example (input, reference output, metadata), actual output, error, " +
-    "and annotation labels/scores/explanations. The aggregate metrics and " +
-    "summaries are always included regardless of `failuresOnly`, which only " +
-    "trims the runs list to those that errored or scored below 1 — so call it " +
-    "ONCE per experiment: `failuresOnly: true` while iterating (the summaries " +
-    "already cover the passing runs), the full read only when you need passing " +
-    "outputs too. Never call it twice for the same experiment. Call it in the " +
-    "same script as `playground.run`, right after the run resolves.",
+    "Read the scored results of an experiment. Pass one of the `experimentIds` " +
+    "returned by `playground.run`. Returns the experiment's status and metrics " +
+    "(run counts, error rate, latency, cost), per-evaluator annotation summaries " +
+    "(mean score, count, errors), and every run with its dataset example (input, " +
+    "reference output, metadata, the example's current `revisionId`, and its " +
+    "`expectedOutputs` — the expected outputs recorded on the example, by " +
+    "`annotationName`), actual output, error, and annotation " +
+    "labels/scores/explanations. For an evaluator task's experiment the " +
+    "evaluator's verdict is both the run's `output` and an annotation named after " +
+    "the task's `annotationName`; compare it with `expectedOutputs`, and record " +
+    "ground truth the user confirms with `playground.expectedOutput.set` using the " +
+    "run's `exampleId` and `revisionId`. The aggregate metrics and summaries are " +
+    "always included regardless of `failuresOnly`, which only trims the runs list " +
+    "to those that errored or scored below 1 — so call it ONCE per experiment: " +
+    "`failuresOnly: true` while iterating (the summaries already cover the passing " +
+    "runs), the full read only when you need passing outputs too. Never call it " +
+    "twice for the same experiment. Call it in the same script as " +
+    "`playground.run`, right after the run resolves.",
   inputSchema: readExperimentResultsInputSchema,
   operationKind: "read",
   defaultSuccessOutput: "Experiment results read.",

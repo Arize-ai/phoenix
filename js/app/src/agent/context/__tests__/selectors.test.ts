@@ -46,39 +46,29 @@ describe("selectActiveContexts playground merge", () => {
   });
 });
 
-it("keeps evaluator mode distinct from prompt fragments during navigation", () => {
-  const evaluator: AgentContext = {
+it("keeps the page's task kind when the evaluator roster fragment merges in", () => {
+  const page: AgentContext = {
     type: "playground",
-    mode: "evaluators",
-    instances: [],
+    taskKind: "evaluator",
     recordExperiments: false,
-    sampleSize: 20,
-    evaluatorSlots: [{ slot: "A", name: "judge", kind: "LLM" }],
+    instances: [
+      {
+        instanceId: 4,
+        task: { kind: "evaluator", evaluatorKind: "CODE", name: "judge" },
+      },
+    ],
   };
-
-  const prompt: AgentContext = {
-    type: "playground",
-    mode: "prompts",
-    instances: [{ instanceId: 4 }],
-  };
-
-  expect(selectActiveContexts(stateWith([prompt], { evaluator }))).toEqual([
-    evaluator,
-  ]);
 
   const merged = selectActiveContexts(
-    stateWith([evaluator], {
-      fragment: { type: "playground", instances: [{ instanceId: 9 }] },
+    stateWith([page], {
+      roster: { type: "playground", evaluators: [] },
     })
   );
 
+  expect(merged).toHaveLength(1);
   expect(merged[0]).toMatchObject({
-    mode: "evaluators",
+    taskKind: "evaluator",
     recordExperiments: false,
-    instances: [],
-    evaluatorSlots: [{ slot: "A" }],
+    instances: [{ instanceId: 4, task: { evaluatorKind: "CODE" } }],
   });
-  expect(selectActiveContexts(stateWith([evaluator], { prompt }))).toEqual([
-    prompt,
-  ]);
 });

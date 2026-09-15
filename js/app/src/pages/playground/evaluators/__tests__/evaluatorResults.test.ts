@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  configureEvaluatorPlaygroundOperation,
-  setExpectedOutputEvaluatorPlaygroundOperation,
-} from "@phoenix/agent/uiOperations/operations/evaluatorPlayground";
-
-import {
   createEvaluatorContext,
   createEvaluatorMappingSource,
   matchesExpectedOutput,
@@ -14,10 +9,6 @@ import {
   getExpectedVerdict,
   toEvaluatorOutput,
 } from "../evaluatorResults";
-import {
-  getVisibleEvaluatorSlots,
-  setVisibleEvaluatorSlots,
-} from "../evaluatorSlotTypes";
 
 describe("evaluator results", () => {
   it("keeps annotations, expected outputs included, out of whole-object evaluator mappings", () => {
@@ -209,43 +200,4 @@ describe("independent expected outputs", () => {
       )
     ).toBe(false);
   });
-  it("restores four peer slots and permits removing A", () => {
-    const params = new URLSearchParams();
-    expect(getVisibleEvaluatorSlots(params)).toEqual(["A"]);
-    setVisibleEvaluatorSlots(params, ["A", "B", "C", "D"]);
-    expect(getVisibleEvaluatorSlots(params)).toEqual(["A", "B", "C", "D"]);
-    setVisibleEvaluatorSlots(params, ["B", "C", "D"]);
-    expect(getVisibleEvaluatorSlots(params)).toEqual(["B", "C", "D"]);
-  });
-});
-
-it("requires an explicit evaluator for expected-output writes", () => {
-  const input = {
-    exampleId: "example",
-    expectedRevisionId: "revision",
-    outputName: "quality",
-    label: null,
-    score: 0.8,
-  };
-
-  expect(
-    setExpectedOutputEvaluatorPlaygroundOperation.inputSchema.safeParse(input)
-      .success
-  ).toBe(false);
-  expect(
-    setExpectedOutputEvaluatorPlaygroundOperation.inputSchema.safeParse({
-      ...input,
-      slot: "D",
-    }).success
-  ).toBe(true);
-  expect(
-    configureEvaluatorPlaygroundOperation.inputSchema.safeParse({
-      slots: ["A", "B", "C", "D"],
-    }).success
-  ).toBe(true);
-  expect(
-    configureEvaluatorPlaygroundOperation.inputSchema.safeParse({
-      slots: ["A", "B", "C", "D", "E"],
-    }).success
-  ).toBe(false);
 });

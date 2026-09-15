@@ -37,7 +37,7 @@ function contextLabel(context: AgentContext): string {
       // should never render as a pill.
       return "";
     case "playground":
-      return context.mode === "evaluators"
+      return context.taskKind === "evaluator"
         ? "Evaluator Playground"
         : "Playground";
     case "project":

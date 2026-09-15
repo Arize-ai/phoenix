@@ -27,7 +27,13 @@ import {
 import { useSearchParams } from "react-router";
 import { requestSubscription } from "relay-runtime";
 
+import {
+  createSetExpectedOutputClientAction,
+  type ExpectedOutputExampleRow,
+} from "@phoenix/agent/tools/playgroundEvaluator";
 import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
+import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
+import { setExpectedOutputOperation } from "@phoenix/agent/uiOperations/operations/playgroundEvaluator";
 import {
   Alert,
   ExpandableContent,
@@ -71,6 +77,7 @@ import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   usePlaygroundContext,
@@ -104,6 +111,7 @@ import {
   PlaygroundEvaluatorExampleCell,
   PlaygroundExpectedOutputsProvider,
   PlaygroundExpectedOutputsStatus,
+  usePlaygroundExpectedOutputs,
 } from "./evaluatorCells";
 import { getEvaluatorTaskName } from "./evaluators/evaluatorTaskSnapshot";
 import {
@@ -782,6 +790,44 @@ function PlaygroundInstanceOutputColumnHeader({
       />
     </Flex>
   );
+}
+
+/**
+ * Mounts `playground.expectedOutput.set` while the table shows a dataset.
+ * Only here are the rows' revision ids and the expected-output writer, and
+ * PXI's write goes out at once instead of waiting for the batching delay.
+ * Registered once per table mount; the rows are read fresh through a ref.
+ */
+function PlaygroundExpectedOutputAgentOperation({
+  examples,
+}: {
+  examples: ReadonlyArray<ExpectedOutputExampleRow>;
+}) {
+  const agentStore = useAgentStore();
+  const playgroundStore = usePlaygroundStore();
+  const { saveNow } = usePlaygroundExpectedOutputs();
+  const examplesRef = useRef(examples);
+  useEffect(() => {
+    examplesRef.current = examples;
+  });
+  useEffect(
+    () =>
+      registerUIOperations({
+        agentStore,
+        operations: [
+          {
+            descriptor: setExpectedOutputOperation,
+            handler: createSetExpectedOutputClientAction({
+              playgroundStore,
+              getExamples: () => examplesRef.current,
+              saveNow,
+            }),
+          },
+        ],
+      }),
+    [agentStore, playgroundStore, saveNow]
+  );
+  return null;
 }
 
 export function PlaygroundDatasetExamplesTable({
@@ -1504,6 +1550,7 @@ export function PlaygroundDatasetExamplesTable({
         datasetId={datasetId}
         getRevisionId={(exampleId) => revisionIdByExampleId.get(exampleId)}
       >
+        <PlaygroundExpectedOutputAgentOperation examples={tableData} />
         {apiError && (
           <Alert
             variant="danger"

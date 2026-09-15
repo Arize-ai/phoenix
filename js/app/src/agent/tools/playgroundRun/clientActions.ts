@@ -90,12 +90,17 @@ function waitForPlaygroundRunEnd(
  * only when the run ends (every instance finished, or the run was
  * cancelled) — so a script can read output right after awaiting it. The
  * operation is marked `longRunning`, which pauses the script's wall-clock
- * budget while this promise is in flight.
+ * budget while this promise is in flight. `getRunBlocker` says why the run
+ * cannot start (evaluator tasks without a dataset, or with an invalid
+ * configuration), so the operation fails instead of finishing with no
+ * experiment.
  */
 export function createRunPlaygroundClientAction({
   playgroundStore,
+  getRunBlocker = () => null,
 }: {
   playgroundStore: PlaygroundStore;
+  getRunBlocker?: () => string | null;
 }) {
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseRunPlaygroundInput(input);
@@ -108,7 +113,7 @@ export function createRunPlaygroundClientAction({
     if (!hasInstances) {
       return {
         ok: false,
-        error: "The playground has no prompt instances to run.",
+        error: "The playground has no tasks to run.",
       };
     }
 
@@ -121,6 +126,11 @@ export function createRunPlaygroundClientAction({
         error:
           "The playground is already running. Wait for the current run to finish or stop it before starting another run.",
       };
+    }
+
+    const blocker = getRunBlocker();
+    if (blocker) {
+      return { ok: false, error: blocker };
     }
 
     const instances = state.instances.map((instance, index) => ({
@@ -168,7 +178,7 @@ export function createCancelPlaygroundRunClientAction({
     if (!hasInstances) {
       return {
         ok: false,
-        error: "The playground has no prompt instances to cancel.",
+        error: "The playground has no tasks to cancel.",
       };
     }
 

@@ -11,6 +11,7 @@ import { datasetWriteOperations } from "./operations/datasetWrites";
 import { experimentOperations } from "./operations/experiment";
 import { llmEvaluatorDraftOperations } from "./operations/llmEvaluatorDraft";
 import { navigationOperations } from "./operations/navigation";
+import { playgroundEvaluatorOperations } from "./operations/playgroundEvaluator";
 import { playgroundLoadDatasetOperations } from "./operations/playgroundLoadDataset";
 import { playgroundModelOperations } from "./operations/playgroundModel";
 import { playgroundPromptOperations } from "./operations/playgroundPrompt";
@@ -18,6 +19,7 @@ import { playgroundPromptToolsOperations } from "./operations/playgroundPromptTo
 import { playgroundRunOperations } from "./operations/playgroundRun";
 import { playgroundSavePromptOperations } from "./operations/playgroundSavePrompt";
 import { playgroundSettingsOperations } from "./operations/playgroundSettings";
+import { playgroundTaskOperations } from "./operations/playgroundTask";
 import { setTimeRangeOperation } from "./operations/setTimeRange";
 import { spanOperations } from "./operations/spans";
 import { spansFilterOperations } from "./operations/spansFilter";
@@ -35,7 +37,9 @@ import type {
 const knownUIOperations: UIOperationDescriptor[] = [
   setTimeRangeOperation,
   ...spansFilterOperations,
+  ...playgroundTaskOperations,
   ...playgroundPromptOperations,
+  ...playgroundEvaluatorOperations,
   ...playgroundPromptToolsOperations,
   ...playgroundSavePromptOperations,
   ...playgroundLoadDatasetOperations,
@@ -257,10 +261,14 @@ export function suggestUIOperationNames(unknownName: string): string[] {
 type JsonSchemaNode = {
   type?: string;
   enum?: unknown[];
+  /** A literal, e.g. a discriminated union's `type` tag. */
+  const?: unknown;
   properties?: Record<string, JsonSchemaNode | undefined>;
   required?: string[];
   items?: JsonSchemaNode;
   anyOf?: JsonSchemaNode[];
+  /** Discriminated unions convert to `oneOf`; plain unions to `anyOf`. */
+  oneOf?: JsonSchemaNode[];
 };
 
 /**
@@ -291,8 +299,12 @@ function renderInlineType(node: JsonSchemaNode | undefined): string {
   if (Array.isArray(node.enum)) {
     return node.enum.map((value) => JSON.stringify(value)).join(" | ");
   }
-  if (Array.isArray(node.anyOf)) {
-    return node.anyOf.map(renderInlineType).join(" | ");
+  if (node.const !== undefined) {
+    return JSON.stringify(node.const);
+  }
+  const variants = node.anyOf ?? node.oneOf;
+  if (Array.isArray(variants)) {
+    return variants.map(renderInlineType).join(" | ");
   }
   if (node.type === "object" && node.properties != null) {
     const required = new Set(node.required ?? []);

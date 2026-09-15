@@ -5,7 +5,14 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import type { PlaygroundInstanceLoadingSource } from "@phoenix/store/playground";
+import type {
+  PlaygroundInstanceLoadingSource,
+  PlaygroundNormalizedInstance,
+} from "@phoenix/store/playground";
+import {
+  createPlaygroundEvaluatorTask,
+  getPlaygroundEvaluatorTask,
+} from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -21,6 +28,29 @@ function describeSource(source: PlaygroundInstanceLoadingSource): string {
     default:
       return assertUnreachable(source);
   }
+}
+
+/**
+ * What a failed load leaves behind. An evaluator draft still naming the
+ * evaluator it could not fetch would keep it in the URL and read as loaded
+ * (PXI checks the task's source ids), so it goes back to a fresh draft of
+ * its kind; a prompt task simply keeps whatever prompt it had.
+ */
+function getLoadFailurePatch(
+  instance: PlaygroundNormalizedInstance | undefined
+): Partial<PlaygroundNormalizedInstance> {
+  const evaluator = getPlaygroundEvaluatorTask(instance);
+  return {
+    loadingSource: null,
+    ...(evaluator
+      ? {
+          task: {
+            kind: "evaluator",
+            evaluator: createPlaygroundEvaluatorTask({ kind: evaluator.kind }),
+          },
+        }
+      : {}),
+  };
 }
 
 /**
@@ -42,9 +72,10 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
     }
     let isCancelled = false;
     const fail = (message: string) => {
-      playgroundStore.getState().updateInstance({
+      const state = playgroundStore.getState();
+      state.updateInstance({
         instanceId,
-        patch: { loadingSource: null },
+        patch: getLoadFailurePatch(selectPlaygroundInstance(instanceId)(state)),
         dirty: null,
       });
       notifyError({ title: "Could not load the task", message });

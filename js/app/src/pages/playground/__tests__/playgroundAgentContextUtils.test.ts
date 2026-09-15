@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlaygroundInstance } from "@phoenix/store/playground";
+import { createPlaygroundEvaluatorTask } from "@phoenix/store/playground";
 
 import {
   areExperimentScaffoldsForAgentEqual,
@@ -12,7 +13,7 @@ import {
 
 type AgentInstanceInput = Pick<
   PlaygroundInstance,
-  "id" | "model" | "experiment"
+  "id" | "model" | "experiment" | "task"
 >;
 
 function makeInstance(
@@ -25,7 +26,17 @@ function makeInstance(
       modelName: "gpt-4o",
     } as PlaygroundInstance["model"],
     experiment: null,
+    task: { kind: "prompt" },
     ...overrides,
+  };
+}
+
+const position = { index: 0, isDirty: false };
+
+function evaluatorTask(name: string): PlaygroundInstance["task"] {
+  return {
+    kind: "evaluator",
+    evaluator: createPlaygroundEvaluatorTask({ kind: "CODE", name }),
   };
 }
 
@@ -34,7 +45,8 @@ describe("getPlaygroundInstanceForAgent", () => {
     const result = getPlaygroundInstanceForAgent(
       makeInstance({
         experiment: { id: "RXhwZXJpbWVudDox", isEphemeral: false },
-      })
+      }),
+      position
     );
     expect(result.experimentId).toBe("RXhwZXJpbWVudDox");
   });
@@ -45,14 +57,16 @@ describe("getPlaygroundInstanceForAgent", () => {
     const result = getPlaygroundInstanceForAgent(
       makeInstance({
         experiment: { id: "RXhwZXJpbWVudDoy", isEphemeral: true },
-      })
+      }),
+      position
     );
     expect(result.experimentId).toBe("RXhwZXJpbWVudDoy");
   });
 
   it("omits the experiment id when no experiment is present", () => {
     const result = getPlaygroundInstanceForAgent(
-      makeInstance({ experiment: null })
+      makeInstance({ experiment: null }),
+      position
     );
     expect(result.experimentId).toBeUndefined();
   });
@@ -65,44 +79,103 @@ describe("getPlaygroundInstanceForAgent", () => {
           modelName: null,
         } as PlaygroundInstance["model"],
         experiment: { id: "RXhwZXJpbWVudDoz", isEphemeral: false },
-      })
+      }),
+      position
     );
     expect(result.model).toBeUndefined();
     expect(result.experimentId).toBe("RXhwZXJpbWVudDoz");
+  });
+
+  it("advertises a prompt task", () => {
+    expect(
+      getPlaygroundInstanceForAgent(makeInstance(), position).task
+    ).toEqual({ kind: "prompt" });
+  });
+
+  it("advertises an evaluator task under the name its runs use", () => {
+    expect(
+      getPlaygroundInstanceForAgent(
+        makeInstance({ task: evaluatorTask("tone") }),
+        { index: 1, isDirty: true }
+      ).task
+    ).toEqual({
+      kind: "evaluator",
+      evaluatorKind: "CODE",
+      name: "tone",
+      isDirty: true,
+    });
+    // A nameless draft in position B runs as evaluator_2.
+    expect(
+      getPlaygroundInstanceForAgent(makeInstance({ task: evaluatorTask("") }), {
+        index: 1,
+        isDirty: false,
+      }).task
+    ).toMatchObject({ name: "evaluator_2", isDirty: false });
   });
 });
 
 describe("arePlaygroundInstancesForAgentEqual", () => {
   it("returns false when only the experiment id changes", () => {
     const before = [
-      getPlaygroundInstanceForAgent(makeInstance({ experiment: null })),
+      getPlaygroundInstanceForAgent(
+        makeInstance({ experiment: null }),
+        position
+      ),
     ];
     const after = [
       getPlaygroundInstanceForAgent(
         makeInstance({
           experiment: { id: "RXhwZXJpbWVudDox", isEphemeral: false },
-        })
+        }),
+        position
       ),
     ];
     expect(arePlaygroundInstancesForAgentEqual(before, after)).toBe(false);
   });
 
-  it("returns true when the experiment id and model are unchanged", () => {
+  it("returns true when the experiment id, model and task are unchanged", () => {
     const left = [
       getPlaygroundInstanceForAgent(
         makeInstance({
           experiment: { id: "RXhwZXJpbWVudDox", isEphemeral: false },
-        })
+        }),
+        position
       ),
     ];
     const right = [
       getPlaygroundInstanceForAgent(
         makeInstance({
           experiment: { id: "RXhwZXJpbWVudDox", isEphemeral: false },
-        })
+        }),
+        position
       ),
     ];
     expect(arePlaygroundInstancesForAgentEqual(left, right)).toBe(true);
+  });
+
+  it("returns false when a task is renamed, changes kind or flips dirty", () => {
+    const named = [
+      getPlaygroundInstanceForAgent(
+        makeInstance({ task: evaluatorTask("tone") }),
+        position
+      ),
+    ];
+    const renamed = [
+      getPlaygroundInstanceForAgent(
+        makeInstance({ task: evaluatorTask("style") }),
+        position
+      ),
+    ];
+    const dirty = [
+      getPlaygroundInstanceForAgent(
+        makeInstance({ task: evaluatorTask("tone") }),
+        { index: 0, isDirty: true }
+      ),
+    ];
+    const prompt = [getPlaygroundInstanceForAgent(makeInstance(), position)];
+    expect(arePlaygroundInstancesForAgentEqual(named, renamed)).toBe(false);
+    expect(arePlaygroundInstancesForAgentEqual(named, dirty)).toBe(false);
+    expect(arePlaygroundInstancesForAgentEqual(named, prompt)).toBe(false);
   });
 });
 
@@ -179,11 +252,12 @@ describe("areExperimentScaffoldsForAgentEqual", () => {
 });
 
 describe("buildPlaygroundAgentContext", () => {
-  it("includes the current experiment recording mode and playground repetitions", () => {
-    const instance = getPlaygroundInstanceForAgent(makeInstance());
+  it("includes the task kind, the experiment recording mode and playground repetitions", () => {
+    const instance = getPlaygroundInstanceForAgent(makeInstance(), position);
 
     expect(
       buildPlaygroundAgentContext({
+        taskKind: "prompt",
         recordExperiments: false,
         repetitions: 4,
         nextExperimentScaffold: null,
@@ -191,7 +265,7 @@ describe("buildPlaygroundAgentContext", () => {
       })
     ).toEqual({
       type: "playground",
-      mode: "prompts",
+      taskKind: "prompt",
       recordExperiments: false,
       repetitions: 4,
       nextExperimentScaffold: undefined,
@@ -199,12 +273,16 @@ describe("buildPlaygroundAgentContext", () => {
     });
   });
 
-  it("surfaces the staged scaffold", () => {
-    const instance = getPlaygroundInstanceForAgent(makeInstance());
+  it("surfaces the staged scaffold and an evaluator page's kind", () => {
+    const instance = getPlaygroundInstanceForAgent(
+      makeInstance({ task: evaluatorTask("tone") }),
+      position
+    );
     const scaffold = getExperimentScaffoldForAgent({ name: "Run with notes" });
 
     expect(
       buildPlaygroundAgentContext({
+        taskKind: "evaluator",
         recordExperiments: true,
         repetitions: 1,
         nextExperimentScaffold: scaffold,
@@ -212,7 +290,7 @@ describe("buildPlaygroundAgentContext", () => {
       })
     ).toEqual({
       type: "playground",
-      mode: "prompts",
+      taskKind: "evaluator",
       recordExperiments: true,
       repetitions: 1,
       nextExperimentScaffold: scaffold,

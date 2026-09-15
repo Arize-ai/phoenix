@@ -1,17 +1,20 @@
 ---
 name: playground
-description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset, and drive its evaluator mode to compare evaluators on a dataset sample. Load before any `ui.playground.*` or `ui.evaluatorPlayground.*` operation call, including single-shot prompt rewrites.
-summary: Author, edit, run, compare, and improve prompts in the Phoenix playground, or compare evaluators on a dataset sample in its evaluator mode.
+description: Author, edit, or iterate on prompts and evaluators in the Phoenix playground. The playground holds prompt tasks or evaluator tasks (one kind per page, up to four) and runs either kind over a dataset as experiments. Load before any `ui.playground.*` operation call, including single-shot prompt rewrites.
+summary: Author, edit, run, compare, and improve prompts or evaluators in the Phoenix playground, whose tasks (one kind per page, up to four) run over a dataset as experiments.
 ---
 
-# Prompt Playground
+# Playground
 
-The prompt playground is a tool for authoring and optimizing prompts. It supports two different
-ways of working: fast manual prompt iteration without a dataset, and dataset-backed prompt
-experimentation with evaluators and experiments. A third mode, the evaluator playground
-(`/playground?mode=evaluators`), turns the same page into a workspace for comparing evaluators
-over a dataset sample. Choose the workflow that matches the user's current goal and the UI context
-they have mounted; the advertised `playground` context carries `mode` (`prompts` or `evaluators`).
+The playground is a tool for authoring and optimizing prompts and evaluators. Every instance on
+the page holds one task, a prompt or an evaluator. It supports fast manual prompt iteration
+without a dataset, dataset-backed prompt experimentation with evaluators and experiments, and
+comparing evaluators over a dataset. The task selector on each instance picks a saved prompt, a
+saved evaluator, or a new draft of either; the first chosen kind fixes the page's kind while more
+than one task is present, so a page holds prompt tasks or evaluator tasks (up to four), never both.
+Choose the workflow that matches the user's current goal and the UI context they have mounted; the
+advertised `playground` context carries `taskKind` (`prompt` or `evaluator`) and each instance's
+`task`.
 
 The playground actions named below are `ui.*` operations, called from `execute_browser_action` scripts as
 `await ui.<operation>(input)` (for example `await ui.playground.run({})`). Confirm exact input
@@ -88,9 +91,12 @@ starting a recorded run.
    dataset is captured as an experiment, with outputs and evaluator annotations available for
    review.
 6. To read the experiment results and decide whether a change helped, follow the `experiments`
-   skill; to create the next candidate, use `ui.playground.prompt.edit`, `ui.playground.instance.add`,
-   or `ui.playground.instance.clone` (`ui.playground.instance.add` starts from the default prompt
-   messages, `ui.playground.instance.clone` from existing prompt content), then rerun.
+   skill (`ui.playground.experiment.readResults` reads a recorded experiment by id, for prompt and
+   evaluator tasks alike); to create the next candidate, use `ui.playground.prompt.edit`,
+   `ui.playground.instance.add`, or `ui.playground.instance.clone` (`ui.playground.instance.add`
+   starts from the default prompt messages, or from a saved prompt when given
+   `source: { type: "prompt", promptId }`; `ui.playground.instance.clone` from existing prompt
+   content), then rerun.
 7. Use `ui.playground.prompt.save` to save a prompt as a new version only after the evidence shows
    an improvement or the user explicitly accepts the tradeoff. For unsaved prompts, the operation
    can create the Phoenix prompt directly without asking for a name unless the user cares about the
@@ -111,43 +117,83 @@ Experiments from unrecorded runs are ephemeral and the server sweeps them ~24h a
 update; a freshly surfaced `experimentId` is well within that window, but an id re-queried from
 much earlier in a long session may no longer resolve.
 
-## Workflow: Compare Evaluators In Evaluator Mode
+## Workflow: Compare Evaluators Over A Dataset
 
-Use this workflow when the user wants to calibrate an evaluator against a dataset sample or compare
-LLM and code evaluators side by side. The `evaluators` skill owns the judgment being designed
-(labels, rubric, signal location); this workflow covers the workspace mechanics. Evaluator mode is
-controlled only through `ui.evaluatorPlayground.*` operations: `ui.playground.*` operates prompt
-instances and `ui.evaluators.*` operates the separate form dialogs, and neither touches these slots.
+Use this workflow when the user wants to calibrate an evaluator against a dataset or compare LLM
+and code evaluators side by side. The `evaluators` skill owns the judgment being designed (labels,
+rubric, signal location); this workflow covers the playground mechanics. Evaluator tasks are
+ordinary playground instances: drive them with `ui.playground.*` and address them by numeric
+`instanceId` (letters A–D are only for talking to the user). `ui.evaluators.*` operates the
+separate evaluator form dialogs and never touches playground tasks.
 
-1. Navigate to `/playground?mode=evaluators` if it is not mounted; stay there once it is. Discover
-   the exact input shapes with `search_browser_actions`.
-2. Call `ui.evaluatorPlayground.read` for the dataset, splits, sample size, visible slots, run
-   status, expected outputs, and paginated results. Use `ui.evaluatorPlayground.configure` to set
-   the dataset (by Relay node ID), splits, sample size, the visible slots (up to four, `A`–`D`),
-   and the result filter. Changing the dataset or sample clears displayed results.
-3. Load each slot's source with `ui.evaluatorPlayground.selectSlot`: a saved global or dataset
-   evaluator, or a new LLM or code draft. Slots are peers addressed by letter, never by numeric
-   prompt instance ID. A slot with unsaved edits requires `discardChanges`.
-4. Call `ui.evaluatorPlayground.readSlot` before editing and pass its `expectedRevision` to
-   `ui.evaluatorPlayground.editSlot`. Edit the prompt and model or the code and sandbox, the output
-   configs, the selected output, and the input mapping. LLM slots take categorical outputs only.
-5. In this mode the dataset example's `output` is the judged response and `reference` starts
-   empty; inspect actual example content and configure the input mapping rather than assuming the
-   experiment output shape. The example's `metadata.annotations`, where expected outputs are stored
-   as HUMAN annotations, never reaches the evaluator.
-6. Run with `ui.evaluatorPlayground.run`: no `slots` runs every visible slot, `slots: ["B"]` reruns
-   only B and keeps the others' results, and `exampleIds` runs single rows. It awaits completion and
-   returns results; page through them with `read`. Runs are temporary previews, not experiments, so
-   do not enable experiment recording or query experiment results for them. `stop` halts scheduling
-   but lets in-flight requests finish.
+1. Navigate to `/playground` if the playground is not mounted
+   (`/playground?taskKind=evaluator&datasetId=<dataset node id>` opens a fresh evaluator draft over
+   a dataset); stay there once it is. Discover the exact input shapes with `search_browser_actions`.
+2. Load the dataset with `ui.playground.dataset.load({ datasetName, splitName })` if it is not
+   loaded. The dataset and its splits scope the run; to run fewer examples, load a split.
+   Evaluator tasks cannot run or save without a dataset.
+3. Make an instance an evaluator task with `ui.playground.task.select({ instanceId, source, discardChanges })`.
+   `source` is `{ type: "evaluator", evaluatorId }` for a saved LLM or code evaluator (built-in
+   evaluators cannot be loaded), `{ type: "datasetEvaluator", datasetEvaluatorId }` for an
+   evaluator bound to the dataset, or `{ type: "new", kind: "LLM" }` / `{ type: "new", kind: "CODE" }`
+   for a draft; `instanceId` may be omitted when the page has one instance. Anything other than
+   loading another prompt into a prompt task replaces the instance with a fresh one built from the
+   source, which requires `discardChanges: true` when the instance has unsaved changes — pass it
+   only after the user accepts losing them. With more than one instance the page's kind is locked
+   and a source of the other kind is rejected with "Remove the other tasks to switch between
+   prompts and evaluators."; with one instance any source is allowed and may change the page's
+   kind. The call awaits the load and returns the instance's `ui.playground.evaluator.read`
+   snapshot; a deleted or built-in source returns `ok: false` with `code: "NOT_FOUND"`. Add
+   comparison tasks with `ui.playground.instance.add({ source })` — the same `source` shapes,
+   defaulting to a new LLM evaluator on an evaluator page — up to four tasks.
+4. Call `ui.playground.evaluator.read({ instanceId })` before editing and pass its `revision` as
+   `expectedRevision` to `ui.playground.evaluator.edit`. Only the fields you supply change
+   (`name`, `description`, `inputMapping`, `outputConfigs`; `includeExplanation` for LLM;
+   `language`, `sourceCode`, `sandboxConfigId` for code — a saved code evaluator keeps its
+   language); lists and mappings replace their whole value, and a stale revision is rejected with
+   `code: "STALE_REVISION"`. LLM evaluators take categorical outputs only. The judge prompt of an
+   LLM evaluator is the instance's own prompt: read and edit it with `ui.playground.prompt.read`
+   and `ui.playground.prompt.edit`, manage its tools with `ui.playground.prompt.tools.*`, and
+   change its model with `ui.playground.model.set`.
+5. The dataset example's `output` is the judged response and `reference` starts empty; inspect
+   actual example content and configure `inputMapping` from it rather than assuming a
+   prompt-experiment output shape. The example's `metadata.annotations`, where expected outputs
+   are stored as HUMAN annotations, never reaches the evaluator.
+6. Run with `ui.playground.run({})`. Every task runs over the loaded dataset as its own
+   experiment — recorded when `recordExperiments` is on (`ui.playground.experiment.setRecording`),
+   ephemeral otherwise — and the call resolves with `experimentIds` in instance order. It is
+   rejected before anything starts when an evaluator task cannot run (no dataset, or a
+   `validationError` in its read), naming the reason. Read each experiment with
+   `ui.playground.experiment.readResults({ experimentId })`: the evaluator's verdict is the run's
+   `output` and an annotation named `annotationName` (from `ui.playground.evaluator.read`), and
+   each run carries `exampleId`, `revisionId`, and its recorded `expectedOutputs`.
 7. Record expected outputs only from judgments the user made or confirmed, with
-   `ui.evaluatorPlayground.setExpectedOutput`, naming the slot, the example's `revisionId`, and its
-   selected output; an expected label must be one of that output's labels. Each slot keeps its own
-   expected outputs and there is no baseline slot; each column reports agreement with its own.
-8. Save a slot only when the user asks, with `ui.evaluatorPlayground.saveSlot`. `readSlot` reports
-   the slot's `saveTarget`: `update` overwrites the evaluator loaded into the slot, `attach` updates
-   a shared code evaluator and adds it to the dataset, and `create` saves a new dataset evaluator
-   (set a name via `editSlot` first). Loading and running never save.
+   `ui.playground.expectedOutput.set({ instanceId, exampleId, expectedRevisionId, label, score, explanation })`:
+   `expectedRevisionId` is the run's `revisionId` (a stale one is rejected with
+   `code: "STALE_REVISION"`), `label` must be one of the output's labels when it is categorical,
+   and `label: null` with no `score` or `explanation` clears the expected output. Each task keeps
+   its own agreement count against its `annotationName`; there is no baseline task.
+8. Save only when the user asks, with `ui.playground.evaluator.save({ instanceId, expectedRevision })`.
+   The read's `saveTarget` says what the save does: `update` overwrites the loaded evaluator,
+   `attach` updates a shared code evaluator and adds it to the dataset, and `create` saves a new
+   dataset evaluator — set its `name` with `ui.playground.evaluator.edit` first. Pass
+   `asNew: true` to leave a loaded evaluator unchanged and save a copy named `<name>_copy`
+   instead (the dialog's Save as new). Selecting and running never save.
+
+One script can select an evaluator, add a second task, run both, and read a result:
+
+```js
+const selected = await ui.playground.task.select({
+  instanceId: 1,
+  source: { type: "evaluator", evaluatorId: "<evaluator node id>" },
+});
+if (!selected.ok) return selected;
+const added = await ui.playground.instance.add({ source: { type: "new", kind: "CODE" } });
+if (!added.ok) return added;
+const run = await ui.playground.run({});
+if (!run.ok) return run;
+return await ui.playground.experiment.readResults({ experimentId: run.output.experimentIds[0] });
+```
 
 ## Workflow: Author, Refine, Or Remove A Function Tool
 
