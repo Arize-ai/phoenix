@@ -26,6 +26,8 @@ from phoenix.server.cost_tracking.regex_specificity import (
         pytest.param("(?i)abc^", False, id="anchor not at start"),
         pytest.param("(?i)^", True, id="just anchor with flags"),
         pytest.param("(?i)", False, id="just flags"),
+        pytest.param("(?:gpt-4)", False, id="non-capturing group is not an inline flag"),
+        pytest.param("(?!gpt-3)gpt-4", False, id="negative lookahead is not an inline flag"),
     ],
 )
 def test_has_start_anchor(pattern: str, expected: bool) -> None:
@@ -43,6 +45,11 @@ def test_has_start_anchor(pattern: str, expected: bool) -> None:
         pytest.param("(?i)abc", "abc", id="inline flag only"),
         pytest.param("(?i)(?m)^abc$", "abc", id="multiple flags + anchors"),
         pytest.param("(?i)^(?m)abc$", "(?m)abc", id="flag-anchor-flag"),
+        pytest.param("(?:gpt-4)", "(?:gpt-4)", id="non-capturing group content preserved"),
+        pytest.param(
+            "(?:gpt-4|gpt-4o)$", "(?:gpt-4|gpt-4o)", id="non-capturing group with end anchor"
+        ),
+        pytest.param("gpt\\$", "gpt\\$", id="escaped dollar not stripped"),
     ],
 )
 def test_strip_anchors(pattern: str, expected: str) -> None:
@@ -266,6 +273,9 @@ def test_find_bracket_end(pattern: str, start: int, expected: int) -> None:
         pytest.param("[-a]", 508, id="dash at start of class"),
         pytest.param("[a-z-]", 512, id="dash at end of range"),
         pytest.param("[-a-z]", 512, id="dash at start of range"),
+        pytest.param("(?:gpt-4)", 5018, id="non-capturing group content scored"),
+        pytest.param("gpt\\$", 3960, id="escaped dollar scored as literal not anchor"),
+        pytest.param("^(?:gpt)-4o-mini$", 21034, id="non-capturing group with anchor"),
     ],
 )
 def test_score(pattern: str, expected: int) -> None:
