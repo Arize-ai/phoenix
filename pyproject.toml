@@ -77,6 +77,7 @@ dependencies = [
   "orjson",
   "jmespath",
   "ldap3",
+  "snowballstemmer>=3.1",
 ]
 dynamic = ["version"]
 
@@ -374,6 +375,7 @@ module = [
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
+  "snowballstemmer",
 ]
 ignore_missing_imports = true
 
