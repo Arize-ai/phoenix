@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
+	harbor-stage-environments harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -109,7 +109,6 @@ help: ## Show this help message
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
 	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
-	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the PXI chat-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
@@ -494,7 +493,7 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # Harbor Evals
 #=============================================================================
 
-HARBOR_TASK ?= evals/harbor/tasks/regression-triage
+HARBOR_TASK ?= evals/harbor/tasks/error-analysis
 HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
 # Environment backend for trials (harbor run -e): docker, daytona, etc.
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
@@ -518,9 +517,10 @@ endif
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
 
-# Container assets are staged into the task's Docker build context by stage_harbor_task_environments.sh.
+# The wheel, container assets, and fixture database are staged into the task's Docker build
+# context by stage_harbor_task_environments.sh.
 define check-harbor-staged
-	@test -d $(HARBOR_TASK)/environment/container_assets || \
+	@test -d $(HARBOR_TASK)/environment/container_assets -a -f $(HARBOR_TASK)/environment/data/phoenix.db || \
 		{ echo -e "$(RED)Missing staged assets in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 
@@ -528,10 +528,6 @@ harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_task_environments.sh
 	@echo -e "$(GREEN)✓ Done$(NC)"
-
-harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud storage
-	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
-	./evals/harbor/scripts/publish_fixtures.sh
 
 harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
