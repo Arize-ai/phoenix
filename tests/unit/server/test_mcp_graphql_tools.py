@@ -112,7 +112,7 @@ async def test_names_and_search_answer_in_one_call(graphql_mcp: FastMCP) -> None
     assert blocks[1].startswith("type Dataset")
     assert blocks[2].startswith("Query.datasets")
     assert "  name: String!" in "\n\n".join(blocks[3:])
-    # An exact name given as free text is still a lookup, so the old habit works.
+    # An exact name given as free text is still a lookup.
     assert _text(
         await graphql_mcp.call_tool("describeGraphqlSchema", {"search": "Dataset"})
     ).startswith("# Phoenix GraphQL.")

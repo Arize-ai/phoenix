@@ -21,10 +21,9 @@ from strawberry.types.graphql import OperationType
 
 from phoenix.server.api.context import Context
 
-# An operation larger than this is refused unexecuted. Admission rather than
-# transport: the reason a caller should split the work does not depend on how
-# the operation arrived. The same 2 KiB as the SQL surface: an operation that
-# needs more is reading too much at once and should be split.
+# An operation larger than this is refused unexecuted. Enforced at admission,
+# not transport, so it holds however the operation arrived. Matches the SQL
+# surface's limit.
 MAX_QUERY_BYTES = 2 * 1024
 
 

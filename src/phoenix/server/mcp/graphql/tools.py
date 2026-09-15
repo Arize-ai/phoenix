@@ -67,8 +67,7 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
 
     Executes as the caller. Every resolver's permission classes run against the
     principal the MCP request authenticates as, so this surface reaches exactly
-    what that caller could reach through the GraphQL endpoint itself -- no more,
-    and nothing that needs a separate allowlist to bound it.
+    what that caller could reach through the GraphQL endpoint itself.
 
     Args:
         mcp: The server to register on.
