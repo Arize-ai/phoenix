@@ -10,6 +10,7 @@ The module supports template rendering with variable substitution using either
 mustache ({{variable}}) or f-string ({variable}) syntax.
 """
 
+import json
 import re
 import warnings
 from abc import ABC, abstractmethod
@@ -646,6 +647,21 @@ def create_content_part_template(
         raise ValueError(f"Unsupported content type: {content_type}")
 
 
+def _json_serialize_variable(value: Any) -> str:
+    """Serialize a non-string template variable to JSON for prompt rendering.
+
+    Falls back to ``str(value)`` when the value is not JSON-serializable.
+    Mirrors the ``SmartString`` coercion the evaluator input schemas apply, so
+    direct ``PromptTemplate``/``Template`` renders produce the same prompt text.
+    """
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(value)
+
+
 class MessageTemplate:
     """Template for a single message with role and content.
 
@@ -755,14 +771,27 @@ class MessageTemplate:
             Content will be a string if the original input was a string,
             or a list of ContentPart if the original input was a list.
         """
+        # Honor the variable_types contract: variables classified as "string"
+        # are JSON-serialised when a non-string value is supplied, so the model
+        # sees valid JSON rather than a Python repr. "section" variables pass
+        # through unchanged so pystache can iterate or traverse them.
+        variable_types = self.variable_types()
+        coerced = {
+            key: (
+                _json_serialize_variable(value)
+                if variable_types.get(key) == "string"
+                else value
+            )
+            for key, value in variables.items()
+        }
         # For simple string content, return as string
         if self._is_string_content:
-            rendered_part = self._content_templates[0].render(variables)
+            rendered_part = self._content_templates[0].render(coerced)
             return Message(role=self.role, content=rendered_part["text"])
 
         # For multiple content parts, return as list
         rendered_parts: List[ContentPart] = [
-            template.render(variables) for template in self._content_templates
+            template.render(coerced) for template in self._content_templates
         ]
         return Message(role=self.role, content=rendered_parts)
 
