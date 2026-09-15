@@ -118,6 +118,22 @@ async def test_names_and_search_answer_in_one_call(graphql_mcp: FastMCP) -> None
     ).startswith("# Phoenix GraphQL.")
 
 
+async def test_search_and_names_take_lists_or_strings(graphql_mcp: FastMCP) -> None:
+    text = _text(
+        await graphql_mcp.call_tool(
+            "describeGraphqlSchema",
+            {"search": ["name", "boom"], "names": "Dataset, Query.datasets"},
+        )
+    )
+    blocks = text.split("\n\n")
+    assert blocks[1].startswith("type Dataset")
+    assert blocks[2].startswith("Query.datasets")
+    searched = "\n\n".join(blocks[3:])
+    assert "  name: String!" in searched
+    assert "  boom: String" in searched
+    assert searched.count("# Query.boom in full:") == 1
+
+
 async def test_preamble_states_the_invariants_the_answers_do_not(graphql_mcp: FastMCP) -> None:
     """Everything constant is stated once here rather than on every answer."""
     text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {}))
