@@ -80,6 +80,24 @@ describe("SpanFiltersProvider URL seeding", () => {
     });
   }
 
+  it("uses the supplied comparison filter instead of a shared URL filter", async () => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter
+          initialEntries={["/compare?spanFilterCondition=unrelated"]}
+        >
+          <SpanFiltersProvider
+            persistToUrl={false}
+            fallbackFilterCondition="comparison"
+          >
+            <FilterConditionReader />
+          </SpanFiltersProvider>
+        </MemoryRouter>
+      );
+    });
+    expect(container.textContent).toBe("comparison");
+  });
+
   it("seeds from the URL by default", async () => {
     await renderAt("/spans?spanFilterCondition=span_kind%20%3D%3D%20'LLM'");
 

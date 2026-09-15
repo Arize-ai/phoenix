@@ -126,7 +126,7 @@ describe("useProjectEvaluatorPaths", () => {
       root.render(
         <MemoryRouter
           initialEntries={[
-            "/projects/project-1/evaluators/compare?timeRangeKey=7d&evaluatorId=old-a&evaluatorId=old-b",
+            "/projects/project-1/evaluators/compare?timeRangeKey=7d&evaluatorId=old-a&evaluatorId=old-b&compareSelection=stale",
           ]}
         >
           <Routes>

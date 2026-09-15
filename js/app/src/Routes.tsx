@@ -28,6 +28,10 @@ import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLo
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
 import { projectEvaluatorCompareLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
 import { ProjectEvaluatorComparePage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorComparePage";
+import {
+  PROJECT_EVALUATOR_COMPARE_ROUTE_ID,
+  ProjectEvaluatorCompareTargetPage,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareTargetPage";
 import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
@@ -670,6 +674,7 @@ export const appRouteObjects = createRoutesFromElements(
               }}
             >
               <Route
+                id={PROJECT_EVALUATOR_COMPARE_ROUTE_ID}
                 path="compare"
                 element={<ProjectEvaluatorComparePage />}
                 loader={projectEvaluatorCompareLoader}
@@ -681,10 +686,22 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Compare Project Evaluators",
                     description:
-                      "Compare two project evaluators: shared-result agreement and label overlap, coverage, and score or label distributions including evaluator-only results. Repeated evaluatorId search params are ordered ProjectEvaluator Relay node IDs.",
+                      "Compare two project evaluators: shared-result agreement and label overlap, coverage, and score or label distributions including evaluator-only results. Filter matching spans, traces, or sessions by matrix cell and inspect their details. Repeated evaluatorId search params are ordered ProjectEvaluator Relay node IDs.",
                   },
                 }}
-              />
+              >
+                <Route
+                  path=":targetId"
+                  element={<ProjectEvaluatorCompareTargetPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Evaluator Comparison Target Details",
+                      description:
+                        "Inspect a matching trace or session over an evaluator comparison. targetId is the trace ID for span and trace targets, or the ProjectSession Relay node ID for sessions.",
+                    },
+                  }}
+                />
+              </Route>
               <Route
                 id={PROJECT_EVALUATOR_DETAILS_ROUTE_ID}
                 path=":projectEvaluatorId"

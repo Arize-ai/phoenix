@@ -5,7 +5,10 @@ import invariant from "tiny-invariant";
 import { PROJECT_EVALUATOR_COMPARE_PARAM } from "@phoenix/constants/searchParams";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { projectEvaluatorCompareLoaderQuery } from "./__generated__/projectEvaluatorCompareLoaderQuery.graphql";
+import type {
+  EvaluationTarget,
+  projectEvaluatorCompareLoaderQuery,
+} from "./__generated__/projectEvaluatorCompareLoaderQuery.graphql";
 
 export const projectEvaluatorCompareLoaderGQL = graphql`
   query projectEvaluatorCompareLoaderQuery(
@@ -123,6 +126,7 @@ export async function projectEvaluatorCompareLoader({
     typeof loadQuery<projectEvaluatorCompareLoaderQuery>
   > | null;
   invalidReason: ProjectEvaluatorCompareInvalidReason | null;
+  evaluationTarget: EvaluationTarget | null;
   evaluatorAName: string | null;
   evaluatorBName: string | null;
   evaluatorAId: string | null;
@@ -134,6 +138,7 @@ export async function projectEvaluatorCompareLoader({
   const [evaluatorAId, evaluatorBId] = evaluatorIds;
   const invalid = (invalidReason: ProjectEvaluatorCompareInvalidReason) => ({
     queryRef: null,
+    evaluationTarget: null,
     invalidReason,
     evaluatorAName: null,
     evaluatorBName: null,
@@ -190,6 +195,7 @@ export async function projectEvaluatorCompareLoader({
       variables
     ),
     invalidReason: null,
+    evaluationTarget: evaluatorA.evaluationTarget,
     evaluatorAName: evaluatorA.name,
     evaluatorBName: evaluatorB.name,
     evaluatorAId,

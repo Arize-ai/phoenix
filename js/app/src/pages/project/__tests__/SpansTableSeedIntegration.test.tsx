@@ -17,6 +17,7 @@ const relayMocks = vi.hoisted(() => ({
 }));
 
 const fieldMocks = vi.hoisted(() => ({
+  persistToUrl: true,
   props: null as null | {
     onValidCondition: (args: {
       condition: string;
@@ -42,6 +43,13 @@ const timeRangeState = vi.hoisted(() => ({
     start: "2026-07-01T00:00:00.000Z",
     end: "2026-07-02T00:00:00.000Z",
   },
+}));
+
+vi.mock("../SpanFiltersContext", () => ({
+  useSpanFilterActions: () => ({
+    persistToUrl: fieldMocks.persistToUrl,
+    appendFilterCondition: vi.fn(),
+  }),
 }));
 
 vi.mock("react-relay", async (importOriginal) => ({
@@ -156,6 +164,7 @@ describe("SpansTable seed loading integration", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     fieldMocks.props = null;
+    fieldMocks.persistToUrl = true;
     probedSearch = "";
     relayMocks.refetch.mockReset();
     relayMocks.usePaginationFragment.mockReturnValue({
@@ -250,6 +259,20 @@ describe("SpansTable seed loading integration", () => {
     });
 
     expect(probedSearch).not.toContain("spanFilterCondition");
+  });
+
+  it("keeps comparison filter edits out of the shared URL parameter", async () => {
+    fieldMocks.persistToUrl = false;
+    await renderTable();
+    await act(async () => {
+      fieldMocks.props?.onValidCondition({
+        condition: "span_kind == 'LLM'",
+        selectsRootSpansOnly: false,
+        isInitialSettlement: false,
+      });
+    });
+    expect(probedSearch).not.toContain("spanFilterCondition");
+    expect(relayMocks.refetch).toHaveBeenCalled();
   });
 
   it("writes a user-applied condition to the URL param", async () => {

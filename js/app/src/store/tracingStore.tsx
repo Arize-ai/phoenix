@@ -66,12 +66,12 @@ const makeTracingStoreKey = ({
   tableId,
 }: {
   projectId: string;
-  tableId: ProjectTab;
+  tableId: ProjectTab | "evaluator-compare";
 }) => `arize-phoenix-tracing-${projectId}-${tableId}`;
 
 export type CreateTracingStoreProps = {
   projectId: string;
-  tableId: ProjectTab;
+  tableId: ProjectTab | "evaluator-compare";
 } & Partial<TracingProps>;
 
 export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
@@ -80,7 +80,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     [["zustand/devtools", unknown]]
   > = (set) => ({
     projectId: initialProps.projectId,
-    columnVisibility: {
+    columnVisibility: initialProps.columnVisibility ?? {
       metadata: false,
       spanNotes: false,
       traceNotes: false,
@@ -88,11 +88,12 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       traceId: false,
       [TRACE_ANNOTATIONS_COLUMN_ID]: false,
     },
-    columnSizing: {
+    columnSizing: initialProps.columnSizing ?? {
       metadata: 200,
     },
-    annotationColumnVisibility: {},
-    traceAnnotationColumnVisibility: {},
+    annotationColumnVisibility: initialProps.annotationColumnVisibility ?? {},
+    traceAnnotationColumnVisibility:
+      initialProps.traceAnnotationColumnVisibility ?? {},
     columnOrder: [],
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility }, false, { type: "setColumnVisibility" });
