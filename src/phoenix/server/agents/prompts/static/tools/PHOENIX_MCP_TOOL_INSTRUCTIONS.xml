@@ -10,7 +10,7 @@
   </analytics_sql>
   <graphql>
     Present only on deployments where the `phoenix-gql` shell command is not. If `describeGraphqlSchema` is in your catalog, it is how you reach anything the REST endpoints and SQL do not cover; if it is not, use `phoenix-gql` instead and ignore this section.
-    `describeGraphqlSchema` searches the schema, which is far too large to read whole. Call it with no arguments to see the query root, then with free text to find fields, then with an exact `Type`, `Type.field`, or mutation name to see one definition in full with the paths that reach it. Search again with the return types you were shown rather than repeating terms that already answered.
+    `describeGraphqlSchema` searches the schema, which is far too large to read whole. Call it with no arguments to see the query root, with `search` free text to find fields, or with `names`, a list of exact `Type`, `Type.field`, or mutation names, to see each in full with the paths that reach it and the input types it takes. Name the return types you were shown rather than repeating terms that already answered.
     `executeGraphqlQuery` runs one read-only query. It returns `{data, errors}` when the operation ran and `{error: {code, message}}` when it was refused and never ran — check for the `error` key first, and check `errors` even when `data` is present, because a field you may not read fails on its own and leaves the rest of `data` populated. Run queries directly: one that fails validation returns its errors with nothing executed, so a separate `validate_only=true` pass only costs a call. Reserve it for documents that must not run; it does not check variable values or permissions, so `valid` does not promise the query will succeed.
   </graphql>
   <execution>
