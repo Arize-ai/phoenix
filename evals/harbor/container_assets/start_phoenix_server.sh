@@ -15,13 +15,16 @@ if is_healthy; then
   exit 0
 fi
 mkdir -p "$STATE_DIR"
-# HARBOR_PHOENIX_* come from the task's environment.env.
+# HARBOR_PHOENIX_* come from the task's environment.env. Remote export must be forced:
+# the server otherwise refuses it because the persisted
+# agent_trace_recording.allow_remote_export setting defaults to false.
 # The docs MCP server reaches out to an external host on every turn; the eval
 # scores PXI on the fixture data, so it runs without docs tools.
 PHOENIX_ALLOW_EXTERNAL_RESOURCES=false \
   PHOENIX_SQL_DATABASE_URL="sqlite:///$FIXTURE_DB" PHOENIX_WORKING_DIR=/data \
   PHOENIX_HOST=0.0.0.0 PHOENIX_PORT="$PORT" \
   PHOENIX_AGENTS_COLLECTOR_ENDPOINT="${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}" \
+  PHOENIX_AGENTS_FORCE_TRACING="${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:+true}" \
   PHOENIX_AGENTS_COLLECTOR_API_KEY="${HARBOR_PHOENIX_API_KEY:-}" \
   PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME="${HARBOR_PHOENIX_PROJECT_NAME:-harbor-server-agent-evals}" \
   setsid nohup phoenix serve >"$STATE_DIR/server.log" 2>&1 &
