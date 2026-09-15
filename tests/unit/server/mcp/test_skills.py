@@ -310,43 +310,21 @@ def _write_skill(directory: Path) -> None:
     )
 
 
-@pytest.mark.parametrize("mode", [None, "all", "explicit"])
-async def test_configured_visibility_controls_instructions_and_tools(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str | None
+async def test_external_skills_reach_instructions_and_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    for name, visibility in [("opted-in", "visible"), ("opted-out", "hidden"), ("unmarked", None)]:
-        directory = tmp_path / name
-        _write_skill(directory)
-        if visibility:
-            skill_file = directory / "SKILL.md"
-            skill_file.write_text(
-                skill_file.read_text().replace(
-                    "summary: s", f"metadata:\n  arize-phoenix-visibility: {visibility}"
-                )
-            )
+    expected = {"first", "second"}
+    for name in expected:
+        _write_skill(tmp_path / name)
     monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
-    monkeypatch.delenv("PHOENIX_SKILLS_VISIBILITY", raising=False)
-    if mode:
-        monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", mode)
     skills = load_external_skills()
-    expected = {"opted-in"} if mode == "explicit" else {"opted-in", "opted-out", "unmarked"}
     assert {skill.name for skill in skills} == expected
     async with Client(_server(SHARED_SKILLS_ROOT, external_skills=skills)) as client:
         for name in expected:
             assert f"<name>{name}</name>" in (client.instructions or "")
             assert f"name: {name}" in await _text(client, "load_skill", skill_name=name)
-        if mode == "explicit":
-            assert "<name>unmarked</name>" not in (client.instructions or "")
-            with pytest.raises(ToolError):
-                await client.call_tool("load_skill", {"skill_name": "unmarked"})
         for skill in load_skills((SHARED_SKILLS_ROOT,)):
             assert f"<name>{skill.name}</name>" in (client.instructions or "")
-
-
-def test_invalid_visibility(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", "true")
-    with pytest.raises(ValueError, match="PHOENIX_SKILLS_VISIBILITY"):
-        load_external_skills()
 
 
 def test_individual_skill_symlink_and_relative_path(
@@ -357,12 +335,6 @@ def test_individual_skill_symlink_and_relative_path(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PHOENIX_SKILLS_PATHS", "./a-skill")
     assert [skill.name for skill in load_external_skills()] == ["a-skill"]
-
-
-def test_visibility_is_part_of_the_cache_key(tmp_path: Path) -> None:
-    _write_skill(tmp_path / "a-skill")
-    assert len(load_skills((tmp_path,))) == 1
-    assert load_skills((tmp_path,), explicit=True) == ()
 
 
 def test_external_skill_cannot_override_builtin_skill(
