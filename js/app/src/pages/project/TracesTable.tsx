@@ -14,7 +14,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import React, {
   Fragment,
   Suspense,
@@ -121,6 +121,7 @@ import {
 import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
+  emptyState?: ReactNode;
   project: TracesTable_spans$key;
 };
 
@@ -205,12 +206,12 @@ const TableBody = <
 }) => {
   "use no memo";
   const navigate = useNavigate();
-  const { traceId } = useParams();
+  const { traceId, targetId } = useParams();
   const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === traceId;
+        const isSelected = row.original.trace.traceId === (traceId ?? targetId);
         return (
           <tr
             key={row.id}
@@ -302,6 +303,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
+  const { filterCondition: initialFilterCondition } = useTraceFilters();
   const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -309,7 +311,7 @@ export function TracesTable(props: TracesTableProps) {
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
-    useState<string>("");
+    useState<string>(initialFilterCondition);
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
@@ -1240,7 +1242,7 @@ export function TracesTable(props: TracesTableProps) {
                   ))}
               </thead>
               {isEmpty ? (
-                <ProjectTableEmpty />
+                (props.emptyState ?? <ProjectTableEmpty />)
               ) : columnSizingInfo.isResizingColumn ? (
                 <MemoizedTableBody
                   table={

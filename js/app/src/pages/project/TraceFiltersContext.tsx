@@ -22,8 +22,12 @@ export function useTraceFilters() {
   return context;
 }
 
-export function TraceFiltersProvider(props: PropsWithChildren) {
-  const [filterCondition, setFilterConditionState] = useState<string>("");
+export function TraceFiltersProvider(
+  props: PropsWithChildren<{ initialFilterCondition?: string }>
+) {
+  const [filterCondition, setFilterConditionState] = useState<string>(
+    props.initialFilterCondition ?? ""
+  );
 
   function setFilterCondition(condition: string) {
     startTransition(() => {

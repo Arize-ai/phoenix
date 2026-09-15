@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -170,6 +170,9 @@ function ProjectEvaluatorComparePageLoaded({
           </div>
         </View>
       </View>
+      <Suspense fallback={<Loading />}>
+        <Outlet />
+      </Suspense>
     </main>
   );
 }

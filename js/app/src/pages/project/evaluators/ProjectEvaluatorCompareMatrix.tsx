@@ -30,6 +30,8 @@ const evaluatorFragment = graphql`
   }
 `;
 
+import { useCompareSelection } from "./projectEvaluatorCompareSelection";
+
 export function ProjectEvaluatorCompareMatrix({
   comparisonRef,
   evaluatorARef,
@@ -41,6 +43,7 @@ export function ProjectEvaluatorCompareMatrix({
 }) {
   const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
   const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
+  const { selection, setSelection } = useCompareSelection();
   const comparison = useFragment(
     graphql`
       fragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {
@@ -85,7 +88,7 @@ export function ProjectEvaluatorCompareMatrix({
     <Card
       title="Label overlap"
       titleSeparator={false}
-      subTitle={formatMatrixSubtitle({
+      subTitle={`${formatMatrixSubtitle({
         target: comparison.evaluationTarget,
         populationSize: comparison.populationSize,
         thresholdA: comparison.a.threshold,
@@ -94,7 +97,7 @@ export function ProjectEvaluatorCompareMatrix({
           evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
         optimizationDirectionB:
           evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
-      })}
+      })} · Click a cell to view matching ${comparison.evaluationTarget.toLowerCase()}s`}
     >
       <View padding="size-200">
         {comparison.confusionMatrix.every((row) =>
@@ -109,6 +112,20 @@ export function ProjectEvaluatorCompareMatrix({
           />
         ) : (
           <ConfusionMatrix
+            selectedCell={
+              selection?.kind === "matrix"
+                ? { actual: selection.a, predicted: selection.b }
+                : undefined
+            }
+            onCellPress={({ actual, predicted }) =>
+              setSelection(
+                selection?.kind === "matrix" &&
+                  selection.a === actual &&
+                  selection.b === predicted
+                  ? null
+                  : { kind: "matrix", a: actual, b: predicted }
+              )
+            }
             data={toConfusionMatrixData({
               matrix: comparison.confusionMatrix,
               rowLabels: labelsA,
