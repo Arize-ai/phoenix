@@ -6,7 +6,6 @@ the mount receives the shared root alone; the in-process agent adds its own.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -324,7 +323,7 @@ async def test_configured_visibility_controls_instructions_and_tools(
                     "summary: s", f"metadata:\n  arize-phoenix-visibility: {visibility}"
                 )
             )
-    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", json.dumps([str(tmp_path)]))
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
     monkeypatch.delenv("PHOENIX_SKILLS_VISIBILITY", raising=False)
     if mode:
         monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", mode)
@@ -343,11 +342,13 @@ async def test_configured_visibility_controls_instructions_and_tools(
             assert f"<name>{skill.name}</name>" in (client.instructions or "")
 
 
-@pytest.mark.parametrize("value", ["nope", "{}", '"path"', "[1]", '[""]'])
-def test_invalid_configured_paths(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
-    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", value)
-    with pytest.raises(ValueError, match="PHOENIX_SKILLS_PATHS"):
-        load_configured_skills()
+def test_configured_paths_are_comma_separated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_skill(tmp_path / "first" / "a-skill")
+    _write_skill(tmp_path / "second" / "b-skill")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", f" {tmp_path / 'first'}, ,{tmp_path / 'second'},")
+    assert [skill.name for skill in load_configured_skills()] == ["a-skill", "b-skill"]
 
 
 def test_invalid_visibility(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -362,7 +363,7 @@ def test_individual_skill_symlink_and_relative_path(
     _write_skill(tmp_path / "installed" / "a-skill")
     (tmp_path / "a-skill").symlink_to(tmp_path / "installed" / "a-skill", target_is_directory=True)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", '["./a-skill"]')
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", "./a-skill")
     assert [skill.name for skill in load_configured_skills()] == ["a-skill"]
 
 
