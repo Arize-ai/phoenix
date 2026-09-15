@@ -15,19 +15,11 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export function ProjectEvaluatorStatusCell({
-  schedulabilityStatus,
-  schedulabilityReason,
   runSummary,
 }: {
-  schedulabilityStatus: string;
-  schedulabilityReason: string | null | undefined;
   runSummary: ProjectEvaluatorRunSummary;
 }) {
-  const status = getProjectEvaluatorStatus({
-    schedulabilityStatus,
-    schedulabilityReason,
-    runSummary,
-  });
+  const status = getProjectEvaluatorStatus({ runSummary });
   const counts = formatProjectEvaluatorRunCounts(runSummary);
   return (
     <TooltipTrigger delay={0}>
