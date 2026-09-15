@@ -72,21 +72,28 @@ export function createExperimentsOverDatasetRouter(
       if (payload.__typename === "%other") {
         return null;
       }
+
       if (payload.__typename === "ChatCompletionSubscriptionExperiment") {
         const experimentId = payload.experimentId ?? payload.experiment.id;
+
         const instanceId =
           instanceIdByExperimentId.get(experimentId) ??
           taskInstanceIds[instanceIdByExperimentId.size];
+
         if (instanceId == null) {
           return null;
         }
+
         instanceIdByExperimentId.set(experimentId, instanceId);
+
         return { type: "experimentStarted", instanceId, experimentId };
       }
+
       const instanceId =
         payload.experimentId != null
           ? instanceIdByExperimentId.get(payload.experimentId)
           : undefined;
+
       return instanceId == null ? null : toRunEvent(payload, instanceId);
     },
   };
@@ -107,11 +114,13 @@ function toRunEvent(
       ? { type: "experimentFailed", instanceId, message: payload.message }
       : null;
   }
+
   const key: ExperimentRunKey = {
     instanceId,
     exampleId: payload.datasetExampleId,
     repetitionNumber: payload.repetitionNumber ?? 1,
   };
+
   switch (payload.__typename) {
     case "ChatCompletionSubscriptionResult":
       return {

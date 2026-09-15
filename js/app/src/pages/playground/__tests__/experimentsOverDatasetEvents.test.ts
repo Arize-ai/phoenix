@@ -67,6 +67,7 @@ describe("createExperimentsOverDatasetRouter", () => {
       trace: null,
       error: "boom",
     });
+
     expect(router.route(evaluationChunk)).toEqual({
       type: "evaluation",
       instanceId: 7,
@@ -184,6 +185,8 @@ describe("createExperimentsOverDatasetRouter", () => {
         })
       )
     ).toBeNull();
+    // SAFETY: "%other" is the typename Relay gives a payload member the
+    // schema does not know; the router reads nothing else off it.
     expect(
       router.route({ __typename: "%other" } as ExperimentsOverDatasetPayload)
     ).toBeNull();

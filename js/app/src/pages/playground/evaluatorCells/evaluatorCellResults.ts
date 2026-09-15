@@ -49,9 +49,11 @@ export function getEvaluatorTaskAnnotation({
 }): EvaluatorTaskAnnotation {
   const evaluatorName = getEvaluatorTaskName(evaluator, position);
   const config = evaluator.outputConfigs[0];
+
   if (!config) {
     return { name: evaluatorName, output: undefined };
   }
+
   return {
     name: getEvaluatorAnnotationName({
       evaluatorName,
@@ -81,18 +83,23 @@ export function getEvaluatorCellResult({
   annotationName: string;
 }): EvaluatorCellResult | null {
   const evaluations = runData?.evaluations ?? [];
+
   const chunk =
     evaluations.find(
       (evaluation) => evaluation.evaluatorName === annotationName
     ) ?? evaluations[0];
+
   const trace = chunk?.trace
     ? { traceId: chunk.trace.traceId, projectId: chunk.trace.projectId }
     : null;
+
   if (chunk?.error != null) {
     return { prediction: { status: "error", error: chunk.error }, trace };
   }
+
   if (chunk?.experimentRunEvaluation) {
     const { label, score, explanation } = chunk.experimentRunEvaluation;
+
     return {
       prediction: {
         status: "success",
@@ -103,12 +110,14 @@ export function getEvaluatorCellResult({
       trace,
     };
   }
+
   if (runData?.errorMessage != null) {
     return {
       prediction: { status: "error", error: runData.errorMessage },
       trace: null,
     };
   }
+
   return null;
 }
 
@@ -129,9 +138,11 @@ export function getExpectedOutput({
   if (pending && annotationName in pending) {
     return pending[annotationName] ?? undefined;
   }
+
   const stored = calibrationLabels.find(
     (calibrationLabel) => calibrationLabel.annotationName === annotationName
   );
+
   return stored
     ? {
         label: stored.label,
@@ -174,16 +185,20 @@ export function summarizeExpectedAgreement({
     comparable: 0,
     matches: 0,
   };
+
   for (const example of examples) {
     const expected = getExpectedOutput({
       pending: pendingExpectedOutputs[example.id],
       calibrationLabels: example.calibrationLabels,
       annotationName,
     });
+
     if (!expected) {
       continue;
     }
+
     agreement.withExpected += 1;
+
     const verdict = getExpectedVerdict({
       prediction: getEvaluatorCellResult({
         runData: responses?.[example.id]?.[1],
@@ -192,13 +207,17 @@ export function summarizeExpectedAgreement({
       expected,
       output,
     });
+
     if (verdict === "invalid") {
       continue;
     }
+
     agreement.comparable += 1;
+
     if (verdict === "match") {
       agreement.matches += 1;
     }
   }
+
   return agreement;
 }

@@ -41,6 +41,7 @@ export function JSONBlock(props: JSONBlockProps) {
     }
     return baseSetup;
   }, [propsBasicSetup]);
+
   const extensions = useMemo(
     () =>
       lint
@@ -48,6 +49,7 @@ export function JSONBlock(props: JSONBlockProps) {
         : [json(), EditorView.lineWrapping],
     [lint]
   );
+
   return (
     <CodeMirror
       value={props.value}

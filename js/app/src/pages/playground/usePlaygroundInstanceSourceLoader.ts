@@ -40,17 +40,17 @@ function getLoadFailurePatch(
   instance: PlaygroundNormalizedInstance | undefined
 ): Partial<PlaygroundNormalizedInstance> {
   const evaluator = getPlaygroundEvaluatorTask(instance);
-  return {
-    loadingSource: null,
-    ...(evaluator
-      ? {
-          task: {
-            kind: "evaluator",
-            evaluator: createPlaygroundEvaluatorTask({ kind: evaluator.kind }),
-          },
-        }
-      : {}),
-  };
+
+  const patch: Partial<PlaygroundNormalizedInstance> = { loadingSource: null };
+
+  if (evaluator) {
+    patch.task = {
+      kind: "evaluator",
+      evaluator: createPlaygroundEvaluatorTask({ kind: evaluator.kind }),
+    };
+  }
+
+  return patch;
 }
 
 /**
@@ -61,6 +61,7 @@ function getLoadFailurePatch(
 export function usePlaygroundInstanceSourceLoader(instanceId: number) {
   const playgroundStore = usePlaygroundStore();
   const notifyError = useNotifyError();
+
   const loadingSource = usePlaygroundContext(
     (state) =>
       selectPlaygroundInstance(instanceId)(state)?.loadingSource ?? null
@@ -70,7 +71,9 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
     if (!loadingSource) {
       return undefined;
     }
+
     let isCancelled = false;
+
     const fail = (message: string) => {
       const state = playgroundStore.getState();
       state.updateInstance({
@@ -80,11 +83,13 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
       });
       notifyError({ title: "Could not load the task", message });
     };
+
     fetchPlaygroundTaskInstance(loadingSource)
       .then((loaded) => {
         if (isCancelled) {
           return;
         }
+
         if (loaded) {
           playgroundStore
             .getState()
@@ -93,7 +98,7 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
           fail(describeSource(loadingSource));
         }
       })
-      .catch((error: unknown) => {
+      .catch((error) => {
         if (!isCancelled) {
           fail(
             error instanceof Error
@@ -102,6 +107,7 @@ export function usePlaygroundInstanceSourceLoader(instanceId: number) {
           );
         }
       });
+
     return () => {
       // A newer source, or a removed instance, owns the result now.
       isCancelled = true;

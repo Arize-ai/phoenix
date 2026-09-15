@@ -78,14 +78,17 @@ export function getTaskMenuSections({
   const showsPrompts = !isLocked || kind === "prompt";
   const showsEvaluators = !isLocked || kind === "evaluator";
   const sections: TaskMenuSection[] = [];
+
   if (showsPrompts) {
     const items = prompts
       .filter((prompt) => !search || matches(prompt.name, search))
       .map((prompt) => ({ key: `prompt:${prompt.id}`, label: prompt.name }));
+
     if (items.length) {
       sections.push({ id: "prompts", title: "Prompts", items });
     }
   }
+
   if (showsEvaluators && evaluators.length) {
     sections.push({
       id: "evaluators",
@@ -97,6 +100,7 @@ export function getTaskMenuSections({
       })),
     });
   }
+
   sections.push({
     id: "new",
     title: "New",
@@ -105,6 +109,7 @@ export function getTaskMenuSections({
       ...(showsEvaluators ? NEW_ITEMS.evaluator : []),
     ],
   });
+
   return sections;
 }
 
@@ -123,12 +128,16 @@ export function parseTaskMenuKey(
   if (key === "duplicate") {
     return { type: "duplicate" };
   }
+
   const separator = key.indexOf(":");
+
   if (separator === -1) {
     return null;
   }
+
   const type = key.slice(0, separator);
   const value = key.slice(separator + 1);
+
   switch (type) {
     case "new":
       return value === "prompt" || value === "LLM" || value === "CODE"
@@ -157,7 +166,9 @@ export function getTaskMenuSelectedKey(
   if (instance.task.kind === "prompt") {
     return instance.prompt ? `prompt:${instance.prompt.id}` : null;
   }
+
   const { evaluatorId } = instance.task.evaluator.source;
+
   return evaluatorId
     ? `evaluator:${evaluatorId}`
     : `new:${instance.task.evaluator.kind}`;
@@ -174,10 +185,13 @@ export function getTaskMenuLabel(
   if (instance.loadingSource) {
     return "Loading…";
   }
+
   if (instance.task.kind === "prompt") {
     return instance.prompt?.name ?? null;
   }
+
   const { name, kind } = instance.task.evaluator;
+
   return (
     name.trim() ||
     (kind === "CODE" ? "New code evaluator" : "New LLM evaluator")

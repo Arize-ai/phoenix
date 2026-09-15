@@ -112,9 +112,11 @@ export function getEvaluatorTaskPreview({
 }): EvaluatorPreviewInput {
   if (evaluator.kind === "CODE") {
     const code = evaluator.code;
+
     if (!code) {
       throw new Error("Enter evaluator code before running.");
     }
+
     return {
       inlineCodeEvaluator: {
         name,
@@ -125,6 +127,7 @@ export function getEvaluatorTaskPreview({
       },
     };
   }
+
   const payload = createLLMEvaluatorPayload({
     playgroundStore,
     instanceId,
@@ -135,6 +138,7 @@ export function getEvaluatorTaskPreview({
     inputMapping: evaluator.inputMapping,
     includeExplanation: evaluator.includeExplanation,
   });
+
   return {
     inlineLlmEvaluator: {
       name: payload.name,

@@ -97,6 +97,7 @@ function SaveEvaluatorTaskForm({
   const name = useEvaluatorStore((state) => state.evaluator.globalName);
   const description = useEvaluatorStore((state) => state.evaluator.description);
   const setName = useEvaluatorStore((state) => state.setEvaluatorGlobalName);
+
   const setDescription = useEvaluatorStore(
     (state) => state.setEvaluatorDescription
   );

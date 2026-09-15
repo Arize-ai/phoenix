@@ -47,18 +47,22 @@ export function PlaygroundConfigButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+
   // Concurrency is kept per dataset, since it describes how a dataset run
   // fans out; it has no effect on a single manual run.
   const datasetId = usePlaygroundContext((state) => state.datasetId);
+
   const maxConcurrency = usePlaygroundContext((state) =>
     datasetId != null
       ? (state.stateByDatasetId[datasetId]?.maxConcurrency ??
         DEFAULT_MAX_CONCURRENCY)
       : DEFAULT_MAX_CONCURRENCY
   );
+
   const setMaxConcurrency = usePlaygroundContext(
     (state) => state.setMaxConcurrency
   );
+
   return (
     <DialogTrigger>
       <Button

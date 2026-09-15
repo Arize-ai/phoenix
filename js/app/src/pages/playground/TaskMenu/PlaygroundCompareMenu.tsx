@@ -22,15 +22,19 @@ import { useTaskMenuOptions } from "./useTaskMenuOptions";
  */
 export function PlaygroundCompareMenu() {
   const addInstance = usePlaygroundContext((state) => state.addInstance);
+
   const taskKind = usePlaygroundContext((state) =>
     getPlaygroundTaskKind(state.instances)
   );
+
   const isFull = usePlaygroundContext(
     (state) => state.instances.length >= NUM_MAX_PLAYGROUND_INSTANCES
   );
+
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+
   const [hasOpened, setHasOpened] = useState(false);
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
@@ -42,6 +46,7 @@ export function PlaygroundCompareMenu() {
     includeEvaluators: hasOpened && taskKind === "evaluator",
     search: deferredSearch,
   });
+
   const sections = [
     DUPLICATE_SECTION,
     ...getTaskMenuSections({
@@ -66,6 +71,7 @@ export function PlaygroundCompareMenu() {
       onChange={(key) => {
         const source =
           key == null ? null : parseTaskMenuKey(String(key), promptItems);
+
         if (source) addInstance(source);
       }}
       css={compareSelectCSS}

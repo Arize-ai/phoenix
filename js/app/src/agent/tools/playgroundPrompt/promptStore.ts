@@ -229,11 +229,14 @@ export function addPromptInstance({
       error: "Cannot add an instance while the playground is running.",
     };
   }
+
   const pageKind = getPlaygroundTaskKind(state.instances);
+
   const resolvedSource: PlaygroundInstanceSource = source ?? {
     type: "new",
     kind: pageKind === "evaluator" ? "LLM" : "prompt",
   };
+
   if (
     resolvedSource.type !== "duplicate" &&
     getTaskSourceKind(resolvedSource) !== pageKind
@@ -243,7 +246,9 @@ export function addPromptInstance({
       error: `This page holds ${pageKind} tasks, so a comparison instance must be a ${pageKind} task too. To switch kinds, remove the other instances and call playground.task.select on the one that remains.`,
     };
   }
+
   const instanceId = state.addInstance(resolvedSource);
+
   if (instanceId == null) {
     return {
       ok: false,
@@ -251,6 +256,7 @@ export function addPromptInstance({
         "Cannot add an instance because the playground has no source configuration.",
     };
   }
+
   return { ok: true, output: { instanceId, source: resolvedSource } };
 }
 

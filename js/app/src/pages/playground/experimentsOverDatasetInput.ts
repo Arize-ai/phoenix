@@ -69,6 +69,7 @@ export function getExperimentsOverDatasetInput({
           }),
         ]
   );
+
   if (tasks.length === 0) {
     throw new Error("Select a task to run.");
   }
@@ -104,6 +105,7 @@ function getExperimentTaskInput({
   position: number;
 }): ExperimentTaskInput {
   const evaluator = getPlaygroundEvaluatorTask(instance);
+
   if (!evaluator) {
     return {
       prompt: getPromptTaskInput({
@@ -115,6 +117,7 @@ function getExperimentTaskInput({
       }),
     };
   }
+
   // Always inline: the task is a draft even when it was loaded from a saved
   // evaluator, and what runs must be what the editor shows.
   return {

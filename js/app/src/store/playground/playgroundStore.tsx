@@ -143,6 +143,12 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
   };
 };
 
+/** An instance ready for the store, with the messages its template references. */
+type NormalizedInstanceInsert = {
+  instance: PlaygroundNormalizedInstance;
+  messages: Record<number, ChatMessage>;
+};
+
 /**
  * Normalizes a denormalized instance into the store's shape under the given
  * id, returning the messages to merge into `allInstanceMessages`.
@@ -150,17 +156,16 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
 function normalizeInstance(
   instance: Omit<PlaygroundInstance, "id">,
   id: number
-): {
-  instance: PlaygroundNormalizedInstance;
-  messages: Record<number, ChatMessage>;
-} {
+): NormalizedInstanceInsert {
   if (instance.template.__type !== "chat") {
     return {
       instance: { ...instance, template: instance.template, id },
       messages: {},
     };
   }
+
   const normalized = normalizeChatTemplate(instance.template);
+
   return {
     instance: { ...instance, template: normalized.template, id },
     messages: normalized.messages,
@@ -228,6 +233,7 @@ export function createEvaluatorTaskInstance({
   model?: ModelConfig;
 }): Omit<PlaygroundInstance, "id"> {
   const params = DEFAULT_INSTANCE_PARAMS();
+
   return {
     ...params,
     model: model ?? params.model,
@@ -254,18 +260,18 @@ export function createEvaluatorTaskInstance({
 function createInstanceFromSource(
   state: Pick<PlaygroundState, "instances" | "allInstanceMessages">,
   source: PlaygroundInstanceSource
-): {
-  instance: PlaygroundNormalizedInstance;
-  messages: Record<number, ChatMessage>;
-} | null {
+): NormalizedInstanceInsert | null {
   const firstInstance = state.instances[0];
+
   if (source.type === "duplicate") {
     return firstInstance
       ? duplicateInstance(firstInstance, state.allInstanceMessages)
       : null;
   }
+
   // A new task keeps the page's model so comparisons start on equal footing.
   const model = firstInstance?.model;
+
   if (source.type === "new") {
     if (source.kind !== "prompt") {
       return normalizeInstance(
@@ -273,14 +279,18 @@ function createInstanceFromSource(
         generateInstanceId()
       );
     }
+
     const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+
     return {
       instance: { ...instance, model: model ?? instance.model },
       messages: instanceMessages,
     };
   }
+
   if (source.type === "prompt") {
     const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+
     return {
       instance: {
         ...instance,
@@ -290,9 +300,11 @@ function createInstanceFromSource(
       messages: instanceMessages,
     };
   }
+
   // A saved evaluator's kind is only known once fetched; the draft is
   // replaced wholesale when its content lands.
   const draft = createEvaluatorTaskInstance({ kind: "LLM", model });
+
   return normalizeInstance(
     {
       ...draft,
@@ -320,16 +332,15 @@ function createInstanceFromSource(
 function duplicateInstance(
   source: PlaygroundNormalizedInstance,
   allInstanceMessages: Record<number, ChatMessage>
-): {
-  instance: PlaygroundNormalizedInstance;
-  messages: Record<number, ChatMessage>;
-} {
+): NormalizedInstanceInsert {
   let template = source.template;
   let messages: Record<number, ChatMessage> = {};
+
   if (source.template.__type === "chat") {
     const copiedMessages = source.template.messageIds
       .map((id) => allInstanceMessages[id])
       .map((message) => ({ ...message, id: generateMessageId() }));
+
     template = {
       ...source.template,
       messageIds: copiedMessages.map((message) => message.id),
@@ -337,11 +348,13 @@ function duplicateInstance(
     messages = copiedMessages.reduce<Record<number, ChatMessage>>(
       (acc, message) => {
         acc[message.id] = message;
+
         return acc;
       },
       {}
     );
   }
+
   return {
     instance: {
       ...source,
@@ -546,9 +559,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     addInstance: (source) => {
       const created = createInstanceFromSource(get(), source);
+
       if (!created) {
         return null;
       }
+
       set(
         {
           allInstanceMessages: {
@@ -560,17 +575,22 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         false,
         { type: "addInstance" }
       );
+
       return created.instance.id;
     },
     replaceInstance: ({ instanceId, source }) => {
       const instances = get().instances;
+
       if (!instances.some((instance) => instance.id === instanceId)) {
         return null;
       }
+
       const created = createInstanceFromSource(get(), source);
+
       if (!created) {
         return null;
       }
+
       set(
         {
           allInstanceMessages: {
@@ -589,13 +609,16 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         false,
         { type: "replaceInstance" }
       );
+
       return created.instance.id;
     },
     loadInstance: ({ instanceId, instance }) => {
       const instances = get().instances;
+
       if (!instances.some((current) => current.id === instanceId)) {
         return;
       }
+
       const loaded = normalizeInstance(instance, instanceId);
       set(
         {
@@ -1019,6 +1042,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instanceIds != null && !instanceIds.includes(instance.id)) {
               return instance;
             }
+
             return {
               ...instance,
               activeRunId: generateRunId(),

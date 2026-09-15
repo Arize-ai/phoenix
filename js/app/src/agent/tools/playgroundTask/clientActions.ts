@@ -25,10 +25,13 @@ export function createSelectTaskClientAction({
       playgroundStore.getState(),
       input.instanceId
     );
+
     if (!resolved.ok) {
       return resolved;
     }
+
     const { instance, label } = resolved.output;
+
     const rejection = getSelectTaskRejection({
       state: playgroundStore.getState(),
       instance,
@@ -36,14 +39,17 @@ export function createSelectTaskClientAction({
       source: input.source,
       discardChanges: input.discardChanges,
     });
+
     if (rejection) {
       return rejection;
     }
+
     const targetId = applyTaskSource({
       playgroundStore,
       instanceId: instance.id,
       source: input.source,
     });
+
     if (targetId == null) {
       return {
         ok: false,
@@ -51,14 +57,17 @@ export function createSelectTaskClientAction({
         code: "NOT_FOUND",
       };
     }
+
     const failure = await settleInstanceSource({
       playgroundStore,
       instanceId: targetId,
       source: input.source,
     });
+
     if (failure) {
       return failure;
     }
+
     return readTaskSnapshot({
       playgroundStore,
       instanceId: targetId,

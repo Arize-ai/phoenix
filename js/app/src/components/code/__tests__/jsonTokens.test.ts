@@ -7,6 +7,7 @@ describe("tokenizeJson", () => {
     const tokens = tokenizeJson(
       '{\n  "a": "b",\n  "n": -1.5e3,\n  "ok": true\n}'
     );
+
     expect(tokens.map((token) => [token.kind, token.text])).toEqual([
       ["punctuation", "{"],
       ["text", "\n  "],

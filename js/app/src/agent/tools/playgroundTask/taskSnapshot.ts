@@ -35,6 +35,7 @@ export async function readTaskSnapshot({
   const instance = selectPlaygroundInstance(instanceId)(
     playgroundStore.getState()
   );
+
   if (!instance) {
     return {
       ok: false,
@@ -42,18 +43,22 @@ export async function readTaskSnapshot({
       code: "NOT_FOUND",
     };
   }
+
   if (instance.task.kind === "prompt") {
     return getPromptSnapshot({ playgroundStore, instanceId });
   }
+
   const host = await waitForEvaluatorHost(
     instanceId,
     EVALUATOR_HOST_TIMEOUT_MS
   );
+
   if (!host) {
     return {
       ok: false,
       error: `The evaluator editor for instance ${instanceId} did not finish loading. Call playground.evaluator.read once the page settles.`,
     };
   }
+
   return { ok: true, output: host.read() };
 }

@@ -4,6 +4,7 @@ import type {
 } from "@phoenix/types";
 
 const PYTHON_INDENT = "    ";
+
 const TYPESCRIPT_INDENT = "  ";
 
 /**
@@ -24,20 +25,24 @@ export function getDefaultCodeEvaluatorSource(
   grain: EvaluatorMappingSourceGrain
 ): string {
   const isDataset = grain === "dataset";
+
   if (language === "PYTHON") {
     const parameters = isDataset
       ? "output, reference=None, input=None, metadata=None"
       : "input=None, output=None, metadata=None";
+
     return `def evaluate(${parameters}):
 ${PYTHON_INDENT}# return 1.0     # numbers are recorded as scores
 ${PYTHON_INDENT}# return "pass"  # strings are recorded as labels
 ${PYTHON_INDENT}return {"score": 1.0, "label": "pass", "explanation": "..."}
 `;
   }
+
   // TYPESCRIPT
   const signature = isDataset
     ? "{ output, reference, input, metadata }: EvaluatorParams"
     : "{ input, output, metadata }";
+
   return `function evaluate(${signature}) {
 ${TYPESCRIPT_INDENT}// return 1;        // numbers are recorded as scores
 ${TYPESCRIPT_INDENT}// return "pass";   // strings are recorded as labels

@@ -2,12 +2,24 @@ import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type { EvaluatorMappingSource } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
+/** A dataset example field: JSON, as the example's revision stores it. */
+export type ExampleField =
+  | string
+  | number
+  | boolean
+  | null
+  | ExampleField[]
+  | { [key: string]: ExampleField };
+
 /** A dataset example's revision, as the evaluator context is built from it. */
 export type EvaluatorContextExample = {
-  input: unknown;
-  output: unknown;
-  metadata: unknown;
+  input: ExampleField;
+  output: ExampleField;
+  metadata: ExampleField;
 };
+
+/** A field as the mapping editor offers it: an object keyed by path. */
+type MappingRecord = EvaluatorMappingSource<"dataset">["input"];
 
 export type EvaluatorPrediction =
   | {
@@ -56,7 +68,7 @@ export function createEvaluatorMappingSource(
   };
 }
 
-function asMappingRecord(value: unknown): Record<string, unknown> {
+function asMappingRecord(value: ExampleField): MappingRecord {
   return isStringKeyedObject(value) ? value : { value };
 }
 

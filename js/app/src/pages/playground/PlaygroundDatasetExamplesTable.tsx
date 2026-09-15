@@ -827,6 +827,7 @@ function PlaygroundExpectedOutputAgentOperation({
       }),
     [agentStore, playgroundStore, saveNow]
   );
+
   return null;
 }
 
@@ -873,12 +874,15 @@ export function PlaygroundDatasetExamplesTable({
   const setInstanceExperiment = usePlaygroundContext(
     (state) => state.setInstanceExperiment
   );
+
   const runPlaygroundInstances = usePlaygroundContext(
     (state) => state.runPlaygroundInstances
   );
+
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
+
   const resetInstanceData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.resetInstanceData
   );
@@ -1026,9 +1030,11 @@ export function PlaygroundDatasetExamplesTable({
             id: event.experimentId,
             isEphemeral: !playgroundStore.getState().recordExperiments,
           });
+
           return;
         case "experimentFailed":
           setApiError(event.message);
+
           return;
         case "runCompleted": {
           const { instanceId, exampleId, repetitionNumber, span } = event;
@@ -1040,8 +1046,10 @@ export function PlaygroundDatasetExamplesTable({
           });
           handleExperimentRunCost(getExperimentRunCost(instanceId, span));
           incrementRunsCompleted(instanceId);
+
           return;
         }
+
         case "runFailed": {
           const { instanceId, exampleId, repetitionNumber, span } = event;
           updateExampleData({
@@ -1054,12 +1062,16 @@ export function PlaygroundDatasetExamplesTable({
               experimentRunId: event.experimentRunId,
             },
           });
+
           if (span) {
             handleExperimentRunCost(getExperimentRunCost(instanceId, span));
           }
+
           incrementRunsFailed(instanceId);
+
           return;
         }
+
         case "textChunk": {
           const { instanceId, exampleId, repetitionNumber } = event;
           appendExampleDataTextChunk({
@@ -1068,8 +1080,10 @@ export function PlaygroundDatasetExamplesTable({
             repetitionNumber,
             textChunk: event.content,
           });
+
           return;
         }
+
         case "toolCallChunk": {
           const { instanceId, exampleId, repetitionNumber } = event;
           appendExampleDataToolCallChunk({
@@ -1078,11 +1092,14 @@ export function PlaygroundDatasetExamplesTable({
             repetitionNumber,
             toolCallChunk: event.toolCallChunk,
           });
+
           return;
         }
+
         case "evaluation": {
           const { instanceId, exampleId, repetitionNumber, evaluationChunk } =
             event;
+
           appendExampleDataEvaluationChunk({
             instanceId,
             exampleId,
@@ -1094,13 +1111,16 @@ export function PlaygroundDatasetExamplesTable({
             annotationName: evaluationChunk.evaluatorName,
             score: evaluationChunk.experimentRunEvaluation?.score ?? null,
           });
+
           if (evaluationChunk.error != null) {
             incrementEvalsFailed(instanceId);
           } else {
             incrementEvalsCompleted(instanceId);
           }
+
           return;
         }
+
         default:
           assertUnreachable(event);
       }
@@ -1125,14 +1145,17 @@ export function PlaygroundDatasetExamplesTable({
     if (!hasSomeRunIds) {
       return undefined;
     }
+
     const runningInstances = playgroundStore
       .getState()
       .instances.filter((instance) => instance.activeRunId != null);
+
     const runningInstanceIds = runningInstances.map((instance) => instance.id);
     setApiError(null);
     resetPendingExperimentMetrics();
     resetInstanceData(runningInstanceIds);
     setRepetitions(repetitions);
+
     for (const instance of runningInstances) {
       setInstanceExperiment(instance.id, null);
       initExperimentRunProgress(instance.id, {
@@ -1149,14 +1172,17 @@ export function PlaygroundDatasetExamplesTable({
         evalsFailed: 0,
       });
     }
+
     const finish = () => {
       flushPendingExperimentMetrics.flush();
+
       for (const instanceId of runningInstanceIds) {
         markPlaygroundInstanceComplete(instanceId);
       }
     };
 
     let input: ExperimentsOverDatasetInput;
+
     try {
       input = getExperimentsOverDatasetInput({
         playgroundStore,
@@ -1171,12 +1197,14 @@ export function PlaygroundDatasetExamplesTable({
       // run before it starts, with the reason where run errors show.
       setApiError(error instanceof Error ? error.message : String(error));
       finish();
+
       return undefined;
     }
 
     // One subscription carries every task's experiment; the router tells the
     // payloads apart by the experiments the server opens the stream with.
     const router = createExperimentsOverDatasetRouter(runningInstanceIds);
+
     const subscription =
       requestSubscription<PlaygroundDatasetExamplesTableSubscriptionType>(
         environment,
@@ -1187,6 +1215,7 @@ export function PlaygroundDatasetExamplesTable({
             const event = response
               ? router.route(response.experimentsOverDataset)
               : null;
+
             if (event) {
               applyEvent(event);
             }
@@ -1194,8 +1223,10 @@ export function PlaygroundDatasetExamplesTable({
           onCompleted: finish,
           onError: (error) => {
             finish();
+
             const errorMessages =
               getErrorMessagesFromRelaySubscriptionError(error);
+
             setApiError(
               errorMessages != null && errorMessages.length > 0
                 ? errorMessages.join("\n")
@@ -1204,6 +1235,7 @@ export function PlaygroundDatasetExamplesTable({
           },
         }
       );
+
     playgroundStore.getState().consumeNextExperimentScaffold();
     return () => {
       resetPendingExperimentMetrics();
@@ -1239,6 +1271,7 @@ export function PlaygroundDatasetExamplesTable({
     tableContainerRef.current = el;
     setTableContainerEl(el);
   }, []);
+
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
       PlaygroundDatasetExamplesTableRefetchQuery,
@@ -1300,10 +1333,12 @@ export function PlaygroundDatasetExamplesTable({
     [data]
   );
   type TableRow = (typeof tableData)[number];
+
   const revisionIdByExampleId = useMemo(
     () => new Map(tableData.map((row) => [row.id, row.revisionId])),
     [tableData]
   );
+
   const reloadExamples = useCallback(() => {
     refetch({}, { fetchPolicy: "network-only" });
   }, [refetch]);
@@ -1345,13 +1380,16 @@ export function PlaygroundDatasetExamplesTable({
       const isRunning = instance.activeRunId !== null;
       const experimentId = instance.experiment?.id ?? null;
       const evaluator = getPlaygroundEvaluatorTask(instance);
+
       if (evaluator) {
         const label = getInstanceLabel(index);
         const evaluatorName = getEvaluatorTaskName(evaluator, index);
+
         const annotation = getEvaluatorTaskAnnotation({
           evaluator,
           position: index,
         });
+
         return {
           id: `instance-${instance.id}`,
           // The header reads the rows off the table so the columns need not
@@ -1392,6 +1430,7 @@ export function PlaygroundDatasetExamplesTable({
           size: 320,
         };
       }
+
       return {
         id: `instance-${instance.id}`,
         header: () => (
@@ -1570,7 +1609,7 @@ export function PlaygroundDatasetExamplesTable({
             scrollbar-gutter: stable;
           `}
           ref={tableContainerCallbackRef}
-          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          onScroll={(e) => fetchMoreOnBottomReached(e.currentTarget)}
         >
           <table
             css={css(tableCSS, borderedTableCSS)}
@@ -1655,6 +1694,7 @@ export function PlaygroundDatasetExamplesTable({
                       ) {
                         loadNext(PAGE_SIZE);
                       }
+
                       if (
                         exampleIndex >= 0 &&
                         exampleIndex < exampleIds.length
@@ -1678,6 +1718,7 @@ export function PlaygroundDatasetExamplesTable({
                   (prev) => {
                     const newParams = new URLSearchParams(prev);
                     newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+
                     return newParams;
                   },
                   { replace: true }

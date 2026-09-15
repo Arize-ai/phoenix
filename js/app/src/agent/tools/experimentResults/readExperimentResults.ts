@@ -83,7 +83,7 @@ type ExperimentResultsQueryData = readExperimentResultsQuery["response"];
  * Shape the raw query payload into the operation output. Pure — unit tested
  * without Relay.
  */
-export function shapeExperimentResults({
+export function toExperimentResults({
   data,
   failuresOnly = false,
 }: {
@@ -229,5 +229,6 @@ export async function readExperimentResults({
   if (data == null) {
     throw new Error("The experiment results query returned no data.");
   }
-  return shapeExperimentResults({ data, failuresOnly });
+
+  return toExperimentResults({ data, failuresOnly });
 }

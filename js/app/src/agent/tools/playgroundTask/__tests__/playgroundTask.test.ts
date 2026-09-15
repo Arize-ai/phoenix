@@ -26,7 +26,9 @@ function createStore() {
 
 /** A fake evaluator adapter whose read names the instance it stands for. */
 function createFakeHost(instanceId: number): EvaluatorTaskAgentHost {
+  // SAFETY: the tests only check which instance the snapshot names.
   const read = { instanceId, kind: "CODE", name: "fake" } as EvaluatorTaskRead;
+
   return {
     read: () => read,
     edit: () => ({ ok: true, output: read }),
@@ -64,6 +66,7 @@ describe("playground.task.select", () => {
     const playgroundStore = createStore();
     const [instance] = playgroundStore.getState().instances;
     const waitForEvaluatorHost = vi.fn();
+
     const select = createSelectTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost,
@@ -73,6 +76,7 @@ describe("playground.task.select", () => {
       source: { type: "prompt", promptId: "P1", promptVersionId: "V1" },
       discardChanges: false,
     });
+
     // The handler set the loading source synchronously; the page's loader
     // would now fetch the prompt.
     expect(playgroundStore.getState().instances[0].loadingSource).toEqual({
@@ -94,9 +98,11 @@ describe("playground.task.select", () => {
   it("replaces the instance for a kind change and awaits the evaluator editor", async () => {
     const playgroundStore = createStore();
     const [instance] = playgroundStore.getState().instances;
+
     const waitForEvaluatorHost = vi.fn(async (instanceId: number) =>
       createFakeHost(instanceId)
     );
+
     const select = createSelectTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost,
@@ -126,6 +132,7 @@ describe("playground.task.select", () => {
   it("rejects a source of the other kind once the page's kind is locked", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().addInstance({ type: "duplicate" });
+
     const select = createSelectTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost: vi.fn(),
@@ -152,6 +159,7 @@ describe("playground.task.select", () => {
     const playgroundStore = createStore();
     const [instance] = playgroundStore.getState().instances;
     playgroundStore.getState().setDirty(instance.id, true);
+
     const select = createSelectTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost: vi.fn(async (id: number) => createFakeHost(id)),
@@ -180,6 +188,7 @@ describe("playground.task.select", () => {
   it("rejects a change while a run is active", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().runPlaygroundInstances();
+
     const select = createSelectTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost: vi.fn(),
@@ -196,6 +205,7 @@ describe("playground.task.select", () => {
   it("reports NOT_FOUND when the load ends without landing the source", async () => {
     const playgroundStore = createStore();
     const [instance] = playgroundStore.getState().instances;
+
     const select = createSelectTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost: vi.fn(),
@@ -205,6 +215,7 @@ describe("playground.task.select", () => {
       source: { type: "prompt", promptId: "gone" },
       discardChanges: false,
     });
+
     // What the loader does when the fetch fails.
     playgroundStore.getState().updateInstance({
       instanceId: instance.id,
@@ -222,6 +233,7 @@ describe("playground.task.select", () => {
   it("lists the instance ids when several instances exist and none is named", async () => {
     const playgroundStore = createStore();
     playgroundStore.getState().addInstance({ type: "duplicate" });
+
     const select = createSelectTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost: vi.fn(),
@@ -255,11 +267,14 @@ describe("instance load helpers", () => {
 
   it("resolves false when the load outlasts the timeout", async () => {
     vi.useFakeTimers();
+
     try {
       const playgroundStore = createStore();
+
       const instanceId = playgroundStore
         .getState()
         .addInstance({ type: "prompt", promptId: "P1" });
+
       const pending = waitForInstanceLoad(playgroundStore, instanceId!, 50);
       vi.advanceTimersByTime(50);
       await expect(pending).resolves.toBe(false);
@@ -270,9 +285,11 @@ describe("instance load helpers", () => {
 
   it("tells a landed source from one that did not load", () => {
     const playgroundStore = createStore();
+
     const instanceId = playgroundStore
       .getState()
       .addInstance({ type: "evaluator", evaluatorId: "E1" })!;
+
     // The draft names the evaluator before the fetch; only the loader's
     // failure path clears it, so the check is meaningful after the wait.
     const draft = playgroundStore.getState().instances[1];

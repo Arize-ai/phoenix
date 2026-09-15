@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { readExperimentResultsQuery } from "@phoenix/agent/tools/experimentResults/__generated__/readExperimentResultsQuery.graphql";
-import { shapeExperimentResults } from "@phoenix/agent/tools/experimentResults/readExperimentResults";
+import { toExperimentResults } from "@phoenix/agent/tools/experimentResults/readExperimentResults";
 
 type QueryData = readExperimentResultsQuery["response"];
 
@@ -86,13 +86,13 @@ function experimentData(
   } as unknown as QueryData;
 }
 
-describe("shapeExperimentResults", () => {
+describe("toExperimentResults", () => {
   it("shapes experiment metrics, summaries, and per-run example data", () => {
     const data = experimentData([
       runNode({ id: "1", score: 1, label: "pass", expectedLabel: "pass" }),
     ]);
 
-    const results = shapeExperimentResults({ data });
+    const results = toExperimentResults({ data });
 
     expect(results.experiment).toEqual({
       id: "RXhwZXJpbWVudDoxOA==",
@@ -133,7 +133,7 @@ describe("shapeExperimentResults", () => {
   });
 
   it("reports an example without expected outputs as an empty list", () => {
-    const results = shapeExperimentResults({
+    const results = toExperimentResults({
       data: experimentData([runNode({ id: "1", score: 1, label: "pass" })]),
     });
 
@@ -147,7 +147,7 @@ describe("shapeExperimentResults", () => {
       runNode({ id: "error", score: null, label: "pass", error: "boom" }),
     ]);
 
-    const results = shapeExperimentResults({ data, failuresOnly: true });
+    const results = toExperimentResults({ data, failuresOnly: true });
 
     expect(results.runs.map((run) => run.exampleId)).toEqual([
       "example-fail",
@@ -161,7 +161,7 @@ describe("shapeExperimentResults", () => {
       runCount: 250,
     });
 
-    const results = shapeExperimentResults({ data });
+    const results = toExperimentResults({ data });
 
     expect(results.truncatedToFirstRuns).toBe(1);
   });
@@ -169,7 +169,7 @@ describe("shapeExperimentResults", () => {
   it("throws a resolvable error for a non-experiment node", () => {
     const data = { experiment: { __typename: "%other" } } as QueryData;
 
-    expect(() => shapeExperimentResults({ data })).toThrow(
+    expect(() => toExperimentResults({ data })).toThrow(
       "Could not resolve experimentId to an experiment."
     );
   });

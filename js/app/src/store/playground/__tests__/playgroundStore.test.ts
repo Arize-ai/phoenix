@@ -13,7 +13,22 @@ import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   getInitialInstances,
 } from "../playgroundStore";
-import type { CanonicalResponseFormat, InitialPlaygroundState } from "../types";
+import type {
+  CanonicalResponseFormat,
+  InitialPlaygroundState,
+  PlaygroundNormalizedInstance,
+} from "../types";
+
+/** The message ids of a chat template; every instance the store builds is one. */
+function chatMessageIds(
+  template: PlaygroundNormalizedInstance["template"]
+): number[] {
+  if (template.__type !== "chat") {
+    throw new Error("expected a chat template");
+  }
+
+  return template.messageIds;
+}
 
 installTestStorage();
 
@@ -1176,6 +1191,7 @@ describe("addInstance", () => {
       modelConfigByProvider: {},
       datasetId: null,
     });
+
     const [first] = store.getState().instances;
     const id = store.getState().addInstance({ type: "duplicate" });
     const second = store.getState().instances[1];
@@ -1185,11 +1201,11 @@ describe("addInstance", () => {
     expect(second.model).toEqual(first.model);
     expect(second.template).not.toEqual(first.template);
     expect(
-      (second.template as { messageIds: number[] }).messageIds.map(
+      chatMessageIds(second.template).map(
         (messageId) => store.getState().allInstanceMessages[messageId].content
       )
     ).toEqual(
-      (first.template as { messageIds: number[] }).messageIds.map(
+      chatMessageIds(first.template).map(
         (messageId) => store.getState().allInstanceMessages[messageId].content
       )
     );
@@ -1221,7 +1237,7 @@ describe("addInstance", () => {
       second.task.kind === "evaluator" && second.task.evaluator
     ).toMatchObject({ kind: "LLM", code: null });
     expect(second.toolChoice).toEqual({ type: "ONE_OR_MORE" });
-    const messageIds = (second.template as { messageIds: number[] }).messageIds;
+    const messageIds = chatMessageIds(second.template);
     expect(messageIds).toHaveLength(2);
     expect(store.getState().allInstanceMessages[messageIds[0]].role).toBe(
       "system"
@@ -1236,19 +1252,19 @@ describe("addInstance", () => {
     expect(
       second.task.kind === "evaluator" && second.task.evaluator.code
     ).toMatchObject({ language: "PYTHON", sandboxConfigId: null });
-    expect((second.template as { messageIds: number[] }).messageIds).toEqual(
-      []
-    );
+    expect(chatMessageIds(second.template)).toEqual([]);
   });
 
   it("marks a saved prompt source as loading until its content lands", () => {
     const store = createStore();
+
     const source = {
       type: "prompt" as const,
       promptId: "P1",
       promptVersionId: "V1",
       tagName: null,
     };
+
     store.getState().addInstance(source);
     const second = store.getState().instances[1];
 
@@ -1284,6 +1300,7 @@ describe("replaceInstance", () => {
       modelConfigByProvider: {},
       datasetId: null,
     });
+
     store.getState().addInstance({ type: "duplicate" });
     const [first, second] = store.getState().instances;
     store.getState().setDirty(first.id, true);
@@ -1308,6 +1325,7 @@ describe("replaceInstance", () => {
       modelConfigByProvider: {},
       datasetId: null,
     });
+
     expect(
       store
         .getState()
@@ -1323,10 +1341,12 @@ describe("loadInstance", () => {
       modelConfigByProvider: {},
       datasetId: null,
     });
+
     const instanceId = store.getState().addInstance({
       type: "prompt",
       promptId: "P1",
     });
+
     if (instanceId == null) throw new Error("expected an instance");
     store.getState().setDirty(instanceId, true);
 
@@ -1366,6 +1386,7 @@ describe("runPlaygroundInstances with instanceIds", () => {
       modelConfigByProvider: {},
       datasetId: null,
     });
+
     store.getState().addInstance({ type: "duplicate" });
     const [first, second] = store.getState().instances;
 

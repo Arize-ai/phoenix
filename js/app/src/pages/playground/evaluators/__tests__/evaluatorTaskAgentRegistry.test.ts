@@ -4,12 +4,13 @@ import type { EvaluatorTaskAgentHost } from "@phoenix/agent/tools/playgroundEval
 
 import { createEvaluatorTaskAgentRegistry } from "../evaluatorTaskAgentRegistry";
 
+/** The registry never calls its adapters; one that throws proves it. */
 function createHost(): EvaluatorTaskAgentHost {
-  return {
-    read: vi.fn(),
-    edit: vi.fn(),
-    save: vi.fn(),
-  } as unknown as EvaluatorTaskAgentHost;
+  const unused = (): never => {
+    throw new Error("registry tests never call the adapter");
+  };
+
+  return { read: unused, edit: unused, save: async () => unused() };
 }
 
 describe("createEvaluatorTaskAgentRegistry", () => {
@@ -49,6 +50,7 @@ describe("createEvaluatorTaskAgentRegistry", () => {
 
   it("resolves null when no adapter registers in time", async () => {
     vi.useFakeTimers();
+
     try {
       const registry = createEvaluatorTaskAgentRegistry();
       const waiting = registry.waitFor(1, 50);

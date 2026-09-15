@@ -8,7 +8,10 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { DisabledButtonTooltip } from "@phoenix/pages/playground/DisabledButtonTooltip";
-import type { PlaygroundEvaluatorTaskCode } from "@phoenix/store/playground";
+import type {
+  PlaygroundEvaluatorTaskCode,
+  PlaygroundNormalizedInstance,
+} from "@phoenix/store/playground";
 import { getPlaygroundEvaluatorTask } from "@phoenix/store/playground";
 import { selectPlaygroundInstance } from "@phoenix/store/playground/selectors";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -66,19 +69,24 @@ export function EvaluatorTaskSaveButton({
 }) {
   const playgroundStore = usePlaygroundStore();
   const store = useEvaluatorStoreInstance();
+
   const evaluator = usePlaygroundContext((state) =>
     getPlaygroundEvaluatorTask(selectPlaygroundInstance(instanceId)(state))
   );
+
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
+
   if (!evaluator) {
     throw new Error(`Playground instance ${instanceId} is not an evaluator`);
   }
+
   const saveTarget = useEvaluatorTaskSaveTarget({
     source: evaluator.source,
     datasetId,
   });
+
   const { save: saveTask, copyName, isSaving } = useEvaluatorTaskSave();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -94,6 +102,7 @@ export function EvaluatorTaskSaveButton({
     const state = playgroundStore.getState();
     const instance = selectPlaygroundInstance(instanceId)(state);
     const current = getPlaygroundEvaluatorTask(instance);
+
     if (
       !datasetId ||
       !instance ||
@@ -105,10 +114,13 @@ export function EvaluatorTaskSaveButton({
         error: "Select a dataset and complete evaluator setup before saving.",
       };
     }
+
     const draftName = store.getState().evaluator.globalName.trim();
+
     if (!draftName) {
       setSaveError(NAME_REQUIRED_ERROR);
       onNameRequired();
+
       return { ok: false, error: NAME_REQUIRED_ERROR };
     }
 
@@ -116,7 +128,9 @@ export function EvaluatorTaskSaveButton({
       // The copy's name lands in the draft too, so the task shows what was
       // saved and the user can rename it afterwards.
       const name = asNew ? await copyName(draftName, datasetId) : draftName;
+
       if (asNew) store.getState().setEvaluatorGlobalName(name);
+
       const saved = await saveTask({
         target: asNew ? { action: "create" } : saveTarget,
         datasetId,
@@ -134,6 +148,7 @@ export function EvaluatorTaskSaveButton({
         sandboxConfigId: code.sandboxConfigId,
         initialSandboxConfigId: loadedSandboxConfigId,
       });
+
       onSaved(code.sandboxConfigId);
 
       // The task now stands for what was saved: the next save updates it,
@@ -141,6 +156,7 @@ export function EvaluatorTaskSaveButton({
       const latest = getPlaygroundEvaluatorTask(
         selectPlaygroundInstance(instanceId)(playgroundStore.getState())
       );
+
       if (latest) {
         const savedEvaluator = {
           ...latest,
@@ -150,21 +166,28 @@ export function EvaluatorTaskSaveButton({
             datasetEvaluatorId: saved.datasetEvaluatorId,
           },
         };
+
+        const patch: Partial<PlaygroundNormalizedInstance> = {
+          task: {
+            kind: "evaluator",
+            evaluator: {
+              ...savedEvaluator,
+              savedRevision: getEvaluatorTaskRevision(savedEvaluator),
+            },
+          },
+        };
+
+        if (saved.prompt) {
+          patch.prompt = saved.prompt;
+        }
+
         playgroundStore.getState().updateInstance({
           instanceId,
-          patch: {
-            task: {
-              kind: "evaluator",
-              evaluator: {
-                ...savedEvaluator,
-                savedRevision: getEvaluatorTaskRevision(savedEvaluator),
-              },
-            },
-            ...(saved.prompt ? { prompt: saved.prompt } : {}),
-          },
+          patch,
           dirty: false,
         });
       }
+
       return {
         ok: true,
         output: {
@@ -174,8 +197,11 @@ export function EvaluatorTaskSaveButton({
         },
       };
     } catch (error) {
-      const message = getSaveErrorMessage(error);
+      const message =
+        error instanceof Error ? getSaveErrorMessage(error) : String(error);
+
       setSaveError(message);
+
       return { ok: false, error: message };
     }
   }
@@ -186,12 +212,15 @@ export function EvaluatorTaskSaveButton({
   useEffect(() => {
     latest.current = { saveTarget, save };
   });
+
   const [saveApi] = useState<EvaluatorTaskSaveApi>(() => ({
     getSaveTarget: () => latest.current.saveTarget,
     save: (options) => latest.current.save(options),
   }));
+
   useEffect(() => {
     onSaveApiChange?.(saveApi);
+
     return () => onSaveApiChange?.(null);
   }, [onSaveApiChange, saveApi]);
 
@@ -227,7 +256,9 @@ export function EvaluatorTaskSaveButton({
         error={saveError}
         onSave={async (options) => {
           const result = await save(options);
+
           if (result.ok) setIsDialogOpen(false);
+
           return result;
         }}
       />
@@ -235,8 +266,7 @@ export function EvaluatorTaskSaveButton({
   );
 }
 
-function getSaveErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) return String(error);
+function getSaveErrorMessage(error: Error): string {
   return (
     getErrorMessagesFromRelayMutationError(error)?.join("\n") ?? error.message
   );

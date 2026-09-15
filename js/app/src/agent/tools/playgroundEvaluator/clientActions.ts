@@ -37,19 +37,23 @@ async function resolveEvaluatorTaskHost(
     playgroundStore.getState(),
     instanceId
   );
+
   if (!resolved.ok) {
     return resolved;
   }
+
   const host = await waitForEvaluatorHost(
     resolved.output.instance.id,
     EVALUATOR_HOST_TIMEOUT_MS
   );
+
   if (!host) {
     return {
       ok: false,
       error: `The editor of evaluator task ${resolved.output.label} has not finished loading. Wait for the page to settle and try again.`,
     };
   }
+
   return { ok: true, output: host };
 }
 
@@ -61,6 +65,7 @@ export function createReadEvaluatorTaskClientAction(
     instanceId,
   }: ReadEvaluatorTaskInput): Promise<UIOperationResult> => {
     const host = await resolveEvaluatorTaskHost(deps, instanceId);
+
     return host.ok ? { ok: true, output: host.output.read() } : host;
   };
 }
@@ -74,9 +79,11 @@ export function createEditEvaluatorTaskClientAction(
     ...edit
   }: EditEvaluatorTaskInput): Promise<UIOperationResult> => {
     const host = await resolveEvaluatorTaskHost(deps, instanceId);
+
     if (!host.ok) {
       return host;
     }
+
     // Commit the edit's React updates before returning, so an operation that
     // follows (run, save, read) sees the edited task mirrored on the instance.
     return flushSync(() => host.output.edit(edit));
@@ -93,6 +100,7 @@ export function createSaveEvaluatorTaskClientAction(
     asNew = false,
   }: SaveEvaluatorTaskInput): Promise<UIOperationResult> => {
     const host = await resolveEvaluatorTaskHost(deps, instanceId);
+
     return host.ok ? host.output.save(expectedRevision, { asNew }) : host;
   };
 }
@@ -114,6 +122,7 @@ function toExpectedOutput(
   if (input.label == null && input.score == null && input.explanation == null) {
     return null;
   }
+
   return {
     label: input.label,
     score: input.score ?? null,
@@ -140,15 +149,20 @@ export function createSetExpectedOutputClientAction({
       playgroundStore.getState(),
       input.instanceId
     );
+
     if (!resolved.ok) {
       return resolved;
     }
+
     const { evaluator, index } = resolved.output;
+
     const annotation = getEvaluatorTaskAnnotation({
       evaluator,
       position: index,
     });
+
     const example = getExamples().find((row) => row.id === input.exampleId);
+
     if (!example) {
       return {
         ok: false,
@@ -156,6 +170,7 @@ export function createSetExpectedOutputClientAction({
         code: "NOT_FOUND",
       };
     }
+
     if (example.revisionId !== input.expectedRevisionId) {
       return {
         ok: false,
@@ -163,27 +178,36 @@ export function createSetExpectedOutputClientAction({
         code: "STALE_REVISION",
       };
     }
+
     const output = toExpectedOutput(input);
+
     const issue = output
       ? getExpectedOutputIssue({ expected: output, output: annotation.output })
       : null;
+
     if (issue) {
       return {
         ok: false,
         error: `${issue} The output's labels are: ${annotation.output?.labels.join(", ") ?? "(none)"}.`,
       };
     }
+
     const written = await saveNow(input.exampleId, annotation.name, output);
+
     if (!written.ok) {
       return written;
     }
+
+    const recorded = {
+      exampleId: input.exampleId,
+      annotationName: annotation.name,
+    };
+
     return {
       ok: true,
-      output: {
-        exampleId: input.exampleId,
-        annotationName: annotation.name,
-        ...(isStringKeyedObject(written.output) ? written.output : {}),
-      },
+      output: isStringKeyedObject(written.output)
+        ? { ...recorded, ...written.output }
+        : recorded,
     };
   };
 }

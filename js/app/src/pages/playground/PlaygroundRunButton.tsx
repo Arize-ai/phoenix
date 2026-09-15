@@ -31,13 +31,17 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+
   const isEvaluatorKind = usePlaygroundContext(
     (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
   );
+
   const [searchParams] = useSearchParams();
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
+
   const hasDataset =
     resolvePlaygroundDatasetId({ searchParams, storeDatasetId }) != null;
+
   // Evaluators judge dataset examples; prompts can also run on manual input.
   const canRun = !isEvaluatorKind || hasDataset;
 
@@ -68,6 +72,7 @@ export function PlaygroundRunButton() {
       preventDefault: true,
     }
   );
+
   const button = (
     <Button
       data-testid="playground-run-button"
@@ -92,6 +97,7 @@ export function PlaygroundRunButton() {
       {isRunning ? "Stop" : "Run"}
     </Button>
   );
+
   return canRun || isRunning ? (
     button
   ) : (

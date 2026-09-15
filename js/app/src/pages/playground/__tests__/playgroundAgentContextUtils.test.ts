@@ -160,18 +160,21 @@ describe("arePlaygroundInstancesForAgentEqual", () => {
         position
       ),
     ];
+
     const renamed = [
       getPlaygroundInstanceForAgent(
         makeInstance({ task: evaluatorTask("style") }),
         position
       ),
     ];
+
     const dirty = [
       getPlaygroundInstanceForAgent(
         makeInstance({ task: evaluatorTask("tone") }),
         { index: 0, isDirty: true }
       ),
     ];
+
     const prompt = [getPlaygroundInstanceForAgent(makeInstance(), position)];
     expect(arePlaygroundInstancesForAgentEqual(named, renamed)).toBe(false);
     expect(arePlaygroundInstancesForAgentEqual(named, dirty)).toBe(false);
@@ -278,6 +281,7 @@ describe("buildPlaygroundAgentContext", () => {
       makeInstance({ task: evaluatorTask("tone") }),
       position
     );
+
     const scaffold = getExperimentScaffoldForAgent({ name: "Run with notes" });
 
     expect(

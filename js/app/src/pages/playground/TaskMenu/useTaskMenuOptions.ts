@@ -6,6 +6,13 @@ import type { useTaskMenuOptionsEvaluatorsQuery } from "./__generated__/useTaskM
 import type { useTaskMenuOptionsPromptsQuery } from "./__generated__/useTaskMenuOptionsPromptsQuery.graphql";
 import type { TaskMenuEvaluator, TaskMenuPrompt } from "./taskMenuItems";
 
+/** What a task menu lists: saved prompts with their versions, their menu items, and evaluators. */
+export type TaskMenuOptions = {
+  prompts: PromptData[];
+  promptItems: TaskMenuPrompt[];
+  evaluators: TaskMenuEvaluator[];
+};
+
 /**
  * The saved prompts and evaluators a task menu lists. Prompts come with
  * their versions for the version picker and are filtered client-side;
@@ -23,11 +30,7 @@ export function useTaskMenuOptions({
   search: string;
   /** Bump to refetch the prompts, e.g. after a save adds a version. */
   promptsFetchKey?: string;
-}): {
-  prompts: PromptData[];
-  promptItems: TaskMenuPrompt[];
-  evaluators: TaskMenuEvaluator[];
-} {
+}): TaskMenuOptions {
   const promptsData = useLazyLoadQuery<useTaskMenuOptionsPromptsQuery>(
     graphql`
       query useTaskMenuOptionsPromptsQuery($includePrompts: Boolean!) {
@@ -63,6 +66,7 @@ export function useTaskMenuOptions({
     { includePrompts },
     { fetchPolicy: "store-and-network", fetchKey: promptsFetchKey }
   );
+
   const evaluatorsData = useLazyLoadQuery<useTaskMenuOptionsEvaluatorsQuery>(
     graphql`
       query useTaskMenuOptionsEvaluatorsQuery(
@@ -102,6 +106,7 @@ export function useTaskMenuOptions({
       })),
     })
   );
+
   const promptItems: TaskMenuPrompt[] = prompts.map((prompt) => ({
     id: prompt.id,
     name: prompt.name,
@@ -112,6 +117,7 @@ export function useTaskMenuOptions({
         prompt.versions[0]
       )?.id ?? null,
   }));
+
   const evaluators: TaskMenuEvaluator[] = (
     evaluatorsData.evaluators?.edges ?? []
   ).flatMap(({ node }) =>

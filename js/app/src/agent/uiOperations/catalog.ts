@@ -299,10 +299,13 @@ function renderInlineType(node: JsonSchemaNode | undefined): string {
   if (Array.isArray(node.enum)) {
     return node.enum.map((value) => JSON.stringify(value)).join(" | ");
   }
+
   if (node.const !== undefined) {
     return JSON.stringify(node.const);
   }
+
   const variants = node.anyOf ?? node.oneOf;
+
   if (Array.isArray(variants)) {
     return variants.map(renderInlineType).join(" | ");
   }

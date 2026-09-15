@@ -21,22 +21,29 @@ export function getPlaygroundRunBlocker({
   const evaluatorTasks = instances.flatMap((instance, index) =>
     instance.task.kind === "evaluator" ? [{ instance, index }] : []
   );
+
   if (evaluatorTasks.length === 0) {
     return null;
   }
+
   if (!datasetId) {
     return "Evaluator tasks run over a dataset. Load one with playground.dataset.load before running.";
   }
+
   for (const { instance, index } of evaluatorTasks) {
     const label = getInstanceLabel(index);
     const host = getEvaluatorHost(instance.id);
+
     if (!host) {
       return `Evaluator task ${label} is still loading. Wait for it, then run again.`;
     }
+
     const validationError = host.read().validationError;
+
     if (validationError) {
       return `Evaluator task ${label} cannot run: ${validationError}`;
     }
   }
+
   return null;
 }

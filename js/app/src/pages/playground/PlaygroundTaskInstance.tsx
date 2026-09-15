@@ -28,19 +28,24 @@ export function PlaygroundTaskInstance({
   availablePaths: string[] | undefined;
 }) {
   usePlaygroundInstanceSourceLoader(instanceId);
+
   const taskKind = usePlaygroundContext(
     (state) => selectPlaygroundInstance(instanceId)(state)?.task.kind
   );
+
   const isLoading = usePlaygroundContext(
     (state) =>
       selectPlaygroundInstance(instanceId)(state)?.loadingSource != null
   );
+
   if (taskKind == null) {
     return null;
   }
+
   if (isLoading) {
     return <PlaygroundInstanceLoading instanceId={instanceId} />;
   }
+
   if (taskKind === "evaluator") {
     return (
       <Suspense fallback={<Loading size="S" />}>
@@ -52,6 +57,7 @@ export function PlaygroundTaskInstance({
       </Suspense>
     );
   }
+
   return (
     <PlaygroundTemplate
       playgroundInstanceId={instanceId}
@@ -67,6 +73,7 @@ function PlaygroundInstanceLoading({ instanceId }: { instanceId: number }) {
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
+
   return (
     <Flex direction="column" gap="size-100">
       <Flex direction="row" gap="size-100" alignItems="center">

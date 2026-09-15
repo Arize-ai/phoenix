@@ -30,8 +30,16 @@ export type PlaygroundTaskParams =
 
 /** Marks a page of evaluator tasks; it is what keeps a fresh draft's kind on reload. */
 export const TASK_KIND_PARAM = "taskKind";
+
 const EVALUATOR_TASK_KIND = "evaluator";
+
 const EVALUATOR_PARAM_PATTERN = /^(evaluator|datasetEvaluator)(\d+)$/;
+
+/** The evaluator tasks a URL names, and whether it asks for an evaluator page at all. */
+export type EvaluatorTaskParamsParse = {
+  isEvaluatorKind: boolean;
+  evaluators: EvaluatorTaskParam[];
+};
 
 /**
  * Reads the evaluator tasks from `evaluator{n}` and `datasetEvaluator{n}`
@@ -41,29 +49,35 @@ const EVALUATOR_PARAM_PATTERN = /^(evaluator|datasetEvaluator)(\d+)$/;
  * `isEvaluatorKind` is also true for `taskKind=evaluator` with no sources,
  * which the loader turns into a fresh evaluator draft.
  */
-export function parseEvaluatorTaskParams(searchParams: URLSearchParams): {
-  isEvaluatorKind: boolean;
-  evaluators: EvaluatorTaskParam[];
-} {
+export function parseEvaluatorTaskParams(
+  searchParams: URLSearchParams
+): EvaluatorTaskParamsParse {
   const byPosition = new Map<number, EvaluatorTaskParam>();
+
   for (const [key, value] of searchParams.entries()) {
     const match = EVALUATOR_PARAM_PATTERN.exec(key);
+
     if (!match || !value) {
       continue;
     }
+
     const position = Number(match[2]);
+
     const current = byPosition.get(position) ?? {
       evaluatorId: null,
       datasetEvaluatorId: null,
     };
+
     byPosition.set(position, {
       ...current,
       [match[1] === "evaluator" ? "evaluatorId" : "datasetEvaluatorId"]: value,
     });
   }
+
   const evaluators = [...byPosition.entries()]
     .sort(([left], [right]) => left - right)
     .map(([, param]) => param);
+
   return {
     isEvaluatorKind:
       evaluators.length > 0 ||
@@ -87,14 +101,17 @@ export function getPlaygroundTaskParams(
         if (instance.task.kind !== "evaluator") {
           return null;
         }
+
         const { evaluatorId, datasetEvaluatorId } =
           instance.task.evaluator.source;
+
         return evaluatorId || datasetEvaluatorId
           ? { evaluatorId, datasetEvaluatorId }
           : null;
       }),
     };
   }
+
   return {
     kind: "prompt",
     prompts: instances.flatMap((instance) =>
@@ -128,6 +145,7 @@ export function arePlaygroundTaskParamsEqual(
       )
     );
   }
+
   return (
     left.evaluators.length === right.evaluators.length &&
     left.evaluators.every(
@@ -152,12 +170,15 @@ export function setPlaygroundTaskParams({
 }): boolean {
   if (tasks.kind === "prompt") {
     const clearedEvaluators = clearEvaluatorTaskParams(searchParams);
+
     return (
       setPromptParams({ searchParams, prompts: tasks.prompts }) ||
       clearedEvaluators
     );
   }
+
   const clearedPrompts = setPromptParams({ searchParams, prompts: [] });
+
   return (
     setEvaluatorTaskParams({ searchParams, evaluators: tasks.evaluators }) ||
     clearedPrompts
@@ -173,6 +194,7 @@ function getEvaluatorTaskParamKeys(searchParams: URLSearchParams): string[] {
 function clearEvaluatorTaskParams(searchParams: URLSearchParams): boolean {
   const keys = getEvaluatorTaskParamKeys(searchParams);
   keys.forEach((key) => searchParams.delete(key));
+
   return keys.length > 0;
 }
 
@@ -195,14 +217,18 @@ function setEvaluatorTaskParams({
     }
   });
   const currentKeys = getEvaluatorTaskParamKeys(searchParams);
+
   const isInSync =
     currentKeys.length === [...next.keys()].length &&
     currentKeys.every((key) => searchParams.get(key) === next.get(key));
+
   if (isInSync) {
     return false;
   }
+
   currentKeys.forEach((key) => searchParams.delete(key));
   next.forEach((value, key) => searchParams.set(key, value));
+
   return true;
 }
 

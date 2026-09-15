@@ -19,10 +19,12 @@ export const useDerivedPlaygroundVariables = ({
 }: { instanceId?: number } = {}) => {
   const input = usePlaygroundContext((state) => state.input);
   const allInstances = usePlaygroundContext((state) => state.instances);
+
   const instances =
     instanceId == null
       ? allInstances
       : allInstances.filter((instance) => instance.id === instanceId);
+
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );

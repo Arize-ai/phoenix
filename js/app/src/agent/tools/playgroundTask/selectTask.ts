@@ -66,7 +66,9 @@ export function getSelectTaskRejection({
         "The playground is running. Wait for the run to finish, or cancel it with playground.run.cancel, before changing a task.",
     };
   }
+
   const pageKind = getPlaygroundTaskKind(state.instances);
+
   if (
     isTaskKindLocked(state.instances) &&
     getTaskSourceKind(source) !== pageKind
@@ -76,6 +78,7 @@ export function getSelectTaskRejection({
       error: `This page holds ${pageKind} tasks and has more than one instance, so its kind is fixed. ${TASK_MENU_LOCK_NOTE}`,
     };
   }
+
   if (
     doesTaskSourceReplace(instance, source) &&
     state.dirtyInstances[instance.id] === true &&
@@ -86,6 +89,7 @@ export function getSelectTaskRejection({
       error: `Instance ${label} has unsaved changes. Save it first, or pass discardChanges: true to replace it.`,
     };
   }
+
   return null;
 }
 
@@ -106,16 +110,20 @@ export function applyTaskSource({
 }): number | null {
   const state = playgroundStore.getState();
   const instance = selectPlaygroundInstance(instanceId)(state);
+
   if (!instance) {
     return null;
   }
+
   if (instance.task.kind === "prompt" && source.type === "prompt") {
     state.updateInstance({
       instanceId,
       patch: { loadingSource: source },
       dirty: null,
     });
+
     return instanceId;
   }
+
   return state.replaceInstance({ instanceId, source });
 }

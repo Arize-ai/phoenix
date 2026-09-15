@@ -60,25 +60,32 @@ export function PlaygroundExpectedOutputsProvider({
   children: ReactNode;
 }) {
   const environment = useRelayEnvironment();
+
   const queue = useExpectedOutputQueue((batch) =>
     writeExpectedOutputs({ environment, datasetId, batch, getRevisionId })
   );
+
   const { enqueue, flushNow, overlay, pendingCount, isSaving, status, error } =
     queue;
+
   const save = useCallback<PlaygroundExpectedOutputs["save"]>(
     (exampleId, annotationName, output) => {
       enqueue(exampleId, annotationName, output);
+
       return Promise.resolve({ ok: true });
     },
     [enqueue]
   );
+
   const saveNow = useCallback<PlaygroundExpectedOutputs["saveNow"]>(
     (exampleId, annotationName, output) => {
       enqueue(exampleId, annotationName, output);
+
       return flushNow();
     },
     [enqueue, flushNow]
   );
+
   const value = useMemo<PlaygroundExpectedOutputs>(
     () => ({
       overlay,
@@ -92,6 +99,7 @@ export function PlaygroundExpectedOutputsProvider({
     }),
     [overlay, pendingCount, isSaving, status, error, save, saveNow, flushNow]
   );
+
   return (
     <PlaygroundExpectedOutputsContext.Provider value={value}>
       {children}
@@ -101,9 +109,11 @@ export function PlaygroundExpectedOutputsProvider({
 
 export function usePlaygroundExpectedOutputs(): PlaygroundExpectedOutputs {
   const value = useContext(PlaygroundExpectedOutputsContext);
+
   if (!value) {
     throw new Error("Missing PlaygroundExpectedOutputsProvider in the tree");
   }
+
   return value;
 }
 
@@ -123,8 +133,10 @@ function writeExpectedOutputs({
   getRevisionId: (exampleId: string) => string | undefined;
 }): Promise<UIOperationResult> {
   const labels: ExpectedOutputLabelInput[] = [];
+
   for (const [exampleId, byName] of Object.entries(batch)) {
     const expectedRevisionId = getRevisionId(exampleId);
+
     if (expectedRevisionId == null) {
       return Promise.resolve({
         ok: false,
@@ -132,6 +144,7 @@ function writeExpectedOutputs({
           "An annotated example is no longer loaded. Reload the examples and try again.",
       });
     }
+
     for (const [annotationName, output] of Object.entries(byName)) {
       labels.push({
         exampleId,
@@ -143,9 +156,11 @@ function writeExpectedOutputs({
       });
     }
   }
+
   if (labels.length === 0) {
     return Promise.resolve({ ok: true });
   }
+
   return new Promise((resolve) => {
     commitMutation<PlaygroundExpectedOutputsContextMutation>(environment, {
       mutation: expectedOutputsMutation,
@@ -156,8 +171,10 @@ function writeExpectedOutputs({
             ok: false,
             error: errors.map((error) => error.message).join("\n"),
           });
+
           return;
         }
+
         resolve({
           ok: true,
           output: {

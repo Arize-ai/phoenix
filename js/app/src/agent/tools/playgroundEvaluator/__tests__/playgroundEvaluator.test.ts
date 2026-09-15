@@ -26,20 +26,26 @@ function createEvaluatorPage() {
     datasetId: null,
     modelConfigByProvider: {},
   });
+
   const [prompt] = playgroundStore.getState().instances;
+
   const instanceId = playgroundStore.getState().replaceInstance({
     instanceId: prompt.id,
     source: { type: "new", kind: "CODE" },
   })!;
+
   return { playgroundStore, instanceId };
 }
 
 function createFakeHost(instanceId: number) {
+  // SAFETY: the handlers under test only read instanceId, kind and revision
+  // off the adapter's snapshot; nothing else on it is touched.
   const read = {
     instanceId,
     kind: "CODE",
     revision: "r1",
   } as EvaluatorTaskRead;
+
   const host: EvaluatorTaskAgentHost = {
     read: vi.fn(() => read),
     edit: vi.fn((): UIOperationResult => ({ ok: true, output: read })),
@@ -50,6 +56,7 @@ function createFakeHost(instanceId: number) {
       })
     ),
   };
+
   return host;
 }
 
@@ -62,6 +69,7 @@ describe("playground.evaluator.* handlers", () => {
   it("reads, edits and saves through the instance's adapter", async () => {
     const { playgroundStore, instanceId } = createEvaluatorPage();
     const host = createFakeHost(instanceId);
+
     const deps = {
       playgroundStore,
       waitForEvaluatorHost: vi.fn(async () => host),
@@ -96,7 +104,9 @@ describe("playground.evaluator.* handlers", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
+
     const waitForEvaluatorHost = vi.fn();
+
     const result = await createReadEvaluatorTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost,
@@ -112,6 +122,7 @@ describe("playground.evaluator.* handlers", () => {
 
   it("fails when the editor never registers its adapter", async () => {
     const { playgroundStore } = createEvaluatorPage();
+
     const result = await createReadEvaluatorTaskClientAction({
       playgroundStore,
       waitForEvaluatorHost: vi.fn(async () => null),
@@ -141,11 +152,13 @@ describe("playground.expectedOutput.set", () => {
         output: { saved: 1 },
       })
     );
+
     const action = createSetExpectedOutputClientAction({
       playgroundStore,
       getExamples: () => examples,
       saveNow,
     });
+
     return { action, saveNow };
   }
 
@@ -229,6 +242,7 @@ describe("playground.expectedOutput.set", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
+
     const { action } = createAction(playgroundStore);
 
     expect(

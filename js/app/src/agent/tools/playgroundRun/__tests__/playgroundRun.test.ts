@@ -40,6 +40,7 @@ describe("playground run agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
+
     playgroundStore.getState().addInstance({ type: "duplicate" });
     const action = createRunPlaygroundClientAction({ playgroundStore });
 
@@ -57,6 +58,7 @@ describe("playground run agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
+
     playgroundStore.getState().addInstance({ type: "duplicate" });
     const action = createRunPlaygroundClientAction({ playgroundStore });
 

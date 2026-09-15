@@ -301,10 +301,12 @@ describe("arePlaygroundTaskParamsEqual", () => {
       kind: "prompt",
       prompts: [{ promptId: "P1", promptVersionId: null, tagName: null }],
     };
+
     const evaluators: PlaygroundTaskParams = {
       kind: "evaluator",
       evaluators: [{ evaluatorId: "E1", datasetEvaluatorId: null }],
     };
+
     expect(arePlaygroundTaskParamsEqual(prompts, { ...prompts })).toBe(true);
     expect(arePlaygroundTaskParamsEqual(prompts, evaluators)).toBe(false);
     expect(
@@ -327,6 +329,7 @@ describe("setPlaygroundTaskParams", () => {
     const searchParams = new URLSearchParams(
       "datasetId=D&promptId=P1&promptVersionId=V1&promptTagName="
     );
+
     const changed = setPlaygroundTaskParams({
       searchParams,
       tasks: {
@@ -338,6 +341,7 @@ describe("setPlaygroundTaskParams", () => {
         ],
       },
     });
+
     expect(changed).toBe(true);
     expect(searchParams.toString()).toBe(
       "datasetId=D&taskKind=evaluator&datasetEvaluator1=DE1&evaluator2=E2"
@@ -363,6 +367,7 @@ describe("setPlaygroundTaskParams", () => {
     const searchParams = new URLSearchParams(
       "taskKind=evaluator&evaluator0=E0"
     );
+
     expect(
       setPlaygroundTaskParams({
         searchParams,
@@ -378,6 +383,7 @@ describe("setPlaygroundTaskParams", () => {
     const searchParams = new URLSearchParams(
       "taskKind=evaluator&evaluator0=E0&datasetId=D"
     );
+
     const changed = setPlaygroundTaskParams({
       searchParams,
       tasks: {
@@ -385,6 +391,7 @@ describe("setPlaygroundTaskParams", () => {
         prompts: [{ promptId: "P1", promptVersionId: "V1", tagName: null }],
       },
     });
+
     expect(changed).toBe(true);
     expect(searchParams.toString()).toBe(
       "datasetId=D&promptId=P1&promptVersionId=V1&promptTagName="

@@ -58,6 +58,7 @@ export function PlaygroundExperimentToolbar({
   // Dataset evaluators score a prompt's outputs; an evaluator task is the
   // judge itself, so there is nothing to attach to it.
   const isPromptKind = getPlaygroundTaskKind(instances) === "prompt";
+
   const recordExperiments = usePlaygroundContext(
     (state) => state.recordExperiments
   );

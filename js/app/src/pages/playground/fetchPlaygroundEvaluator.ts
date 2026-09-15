@@ -149,6 +149,7 @@ export function toEvaluatorTaskOutputConfigs(
         },
       ];
     }
+
     if (config.__typename === "ContinuousAnnotationConfig") {
       return [
         {
@@ -159,6 +160,7 @@ export function toEvaluatorTaskOutputConfigs(
         },
       ];
     }
+
     if (config.__typename === "FreeformAnnotationConfig") {
       return [
         {
@@ -170,6 +172,7 @@ export function toEvaluatorTaskOutputConfigs(
         },
       ];
     }
+
     return [];
   });
 }
@@ -180,6 +183,7 @@ function getEditableKind(
   if (!source?.id || source.isBuiltin) {
     return null;
   }
+
   return source.kind === "LLM" || source.kind === "CODE" ? source.kind : null;
 }
 
@@ -200,18 +204,20 @@ function buildEvaluatorTask({
   kind: PlaygroundEvaluatorTaskKind;
 }): PlaygroundEvaluatorTask {
   const isBinding = node.evaluator != null;
+
   const outputConfigs = toEvaluatorTaskOutputConfigs(
     node.outputConfigs ?? evaluator.outputConfigs ?? []
   );
+
   const judgePromptVersion =
     kind === "LLM" && evaluator.promptVersion
       ? readPlaygroundPromptVersion(evaluator.promptVersion)
       : null;
-  return createPlaygroundEvaluatorTask({
+
+  const task = createPlaygroundEvaluatorTask({
     kind,
     name: evaluator.name ?? "",
     description: evaluator.description ?? "",
-    ...(outputConfigs.length ? { outputConfigs } : {}),
     inputMapping: node.inputMapping ??
       evaluator.inputMapping ?? { literalMapping: {}, pathMapping: {} },
     includeExplanation: judgePromptVersion
@@ -230,6 +236,9 @@ function buildEvaluatorTask({
       datasetEvaluatorId: isBinding ? (node.id ?? null) : null,
     },
   });
+
+  // A saved evaluator with no outputs keeps the draft's default output.
+  return outputConfigs.length ? { ...task, outputConfigs } : task;
 }
 
 /**
@@ -246,12 +255,14 @@ function buildJudgeInstance(
   if (!evaluator.prompt || !evaluator.promptVersion) {
     return null;
   }
+
   const judge = promptVersionToInstance({
     promptId: evaluator.prompt.id,
     promptName: evaluator.prompt.name,
     promptVersionRef: evaluator.promptVersion,
     promptVersionTag: evaluator.promptVersionTag?.name ?? null,
   });
+
   return {
     instance: {
       ...draft,
@@ -261,6 +272,9 @@ function buildJudgeInstance(
       toolChoice: draft.toolChoice,
       task: draft.task,
     },
+    // SAFETY: Relay widens the schema's TemplateFormat enum with
+    // "%future added value"; a saved prompt version always carries a known
+    // format.
     templateFormat: evaluator.promptVersion.templateFormat as TemplateFormat,
   };
 }
@@ -282,22 +296,28 @@ export async function fetchPlaygroundEvaluatorAsInstance(
     source.type === "evaluator"
       ? source.evaluatorId
       : source.datasetEvaluatorId;
+
   const data = await fetchQuery<fetchPlaygroundEvaluatorQuery>(
     RelayEnvironment,
     fetchPlaygroundEvaluatorQueryNode,
     { id }
   ).toPromise();
+
   const node = data?.node;
+
   if (!node) {
     return null;
   }
+
   // A dataset evaluator binds a shared evaluator; the binding's own mapping
   // and outputs win over the evaluator's.
   const evaluator: EvaluatorSource = node.evaluator ?? node;
   const kind = getEditableKind(evaluator);
+
   if (!kind) {
     return null;
   }
+
   const draft: Omit<PlaygroundInstance, "id"> = {
     ...createEvaluatorTaskInstance({ kind }),
     task: {
@@ -305,6 +325,7 @@ export async function fetchPlaygroundEvaluatorAsInstance(
       evaluator: buildEvaluatorTask({ node, evaluator, kind }),
     },
   };
+
   return (
     (kind === "LLM" ? buildJudgeInstance(evaluator, draft) : null) ?? {
       instance: draft,

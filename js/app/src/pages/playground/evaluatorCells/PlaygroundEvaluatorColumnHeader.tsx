@@ -52,7 +52,9 @@ export function PlaygroundEvaluatorColumnHeader({
   const responses = usePlaygroundDatasetExamplesTableContext(
     (state) => state.exampleResponsesMap[instanceId]
   );
+
   const { overlay } = usePlaygroundExpectedOutputs();
+
   const agreement = summarizeExpectedAgreement({
     examples,
     responses,
@@ -60,14 +62,17 @@ export function PlaygroundEvaluatorColumnHeader({
     annotationName,
     output,
   });
+
   // Examples with a persisted expected output. This is dataset state, so it
   // survives a reload while run results do not — hence "with expected", not
   // "reviewed", which would imply someone looked at this run.
   const hasResults = responses != null && Object.keys(responses).length > 0;
+
   const agreementText =
     hasResults && agreement.comparable > 0
       ? ` · ${agreement.matches}/${agreement.comparable} agree`
       : "";
+
   const label = getInstanceLabel(index);
 
   return (

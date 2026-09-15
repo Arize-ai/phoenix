@@ -61,6 +61,7 @@ export function PlaygroundInstanceDeleteButton({
   instanceId: number;
 }) {
   const deleteInstance = usePlaygroundContext((state) => state.deleteInstance);
+
   return (
     <TooltipTrigger>
       <Button

@@ -50,6 +50,7 @@ export function PlaygroundExperimentSettingsButton({
   const playgroundDatasetState = usePlaygroundContext(
     (state) => state.stateByDatasetId[datasetId]
   );
+
   const { appendedMessagesPath, templateVariablesPath } =
     playgroundDatasetState ?? {};
   const setAppendedMessagesPath = usePlaygroundContext(

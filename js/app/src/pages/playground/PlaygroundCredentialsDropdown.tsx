@@ -330,6 +330,7 @@ function ProviderCredentials({
   const setCredential = useCredentialsContext((state) => state.setCredential);
   const credentialsConfig = ProviderToCredentialsConfigMap[provider];
   const credentials = useCredentialsContext((state) => state[provider]);
+
   return (
     <View>
       {credentialsConfig.map((credentialConfig) => (

@@ -31,15 +31,18 @@ export function waitForInstanceLoad(
   if (isInstanceSettled(playgroundStore.getState(), instanceId)) {
     return Promise.resolve(true);
   }
+
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       unsubscribe();
       resolve(false);
     }, timeoutMs);
+
     const unsubscribe = playgroundStore.subscribe((state) => {
       if (!isInstanceSettled(state, instanceId)) {
         return;
       }
+
       clearTimeout(timer);
       unsubscribe();
       resolve(true);
@@ -110,15 +113,18 @@ export async function settleInstanceSource({
   source: PlaygroundInstanceSource;
 }): Promise<Extract<PlaygroundTaskResult<never>, { ok: false }> | null> {
   const settled = await waitForInstanceLoad(playgroundStore, instanceId);
+
   if (!settled) {
     return {
       ok: false,
       error: `The task is still loading after ${INSTANCE_LOAD_TIMEOUT_MS / 1000}s. Read the instance again before continuing.`,
     };
   }
+
   const instance = selectPlaygroundInstance(instanceId)(
     playgroundStore.getState()
   );
+
   if (!instance) {
     return {
       ok: false,
@@ -126,8 +132,10 @@ export async function settleInstanceSource({
       code: "NOT_FOUND",
     };
   }
+
   if (!hasInstanceLoaded(instance, source)) {
     return { ok: false, error: describeLoadFailure(source), code: "NOT_FOUND" };
   }
+
   return null;
 }

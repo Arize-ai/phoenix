@@ -13,8 +13,10 @@ export function resolvePlaygroundInstance(
   instanceId?: number
 ): PlaygroundTaskResult<ResolvedPlaygroundInstance> {
   const { instances } = state;
+
   const resolvedId =
     instanceId ?? (instances.length === 1 ? instances[0]?.id : undefined);
+
   if (resolvedId == null) {
     return {
       ok: false,
@@ -23,8 +25,10 @@ export function resolvePlaygroundInstance(
         .join(", ")}.`,
     };
   }
+
   const index = instances.findIndex((instance) => instance.id === resolvedId);
   const instance = instances[index];
+
   if (!instance) {
     return {
       ok: false,
@@ -32,6 +36,7 @@ export function resolvePlaygroundInstance(
       code: "NOT_FOUND",
     };
   }
+
   return {
     ok: true,
     output: { instance, index, label: getInstanceLabel(index) },

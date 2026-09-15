@@ -10,6 +10,7 @@ import type {
 } from "@phoenix/types";
 
 import type { AnnotationConfig } from "../evaluatorStore";
+
 /**
  * Provider-agnostic canonical tool choice stored on PlaygroundInstance.
  * Mirrors the DB PromptToolChoice enum plus an optional function name.

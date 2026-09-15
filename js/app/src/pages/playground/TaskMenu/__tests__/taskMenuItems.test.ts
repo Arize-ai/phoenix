@@ -13,7 +13,9 @@ const prompts = [
   { id: "P1", name: "Summarize", latestVersionId: "V1" },
   { id: "P2", name: "Classify", latestVersionId: null },
 ];
+
 const evaluators = [{ id: "E1", name: "correctness", kind: "CODE" as const }];
+
 const matches = (text: string, search: string) =>
   text.toLowerCase().includes(search.toLowerCase());
 
@@ -27,6 +29,7 @@ describe("getTaskMenuSections", () => {
       search: "",
       matches,
     });
+
     expect(sections.map((section) => section.id)).toEqual([
       "prompts",
       "evaluators",
@@ -48,6 +51,7 @@ describe("getTaskMenuSections", () => {
       search: "",
       matches,
     });
+
     expect(sections.map((section) => section.id)).toEqual([
       "evaluators",
       "new",
@@ -67,6 +71,7 @@ describe("getTaskMenuSections", () => {
       search: "class",
       matches,
     });
+
     expect(sections[0].items).toEqual([
       { key: "prompt:P2", label: "Classify" },
     ]);
@@ -132,6 +137,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
       prompt: { id: "P1", name: "Summarize", version: "V1", tag: null },
       loadingSource: null,
     };
+
     expect(getTaskMenuSelectedKey(instance)).toBe("prompt:P1");
     expect(getTaskMenuLabel(instance)).toBe("Summarize");
   });
@@ -142,6 +148,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
       prompt: null,
       loadingSource: null,
     };
+
     expect(getTaskMenuSelectedKey(instance)).toBeNull();
     expect(getTaskMenuLabel(instance)).toBeNull();
   });
@@ -151,6 +158,7 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
       name: "tone",
       source: { evaluatorId: "E1", datasetEvaluatorId: "DE1" },
     });
+
     expect(getTaskMenuSelectedKey(loaded)).toBe("evaluator:E1");
     expect(getTaskMenuLabel(loaded)).toBe("tone");
   });

@@ -279,9 +279,11 @@ function PlaygroundContent() {
     return serializedSplitIds.split("\0");
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
+
   const taskKind = usePlaygroundContext((state) =>
     getPlaygroundTaskKind(state.instances)
   );
+
   const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
     string | null
   >(null);
@@ -301,6 +303,7 @@ function PlaygroundContent() {
     );
     return instance?.experiment ?? null;
   });
+
   const anyDirtyInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
   );
@@ -322,8 +325,10 @@ function PlaygroundContent() {
       ),
     arePlaygroundInstancesForAgentEqual
   );
+
   // The PXI adapters of the mounted evaluator task editors, by instance id.
   const [evaluatorTaskAgents] = useState(createEvaluatorTaskAgentRegistry);
+
   const instanceIds = usePlaygroundContext(
     (state) => state.instances.map((instance) => instance.id),
     // only re-render when the instance ids change, not when the array is re-created
@@ -381,8 +386,10 @@ function PlaygroundContent() {
       setPendingLoadDataset,
       setPendingPromptToolWrite,
     } = agentStore.getState();
+
     const waitForEvaluatorHost = evaluatorTaskAgents.waitFor;
     const evaluatorTaskActionDeps = { playgroundStore, waitForEvaluatorHost };
+
     const unregister = registerUIOperations({
       agentStore,
       operations: [
@@ -711,6 +718,7 @@ function PlaygroundContent() {
       (prev) => {
         const next = new URLSearchParams(prev);
         setPlaygroundTaskParams({ searchParams: next, tasks: taskParams });
+
         return next;
       },
       { replace: true }
@@ -724,6 +732,7 @@ function PlaygroundContent() {
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
       const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
+
       return (isRunning || anyDirtyInstances) && goingToNewPage;
     },
     [isRunning, anyDirtyInstances]
@@ -751,6 +760,7 @@ function PlaygroundContent() {
   // Evaluator tasks have no manual input, so without a dataset they show the
   // same two panels as a dataset does.
   const hasIOPanel = isDatasetMode || taskKind === "evaluator";
+
   const panelIds = useMemo(
     () =>
       hasIOPanel

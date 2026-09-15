@@ -3,28 +3,32 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createEvaluatorTaskInstance } from "@phoenix/store/playground";
 
-import { fetchPlaygroundEvaluatorAsInstance } from "../fetchPlaygroundEvaluator";
-import { fetchPlaygroundPromptAsInstance } from "../fetchPlaygroundPrompt";
+import type { PlaygroundPageLoaderFetchers } from "../playgroundPageLoader";
 import {
   buildPlaygroundPropsFromLoaderData,
-  playgroundPageLoader,
+  createPlaygroundPageLoader,
 } from "../playgroundPageLoader";
 
-vi.mock("../fetchPlaygroundEvaluator", () => ({
-  fetchPlaygroundEvaluatorAsInstance: vi.fn(),
-}));
-vi.mock("../fetchPlaygroundPrompt", () => ({
-  fetchPlaygroundPromptAsInstance: vi.fn(),
-}));
-vi.mock("../experimentRehydration", () => ({
-  fetchExperimentPlaygroundProps: vi.fn(),
-}));
+// The loader takes its fetches as a parameter, so the tests hand it these
+// stand-ins and never touch the network or the modules behind it.
+const fetchEvaluator =
+  vi.fn<PlaygroundPageLoaderFetchers["fetchEvaluatorAsInstance"]>();
 
-const fetchEvaluator = vi.mocked(fetchPlaygroundEvaluatorAsInstance);
-const fetchPrompt = vi.mocked(fetchPlaygroundPromptAsInstance);
+const fetchPrompt =
+  vi.fn<PlaygroundPageLoaderFetchers["fetchPromptAsInstance"]>();
+
+const fetchExperiment =
+  vi.fn<PlaygroundPageLoaderFetchers["fetchExperimentProps"]>();
+
+const playgroundPageLoader = createPlaygroundPageLoader({
+  fetchEvaluatorAsInstance: fetchEvaluator,
+  fetchPromptAsInstance: fetchPrompt,
+  fetchExperimentProps: fetchExperiment,
+});
 
 function load(search: string) {
   const url = new URL(`http://localhost/playground?${search}`);
+
   return playgroundPageLoader({
     request: new Request(url),
     url,
@@ -36,7 +40,9 @@ function load(search: string) {
 
 function codeEvaluator(name: string) {
   const instance = createEvaluatorTaskInstance({ kind: "CODE" });
+
   if (instance.task.kind !== "evaluator") throw new Error("unreachable");
+
   return {
     instance: {
       ...instance,
@@ -81,6 +87,7 @@ describe("playgroundPageLoader", () => {
       datasetEvaluatorId: "DE1",
     });
     expect(data?.source).toBe("evaluator");
+
     if (data?.source !== "evaluator") throw new Error("unreachable");
     expect(
       data.instances.map(

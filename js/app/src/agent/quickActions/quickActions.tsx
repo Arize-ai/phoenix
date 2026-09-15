@@ -210,6 +210,8 @@ export function useAgentQuickActions(): EmptyStateQuickAction[] {
       )?.taskKind ?? "prompt"
   );
 
+  // SAFETY: contextKey is the comma-joined set of context types that
+  // selectActiveContextKey built from the active contexts.
   return buildAgentQuickActions(
     contextKey ? (contextKey.split(",") as AgentContextType[]) : [],
     playgroundTaskKind

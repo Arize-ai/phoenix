@@ -23,7 +23,9 @@ function createStore() {
 
 /** A fake evaluator adapter whose read names the instance it stands for. */
 function createFakeHost(instanceId: number): EvaluatorTaskAgentHost {
+  // SAFETY: the tests only check which instance the snapshot names.
   const read = { instanceId, kind: "LLM" } as EvaluatorTaskRead;
+
   return {
     read: () => read,
     edit: () => ({ ok: true, output: read }),
@@ -45,9 +47,11 @@ describe("playground prompt agent tools", () => {
 
   it("rejects clone_prompt_instance when the playground already has four instances", async () => {
     const playgroundStore = createStore();
+
     const cloneAction = createClonePromptInstanceClientAction({
       playgroundStore,
     });
+
     playgroundStore.getState().addInstance({ type: "duplicate" });
     playgroundStore.getState().addInstance({ type: "duplicate" });
     playgroundStore.getState().addInstance({ type: "duplicate" });
@@ -66,10 +70,12 @@ describe("playground prompt agent tools", () => {
 
   it("rejects playground.instance.add when the playground already has four instances", async () => {
     const playgroundStore = createStore();
+
     const addAction = createAddPromptInstanceClientAction({
       playgroundStore,
       waitForEvaluatorHost: waitForFakeHost,
     });
+
     playgroundStore.getState().addInstance({ type: "duplicate" });
     playgroundStore.getState().addInstance({ type: "duplicate" });
     playgroundStore.getState().addInstance({ type: "duplicate" });
@@ -87,10 +93,12 @@ describe("playground prompt agent tools", () => {
 
   it("rejects playground.instance.add while playground instances are running", async () => {
     const playgroundStore = createStore();
+
     const addAction = createAddPromptInstanceClientAction({
       playgroundStore,
       waitForEvaluatorHost: waitForFakeHost,
     });
+
     playgroundStore.getState().runPlaygroundInstances();
 
     const result = await addAction({});
@@ -106,6 +114,7 @@ describe("playground prompt agent tools", () => {
 
   it("adds a new prompt task by default on a prompt page and returns its snapshot", async () => {
     const playgroundStore = createStore();
+
     const addAction = createAddPromptInstanceClientAction({
       playgroundStore,
       waitForEvaluatorHost: waitForFakeHost,
@@ -132,6 +141,7 @@ describe("playground prompt agent tools", () => {
       instanceId: prompt.id,
       source: { type: "new", kind: "CODE" },
     });
+
     const addAction = createAddPromptInstanceClientAction({
       playgroundStore,
       waitForEvaluatorHost: waitForFakeHost,
@@ -157,6 +167,7 @@ describe("playground prompt agent tools", () => {
 
   it("rejects a source of the other kind than the page's", async () => {
     const playgroundStore = createStore();
+
     const addAction = createAddPromptInstanceClientAction({
       playgroundStore,
       waitForEvaluatorHost: waitForFakeHost,
@@ -173,6 +184,7 @@ describe("playground prompt agent tools", () => {
 
   it("duplicates the first instance when asked", async () => {
     const playgroundStore = createStore();
+
     const addAction = createAddPromptInstanceClientAction({
       playgroundStore,
       waitForEvaluatorHost: waitForFakeHost,

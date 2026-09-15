@@ -356,14 +356,17 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         runCostAggregateMetrics,
         expandedCells,
       } = get();
+
       const nextResponses = { ...exampleResponsesMap };
       const nextAnnotationMetrics = { ...runAnnotationAggregateMetrics };
       const nextCostMetrics = { ...runCostAggregateMetrics };
+
       for (const instanceId of instanceIds) {
         delete nextResponses[instanceId];
         delete nextAnnotationMetrics[instanceId];
         delete nextCostMetrics[instanceId];
       }
+
       set({
         exampleResponsesMap: nextResponses,
         runAnnotationAggregateMetrics: nextAnnotationMetrics,

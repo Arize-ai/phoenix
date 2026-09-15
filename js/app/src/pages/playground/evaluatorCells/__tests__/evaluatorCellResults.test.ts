@@ -109,6 +109,7 @@ describe("getEvaluatorCellResult", () => {
         }),
       ],
     };
+
     expect(
       getEvaluatorCellResult({ runData, annotationName: "no_sql" })
     ).toEqual({
@@ -126,6 +127,7 @@ describe("getEvaluatorCellResult", () => {
     const runData: ExampleRunData = {
       evaluations: [evaluation("old_name", { label: "pass", score: 1 })],
     };
+
     expect(
       getEvaluatorCellResult({ runData, annotationName: "new_name" })
         ?.prediction
@@ -209,6 +211,7 @@ describe("summarizeExpectedAgreement", () => {
       lowerBound: null,
       upperBound: null,
     };
+
     const examples = [
       {
         id: "e1",
@@ -246,6 +249,7 @@ describe("summarizeExpectedAgreement", () => {
       },
       { id: "e4", calibrationLabels: [] },
     ];
+
     const responses = {
       e1: {
         1: { evaluations: [evaluation("no_sql", { label: "pass", score: 1 })] },

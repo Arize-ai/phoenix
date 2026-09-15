@@ -11,6 +11,7 @@ import {
 import type { PlaygroundTask } from "../types";
 
 const promptTask: PlaygroundTask = { kind: "prompt" };
+
 const evaluatorTask: PlaygroundTask = {
   kind: "evaluator",
   evaluator: createPlaygroundEvaluatorTask({ kind: "CODE" }),
@@ -68,6 +69,7 @@ describe("createPlaygroundEvaluatorTask", () => {
       name: "correctness",
       source: { evaluatorId: "E1", datasetEvaluatorId: null },
     });
+
     expect(task.name).toBe("correctness");
     expect(task.source.evaluatorId).toBe("E1");
     expect(task.outputConfigs).toEqual([DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG]);

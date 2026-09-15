@@ -15,6 +15,7 @@ export function PlaygroundExpectedOutputsStatus({
   onReloadExamples: () => void;
 }) {
   const { status, pendingCount, error, retry } = usePlaygroundExpectedOutputs();
+
   if (error) {
     return (
       <Alert
@@ -45,9 +46,11 @@ export function PlaygroundExpectedOutputsStatus({
       </Alert>
     );
   }
+
   if (status === "idle") {
     return null;
   }
+
   return (
     <View
       paddingX="size-200"

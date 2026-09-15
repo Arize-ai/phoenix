@@ -7,7 +7,9 @@ import {
 
 function renderSignature(name: string) {
   const descriptor = getUIOperationDescriptor(name);
+
   if (!descriptor) throw new Error(`${name} is not in the catalog`);
+
   return renderUIOperationSignature({ descriptor, isMounted: true });
 }
 
@@ -23,6 +25,7 @@ describe("playground task operations", () => {
     ]) {
       expect(getUIOperationDescriptor(name)?.name).toBe(name);
     }
+
     expect(
       getUIOperationDescriptor("evaluatorPlayground.read")
     ).toBeUndefined();

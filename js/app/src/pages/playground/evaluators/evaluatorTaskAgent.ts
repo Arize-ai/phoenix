@@ -56,9 +56,11 @@ export type EvaluatorTaskAgentHostParams = {
  */
 function toRevisionToken(revision: string): string {
   let hash = 5381;
+
   for (let index = 0; index < revision.length; index++) {
     hash = (hash * 33) ^ revision.charCodeAt(index);
   }
+
   return `evaluator-${(hash >>> 0).toString(16)}`;
 }
 
@@ -92,9 +94,11 @@ function getEditRejection({
   if (current.kind === "CODE" && input.includeExplanation != null) {
     return "includeExplanation applies to LLM evaluator tasks only.";
   }
+
   if (current.kind === "LLM" && hasCodeFields(input)) {
     return "language, sourceCode and sandboxConfigId apply to CODE evaluator tasks only. An LLM evaluator's judge prompt is edited with playground.prompt.edit.";
   }
+
   if (
     input.language &&
     input.language !== current.code?.language &&
@@ -102,6 +106,7 @@ function getEditRejection({
   ) {
     return "A saved code evaluator keeps its language. Select a new code evaluator to change it.";
   }
+
   return null;
 }
 
@@ -119,11 +124,13 @@ function getNextCode({
   sandboxConfigs: ReadonlyArray<EvaluatorTaskSandboxConfig>;
 }): PlaygroundEvaluatorTaskCode {
   const language = input.language ?? code.language;
+
   const sandboxConfigId =
     input.sandboxConfigId ??
     (language !== code.language
       ? getDefaultSandboxConfigId({ sandboxConfigs, language })
       : code.sandboxConfigId);
+
   return {
     language,
     sourceCode: input.sourceCode ?? code.sourceCode,
@@ -144,10 +151,12 @@ function getCodeRejection({
   if (input.language == null && input.sandboxConfigId == null) {
     return null;
   }
+
   const isCompatible = sandboxConfigs.some(
     (config) =>
       config.id === next.sandboxConfigId && config.language === next.language
   );
+
   return isCompatible
     ? null
     : `No available sandbox runs ${next.language} under that selection. Choose a compatible sandbox from availableSandboxConfigs.`;
@@ -173,15 +182,19 @@ export function createEvaluatorTaskAgentHost({
   /** The task as the editor's state stands for it, with the given code fields. */
   function readTask(code: PlaygroundEvaluatorTaskCode | null) {
     const state = playgroundStore.getState();
+
     const index = state.instances.findIndex(
       (instance) => instance.id === instanceId
     );
+
     const current = getPlaygroundEvaluatorTask(state.instances[index]);
+
     if (!current) {
       throw new Error(
         `Playground instance ${instanceId} is not an evaluator task.`
       );
     }
+
     return {
       index,
       dirty: state.dirtyInstances[instanceId] === true,
@@ -195,7 +208,8 @@ export function createEvaluatorTaskAgentHost({
 
   function read(code = getCode()): EvaluatorTaskRead {
     const { index, dirty, task } = readTask(code);
-    return {
+
+    const snapshot: EvaluatorTaskRead = {
       instanceId,
       index,
       label: getInstanceLabel(index),
@@ -210,68 +224,89 @@ export function createEvaluatorTaskAgentHost({
       }).name,
       inputMapping: task.inputMapping,
       outputConfigs: toOutputConfigDrafts(task.outputConfigs),
-      ...(task.kind === "LLM"
-        ? { includeExplanation: task.includeExplanation }
-        : {}),
       code: task.code,
       source: task.source,
       datasetId: getDatasetId(),
       saveTarget: getSaveTarget(),
       validationError: getValidationError(task),
-      ...(task.kind === "CODE"
-        ? { availableSandboxConfigs: [...getSandboxConfigs()] }
-        : {}),
       outputConfigRules: OUTPUT_CONFIG_RULES[task.kind],
     };
+
+    if (task.kind === "LLM") {
+      snapshot.includeExplanation = task.includeExplanation;
+    }
+
+    if (task.kind === "CODE") {
+      snapshot.availableSandboxConfigs = [...getSandboxConfigs()];
+    }
+
+    return snapshot;
   }
 
   function edit(input: EvaluatorTaskEdit): UIOperationResult {
     const current = read();
+
     if (input.expectedRevision !== current.revision) {
       return staleRevision(current.revision);
     }
+
     const rejection = getEditRejection({ current, input });
+
     if (rejection) {
       return { ok: false, error: rejection };
     }
+
     const outputConfigs = input.outputConfigs
       ? toEvaluatorTaskOutputConfigs(input.outputConfigs)
       : null;
+
     const outputErrors = outputConfigs
       ? getEvaluatorOutputConfigValidationErrors({
           kind: current.kind,
           configs: outputConfigs,
         })
       : [];
+
     if (outputErrors.length) {
       return { ok: false, error: outputErrors.join("\n") };
     }
+
     const sandboxConfigs = getSandboxConfigs();
+
     const nextCode = current.code
       ? getNextCode({ code: current.code, input, sandboxConfigs })
       : null;
+
     const codeRejection = nextCode
       ? getCodeRejection({ next: nextCode, input, sandboxConfigs })
       : null;
+
     if (codeRejection) {
       return { ok: false, error: codeRejection };
     }
 
     // The whole patch passed; only now does anything change.
     const state = store.getState();
+
     if (input.name != null) state.setEvaluatorGlobalName(input.name);
+
     if (input.description != null) {
       state.setEvaluatorDescription(input.description);
     }
+
     if (outputConfigs) state.setOutputConfigs(outputConfigs);
+
     if (input.inputMapping) {
       state.setPathMapping(input.inputMapping.pathMapping);
       state.setLiteralMapping(input.inputMapping.literalMapping);
     }
+
     if (input.includeExplanation != null) {
       state.setIncludeExplanation(input.includeExplanation);
     }
+
     if (nextCode && hasCodeFields(input)) setCode(nextCode);
+
     return { ok: true, output: read(nextCode) };
   }
 
@@ -280,15 +315,18 @@ export function createEvaluatorTaskAgentHost({
     options: { asNew: boolean }
   ): Promise<UIOperationResult> {
     const current = read();
+
     if (expectedRevision !== current.revision) {
       return staleRevision(current.revision);
     }
+
     if (current.validationError) {
       return {
         ok: false,
         error: `The evaluator task cannot be saved yet: ${current.validationError}`,
       };
     }
+
     return save(options);
   }
 

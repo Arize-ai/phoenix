@@ -44,6 +44,7 @@ export const IO_PANEL_PROPS = { id: "io", minSize: "15%" } as const;
 // an evaluator task is the judge, so nothing scores it and no annotation
 // rows are laid out under its cells.
 const NO_EVALUATOR_MAPPINGS = {};
+
 const NO_EVALUATOR_OUTPUT_CONFIGS: never[] = [];
 
 export function PlaygroundDatasetSection({
@@ -255,6 +256,7 @@ export function PlaygroundDatasetSection({
     );
     return datasetEvaluatorsToAnnotationConfigs(selectedEvaluators);
   }, [datasetEvaluators, selectedDatasetEvaluatorIds]);
+
   const isEvaluatorKind = usePlaygroundContext(
     (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
   );

@@ -22,7 +22,9 @@ function createStore() {
     defaultModelProvider: "OPENAI",
     modelConfigByProvider: {},
   });
+
   const credentials = createCredentialsStore({}).getState();
+
   return { playgroundStore, credentials };
 }
 
@@ -36,16 +38,20 @@ function addEvaluatorInstance(
     type: "new",
     kind,
   });
+
   if (instanceId == null) {
     throw new Error("Could not add an evaluator instance");
   }
+
   if (name != null) {
     const instance = playgroundStore
       .getState()
       .instances.find((candidate) => candidate.id === instanceId);
+
     if (instance?.task.kind !== "evaluator") {
       throw new Error("Expected an evaluator instance");
     }
+
     playgroundStore.getState().updateInstance({
       instanceId,
       patch: {
@@ -57,6 +63,7 @@ function addEvaluatorInstance(
       dirty: null,
     });
   }
+
   return instanceId;
 }
 
@@ -110,11 +117,13 @@ describe("getExperimentsOverDatasetInput", () => {
   it("sends an LLM evaluator instance inline, with its judge tool built from the output config", () => {
     const store = createStore();
     const promptInstanceId = store.playgroundStore.getState().instances[0].id;
+
     const instanceId = addEvaluatorInstance(
       store.playgroundStore,
       "LLM",
       "helpfulness"
     );
+
     store.playgroundStore.getState().deleteInstance(promptInstanceId);
 
     const input = buildInput(store);

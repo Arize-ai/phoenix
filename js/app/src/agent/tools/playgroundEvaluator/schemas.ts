@@ -22,6 +22,7 @@ const expectedRevisionSchema = z
   );
 
 const outputConfigNameSchema = z.string().trim().min(1);
+
 const optimizationDirectionSchema = z.enum(EVALUATOR_OPTIMIZATION_DIRECTIONS);
 
 // The read reports configs with a `kind`; a categorical config may also be

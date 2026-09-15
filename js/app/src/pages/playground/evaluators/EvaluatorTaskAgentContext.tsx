@@ -26,8 +26,10 @@ export function EvaluatorTaskAgentProvider({
 
 export function useEvaluatorTaskAgentRegistry(): EvaluatorTaskAgentRegistry {
   const registry = useContext(EvaluatorTaskAgentContext);
+
   if (!registry) {
     throw new Error("Missing EvaluatorTaskAgentProvider in the tree");
   }
+
   return registry;
 }

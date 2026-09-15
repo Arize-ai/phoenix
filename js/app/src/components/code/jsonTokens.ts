@@ -13,6 +13,7 @@ export type JsonTokenKind =
 export type JsonToken = { kind: JsonTokenKind; text: string };
 
 const LITERAL = /^(true|false|null)\b/;
+
 const NUMBER = /^-?\d+(\.\d+)?([eE][+-]?\d+)?/;
 
 /**

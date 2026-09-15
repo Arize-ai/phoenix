@@ -33,7 +33,9 @@ function createPage(kinds: PlaygroundEvaluatorTaskKind[]) {
     datasetId: null,
     modelConfigByProvider: {},
   });
+
   const [first] = playgroundStore.getState().instances;
+
   const instanceIds = kinds.map((kind, index) =>
     index === 0
       ? playgroundStore.getState().replaceInstance({
@@ -42,6 +44,7 @@ function createPage(kinds: PlaygroundEvaluatorTaskKind[]) {
         })!
       : playgroundStore.getState().addInstance({ type: "new", kind })!
   );
+
   return { playgroundStore, instanceIds };
 }
 
@@ -59,9 +62,11 @@ function createHost({
   const instance = playgroundStore
     .getState()
     .instances.find((candidate) => candidate.id === instanceId)!;
+
   if (instance.task.kind !== "evaluator") throw new Error("not an evaluator");
   const evaluator = instance.task.evaluator;
   const store = createEvaluatorStore(createEvaluatorTaskStoreState(evaluator));
+
   let code: PlaygroundEvaluatorTaskCode | null =
     evaluator.kind === "CODE"
       ? {
@@ -70,11 +75,14 @@ function createHost({
           sandboxConfigId: "python",
         }
       : null;
+
   const save = vi.fn(async () => ({
     ok: true as const,
     output: { datasetEvaluatorId: "saved" },
   }));
+
   const validationError = vi.fn((): string | null => null);
+
   const host = createEvaluatorTaskAgentHost({
     instanceId,
     store,
@@ -89,6 +97,7 @@ function createHost({
     getDatasetId: () => "dataset-1",
     save,
   });
+
   return { host, store, save, validationError, getCode: () => code };
 }
 
@@ -100,6 +109,7 @@ describe("evaluator task adapter", () => {
 
   it("reads the task in the operation's shape", () => {
     const { playgroundStore, instanceIds } = createPage(["CODE"]);
+
     const { host } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],
@@ -175,10 +185,12 @@ describe("evaluator task adapter", () => {
 
   it("edits an LLM task's explanation flag and rejects code fields on it", () => {
     const { playgroundStore, instanceIds } = createPage(["LLM"]);
+
     const { host, store } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],
     });
+
     expect(host.read()).toMatchObject({
       kind: "LLM",
       includeExplanation: true,
@@ -207,10 +219,12 @@ describe("evaluator task adapter", () => {
 
   it("rejects stale revisions for edits and saves", async () => {
     const { playgroundStore, instanceIds } = createPage(["CODE"]);
+
     const { host, store, save } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],
     });
+
     const revision = host.read().revision;
     store.getState().setEvaluatorGlobalName("user edit");
 
@@ -231,12 +245,14 @@ describe("evaluator task adapter", () => {
 
   it("validates the whole patch before applying any of it", () => {
     const { playgroundStore, instanceIds } = createPage(["CODE"]);
+
     const { host, store } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],
       // No TypeScript sandbox, so a language switch cannot pick one.
       sandboxConfigs: [SANDBOX_CONFIGS[0]],
     });
+
     const before = host.read();
 
     expect(
@@ -264,6 +280,7 @@ describe("evaluator task adapter", () => {
 
   it("rejects an LLM task's non-categorical outputs and duplicate names", () => {
     const { playgroundStore, instanceIds } = createPage(["LLM"]);
+
     const { host } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],
@@ -288,6 +305,7 @@ describe("evaluator task adapter", () => {
 
   it("changes language and sandbox together, or picks a compatible sandbox", () => {
     const { playgroundStore, instanceIds } = createPage(["CODE"]);
+
     const { host } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],
@@ -322,6 +340,7 @@ describe("evaluator task adapter", () => {
 
   it("saves through the Save button's write once the revision matches", async () => {
     const { playgroundStore, instanceIds } = createPage(["CODE"]);
+
     const { host, save, validationError } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],
@@ -348,11 +367,13 @@ describe("evaluator task adapter", () => {
 
   it("reports the save target and keeps a saved code evaluator's language", () => {
     const { playgroundStore, instanceIds } = createPage(["CODE"]);
+
     const saveTarget: EvaluatorSaveTarget = {
       action: "update",
       evaluatorId: "code-1",
       datasetEvaluatorId: "binding-1",
     };
+
     const { host } = createHost({
       playgroundStore,
       instanceId: instanceIds[0],

@@ -58,24 +58,30 @@ export const PlaygroundEvaluatorExampleCell = memo(
     ) => void;
   }) {
     const [repetitionNumber, setRepetitionNumber] = useState(1);
+
     const totalRepetitions = usePlaygroundDatasetExamplesTableContext(
       (state) => state.repetitions
     );
+
     const runData = usePlaygroundDatasetExamplesTableContext(
       (state) =>
         state.exampleResponsesMap[instanceId]?.[exampleId]?.[repetitionNumber]
     );
+
     const { overlay, save } = usePlaygroundExpectedOutputs();
     const result = getEvaluatorCellResult({ runData, annotationName });
+
     const expected = getExpectedOutput({
       pending: overlay[exampleId],
       calibrationLabels,
       annotationName,
     });
+
     const onSave = useCallback(
       (next: ExpectedOutput | null) => save(exampleId, annotationName, next),
       [save, exampleId, annotationName]
     );
+
     const trace = result?.trace ?? null;
 
     return (

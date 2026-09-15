@@ -1,3 +1,4 @@
+import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import { getEvaluatorOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
 import type { PlaygroundEvaluatorTask } from "@phoenix/store/playground";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
@@ -77,12 +78,13 @@ export function getEvaluatorTaskValidationError({
     id: string;
     language: CodeEvaluatorLanguage;
   }>;
-  buildPreview: () => unknown;
+  buildPreview: () => EvaluatorPreviewInput;
 }): string | null {
   const outputErrors = getEvaluatorOutputConfigValidationErrors({
     kind: evaluator.kind,
     configs: evaluator.outputConfigs,
   }).join("\n");
+
   if (outputErrors) return outputErrors;
 
   if (!evaluator.outputConfigs.length) return "Choose an output to review.";
@@ -95,6 +97,7 @@ export function getEvaluatorTaskValidationError({
 
   try {
     buildPreview();
+
     return null;
   } catch (error) {
     return error instanceof Error

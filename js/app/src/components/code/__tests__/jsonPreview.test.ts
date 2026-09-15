@@ -16,6 +16,7 @@ describe("truncateJsonPreview", () => {
       null,
       2
     );
+
     const preview = truncateJsonPreview(json, 40);
     expect(preview.isTruncated).toBe(true);
     expect(preview.text.split("\n").slice(0, 2)).toEqual(

@@ -83,6 +83,9 @@ import {
 
 type SandboxConfigs = ReturnType<typeof mapSandboxConfigOptions>;
 
+/** One example as the template path extractor reads it. */
+type PathSample = Parameters<typeof extractPathsFromDatasetExamples>[0][number];
+
 const EMPTY_SANDBOX_CONFIGS: SandboxConfigs = [];
 
 /**
@@ -134,9 +137,11 @@ export function EvaluatorTaskEditor({
   const evaluator = usePlaygroundContext((state) =>
     getPlaygroundEvaluatorTask(selectPlaygroundInstance(instanceId)(state))
   );
+
   if (!evaluator) {
     throw new Error(`Playground instance ${instanceId} is not an evaluator`);
   }
+
   return (
     <EvaluatorStoreProvider
       initialState={createEvaluatorTaskStoreState(evaluator)}
@@ -245,18 +250,23 @@ function EvaluatorTaskEditorContent({
 }) {
   const playgroundStore = usePlaygroundStore();
   const store = useEvaluatorStoreInstance();
+
   const evaluator = usePlaygroundContext((state) =>
     getPlaygroundEvaluatorTask(selectPlaygroundInstance(instanceId)(state))
   );
+
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
   );
+
   const hasSiblings = usePlaygroundContext(
     (state) => state.instances.length > 1
   );
+
   const isDirty = usePlaygroundContext(
     (state) => !!state.dirtyInstances[instanceId]
   );
+
   if (!evaluator) {
     throw new Error(`Playground instance ${instanceId} is not an evaluator`);
   }
@@ -265,6 +275,7 @@ function EvaluatorTaskEditorContent({
   // first sandbox that fits its language so it is runnable without a pick.
   const [code, setCode] = useState<PlaygroundEvaluatorTaskCode>(() => {
     const initial = evaluator.code ?? FALLBACK_CODE;
+
     return kind === "CODE"
       ? {
           ...initial,
@@ -276,13 +287,16 @@ function EvaluatorTaskEditorContent({
         }
       : initial;
   });
+
   const [selectedTab, setSelectedTab] = useState<Key>("editor");
   const [selectedOutput, setSelectedOutput] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+
   // The sandbox the task was loaded with; a save rebinds only on change.
   const [loadedSandboxConfigId, setLoadedSandboxConfigId] = useState(
     evaluator.code?.sandboxConfigId ?? null
   );
+
   // The mount's mirror only fills in defaults (the sandbox above); it is not
   // an edit, so it leaves the dirty flag alone.
   const isFirstPublish = useRef(true);
@@ -301,6 +315,7 @@ function EvaluatorTaskEditorContent({
     if (!saveApi) {
       return undefined;
     }
+
     const host = createEvaluatorTaskAgentHost({
       instanceId,
       store,
@@ -320,6 +335,7 @@ function EvaluatorTaskEditorContent({
       getSaveTarget: saveApi.getSaveTarget,
       save: saveApi.save,
     });
+
     return registry.register(instanceId, host);
   }, [registry, instanceId, kind, store, playgroundStore, saveApi]);
 
@@ -328,14 +344,17 @@ function EvaluatorTaskEditorContent({
       const current = getPlaygroundEvaluatorTask(
         selectPlaygroundInstance(instanceId)(playgroundStore.getState())
       );
+
       if (!current) {
         return;
       }
+
       const next = buildEvaluatorTaskFromStore({
         state: store.getState(),
         code: kind === "CODE" ? code : null,
         current,
       });
+
       setValidationError(
         getTaskValidationError({
           evaluator: next,
@@ -345,6 +364,7 @@ function EvaluatorTaskEditorContent({
           datasetId,
         })
       );
+
       if (
         getEvaluatorTaskRevision(next) !== getEvaluatorTaskRevision(current)
       ) {
@@ -354,6 +374,7 @@ function EvaluatorTaskEditorContent({
           dirty: isFirstPublish.current ? null : true,
         });
       }
+
       isFirstPublish.current = false;
     }
 
@@ -367,6 +388,7 @@ function EvaluatorTaskEditorContent({
         publish();
       }
     });
+
     // The judge prompt is the instance's template and model; its validity
     // changes with them.
     const unsubscribePlayground =
@@ -397,6 +419,7 @@ function EvaluatorTaskEditorContent({
   ]);
 
   const outputNames = evaluator.outputConfigs.map((config) => config.name);
+
   const selectedOutputName = outputNames.includes(selectedOutput)
     ? selectedOutput
     : (outputNames[0] ?? "");
@@ -578,17 +601,19 @@ function JudgePromptEditor({ instanceId }: { instanceId: number }) {
   const source = useEvaluatorStore(
     (state) => state.evaluatorMappingSource.source
   );
-  const availablePaths = extractPathsFromDatasetExamples(
-    [
-      {
-        input: source.input,
-        taskOutput: source.output,
-        metadata: "metadata" in source ? source.metadata : {},
-        ...("reference" in source ? { reference: source.reference } : {}),
-      },
-    ],
-    null
-  );
+
+  const sample: PathSample = {
+    input: source.input,
+    taskOutput: source.output,
+    metadata: "metadata" in source ? source.metadata : {},
+  };
+
+  if ("reference" in source) {
+    sample.reference = source.reference;
+  }
+
+  const availablePaths = extractPathsFromDatasetExamples([sample], null);
+
   return (
     <TemplateEvaluatorContextProvider value={null}>
       <Suspense fallback={<Loading size="S" />}>
@@ -655,9 +680,11 @@ function CodeEditor({
 
 function EvaluatorTaskNameField() {
   const globalName = useEvaluatorStore((state) => state.evaluator.globalName);
+
   const setEvaluatorGlobalName = useEvaluatorStore(
     (state) => state.setEvaluatorGlobalName
   );
+
   return (
     <TextField
       aria-label="Evaluator name"
@@ -685,6 +712,7 @@ function getEvaluatorTaskStatus({
   isDirty: boolean;
 }): string | null {
   if (isDirty) return "Unsaved changes";
+
   return evaluator.savedRevision != null ? "Saved" : null;
 }
 

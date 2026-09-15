@@ -30,10 +30,12 @@ export function createEvaluatorTaskAgentRegistry(): EvaluatorTaskAgentRegistry {
         (current) => current.has(instanceId),
         timeoutMs
       );
+
       return all?.get(instanceId) ?? null;
     },
     register(instanceId, host) {
       hosts.set(new Map(hosts.get()).set(instanceId, host));
+
       return () => {
         // A newer registration for the same instance owns the entry now.
         if (hosts.get().get(instanceId) !== host) return;

@@ -41,22 +41,29 @@ import { useTaskMenuOptions } from "./useTaskMenuOptions";
  */
 export function TaskMenu({ instanceId }: { instanceId: number }) {
   const instance = usePlaygroundContext(selectPlaygroundInstance(instanceId));
+
   const taskKind = usePlaygroundContext((state) =>
     getPlaygroundTaskKind(state.instances)
   );
+
   const isLocked = usePlaygroundContext((state) =>
     isTaskKindLocked(state.instances)
   );
+
   const isDirty = usePlaygroundContext(
     (state) => !!state.dirtyInstances[instanceId]
   );
+
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((current) => current.activeRunId != null)
   );
+
   const replaceInstance = usePlaygroundContext(
     (state) => state.replaceInstance
   );
+
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+
   if (!instance) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
@@ -65,13 +72,16 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
   const [isLoadingOptions, startLoadingOptions] = useTransition();
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+
   const [pendingSource, setPendingSource] =
     useState<PlaygroundInstanceSource | null>(null);
+
   const { contains } = useFilter({ sensitivity: "base" });
 
   const isPromptTask = instance.task.kind === "prompt";
   const offersPrompts = !isLocked || taskKind === "prompt";
   const offersEvaluators = !isLocked || taskKind === "evaluator";
+
   const { prompts, promptItems, evaluators } = useTaskMenuOptions({
     // A prompt task needs its prompt's versions before the menu opens.
     includePrompts: offersPrompts && (isPromptTask || hasOpened),
@@ -90,6 +100,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     search: deferredSearch,
     matches: contains,
   });
+
   const selectedKey = getTaskMenuSelectedKey(instance);
   const label = getTaskMenuLabel(instance);
 
@@ -105,6 +116,7 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
 
   function apply(source: PlaygroundInstanceSource) {
     setPendingSource(null);
+
     // Another prompt loads into the same prompt task, as it always has;
     // anything else is a different task and replaces the instance.
     if (isPromptTask && source.type === "prompt") {
@@ -118,11 +130,15 @@ export function TaskMenu({ instanceId }: { instanceId: number }) {
     if (key == null || Array.isArray(key) || String(key) === selectedKey) {
       return;
     }
+
     const source = parseTaskMenuKey(String(key), promptItems);
+
     if (!source) {
       return;
     }
+
     const replaces = !(isPromptTask && source.type === "prompt");
+
     if (replaces && isDirty) {
       setPendingSource(source);
     } else {

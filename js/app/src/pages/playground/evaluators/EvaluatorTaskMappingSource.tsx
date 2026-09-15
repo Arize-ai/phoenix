@@ -23,6 +23,7 @@ export function EvaluatorTaskMappingSource({
   splitIds?: string[];
 }) {
   const store = useEvaluatorStoreInstance();
+
   const data = useLazyLoadQuery<EvaluatorTaskMappingSourceQuery>(
     graphql`
       query EvaluatorTaskMappingSourceQuery(
@@ -53,6 +54,7 @@ export function EvaluatorTaskMappingSource({
       hasDataset: datasetId != null,
     }
   );
+
   const revision = data.dataset?.examples?.edges[0]?.example.revision ?? null;
 
   useEffect(() => {

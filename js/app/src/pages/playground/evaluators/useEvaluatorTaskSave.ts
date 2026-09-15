@@ -154,6 +154,7 @@ async function saveLLM(
     createLLMMutation,
     { input }
   );
+
   const created = response.createDatasetLlmEvaluator.evaluator;
 
   return {
@@ -205,21 +206,22 @@ async function saveCode(
 
   // Sandbox rebinding lives on patchCodeEvaluator; a version row carries no
   // sandbox. Rebinding validates the source in the sandbox, so only on change.
+  const patch: useEvaluatorTaskSavePatchCodeMutation["variables"]["input"] = {
+    id: target.evaluatorId,
+    name: request.name,
+    description: request.description,
+    inputMapping: request.inputMapping,
+    outputConfigs: code.outputConfigs,
+  };
+
+  if (request.sandboxConfigId !== request.initialSandboxConfigId) {
+    patch.sandboxConfigId = request.sandboxConfigId;
+  }
+
   await commit<useEvaluatorTaskSavePatchCodeMutation>(
     environment,
     patchCodeMutation,
-    {
-      input: {
-        id: target.evaluatorId,
-        name: request.name,
-        description: request.description,
-        inputMapping: request.inputMapping,
-        outputConfigs: code.outputConfigs,
-        ...(request.sandboxConfigId !== request.initialSandboxConfigId
-          ? { sandboxConfigId: request.sandboxConfigId }
-          : {}),
-      },
-    }
+    { input: patch }
   );
   // The server skips the version when the source matches the current tip.
   await commit<useEvaluatorTaskSaveCodeVersionMutation>(

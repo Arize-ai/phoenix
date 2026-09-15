@@ -12,7 +12,9 @@ type PlaygroundAgentContext = Extract<AgentContext, { type: "playground" }>;
 type PlaygroundAgentInstance = NonNullable<
   PlaygroundAgentContext["instances"]
 >[number];
+
 type PlaygroundAgentTask = NonNullable<PlaygroundAgentInstance["task"]>;
+
 type PlaygroundAgentScaffold = NonNullable<
   PlaygroundAgentContext["nextExperimentScaffold"]
 >;
@@ -21,9 +23,11 @@ function getPlaygroundModelForAgent(
   model: PlaygroundInstance["model"]
 ): PlaygroundAgentInstance["model"] {
   const { modelName } = model;
+
   if (modelName == null) {
     return undefined;
   }
+
   if (model.customProvider) {
     return {
       type: "custom",
@@ -33,6 +37,7 @@ function getPlaygroundModelForAgent(
       modelName,
     };
   }
+
   return { type: "builtin", provider: model.provider, modelName };
 }
 
@@ -47,6 +52,7 @@ function getPlaygroundTaskForAgent(
   if (task.kind === "prompt") {
     return { kind: "prompt" };
   }
+
   return {
     kind: "evaluator",
     evaluatorKind: task.evaluator.kind,
@@ -60,7 +66,8 @@ export function getPlaygroundInstanceForAgent(
   { index, isDirty }: { index: number; isDirty: boolean }
 ): PlaygroundAgentInstance {
   const model = getPlaygroundModelForAgent(instance.model);
-  return {
+
+  const agentInstance: PlaygroundAgentInstance = {
     instanceId: instance.id,
     // Surface the experiment id whenever a run produced one, including
     // ephemeral experiments: those persist in the DB for ~24h (the server
@@ -68,9 +75,14 @@ export function getPlaygroundInstanceForAgent(
     // stay queryable via phoenix-gql within the window the agent reads this
     // context.
     experimentId: instance.experiment?.id,
-    ...(model ? { model } : {}),
     task: getPlaygroundTaskForAgent(instance.task, { index, isDirty }),
   };
+
+  if (model) {
+    agentInstance.model = model;
+  }
+
+  return agentInstance;
 }
 
 function arePlaygroundAgentModelsEqual(
@@ -103,6 +115,7 @@ function arePlaygroundAgentTasksEqual(
   if (left == null || right == null) {
     return left == null && right == null;
   }
+
   if (left.kind === "evaluator" && right.kind === "evaluator") {
     return (
       left.evaluatorKind === right.evaluatorKind &&
@@ -110,6 +123,7 @@ function arePlaygroundAgentTasksEqual(
       left.isDirty === right.isDirty
     );
   }
+
   return left.kind === right.kind;
 }
 

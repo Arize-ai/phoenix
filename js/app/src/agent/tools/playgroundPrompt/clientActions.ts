@@ -104,14 +104,18 @@ export function createAddPromptInstanceClientAction({
     if (!parsed) {
       return { ok: false, error: "Invalid playground.instance.add input." };
     }
+
     const added = addPromptInstance({ playgroundStore, source: parsed.source });
+
     if (!added.ok) return added;
     const { instanceId, source } = added.output;
+
     const failure = await settleInstanceSource({
       playgroundStore,
       instanceId,
       source,
     });
+
     if (failure) {
       // The UI leaves a blank draft behind too, with a toast; say so.
       return {
@@ -119,12 +123,15 @@ export function createAddPromptInstanceClientAction({
         error: `${failure.error} Instance ${instanceId} was added as an empty draft: give it another task with playground.task.select, or remove it.`,
       };
     }
+
     const snapshot = await readTaskSnapshot({
       playgroundStore,
       instanceId,
       waitForEvaluatorHost,
     });
+
     if (!snapshot.ok) return snapshot;
+
     return {
       ok: true,
       output: {

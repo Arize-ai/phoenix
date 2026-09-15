@@ -1,4 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
+import { z } from "zod";
 
 import {
   persistPxiExperiment,
@@ -10,6 +11,7 @@ import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 import { expectOK } from "./utils";
 
 const EXPERIMENT_EXAMPLE = PXI_EXPERIMENT_EXAMPLES.playgroundEvaluatorSmoke;
+
 const USER_PROMPT = EXPERIMENT_EXAMPLE.prompt;
 
 const JUDGE_RUBRIC = [
@@ -21,6 +23,8 @@ const JUDGE_RUBRIC = [
 
 const JUDGE_SYSTEM =
   "You are judging a Phoenix PXI E2E answer about running a code evaluator task in the playground. Return a label, score, and brief explanation.";
+
+const datasetUploadSchema = z.object({ dataset_id: z.string() });
 
 /** Three examples: two with a non-empty output, one with an empty output. */
 const DATASET_EXAMPLES = [
@@ -39,6 +43,7 @@ const DATASET_EXAMPLES = [
  */
 async function seedEvaluatorRun(request: APIRequestContext) {
   const suffix = new Date().toISOString().replace(/[:.]/g, "-");
+
   const datasetResponse = await expectOK(
     await request.post("/v1/datasets/upload?sync=true", {
       data: {
@@ -50,11 +55,11 @@ async function seedEvaluatorRun(request: APIRequestContext) {
       },
     })
   );
-  const datasetId = (datasetResponse.data as { dataset_id?: unknown })
-    .dataset_id;
-  if (typeof datasetId !== "string") {
-    throw new Error("Dataset upload response did not include dataset_id.");
-  }
+
+  const { dataset_id: datasetId } = datasetUploadSchema.parse(
+    datasetResponse.data
+  );
+
   // The New Sandbox dropdown filters on AVAILABLE providers; the test server
   // pre-warms the WASM binary so this config is runnable without credentials.
   await expectOK(
@@ -78,6 +83,7 @@ async function seedEvaluatorRun(request: APIRequestContext) {
       },
     })
   );
+
   return { datasetId };
 }
 
@@ -92,16 +98,21 @@ async function acceptScriptsUntilTurnEnds(page: Page) {
     // The turn may already have completed.
   });
   const deadline = Date.now() + 240_000;
+
   while (Date.now() < deadline) {
     if (!(await stopButton.isVisible())) {
       return;
     }
+
     const accept = page.getByRole("button", { name: "Accept" }).first();
+
     if (await accept.isVisible()) {
       await accept.click();
     }
+
     await page.waitForTimeout(500);
   }
+
   throw new Error("Timed out waiting for the PXI turn to finish.");
 }
 
@@ -157,6 +168,7 @@ test.describe("PXI playground evaluator task smoke", () => {
     const messageInput = page.getByLabel("Message input");
     const acknowledgeButton = page.getByRole("button", { name: "Acknowledge" });
     await expect(messageInput.or(acknowledgeButton)).toBeVisible();
+
     if (await acknowledgeButton.isVisible()) {
       await acknowledgeButton.click();
       await expect(messageInput).toBeVisible();
