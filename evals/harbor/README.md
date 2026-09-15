@@ -143,6 +143,9 @@ export HARBOR_PHOENIX_API_KEY=...
 export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ```
 
+The task runs under Harbor's allowlist network policy, so add the collector's host to
+`allowed_hosts` in `task.toml` or the export is silently dropped.
+
 ## Fixtures
 
 The error-analysis fixture is hand-prepared. To replace it, upload the new database and

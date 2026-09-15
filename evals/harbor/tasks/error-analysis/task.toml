@@ -10,7 +10,10 @@ keywords = ["pxi", "agent_session_chat", "error_analysis"]
 os = "linux"
 cpus = 2
 memory_mb = 4096
-network_mode = "public"
+# Trials reach only the LLM provider APIs. Add the results Phoenix host here when
+# HARBOR_PHOENIX_COLLECTOR_ENDPOINT is set, or the trace export is silently dropped.
+network_mode = "allowlist"
+allowed_hosts = ["api.anthropic.com", "api.openai.com"]
 build_timeout_sec = 1200.0
 
 [environment.env]
