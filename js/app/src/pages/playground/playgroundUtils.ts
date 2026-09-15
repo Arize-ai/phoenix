@@ -2355,8 +2355,12 @@ export const getChatCompletionOverDatasetInput = ({
     promptName: instance.prompt?.name,
     promptVersionId: instance.prompt?.version ?? null,
     createEphemeralExperiment: !recordExperiments,
-    experimentName: nextExperimentScaffold?.name ?? null,
-    experimentDescription: nextExperimentScaffold?.description ?? null,
+    experimentName:
+      (nextExperimentScaffold?.name ??
+        playgroundDatasetState?.experimentName?.trim()) || null,
+    experimentDescription:
+      (nextExperimentScaffold?.description ??
+        playgroundDatasetState?.experimentDescription?.trim()) || null,
     experimentMetadata: nextExperimentScaffold?.metadata ?? null,
     streamModelOutput: streaming,
     maxConcurrency: maxConcurrency ?? 10,

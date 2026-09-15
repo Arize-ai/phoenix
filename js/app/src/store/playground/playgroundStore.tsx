@@ -969,6 +969,48 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setMaxConcurrency" }
       );
     },
+    setExperimentName: ({
+      experimentName,
+      datasetId,
+    }: {
+      experimentName: string | null;
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              experimentName,
+            },
+          },
+        },
+        false,
+        { type: "setExperimentName" }
+      );
+    },
+    setExperimentDescription: ({
+      experimentDescription,
+      datasetId,
+    }: {
+      experimentDescription: string | null;
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              experimentDescription,
+            },
+          },
+        },
+        false,
+        { type: "setExperimentDescription" }
+      );
+    },
     setAppendedMessagesPath: ({
       path,
       datasetId,
