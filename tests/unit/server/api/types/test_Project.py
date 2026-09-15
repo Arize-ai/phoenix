@@ -31,6 +31,7 @@ from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinS
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
+from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -39,6 +40,159 @@ from ...._helpers import _add_project, _add_project_session, _add_span, _add_tra
 fake = Faker()
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
+
+
+class TestProjectEvaluatorAnnotationNameFilter:
+    _QUERY = """query ($id: ID!, $first: Int = 100,
+                      $after: String, $filter: ProjectEvaluatorFilter) {
+        node(id: $id) {
+            ... on Project {
+                evaluators(first: $first, after: $after, filter: $filter) {
+                    edges { node { name } }
+                    pageInfo { hasNextPage endCursor }
+                }
+            }
+        }
+    }"""
+
+    @pytest.fixture
+    async def project_id(self, db: DbSessionFactory) -> str:
+        async with db() as session:
+            await sync_languages(session)
+            project = models.Project(name=f"project-{token_hex(4)}")
+            other_project = models.Project(name=f"other-project-{token_hex(4)}")
+            session.add_all([project, other_project])
+            await session.flush()
+            for target_project, name, output_names in [
+                (project, "aaa", ["verdict"]),
+                (project, "correctness", ["verdict"]),
+                (project, "quality", ["correctness", "toxicity"]),
+                (project, "unconfigured", []),
+                (other_project, "correctness", ["verdict"]),
+            ]:
+                evaluator = models.CodeEvaluator(
+                    name=DbIdentifier(f"evaluator-{token_hex(4)}"),
+                    metadata_={},
+                    language="PYTHON",
+                    output_configs=[
+                        ContinuousOutputConfig(
+                            type="CONTINUOUS",
+                            name=output_name,
+                            optimization_direction=OptimizationDirection.MAXIMIZE,
+                        )
+                        for output_name in output_names
+                    ],
+                )
+                session.add(evaluator)
+                await session.flush()
+                session.add(
+                    models.ProjectEvaluator(
+                        trace_project=models.Project(name=f"runs-{token_hex(8)}"),
+                        project_id=target_project.id,
+                        evaluator_id=evaluator.id,
+                        name=DbIdentifier(name),
+                        filter_condition="",
+                        sampling_rate=1.0,
+                        evaluation_target="SPAN",
+                        enabled=False,
+                    )
+                )
+            await session.flush()
+            return str(GlobalID("Project", str(project.id)))
+
+    @pytest.mark.parametrize(
+        "names, expected",
+        [
+            (["correctness"], ["correctness"]),
+            (["quality.toxicity"], ["quality"]),
+            (["quality.correctness", "quality.toxicity"], ["quality"]),
+            (["correctness", "correctness"], ["correctness"]),
+            (["unconfigured"], ["unconfigured"]),
+            (["quality", "quality.unknown", "correctness.verdict", "unknown name"], []),
+            ([], ["aaa", "correctness", "quality", "unconfigured"]),
+            (None, ["aaa", "correctness", "quality", "unconfigured"]),
+        ],
+    )
+    async def test_exact_names(
+        self,
+        project_id: str,
+        gql_client: AsyncGraphQLClient,
+        names: Optional[list[str]],
+        expected: list[str],
+    ) -> None:
+        result = await gql_client.execute(
+            self._QUERY, {"id": project_id, "filter": {"annotationNames": names}}
+        )
+        assert not result.errors and result.data
+        connection = result.data["node"]["evaluators"]
+        assert [edge["node"]["name"] for edge in connection["edges"]] == expected
+        assert connection["pageInfo"]["hasNextPage"] is False
+
+    async def test_filters_before_pagination(
+        self, project_id: str, gql_client: AsyncGraphQLClient
+    ) -> None:
+        variables = {
+            "id": project_id,
+            "filter": {"annotationNames": ["correctness", "quality.toxicity"]},
+            "first": 1,
+        }
+        result = await gql_client.execute(self._QUERY, variables)
+        assert not result.errors and result.data
+        connection = result.data["node"]["evaluators"]
+        assert [edge["node"]["name"] for edge in connection["edges"]] == ["correctness"]
+        assert connection["pageInfo"]["hasNextPage"] is True
+
+        result = await gql_client.execute(
+            self._QUERY, {**variables, "after": connection["pageInfo"]["endCursor"]}
+        )
+        assert not result.errors and result.data
+        connection = result.data["node"]["evaluators"]
+        assert [edge["node"]["name"] for edge in connection["edges"]] == ["quality"]
+        assert connection["pageInfo"]["hasNextPage"] is False
+
+    async def test_combines_with_name_search(
+        self, project_id: str, gql_client: AsyncGraphQLClient
+    ) -> None:
+        result = await gql_client.execute(
+            self._QUERY,
+            {
+                "id": project_id,
+                "filter": {
+                    "col": "name",
+                    "value": "qual",
+                    "annotationNames": ["correctness", "quality.toxicity"],
+                },
+            },
+        )
+        assert not result.errors and result.data
+        assert [edge["node"]["name"] for edge in result.data["node"]["evaluators"]["edges"]] == [
+            "quality"
+        ]
+
+    @pytest.mark.parametrize(
+        "filter, expected",
+        [
+            ({"col": "name", "value": "  QUAL  "}, ["quality"]),
+            ({}, ["aaa", "correctness", "quality", "unconfigured"]),
+            (None, ["aaa", "correctness", "quality", "unconfigured"]),
+            (
+                {"col": "name", "value": None, "annotationNames": ["correctness"]},
+                ["correctness"],
+            ),
+        ],
+    )
+    async def test_optional_filter_fields(
+        self,
+        project_id: str,
+        gql_client: AsyncGraphQLClient,
+        filter: Optional[dict[str, Any]],
+        expected: list[str],
+    ) -> None:
+        result = await gql_client.execute(self._QUERY, {"id": project_id, "filter": filter})
+        assert not result.errors and result.data
+        assert [
+            edge["node"]["name"] for edge in result.data["node"]["evaluators"]["edges"]
+        ] == expected
 
 
 async def _add_generative_model(
