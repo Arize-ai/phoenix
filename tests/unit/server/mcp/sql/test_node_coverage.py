@@ -58,6 +58,7 @@ REVIEWED_STRUCTURAL: frozenset[str] = frozenset(
         "DataType",
         "DataTypeParam",
         "Distinct",
+        "Div",
         "Drop",
         "EQ",
         "From",

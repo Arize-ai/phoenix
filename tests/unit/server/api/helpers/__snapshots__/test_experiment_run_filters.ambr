@@ -20,7 +20,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-latency-ms-is-not-free-attribute]
   dict({
     'filter_condition': 'latency_ms < 1000',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) < 1000 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_1.end_time) - EXTRACT(EPOCH FROM experiment_runs_1.start_time)) * 1000 AS NUMERIC), 1) < 1000',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 < 1000 OR (EXTRACT(EPOCH FROM experiment_runs_1.end_time) - EXTRACT(EPOCH FROM experiment_runs_1.start_time)) * 1000 < 1000',
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-metadata-is-not-free-attribute]
@@ -68,7 +68,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-latency-ms-is-not-free-attribute]
   dict({
     'filter_condition': 'latency_ms < 1000',
-    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) < 1000 OR round((unixepoch(experiment_runs_1.end_time, 'subsec') - unixepoch(experiment_runs_1.start_time, 'subsec')) * 1000, 1) < 1000",
+    'sql': 'time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 < 1000 OR time_sub(time_parse(experiment_runs_1.end_time), time_parse(experiment_runs_1.start_time)) / 1000000.0 < 1000',
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-metadata-is-not-free-attribute]
@@ -98,19 +98,19 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-complex-negation]
   dict({
     'filter_condition': "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",
-    'sql': 'NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)',
+    'sql': 'NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000)',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-conjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-conjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",
-    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-contains-reversed]
@@ -128,25 +128,25 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-disjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",
-    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 OR experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000 OR experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-disjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
-    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-eq-reversed]
   dict({
     'filter_condition': '1000 == experiments[0].latency_ms',
-    'sql': '1000 = round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '1000 = (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-eq]
   dict({
     'filter_condition': 'experiments[0].latency_ms == 1000',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) = 1000',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 = 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-error-name]
@@ -272,7 +272,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-latency-ms-name]
   dict({
     'filter_condition': 'experiments[2].latency_ms',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_2.end_time) - EXTRACT(EPOCH FROM experiment_runs_2.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_2.end_time) - EXTRACT(EPOCH FROM experiment_runs_2.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-metadata-name]
@@ -296,25 +296,25 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gt-reversed]
   dict({
     'filter_condition': '1000 < experiments[0].latency_ms',
-    'sql': '1000 < round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '1000 < (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gt]
   dict({
     'filter_condition': 'experiments[0].latency_ms > 1000',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gte-reversed]
   dict({
     'filter_condition': '1000 <= experiments[0].latency_ms',
-    'sql': '1000 <= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '1000 <= (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-gte]
   dict({
     'filter_condition': 'experiments[0].latency_ms >= 1000',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) >= 1000',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 >= 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-int-constant]
@@ -380,49 +380,49 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lt-reversed]
   dict({
     'filter_condition': '1000 > experiments[0].latency_ms',
-    'sql': '1000 > round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '1000 > (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lt]
   dict({
     'filter_condition': 'experiments[0].latency_ms < 1000',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) < 1000',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 < 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lte-reversed]
   dict({
     'filter_condition': '1000 >= experiments[0].latency_ms',
-    'sql': '1000 >= round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '1000 >= (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-lte]
   dict({
     'filter_condition': 'experiments[0].latency_ms <= 1000',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) <= 1000',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 <= 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-mixed-conjunction-and-disjunction-with-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",
-    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-mixed-conjunction-and-disjunction-without-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-ne-reversed]
   dict({
     'filter_condition': '1000 != experiments[0].latency_ms',
-    'sql': '1000 != round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '1000 != (EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-ne]
   dict({
     'filter_condition': 'experiments[0].latency_ms != 1000',
-    'sql': 'round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) != 1000',
+    'sql': '(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 != 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-negation]
@@ -452,13 +452,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-attribute]
   dict({
     'filter_condition': '-experiments[0].latency_ms',
-    'sql': '-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1)',
+    'sql': '-(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-comparison]
   dict({
     'filter_condition': '-experiments[0].latency_ms > -5',
-    'sql': '-round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > -5',
+    'sql': '-(EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 > -5',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-unary-minus-constant]
@@ -470,19 +470,19 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-complex-negation]
   dict({
     'filter_condition': "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",
-    'sql': "NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000)",
+    'sql': 'NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000)',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-conjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-conjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",
-    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-contains-reversed]
@@ -500,25 +500,25 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-disjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",
-    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 OR experiment_runs_1.error IS NULL",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000 OR experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-disjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
-    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-eq-reversed]
   dict({
     'filter_condition': '1000 == experiments[0].latency_ms',
-    'sql': "1000 = round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+    'sql': '1000 = time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-eq]
   dict({
     'filter_condition': 'experiments[0].latency_ms == 1000',
-    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) = 1000",
+    'sql': 'time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 = 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-error-name]
@@ -644,7 +644,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-latency-ms-name]
   dict({
     'filter_condition': 'experiments[2].latency_ms',
-    'sql': "round((unixepoch(experiment_runs_2.end_time, 'subsec') - unixepoch(experiment_runs_2.start_time, 'subsec')) * 1000, 1)",
+    'sql': 'time_sub(time_parse(experiment_runs_2.end_time), time_parse(experiment_runs_2.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-metadata-name]
@@ -668,25 +668,25 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gt-reversed]
   dict({
     'filter_condition': '1000 < experiments[0].latency_ms',
-    'sql': "1000 < round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+    'sql': '1000 < time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gt]
   dict({
     'filter_condition': 'experiments[0].latency_ms > 1000',
-    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+    'sql': 'time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gte-reversed]
   dict({
     'filter_condition': '1000 <= experiments[0].latency_ms',
-    'sql': "1000 <= round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+    'sql': '1000 <= time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-gte]
   dict({
     'filter_condition': 'experiments[0].latency_ms >= 1000',
-    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) >= 1000",
+    'sql': 'time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 >= 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-int-constant]
@@ -752,49 +752,49 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lt-reversed]
   dict({
     'filter_condition': '1000 > experiments[0].latency_ms',
-    'sql': "1000 > round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+    'sql': '1000 > time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lt]
   dict({
     'filter_condition': 'experiments[0].latency_ms < 1000',
-    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) < 1000",
+    'sql': 'time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 < 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lte-reversed]
   dict({
     'filter_condition': '1000 >= experiments[0].latency_ms',
-    'sql': "1000 >= round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+    'sql': '1000 >= time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-lte]
   dict({
     'filter_condition': 'experiments[0].latency_ms <= 1000',
-    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) <= 1000",
+    'sql': 'time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 <= 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-mixed-conjunction-and-disjunction-with-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",
-    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-mixed-conjunction-and-disjunction-without-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-ne-reversed]
   dict({
     'filter_condition': '1000 != experiments[0].latency_ms',
-    'sql': "1000 != round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+    'sql': '1000 != time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-ne]
   dict({
     'filter_condition': 'experiments[0].latency_ms != 1000',
-    'sql': "round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) != 1000",
+    'sql': 'time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 != 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-negation]
@@ -824,13 +824,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-attribute]
   dict({
     'filter_condition': '-experiments[0].latency_ms',
-    'sql': "-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1)",
+    'sql': '-time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-comparison]
   dict({
     'filter_condition': '-experiments[0].latency_ms > -5',
-    'sql': "-round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > -5",
+    'sql': '-time_sub(time_parse(experiment_runs_0.end_time), time_parse(experiment_runs_0.start_time)) / 1000000.0 > -5',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-unary-minus-constant]
