@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Literal, Optional, get_args
 
 import yaml
 from fastmcp import FastMCP
@@ -14,9 +14,12 @@ from fastmcp.exceptions import ToolError
 from fastmcp.tools.base import Tool
 from mcp_types import ToolAnnotations
 from pydantic import Field
+from typing_extensions import TypeGuard
 
 from phoenix.config import get_env_skills_paths, get_env_skills_visibility
 from phoenix.server.agents.prompts.templating import get_template
+
+SkillVisibility = Literal["visible", "hidden"]
 
 _SERVER_DIR = Path(__file__).resolve().parents[2]
 
@@ -32,6 +35,7 @@ SKILL_TOOL_NAMES: tuple[str, ...] = (LOAD_SKILL_TOOL_NAME, LOAD_SKILL_REFERENCE_
 _INSTRUCTIONS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 
 _SKILL_FILE = "SKILL.md"
+_VISIBILITY_METADATA_KEY = "arize-phoenix-visibility"
 _REFERENCES_DIR = "references"
 _SUMMARY_MAX_CHARS = 140
 
@@ -59,7 +63,7 @@ class Skill:
     text: str
     path: Path
     references: tuple[SkillReference, ...] = ()
-    visibility: Optional[str] = None
+    visibility: Optional[SkillVisibility] = None
 
     @classmethod
     def from_directory(cls, directory: Path) -> Skill:
@@ -100,7 +104,11 @@ class _Frontmatter:
     name: str
     description: str
     summary: str
-    visibility: Optional[str]
+    visibility: Optional[SkillVisibility]
+
+
+def _is_skill_visibility(value: Any) -> TypeGuard[SkillVisibility]:
+    return value in get_args(SkillVisibility)
 
 
 def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
@@ -118,9 +126,9 @@ def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
     metadata = mapping.get("metadata") or {}
     if not isinstance(metadata, dict):
         raise ValueError(f"{source}: metadata must be a mapping")
-    visibility = metadata.get("arize-phoenix-visibility")
-    if visibility is not None and visibility not in ("visible", "hidden"):
-        raise ValueError(f"{source}: arize-phoenix-visibility must be 'visible' or 'hidden'")
+    visibility = metadata.get(_VISIBILITY_METADATA_KEY)
+    if visibility is not None and not _is_skill_visibility(visibility):
+        raise ValueError(f"{source}: {_VISIBILITY_METADATA_KEY} must be 'visible' or 'hidden'")
     return _Frontmatter(
         name=_required_string(mapping, "name", source),
         description=description,
@@ -180,7 +188,7 @@ def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Ski
         directories = (
             [root]
             if (root / _SKILL_FILE).is_file()
-            else sorted(p for p in root.iterdir() if (p / _SKILL_FILE).is_file())
+            else sorted(child for child in root.iterdir() if (child / _SKILL_FILE).is_file())
         )
         for directory in directories:
             skill = Skill.from_directory(directory)
@@ -199,10 +207,10 @@ def load_configured_skills() -> tuple[Skill, ...]:
     return load_skills(get_env_skills_paths(), explicit=get_env_skills_visibility() == "explicit")
 
 
-def merge_skills(*catalogs: Sequence[Skill]) -> tuple[Skill, ...]:
+def merge_skills(*skill_sets: Sequence[Skill]) -> tuple[Skill, ...]:
     skills: dict[str, Skill] = {}
-    for catalog in catalogs:
-        for skill in catalog:
+    for skill_set in skill_sets:
+        for skill in skill_set:
             if skill.name in skills:
                 raise ValueError(
                     f"Skill {skill.name!r} is defined in both "
