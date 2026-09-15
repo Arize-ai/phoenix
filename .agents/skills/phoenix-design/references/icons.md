@@ -13,6 +13,12 @@ Phoenix has a curated icon set in `js/app/src/components/core/icon/Icons.tsx`. U
 | Trace | `Icons.Trace` | A single trace. |
 | Span | `Icons.Workflow` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
 | Span filter | `Icons.Funnel` | A validated span filter expression. |
+| Grounding / retrieval evaluation | `Icons.ScanSearch` | Evaluations that check whether a response is supported by retrieved context. |
+| Agent evaluation | `Icons.Agent` | Evaluations of agent behavior, tool use, and task completion. |
+| Response-quality evaluation | `Icons.BadgeCheck` | Evaluations of response correctness, relevance, and overall quality. |
+| Safety / security evaluation | `Icons.SafetySecurity` | Evaluations that detect harmful, insecure, or sensitive behavior. |
+| User-experience evaluation | `Icons.Smile` | Evaluations of tone, clarity, and the user experience. |
+| Custom evaluator | `Icons.SquarePen` | Evaluators created by a user rather than supplied as gallery templates. |
 | Source / citation | `Icons.Book` | Source documents surfaced from RAG / search. |
 | Document (generic) | `Icons.FileText` | Text-bearing documents (PDF, txt, md). |
 | File (generic / unknown) | `Icons.File` | Default file fallback when the media type is not specifically handled. |

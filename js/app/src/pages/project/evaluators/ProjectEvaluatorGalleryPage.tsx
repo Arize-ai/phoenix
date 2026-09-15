@@ -5,12 +5,13 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet, useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
-  Badge,
   Button,
   Counter,
   ExpandableContent,
   Flex,
   Heading,
+  Icon,
+  type IconKey,
   List,
   ListBox,
   ListBoxItem,
@@ -32,13 +33,13 @@ import {
   TypeScriptBlockWithCopy,
 } from "@phoenix/components/code";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
-import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import {
   PROJECT_EVALUATOR_CATEGORY_PARAM,
   PROJECT_EVALUATOR_PARAM,
   PROJECT_EVALUATOR_TEMPLATE_PARAM,
 } from "@phoenix/constants/searchParams";
+import { useTheme } from "@phoenix/contexts";
 import type { projectEvaluatorDetailsQuery as ProjectEvaluatorDetailsQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { projectEvaluatorGalleryPageQuery as ProjectEvaluatorGalleryPageQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryPageQuery.graphql";
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
@@ -81,6 +82,44 @@ const SCROLL_SPY_ROOT_MARGIN = "0px 0px -70% 0px";
 
 type TemplateCategory = EvaluatorCategory | typeof OTHER_CATEGORY;
 type GallerySection = TemplateCategory | typeof CUSTOM_EVALUATORS_SECTION;
+
+type EvaluatorCategoryAppearance = {
+  icon: IconKey;
+  color: string;
+  lightColor?: string;
+};
+
+const EVALUATOR_CATEGORY_APPEARANCE = {
+  GROUNDING_AND_RETRIEVAL: {
+    icon: "ScanSearch",
+    color: "var(--global-color-orange-900)",
+    lightColor: "var(--global-color-orange-800)",
+  },
+  AGENTS: {
+    icon: "Agent",
+    color: "var(--global-color-purple-700)",
+    lightColor: "var(--global-color-purple-900)",
+  },
+  RESPONSE_QUALITY: {
+    icon: "BadgeCheck",
+    color: "var(--global-color-green-800)",
+  },
+  SAFETY_AND_SECURITY: {
+    icon: "SafetySecurity",
+    color: "var(--global-color-red-700)",
+    lightColor: "var(--global-color-red-800)",
+  },
+  USER_EXPERIENCE: {
+    icon: "Smile",
+    color: "var(--global-color-blue-700)",
+    lightColor: "var(--global-color-blue-900)",
+  },
+} satisfies Record<EvaluatorCategory, EvaluatorCategoryAppearance>;
+
+const CUSTOM_EVALUATOR_APPEARANCE = {
+  icon: "SquarePen",
+  color: "var(--global-color-gray-700)",
+} satisfies EvaluatorCategoryAppearance;
 
 type CustomEvaluator = {
   readonly __typename: "LLMEvaluator" | "CodeEvaluator";
@@ -136,6 +175,52 @@ function getGalleryCategory(
   category: EvaluatorCategory | null
 ): TemplateCategory {
   return category ?? OTHER_CATEGORY;
+}
+
+function getEvaluatorCategoryAppearance(
+  section: GallerySection
+): EvaluatorCategoryAppearance {
+  return section === CUSTOM_EVALUATORS_SECTION || section === OTHER_CATEGORY
+    ? CUSTOM_EVALUATOR_APPEARANCE
+    : EVALUATOR_CATEGORY_APPEARANCE[section];
+}
+
+function useEvaluatorCategoryAppearance(
+  section: GallerySection
+): EvaluatorCategoryAppearance {
+  const { theme } = useTheme();
+  const appearance = getEvaluatorCategoryAppearance(section);
+  return {
+    ...appearance,
+    color:
+      theme === "light"
+        ? (appearance.lightColor ?? appearance.color)
+        : appearance.color,
+  };
+}
+
+function EvaluatorCategoryIcon({
+  section,
+  isWrapped = false,
+}: {
+  section: GallerySection;
+  isWrapped?: boolean;
+}) {
+  const appearance = useEvaluatorCategoryAppearance(section);
+  return (
+    <span
+      css={isWrapped ? categoryHeadingIconCSS : categoryMenuIconCSS}
+      style={{
+        color: appearance.color,
+        backgroundColor: isWrapped
+          ? `color-mix(in srgb, ${appearance.color} 10%, transparent)`
+          : undefined,
+      }}
+      aria-hidden="true"
+    >
+      <Icon svgKey={appearance.icon} />
+    </span>
+  );
 }
 
 function getSectionHeadingId(section: GallerySection): string {
@@ -426,7 +511,10 @@ function EvaluatorGallery() {
     count: number;
   }) => (
     <ListBoxItem key={id} id={id} textValue={name}>
-      <Text size="S">{name}</Text>
+      <Flex direction="row" alignItems="center" gap="size-100">
+        <EvaluatorCategoryIcon section={id} />
+        <Text size="S">{name}</Text>
+      </Flex>
       <Counter variant="quiet">{count}</Counter>
     </ListBoxItem>
   );
@@ -570,6 +658,10 @@ function EvaluatorGallery() {
               className="project-evaluator-gallery__template-category-section"
             >
               <Header className="project-evaluator-gallery__template-category-header">
+                <EvaluatorCategoryIcon
+                  section={CUSTOM_EVALUATORS_SECTION}
+                  isWrapped
+                />
                 <Text
                   ref={(element) => {
                     if (element) {
@@ -605,17 +697,19 @@ function EvaluatorGallery() {
                     id={itemKey}
                     textValue={evaluator.name}
                   >
-                    <Text size="S" weight="heavy">
-                      {evaluator.name}
-                    </Text>
+                    <Flex direction="column" gap="size-0">
+                      <Text size="S" weight="heavy">
+                        {evaluator.name}
+                      </Text>
+                      <EvaluatorTemplateCardSubtitle
+                        evaluatorKind={getCustomEvaluatorKind(evaluator)}
+                      />
+                    </Flex>
                     <LineClamp lines={3}>
-                      <Text size="XS" color="text-700">
+                      <Text size="S" color="text-700">
                         {evaluator.description || "No description"}
                       </Text>
                     </LineClamp>
-                    <EvaluatorTemplateCardFooter
-                      evaluatorKind={getCustomEvaluatorKind(evaluator)}
-                    />
                   </EvaluatorTemplateCard>
                 );
               })}
@@ -630,6 +724,7 @@ function EvaluatorGallery() {
                 className="project-evaluator-gallery__template-category-section"
               >
                 <Header className="project-evaluator-gallery__template-category-header">
+                  <EvaluatorCategoryIcon section={category} isWrapped />
                   <Text
                     ref={(element) => {
                       if (element) {
@@ -667,18 +762,20 @@ function EvaluatorGallery() {
                     id={getTemplateItemKey(template.name)}
                     textValue={template.name}
                   >
-                    <Text size="S" weight="heavy">
-                      {template.name}
-                    </Text>
+                    <Flex direction="column" gap="size-0">
+                      <Text size="S" weight="heavy">
+                        {template.name}
+                      </Text>
+                      <EvaluatorTemplateCardSubtitle
+                        evaluatorKind="LLM"
+                        evaluationTargets={[template.scope ?? "SPAN"]}
+                      />
+                    </Flex>
                     <LineClamp lines={3}>
-                      <Text size="XS" color="text-700">
+                      <Text size="S" color="text-700">
                         {template.description}
                       </Text>
                     </LineClamp>
-                    <EvaluatorTemplateCardFooter
-                      evaluatorKind="LLM"
-                      evaluationTargets={[template.scope ?? "SPAN"]}
-                    />
                   </EvaluatorTemplateCard>
                 ))}
               </ListBoxSection>
@@ -748,7 +845,7 @@ function EvaluatorGalleryAddMenu({
   );
 }
 
-function EvaluatorTemplateCardFooter({
+function EvaluatorTemplateCardSubtitle({
   evaluatorKind,
   evaluationTargets,
 }: {
@@ -758,36 +855,20 @@ function EvaluatorTemplateCardFooter({
     ...ProjectEvaluatorTarget[],
   ];
 }) {
+  const kindLabel = evaluatorKind === "LLM" ? "LLM" : "Code";
+  const targetsLabel = evaluationTargets
+    ?.map((target) => capitalize(formatEvaluationTargetPlural(target)))
+    .join(", ");
+  const summary = [kindLabel, targetsLabel].filter(Boolean).join(" • ");
   return (
-    <Flex
-      className="project-evaluator-gallery__template-card-footer"
-      direction="row"
-      alignItems="center"
-      gap="size-100"
-      wrap
+    <Text
+      className="project-evaluator-gallery__template-card-subtitle"
+      size="XS"
+      color="text-500"
+      fontFamily="mono"
     >
-      <Flex className="project-evaluator-gallery__template-kind">
-        <EvaluatorKindToken kind={evaluatorKind} size="S" />
-      </Flex>
-      {evaluationTargets ? (
-        <Flex
-          className="project-evaluator-gallery__template-targets"
-          direction="row"
-          gap="size-50"
-          wrap
-        >
-          {evaluationTargets.map((target) => (
-            <Badge
-              key={target}
-              size="S"
-              title={`Evaluates ${formatEvaluationTargetPlural(target)}`}
-            >
-              {capitalize(formatEvaluationTargetPlural(target))}
-            </Badge>
-          ))}
-        </Flex>
-      ) : null}
-    </Flex>
+      {summary}
+    </Text>
   );
 }
 
@@ -836,12 +917,9 @@ function CustomEvaluatorDetailsHeader({
 }) {
   return (
     <Flex direction="column" gap="size-100">
-      <Heading level={2}>{evaluator.name}</Heading>
-      <Flex direction="row" gap="size-75" wrap>
-        <EvaluatorKindToken
-          kind={evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE"}
-          size="S"
-        />
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <EvaluatorCategoryIcon section={CUSTOM_EVALUATORS_SECTION} />
+        <Heading level={2}>{evaluator.name}</Heading>
       </Flex>
       <Text
         size="S"
@@ -1015,6 +1093,18 @@ function LlmCustomEvaluatorDetails({
   return (
     <Flex direction="column" gap="size-200" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
+      <dl className="project-evaluator-gallery__definition-list">
+        <div>
+          <dt>
+            <Text size="XS" color="text-500">
+              Type
+            </Text>
+          </dt>
+          <dd>
+            <Text size="S">LLM</Text>
+          </dd>
+        </div>
+      </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <EvaluatorPromptPreview messages={messages} />
@@ -1038,6 +1128,16 @@ function CodeCustomEvaluatorDetails({
     <Flex direction="column" gap="size-200" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <dl className="project-evaluator-gallery__definition-list">
+        <div>
+          <dt>
+            <Text size="XS" color="text-500">
+              Type
+            </Text>
+          </dt>
+          <dd>
+            <Text size="S">Code</Text>
+          </dd>
+        </div>
         <div>
           <dt>
             <Text size="XS" color="text-500">
@@ -1152,15 +1252,13 @@ function EvaluatorTemplateDetails({
 }) {
   const choices = getProjectEvaluatorTemplateChoices(template);
   const messages = getProjectEvaluatorTemplateMessages(template);
+  const category = getGalleryCategory(template.category);
   return (
     <Flex direction="column" gap="size-200" height="100%">
       <Flex direction="column" gap="size-100">
-        <Heading level={2}>{template.name}</Heading>
-        <Flex direction="row" gap="size-75" wrap>
-          <EvaluatorKindToken kind="LLM" size="S" />
-          <Badge size="S">
-            {getProjectEvaluatorTemplateCategoryLabel(template.category)}
-          </Badge>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <EvaluatorCategoryIcon section={category} />
+          <Heading level={2}>{template.name}</Heading>
         </Flex>
         {template.details ? (
           <Text size="S" color="text-700">
@@ -1168,7 +1266,17 @@ function EvaluatorTemplateDetails({
           </Text>
         ) : null}
       </Flex>
-      <dl className="project-evaluator-gallery__definition-list">
+      <dl className="project-evaluator-gallery__definition-list project-evaluator-gallery__definition-list--even">
+        <div>
+          <dt>
+            <Text size="XS" color="text-500">
+              Type
+            </Text>
+          </dt>
+          <dd>
+            <Text size="S">LLM</Text>
+          </dd>
+        </div>
         <div>
           <dt>
             <Text size="XS" color="text-500">
@@ -1177,7 +1285,9 @@ function EvaluatorTemplateDetails({
           </dt>
           <dd>
             <Text size="S">
-              {template.scope ? capitalize(template.scope.toLowerCase()) : "—"}
+              {template.scope
+                ? capitalize(formatEvaluationTargetPlural(template.scope))
+                : "—"}
             </Text>
           </dd>
         </div>
@@ -1291,6 +1401,22 @@ function EvaluatorDetailsError() {
     </Text>
   );
 }
+
+const categoryMenuIconCSS = css`
+  flex: none;
+  font-size: var(--global-font-size-s);
+`;
+
+const categoryHeadingIconCSS = css`
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--global-dimension-size-400);
+  height: var(--global-dimension-size-400);
+  border-radius: var(--global-rounding-medium);
+  font-size: var(--global-font-size-s);
+`;
 
 const compactCategoryListCSS = css`
   gap: var(--global-dimension-size-100);
@@ -1455,6 +1581,9 @@ const galleryCSS = css`
 
   .project-evaluator-gallery__template-category-header {
     grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
   }
 
   .project-evaluator-gallery__template-category-heading {
@@ -1463,23 +1592,14 @@ const galleryCSS = css`
     scroll-margin-top: var(--global-dimension-size-100);
   }
 
-  .project-evaluator-gallery__template-card-footer {
+  .project-evaluator-gallery__template-card-subtitle {
     width: 100%;
-    margin-top: auto;
-  }
-
-  .project-evaluator-gallery__template-kind {
-    flex: none;
-  }
-
-  .project-evaluator-gallery__template-targets {
-    min-width: 0;
   }
 
   .project-evaluator-gallery__definition-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--global-dimension-size-100);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--global-dimension-size-100) var(--global-dimension-size-300);
     margin: 0;
 
     div {
@@ -1490,6 +1610,13 @@ const galleryCSS = css`
 
     dd {
       margin: 0;
+    }
+  }
+
+  .project-evaluator-gallery__definition-list--even {
+    > div {
+      flex: 1 1 0;
+      min-width: 0;
     }
   }
 
