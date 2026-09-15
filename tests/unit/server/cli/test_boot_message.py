@@ -98,26 +98,26 @@ def test_render_uses_uniform_dividers_and_places_tracing_section_last() -> None:
     assert "Tracing" in headers[-1]
 
 
-def test_render_omits_skills_section_without_external_skills() -> None:
-    rendered = _boot_message().render(unicode_ok=True)
+def test_render_marks_external_skills_not_configured_by_default() -> None:
+    lines = _boot_message().render(unicode_ok=False).splitlines()
 
-    assert "Skills" not in rendered
+    assert "  External skills     Not configured" in lines
+    assert not any("Skills visibility" in line for line in lines)
 
 
-def test_render_lists_every_external_skills_path() -> None:
+def test_render_lists_every_external_skills_path_under_server() -> None:
     message = replace(
         _boot_message(),
         skills_paths=["/opt/skills/team", "/home/me/.agents/skills"],
         skills_visibility="explicit",
     )
 
-    rendered = message.render(unicode_ok=True)
+    lines = message.render(unicode_ok=True).splitlines()
 
-    lines = rendered.splitlines()
-    assert any("Skills" in line and line.startswith("──") for line in lines)
-    assert "  External skills     /opt/skills/team" in lines
+    server_header = next(i for i, line in enumerate(lines) if "Server" in line)
+    assert lines.index("  External skills     /opt/skills/team") > server_header
     assert "                      /home/me/.agents/skills" in lines
-    assert "  Visibility          explicit" in lines
+    assert "  Skills visibility   explicit" in lines
 
 
 def test_render_omits_development_section_by_default() -> None:
