@@ -257,6 +257,22 @@ def test_union_members_are_reached_through_the_union_field() -> None:
     assert "# reached through:" in lookup(index, "B")
 
 
+def test_cut_member_stubs_explain_their_marker() -> None:
+    fields = " ".join(f"f{i}: Int" for i in range(14))
+    schema = build_schema(
+        f"type Query {{ big: Big, small: Small }}\ntype Big {{ {fields} }}\ntype Small {{ a: Int }}"
+    )
+    index = build_index(schema)
+    text = lookup(index, "Query")
+    assert "# Big: f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11 +2" in text
+    assert "# Small: a" in text
+    assert (
+        text.splitlines()[-1]
+        == "# +N counts members not shown; look up that type to see every one."
+    )
+    assert "+N" not in lookup(index, "Big")
+
+
 def test_enums_returned_by_fields_say_so() -> None:
     schema = build_schema(
         "type Query { status: Status, items(sort: Dir): [Int] }\n"

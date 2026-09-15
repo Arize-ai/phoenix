@@ -702,6 +702,17 @@ def _stub(t: GraphQLNamedType, limit: int = 12) -> str:
     return f"# {t.name}: {shown}"
 
 
+_STUB_NOTE = "# +N counts members not shown; look up that type to see every one."
+
+
+def _stubs(types: Iterable[GraphQLNamedType]) -> list[str]:
+    """One stub per type, and the key to the ``+N`` marker when any stub is cut."""
+    lines = [_stub(t) for t in types]
+    if any(_stub(t) != _stub(t, limit=len(_member_names(t))) for t in types):
+        lines.append(_STUB_NOTE)
+    return lines
+
+
 def _neighbors(index: Index, t: _ObjectLike) -> Iterator[GraphQLNamedType]:
     seen: set[str] = set()
     for f in t.fields.values():
@@ -801,7 +812,7 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
             elif sources := index.returned_by.get(u.name):
                 parts.append(f"# returned by {', '.join(sources[:4])}")
             if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
-                parts.extend(_stub(n) for n in _neighbors(index, t))
+                parts.extend(_stubs(list(_neighbors(index, t))))
     elif u.kind == "mutation":
         mutation = schema.mutation_type
         assert mutation is not None
@@ -812,7 +823,7 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
         parts.extend(
             print_type(t) for t in _input_closure(get_named_type(a.type) for a in f.args.values())
         )
-        parts.append(_stub(get_named_type(f.type)))
+        parts.extend(_stubs([get_named_type(f.type)]))
     else:
         parts = [f"{u.parent}.{u.signature}"]
         if u.description:
