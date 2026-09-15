@@ -30,7 +30,6 @@ EditPermission = Literal["manual", "bypass"]
 Message = dict[str, Any]
 Part = dict[str, Any]
 ApprovalPolicy = Callable[[Part], bool]
-"""Decides whether a tool part in ``approval-requested`` state is approved."""
 
 _SSE_DATA_PREFIX = "data: "
 _SSE_DONE = "data: [DONE]"
@@ -217,7 +216,6 @@ class AgentSessionChatClient:
         record_local_traces: bool = False,
         export_remote_traces: bool = False,
     ) -> Turn:
-        """Submit ``instruction`` and answer approvals until the assistant turn settles."""
         transcript = await self.list_messages(session_id)
         last_message_id = transcript[-1]["id"] if transcript else None
         base_body = {

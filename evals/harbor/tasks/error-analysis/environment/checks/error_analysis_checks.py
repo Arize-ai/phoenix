@@ -14,7 +14,7 @@ import re
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 DATA_DIR = Path(os.environ.get("PHOENIX_EVAL_DATA_DIR", "/data"))
 AGENT_LOGS_DIR = Path(os.environ.get("PHOENIX_EVAL_AGENT_LOGS_DIR", "/logs/agent"))
@@ -23,6 +23,8 @@ JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "claude-sonnet-5")
 WORKSPACE_ROOT = "/home/user/workspace"
 SIDECAR_DIR = f"{WORKSPACE_ROOT}/.px/coding"
 NOTE_NAME = "note"
+
+EntityKind = Literal["span", "trace", "session"]
 
 
 def load_truth() -> dict[str, Any]:
@@ -50,7 +52,6 @@ def answer_text(step: int) -> str:
 
 
 def agent_session_rowid(step: int) -> int | None:
-    """The agent session the chat client used for ``step``; ``None`` when unknown."""
     path = step_dir(step) / "session_id"
     if not path.exists():
         return None
@@ -66,13 +67,13 @@ def agent_session_rowid(step: int) -> int | None:
 
 @dataclass
 class Annotation:
-    kind: str  # span | trace | session
+    kind: EntityKind
     name: str
     label: str | None
     explanation: str | None
     identifier: str
-    otel_id: str  # span id, trace id, or session id string
-    node_id: str  # Phoenix GlobalID for the annotated entity
+    otel_id: str
+    node_id: str
     trace_ids: set[str] = field(default_factory=set)
 
     @property
@@ -245,9 +246,8 @@ def load_sidecars(
         return {}
     from bashkit import Bash, BuiltinContext, BuiltinResult
 
-    async def phoenix_gql_stub(
-        _ctx: BuiltinContext,
-    ) -> BuiltinResult:  # the snapshot records this builtin; restoring needs a stand-in
+    async def phoenix_gql_stub(_ctx: BuiltinContext) -> BuiltinResult:
+        """The snapshot records this builtin, so restoring it needs a stand-in."""
         return BuiltinResult(
             stdout="", stderr="phoenix-gql is unavailable in the verifier", exit_code=1
         )
@@ -307,6 +307,9 @@ def entities_mirrored(
 
 # --- LLM judge --------------------------------------------------------------------
 
+_JUDGE_ATTEMPTS = 3
+_JUDGE_MAX_TOKENS = 8000  # the judge model may think before it answers
+
 
 def judge(system: str, user: str) -> dict[str, Any] | None:
     """Ask the judge model for a JSON verdict; ``None`` when no judge is available."""
@@ -316,10 +319,10 @@ def judge(system: str, user: str) -> dict[str, Any] | None:
 
     client = anthropic.Anthropic()
     text = ""
-    for _attempt in range(3):
+    for _attempt in range(_JUDGE_ATTEMPTS):
         response = client.messages.create(
             model=JUDGE_MODEL,
-            max_tokens=8000,  # the judge model may think first; leave room for the answer
+            max_tokens=_JUDGE_MAX_TOKENS,
             system=system + "\n\nRespond with a single JSON object and nothing else.",
             messages=[{"role": "user", "content": user}],
         )
@@ -333,7 +336,10 @@ def judge(system: str, user: str) -> dict[str, Any] | None:
                 return verdict
             except json.JSONDecodeError:
                 continue
-    return {"error": "judge returned no usable JSON after 3 attempts", "raw": text[:500]}
+    return {
+        "error": f"judge returned no usable JSON after {_JUDGE_ATTEMPTS} attempts",
+        "raw": text[:500],
+    }
 
 
 def as_fraction(value: Any) -> float:

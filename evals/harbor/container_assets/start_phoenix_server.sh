@@ -15,8 +15,7 @@ if is_healthy; then
   exit 0
 fi
 mkdir -p "$STATE_DIR"
-# HARBOR_PHOENIX_* come from the task's environment.env; the agent requests
-# remote trace export whenever the endpoint is set.
+# HARBOR_PHOENIX_* come from the task's environment.env.
 # The docs MCP server reaches out to an external host on every turn; the eval
 # scores PXI on the fixture data, so it runs without docs tools.
 PHOENIX_ALLOW_EXTERNAL_RESOURCES=false \
