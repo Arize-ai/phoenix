@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional, cast
+from typing import Callable, Optional, cast
 
 import strawberry
 from fastapi import Request
@@ -13,6 +13,7 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import (
@@ -363,13 +364,17 @@ def _validate_project_evaluator_filter(
     but rejected by the target's own language would leave the evaluator producing
     nothing.
     """
+    validate: Callable[[str], object]
+    if evaluation_target is EvaluationTarget.SPAN:
+        validate = validate_span_filter_condition
+    elif evaluation_target is EvaluationTarget.SESSION:
+        validate = validate_session_filter_condition
+    elif evaluation_target is EvaluationTarget.TRACE:
+        validate = validate_trace_filter_condition
+    else:
+        assert_never(evaluation_target)
     try:
-        if evaluation_target is EvaluationTarget.SESSION:
-            validate_session_filter_condition(filter_condition)
-        elif evaluation_target is EvaluationTarget.TRACE:
-            validate_trace_filter_condition(filter_condition)
-        else:
-            validate_span_filter_condition(filter_condition)
+        validate(filter_condition)
     except Exception:
         raise BadRequest("Invalid filter condition: unable to compile for supported databases")
 
