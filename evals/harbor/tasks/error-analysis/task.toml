@@ -1,0 +1,50 @@
+schema_version = "1.3"
+multi_step_reward_strategy = "mean"
+artifacts = ["/var/lib/phoenix-eval/server.log"]
+
+[task]
+name = "arize/phoenix-error-analysis"
+description = "PXI open-codes a project's traces into notes, then axial-codes them into per-dimension annotation configs, through the agent session chat route"
+keywords = ["pxi", "agent_session_chat", "error_analysis"]
+
+[environment]
+os = "linux"
+cpus = 2
+memory_mb = 4096
+# The task itself needs nothing from outside: every host is added at a narrower level.
+# Each agent entry in the job file (or --allow-agent-host) names its own LLM provider,
+# which applies during agent.run() only; the job's environment.extra_allowed_hosts (or
+# --allow-environment-host) carries the docs hosts and, when exporting, the results
+# Phoenix host. Keeping hosts out of this file keeps the task digest, and so the Phoenix
+# dataset version, stable across providers and operators.
+network_mode = "allowlist"
+build_timeout_sec = 1200.0
+
+[environment.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}"
+HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}"
+HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-}"
+
+# The verifier's LLM judge (error_analysis_checks.judge) calls Anthropic. The agent-phase
+# hosts do not carry over to verification, so the judge's host is granted here, for the
+# verifier phase only.
+[verifier]
+network_mode = "allowlist"
+allowed_hosts = ["api.anthropic.com"]
+
+[[steps]]
+name = "step_01_open_coding"
+min_reward = 1.0
+[steps.agent]
+timeout_sec = 1800.0
+[steps.verifier]
+timeout_sec = 300.0
+
+[[steps]]
+name = "step_02_axial_coding"
+[steps.agent]
+timeout_sec = 1800.0
+[steps.verifier]
+timeout_sec = 300.0

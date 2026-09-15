@@ -1,0 +1,46 @@
+# Compare the three Phoenix surfaces on the error-analysis task in one Harbor job.
+# Run from the repository root:
+#   make harbor-compare
+# Add the Phoenix plugin to record one experiment per agent on the same dataset:
+#   make harbor-compare HARBOR_ARGS='--plugin arize-phoenix --plugin-kwarg endpoint=... \
+#     --plugin-kwarg "experiment_name_template={job.name} · {agent.name}"'
+# Network: the task allows nothing by itself. Each agent names its LLM provider host,
+# granted during its run only; the environment grants the Phoenix docs hosts to every
+# agent for the whole trial. To export PXI traces, add the results Phoenix host with
+# HARBOR_ARGS='--allow-environment-host <host> ...'.
+tasks:
+  - path: evals/harbor/tasks/error-analysis
+agents:
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: anthropic/claude-fable-5-1
+    extra_allowed_hosts: [api.anthropic.com]
+  - name: claude-code-mcp
+    import_path: evals.harbor.agents.claude_code_agents:ClaudeCodeMcpAgent
+    model_name: anthropic/claude-fable-5-1
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+    kwargs:
+      version: "2.1.267"
+  - name: claude-code-cli
+    import_path: evals.harbor.agents.claude_code_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-fable-5-1
+    extra_allowed_hosts: [api.anthropic.com]
+    resume_trajectory: true
+    kwargs:
+      version: "2.1.267"
+    skills:
+      - .agents/skills/phoenix-cli
+      - .agents/skills/phoenix-error-analysis
+      - .agents/skills/phoenix-evals
+      - .agents/skills/phoenix-tracing
+environment:
+  type: daytona
+  # PXI's docs tool and `px docs` read the Phoenix docs: the Mintlify MCP server and the
+  # docs site. Delete this line for a sealed run.
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+retry:
+  max_retries: 1

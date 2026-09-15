@@ -1,4 +1,4 @@
-# Phoenix headless agent Harbor evaluation
+# PXI Harbor evaluation
 
 ## Run
 
@@ -8,23 +8,61 @@ Install the Phoenix client with its Harbor integration on Python 3.12 or newer:
 pip install "arize-phoenix-client[harbor]"
 ```
 
-Build Phoenix and stage the wheel and container assets (from the repository root):
+Build Phoenix and stage each task's build context (from the repository root): the wheel,
+the container assets, and the task's fixture database, which is baked into the image from
+`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`. The same command packs the px
+CLI and its workspace dependencies from source into `dist/phoenix-cli/`, outside every
+build context, so the `claude-code-cli` agent tests the checkout's CLI without exposing it
+to the other agents.
 
 ```bash
 make harbor-stage-environments
 ```
 
-Validate with the bundled oracle:
+Each task keeps its grading material under `tests/`, which Harbor uploads only when the
+verifier runs, so the agent never sees the ground truth or the checks.
+
+Run one agent on the task:
 
 ```bash
-make harbor-oracle
+make harbor-run                                # PXI through the chat route
+make harbor-run HARBOR_AGENT=claude-code-mcp   # Claude Code + the Phoenix MCP server
+make harbor-run HARBOR_AGENT=claude-code-cli   # Claude Code + the px CLI and public skills
 ```
 
-Run the real headless-agent adapter:
+Run all three on the error-analysis task in one Daytona job, one trial per agent:
 
 ```bash
-make harbor-run
+make harbor-compare
 ```
+
+## Agents
+
+Three agents run against the same environment and verifiers, so reward differences are
+attributable to the surface:
+
+| Agent | Surface | How it reaches Phoenix |
+| --- | --- | --- |
+| `phoenix-chat-agent` | PXI inside the Phoenix server | The agent session chat route; sidecars live in the PXI virtual shell |
+| `claude-code-mcp` | Claude Code | The remote MCP server at `/mcp`, which also serves the error-analysis skill |
+| `claude-code-cli` | Claude Code | `@arizeai/phoenix-cli` installed from the `dist/phoenix-cli/` tarballs with `PHOENIX_ENDPOINT` set, plus the four public skills from `.agents/skills/` passed with `--skill` |
+
+The Claude Code agents are subclasses of Harbor's installed `claude-code` agent in
+`evals/harbor/agents/claude_code_agents.py`. They run with Harbor's default
+`bypassPermissions`, matching the chat agent's auto-approved tool calls, and with
+`--resume-trajectory` so step 2 continues step 1's conversation. Claude Code only speaks
+the Anthropic API, so pass an `anthropic/` model.
+
+Every agent hands its work to the verifier through Harbor's own ATIF trajectory at
+`/logs/agent/trajectory.json`, which Harbor writes for Claude Code after each step and which
+`phoenix-chat-agent` builds from the turn's transcript in `populate_context_post_run`. The
+verifier takes the final reply from the last agent step, counts tool calls from the steps, and
+finds the PXI agent session through the trajectory's `session_id`. Sidecars are read from
+`/app/.px/coding` on disk when present and from the PXI snapshot otherwise.
+
+The `claude-code-cli` agent uploads the packed tarballs into its own sandbox during install
+and runs `evals/harbor/agents/install_phoenix_cli.sh`, which turns each tarball into an npm
+override so the workspace packages resolve to the local builds.
 
 Test the Harbor plugin against a local Phoenix server with the direct task path used by
 the PXI workflow:
@@ -34,11 +72,12 @@ make dev-backend
 # In another terminal:
 uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
-uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -p evals/harbor/tasks/regression-triage -a oracle -e docker \
+PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
+  harbor run -p evals/harbor/tasks/error-analysis \
+  -a evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent -m openai/gpt-6-astra -e docker \
   --plugin arize-phoenix \
   --plugin-kwarg endpoint=http://127.0.0.1:6006 \
-  --plugin-kwarg trace_mode=none \
+  --plugin-kwarg trace_mode=null \
   --yes
 ```
 
@@ -81,10 +120,17 @@ configuration digest, not by its display name. Two jobs may use the same exact n
 treated as the same experiment. Include `{job.name}` or `{job.id}` when those jobs should also be
 easy to distinguish by name in Phoenix.
 
-Both trial targets accept overrides, e.g.:
+`make harbor-compare` takes plugin flags through `HARBOR_ARGS`:
 
 ```bash
-make harbor-run HARBOR_TASK=evals/harbor/tasks/regression-triage \
+make harbor-compare HARBOR_ARGS='--plugin arize-phoenix --plugin-kwarg endpoint=http://127.0.0.1:6006 \
+  --plugin-kwarg "experiment_name_template={job.name} · {agent.name}"'
+```
+
+The trial targets accept overrides, e.g.:
+
+```bash
+make harbor-run HARBOR_TASK=evals/harbor/tasks/error-analysis \
   HARBOR_MODEL=anthropic/claude-sonnet-4-5 \
   HARBOR_ENV=docker \
   HARBOR_ATTEMPTS=1
@@ -104,8 +150,35 @@ export HARBOR_PHOENIX_API_KEY=...
 export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ```
 
-## Publish fixtures
+The task runs under Harbor's allowlist network policy, so grant the collector's host for
+the trial or the export is silently dropped: `HARBOR_ARGS='--allow-environment-host <host>'`
+for `harbor-compare`, or the same flag on a direct `harbor run`.
+
+## Network allowlists
+
+The task allows nothing by itself; every host is granted at the narrowest level that
+needs it, so `task.toml` (and with it the Phoenix dataset version) never changes for a
+new provider or operator.
+
+| Level | Set in | Applies to | Used for |
+| --- | --- | --- | --- |
+| Task baseline | `[environment]` in `task.toml` | the whole trial | nothing: `network_mode = "allowlist"` with no hosts |
+| Verifier phase | `[verifier]` in `task.toml` | verification only | the LLM judge's provider |
+| Job environment | `environment.extra_allowed_hosts` in the job file, or `--allow-environment-host` | the whole trial, every agent | the Phoenix docs hosts; the results Phoenix host when exporting |
+| Agent | `extra_allowed_hosts` on an agent entry, or `--allow-agent-host` | that agent's run only | the agent's LLM provider |
+
+`make harbor-run` derives the provider host from `HARBOR_MODEL` and grants the docs hosts
+(`HARBOR_DOCS_HOSTS`, empty to run sealed); `make harbor-compare` reads the same from
+`jobs/error-analysis.yaml`. Agent-level hosts are not in effect during agent install, so
+anything an agent installs at that point must already be in the image or in the upload.
+
+## Fixtures
+
+The error-analysis fixture is hand-prepared. To replace it, upload the new database and
+restage:
 
 ```bash
-make harbor-publish-fixtures
+gcloud storage cp --cache-control=no-store phoenix.db \
+  gs://arize-phoenix-assets/evals/harbor/error-analysis/phoenix.db
+make harbor-stage-environments
 ```

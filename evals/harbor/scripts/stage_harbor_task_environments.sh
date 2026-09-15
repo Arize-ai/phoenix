@@ -1,23 +1,40 @@
 #!/bin/bash
 # Build Phoenix and stage the generated build-context artifacts into every
-# task's environment/ directory.
+# task's environment/ directory: the wheel, the container assets, and the
+# task's fixture database from cloud storage. Also pack the px CLI and its
+# workspace dependencies from source into dist/phoenix-cli/, outside the build
+# contexts: the claude-code-cli agent uploads them into its own sandbox at
+# install time, so the other agents never see the CLI.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 CONTAINER_ASSETS="$ROOT/evals/harbor/container_assets"
 TASKS_DIR="$ROOT/evals/harbor/tasks"
+FIXTURES_URL="https://storage.googleapis.com/arize-phoenix-assets/evals/harbor"
+CLI_TARBALLS_DIR="$ROOT/dist/phoenix-cli"
+# @arizeai/phoenix-cli plus the workspace packages it depends on, transitively.
+CLI_PACKAGES="phoenix-config phoenix-otel phoenix-client phoenix-cli"
 
 # Clear stale wheels first: `uv pip install /wheels/*.whl` in the task Dockerfile
 # would otherwise see the previous version alongside the new one.
 rm -f "$ROOT"/dist/arize_phoenix-*.whl
 uv build --wheel
 
+rm -rf "$CLI_TARBALLS_DIR"
+mkdir -p "$CLI_TARBALLS_DIR"
+for package in $CLI_PACKAGES; do
+  (cd "$ROOT/js" && pnpm --filter "@arizeai/$package" run build >/dev/null \
+    && pnpm --filter "@arizeai/$package" pack --pack-destination "$CLI_TARBALLS_DIR" >/dev/null)
+done
+
 staged=0
 for environment in "$TASKS_DIR"/*/environment; do
   [ -d "$environment" ] || continue
-  rm -rf "$environment/wheels"
-  mkdir -p "$environment/wheels"
+  task=$(basename "$(dirname "$environment")")
+  rm -rf "$environment/wheels" "$environment/container_assets" "$environment/data"
+  mkdir -p "$environment/wheels" "$environment/data"
   cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
-  cp "$CONTAINER_ASSETS/run_headless_agent.py" "$CONTAINER_ASSETS/fetch_fixtures.py" "$environment/"
+  rsync -a --exclude __pycache__ "$CONTAINER_ASSETS/" "$environment/container_assets/"
+  curl -fsSL "$FIXTURES_URL/$task/phoenix.db" -o "$environment/data/phoenix.db"
   staged=$((staged + 1))
 done
 
@@ -26,4 +43,4 @@ if [ "$staged" -eq 0 ]; then
   exit 1
 fi
 
-echo "Staged build-context artifacts for $staged task(s)."
+echo "Staged build-context artifacts for $staged task(s) and packed the px CLI into dist/phoenix-cli/."
