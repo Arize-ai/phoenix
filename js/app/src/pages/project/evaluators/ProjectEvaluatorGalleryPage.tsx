@@ -24,6 +24,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
 import {
   getOptimizationBounds,
   getPositiveOptimization,
@@ -67,6 +68,7 @@ import {
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
 const OTHER_CATEGORY = "other" as const;
@@ -701,7 +703,7 @@ function EvaluatorGallery() {
                       <Text size="S" weight="heavy">
                         {evaluator.name}
                       </Text>
-                      <EvaluatorTemplateCardSubtitle
+                      <EvaluatorTypeSummary
                         evaluatorKind={getCustomEvaluatorKind(evaluator)}
                       />
                     </Flex>
@@ -766,7 +768,7 @@ function EvaluatorGallery() {
                       <Text size="S" weight="heavy">
                         {template.name}
                       </Text>
-                      <EvaluatorTemplateCardSubtitle
+                      <EvaluatorTypeSummary
                         evaluatorKind="LLM"
                         evaluationTargets={[template.scope ?? "SPAN"]}
                       />
@@ -845,7 +847,7 @@ function EvaluatorGalleryAddMenu({
   );
 }
 
-function EvaluatorTemplateCardSubtitle({
+function EvaluatorTypeSummary({
   evaluatorKind,
   evaluationTargets,
 }: {
@@ -862,7 +864,7 @@ function EvaluatorTemplateCardSubtitle({
   const summary = [kindLabel, targetsLabel].filter(Boolean).join(" • ");
   return (
     <Text
-      className="project-evaluator-gallery__template-card-subtitle"
+      className="project-evaluator-gallery__evaluator-type-summary"
       size="XS"
       color="text-500"
       fontFamily="mono"
@@ -993,7 +995,7 @@ function EvaluatorInputSummary({
       <Text elementType="h3" size="S" weight="heavy">
         Inputs
       </Text>
-      <List size="S" css={inputListCSS}>
+      <List size="S" css={plainDetailsListCSS}>
         {inputs.map((input) => (
           <ListItem key={input.name}>
             <code css={inputNameCSS}>{input.name}</code>
@@ -1020,7 +1022,7 @@ function AnnotationValues({
     readonly label: string;
     readonly score: number | null;
   }>;
-  optimizationDirection: string;
+  optimizationDirection: EvaluatorOptimizationDirection;
 }) {
   const optimizationBounds = getOptimizationBounds({
     annotationType: "CATEGORICAL",
@@ -1029,38 +1031,46 @@ function AnnotationValues({
   });
   return (
     <Flex direction="column" gap="size-75">
-      <Text elementType="h3" size="S" weight="heavy">
-        Annotation values
-      </Text>
-      <div css={[detailsSectionWellCSS, listSectionWellCSS]}>
-        <List size="S">
-          {values.map(({ label, score }) => (
-            <ListItem key={label}>
-              <Flex
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                gap="size-100"
-              >
-                <Text size="S">{label}</Text>
-                <Text size="XS" color="text-500">
-                  <AnnotationScoreText
-                    elementType="span"
-                    fontFamily="mono"
-                    size="XS"
-                    positiveOptimization={getPositiveOptimization({
-                      score,
-                      ...optimizationBounds,
-                    })}
-                  >
-                    {score ?? "—"}
-                  </AnnotationScoreText>
-                </Text>
-              </Flex>
-            </ListItem>
-          ))}
-        </List>
-      </div>
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="size-100"
+      >
+        <Text elementType="h3" size="S" weight="heavy">
+          Annotation values
+        </Text>
+        <OptimizationDirectionIndicator
+          optimizationDirection={optimizationDirection}
+        />
+      </Flex>
+      <List size="S" css={plainDetailsListCSS}>
+        {values.map(({ label, score }) => (
+          <ListItem key={label}>
+            <Flex
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              gap="size-100"
+            >
+              <Text size="S">{label}</Text>
+              <Text size="XS" color="text-500">
+                <AnnotationScoreText
+                  elementType="span"
+                  fontFamily="mono"
+                  size="XS"
+                  positiveOptimization={getPositiveOptimization({
+                    score,
+                    ...optimizationBounds,
+                  })}
+                >
+                  {score ?? "—"}
+                </AnnotationScoreText>
+              </Text>
+            </Flex>
+          </ListItem>
+        ))}
+      </List>
     </Flex>
   );
 }
@@ -1190,11 +1200,11 @@ function EvaluatorPromptPreview({
       <Text elementType="h3" size="S" weight="heavy">
         Prompt
       </Text>
-      <div css={detailsSectionWellCSS}>
+      <div css={[detailsSectionWellCSS, promptPreviewWellCSS]}>
         <ExpandableContent
           height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
           expandedBehavior="grow"
-          overlayBackgroundColor="var(--global-background-color-100)"
+          overlayBackgroundColor="var(--global-color-gray-100)"
         >
           <Flex direction="column" gap="size-150">
             {messages.map((message) => (
@@ -1251,11 +1261,17 @@ function EvaluatorTemplateDetails({
   const messages = getProjectEvaluatorTemplateMessages(template);
   const category = getGalleryCategory(template.category);
   return (
-    <Flex direction="column" gap="size-200" height="100%">
-      <Flex direction="column" gap="size-100">
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <EvaluatorCategoryIcon section={category} />
-          <Heading level={2}>{template.name}</Heading>
+    <Flex direction="column" gap="size-400" height="100%">
+      <Flex direction="column" gap="size-50">
+        <Flex direction="column" gap="size-25">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <EvaluatorCategoryIcon section={category} />
+            <Heading level={2}>{template.name}</Heading>
+          </Flex>
+          <EvaluatorTypeSummary
+            evaluatorKind="LLM"
+            evaluationTargets={[template.scope ?? "SPAN"]}
+          />
         </Flex>
         {template.details ? (
           <Text size="S" color="text-700">
@@ -1263,44 +1279,6 @@ function EvaluatorTemplateDetails({
           </Text>
         ) : null}
       </Flex>
-      <dl className="project-evaluator-gallery__definition-list project-evaluator-gallery__definition-list--even">
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Type
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">LLM</Text>
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Target
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">
-              {template.scope
-                ? capitalize(formatEvaluationTargetPlural(template.scope))
-                : "—"}
-            </Text>
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Optimization
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">
-              {capitalize(template.optimizationDirection.toLowerCase())}
-            </Text>
-          </dd>
-        </div>
-      </dl>
       <EvaluatorInputSummary
         inputs={(template.inputs ?? []).map((input) => ({
           name: input.name,
@@ -1346,11 +1324,11 @@ const detailsSectionWellCSS = css`
   padding: var(--global-dimension-size-150);
 `;
 
-const listSectionWellCSS = css`
-  padding: var(--global-dimension-size-50);
+const promptPreviewWellCSS = css`
+  background-color: var(--global-color-gray-100);
 `;
 
-const inputListCSS = css`
+const plainDetailsListCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-100);
@@ -1612,7 +1590,7 @@ const galleryCSS = css`
     scroll-margin-top: var(--global-dimension-size-100);
   }
 
-  .project-evaluator-gallery__template-card-subtitle {
+  .project-evaluator-gallery__evaluator-type-summary {
     width: 100%;
   }
 
@@ -1630,13 +1608,6 @@ const galleryCSS = css`
 
     dd {
       margin: 0;
-    }
-  }
-
-  .project-evaluator-gallery__definition-list--even {
-    > div {
-      flex: 1 1 0;
-      min-width: 0;
     }
   }
 
