@@ -496,11 +496,17 @@ class OnlineEvalProducer(DaemonTask):
     ) -> tuple[bool, int]:
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
-                span_ids = list(
-                    await session.scalars(
-                        project_evaluator.materializable_scan_stmt(low_exclusive, frontier)
+                try:
+                    span_ids = list(
+                        await session.scalars(
+                            project_evaluator.materializable_scan_stmt(low_exclusive, frontier)
+                        )
                     )
-                )
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Scan query failed for project evaluator "
+                        f"{project_evaluator.project_evaluator_id}"
+                    ) from exc
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
                 await self._insert_work_units(session, project_evaluator, admitted_span_ids)
@@ -588,8 +594,14 @@ class OnlineEvalProducer(DaemonTask):
         low_exclusive = max(watermark - self._backstop_lookback_span_ids - 1, 0)
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
-                stmt = project_evaluator.materializable_scan_stmt(low_exclusive, watermark)
-                span_ids = list(await session.scalars(stmt))
+                try:
+                    stmt = project_evaluator.materializable_scan_stmt(low_exclusive, watermark)
+                    span_ids = list(await session.scalars(stmt))
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Backstop scan query failed for project evaluator "
+                        f"{project_evaluator.project_evaluator_id}"
+                    ) from exc
                 sampled_span_ids = project_evaluator.sampled(span_ids)
                 admitted_span_ids = sampled_span_ids[:budget]
                 await self._insert_work_units(session, project_evaluator, admitted_span_ids)
