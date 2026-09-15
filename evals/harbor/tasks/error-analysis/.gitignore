@@ -1,0 +1,5 @@
+# Harbor hashes every file under environment/ into the task digest, which the Phoenix
+# plugin uses as the dataset version. The staged wheel and fixture database must not
+# change that version on every restage.
+environment/wheels/
+environment/data/
