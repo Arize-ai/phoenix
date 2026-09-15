@@ -2263,6 +2263,18 @@ export const getChatCompletionInput = ({
  * F_STRING / NONE) rather than hardcoding "NONE", so dataset-level variable
  * substitution still works.
  */
+/**
+ * Resolve an experiment name/description for the next dataset-backed run,
+ * preferring the scaffold value and falling back to the trimmed store value.
+ * An empty result becomes null so the server applies its generated default.
+ */
+function resolveNextExperimentField(
+  scaffoldValue: string | null | undefined,
+  storeValue: string | null | undefined
+): string | null {
+  return (scaffoldValue ?? storeValue?.trim()) || null;
+}
+
 export const getChatCompletionOverDatasetInput = ({
   playgroundStore,
   instanceId,
@@ -2355,8 +2367,14 @@ export const getChatCompletionOverDatasetInput = ({
     promptName: instance.prompt?.name,
     promptVersionId: instance.prompt?.version ?? null,
     createEphemeralExperiment: !recordExperiments,
-    experimentName: nextExperimentScaffold?.name ?? null,
-    experimentDescription: nextExperimentScaffold?.description ?? null,
+    experimentName: resolveNextExperimentField(
+      nextExperimentScaffold?.name,
+      playgroundDatasetState?.experimentName
+    ),
+    experimentDescription: resolveNextExperimentField(
+      nextExperimentScaffold?.description,
+      playgroundDatasetState?.experimentDescription
+    ),
     experimentMetadata: nextExperimentScaffold?.metadata ?? null,
     streamModelOutput: streaming,
     maxConcurrency: maxConcurrency ?? 10,

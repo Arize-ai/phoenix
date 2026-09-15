@@ -8,9 +8,13 @@ import {
   Alert,
   Button,
   Dialog,
+  DialogFooter,
   Flex,
+  Form,
   Icon,
   Icons,
+  Input,
+  Label,
   Menu,
   MenuItem,
   MenuTrigger,
@@ -18,6 +22,8 @@ import {
   ModalOverlay,
   Popover,
   Text,
+  TextArea,
+  TextField,
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
@@ -44,6 +50,7 @@ export enum ExperimentAction {
   TOGGLE_BASELINE = "TOGGLE_BASELINE",
   STOP_EXPERIMENT = "STOP_EXPERIMENT",
   RESUME_EXPERIMENT = "RESUME_EXPERIMENT",
+  EDIT_EXPERIMENT = "EDIT_EXPERIMENT",
   DELETE_EXPERIMENT = "DELETE_EXPERIMENT",
 }
 
@@ -75,6 +82,18 @@ type ExperimentActionMenuProps = ExperimentActionMenuBaseProps &
     | {
         canDeleteExperiment: false;
         onExperimentDeleted?: undefined;
+      }
+  ) &
+  (
+    | {
+        canEditExperiment: true;
+        experimentName: string;
+        experimentDescription: string | null;
+      }
+    | {
+        canEditExperiment?: false;
+        experimentName?: undefined;
+        experimentDescription?: undefined;
       }
   );
 
@@ -116,6 +135,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const credentials = useCredentialsContext((state) => state);
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
   const notify = useNotify();
   const notifyError = useNotifyError();
@@ -277,6 +297,24 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </MenuItem>
     );
   }
+  if (props.canEditExperiment) {
+    menuItems.push(
+      <MenuItem
+        key={ExperimentAction.EDIT_EXPERIMENT}
+        id={ExperimentAction.EDIT_EXPERIMENT}
+      >
+        <Flex
+          direction="row"
+          gap="size-75"
+          justifyContent="start"
+          alignItems="center"
+        >
+          <Icon svg={<Icons.Edit2 />} />
+          <Text>Edit</Text>
+        </Flex>
+      </MenuItem>
+    );
+  }
   if (props.canDeleteExperiment) {
     menuItems.push(
       <MenuItem
@@ -395,6 +433,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   });
                   break;
                 }
+                case ExperimentAction.EDIT_EXPERIMENT: {
+                  setIsEditDialogOpen(true);
+                  break;
+                }
                 case ExperimentAction.DELETE_EXPERIMENT: {
                   setIsDeleteDialogOpen(true);
                   break;
@@ -467,6 +509,15 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           </Dialog>
         </Modal>
       </ModalOverlay>
+      {props.canEditExperiment ? (
+        <EditExperimentDialog
+          experimentId={props.experimentId}
+          experimentName={props.experimentName}
+          experimentDescription={props.experimentDescription}
+          isOpen={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+        />
+      ) : null}
       {/* Metadata Dialog */}
       <ModalOverlay
         isDismissable
@@ -488,5 +539,158 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         </Modal>
       </ModalOverlay>
     </StopPropagation>
+  );
+}
+
+function normalizeDescription(value: string | null | undefined): string {
+  return (value ?? "").trim();
+}
+
+function EditExperimentDialog({
+  experimentId,
+  experimentName,
+  experimentDescription,
+  isOpen,
+  onOpenChange,
+}: {
+  experimentId: string;
+  experimentName: string;
+  experimentDescription: string | null;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+}) {
+  const notifySuccess = useNotifySuccess();
+  const [nameValue, setNameValue] = useState(experimentName);
+  const [descriptionValue, setDescriptionValue] = useState(
+    experimentDescription ?? ""
+  );
+  const [editError, setEditError] = useState<string | null>(null);
+  const [commitEditExperiment, isEditingExperiment] = useMutation(graphql`
+    mutation ExperimentActionMenuEditExperimentMutation(
+      $input: PatchExperimentInput!
+    ) {
+      patchExperiment(input: $input) {
+        experiment {
+          id
+          name
+          description
+        }
+      }
+    }
+  `);
+  const trimmedName = nameValue.trim();
+  const trimmedDescription = descriptionValue.trim();
+  const descriptionInput = trimmedDescription || null;
+  const isUnchanged =
+    trimmedName === experimentName &&
+    normalizeDescription(descriptionInput) ===
+      normalizeDescription(experimentDescription);
+  const isSaveDisabled = isEditingExperiment || !trimmedName || isUnchanged;
+
+  return (
+    <ModalOverlay
+      isDismissable
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          setNameValue(experimentName);
+          setDescriptionValue(experimentDescription ?? "");
+          setEditError(null);
+        }
+        onOpenChange(open);
+      }}
+    >
+      <Modal size="S">
+        <Dialog>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit experiment</DialogTitle>
+              <DialogTitleExtra>
+                <DialogCloseButton slot="close" />
+              </DialogTitleExtra>
+            </DialogHeader>
+            {editError ? (
+              <View paddingX="size-200" paddingTop="size-100">
+                <Alert variant="danger" banner>
+                  {editError}
+                </Alert>
+              </View>
+            ) : null}
+            <Form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (isSaveDisabled) {
+                  return;
+                }
+                setEditError(null);
+                commitEditExperiment({
+                  variables: {
+                    input: {
+                      experimentId,
+                      name: trimmedName,
+                      description: descriptionInput,
+                    },
+                  },
+                  onCompleted: () => {
+                    notifySuccess({
+                      title: "Experiment updated",
+                    });
+                    onOpenChange(false);
+                  },
+                  onError: (error) => {
+                    setEditError(
+                      getErrorMessagesFromRelayMutationError(error)?.[0] ??
+                        error.message
+                    );
+                  },
+                });
+              }}
+            >
+              <View padding="size-200">
+                <Flex direction="column" gap="size-100">
+                  <TextField
+                    value={nameValue}
+                    onChange={setNameValue}
+                    isDisabled={isEditingExperiment}
+                    isInvalid={!trimmedName}
+                    autoFocus
+                  >
+                    <Label>Name</Label>
+                    <Input />
+                    <Text slot="description">The name cannot be empty.</Text>
+                  </TextField>
+                  <TextField
+                    value={descriptionValue}
+                    onChange={setDescriptionValue}
+                    isDisabled={isEditingExperiment}
+                  >
+                    <Label>Description</Label>
+                    <TextArea />
+                  </TextField>
+                </Flex>
+              </View>
+              <DialogFooter>
+                <Button
+                  size="S"
+                  variant="default"
+                  onPress={() => onOpenChange(false)}
+                  isDisabled={isEditingExperiment}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="S"
+                  variant={isSaveDisabled ? "default" : "primary"}
+                  type="submit"
+                  isDisabled={isSaveDisabled}
+                >
+                  {isEditingExperiment ? "Saving..." : "Save"}
+                </Button>
+              </DialogFooter>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
