@@ -1,6 +1,10 @@
 # Runs task solutions through their verifiers without model calls.
+# The solutions call px, so the oracle uses the CLI image.
 # The launch command supplies the dataset.
 jobs_dir: evals/harbor/.jobs
 n_concurrent_trials: 2
+environment:
+  extra_docker_compose:
+    - evals/harbor/conditions/images/cli.yaml
 agents:
   - name: oracle

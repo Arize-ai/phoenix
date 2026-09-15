@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 _MARKUP = re.compile(r"[*`]")
 _INTEGER = re.compile(r"(?<![\w.])-?\d[\d,]*(?!\w|\.\d)")
@@ -21,9 +21,11 @@ _HEDGE = re.compile(
 
 
 def plain(text: object) -> str:
+    """Strip Markdown emphasis and collapse whitespace, keeping line breaks."""
     if not isinstance(text, str):
         return ""
-    return " ".join(_MARKUP.sub("", text).split())
+    lines = (" ".join(line.split()) for line in _MARKUP.sub("", text).splitlines())
+    return "\n".join(line for line in lines if line)
 
 
 def hedged(text: str) -> bool:
@@ -52,6 +54,41 @@ def match_number(answer: object, expected: float | int | str, places: int) -> bo
     return any(value.quantize(quantum, rounding=ROUND_HALF_UP) == target for value in numbers(text))
 
 
+_SENTENCE = re.compile(r"(?<=[.;!])\s+|\n+")
+
+
+def _alias_spans(text: str, aliases: Iterable[str]) -> list[tuple[int, int]]:
+    """Whole-word, case-insensitive occurrences of any alias in the text."""
+    spans: list[tuple[int, int]] = []
+    for alias in aliases:
+        pattern = r"(?<!\w)" + re.escape(plain(alias)) + r"(?!\w)"
+        spans.extend(match.span() for match in re.finditer(pattern, text, re.IGNORECASE))
+    return spans
+
+
+def _claims(
+    text: str,
+    aliases: Sequence[str],
+    candidates: Callable[[str], list[tuple[int, int, str]]],
+) -> list[str]:
+    """In each sentence that names the entity, the candidate nearest to its name.
+
+    Sentences end at ``.``, ``;``, ``!``, or a line break, so a value in a
+    neighbouring claim never competes with the value in this one.
+    """
+
+    def gap(anchor: tuple[int, int], candidate: tuple[int, int, str]) -> int:
+        return max(anchor[0] - candidate[1], candidate[0] - anchor[1], 0)
+
+    claims = []
+    for sentence in _SENTENCE.split(text):
+        anchors = _alias_spans(sentence, aliases)
+        found = candidates(sentence)
+        if anchors and found:
+            claims.append(min((gap(a, c), c[2]) for a in anchors for c in found)[1])
+    return claims
+
+
 def match_name(
     answer: object,
     groups: Sequence[Sequence[str]],
@@ -78,5 +115,59 @@ def match_name(
     return all(found) if require_all else any(found)
 
 
+def match_labeled_number(
+    answer: object,
+    labels: Mapping[str, tuple[Sequence[str], float | int | str]],
+    places: int,
+) -> bool:
+    """Each label's expected number is the expected number nearest to that label.
+
+    ``labels`` maps a label to its aliases and expected value. Only the expected
+    values count as candidates, so unrelated numbers such as span thresholds do
+    not compete, while another label's value sitting nearer fails the check.
+    Rejects reversed labels and answers that list the numbers without labels.
+    """
+    text = plain(answer)
+    if not labels or hedged(text):
+        return False
+    quantum = Decimal(10) ** -places
+    targets = {
+        label: str(Decimal(str(value)).quantize(quantum, rounding=ROUND_HALF_UP))
+        for label, (_, value) in labels.items()
+    }
+
+    def expected_numbers(sentence: str) -> list[tuple[int, int, str]]:
+        found = []
+        for match in _NUMBER.finditer(sentence):
+            value = Decimal(match.group().replace(",", "")).quantize(quantum, ROUND_HALF_UP)
+            if str(value) in targets.values():
+                found.append((match.start(), match.end(), str(value)))
+        return found
+
+    return all(
+        targets[label] in _claims(text, aliases, expected_numbers)
+        for label, (aliases, _) in labels.items()
+    )
+
+
+def match_entity_count(answer: object, aliases: Sequence[str], expected: int) -> bool:
+    """The integer nearest to the entity's name, in a sentence naming it, is the count.
+
+    Rejects answers where the expected number belongs to another entity's claim.
+    """
+    text = plain(answer)
+    if hedged(text):
+        return False
+
+    def all_integers(sentence: str) -> list[tuple[int, int, str]]:
+        return [
+            (match.start(), match.end(), str(int(match.group().replace(",", ""))))
+            for match in _INTEGER.finditer(sentence)
+        ]
+
+    return str(expected) in _claims(text, aliases, all_integers)
+
+
 def match_exact(answer: object, expected: str) -> bool:
-    return plain(answer) == expected.strip()
+    """The answer equals the expected text, ignoring case, emphasis, and end punctuation."""
+    return plain(answer).rstrip(".!").casefold() == expected.strip().casefold()

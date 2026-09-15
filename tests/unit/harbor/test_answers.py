@@ -34,7 +34,69 @@ def test_name_matches_whole_word_aliases() -> None:
     assert not answers.match_name("maybe PageDownTool", groups)
 
 
-def test_exact_trims_only() -> None:
+def test_exact_ignores_case_emphasis_and_end_punctuation() -> None:
     assert answers.match_exact("ok\n", "ok")
+    assert answers.match_exact("**OK**.", "ok")
     assert not answers.match_exact("okay", "ok")
-    assert not answers.match_exact("OK", "ok")
+    assert not answers.match_exact("ok ok", "ok")
+
+
+LABELS = {"short": (["short", "<15"], 0.7949), "long": (["long", "at least 40"], 14.6067)}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Short: 0.8%; Long: 14.6%",
+        "Short: 0.8%\nLong: 14.6%",
+        "Short traces had a 0.8% error rate, compared with 14.6% for long traces.",
+        "14.6% for long traces and 0.8% for short ones.",
+        "Long (at least 40 spans): 14.61% (312/2136). Short (<15): 0.79% (5/629).",
+    ],
+)
+def test_labeled_number_accepts_values_beside_their_labels(text: str) -> None:
+    assert answers.match_labeled_number(text, LABELS, places=1)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Short: 14.6%; Long: 0.8%",
+        "The two rates were 0.8% and 14.6%.",
+        "Short: 0.8%",
+        "Short: 0.8%; Long: about 14.6%",
+        "Short: 1.2%; Long: 14.6%",
+        "",
+    ],
+)
+def test_labeled_number_rejects_reversed_unlabelled_or_partial(text: str) -> None:
+    assert not answers.match_labeled_number(text, LABELS, places=1)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "FinderTool: 24 calls",
+        "24 calls to FinderTool",
+        "The most repeated tool is FinderTool, with 24 calls in one trace.",
+        "FinderTool was called 24 times in one trace; SearchInformationTool 20 in another.",
+        "SearchInformationTool: 20\nFinderTool: 24",
+    ],
+)
+def test_entity_count_accepts_count_nearest_the_entity(text: str) -> None:
+    assert answers.match_entity_count(text, ["FinderTool"], 24)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "FinderTool had 20 calls; SearchInformationTool had 24.",
+        "SearchInformationTool: 24 calls",
+        "FinderTool: 23 calls",
+        "FinderTool: 24 or 25 calls",
+        "24",
+        "",
+    ],
+)
+def test_entity_count_rejects_other_claims(text: str) -> None:
+    assert not answers.match_entity_count(text, ["FinderTool"], 24)

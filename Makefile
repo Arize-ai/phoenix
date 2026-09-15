@@ -574,7 +574,7 @@ BENCH_RUN = $(BENCH_VENV)/harbor run --config $(BENCH_DIR)/conditions/$(1).yaml 
 	--plugin arize-phoenix --plugin-kwarg dataset=phoenix-tools-$(SPLIT) \
 	--plugin-kwarg experiment_name=$(2) --job-name $(2) --n-attempts $(REPS) --yes
 
-$(BENCH_VENV)/harbor: $(BENCH_DIR)/pyproject.toml
+$(BENCH_VENV)/harbor: $(BENCH_DIR)/pyproject.toml $(BENCH_DIR)/uv.lock
 	uv sync --project $(BENCH_DIR) --python 3.13
 
 harbor-seed: $(BENCH_VENV)/harbor ## Download the TRAIL rows for the tool benchmark seed (needs HF_TOKEN)

@@ -5,9 +5,10 @@ Usage inside a task verifier::
     PYTHONPATH=/opt/verifier /opt/verifier/bin/python -m evals.harbor.lib.grade \
         --expected /tests/expected.json
 
-Expected specs support ``integer``, ``number``, ``name``, normalized ``exact``,
-and recursive ``all`` checks. A value list accepts any entry unless
-``require_all`` is set. State verifiers can call :func:`write_reward` directly.
+Expected specs support ``integer``, ``number``, ``name``, ``labeled_number``,
+``entity_count``, normalized ``exact``, and recursive ``all`` checks; the README
+lists their fields. A value list accepts any entry unless ``require_all`` is set.
+State verifiers can call :func:`write_reward` directly.
 """
 
 from __future__ import annotations
@@ -47,6 +48,14 @@ def grade_answer(text: str, expected: dict[str, Any]) -> bool:
             require_all=bool(expected.get("require_all", False)),
             allow_hedging=bool(expected.get("allow_hedging", False)),
         )
+    if kind == "labeled_number":
+        return answers.match_labeled_number(
+            text,
+            {label: (spec["aliases"], spec["value"]) for label, spec in expected["labels"].items()},
+            int(expected.get("places", 2)),
+        )
+    if kind == "entity_count":
+        return answers.match_entity_count(text, expected["aliases"], int(expected["value"]))
     if kind == "exact":
         return bool(values) and any(answers.match_exact(text, str(value)) for value in values)
     raise ValueError(f"Unknown expected kind: {kind!r}")

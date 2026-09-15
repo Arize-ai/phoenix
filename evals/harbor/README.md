@@ -109,15 +109,14 @@ why the agent reaches Phoenix at `http://127.0.0.1:6006` and the MCP server at
 points `px` at localhost. The condition files disable web search and fetch tools. If a
 Docker runtime cannot run the allowlist, Harbor rejects the trial before it starts.
 
-There are two agent images. `phoenix-bench-agent` keeps `px` under `/opt/px`, off
-`PATH`, because the oracle solutions call it by absolute path. The
-`phoenix-bench-agent-cli` image adds `px` to `PATH`; CLI conditions select it through
-the `conditions/images/cli.yaml` compose overlay. Setting `PATH` through the agent's
-`env` does not reach Codex's shells, so the image supplies the executable instead. This
-separation is a convenience, not an isolation boundary: an MCP agent can still discover
-`/opt/px/bin/px` or call Phoenix over HTTP, and the current correctness reward does not
-check interface use. The verifier venv lives under `/opt/verifier` in both images and is
-also off `PATH`.
+There are two agent images. `phoenix-bench-agent` has no `px` at all, so MCP
+conditions cannot fall back to the CLI. `phoenix-bench-agent-cli` adds `px` under
+`/opt/px` and on `PATH`; CLI conditions and the oracle select it through the
+`conditions/images/cli.yaml` compose overlay. Setting `PATH` through the agent's `env`
+does not reach Codex's shells, so the image supplies the executable instead. An MCP
+agent can still call Phoenix over plain HTTP on the same port as the MCP server; the
+reward checks only the answer, not the interface used. The verifier venv lives under
+`/opt/verifier` in both images and is off `PATH`.
 
 Verification runs in Harbor's shared mode. After the agent finishes, Harbor copies the
 task's `tests/` to `/tests` in the agent container and runs `test.sh` there with Phoenix
@@ -137,6 +136,11 @@ tasks/dev/<name>/
   solution/solve.sh              a reference solution through px, run by the oracle
 ```
 
+Reference solutions in Python import `evals.harbor.lib.phoenix_query` from
+`/opt/verifier`, which fetches a project's spans through px. `task.toml`,
+`tests/test.sh`, and the compose symlink are identical across tasks; a unit test checks
+that they stay that way.
+
 For a question with a checkable answer, `test.sh` calls the shared grader and
 `expected.json` defines the comparison. These are the supported forms:
 
@@ -144,9 +148,10 @@ For a question with a checkable answer, `test.sh` calls the shared grader and
 {"kind": "integer", "value": 117}
 {"kind": "number", "value": 16.0022, "places": 2}
 {"kind": "number", "value": [45.32, 43.05], "places": 1}
-{"kind": "number", "value": [0.79, 14.61], "places": 1, "require_all": true}
+{"kind": "labeled_number", "places": 1, "labels": {"short": {"aliases": ["short", "<15"], "value": 0.79}, "long": {"aliases": ["long", "40+"], "value": 14.61}}}
+{"kind": "entity_count", "aliases": ["FinderTool"], "value": 24}
 {"kind": "name", "aliases": [["PageDownTool", "page_down"]]}
-{"kind": "name", "aliases": [["forward"], ["unexpected", "unsupported"]], "require_all": true, "allow_hedging": true}
+{"kind": "name", "aliases": [["forward"], ["keyword argument", "TypeError"]], "require_all": true, "allow_hedging": true}
 {"kind": "exact", "value": "ok"}
 {"kind": "all", "checks": [{"kind": "name", "aliases": [["FinderTool"]]}, {"kind": "integer", "value": 24}]}
 ```
@@ -154,8 +159,19 @@ For a question with a checkable answer, `test.sh` calls the shared grader and
 A value list accepts any listed value unless `require_all` is `true`. The matchers
 remove Markdown emphasis and normalize whitespace before comparing. Integer, number,
 and name checks reject phrases such as "117 or 118" and "about 117". Name checks can
-set `allow_hedging` to skip that rejection. Keep a `source` field in `expected.json`
-that explains how the reference value was derived.
+set `allow_hedging` to skip that rejection. `exact` ignores case and end punctuation.
+
+`labeled_number` and `entity_count` tie a value to the label or entity it belongs to:
+within each sentence that names the label, the nearest candidate number must be the
+expected one. Use them whenever an answer states more than one number, because a plain
+`number` or `integer` check would accept "Short: 14.6%; Long: 0.8%" or
+"FinderTool had 20 calls; SearchTool had 24".
+
+Keep a `source` field in `expected.json` that explains how the reference value was
+derived, plus `accept` and `reject` lists of example answers. The unit tests grade
+every example, so they document the check and catch regressions when the grader
+changes. Cover a paraphrase, a wrong value, a hedge, and, for multi-number answers, a
+reversed or mislabelled version.
 
 For a task that changes Phoenix state, write your own `test.sh`. The verifier venv has
 `phoenix.client`, so query Phoenix at `http://127.0.0.1:6006`, decide the reward, and
@@ -202,7 +218,7 @@ compared within a split.
 
 ### Tests
 
-Unit tests for the grading library run from the repository root:
+Unit tests for the grading library and the task layout run from the repository root:
 
 ```sh
 uv run pytest tests/unit/harbor

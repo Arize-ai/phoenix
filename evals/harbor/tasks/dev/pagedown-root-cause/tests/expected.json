@@ -7,24 +7,39 @@
       "forward"
     ],
     [
-      "unexpected",
-      "unsupported",
+      "keyword argument",
+      "keyword arg",
+      "kwarg",
+      "TypeError",
       "does not accept",
       "doesn't accept",
       "not accepted",
-      "invalid keyword",
+      "not a valid",
       "invalid argument",
-      "wrong argument",
-      "not a valid"
+      "unexpected argument",
+      "unsupported argument",
+      "unknown argument",
+      "wrong argument"
     ],
     [
       "page_down",
       "url",
-      "arguments",
       "query",
       "''",
       "empty"
     ]
   ],
-  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; every PageDownTool ERROR span's status message is a TypeError: forward() got an unexpected keyword argument, with one of the listed argument names (or an empty one). The answer must mention forward, the mismatch, and an offending argument"
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; every PageDownTool ERROR span's status message is a TypeError: forward() got an unexpected keyword argument, with one of the listed argument names (or an empty one). The answer must mention forward, the keyword mismatch, and an offending argument",
+  "accept": [
+    "TypeError: forward() got an unexpected keyword argument 'url'",
+    "The agent passes a `query` keyword that PageDownTool.forward() does not accept, so every call raises a TypeError.",
+    "forward() rejects the url kwarg the agent supplies; it may also be called with an empty argument name."
+  ],
+  "reject": [
+    "forward had an unexpected failure involving arguments",
+    "The tool times out on most calls.",
+    "PageDownTool raises a TypeError because the page is empty.",
+    "forward() is called with a url that does not exist",
+    ""
+  ]
 }

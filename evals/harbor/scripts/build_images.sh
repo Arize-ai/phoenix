@@ -9,6 +9,11 @@ IMAGES=${IMAGES:-all}
 ROWS="$HERE/.cache/trail-gaia.json"
 BUILD="$HERE/.cache/build"
 
+case "$IMAGES" in
+  all|phoenix|agent) ;;
+  *) echo "error: IMAGES must be all, phoenix, or agent (got '$IMAGES')" >&2; exit 2 ;;
+esac
+
 rm -rf "$BUILD"
 
 if [ "$IMAGES" = all ] || [ "$IMAGES" = phoenix ]; then
