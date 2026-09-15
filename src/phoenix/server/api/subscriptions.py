@@ -49,10 +49,7 @@ from phoenix.server.api.helpers.playground_clients import (
     initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.input_types.ChatCompletionInput import (
-    ChatCompletionInput,
-    ChatCompletionOverDatasetInput,
-)
+from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.ConnectionConfigInput import to_connection_config
 from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     EvaluatorTaskInput,
@@ -311,46 +308,6 @@ class Subscription:
                 in_progress=in_progress,
                 not_started=not_started,
             )
-
-    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def chat_completion_over_dataset(
-        self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
-    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        """
-        Run one prompt over a dataset as an experiment in the background via ExperimentRunner
-        and stream subscription payloads (chunks, results, errors) to the client.
-
-        The single-task form of ``experimentsOverDataset``, kept while the client migrates.
-        """
-        experiments_input = ExperimentsOverDatasetInput(
-            dataset_id=input.dataset_id,
-            dataset_version_id=input.dataset_version_id,
-            split_ids=input.split_ids,
-            repetitions=input.repetitions,
-            max_concurrency=input.max_concurrency,
-            credentials=input.credentials,
-            experiment_name=input.experiment_name,
-            experiment_description=input.experiment_description,
-            experiment_metadata=input.experiment_metadata,
-            create_ephemeral_experiment=input.create_ephemeral_experiment,
-            tasks=[
-                ExperimentTaskInput(
-                    prompt=PromptTaskInput(
-                        prompt_version_id=input.prompt_version_id,
-                        prompt_version=input.prompt_version,
-                        prompt_name=input.prompt_name,
-                        connection_config=input.connection_config,
-                        headers=input.headers,
-                        appended_messages_path=input.appended_messages_path,
-                        template_variables_path=input.template_variables_path,
-                        stream_model_output=input.stream_model_output,
-                        evaluators=input.evaluators,
-                    )
-                )
-            ],
-        )
-        async for payload in _stream_experiments_over_dataset(info, experiments_input):
-            yield payload
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def experiments_over_dataset(
