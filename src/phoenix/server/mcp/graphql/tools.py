@@ -49,18 +49,11 @@ def _preamble(query_root: str) -> str:
     They belong to the surface rather than to any one answer, so a caller reads
     them here and the answers carry only what varies.
     """
-    return "\n".join(
-        [
-            "# Phoenix GraphQL. Write operations against the types below.",
-            f"# Entry point: {query_root}. Every field reached from it is readable by whoever "
-            "this session authenticates as; a field its permissions withhold errors at "
-            "execution, not here.",
-            "# Search returns one line per field. Call this tool again with an exact "
-            "`Type`, `Type.field`, or mutation name to see that definition in full, with "
-            "the paths that reach it.",
-            f"# executeGraphqlQuery accepts at most {MAX_QUERY_BYTES // 1024} KiB of "
-            "GraphQL per call and runs queries only.",
-        ]
+    return (
+        f"# Phoenix GraphQL. Entry point: {query_root}. A field your permissions withhold "
+        "errors at execution, not here. Look up an exact `Type`, `Type.field`, or mutation "
+        f"name for its full definition. executeGraphqlQuery runs queries only, at most "
+        f"{MAX_QUERY_BYTES // 1024} KiB each."
     )
 
 

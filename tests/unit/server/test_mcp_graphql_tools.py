@@ -104,9 +104,11 @@ async def test_exact_name_returns_the_whole_type(graphql_mcp: FastMCP) -> None:
 async def test_preamble_states_the_invariants_the_answers_do_not(graphql_mcp: FastMCP) -> None:
     """Everything constant is stated once here rather than on every answer."""
     text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {}))
-    assert "Entry point: Query" in text
-    assert "errors at execution, not here" in text
-    assert f"{MAX_QUERY_BYTES // 1024} KiB" in text
+    preamble = text.split("\n\n", 1)[0]
+    assert preamble.count("\n") == 0
+    assert "Entry point: Query" in preamble
+    assert "errors at execution, not here" in preamble
+    assert f"{MAX_QUERY_BYTES // 1024} KiB" in preamble
 
 
 async def test_query_returns_data(graphql_mcp: FastMCP) -> None:
