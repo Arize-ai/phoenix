@@ -5,13 +5,13 @@ import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPa
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import {
-  EVALUATOR_MAPPING_SOURCE_GRAINS,
+  EVALUATOR_RECORD_KINDS,
   getEvaluatorMetadataEntryNames,
 } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilterRootScopeConstants";
 import type {
   EvaluatorInputMapping,
-  EvaluatorMappingSourceGrain,
+  EvaluatorRecordKind,
 } from "@phoenix/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 
@@ -19,15 +19,17 @@ import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
  * Drops paths rooted at a `metadata` name the new record kind does not carry —
  * a path that matches nothing fails the evaluation server-side.
  */
-export function dropOtherGrainEntityPathMappings(
+export function dropOtherRecordKindPathMappings(
   inputMapping: EvaluatorInputMapping,
-  grain: ProjectEvaluatorMappingSourceGrain
+  recordKind: ProjectEvaluatorRecordKind
 ): EvaluatorInputMapping {
-  const ownNames = getEvaluatorMetadataEntryNames(grain);
-  const staleNames = EVALUATOR_MAPPING_SOURCE_GRAINS.filter(
-    (otherGrain) => otherGrain !== grain
+  const ownNames = getEvaluatorMetadataEntryNames(recordKind);
+  const staleNames = EVALUATOR_RECORD_KINDS.filter(
+    (otherRecordKind) => otherRecordKind !== recordKind
   )
-    .flatMap((otherGrain) => [...getEvaluatorMetadataEntryNames(otherGrain)])
+    .flatMap((otherRecordKind) => [
+      ...getEvaluatorMetadataEntryNames(otherRecordKind),
+    ])
     .filter((name) => !ownNames.has(name));
   const pathMapping = Object.fromEntries(
     Object.entries(inputMapping.pathMapping).filter(
@@ -181,8 +183,8 @@ export const isProjectEvaluatorTarget = (
   PROJECT_EVALUATOR_TARGETS.includes(value as ProjectEvaluatorTarget);
 
 /** A project evaluator runs on a record, never on a dataset example. */
-export type ProjectEvaluatorMappingSourceGrain = Exclude<
-  EvaluatorMappingSourceGrain,
+export type ProjectEvaluatorRecordKind = Exclude<
+  EvaluatorRecordKind,
   "dataset"
 >;
 
@@ -193,9 +195,9 @@ export type ProjectEvaluatorMappingSourceGrain = Exclude<
  * that can tell them apart; every place that builds or resets a project
  * evaluator's mapping source goes through here.
  */
-export function toEvaluatorMappingSourceGrain(
+export function toEvaluatorRecordKind(
   target: ProjectEvaluatorTarget
-): ProjectEvaluatorMappingSourceGrain {
+): ProjectEvaluatorRecordKind {
   switch (target) {
     case "SESSION":
       return "session";

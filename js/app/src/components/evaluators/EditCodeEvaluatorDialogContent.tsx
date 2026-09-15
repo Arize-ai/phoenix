@@ -153,8 +153,8 @@ export const EditCodeEvaluatorDialogContent = ({
   codeEvaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
-  const grain = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource.grain
+  const recordKind = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.recordKind
   );
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
@@ -379,7 +379,7 @@ export const EditCodeEvaluatorDialogContent = ({
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
         state.setEvaluatorMappingSource({
-          grain: state.evaluatorMappingSource.grain,
+          recordKind: state.evaluatorMappingSource.recordKind,
           source: next.testPayload,
         });
       }
@@ -586,10 +586,16 @@ export const EditCodeEvaluatorDialogContent = ({
                       // placeholder — never overwrite user-authored code.
                       if (
                         sourceCode ===
-                        getDefaultCodeEvaluatorSource(currentLanguage, grain)
+                        getDefaultCodeEvaluatorSource(
+                          currentLanguage,
+                          recordKind
+                        )
                       ) {
                         setSourceCode(
-                          getDefaultCodeEvaluatorSource(nextLanguage, grain)
+                          getDefaultCodeEvaluatorSource(
+                            nextLanguage,
+                            recordKind
+                          )
                         );
                       }
                       return nextLanguage;
@@ -860,17 +866,17 @@ export const CodeEvaluatorSourceEditor = ({
   );
   const evaluatorMappingSource = evaluatorMappingSourceState.source;
   const evaluationContext = useMemo(() => {
-    const grain = evaluatorMappingSourceState.grain;
-    return grain === "dataset"
+    const recordKind = evaluatorMappingSourceState.recordKind;
+    return recordKind === "dataset"
       ? null
       : materializeEvaluatorContext({
-          grain,
+          recordKind,
           evaluatorMappingSource: evaluatorMappingSourceState,
           inputMapping,
         });
   }, [evaluatorMappingSourceState, inputMapping]);
 
-  // The footer names what `evaluate` receives, so for a project grain it reads
+  // The footer names what `evaluate` receives, so for a project record kind it reads
   // the mapping applied rather than the record as it arrived — the same
   // context the autocomplete offers from. A dataset example is bound by name
   // and has no such gap.
@@ -980,7 +986,7 @@ export const CodeEvaluatorSourceEditor = ({
               onChange(
                 getDefaultCodeEvaluatorSource(
                   language,
-                  evaluatorMappingSourceState.grain
+                  evaluatorMappingSourceState.recordKind
                 )
               )
             }

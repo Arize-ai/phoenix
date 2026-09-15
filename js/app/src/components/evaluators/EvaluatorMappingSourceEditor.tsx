@@ -12,13 +12,13 @@ import {
 import { useDebouncedJSONSync } from "@phoenix/hooks";
 import type {
   EvaluatorMappingSource,
-  EvaluatorMappingSourceGrain,
+  EvaluatorRecordKind,
 } from "@phoenix/types";
 
 type EvaluatorMappingSourceFieldConfig<
-  TGrain extends EvaluatorMappingSourceGrain,
+  TRecordKind extends EvaluatorRecordKind,
 > = {
-  field: Extract<keyof EvaluatorMappingSource<TGrain>, string>;
+  field: Extract<keyof EvaluatorMappingSource<TRecordKind>, string>;
   label: string;
   description: string;
   tooltip: string;
@@ -70,7 +70,7 @@ const editorContainerCSS = css`
  * arrives from the server and is chosen, never typed.
  */
 type EvaluatorMappingSourceEditorProps = {
-  grain: "dataset";
+  recordKind: "dataset";
   value: EvaluatorMappingSource<"dataset">;
   onFieldChange: (
     field: Extract<keyof EvaluatorMappingSource<"dataset">, string>,
@@ -90,21 +90,19 @@ export function EvaluatorMappingSourceEditor(
   );
 }
 
-function EvaluatorMappingSourceFields<
-  TGrain extends EvaluatorMappingSourceGrain,
->({
+function EvaluatorMappingSourceFields<TRecordKind extends EvaluatorRecordKind>({
   value,
   onFieldChange,
   editorKeyPrefix = "",
   fieldConfig,
 }: {
-  value: EvaluatorMappingSource<TGrain>;
+  value: EvaluatorMappingSource<TRecordKind>;
   onFieldChange: (
-    field: Extract<keyof EvaluatorMappingSource<TGrain>, string>,
+    field: Extract<keyof EvaluatorMappingSource<TRecordKind>, string>,
     value: Record<string, unknown>
   ) => void;
   editorKeyPrefix?: string;
-  fieldConfig: EvaluatorMappingSourceFieldConfig<TGrain>[];
+  fieldConfig: EvaluatorMappingSourceFieldConfig<TRecordKind>[];
 }) {
   const defaultExpandedKeys = fieldConfig.map(({ field }) => field as string);
   return (

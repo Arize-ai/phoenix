@@ -53,8 +53,8 @@ export const CodeEvaluatorSourceEditor = ({
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource.source
   );
-  const mappingSourceGrain = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource.grain
+  const recordKind = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.recordKind
   );
 
   // Generate the type footer based on language and available data
@@ -135,9 +135,7 @@ export const CodeEvaluatorSourceEditor = ({
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Refresh />} />}
             onPress={() =>
-              onChange(
-                getDefaultCodeEvaluatorSource(language, mappingSourceGrain)
-              )
+              onChange(getDefaultCodeEvaluatorSource(language, recordKind))
             }
           >
             Reset

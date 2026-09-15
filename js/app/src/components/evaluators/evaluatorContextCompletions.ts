@@ -23,8 +23,8 @@ export const EVALUATOR_INPUT_SECTION: CompletionSection = {
   rank: 1,
 };
 
-export const RECORD_SECTION_BY_GRAIN: Record<
-  MaterializedEvaluatorContext["grain"],
+export const RECORD_SECTION_BY_RECORD_KIND: Record<
+  MaterializedEvaluatorContext["recordKind"],
   CompletionSection
 > = {
   span: { name: "From the span", rank: 2 },
@@ -76,7 +76,8 @@ export type EvaluatorContextCandidate = {
 export function buildEvaluatorContextCandidates(
   evaluationContext: MaterializedEvaluatorContext
 ): EvaluatorContextCandidate[] {
-  const recordSection = RECORD_SECTION_BY_GRAIN[evaluationContext.grain];
+  const recordSection =
+    RECORD_SECTION_BY_RECORD_KIND[evaluationContext.recordKind];
   const inputs = evaluationContext.evaluatorInputs.map((entry, index) => ({
     label: entry.name,
     rootName: entry.name,
@@ -86,7 +87,7 @@ export function buildEvaluatorContextCandidates(
     detail: getEvaluatorInputDetail({ entry, evaluationContext }),
     info:
       entry.name === EVALUATOR_METADATA_SLOT
-        ? `${capitalize(evaluationContext.grain)} properties.`
+        ? `${capitalize(evaluationContext.recordKind)} properties.`
         : "",
     section: EVALUATOR_INPUT_SECTION,
     boost: 100 - index,

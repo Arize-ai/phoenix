@@ -36,7 +36,7 @@ import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluat
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
@@ -107,14 +107,14 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     data.sandboxBackends
   );
 
-  const grain = toEvaluatorMappingSourceGrain(scope.targetType);
+  const recordKind = toEvaluatorRecordKind(scope.targetType);
   const [language, setLanguage] = useState<CodeEvaluatorLanguage>(
     initialValues?.language ?? "PYTHON"
   );
   const [sourceCode, setSourceCode] = useState(
     () =>
       initialValues?.sourceCode ??
-      getDefaultCodeEvaluatorSource("PYTHON", grain)
+      getDefaultCodeEvaluatorSource("PYTHON", recordKind)
   );
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
     initialValues?.sandboxConfigId ?? null
@@ -170,8 +170,8 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   const handleLanguageChange = (nextLanguage: CodeEvaluatorLanguage) => {
     // Auto-swap only if sourceCode is still the generated placeholder — never
     // overwrite user-authored code.
-    if (sourceCode === getDefaultCodeEvaluatorSource(language, grain)) {
-      setSourceCode(getDefaultCodeEvaluatorSource(nextLanguage, grain));
+    if (sourceCode === getDefaultCodeEvaluatorSource(language, recordKind)) {
+      setSourceCode(getDefaultCodeEvaluatorSource(nextLanguage, recordKind));
     }
     setLanguage(nextLanguage);
   };
