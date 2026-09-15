@@ -1,0 +1,32 @@
+# Compare the three Phoenix surfaces on the error-analysis task in one Harbor job.
+# Run from the repository root:
+#   make harbor-compare
+# Add the Phoenix plugin to record one experiment per agent on the same dataset:
+#   make harbor-compare HARBOR_ARGS='--plugin arize-phoenix --plugin-kwarg endpoint=... \
+#     --plugin-kwarg "experiment_name_template={job.name} · {agent.name}"'
+tasks:
+  - path: evals/harbor/tasks/error-analysis
+agents:
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: anthropic/claude-fable-5-1
+  - name: claude-code-mcp
+    import_path: evals.harbor.agents.claude_code_agents:ClaudeCodeMcpAgent
+    model_name: anthropic/claude-fable-5-1
+    resume_trajectory: true
+  - name: claude-code-cli
+    import_path: evals.harbor.agents.claude_code_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-fable-5-1
+    resume_trajectory: true
+    skills:
+      - .agents/skills/phoenix-cli
+      - .agents/skills/phoenix-error-analysis
+      - .agents/skills/phoenix-evals
+      - .agents/skills/phoenix-tracing
+environment:
+  type: daytona
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+retry:
+  max_retries: 1
