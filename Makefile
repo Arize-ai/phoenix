@@ -516,6 +516,8 @@ HARBOR_ARGS ?=
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
 HARBOR_VERSION ?= 0.21.0
+# Phoenix client that provides the arize-phoenix Harbor plugin (--plugin arize-phoenix).
+HARBOR_CLIENT_VERSION ?= 3.5.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
@@ -532,7 +534,8 @@ ifeq ($(HARBOR_ENV),daytona)
 HARBOR_ENV_KWARGS := --ek auto_stop_interval_mins=30 --ek auto_delete_interval_mins=30
 endif
 UVX := uvx
-HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
+HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
+	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
 # The wheel, container assets, and fixture database are staged into the task's Docker build
 # context by stage_harbor_task_environments.sh.
