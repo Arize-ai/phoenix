@@ -833,6 +833,13 @@
             "icon": "java",
             "pages": [
               {
+                "group": "Google ADK",
+                "pages": [
+                  "docs/phoenix/integrations/java/google-adk",
+                  "docs/phoenix/integrations/java/google-adk/google-adk-tracing"
+                ]
+              },
+              {
                 "group": "LangChain4j",
                 "pages": [
                   "docs/phoenix/integrations/java/langchain4j",
