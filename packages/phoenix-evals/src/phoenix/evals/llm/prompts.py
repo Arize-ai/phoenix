@@ -662,7 +662,9 @@ class MessageTemplate:
         """Initialize a message template.
 
         Args:
-            role: The role of the message (system, user, or assistant).
+            role: The role of the message. Accepts a ``MessageRole`` or any of
+                the canonical string aliases (``user``/``human``,
+                ``assistant``/``ai``/``model``, ``system``/``developer``).
             content: Either a string or a list of content part dictionaries.
             format: Optional format specification for templating.
 
@@ -670,16 +672,10 @@ class MessageTemplate:
             ValueError: If role is invalid or content is empty.
             TypeError: If content is not str or list.
         """
-        # Convert string to MessageRole if needed
-        if isinstance(role, MessageRole):
-            self.role = role
-        elif isinstance(role, str):
-            try:
-                self.role = MessageRole(role)
-            except ValueError:
-                raise ValueError(
-                    f"Invalid role: {role}. Must be one of: {[r.value for r in MessageRole]}"
-                )
+        # Normalize the role through the shared alias table so a message list
+        # accepts the same spellings the adapters do ("human", "ai", "model",
+        # "developer") rather than only the three enum values.
+        self.role = normalize_role(role)
 
         self._format = format
         self._original_content = content  # Store original for content property
