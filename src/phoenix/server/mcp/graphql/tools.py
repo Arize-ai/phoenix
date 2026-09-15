@@ -11,9 +11,7 @@ from pydantic import TypeAdapter
 from phoenix.server.api.graphql_execute import (
     MAX_QUERY_BYTES,
     GraphQLRefusal,
-    admit,
     execute_operation,
-    validate_document,
 )
 from phoenix.server.api.schema_search import cached_index, lookup, lookup_many, search_many
 from phoenix.server.api.schema_search import search as search_schema
@@ -21,7 +19,6 @@ from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
     ExecuteGraphqlOutput,
     ExecuteGraphqlResultEnvelope,
-    ValidateGraphqlEnvelope,
 )
 from phoenix.server.mcp_server import _META_ANNOTATIONS, _current_mcp_principal
 
@@ -138,7 +135,6 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
     async def executeGraphqlQuery(
         query: str,
         variables: Optional[dict[str, Any]] = None,
-        validate_only: bool = False,
     ) -> ExecuteGraphqlOutput:
         """Execute a read-only GraphQL query against Phoenix's API.
 
@@ -155,19 +151,10 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         permission error, leaving the rest of `data` populated -- so check
         `errors` even when `data` is present.
 
-        Run a document directly. One that fails validation comes back as
-        `errors` with nothing executed, the same answer a validation pass gives,
-        so validating a query first only costs a call. `validate_only=True` is
-        for when a document must not run: it admits and checks the document
-        against the schema and answers `{valid, notes}`. It does not check the
-        values in `variables` or evaluate permissions, which run only during
-        execution, so `valid` is not a guarantee the query will succeed.
+        Run a document directly: one that fails validation comes back as
+        `errors` with nothing executed, so there is nothing to check first.
         """
         try:
-            if validate_only:
-                admit(query, allow_mutations=False)
-                validate_document(_schema(), query)
-                return ValidateGraphqlEnvelope.passed()
             outcome = await execute_operation(
                 _schema(),
                 query=query,

@@ -194,45 +194,12 @@ async def test_oversized_query_is_refused_unexecuted(graphql_mcp: FastMCP) -> No
     assert content["error"]["code"] == GraphQLRefusalCode.QUERY_TOO_LARGE.value
 
 
-async def test_validate_only_accepts_a_good_document_without_running_it(
-    graphql_mcp: FastMCP,
-) -> None:
-    result = await graphql_mcp.call_tool(
-        "executeGraphqlQuery", {"query": "{ boom }", "validate_only": True}
-    )
+async def test_an_invalid_document_reports_errors_without_running(graphql_mcp: FastMCP) -> None:
+    result = await graphql_mcp.call_tool("executeGraphqlQuery", {"query": "{ noSuchField }"})
     content = result.structured_content
     assert content is not None
-    # `boom` always raises at execution, so a valid answer proves nothing ran.
-    assert content["valid"] is True
-    assert content["notes"]
-    assert "data" not in content and "error" not in content
-
-
-async def test_validate_only_refuses_what_execution_would_refuse(graphql_mcp: FastMCP) -> None:
-    for document, code in [
-        ('mutation { deleteDataset(datasetId: "1") }', GraphQLRefusalCode.MUTATION_NOT_ALLOWED),
-        ("subscription { anything }", GraphQLRefusalCode.SUBSCRIPTION_NOT_SUPPORTED),
-        (
-            "{ datasets { name " + "# padding\n" * MAX_QUERY_BYTES + " } }",
-            GraphQLRefusalCode.QUERY_TOO_LARGE,
-        ),
-    ]:
-        result = await graphql_mcp.call_tool(
-            "executeGraphqlQuery", {"query": document, "validate_only": True}
-        )
-        content = result.structured_content
-        assert content is not None
-        assert content["error"]["code"] == code.value
-
-
-async def test_validate_only_rejects_an_unknown_field(graphql_mcp: FastMCP) -> None:
-    result = await graphql_mcp.call_tool(
-        "executeGraphqlQuery", {"query": "{ noSuchField }", "validate_only": True}
-    )
-    content = result.structured_content
-    assert content is not None
-    assert content["error"]["code"] == GraphQLRefusalCode.VALIDATION_FAILED.value
-    assert "noSuchField" in content["error"]["message"]
+    assert content["data"] is None
+    assert "noSuchField" in content["errors"][0]["message"]
 
 
 def test_validate_does_not_check_variable_values(schema: strawberry.Schema) -> None:
