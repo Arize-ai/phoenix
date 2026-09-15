@@ -32,6 +32,7 @@ from graphql import (
     GraphQLUnionType,
     get_named_type,
     is_introspection_type,
+    is_non_null_type,
 )
 from graphql.language import print_ast
 from graphql.pyutils import Undefined
@@ -237,10 +238,52 @@ def _default(value_def: _ValueDef) -> str:
     return f" = {print_ast(node)}" if node is not None else ""
 
 
+_PAGINATION = "\u2026"
+_PAGINATION_ARGS: Mapping[str, str] = {
+    "first": "Int",
+    "last": "Int",
+    "after": "String",
+    "before": "String",
+}
+_PAGINATION_LEGEND = f"# {_PAGINATION} = first: Int, last: Int, after: String, before: String"
+
+
+def _is_pagination(name: str, arg: GraphQLArgument) -> bool:
+    """Whether ``arg`` is one of the optional Relay pagination arguments.
+
+    A required ``first: Int!`` is not: collapsing it would hide that the caller
+    must pass it.
+    """
+    return str(get_named_type(arg.type)) == _PAGINATION_ARGS.get(name) and not is_non_null_type(
+        arg.type
+    )
+
+
 def _signature(name: str, field: _FieldLike) -> str:
-    args = ", ".join(f"{a}: {arg.type}{_default(arg)}" for a, arg in _args(field).items())
+    args = _args(field)
+    collapsed = "first" in args and "after" in args
+    collapsed = collapsed and all(
+        _is_pagination(a, arg) for a, arg in args.items() if a in _PAGINATION_ARGS
+    )
+    rendered: list[str] = []
+    for a, arg in args.items():
+        if collapsed and a in _PAGINATION_ARGS:
+            if _PAGINATION not in rendered:
+                rendered.append(_PAGINATION)
+            continue
+        rendered.append(f"{a}: {arg.type}{_default(arg)}")
+    joined = ", ".join(rendered)
     suffix = _default(field) if isinstance(field, GraphQLInputField) else ""
-    return f"{name}({args}): {field.type}{suffix}" if args else f"{name}: {field.type}{suffix}"
+    return f"{name}({joined}): {field.type}{suffix}" if joined else f"{name}: {field.type}{suffix}"
+
+
+def _uses_pagination(text: str) -> bool:
+    return f"({_PAGINATION}" in text or f", {_PAGINATION}" in text
+
+
+def _with_legend(text: str) -> str:
+    """Append the key to the pagination marker when the text uses it."""
+    return f"{text}\n{_PAGINATION_LEGEND}" if _uses_pagination(text) else text
 
 
 def _unit(
@@ -671,7 +714,7 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
         miss = f"-- No type, field, argument, enum value, or description matched {query!r}."
         return "\n".join([miss, *note])
     lines: list[str] = []
-    used = sum(len(n) + 1 for n in note)
+    used = sum(len(n) + 1 for n in note) + len(_PAGINATION_LEGEND) + 1
     for i, group in enumerate(groups.values()):
         line = _line(index, group, terms)
         trailer = f"... {len(groups) - i} more; narrow the search"
@@ -680,7 +723,7 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
             break
         lines.append(line)
         used += len(line) + 1
-    return "\n".join([*lines, *note])
+    return "\n".join([_with_legend("\n".join(lines)), *note])
 
 
 def _member_names(t: GraphQLNamedType) -> list[str]:
@@ -838,4 +881,6 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
             parts.extend(_path_lines((*p, hop) for p in reach_paths(index, u.parent)))
         else:
             parts.append(f"# {u.kind} for {', '.join(index.used_by.get(u.parent, [])[:3])}")
-    return _within(parts, budget)
+    if any(_uses_pagination(part) for part in parts):
+        budget -= len(_PAGINATION_LEGEND) + 1
+    return _with_legend(_within(parts, budget))

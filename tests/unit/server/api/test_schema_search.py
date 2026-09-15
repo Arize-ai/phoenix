@@ -136,7 +136,25 @@ def test_lookup_truncates_at_whole_lines_and_keeps_the_block_closed(index: Index
         line.startswith("  # ... ") and line.endswith("more lines omitted") for line in lines
     )
     assert "}" in lines
-    assert lines[-1].startswith("# ... ") and lines[-1].endswith("more sections omitted")
+    assert any(
+        line.startswith("# ... ") and line.endswith("more sections omitted") for line in lines
+    )
+
+
+def test_optional_pagination_arguments_collapse_to_one_marker(index: Index) -> None:
+    text = lookup(index, "Query.projects")
+    assert first_line(text) == (
+        "Query.projects(\u2026, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!"
+    )
+    assert text.splitlines()[-1] == (
+        "# \u2026 = first: Int, last: Int, after: String, before: String"
+    )
+    # A required `first` stays visible: the caller must pass it.
+    assert "spans(first: Int!, timeRange: TimeRange, last: Int," in lookup(index, "Project.spans")
+    hits = search(index, "prompts")
+    assert "Query.prompts(\u2026, filter: PromptFilter" in hits
+    assert hits.splitlines()[-1].startswith("# \u2026 = ")
+    assert "\u2026" not in lookup(index, "Span.spanAnnotations")
 
 
 def test_mutation_lookup_prints_its_input_closure(index: Index) -> None:
