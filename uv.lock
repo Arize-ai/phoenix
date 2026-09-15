@@ -717,7 +717,7 @@ requires-dist = [
     { name = "arize-phoenix-client", editable = "packages/phoenix-client" },
     { name = "arize-phoenix-evals", editable = "packages/phoenix-evals" },
     { name = "arize-phoenix-otel", editable = "packages/phoenix-otel" },
-    { name = "arize-phoenix-sqlean" },
+    { name = "arize-phoenix-sqlean", specifier = ">=0.1.2" },
     { name = "asyncpg", marker = "extra == 'pg'" },
     { name = "authlib", specifier = ">=1.8.0" },
     { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.18.0" },
