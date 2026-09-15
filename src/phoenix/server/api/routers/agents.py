@@ -201,7 +201,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, Skill, load_skills
+from phoenix.server.mcp.skills import Skill
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -3358,7 +3358,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     model_transcript_messages
                 )
                 if body.requested_skills:
-                    available_skills = load_skills(PXI_SKILLS_ROOTS)
+                    available_skills = request.app.state.agent_skills
                     forced_skills = resolve_requested_skills(
                         messages=model_transcript_messages,
                         requested_skill_names=body.requested_skills,
