@@ -30,7 +30,9 @@ export type PlaygroundEvaluatorMappings = Record<
  * instance, in instance order, so the experiments the server opens the
  * stream with can be matched back to their columns by position. Passing
  * `instanceIds` runs only those instances (a column's play button); their
- * positions in the page still name their evaluators.
+ * positions in the page still name their evaluators. The store's
+ * `runExampleIds` narrows every task to those examples (a row's play button);
+ * such a run is a spot check and is never recorded.
  */
 export function getExperimentsOverDatasetInput({
   playgroundStore,
@@ -52,6 +54,7 @@ export function getExperimentsOverDatasetInput({
     repetitions,
     stateByDatasetId,
     recordExperiments,
+    runExampleIds,
     nextExperimentScaffold,
   } = playgroundStore.getState();
 
@@ -84,7 +87,10 @@ export function getExperimentsOverDatasetInput({
     experimentName: nextExperimentScaffold?.name ?? null,
     experimentDescription: nextExperimentScaffold?.description ?? null,
     experimentMetadata: nextExperimentScaffold?.metadata ?? null,
-    createEphemeralExperiment: !recordExperiments,
+    // A row run is a spot check: never recorded, whatever the Record switch
+    // says, so the column keeps its recorded experiment.
+    createEphemeralExperiment: !recordExperiments || runExampleIds != null,
+    exampleIds: runExampleIds ?? null,
     tasks,
   };
 }

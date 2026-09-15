@@ -3122,6 +3122,47 @@ class TestExperimentsOverDatasetSubscription:
             assert len(runs) == 6
             assert all(run.error for run in runs)
 
+    async def test_example_ids_scope_each_experiment_to_those_examples(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+    ) -> None:
+        # A row's play button: the tasks run on one example, as experiments whose
+        # snapshot holds only that example. The missing template variable fails the
+        # run while formatting, so no model is called.
+        example_id = str(GlobalID(type_name=DatasetExample.__name__, node_id="2"))
+        variables = self._input(
+            [self._prompt_task("Where is {country}?")],
+            exampleIds=[example_id],
+        )
+
+        payloads = await self._collect(gql_client, variables)
+
+        experiment_payload, *run_payloads = payloads
+        assert experiment_payload["__typename"] == ChatCompletionSubscriptionExperiment.__name__
+        assert [p["datasetExampleId"] for p in run_payloads] == [example_id]
+
+        db_experiment_id = int(GlobalID.from_id(experiment_payload["experimentId"]).node_id)
+        async with db() as session:
+            snapshot = (
+                await session.scalars(
+                    select(models.ExperimentDatasetExample.dataset_example_id).where(
+                        models.ExperimentDatasetExample.experiment_id == db_experiment_id
+                    )
+                )
+            ).all()
+            assert list(snapshot) == [2]
+            runs = (
+                await session.scalars(
+                    select(models.ExperimentRun).where(
+                        models.ExperimentRun.experiment_id == db_experiment_id
+                    )
+                )
+            ).all()
+            assert len(runs) == 1
+
     async def test_code_evaluator_task_persists_runs_and_annotations_and_emits_chunks(
         self,
         gql_client: AsyncGraphQLClient,

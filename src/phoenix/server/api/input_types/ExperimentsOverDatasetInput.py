@@ -68,6 +68,11 @@ class ExperimentsOverDatasetInput:
     dataset_id: GlobalID
     dataset_version_id: Optional[GlobalID] = None
     split_ids: Optional[list[GlobalID]] = None
+    example_ids: Optional[list[GlobalID]] = strawberry.field(
+        default=None,
+        description="Run only these examples of the dataset, as a row's play button does; "
+        "every example of the dataset or its splits when omitted.",
+    )
     repetitions: int = 1
     max_concurrency: int = strawberry.field(
         default=10,

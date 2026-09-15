@@ -12,6 +12,7 @@ import {
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import type { EvaluatorOutput } from "../evaluators/evaluatorResults";
 import { usePlaygroundDatasetExamplesTableContext } from "../PlaygroundDatasetExamplesTableContext";
@@ -51,6 +52,12 @@ export function PlaygroundEvaluatorColumnHeader({
 }) {
   const responses = usePlaygroundDatasetExamplesTableContext(
     (state) => state.exampleResponsesMap[instanceId]
+  );
+
+  // The tooltip says what a run of this column does with the Record switch
+  // as it stands.
+  const recordExperiments = usePlaygroundContext(
+    (state) => state.recordExperiments
   );
 
   const { overlay } = usePlaygroundExpectedOutputs();
@@ -110,7 +117,8 @@ export function PlaygroundEvaluatorColumnHeader({
           </IconButton>
           <Tooltip>
             <TooltipArrow />
-            Run evaluator {label} on all examples
+            Run evaluator {label} on all examples.{" "}
+            {recordExperiments ? "Recorded." : "Not recorded."}
           </Tooltip>
         </TooltipTrigger>
       )}

@@ -47,6 +47,7 @@ import {
   View,
   ViewportModal,
   ViewportModalOverlay,
+  VisuallyHidden,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import {
@@ -142,12 +143,14 @@ import {
   type ExperimentRunAnnotation,
   type ExperimentRunCost,
   type ExampleRunData,
+  getExperimentRunCost,
   makeExpandedCellKey,
   type Span,
   usePlaygroundDatasetExamplesTableContext,
 } from "./PlaygroundDatasetExamplesTableContext";
 import { usePlaygroundDatasetExamplesTablePreferences } from "./PlaygroundDatasetExamplesTablePreferences";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
+import { PlaygroundExampleRowCell } from "./PlaygroundExampleRowCell";
 import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
@@ -155,6 +158,8 @@ import { PlaygroundToolCall } from "./PlaygroundToolCall";
 import { extractRootVariable } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
+// Wide enough for a two-digit row number over a small play button.
+const ROW_COLUMN_WIDTH = 56;
 const AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS = 2000;
 
 /**
@@ -168,19 +173,6 @@ const outputContentCSS = css`
   flex: none;
   padding: var(--global-dimension-size-200);
 `;
-
-/** The cost and latency of one run, from its root span when it has one. */
-function getExperimentRunCost(
-  instanceId: number,
-  span: Span | null | undefined
-): ExperimentRunCost {
-  return {
-    instanceId,
-    latencyMs: span?.latencyMs ?? null,
-    tokenCountTotal: span?.tokenCountTotal ?? null,
-    cost: span?.costSummary?.total?.cost ?? null,
-  };
-}
 
 /**
  * Get possible variable names based on the template variables path.
@@ -910,6 +902,9 @@ export function PlaygroundDatasetExamplesTable({
   const resetInstanceData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.resetInstanceData
   );
+  const resetExampleData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.resetExampleData
+  );
   const appendExampleDataToolCallChunk =
     usePlaygroundDatasetExamplesTableContext(
       (state) => state.appendExampleDataToolCallChunk
@@ -1050,10 +1045,14 @@ export function PlaygroundDatasetExamplesTable({
     (event: ExperimentsOverDatasetEvent) => {
       switch (event.type) {
         case "experimentStarted":
-          setInstanceExperiment(event.instanceId, {
-            id: event.experimentId,
-            isEphemeral: !playgroundStore.getState().recordExperiments,
-          });
+          // A row run is a spot check beside the column's experiment, so the
+          // column keeps its link to the last full run.
+          if (playgroundStore.getState().runExampleIds == null) {
+            setInstanceExperiment(event.instanceId, {
+              id: event.experimentId,
+              isEphemeral: !playgroundStore.getState().recordExperiments,
+            });
+          }
 
           return;
         case "experimentFailed":
@@ -1175,15 +1174,31 @@ export function PlaygroundDatasetExamplesTable({
       .instances.filter((instance) => instance.activeRunId != null);
 
     const runningInstanceIds = runningInstances.map((instance) => instance.id);
+    // A row run covers one example: only that row's cells start over, and the
+    // column keeps its experiment link.
+    const runExampleIds = playgroundStore.getState().runExampleIds;
     setApiError(null);
     resetPendingExperimentMetrics();
-    resetInstanceData(runningInstanceIds);
+
+    if (runExampleIds) {
+      resetExampleData({
+        instanceIds: runningInstanceIds,
+        exampleIds: runExampleIds,
+      });
+    } else {
+      resetInstanceData(runningInstanceIds);
+    }
+
     setRepetitions(repetitions);
+    const runExampleCount = runExampleIds?.length ?? exampleCount;
 
     for (const instance of runningInstances) {
-      setInstanceExperiment(instance.id, null);
+      if (!runExampleIds) {
+        setInstanceExperiment(instance.id, null);
+      }
+
       initExperimentRunProgress(instance.id, {
-        totalRuns: exampleCount * repetitions,
+        totalRuns: runExampleCount * repetitions,
         runsCompleted: 0,
         runsFailed: 0,
         // An evaluator task's verdicts are its runs; only a prompt task has
@@ -1191,7 +1206,7 @@ export function PlaygroundDatasetExamplesTable({
         totalEvals:
           instance.task.kind === "evaluator"
             ? 0
-            : exampleCount * repetitions * evaluatorCount,
+            : runExampleCount * repetitions * evaluatorCount,
         evalsCompleted: 0,
         evalsFailed: 0,
       });
@@ -1281,6 +1296,7 @@ export function PlaygroundDatasetExamplesTable({
     flushPendingExperimentMetrics,
     playgroundStore,
     repetitions,
+    resetExampleData,
     resetInstanceData,
     setInstanceExperiment,
     setRepetitions,
@@ -1534,8 +1550,38 @@ export function PlaygroundDatasetExamplesTable({
     evaluatorOutputConfigs,
   ]);
 
+  const runningInstanceIds = useMemo(
+    () =>
+      instances
+        .filter((instance) => instance.activeRunId != null)
+        .map((instance) => instance.id),
+    [instances]
+  );
+
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
+      // The row's own column: its number, and the play button that runs
+      // every task on just this example.
+      {
+        id: "row",
+        header: () => <VisuallyHidden>Example</VisuallyHidden>,
+        size: ROW_COLUMN_WIDTH,
+        minSize: ROW_COLUMN_WIDTH,
+        enableResizing: false,
+        cell: ({ row }) => (
+          <PlaygroundExampleRowCell
+            exampleId={row.original.id}
+            position={row.index + 1}
+            runningInstanceIds={runningInstanceIds}
+            canRun={!hasSomeRunIds}
+            onRun={() =>
+              runPlaygroundInstances(undefined, {
+                exampleIds: [row.original.id],
+              })
+            }
+          />
+        ),
+      },
       {
         header: "input",
         accessorKey: "input",
@@ -1602,8 +1648,11 @@ export function PlaygroundDatasetExamplesTable({
     [
       annotationListHeight,
       evaluatorOutputConfigs,
+      hasSomeRunIds,
       hideAnnotations,
       playgroundInstanceOutputColumns,
+      runningInstanceIds,
+      runPlaygroundInstances,
       setSearchParams,
     ]
   );

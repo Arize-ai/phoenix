@@ -467,6 +467,12 @@ export interface PlaygroundProps {
    */
   recordExperiments: boolean;
   /**
+   * The dataset examples the active run covers, or null for every example
+   * of the dataset. A row's play button runs the tasks on that one example.
+   * @default null
+   */
+  runExampleIds: readonly string[] | null;
+  /**
    * Name/description/metadata to apply to the experiments created by the next
    * dataset-backed run. Applied identically to every comparison instance and
    * cleared once the run consumes it.
@@ -757,9 +763,13 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     patch: Partial<Omit<ModelConfig, "provider" | "invocationParameters">>;
   }) => void;
   /**
-   * Run the playground instances: all of them, or only `instanceIds`.
+   * Run the playground instances: all of them, or only `instanceIds`; over
+   * the whole dataset, or only `exampleIds` (a row's play button).
    */
-  runPlaygroundInstances: (instanceIds?: readonly number[]) => void;
+  runPlaygroundInstances: (
+    instanceIds?: readonly number[],
+    options?: { exampleIds?: readonly string[] }
+  ) => void;
   /**
    * Cancel all the active playground Instances
    */

@@ -1345,6 +1345,45 @@ describe("dataset-scoped state", () => {
   });
 });
 
+describe("runPlaygroundInstances example scope", () => {
+  it("remembers the examples a row run covers until its last instance finishes", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    store.getState().addInstance({ type: "duplicate" });
+    const [first, second] = store.getState().instances;
+
+    store
+      .getState()
+      .runPlaygroundInstances(undefined, { exampleIds: ["example-1"] });
+
+    expect(store.getState().runExampleIds).toEqual(["example-1"]);
+
+    store.getState().markPlaygroundInstanceComplete(first.id);
+    expect(store.getState().runExampleIds).toEqual(["example-1"]);
+
+    store.getState().markPlaygroundInstanceComplete(second.id);
+    expect(store.getState().runExampleIds).toBeNull();
+  });
+
+  it("covers the whole dataset by default and forgets the scope on cancel", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+
+    store
+      .getState()
+      .runPlaygroundInstances(undefined, { exampleIds: ["example-1"] });
+    store.getState().cancelPlaygroundInstances();
+    expect(store.getState().runExampleIds).toBeNull();
+
+    store.getState().runPlaygroundInstances();
+    expect(store.getState().runExampleIds).toBeNull();
+  });
+});
+
 describe("addInstance", () => {
   const createStore = () =>
     createPlaygroundStore({ modelConfigByProvider: {}, datasetId: null });

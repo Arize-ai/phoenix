@@ -231,6 +231,20 @@ describe("getExperimentsOverDatasetInput", () => {
     );
   });
 
+  it("scopes a row run to its examples and never records it", () => {
+    const store = createStore();
+    store.playgroundStore.getState().setRecordExperiments(true);
+    store.playgroundStore
+      .getState()
+      .runPlaygroundInstances(undefined, { exampleIds: ["example-1"] });
+
+    const input = buildInput(store);
+
+    expect(input.exampleIds).toEqual(["example-1"]);
+    expect(input.createEphemeralExperiment).toBe(true);
+    expect(buildInput(createStore()).exampleIds).toBeNull();
+  });
+
   it("refuses to build a run with no task", () => {
     const store = createStore();
 

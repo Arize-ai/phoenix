@@ -2409,6 +2409,11 @@ input ExperimentsOverDatasetInput {
   datasetId: ID!
   datasetVersionId: ID = null
   splitIds: [ID!] = null
+
+  """
+  Run only these examples of the dataset, as a row's play button does; every example of the dataset or its splits when omitted.
+  """
+  exampleIds: [ID!] = null
   repetitions: Int! = 1
 
   """The concurrency budget of each experiment"""

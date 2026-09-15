@@ -65,6 +65,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionResult,
 )
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -331,6 +332,7 @@ class _DatasetRunTarget:
     dataset_id: int
     dataset_version_id: int
     split_ids: Optional[list[int]]
+    example_ids: Optional[list[int]]
 
 
 @dataclass(frozen=True)
@@ -386,7 +388,9 @@ async def _stream_experiments_over_dataset(
                     models.ExperimentDatasetSplit(dataset_split_id=split_id)
                     for split_id in target.split_ids
                 ]
-            await insert_experiment_with_examples_snapshot(session, experiment)
+            await insert_experiment_with_examples_snapshot(
+                session, experiment, example_ids=target.example_ids
+            )
             # The job rows inherit from ExperimentJob (polymorphic joined table
             # inheritance), so adding one inserts into both tables. claimed_at=NULL means
             # not running; start_experiment(experiment.id) claims it.
@@ -535,12 +539,21 @@ async def _resolve_dataset_run_target(
             for split_id in input.split_ids
         ]
 
+    # Parse example IDs if provided: a row's play button runs one example
+    resolved_example_ids: Optional[list[int]] = None
+    if input.example_ids is not None and len(input.example_ids) > 0:
+        resolved_example_ids = [
+            from_global_id_with_expected_type(example_id, DatasetExample.__name__)
+            for example_id in input.example_ids
+        ]
+
     # Validate at least one example exists (don't load all - daemon will paginate)
     example_count = await session.scalar(
         select(sa_func.count()).select_from(
             get_dataset_example_revisions(
                 resolved_version_id,
                 split_ids=resolved_split_ids,
+                example_ids=resolved_example_ids,
             ).subquery()
         )
     )
@@ -551,6 +564,7 @@ async def _resolve_dataset_run_target(
         dataset_id=dataset_id,
         dataset_version_id=resolved_version_id,
         split_ids=resolved_split_ids,
+        example_ids=resolved_example_ids,
     )
 
 

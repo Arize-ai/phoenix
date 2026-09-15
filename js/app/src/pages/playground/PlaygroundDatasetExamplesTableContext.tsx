@@ -125,6 +125,15 @@ type PlaygroundDatasetExamplesTableActions = {
    * ones.
    */
   resetInstanceData: (instanceIds: readonly InstanceId[]) => void;
+  /**
+   * Forget the results of the given examples for the given instances before
+   * those rows run again, and take their share out of the running aggregates.
+   * The other rows keep theirs, so one row can be rerun beside finished ones.
+   */
+  resetExampleData: (args: {
+    instanceIds: readonly InstanceId[];
+    exampleIds: readonly ExampleId[];
+  }) => void;
   setRepetitions: (repetitions: number) => void;
   setExpandedCell: (args: {
     instanceId: InstanceId;
@@ -151,7 +160,7 @@ export const makeExpandedCellKey = (
   repetitionNumber: RepetitionNumber
 ) => `${instanceId}-${exampleId}-${repetitionNumber}`;
 
-const createPlaygroundDatasetExamplesTableStore = () => {
+export const createPlaygroundDatasetExamplesTableStore = () => {
   const playgroundDatasetExamplesTableStore: StateCreator<
     PlaygroundDatasetExamplesTableState
   > = (set, get) => ({
@@ -381,6 +390,69 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         ),
       });
     },
+    resetExampleData: ({ instanceIds, exampleIds }) => {
+      const {
+        exampleResponsesMap,
+        runAnnotationAggregateMetrics,
+        runCostAggregateMetrics,
+        expandedCells,
+      } = get();
+
+      const nextResponses = { ...exampleResponsesMap };
+      const nextAnnotationMetrics = { ...runAnnotationAggregateMetrics };
+      const nextCostMetrics = { ...runCostAggregateMetrics };
+
+      for (const instanceId of instanceIds) {
+        const responses = nextResponses[instanceId];
+
+        if (!responses) {
+          continue;
+        }
+
+        const remaining = { ...responses };
+
+        for (const exampleId of exampleIds) {
+          const repetitions = remaining[exampleId];
+          delete remaining[exampleId];
+
+          for (const runData of Object.values(repetitions ?? {})) {
+            const costAggregate = nextCostMetrics[instanceId];
+            const annotationAggregates = nextAnnotationMetrics[instanceId];
+
+            if (costAggregate && runData?.span) {
+              nextCostMetrics[instanceId] = subtractRunCost(
+                costAggregate,
+                runData.span
+              );
+            }
+
+            if (annotationAggregates && runData?.evaluations) {
+              nextAnnotationMetrics[instanceId] = subtractRunAnnotations(
+                annotationAggregates,
+                runData.evaluations
+              );
+            }
+          }
+        }
+
+        nextResponses[instanceId] = remaining;
+      }
+
+      const resetPrefixes = instanceIds.flatMap((instanceId) =>
+        exampleIds.map((exampleId) => `${instanceId}-${exampleId}-`)
+      );
+
+      set({
+        exampleResponsesMap: nextResponses,
+        runAnnotationAggregateMetrics: nextAnnotationMetrics,
+        runCostAggregateMetrics: nextCostMetrics,
+        expandedCells: Object.fromEntries(
+          Object.entries(expandedCells).filter(
+            ([key]) => !resetPrefixes.some((prefix) => key.startsWith(prefix))
+          )
+        ),
+      });
+    },
     setRepetitions: (repetitions: number) => {
       set({ repetitions });
     },
@@ -408,6 +480,74 @@ const createPlaygroundDatasetExamplesTableStore = () => {
 type PlaygroundDatasetExamplesTableStore = ReturnType<
   typeof createPlaygroundDatasetExamplesTableStore
 >;
+
+/**
+ * The cost, latency and token figures one run added to its instance's
+ * aggregates; the mirror image of {@link getExperimentRunCost}.
+ */
+export function getExperimentRunCost(
+  instanceId: InstanceId,
+  span: Span | null | undefined
+): ExperimentRunCost {
+  return {
+    instanceId,
+    latencyMs: span?.latencyMs ?? null,
+    tokenCountTotal: span?.tokenCountTotal ?? null,
+    cost: span?.costSummary?.total?.cost ?? null,
+  };
+}
+
+/** The instance's aggregates without one run's share, as `addRunCosts` added it. */
+function subtractRunCost(
+  aggregate: ExperimentRunCostAggregateMetric,
+  span: Span
+): ExperimentRunCostAggregateMetric {
+  const { latencyMs, tokenCountTotal, cost } = getExperimentRunCost(0, span);
+
+  return {
+    runCount: aggregate.runCount - 1,
+    latencySum:
+      latencyMs != null
+        ? aggregate.latencySum - latencyMs
+        : aggregate.latencySum,
+    latencyCount:
+      latencyMs != null ? aggregate.latencyCount - 1 : aggregate.latencyCount,
+    tokenCountSum:
+      tokenCountTotal != null
+        ? aggregate.tokenCountSum - tokenCountTotal
+        : aggregate.tokenCountSum,
+    tokenCountCount:
+      tokenCountTotal != null
+        ? aggregate.tokenCountCount - 1
+        : aggregate.tokenCountCount,
+    costSum: cost != null ? aggregate.costSum - cost : aggregate.costSum,
+    costCount: cost != null ? aggregate.costCount - 1 : aggregate.costCount,
+  };
+}
+
+/** The instance's annotation aggregates without one run's scores, as `addRunAnnotations` added them. */
+function subtractRunAnnotations(
+  aggregates: Record<AnnotationName, ExperimentRunAnnotationAggregateMetric>,
+  evaluations: readonly EvaluationChunk[]
+): Record<AnnotationName, ExperimentRunAnnotationAggregateMetric> {
+  const next = { ...aggregates };
+
+  for (const evaluation of evaluations) {
+    const score = evaluation.experimentRunEvaluation?.score;
+    const previous = next[evaluation.evaluatorName];
+
+    if (score == null || !previous) {
+      continue;
+    }
+
+    next[evaluation.evaluatorName] = {
+      sum: previous.sum - score,
+      count: previous.count - 1,
+    };
+  }
+
+  return next;
+}
 
 export const PlaygroundDatasetExamplesTableContext =
   React.createContext<PlaygroundDatasetExamplesTableStore | null>(null);

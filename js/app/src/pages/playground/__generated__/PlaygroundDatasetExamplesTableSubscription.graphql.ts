@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84bc58dae0141924da4ca145c7121ec3>>
+ * @generated SignedSource<<6ee83261abfe4c4a58f6361c7b06cc73>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type ExperimentsOverDatasetInput = {
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
+  exampleIds?: ReadonlyArray<string> | null;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;

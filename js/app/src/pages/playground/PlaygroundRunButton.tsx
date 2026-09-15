@@ -7,6 +7,9 @@ import {
   Icon,
   Icons,
   Keyboard,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -34,6 +37,10 @@ export function PlaygroundRunButton() {
 
   const isEvaluatorKind = usePlaygroundContext(
     (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
+  );
+
+  const recordExperiments = usePlaygroundContext(
+    (state) => state.recordExperiments
   );
 
   const [searchParams] = useSearchParams();
@@ -98,11 +105,44 @@ export function PlaygroundRunButton() {
     </Button>
   );
 
-  return canRun || isRunning ? (
-    button
-  ) : (
-    <DisabledButtonTooltip label="Run" reason={EVALUATORS_NEED_A_DATASET}>
+  if (!canRun && !isRunning) {
+    return (
+      <DisabledButtonTooltip label="Run" reason={EVALUATORS_NEED_A_DATASET}>
+        {button}
+      </DisabledButtonTooltip>
+    );
+  }
+
+  return (
+    <TooltipTrigger>
       {button}
-    </DisabledButtonTooltip>
+      <Tooltip>
+        <TooltipArrow />
+        {getRunTooltip({ isRunning, hasDataset, recordExperiments })}
+      </Tooltip>
+    </TooltipTrigger>
   );
+}
+
+/** What pressing the button does right now, in a sentence or two. */
+function getRunTooltip({
+  isRunning,
+  hasDataset,
+  recordExperiments,
+}: {
+  isRunning: boolean;
+  hasDataset: boolean;
+  recordExperiments: boolean;
+}): string {
+  if (isRunning) {
+    return "Stop the running experiments.";
+  }
+
+  if (!hasDataset) {
+    return "Run every prompt on the inputs.";
+  }
+
+  return recordExperiments
+    ? "Run every task over the dataset. Recorded."
+    : "Run every task over the dataset. Not recorded.";
 }

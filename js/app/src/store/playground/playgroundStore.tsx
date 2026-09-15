@@ -466,6 +466,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     streaming: true,
     repetitions: 1,
     recordExperiments: true,
+    runExampleIds: null,
     nextExperimentScaffold: null,
     operationType: "chat",
     inputMode: "manual",
@@ -1028,11 +1029,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "markToolsExternallyUpdated" }
       );
     },
-    runPlaygroundInstances: (instanceIds) => {
+    runPlaygroundInstances: (instanceIds, options) => {
       const instances = get().instances;
       const repetitions = get().repetitions;
       set(
         {
+          runExampleIds: options?.exampleIds ?? null,
           instances: instances.map((instance) => {
             if (instanceIds != null && !instanceIds.includes(instance.id)) {
               return instance;
@@ -1065,6 +1067,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const instances = get().instances;
       set(
         {
+          runExampleIds: null,
           instances: instances.map((instance) => ({
             ...instance,
             activeRunId: null,
@@ -1089,32 +1092,41 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     markPlaygroundInstanceComplete: (instanceId: number) => {
       const instances = get().instances;
+      const nextInstances: PlaygroundNormalizedInstance[] = instances.map(
+        (instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              activeRunId: null,
+              repetitions: Object.fromEntries(
+                Object.entries(instance.repetitions).map(
+                  ([repetitionNumber, repetition]) => {
+                    return [
+                      repetitionNumber,
+                      repetition
+                        ? {
+                            ...repetition,
+                            status: "finished",
+                          }
+                        : undefined,
+                    ];
+                  }
+                )
+              ),
+            };
+          }
+          return instance;
+        }
+      );
       set(
         {
-          instances: instances.map((instance) => {
-            if (instance.id === instanceId) {
-              return {
-                ...instance,
-                activeRunId: null,
-                repetitions: Object.fromEntries(
-                  Object.entries(instance.repetitions).map(
-                    ([repetitionNumber, repetition]) => {
-                      return [
-                        repetitionNumber,
-                        repetition
-                          ? {
-                              ...repetition,
-                              status: "finished",
-                            }
-                          : undefined,
-                      ];
-                    }
-                  )
-                ),
-              };
-            }
-            return instance;
-          }),
+          instances: nextInstances,
+          // The run's example scope ends with its last running instance.
+          runExampleIds: nextInstances.some(
+            (instance) => instance.activeRunId != null
+          )
+            ? get().runExampleIds
+            : null,
         },
         false,
         { type: "markPlaygroundInstanceComplete" }
