@@ -54,6 +54,13 @@ px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>
+px evaluator list
+px evaluator get <evaluator-id>
+px evaluator create
+px evaluator update <evaluator-id>
+px evaluator delete <evaluator-id>
+px evaluator version list <evaluator-id>
+px evaluator version create <evaluator-id>
 px auth login
 px auth logout
 px auth status
@@ -428,6 +435,32 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 ```
 
 Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Invalid input (bad flags, type mismatches, malformed values) exits `3` (`INVALID_ARGUMENT`) with a `{error, code, hint?}` JSON envelope on stderr in `raw`/`json` mode. `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
+
+## Evaluators
+
+Shared evaluator definitions (LLM, code, built-in) that projects and datasets bind. Requires Phoenix server >= 21.0.0; older servers fail fast with exit `1` and a message naming the required version. Ids are typed GlobalIDs (`CodeEvaluator:…`, `LLMEvaluator:…`, `BuiltInEvaluator:…`). Only code evaluators can be created or deleted standalone; LLM definitions are created with the binding that owns them.
+
+```bash
+px evaluator list --format raw --no-progress | jq '.[] | {id, type, name}'
+px evaluator list --type code --name exact-match --format raw --no-progress | jq -r '.[0].id'   # --type llm|code|builtin
+px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress                                 # one definition; inspect .type
+
+# create a code evaluator from a file; the sandbox config decides the runtime, and it needs at least one output config
+px evaluator create --name exact-match --language PYTHON --sandbox-config-id <id> --file evaluator.py --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' \
+  --output-configs '[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]'
+
+# update fields; --type llm|code picks the patch shape
+px evaluator update Q29kZUV2YWx1YXRvcjoy --type code --description "Exact string match"
+
+# deploy new source as a new immutable version; unchanged source returns the existing version
+px evaluator version list Q29kZUV2YWx1YXRvcjoy --format raw --no-progress | jq '.[0].id'
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py --expected-current-version <version-id>
+
+# delete an unbound code evaluator — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; refused with 409 while bound
+px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
+```
+
+Errors carry the server's 409/422 explanation. In `raw`/`json` mode they are a `{error, code}` JSON envelope on stderr; invalid flags exit `3`, rejected credentials exit `4`.
 
 ## GraphQL
 

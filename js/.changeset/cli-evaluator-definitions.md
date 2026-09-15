@@ -1,0 +1,5 @@
+---
+"@arizeai/phoenix-cli": minor
+---
+
+Add `px evaluator list|get|create|update|delete` and `px evaluator version list|create` for shared evaluator definitions (Phoenix server >= 21.0.0). `list` filters by `--type` and `--name` and caps results with `--limit`. `create` makes a code evaluator that nothing binds yet and requires `--output-configs` with at least one output config. `update` takes `--type llm|code` plus only the field flags to change, clears fields with `--clear-description` and `--clear-sandbox-config`, moves an LLM evaluator between prompt versions with `--prompt-version-id`, and rejects flags that belong to the other kind before calling the server. `delete` removes an unbound code evaluator behind the deletes gate. `version create` appends immutable code from `--file` or `--source-code`, can apply the sandbox, input mapping, outputs, or description the new code needs in the same request, and refuses to race another deploy with `--expected-current-version`. Errors include the server's explanation, and every command checks the server version before calling it.

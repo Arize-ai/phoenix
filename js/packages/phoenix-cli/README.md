@@ -500,6 +500,111 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 
 ---
 
+### `px evaluator list`
+
+List shared evaluator definitions, newest first. Every definition is listed whether or not a project or dataset uses it. Requires Phoenix server >= 21.0.0.
+
+```bash
+px evaluator list
+px evaluator list --name exact-match --format raw --no-progress | jq -r '.[0].id'
+```
+
+| Option               | Description                             | Default |
+| -------------------- | --------------------------------------- | ------- |
+| `--type <llm\|code>` | Only one kind of evaluator              | all     |
+| `--name <name>`      | Only the evaluator with this exact name | —       |
+| `--limit <number>`   | Maximum number of evaluators to fetch   | all     |
+
+### `px evaluator get <evaluator-id>`
+
+Show a shared evaluator definition. Output is a single record; `type` is `llm` or `code`. Requires Phoenix server >= 21.0.0.
+
+```bash
+px evaluator get Q29kZUV2YWx1YXRvcjoy
+px evaluator get Q29kZUV2YWx1YXRvcjoy --format raw --no-progress | jq -r '.source_code'
+```
+
+### `px evaluator create`
+
+Create a code evaluator that nothing binds yet, with its first version. Bind it to a project or dataset afterwards by its `id`. LLM evaluators are created through the binding commands because each one is tied to its own prompt.
+
+```bash
+px evaluator create --name exact-match --file evaluator.py --language PYTHON \
+  --sandbox-config-id U2FuZGJveENvbmZpZzox --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}' \
+  --output-configs '[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]'
+```
+
+| Option                     | Description                                                      | Default |
+| -------------------------- | ---------------------------------------------------------------- | ------- |
+| `--name <name>`            | Name, unique among evaluators (required)                         | —       |
+| `--file <path>`            | Read the source from a file (or `--source-code <text>`)          | —       |
+| `--language <language>`    | `PYTHON` or `TYPESCRIPT` (required)                              | —       |
+| `--sandbox-config-id <id>` | Sandbox configuration to run in (required)                       | —       |
+| `--input-mapping <json>`   | JSON object with `literal_mapping` and `path_mapping` (required) | —       |
+| `--description <text>`     | Description                                                      | —       |
+| `--output-configs <json>`  | JSON array of output configurations, at least one (required)     | —       |
+
+### `px evaluator update <evaluator-id>`
+
+Update a shared evaluator definition. The change applies to every project and dataset that uses the evaluator. Only the flags you pass are sent; omitted fields keep their values.
+
+```bash
+px evaluator update TExNRXZhbHVhdG9yOjE= --type llm --name toxicity
+px evaluator update TExNRXZhbHVhdG9yOjE= --type llm --prompt-version-id UHJvbXB0VmVyc2lvbjo3
+px evaluator update Q29kZUV2YWx1YXRvcjoy --type code --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
+```
+
+| Option                     | Description                                                                | Default |
+| -------------------------- | -------------------------------------------------------------------------- | ------- |
+| `--type <llm\|code>`       | Kind of evaluator (required, must match the server)                        | —       |
+| `--name <name>`            | New name                                                                   | —       |
+| `--description <text>`     | New description (LLM evaluators: must equal the prompt tool's description) | —       |
+| `--clear-description`      | Remove the description                                                     | —       |
+| `--output-configs <json>`  | JSON array of output configs (LLM evaluators: categorical only)            | —       |
+| `--prompt-version-id <id>` | (llm) Run an existing prompt version                                       | —       |
+| `--sandbox-config-id <id>` | (code) Sandbox configuration to run in                                     | —       |
+| `--clear-sandbox-config`   | (code) Detach the sandbox configuration                                    | —       |
+| `--input-mapping <json>`   | (code) JSON object with `literal_mapping` and `path_mapping` keys          | —       |
+
+Prompt content is not edited here. Create a new version of the evaluator's prompt through the Phoenix UI or the client SDKs, then pass its ID with `--prompt-version-id`. The server refuses with a conflict an LLM change that would invalidate a dataset binding's output overrides, and the CLI prints the server's explanation.
+
+### `px evaluator delete <evaluator-id>`
+
+Delete a code evaluator that nothing binds, with its version history. An evaluator still bound by a project or dataset is refused; delete those bindings first, or delete the last binding, which removes the evaluator with it. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+```bash
+px evaluator delete Q29kZUV2YWx1YXRvcjoy --yes
+```
+
+### `px evaluator version list <evaluator-id>`
+
+List a code evaluator's versions, newest first. The first entry is the version the evaluator currently runs. `pretty` output omits the source; use `--format json` or `raw` to see it.
+
+```bash
+px evaluator version list Q29kZUV2YWx1YXRvcjoy
+px evaluator version list Q29kZUV2YWx1YXRvcjoy --limit 2 --format raw --no-progress | jq -r '.[1].source_code'
+```
+
+### `px evaluator version create <evaluator-id>`
+
+Append a new immutable version of a code evaluator's source. Configuration passed alongside is applied in the same request, so bindings never run the new code with the old sandbox, input mapping, or outputs. If the source matches the current version, the existing version is returned and `was_created` is `false`.
+
+```bash
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py \
+  --expected-current-version Q29kZUV2YWx1YXRvclZlcnNpb246MQ== --output-configs '[{"type":"FREEFORM","name":"notes"}]'
+px evaluator version create Q29kZUV2YWx1YXRvcjoy --file evaluator.py --format raw --no-progress | jq -r '.id'
+```
+
+| Option                            | Description                                                          | Default |
+| --------------------------------- | -------------------------------------------------------------------- | ------- |
+| `--file <path>`                   | Read the source from a file (or `--source-code <text>`)              | —       |
+| `--expected-current-version <id>` | Refuse to deploy if another version has been appended since this one | —       |
+| `--description <text>`            | Description applied with the new code                                | keep    |
+| `--sandbox-config-id <id>`        | Sandbox the new code runs in                                         | keep    |
+| `--input-mapping <json>`          | Default input mapping for the new code                               | keep    |
+| `--output-configs <json>`         | Outputs the new code produces                                        | keep    |
+
 ### `px project list`
 
 List all available Phoenix projects.
