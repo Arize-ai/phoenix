@@ -9,9 +9,6 @@ import { defineConfig, devices } from "@playwright/test";
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const isCI = !!process.env.CI;
-// Chromium always runs. Firefox and WebKit are opt-out so CI can trim the
-// per-PR matrix: the workflow skips WebKit everywhere (its binaries don't
-// cache reliably) and skips Firefox outside the nightly schedule.
 const skipFirefox = process.env.CI_PLAYWRIGHT_SKIP_FIREFOX === "true";
 const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
 const basePort = Number(process.env.PHOENIX_PORT ?? "6006");
