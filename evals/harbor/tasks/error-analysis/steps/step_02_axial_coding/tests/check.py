@@ -28,7 +28,9 @@ noted_traces = ea.covered_trace_ids(notes)
 labelled_traces = ea.covered_trace_ids(labels)
 names_without_config = sorted({a.name for a in labels} - config_names)
 labels_outside_notes = sorted(labelled_traces - noted_traces)
-planted_unlabelled = sorted(planted - labelled_traces)
+# Step 1 passes at 4-of-5 planted recall, so only the planted traces the agent actually
+# noted must carry a label here.
+planted_unlabelled = sorted((planted & noted_traces) - labelled_traces)
 identifier = ea.shared_identifier(labels)
 notes_identifier = ea.shared_identifier(notes)
 labels_ok = (
