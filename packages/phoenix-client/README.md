@@ -513,6 +513,50 @@ new_project = client.projects.create(
 print(f"Created project with ID: {new_project['id']}")
 ```
 
+### Evaluators
+
+Read and edit shared evaluator definitions. A definition is shared by every project and dataset that binds it, so an update applies everywhere it is used. Requires Phoenix server >= 21.0.0:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# List definitions; `type` is "llm", "code", or "builtin"
+for definition in client.evaluators.list(type="code", limit=20):
+    print(definition["id"], definition["name"])
+
+# Create a code evaluator that nothing binds yet
+definition = client.evaluators.create_code(
+    name="exact-match",
+    source_code=open("evaluator.py").read(),
+    language="PYTHON",
+    sandbox_config_id="U2FuZGJveENvbmZpZzox",
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+    output_configs=[{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}],
+)
+
+# Deploy new code together with the outputs it produces; refuse to deploy over a
+# version somebody else pushed in the meantime
+version = client.evaluators.create_code_version(
+    evaluator_id=definition["id"],
+    source_code=open("evaluator.py").read(),
+    expected_current_version_id=definition["current_version_id"],
+    output_configs=[{"type": "FREEFORM", "name": "notes"}],
+)
+print(version["id"], version["was_created"])
+
+# Point an LLM evaluator at another version of its prompt. Prompt content is
+# edited through the prompts API; the evaluator only records which version runs.
+client.evaluators.update_llm(
+    evaluator_id="TExNRXZhbHVhdG9yOjE=",
+    prompt_version_id="UHJvbXB0VmVyc2lvbjo3",
+)
+
+# Delete a code evaluator once nothing binds it
+client.evaluators.delete(evaluator_id=definition["id"])
+```
+
 ## Documentation
 
 - **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html)** - Complete API reference and guides

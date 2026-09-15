@@ -779,6 +779,84 @@ await setProjectRetentionPolicy({
 
 This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
 
+## Evaluators
+
+The `@arizeai/phoenix-client` package provides an `evaluators` export for working with shared evaluator definitions. A definition is shared by every project and dataset that binds it, so an update applies everywhere it is used. These helpers require Phoenix server `21.0.0` or newer.
+
+### Listing, Reading, Creating, and Deleting Definitions
+
+```ts
+import { readFile } from "node:fs/promises";
+
+import {
+  createEvaluator,
+  deleteEvaluator,
+  getEvaluator,
+  getEvaluators,
+} from "@arizeai/phoenix-client/evaluators";
+
+// `type` is "llm", "code", or "builtin"; `name` and `limit` keep the list small
+for (const evaluator of await getEvaluators({ type: "code", limit: 20 })) {
+  console.log(evaluator.id, evaluator.name);
+}
+
+const evaluator = await getEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
+console.log(evaluator.type, evaluator.name);
+
+// Create a code evaluator that nothing binds yet, then delete it again
+const created = await createEvaluator({
+  evaluator: {
+    type: "code",
+    name: "exact-match",
+    source_code: await readFile("evaluator.py", "utf8"),
+    language: "PYTHON",
+    sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+    input_mapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+    output_configs: [
+      { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
+    ],
+  },
+});
+await deleteEvaluator({ evaluatorId: created.id });
+```
+
+### Updating a Definition
+
+```ts
+import { updateEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+await updateEvaluator({
+  evaluatorId: "TExNRXZhbHVhdG9yOjE=",
+  patch: { type: "llm", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+});
+```
+
+The `patch` is discriminated by `type` (`"llm"` or `"code"`) and must match the evaluator. Omitted fields keep their current values. Prompt content is edited through the prompts API: create a version with `createPrompt` and pass its `id` as `prompt_version_id`. An LLM evaluator's `description` must equal the description of its prompt's tool function.
+
+### Code Versions
+
+Code is immutable per version. `createCodeEvaluatorVersion` appends new source and can apply the sandbox, input mapping, outputs, or description the new code needs in the same transaction; pass `expectedCurrentVersionId` to refuse deploying over a version somebody else pushed in the meantime. If the source matches the current version, `was_created` is `false`. `getCodeEvaluatorVersions` lists every version, newest first.
+
+```ts
+import { readFile } from "node:fs/promises";
+import {
+  createCodeEvaluatorVersion,
+  getCodeEvaluatorVersions,
+} from "@arizeai/phoenix-client/evaluators";
+
+const [current] = await getCodeEvaluatorVersions({
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  limit: 1,
+});
+const version = await createCodeEvaluatorVersion({
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  sourceCode: await readFile("evaluator.py", "utf8"),
+  expectedCurrentVersionId: current?.id,
+  configuration: { output_configs: [{ type: "FREEFORM", name: "notes" }] },
+});
+console.log(version.id, version.was_created);
+```
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:
