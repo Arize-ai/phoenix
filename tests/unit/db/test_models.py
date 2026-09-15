@@ -10,7 +10,9 @@ from deepdiff.diff import DeepDiff
 from sqlalchemy import select
 from sqlalchemy.dialects import postgresql as postgresql_dialect
 from sqlalchemy.dialects import sqlite as sqlite_dialect
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import selectinload
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -34,6 +36,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_span, _add_trace
 
 
 async def test_projects_with_session_injection(
@@ -66,6 +69,42 @@ async def test_empty_projects(
     async with db() as session:
         result = (await session.execute(statement)).scalars().first()
     assert not result
+
+
+async def test_span_cost_span_rowid_is_unique(
+    db: DbSessionFactory,
+) -> None:
+    """Span.span_cost is a one-to-one relationship: a span may have at most
+    one SpanCost row. This must be enforced by span_costs.span_rowid being
+    unique, on both SQLite and PostgreSQL (the `db` fixture is parametrized
+    over both dialects), otherwise a duplicate row would let joins against
+    span_costs silently fan a span out into multiple rows.
+    """
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+        session.add(
+            models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=span.start_time,
+                total_cost=1.0,
+            )
+        )
+        await session.flush()
+
+        session.add(
+            models.SpanCost(
+                span_rowid=span.id,
+                trace_rowid=trace.id,
+                span_start_time=span.start_time,
+                total_cost=2.0,
+            )
+        )
+        with pytest.raises((PostgreSQLIntegrityError, SQLiteIntegrityError)):
+            await session.flush()
+        await session.rollback()
 
 
 class TestCaseInsensitiveContains:
