@@ -483,8 +483,8 @@ def build_phoenix_mcp_server(
             span, trace, and session notes.
         db: Session factory for the analytics SQL tools.
         graphql_tools: Register the GraphQL schema and query tools. Off by
-            default so a consumer that already reaches GraphQL another way does
-            not carry a second path to it.
+            default: a consumer that reaches GraphQL another way must not carry
+            a second, ungated path to it.
         skills_roots: Directories whose skill folders this consumer receives.
             Empty by default: no skill tools, and no skill instructions
             advertised.
