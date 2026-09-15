@@ -190,6 +190,16 @@ def test_field_lookup_prints_the_path_to_its_parent(index: Index) -> None:
     assert "type Query" not in text
 
 
+def test_field_lookup_inlines_its_inputs_and_return_members(index: Index) -> None:
+    text = lookup(index, "Project.traceCountByStatusTimeSeries")
+    assert "input TimeRange {" in text
+    assert "input TimeBinConfig {" in text
+    assert "enum TimeBinScale {" in text
+    assert "# TraceCountByStatusTimeSeries: data" in text
+    assert "# TraceCountByStatusTimeSeriesDataPoint: timestamp, okCount, errorCount" in text
+    assert "# CostBreakdown: tokens, cost" in lookup(index, "Span.costSummary")
+
+
 def test_types_render_one_member_per_line_with_trailing_descriptions() -> None:
     schema = build_schema(
         '"""A thing."""\ntype Query { """The id. Never null."""\nid: ID, n(k: Int = 1): Int }'

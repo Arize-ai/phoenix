@@ -9,6 +9,7 @@ path that reaches it. Every renderer works to a character budget.
 from __future__ import annotations
 
 import functools
+import itertools
 import math
 import re
 import threading
@@ -833,6 +834,28 @@ def _print_compact(t: GraphQLNamedType) -> str:
     return "\n".join(lines)
 
 
+_NEIGHBOR_STUBS = 8
+
+
+def _field_dependencies(index: Index, u: Unit) -> list[str]:
+    """What a caller needs beside the signature: every input type and enum the
+    arguments take, in full, and the members of what the field returns, one
+    level deep."""
+    parent = index.schema.type_map[u.parent]
+    assert isinstance(parent, (GraphQLObjectType, GraphQLInterfaceType))
+    f = parent.fields[u.name]
+    parts = [
+        _print_compact(t) for t in _input_closure(get_named_type(a.type) for a in f.args.values())
+    ]
+    returned = _node_type(get_named_type(f.type))
+    if _member_names(returned):
+        stubbed = [returned]
+        if isinstance(returned, (GraphQLObjectType, GraphQLInterfaceType)):
+            stubbed.extend(itertools.islice(_neighbors(index, returned), _NEIGHBOR_STUBS))
+        parts.extend(_stubs(stubbed))
+    return parts
+
+
 def _path_lines(paths: Iterable[tuple[str, ...]]) -> list[str]:
     """One ``# via`` line per path of ``Type.field`` hops."""
     return [f"# via {' > '.join(path)}" for path in paths]
@@ -919,6 +942,7 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
         if u.kind == "field":
             hop = f"{u.parent}.{u.name}"
             parts.extend(_path_lines((*p, hop) for p in reach_paths(index, u.parent)))
+            parts.extend(_field_dependencies(index, u))
         else:
             parts.append(f"# {u.kind} for {', '.join(index.used_by.get(u.parent, [])[:3])}")
     if any(_uses_pagination(part) for part in parts):
