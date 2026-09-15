@@ -102,11 +102,8 @@ const readRow = (
         evaluationTarget
         filterCondition
         samplingRate
-        schedulabilityStatus
         enabled
         updatedAt
-        schedulabilityStatus
-        schedulabilityReason
         runSummary {
           status
           lastRunAt
@@ -416,11 +413,7 @@ export function ProjectEvaluatorsTable({
         header: "status",
         size: 130,
         cell: ({ row }) => (
-          <ProjectEvaluatorStatusCell
-            schedulabilityStatus={row.original.schedulabilityStatus}
-            schedulabilityReason={row.original.schedulabilityReason}
-            runSummary={row.original.runSummary}
-          />
+          <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
         ),
       },
       {
@@ -558,15 +551,7 @@ export function ProjectEvaluatorsTable({
         // A disabled evaluator already reads as not running from its own
         // column, so only flag scope-driven reasons here.
         cell: ({ row }) => (
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <Text>{formatEvaluationTarget(row.original.evaluationTarget)}</Text>
-            {row.original.enabled &&
-            row.original.schedulabilityStatus === "NOT_SCHEDULABLE" ? (
-              <span title="This evaluator is not scheduled.">
-                <Icon svg={<Icons.AlertTriangle />} color="warning" />
-              </span>
-            ) : null}
-          </Flex>
+          <Text>{formatEvaluationTarget(row.original.evaluationTarget)}</Text>
         ),
       },
       {
