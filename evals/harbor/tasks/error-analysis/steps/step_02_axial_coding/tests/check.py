@@ -2,10 +2,8 @@
 labelled the entities that carry open-coding notes, mirrored in the axial sidecar."""
 
 import json
-import sys
 
-sys.path.insert(0, "/opt/error-analysis/checks")
-import error_analysis_checks as ea  # noqa: E402
+import error_analysis_checks as ea
 
 STEP = 2
 truth = ea.load_truth()
