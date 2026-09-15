@@ -132,12 +132,13 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         permission error, leaving the rest of `data` populated -- so check
         `errors` even when `data` is present.
 
-        With `validate_only=True`, the document is admitted and checked against
-        the schema, and not executed; the answer is `{valid, notes}`. A document
-        this tool would refuse to run is refused here too. Validation does not
-        check the values in `variables`, and it does not evaluate permissions,
-        which run only during execution, so `valid` is not a guarantee the
-        query will succeed.
+        Run a document directly. One that fails validation comes back as
+        `errors` with nothing executed, the same answer a validation pass gives,
+        so validating a query first only costs a call. `validate_only=True` is
+        for when a document must not run: it admits and checks the document
+        against the schema and answers `{valid, notes}`. It does not check the
+        values in `variables` or evaluate permissions, which run only during
+        execution, so `valid` is not a guarantee the query will succeed.
         """
         try:
             if validate_only:
