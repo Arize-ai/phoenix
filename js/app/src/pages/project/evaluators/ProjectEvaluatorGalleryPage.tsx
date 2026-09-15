@@ -847,21 +847,31 @@ function EvaluatorGalleryAddMenu({
   );
 }
 
+const CODE_LANGUAGE_LABELS = {
+  PYTHON: "Python",
+  TYPESCRIPT: "TypeScript",
+} satisfies Record<CodeProjectEvaluatorDetails["language"], string>;
+
 function EvaluatorTypeSummary({
   evaluatorKind,
+  language,
   evaluationTargets,
 }: {
   evaluatorKind: "CODE" | "LLM";
+  language?: CodeProjectEvaluatorDetails["language"];
   evaluationTargets?: readonly [
     ProjectEvaluatorTarget,
     ...ProjectEvaluatorTarget[],
   ];
 }) {
   const kindLabel = evaluatorKind === "LLM" ? "LLM" : "Code";
+  const languageLabel = language ? CODE_LANGUAGE_LABELS[language] : undefined;
   const targetsLabel = evaluationTargets
     ?.map((target) => capitalize(formatEvaluationTargetPlural(target)))
     .join(", ");
-  const summary = [kindLabel, targetsLabel].filter(Boolean).join(" • ");
+  const summary = [kindLabel, languageLabel, targetsLabel]
+    .filter(Boolean)
+    .join(" • ");
   return (
     <Text
       className="project-evaluator-gallery__evaluator-type-summary"
@@ -918,18 +928,28 @@ function CustomEvaluatorDetailsHeader({
   evaluator: LlmProjectEvaluatorDetails | CodeProjectEvaluatorDetails;
 }) {
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <EvaluatorCategoryIcon section={CUSTOM_EVALUATORS_SECTION} />
-        <Heading level={2}>{evaluator.name}</Heading>
+    <Flex direction="column" gap="size-50">
+      <Flex direction="column" gap="size-25">
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <EvaluatorCategoryIcon section={CUSTOM_EVALUATORS_SECTION} />
+          <Heading level={2}>{evaluator.name}</Heading>
+        </Flex>
+        <EvaluatorTypeSummary
+          evaluatorKind={
+            evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE"
+          }
+          language={
+            evaluator.__typename === "CodeEvaluator"
+              ? evaluator.language
+              : undefined
+          }
+        />
       </Flex>
-      <Text
-        size="S"
-        color={evaluator.description ? "text-700" : "text-500"}
-        css={evaluator.description ? undefined : emptyDescriptionCSS}
-      >
-        {evaluator.description || "No description"}
-      </Text>
+      {evaluator.description ? (
+        <Text size="S" color="text-700">
+          {evaluator.description}
+        </Text>
+      ) : null}
     </Flex>
   );
 }
@@ -952,27 +972,30 @@ function EvaluatorOutputSummary({
               {config.name}
             </Text>
           ) : null}
-          <dl className="project-evaluator-gallery__definition-list">
-            <div>
-              <dt>
-                <Text size="XS" color="text-500">
-                  Optimization
-                </Text>
-              </dt>
-              <dd>
-                <Text size="S">
-                  {capitalize(config.optimizationDirection.toLowerCase())}
-                </Text>
-              </dd>
-            </div>
-          </dl>
+          {/* AnnotationValues shows its own OptimizationDirectionIndicator, so
+              the standalone Optimization row is only needed without it. */}
           {config.__typename === "CategoricalAnnotationConfig" &&
           config.values.length > 0 ? (
             <AnnotationValues
               values={config.values}
               optimizationDirection={config.optimizationDirection}
             />
-          ) : null}
+          ) : (
+            <dl className="project-evaluator-gallery__definition-list">
+              <div>
+                <dt>
+                  <Text size="XS" color="text-500">
+                    Optimization
+                  </Text>
+                </dt>
+                <dd>
+                  <OptimizationDirectionIndicator
+                    optimizationDirection={config.optimizationDirection}
+                  />
+                </dd>
+              </div>
+            </dl>
+          )}
         </Flex>
       ))}
     </Flex>
@@ -1098,20 +1121,8 @@ function LlmCustomEvaluatorDetails({
           ]
         : [];
   return (
-    <Flex direction="column" gap="size-200" height="100%">
+    <Flex direction="column" gap="size-300" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
-      <dl className="project-evaluator-gallery__definition-list">
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Type
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">LLM</Text>
-          </dd>
-        </div>
-      </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <EvaluatorPromptPreview messages={messages} />
@@ -1132,30 +1143,8 @@ function CodeCustomEvaluatorDetails({
   onDuplicateEvaluator: () => void;
 }) {
   return (
-    <Flex direction="column" gap="size-200" height="100%">
+    <Flex direction="column" gap="size-300" height="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
-      <dl className="project-evaluator-gallery__definition-list">
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Type
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">Code</Text>
-          </dd>
-        </div>
-        <div>
-          <dt>
-            <Text size="XS" color="text-500">
-              Language
-            </Text>
-          </dt>
-          <dd>
-            <Text size="S">{capitalize(evaluator.language.toLowerCase())}</Text>
-          </dd>
-        </div>
-      </dl>
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <Flex direction="column" gap="size-75">
@@ -1261,7 +1250,7 @@ function EvaluatorTemplateDetails({
   const messages = getProjectEvaluatorTemplateMessages(template);
   const category = getGalleryCategory(template.category);
   return (
-    <Flex direction="column" gap="size-400" height="100%">
+    <Flex direction="column" gap="size-300" height="100%">
       <Flex direction="column" gap="size-50">
         <Flex direction="column" gap="size-25">
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -1364,10 +1353,6 @@ const codePreviewWellCSS = css`
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
-`;
-
-const emptyDescriptionCSS = css`
-  font-style: italic;
 `;
 
 function capitalize(value: string): string {
