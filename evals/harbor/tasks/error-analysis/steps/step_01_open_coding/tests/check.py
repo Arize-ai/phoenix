@@ -8,11 +8,16 @@ sys.path.insert(0, "/opt/error-analysis/checks")
 import error_analysis_checks as ea  # noqa: E402
 
 STEP = 1
+# The second quarterly-report turn compounds the first, so a reviewer may fold both into
+# one note. The judge separately checks that the reply describes every defect.
+MIN_PLANTED_RECALL = 0.8
+# Clean traces the ground truth marks borderline are never counted; among the rest, one or
+# two flags are reviewer judgment, three or more is noting indiscriminately.
+MAX_FALSE_POSITIVES = 2
+
 truth = ea.load_truth()
 planted = {t["trace_id"]: t for t in truth["planted_traces"]}
-clean = {
-    t["trace_id"] for t in truth["clean_traces"] if "note" not in t
-}  # borderline ones excluded
+unambiguously_clean = {t["trace_id"] for t in truth["clean_traces"] if "note" not in t}
 
 with ea.connect() as connection:
     annotations = ea.fetch_annotations(connection)
@@ -30,15 +35,9 @@ sidecar_ok, sidecar_detail = ea.entities_mirrored(
 covered = ea.covered_trace_ids(notes)
 planted_found = sorted(tid for tid in planted if tid in covered)
 planted_recall = len(planted_found) / len(planted)
-false_positives = ea.false_positives(notes, set(planted), clean)
-# Two of the six clean traces are defensible flags (an over-specific diagnosis, an
-# unsourced product claim); flagging three or more means noting indiscriminately.
-# The second quarterly-report turn compounds the first, so a reviewer may fold it into one
-# note; four of five planted traces noted is the floor. The judge separately checks that
-# the reply describes every defect.
-coverage_ok = planted_recall >= 0.8 and len(false_positives) <= 2
+false_positives = ea.false_positives(notes, set(planted), unambiguously_clean)
+coverage_ok = planted_recall >= MIN_PLANTED_RECALL and len(false_positives) <= MAX_FALSE_POSITIVES
 
-# Open coding must stop at the offer: no axial labels or configs yet.
 stopped_at_offer = not ea.axial(annotations) and not configs
 
 answer = ea.answer_text(STEP)
