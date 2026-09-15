@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useSearchParams } from "react-router";
 
 import {
   Button,
@@ -13,10 +14,10 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
+import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
-const EVALUATOR_RUNS_PENDING =
-  "Evaluator runs land with the experiment API change";
+const EVALUATORS_NEED_A_DATASET = "Select a dataset to run evaluators";
 
 export function PlaygroundRunButton() {
   const modifierKey = useModifierKey();
@@ -33,7 +34,12 @@ export function PlaygroundRunButton() {
   const isEvaluatorKind = usePlaygroundContext(
     (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
   );
-  const canRun = !isEvaluatorKind;
+  const [searchParams] = useSearchParams();
+  const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
+  const hasDataset =
+    resolvePlaygroundDatasetId({ searchParams, storeDatasetId }) != null;
+  // Evaluators judge dataset examples; prompts can also run on manual input.
+  const canRun = !isEvaluatorKind || hasDataset;
 
   const toggleRunning = useCallback(() => {
     if (isRunning) {
@@ -89,7 +95,7 @@ export function PlaygroundRunButton() {
   return canRun || isRunning ? (
     button
   ) : (
-    <DisabledButtonTooltip label="Run" reason={EVALUATOR_RUNS_PENDING}>
+    <DisabledButtonTooltip label="Run" reason={EVALUATORS_NEED_A_DATASET}>
       {button}
     </DisabledButtonTooltip>
   );

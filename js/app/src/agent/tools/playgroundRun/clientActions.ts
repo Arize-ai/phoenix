@@ -37,8 +37,10 @@ export function cancelPlaygroundRun({
   const activeInstances = instances
     .map((instance, index) => ({ instance, index }))
     .filter(({ instance }) => instance.activeRunId != null);
-  const experimentIds = instances
-    .map((instance) => instance.experiment?.id)
+  // Only the experiments of the run being stopped: a column that finished
+  // earlier keeps its experiment, recorded or not.
+  const experimentIds = activeInstances
+    .map(({ instance }) => instance.experiment?.id)
     .filter((experimentId): experimentId is string => Boolean(experimentId));
 
   for (const experimentId of experimentIds) {

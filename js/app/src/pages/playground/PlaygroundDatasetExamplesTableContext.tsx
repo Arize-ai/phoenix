@@ -11,18 +11,18 @@ export type ExampleId = string;
 export type RepetitionNumber = number;
 type AnnotationName = string;
 type ChatCompletionSubscriptionResult = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  PlaygroundDatasetExamplesTableSubscription$data["experimentsOverDataset"],
   { __typename: "ChatCompletionSubscriptionResult" }
 >;
 export type Span = NonNullable<ChatCompletionSubscriptionResult["span"]>;
 
 type ToolCallChunk = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  PlaygroundDatasetExamplesTableSubscription$data["experimentsOverDataset"],
   { __typename: "ToolCallChunk" }
 >;
 
 export type EvaluationChunk = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  PlaygroundDatasetExamplesTableSubscription$data["experimentsOverDataset"],
   { __typename: "EvaluationChunk" }
 >;
 
@@ -119,7 +119,12 @@ type PlaygroundDatasetExamplesTableActions = {
     data: InstanceResponses;
     instanceId: InstanceId;
   }) => void;
-  resetData: () => void;
+  /**
+   * Forget the results of the given instances before they run again. Other
+   * instances keep theirs, so a single column can be rerun beside finished
+   * ones.
+   */
+  resetInstanceData: (instanceIds: readonly InstanceId[]) => void;
   setRepetitions: (repetitions: number) => void;
   setExpandedCell: (args: {
     instanceId: InstanceId;
@@ -344,13 +349,33 @@ const createPlaygroundDatasetExamplesTableStore = () => {
         },
       });
     },
-    resetData: () => {
+    resetInstanceData: (instanceIds) => {
+      const {
+        exampleResponsesMap,
+        runAnnotationAggregateMetrics,
+        runCostAggregateMetrics,
+        expandedCells,
+      } = get();
+      const nextResponses = { ...exampleResponsesMap };
+      const nextAnnotationMetrics = { ...runAnnotationAggregateMetrics };
+      const nextCostMetrics = { ...runCostAggregateMetrics };
+      for (const instanceId of instanceIds) {
+        delete nextResponses[instanceId];
+        delete nextAnnotationMetrics[instanceId];
+        delete nextCostMetrics[instanceId];
+      }
       set({
-        exampleResponsesMap: {},
-        runAnnotationAggregateMetrics: {},
-        runCostAggregateMetrics: {},
-        repetitions: 1,
-        expandedCells: {},
+        exampleResponsesMap: nextResponses,
+        runAnnotationAggregateMetrics: nextAnnotationMetrics,
+        runCostAggregateMetrics: nextCostMetrics,
+        expandedCells: Object.fromEntries(
+          Object.entries(expandedCells).filter(
+            ([key]) =>
+              !instanceIds.some((instanceId) =>
+                key.startsWith(`${instanceId}-`)
+              )
+          )
+        ),
       });
     },
     setRepetitions: (repetitions: number) => {

@@ -18,7 +18,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Disposable } from "react-relay";
 import {
   graphql,
   useLazyLoadQuery,
@@ -26,7 +25,6 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 import { useSearchParams } from "react-router";
-import type { GraphQLSubscriptionConfig } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
 
 import {
@@ -94,11 +92,18 @@ import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__
 import type { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import type { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
 import type {
-  EvaluatorInputMappingInput,
+  ExperimentsOverDatasetInput,
   PlaygroundDatasetExamplesTableSubscription as PlaygroundDatasetExamplesTableSubscriptionType,
-  PlaygroundDatasetExamplesTableSubscription$data,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import PlaygroundDatasetExamplesTableSubscription from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import {
+  createExperimentsOverDatasetRouter,
+  type ExperimentsOverDatasetEvent,
+} from "./experimentsOverDatasetEvents";
+import {
+  getExperimentsOverDatasetInput,
+  type PlaygroundEvaluatorMappings,
+} from "./experimentsOverDatasetInput";
 import {
   InstanceVariablesProvider,
   useInstanceVariables,
@@ -116,10 +121,7 @@ import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 import type { PartialOutputToolCall } from "./PlaygroundToolCall";
 import { PlaygroundToolCall } from "./PlaygroundToolCall";
-import {
-  extractRootVariable,
-  getChatCompletionOverDatasetInput,
-} from "./playgroundUtils";
+import { extractRootVariable } from "./playgroundUtils";
 
 const PAGE_SIZE = 10;
 const AGGREGATE_EXPERIMENT_METRICS_THROTTLE_MS = 2000;
@@ -135,6 +137,19 @@ const outputContentCSS = css`
   flex: none;
   padding: var(--global-dimension-size-200);
 `;
+
+/** The cost and latency of one run, from its root span when it has one. */
+function getExperimentRunCost(
+  instanceId: number,
+  span: Span | null | undefined
+): ExperimentRunCost {
+  return {
+    instanceId,
+    latencyMs: span?.latencyMs ?? null,
+    tokenCountTotal: span?.tokenCountTotal ?? null,
+    cost: span?.costSummary?.total?.cost ?? null,
+  };
+}
 
 /**
  * Get possible variable names based on the template variables path.
@@ -771,10 +786,7 @@ export function PlaygroundDatasetExamplesTable({
   /**
    * Record of evaluator id to name and input mappings
    */
-  evaluatorMappings: Record<
-    string,
-    { name: string; inputMapping: EvaluatorInputMappingInput }
-  >;
+  evaluatorMappings: PlaygroundEvaluatorMappings;
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
@@ -808,8 +820,8 @@ export function PlaygroundDatasetExamplesTable({
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
-  const resetData = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.resetData
+  const resetInstanceData = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.resetInstanceData
   );
   const appendExampleDataToolCallChunk =
     usePlaygroundDatasetExamplesTableContext(
@@ -947,121 +959,93 @@ export function PlaygroundDatasetExamplesTable({
     (state) => state.initExperimentRunProgress
   );
 
-  const onNext = useCallback(
-    (instanceId: number) =>
-      // oxlint-disable-next-line complexity -- Subscription events update several independent progress and result stores.
-      (response?: PlaygroundDatasetExamplesTableSubscription$data | null) => {
-        if (response == null) {
+  const applyEvent = useCallback(
+    (event: ExperimentsOverDatasetEvent) => {
+      switch (event.type) {
+        case "experimentStarted":
+          setInstanceExperiment(event.instanceId, {
+            id: event.experimentId,
+            isEphemeral: !playgroundStore.getState().recordExperiments,
+          });
+          return;
+        case "experimentFailed":
+          setApiError(event.message);
+          return;
+        case "runCompleted": {
+          const { instanceId, exampleId, repetitionNumber, span } = event;
+          updateExampleData({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            patch: { span, experimentRunId: event.experimentRunId },
+          });
+          handleExperimentRunCost(getExperimentRunCost(instanceId, span));
+          incrementRunsCompleted(instanceId);
           return;
         }
-        const chatCompletion = response.chatCompletionOverDataset;
-        switch (chatCompletion.__typename) {
-          case "ChatCompletionSubscriptionExperiment":
-            setInstanceExperiment(instanceId, {
-              id: chatCompletion.experiment.id,
-              isEphemeral: !playgroundStore.getState().recordExperiments,
-            });
-            break;
-          case "ChatCompletionSubscriptionResult":
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            updateExampleData({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              patch: {
-                span: chatCompletion.span,
-                experimentRunId: chatCompletion.experimentRun?.id,
-              },
-            });
-            handleExperimentRunCost({
-              instanceId,
-              latencyMs: chatCompletion.span?.latencyMs ?? null,
-              tokenCountTotal: chatCompletion.span?.tokenCountTotal ?? null,
-              cost: chatCompletion.span?.costSummary?.total?.cost ?? null,
-            });
-            incrementRunsCompleted(instanceId);
-            break;
-          case "ChatCompletionSubscriptionError":
-            if (chatCompletion.datasetExampleId == null) {
-              // Experiment-level error (e.g., circuit breaker trip)
-              setApiError(chatCompletion.message);
-              return;
-            }
-            updateExampleData({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              patch: {
-                errorMessage: chatCompletion.message,
-                span: chatCompletion.span,
-                experimentRunId: chatCompletion.experimentRun?.id,
-              },
-            });
-            if (chatCompletion.span) {
-              handleExperimentRunCost({
-                instanceId,
-                latencyMs: chatCompletion.span.latencyMs ?? null,
-                tokenCountTotal: chatCompletion.span.tokenCountTotal ?? null,
-                cost: chatCompletion.span.costSummary?.total?.cost ?? null,
-              });
-            }
-            incrementRunsFailed(instanceId);
-            break;
-          case "TextChunk":
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            appendExampleDataTextChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              textChunk: chatCompletion.content,
-            });
-            break;
-          case "ToolCallChunk": {
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            appendExampleDataToolCallChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              toolCallChunk: chatCompletion,
-            });
-            break;
+        case "runFailed": {
+          const { instanceId, exampleId, repetitionNumber, span } = event;
+          updateExampleData({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            patch: {
+              errorMessage: event.message,
+              span,
+              experimentRunId: event.experimentRunId,
+            },
+          });
+          if (span) {
+            handleExperimentRunCost(getExperimentRunCost(instanceId, span));
           }
-          case "EvaluationChunk": {
-            if (chatCompletion.datasetExampleId == null) {
-              return;
-            }
-            appendExampleDataEvaluationChunk({
-              instanceId,
-              exampleId: chatCompletion.datasetExampleId,
-              repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              evaluationChunk: chatCompletion,
-            });
-            handleExperimentRunAnnotation({
-              instanceId,
-              annotationName: chatCompletion.evaluatorName,
-              score: chatCompletion.experimentRunEvaluation?.score ?? null,
-            });
-            if (chatCompletion.error != null) {
-              incrementEvalsFailed(instanceId);
-            } else {
-              incrementEvalsCompleted(instanceId);
-            }
-            break;
-          }
-          // This should never happen
-          // As relay puts it in generated files "This will never be '%other', but we need some value in case none of the concrete values match."
-          case "%other":
-            return;
-          default:
-            assertUnreachable(chatCompletion);
+          incrementRunsFailed(instanceId);
+          return;
         }
-      },
+        case "textChunk": {
+          const { instanceId, exampleId, repetitionNumber } = event;
+          appendExampleDataTextChunk({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            textChunk: event.content,
+          });
+          return;
+        }
+        case "toolCallChunk": {
+          const { instanceId, exampleId, repetitionNumber } = event;
+          appendExampleDataToolCallChunk({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            toolCallChunk: event.toolCallChunk,
+          });
+          return;
+        }
+        case "evaluation": {
+          const { instanceId, exampleId, repetitionNumber, evaluationChunk } =
+            event;
+          appendExampleDataEvaluationChunk({
+            instanceId,
+            exampleId,
+            repetitionNumber,
+            evaluationChunk,
+          });
+          handleExperimentRunAnnotation({
+            instanceId,
+            annotationName: evaluationChunk.evaluatorName,
+            score: evaluationChunk.experimentRunEvaluation?.score ?? null,
+          });
+          if (evaluationChunk.error != null) {
+            incrementEvalsFailed(instanceId);
+          } else {
+            incrementEvalsCompleted(instanceId);
+          }
+          return;
+        }
+        default:
+          assertUnreachable(event);
+      }
+    },
     [
       handleExperimentRunAnnotation,
       handleExperimentRunCost,
@@ -1082,76 +1066,92 @@ export function PlaygroundDatasetExamplesTable({
     if (!hasSomeRunIds) {
       return undefined;
     }
-    const { instances } = playgroundStore.getState();
+    const runningInstances = playgroundStore
+      .getState()
+      .instances.filter((instance) => instance.activeRunId != null);
+    const runningInstanceIds = runningInstances.map((instance) => instance.id);
     setApiError(null);
     resetPendingExperimentMetrics();
-    resetData();
-
-    // Calculate total runs and evals for progress tracking
-    const totalRuns = exampleCount * repetitions;
-    const totalEvals = exampleCount * repetitions * evaluatorCount;
-
-    const subscriptions: Disposable[] = [];
-    for (const instance of instances) {
-      const { activeRunId } = instance;
+    resetInstanceData(runningInstanceIds);
+    setRepetitions(repetitions);
+    for (const instance of runningInstances) {
       setInstanceExperiment(instance.id, null);
-      if (activeRunId === null) {
-        continue;
-      }
-
-      // Initialize progress for this instance
       initExperimentRunProgress(instance.id, {
-        totalRuns,
+        totalRuns: exampleCount * repetitions,
         runsCompleted: 0,
         runsFailed: 0,
-        totalEvals,
+        // An evaluator task's verdicts are its runs; only a prompt task has
+        // dataset evaluators scoring its outputs afterwards.
+        totalEvals:
+          instance.task.kind === "evaluator"
+            ? 0
+            : exampleCount * repetitions * evaluatorCount,
         evalsCompleted: 0,
         evalsFailed: 0,
       });
+    }
+    const finish = () => {
+      flushPendingExperimentMetrics.flush();
+      for (const instanceId of runningInstanceIds) {
+        markPlaygroundInstanceComplete(instanceId);
+      }
+    };
 
-      const variables = {
-        input: getChatCompletionOverDatasetInput({
-          credentials,
-          instanceId: instance.id,
-          playgroundStore,
-          datasetId,
-          splitIds,
-          evaluatorMappings,
-        }),
-      };
-      const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
+    let input: ExperimentsOverDatasetInput;
+    try {
+      input = getExperimentsOverDatasetInput({
+        playgroundStore,
+        credentials,
+        datasetId,
+        splitIds,
+        evaluatorMappings,
+        instanceIds: runningInstanceIds,
+      });
+    } catch (error) {
+      // A task that cannot be sent (an incomplete judge prompt, say) ends the
+      // run before it starts, with the reason where run errors show.
+      setApiError(error instanceof Error ? error.message : String(error));
+      finish();
+      return undefined;
+    }
+
+    // One subscription carries every task's experiment; the router tells the
+    // payloads apart by the experiments the server opens the stream with.
+    const router = createExperimentsOverDatasetRouter(runningInstanceIds);
+    const subscription =
+      requestSubscription<PlaygroundDatasetExamplesTableSubscriptionType>(
+        environment,
         {
           subscription: PlaygroundDatasetExamplesTableSubscription,
-          variables,
-          onNext: onNext(instance.id),
-          onCompleted: () => {
-            flushPendingExperimentMetrics.flush();
-            markPlaygroundInstanceComplete(instance.id);
-          },
-          onError: (error) => {
-            flushPendingExperimentMetrics.flush();
-            markPlaygroundInstanceComplete(instance.id);
-            const errorMessages =
-              getErrorMessagesFromRelaySubscriptionError(error);
-            if (errorMessages != null && errorMessages.length > 0) {
-              setApiError(errorMessages.join("\n"));
-            } else {
-              setApiError(error.message);
+          variables: { input },
+          onNext: (response) => {
+            const event = response
+              ? router.route(response.experimentsOverDataset)
+              : null;
+            if (event) {
+              applyEvent(event);
             }
           },
-        };
-      setRepetitions(repetitions);
-      const subscription = requestSubscription(environment, config);
-      subscriptions.push(subscription);
-    }
+          onCompleted: finish,
+          onError: (error) => {
+            finish();
+            const errorMessages =
+              getErrorMessagesFromRelaySubscriptionError(error);
+            setApiError(
+              errorMessages != null && errorMessages.length > 0
+                ? errorMessages.join("\n")
+                : error.message
+            );
+          },
+        }
+      );
     playgroundStore.getState().consumeNextExperimentScaffold();
     return () => {
       resetPendingExperimentMetrics();
-      for (const subscription of subscriptions) {
-        subscription.dispose();
-      }
+      subscription.dispose();
     };
   }, [
+    applyEvent,
     credentials,
     datasetId,
     splitIds,
@@ -1162,12 +1162,11 @@ export function PlaygroundDatasetExamplesTable({
     hasSomeRunIds,
     initExperimentRunProgress,
     markPlaygroundInstanceComplete,
-    onNext,
     resetPendingExperimentMetrics,
     flushPendingExperimentMetrics,
     playgroundStore,
     repetitions,
-    resetData,
+    resetInstanceData,
     setInstanceExperiment,
     setRepetitions,
   ]);
@@ -1286,7 +1285,7 @@ export function PlaygroundDatasetExamplesTable({
             <MemoizedExampleOutputCell
               instanceId={instance.id}
               exampleId={row.original.id}
-              isRunning={hasSomeRunIds}
+              isRunning={isRunning}
               datasetExample={{
                 input: row.original.input,
                 output: row.original.output,
@@ -1307,7 +1306,6 @@ export function PlaygroundDatasetExamplesTable({
       };
     });
   }, [
-    hasSomeRunIds,
     instances,
     templateVariablesPath,
     setSelectedExampleIndex,
@@ -1574,30 +1572,34 @@ export function PlaygroundDatasetExamplesTable({
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 graphql`
   subscription PlaygroundDatasetExamplesTableSubscription(
-    $input: ChatCompletionOverDatasetInput!
+    $input: ExperimentsOverDatasetInput!
   ) {
-    chatCompletionOverDataset(input: $input) {
+    experimentsOverDataset(input: $input) {
       __typename
       ... on TextChunk {
-        content
+        experimentId
         datasetExampleId
         repetitionNumber
+        content
       }
       ... on ToolCallChunk {
-        id
+        experimentId
         datasetExampleId
         repetitionNumber
+        id
         function {
           name
           arguments
         }
       }
       ... on ChatCompletionSubscriptionExperiment {
+        experimentId
         experiment {
           id
         }
       }
       ... on ChatCompletionSubscriptionResult {
+        experimentId
         datasetExampleId
         repetitionNumber
         span {
@@ -1621,6 +1623,7 @@ graphql`
         }
       }
       ... on ChatCompletionSubscriptionError {
+        experimentId
         datasetExampleId
         repetitionNumber
         message
@@ -1645,6 +1648,7 @@ graphql`
         }
       }
       ... on EvaluationChunk {
+        experimentId
         datasetExampleId
         repetitionNumber
         evaluatorName
