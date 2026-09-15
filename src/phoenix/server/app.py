@@ -1260,7 +1260,7 @@ def create_app(
             monty_consumer="agent",
             read_only=True,
             db=db,
-            additional_skills=app.state.agent_skills,
+            external_skills=app.state.agent_skills,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox

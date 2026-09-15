@@ -330,7 +330,7 @@ async def test_configured_visibility_controls_instructions_and_tools(
     skills = load_external_skills()
     expected = {"opted-in"} if mode == "explicit" else {"opted-in", "opted-out", "unmarked"}
     assert {skill.name for skill in skills} == expected
-    async with Client(_server(SHARED_SKILLS_ROOT, additional_skills=skills)) as client:
+    async with Client(_server(SHARED_SKILLS_ROOT, external_skills=skills)) as client:
         for name in expected:
             assert f"<name>{name}</name>" in (client.instructions or "")
             assert f"name: {name}" in await _text(client, "load_skill", skill_name=name)
