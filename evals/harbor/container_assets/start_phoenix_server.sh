@@ -18,9 +18,15 @@ mkdir -p "$STATE_DIR"
 # HARBOR_PHOENIX_* come from the task's environment.env. Remote export must be forced:
 # the server otherwise refuses it because the persisted
 # agent_trace_recording.allow_remote_export setting defaults to false.
-# The docs MCP server reaches out to an external host on every turn; the eval
-# scores PXI on the fixture data, so it runs without docs tools.
-PHOENIX_ALLOW_EXTERNAL_RESOURCES=false \
+# PXI may read the Phoenix docs (the job allows the docs hosts), but not the web or
+# GitHub. Allowing external resources also re-enables telemetry, so that is switched
+# off explicitly. The sandbox providers are pinned to the two that need no download;
+# the WASM provider would otherwise try to fetch its interpreter at startup.
+PHOENIX_ALLOW_EXTERNAL_RESOURCES=true \
+  PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true \
+  PHOENIX_AGENTS_DISABLE_GITHUB=true \
+  PHOENIX_TELEMETRY_ENABLED=false \
+  PHOENIX_ALLOWED_SANDBOX_PROVIDERS=MONTY,DENO \
   PHOENIX_SQL_DATABASE_URL="sqlite:///$FIXTURE_DB" PHOENIX_WORKING_DIR=/data \
   PHOENIX_HOST=0.0.0.0 PHOENIX_PORT="$PORT" \
   PHOENIX_AGENTS_COLLECTOR_ENDPOINT="${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}" \

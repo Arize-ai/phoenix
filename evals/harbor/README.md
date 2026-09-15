@@ -150,8 +150,27 @@ export HARBOR_PHOENIX_API_KEY=...
 export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ```
 
-The task runs under Harbor's allowlist network policy, so add the collector's host to
-`allowed_hosts` in `task.toml` or the export is silently dropped.
+The task runs under Harbor's allowlist network policy, so grant the collector's host for
+the trial or the export is silently dropped: `HARBOR_ARGS='--allow-environment-host <host>'`
+for `harbor-compare`, or the same flag on a direct `harbor run`.
+
+## Network allowlists
+
+The task allows nothing by itself; every host is granted at the narrowest level that
+needs it, so `task.toml` (and with it the Phoenix dataset version) never changes for a
+new provider or operator.
+
+| Level | Set in | Applies to | Used for |
+| --- | --- | --- | --- |
+| Task baseline | `[environment]` in `task.toml` | the whole trial | nothing: `network_mode = "allowlist"` with no hosts |
+| Verifier phase | `[verifier]` in `task.toml` | verification only | the LLM judge's provider |
+| Job environment | `environment.extra_allowed_hosts` in the job file, or `--allow-environment-host` | the whole trial, every agent | the Phoenix docs hosts; the results Phoenix host when exporting |
+| Agent | `extra_allowed_hosts` on an agent entry, or `--allow-agent-host` | that agent's run only | the agent's LLM provider |
+
+`make harbor-run` derives the provider host from `HARBOR_MODEL` and grants the docs hosts
+(`HARBOR_DOCS_HOSTS`, empty to run sealed); `make harbor-compare` reads the same from
+`jobs/error-analysis.yaml`. Agent-level hosts are not in effect during agent install, so
+anything an agent installs at that point must already be in the image or in the upload.
 
 ## Fixtures
 

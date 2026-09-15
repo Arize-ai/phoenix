@@ -512,6 +512,13 @@ HARBOR_AGENT_ARGS := -a evals.harbor.agents.claude_code_agents:ClaudeCodeCliAgen
 endif
 # Extra arguments for harbor-compare, e.g. --plugin arize-phoenix ...
 HARBOR_ARGS ?=
+# Network allowlists. The task allows nothing by itself. harbor-run grants the model's
+# provider host to the agent phase and the Phoenix docs hosts to the whole trial, the way
+# the job file does for harbor-compare. Set HARBOR_DOCS_HOSTS= to run sealed.
+HARBOR_DOCS_HOSTS ?= arizeai-433a7140.mintlify.app arize.com
+HARBOR_PROVIDER_HOST := $(if $(filter anthropic/%,$(HARBOR_MODEL)),api.anthropic.com,$(if $(filter openai/%,$(HARBOR_MODEL)),api.openai.com,))
+HARBOR_NET_ARGS := $(foreach host,$(HARBOR_DOCS_HOSTS),--allow-environment-host $(host)) \
+	$(if $(HARBOR_PROVIDER_HOST),--allow-agent-host $(HARBOR_PROVIDER_HOST),)
 # Environment backend for trials (harbor run -e): docker, daytona, etc.
 # Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
 HARBOR_ENV ?= docker
@@ -570,7 +577,7 @@ harbor-run: ## Run one agent on the Harbor task (HARBOR_AGENT=..., HARBOR_TASK=.
 	@test -n "$(HARBOR_AGENT_ARGS)" || \
 		{ echo -e "$(RED)Unknown HARBOR_AGENT '$(HARBOR_AGENT)'; use phoenix-chat-agent, claude-code-mcp, or claude-code-cli$(NC)"; exit 1; }
 	@echo -e "$(CYAN)Running Harbor $(HARBOR_AGENT) trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
-	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) $(HARBOR_AGENT_ARGS) \
+	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) $(HARBOR_AGENT_ARGS) $(HARBOR_NET_ARGS) \
 		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
 
 harbor-compare: ## Run every agent on the error-analysis task in one Daytona job (HARBOR_ARGS=... for plugin flags)
