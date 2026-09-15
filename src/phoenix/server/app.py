@@ -133,7 +133,7 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.mcp.skills import (
     PXI_SKILLS_ROOTS,
-    load_configured_skills,
+    load_external_skills,
     load_skills,
     merge_skills,
 )
@@ -1214,8 +1214,8 @@ def create_app(
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
-    configured_skills = load_configured_skills()
-    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), configured_skills)
+    external_skills = load_external_skills()
+    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), external_skills)
     mcp_http_app = None
     mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
@@ -1227,7 +1227,7 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
-            additional_skills=configured_skills,
+            additional_skills=external_skills,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).

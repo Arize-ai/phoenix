@@ -62,7 +62,7 @@ from phoenix.server.mcp.skills import (
     SKILL_TOOLS_TAG,
     Skill,
     get_skill_instructions,
-    load_configured_skills,
+    load_external_skills,
     load_skills,
     merge_skills,
     register_skill_tools,
@@ -571,7 +571,7 @@ def create_phoenix_mcp_app(
         db=db,
         skills_roots=(SHARED_SKILLS_ROOT,),
         additional_skills=(
-            load_configured_skills() if additional_skills is None else additional_skills
+            load_external_skills() if additional_skills is None else additional_skills
         ),
     )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
