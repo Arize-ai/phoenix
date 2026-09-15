@@ -3665,7 +3665,7 @@ def get_env_mcp_code_mode() -> bool:
 
 
 def get_env_mcp_graphql_mutations() -> bool:
-    return _bool_val(ENV_PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS, False)
+    return _bool_val(ENV_PHOENIX_ENABLE_MCP_GRAPHQL_MUTATIONS, True)
 
 
 def get_env_mask_internal_server_errors() -> bool:
