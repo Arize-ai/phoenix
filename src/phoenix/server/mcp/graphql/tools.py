@@ -192,19 +192,20 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         part of its work, so read them rather than retrying blindly.
 
         Only mutations. A document containing only queries is refused; use
-        `executeGraphqlQuery` for those. `validate_only=True` checks the
-        document against the schema without running it, which does not check
-        variable values or permissions.
+        `executeGraphqlQuery` for those. `validate_only=True` admits and checks
+        the document against the schema without running it, answering
+        `{valid, notes}`; it does not check variable values or permissions.
         """
         try:
-            if validate_only:
-                validate_document(_schema(), mutation)
-                return ExecuteGraphqlResultEnvelope(data=None, errors=[])
             if GraphQLOperationType.MUTATION not in operation_types(mutation):
                 raise GraphQLRefusal(
                     GraphQLRefusalCode.NOT_A_MUTATION,
                     "This tool runs mutations. Use executeGraphqlQuery to read.",
                 )
+            if validate_only:
+                admit(mutation, allow_mutations=True)
+                validate_document(_schema(), mutation)
+                return ValidateGraphqlEnvelope.passed()
             outcome = await execute_operation(
                 _schema(),
                 query=mutation,

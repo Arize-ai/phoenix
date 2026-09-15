@@ -396,7 +396,18 @@ class TestMutationTool:
         )
         content = result.structured_content
         assert content is not None
-        assert content["data"] is None
+        assert content["valid"] is True
+        assert "data" not in content
+
+    async def test_validate_only_still_refuses_a_read_only_document(
+        self, mutating_mcp: FastMCP
+    ) -> None:
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": "{ datasets { name } }", "validate_only": True}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.NOT_A_MUTATION.value
 
     def test_off_by_default_in_config(self) -> None:
         from phoenix.config import get_env_mcp_graphql_mutations
