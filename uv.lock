@@ -776,7 +776,7 @@ requires-dist = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.46,<3" },
-    { name = "sqlglot", specifier = "==30.17.0" },
+    { name = "sqlglot", specifier = "==30.18.0" },
     { name = "starlette", specifier = ">=0.37.0" },
     { name = "strawberry-graphql", specifier = "==0.327.0" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.327.0" },
@@ -8070,11 +8070,11 @@ asyncio = [
 
 [[package]]
 name = "sqlglot"
-version = "30.17.0"
+version = "30.18.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/56/d4/da49abcc81beebbb25f29ddf87f2980c63c949569d7f2da40c06d95fa415/sqlglot-30.17.0.tar.gz", hash = "sha256:2d6b8def93304fa300f4d20f48e3909e7f436fda56ca1fafd8975f6c561ef62c", size = 5999019, upload-time = "2026-08-12T19:36:50.587Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/73/5b5ce3e23b3ded3ea1986c2c2991217460d5fd5161b3e00a8425f5dcb8a3/sqlglot-30.18.0.tar.gz", hash = "sha256:e57e1b205e341979d1df5b1212c1435c598a0437e4619e3f428b15d5bc3a5cc6", size = 6018496, upload-time = "2026-09-03T13:12:58.206Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/bc/2a07cef49046e6cf5d1a8b1de553aaef8491b4170dbfe254c8687c764408/sqlglot-30.17.0-py3-none-any.whl", hash = "sha256:84435ac283a60173da31b5fd7d11a725037a1c3fd6ed1e21fb065de74ddb579f", size = 741795, upload-time = "2026-08-12T19:36:48.699Z" },
+    { url = "https://files.pythonhosted.org/packages/08/9f/3dd2ec8dd84a33e0092f1c815267bc055073f9e833b93e389c59c10f62cc/sqlglot-30.18.0-py3-none-any.whl", hash = "sha256:ee0f9a9f3e2193e763c326e52dfb377b96fdb4292f6305c3ff2d9a220e71c601", size = 748788, upload-time = "2026-09-03T13:12:56.467Z" },
 ]
 
 [[package]]
