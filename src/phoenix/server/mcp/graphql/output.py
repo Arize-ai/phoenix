@@ -50,4 +50,28 @@ class ExecuteGraphqlErrorEnvelope(BaseModel):
         return cls(error=ExecuteGraphqlError(code=refusal.code, message=refusal.message))
 
 
+class ValidateGraphqlEnvelope(BaseModel):
+    """A mutation that was admitted and typechecked, and not run.
+
+    A document that would be refused at execution is refused here too, as an
+    `error` envelope, so a `valid` answer means the same document may run.
+    """
+
+    valid: bool = Field(description="Whether the document typechecks against the schema.")
+    notes: list[str] = Field(description="Caveats about what this answer does and does not cover.")
+
+    @classmethod
+    def passed(cls) -> ValidateGraphqlEnvelope:
+        return cls(
+            valid=True,
+            notes=[
+                "Variable values were not checked.",
+                "Permissions are evaluated only when the operation runs.",
+            ],
+        )
+
+
 ExecuteGraphqlOutput = Union[ExecuteGraphqlResultEnvelope, ExecuteGraphqlErrorEnvelope]
+ExecuteGraphqlMutationOutput = Union[
+    ExecuteGraphqlResultEnvelope, ValidateGraphqlEnvelope, ExecuteGraphqlErrorEnvelope
+]
