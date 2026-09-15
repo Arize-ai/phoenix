@@ -69,7 +69,10 @@ function evaluateAcceptanceCriterion({
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
 }): AcceptanceResult {
-  const annotations = collectAnnotations({ criterion, results });
+  const { annotations, eligibleCount } = collectAnnotations({
+    criterion,
+    results,
+  });
 
   if (criterion.metric === "average") {
     // Only numeric / boolean scores can be averaged.
@@ -86,11 +89,11 @@ function evaluateAcceptanceCriterion({
       };
     }
     const direction = criterion.direction ?? "maximize";
-    const value = calculateAverage(scores);
+    const value = calculateAverage(scores, eligibleCount);
     return {
       ...criterion,
       value,
-      sampleCount: scores.length,
+      sampleCount: eligibleCount,
       passed: meetsBar(value, criterion.threshold, direction),
     };
   }
@@ -98,7 +101,7 @@ function evaluateAcceptanceCriterion({
   // passRate: each run passes when `passFn` returns true for its annotation;
   // the suite passes when the fraction of passing runs is at least
   // `minPassRate`. The reported value is that fraction.
-  if (annotations.length === 0) {
+  if (eligibleCount === 0 || annotations.length === 0) {
     return {
       ...criterion,
       value: null,
@@ -110,11 +113,11 @@ function evaluateAcceptanceCriterion({
   const passed = annotations.filter((annotation) =>
     criterion.passFn(annotation)
   ).length;
-  const value = passed / annotations.length;
+  const value = passed / eligibleCount;
   return {
     ...criterion,
     value,
-    sampleCount: annotations.length,
+    sampleCount: eligibleCount,
     passed: value >= criterion.minPassRate,
   };
 }
@@ -129,9 +132,11 @@ function meetsBar(
 }
 
 /**
- * The last annotation matching `annotationName` from each non-skipped run that
- * logged it. One entry per run; runs that never logged the annotation are
- * omitted.
+ * Collect the last annotation matching `annotationName` from each eligible
+ * (non-skipped) run, alongside the count of eligible runs. Runs that never
+ * logged the annotation are not dropped: they count as non-passing for
+ * `passRate` and as a zero score for `average`, so callers divide by
+ * `eligibleCount`, not by `annotations.length`.
  */
 function collectAnnotations({
   criterion,
@@ -139,16 +144,24 @@ function collectAnnotations({
 }: {
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
-}): Annotation[] {
-  return results
-    .filter((result) => result.status !== "skipped")
-    .map((result) =>
-      findLastAnnotation({
-        annotations: result.annotations,
-        annotationName: criterion.annotationName,
-      })
-    )
-    .filter((annotation): annotation is Annotation => annotation !== undefined);
+}): {
+  annotations: Annotation[];
+  eligibleCount: number;
+} {
+  const eligible = results.filter((result) => result.status !== "skipped");
+  return {
+    eligibleCount: eligible.length,
+    annotations: eligible
+      .map((result) =>
+        findLastAnnotation({
+          annotations: result.annotations,
+          annotationName: criterion.annotationName,
+        })
+      )
+      .filter(
+        (annotation): annotation is Annotation => annotation !== undefined
+      ),
+  };
 }
 
 function findLastAnnotation({
@@ -178,11 +191,14 @@ function isValidScore(score: Annotation["score"]): score is number | boolean {
   );
 }
 
-function calculateAverage(scores: readonly (number | boolean)[]): number {
+function calculateAverage(
+  scores: readonly (number | boolean)[],
+  eligibleCount: number
+): number {
   const total = scores
     .map(scoreToNumber)
     .reduce((sum, score) => sum + score, 0);
-  return total / scores.length;
+  return total / eligibleCount;
 }
 
 function scoreToNumber(score: number | boolean): number {
