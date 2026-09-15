@@ -29,7 +29,8 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Create dataset | [experiments-datasets-python](references/experiments-datasets-python.md), [experiments-datasets-typescript](references/experiments-datasets-typescript.md) |
 | Generate synthetic data | [experiments-synthetic-python](references/experiments-synthetic-python.md), [experiments-synthetic-typescript](references/experiments-synthetic-typescript.md) |
 | Validate evaluator accuracy | [validation](references/validation.md), [validation-evaluators-python](references/validation-evaluators-python.md), [validation-evaluators-typescript](references/validation-evaluators-typescript.md) |
-| Export and filter spans (`SpanQuery().where`) | [observe-tracing-setup](references/observe-tracing-setup.md) |
+| Export spans | [observe-tracing-setup](references/observe-tracing-setup.md) |
+| Write a span filter (`SpanQuery().where`) | [filter-expressions](references/filter-expressions.md) |
 | Sample traces for review | [observe-sampling-python](references/observe-sampling-python.md), [observe-sampling-typescript](references/observe-sampling-typescript.md) |
 | Analyze errors | [error-analysis](references/error-analysis.md), [error-analysis-multi-turn](references/error-analysis-multi-turn.md), [axial-coding](references/axial-coding.md) |
 | RAG evals | [evaluators-rag](references/evaluators-rag.md) |

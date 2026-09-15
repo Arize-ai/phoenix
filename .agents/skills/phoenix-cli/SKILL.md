@@ -427,27 +427,27 @@ Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `
 `getProjectByName(name:)` targets one project; `projects(first: 1)` picks an
 arbitrary one. There is no `traces` connection. To list traces, query `spans`
 with `filterCondition: "parent_id is None"`, which keeps root spans (usually
-one per trace). See the span filter reference below.
+one per trace). See [Filter expressions](#filter-expressions) below.
 
-### Span filter expressions
+### Filter expressions
 
-`Project.spans` (and `Trace.spans`, plus the project aggregates `recordCount`,
-`tokenCountTotal`, `costSummary`, `latencyMsQuantile`, ...) take a
-`filterCondition`: a **Python boolean expression** over per-span values,
-compiled to SQL. It is the language the UI's **spans** filter bar compiles and
-the same one `SpanQuery().where(...)` sends from the Python client. The traces
-and sessions tabs compile the separate languages described below, and the
-three vocabularies do not mix.
+`spans`, `sessions`, and the project aggregates take filter conditions: Python
+boolean expressions compiled server-side. There are three languages, and the
+argument picks the language. Read
+[references/filter-expressions.md](references/filter-expressions.md) before
+writing a condition; it has the full vocabulary, operators, and compiled
+examples for each.
 
-**Root spans are a filter clause.** There is no root-span argument.
+| Argument | Matches | Names come from |
+| -------- | ------- | --------------- |
+| `filterCondition` | individual spans | the exhaustive table in the reference |
+| `traceFilterCondition` | whole traces | `traceFilterVocabulary` |
+| `sessionFilterCondition` | sessions | `sessionFilterVocabulary` |
 
-| Clause | Keeps |
-| ------ | ----- |
-| `parent_id is None` | spans with no parent id (the default choice) |
-| `parent_span is None` | those plus **orphans**, spans whose parent was never received |
-
-Root clauses compose with everything else, and a root span is *usually* one
-per trace (fragmented traces can have several):
+**Root spans.** There is no `traces` connection and no root-span argument.
+`filterCondition: "parent_id is None"` keeps spans with no parent id, usually
+one per trace; `parent_span is None` also keeps orphans whose parent was never
+received. Either clause composes with the rest of the filter:
 
 ```bash
 px api graphql '{
@@ -459,63 +459,14 @@ px api graphql '{
 }' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
-**Vocabulary (exhaustive):**
-
-| Name | Type | Notes |
-| ---- | ---- | ----- |
-| `span_id`, `trace_id`, `parent_id` | string | OTel hex ids |
-| `name` | string | `'chat' in name` for substring search |
-| `span_kind` | enum | `'CHAIN'`, `'LLM'`, `'RETRIEVER'`, `'EMBEDDING'`, `'TOOL'`, `'AGENT'`, `'RERANKER'`, `'GUARDRAIL'`, `'EVALUATOR'`, `'PROMPT'`, `'UNKNOWN'`; literals are uppercased for you |
-| `status_code` | enum | `'OK'`, `'ERROR'`, `'UNSET'`; literals are uppercased for you |
-| `status_message` | string | error text |
-| `latency_ms` | number | |
-| `start_time`, `end_time` | datetime | ISO 8601 literal **with an offset**: `'2026-09-01T00:00:00Z'` |
-| `cumulative_llm_token_count_prompt` / `_completion` / `_total` | number | span plus descendants |
-| `llm.token_count.prompt` / `.completion` / `.total` | number | this span alone |
-| `total_cost`, `prompt_cost`, `completion_cost` | number | `0` when the span has no cost row |
-| `cost_details` | collection | iterable only: `any(d.cost > 0.01 for d in cost_details)`; elements have `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` |
-| `parent_span` | reserved | **only** `is None` / `is not None`; `parent_span.name` is rejected |
-| `annotations['name']`, `evals['name']` | annotation | on the span itself (`evals` is a legacy alias) |
-| `trace_annotations['name']` | annotation | on the span's containing trace |
-| `attributes[...]`, `metadata[...]`, any other dotted name | attribute | JSON attribute path; type unknown until read |
-
-Legacy spellings still accepted: `context.span_id`, `context.trace_id`,
-`cumulative_token_count.prompt|completion|total`.
-
-**Every other identifier is an attribute path.** That is how `llm.model_name`
-and `input.value` work, and it is why a mistake compiles and matches nothing
-instead of erroring. Names that look right but silently match nothing here:
-`error_count`, `num_spans`, `token_count_total`, bare `input` / `output`,
-`user_id`, `is_root`, `null`, an unquoted string (`span_kind == LLM` reads
-`LLM` as an attribute), `annotations.q.label` (must be subscripted), and
-`attributes.llm.model_name` (write `llm.model_name` or
-`attributes['llm.model_name']`). When a filter returns nothing, check the
-spelling against the table before concluding there is no data, or run
-`validateSpanFilterCondition(condition: "...") { isValid errorMessage }` on
-`Project`.
-
-**Attributes, input, output.** Span I/O text is `input.value` / `output.value`
-(`input.mime_type` for the type); `'refund' in output.value` is the substring
-search and `output.value is None` finds spans without output. `llm.model_name`,
-`attributes['llm.model_name']`, and `attributes['llm']['model_name']` are the
-same attribute; `metadata['k']` is `attributes['metadata']['k']`; integer
-subscripts index arrays (`attributes['tags'][0]`). An attribute compared
-against a number is read as a number, against `True` / `False` as a boolean,
-otherwise as text; `float(x)` / `int(x)` / `str(x)` force a read and are the
-**only** functions allowed.
-
-**Annotations.** Each accessor exposes `.label`, `.score`, `.explanation`, and
-`.identifier`; the bare accessor (`annotations['quality']`) is an existence
-check. **The accessor picks the level**, and the wrong level fails silently:
+**Annotations.** The accessor picks the level, and the wrong level matches
+nothing:
 
 | Accessor | Matches annotations on | Written by |
 | -------- | ---------------------- | ---------- |
 | `annotations["name"]` | the span itself | `px span annotate`, `px span add-note` |
-| `evals["name"]` | the span itself (legacy alias) | same as above |
-| `trace_annotations["name"]` | the span's parent **trace** | `px trace annotate`, `px trace add-note` |
-
-`trace_annotations` matches every span of an annotated trace, so add
-`parent_id is None` when you want one row per trace:
+| `trace_annotations["name"]` | the span's parent trace | `px trace annotate`, `px trace add-note` |
+| `session_annotations["name"]` | the session (session filter only) | `px session annotate`, `px session add-note` |
 
 ```bash
 px api graphql '{
@@ -526,66 +477,8 @@ px api graphql '{
 }' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
-**Operators and literals:**
-
-| Category | Accepted | Rejected |
-| -------- | -------- | -------- |
-| Comparison | `==` `!=` `<` `<=` `>` `>=`, chained (`500 < latency_ms <= 2000`) | `=` |
-| Missing values | `is None`, `is not None` | `is null`, `null`, `is` with any other value |
-| Membership | `x in [...]` (exact), `'text' in field` (case-insensitive substring), `not in` | `None` in a list, a literal on the left, `like` |
-| Logic | `and`, `or`, `not`, parentheses | `&&`, `\|\|`, `&`, `\|`, `!` |
-| Arithmetic | `+` `-` `*` `/` `%` | `**`, `//`, bitwise |
-| Calls | `float(x)`, `int(x)`, `str(x)`; `any`/`all`/`len`/`sum`/`max`/`min` over `cost_details` only | method calls, `len(name)`, `bool(x)` |
-| Strings | single or double quotes | unquoted |
-| Numbers | unquoted (`latency_ms > 100`) | quoted (`latency_ms > '100'`) |
-| Booleans | `True`, `False` as operands | `true`, `false`, or a bare `True` as the whole condition |
-
-Rules that differ from Python:
-
-- **A missing value fails every comparison, including `!=`.** A span without
-  `metadata['tier']` matches neither `== 'premium'` nor `!= 'premium'`; write
-  `metadata['tier'] != 'premium' or metadata['tier'] is None`.
-- **Every operand of `and` / `or` / `not` must be a condition.** `name == 'x'
-  and metadata['flag']` is rejected; write `metadata['flag'] == True`.
-- **Enums fold case, text does not.** `span_kind == 'llm'` matches `LLM`;
-  `name == 'llm'` is exact. Substring `in` ignores case everywhere.
-
-Every line below compiles as a span filter:
-
-```python span-filter
-parent_id is None
-parent_span is None
-parent_id is None and latency_ms > 5000
-span_kind == 'LLM' and 'gpt-4o' in llm.model_name
-span_kind in ['LLM', 'RETRIEVER']
-span_kind == 'TOOL' and tool.name == 'search'
-status_code == 'ERROR' and 'timeout' in status_message
-'refund' in input.value or 'refund' in output.value
-output.value is None
-metadata['topic'] == 'billing'
-metadata['tier'] != 'premium' or metadata['tier'] is None
-float(metadata['retry_count']) > 1
-start_time > '2026-09-01T00:00:00Z' and end_time < '2026-09-02T00:00:00Z'
-cumulative_llm_token_count_total > 10000
-total_cost > 0.01
-any(d.token_type == 'input' and d.tokens > 1000 for d in cost_details)
-annotations['correctness'].label == 'incorrect'
-annotations['hallucination'].score > 0.5
-annotations['correctness'].label is None
-annotations['correctness']
-trace_annotations['quality'].label == 'poor'
-parent_id is None and trace_annotations['quality'].score < 0.5
-span_kind == 'LLM' and (latency_ms > 5000 or status_code == 'ERROR')
-```
-
-### Trace filter expressions
-
-`Project.spans` also takes a `traceFilterCondition` — a trace-level expression
-that keeps spans whose **trace** matches. It is the language the UI's traces
-table compiles, and it is the filter to reach for when the question is about
-whole traces ("which traces errored and took over a second") rather than
-individual spans. Pair it with `filterCondition: "parent_id is None"` to keep
-root spans only:
+**Traces.** `traceFilterCondition` keeps the spans of matching traces and
+composes with `filterCondition`:
 
 ```bash
 px api graphql '{
@@ -597,65 +490,8 @@ px api graphql '{
 }' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
-`traceFilterCondition` and the span-level `filterCondition` are **not** mutually
-exclusive on `spans` — passing both narrows to matching spans inside matching
-traces.
-
-Discover names and check an expression the same way as for sessions:
-
-```bash
-px api graphql '{ projects(first: 1) { edges { node { traceFilterVocabulary {
-  name type category description iterableName } } } } }' \
-  | jq '.data.projects.edges[0].node.traceFilterVocabulary[] | {name, type, category}'
-
-px api graphql '{ projects(first: 1) { edges { node {
-  validateTraceFilterCondition(condition: "error_count > 0") {
-    isValid errorMessage warnings }
-} } } }'
-```
-
-Bound names: the intrinsics `trace_id`, `start_time`, `end_time`, `latency_ms`;
-the span-derived rollups `num_spans`, `error_count`, `token_count_prompt`,
-`token_count_completion`, `token_count_total`, `prompt_cost`,
-`completion_cost`, `total_cost`, `tool_span_count`, `llm_span_count`; the
-root-span reads `input`, `output`, `attributes["llm.model_name"]`, `user.id`,
-and `metadata["key"]`; `trace_annotations["name"]` for trace annotations; and
-the iterables `spans`, `trace_annotations`, `span_annotations`, and
-`span_cost_details` for comprehensions (`any` / `all` / `len` / `sum` / `max` /
-`min`). Inside a `spans` comprehension each element exposes `name`,
-`parent_id`, `span_kind`, `status_code`, `start_time`, `end_time`,
-`latency_ms`, the `cumulative_*` subtree rollups, and the relations
-`parent_span`, `children`, `siblings`, `annotations`, and `cost_details`:
-
-```python trace-filter
-any(span.span_kind == "LLM" and span.latency_ms > 5000 for span in spans)
-any(span.parent_span.span_kind == "LLM" and span.span_kind == "TOOL" for span in spans)
-any(annotation.label == "hallucinated" for annotation in span_annotations)
-```
-
-Four rules the trace filter enforces, the first two of which differ from the
-span filter:
-
-- **Unknown names are rejected**, with a `did you mean "…"?` suggestion. Span
-  filters instead read an unknown name as an attribute path, so a typo there
-  matches nothing; here a typo is an explicit error. Span-grain names
-  (`span_kind`, `status_code`, `parent_id`, `input.value`) are unknown here;
-  ask span-level questions with a comprehension over `spans`, and read root
-  I/O as bare `input` / `output`.
-- **Rollups are `0`, never null.** `error_count == 0` matches traces with no
-  errors; there is no missing case to test with `is None`.
-- **Datetime literals need an explicit offset** — `start_time >=
-  "2026-07-01T00:00:00Z"`. A naive literal is rejected, as in every filter.
-- **Root-span reads follow the displayed root.** `input`, `output`,
-  `attributes[...]`, `user.id`, and `metadata[...]` bind to the same
-  representative span the traces table shows, so a predicate matches what you
-  see. A trace with no root candidate has no values for these.
-
-### Session filter expressions
-
-`px session list` has no filter flag, so selecting sessions by shape means going
-through GraphQL. `Project.sessions` takes a `sessionFilterCondition` — a Python
-expression over per-session values, analogous to the span filter language:
+**Sessions.** `px session list` has no filter flag, so selecting sessions by
+shape goes through GraphQL:
 
 ```bash
 px api graphql '{
@@ -666,44 +502,23 @@ px api graphql '{
 }' | jq '.data.projects.edges[0].node.sessions.edges[].node'
 ```
 
-Discover the bindable names for a project with the vocabulary query. The
-vocabulary is generated from the compiler's own bindings, so it always matches
-what compiles:
+**Discover names and validate.** The vocabularies are generated from the
+compiler's own bindings, so they always match what compiles:
 
 ```bash
-px api graphql '{ projects(first: 1) { edges { node { sessionFilterVocabulary {
+px api graphql '{ projects(first: 1) { edges { node { traceFilterVocabulary {
   name type category description iterableName } } } } }' \
-  | jq '.data.projects.edges[0].node.sessionFilterVocabulary[] | {name, type, category}'
+  | jq '.data.projects.edges[0].node.traceFilterVocabulary[] | {name, type, category}'
 
-# Check an expression before running it
 px api graphql '{ projects(first: 1) { edges { node {
+  validateSpanFilterCondition(condition: "parent_id is None") { isValid errorMessage }
+  validateTraceFilterCondition(condition: "error_count > 0") { isValid errorMessage }
   validateSessionFilterCondition(condition: "num_traces > 5") { isValid errorMessage }
 } } } }'
 ```
 
-Commonly bound names: `session_id`, `start_time`, `end_time`, `duration_ms`,
-`num_traces`, `num_traces_with_error`, `token_count_prompt`,
-`token_count_completion`, `token_count_total`, `prompt_cost`, `completion_cost`,
-`total_cost`, `tool_span_count`, `llm_span_count`, the root-span text values
-`first_input` / `last_output` and their existential counterparts `any_input` /
-`any_output`, root-span attribute access via `attributes["llm.model_name"]`
-(with `user.id` and `metadata["key"]` accepted as proxies), the iterables
-`spans`, `traces`, `session_annotations`, and `span_annotations` for
-comprehensions (`any(...)` / `all(...)` / `len([...])`), and
-`session_annotations["name"].score|.label` for session annotations. Three rules
-the DSL enforces and an agent will otherwise get wrong:
-
-- **A missing value fails every comparison, in both directions.** A session with
-  no recorded input matches neither `'x' in first_input` nor its negation. Target
-  the missing case explicitly with `is None`.
-- **`in` against a string ignores case; `==` matches exactly.** This holds at
-  every filter, so the same query gives the same answer in the spans view.
-- **`any_input` / `any_output` are containment tests, not values.** Write
-  `'refund' in any_input`, never `any_input == 'refund'`.
-
-On fields that accept both filter levels (e.g. `Project.recordCount`),
-`sessionFilterCondition` and the span-level `filterCondition` are mutually
-exclusive — passing both is a request error.
+On fields that accept both levels (e.g. `Project.recordCount`),
+`sessionFilterCondition` and `filterCondition` are mutually exclusive.
 
 ## Docs
 

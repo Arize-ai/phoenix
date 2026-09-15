@@ -20,7 +20,12 @@ from typing import Callable
 
 import pytest
 from graphql import ArgumentNode, StringValueNode, Visitor, parse, visit
-from skill_examples import graphql_queries_by_location, location, shipped_markdown_files
+from skill_examples import (
+    REPO_ROOT,
+    graphql_queries_by_location,
+    location,
+    shipped_markdown_files,
+)
 
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.session_filter import SessionFilter
@@ -87,3 +92,11 @@ def test_every_grain_has_examples(grain: str) -> None:
 )
 def test_condition_compiles(grain: str, condition: str) -> None:
     _COMPILERS[grain](condition)
+
+
+def test_filter_reference_copies_are_identical() -> None:
+    """One document, shipped in every skill that takes a filter condition."""
+    copies = sorted(REPO_ROOT.glob("**/skills/*/references/filter-expressions.md"))
+    assert len(copies) >= 3, copies
+    texts = {path.read_text(encoding="utf-8") for path in copies}
+    assert len(texts) == 1, [location(path) for path in copies]
