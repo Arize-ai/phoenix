@@ -322,8 +322,8 @@ class TestMutationTool:
 
     Nothing here can reach a person to ask. The gates are the caller's own
     permissions, enforced by the same resolvers the GraphQL endpoint runs, and a
-    destructive annotation that tells the client to confirm. A deployment opts
-    in explicitly because neither gate is a substitute for someone deciding.
+    destructive annotation that tells the client to confirm. A deployment that
+    wants neither gate to be the last word turns the tool off.
     """
 
     @pytest.fixture
@@ -332,7 +332,7 @@ class TestMutationTool:
         register_graphql_tools(mcp, app=app, allow_mutations=True)
         return mcp
 
-    async def test_absent_unless_the_deployment_opts_in(self, app: Any) -> None:
+    async def test_absent_unless_asked_for(self, app: Any) -> None:
         mcp = FastMCP("test")
         register_graphql_tools(mcp, app=app)
         assert "executeGraphqlMutation" not in {tool.name for tool in await mcp.list_tools()}
@@ -397,10 +397,10 @@ class TestMutationTool:
         assert content is not None
         assert content["error"]["code"] == GraphQLRefusalCode.NOT_A_MUTATION.value
 
-    def test_off_by_default_in_config(self) -> None:
+    def test_on_by_default_in_config(self) -> None:
         from phoenix.config import get_env_mcp_graphql_mutations
 
-        assert get_env_mcp_graphql_mutations() is False
+        assert get_env_mcp_graphql_mutations() is True
 
     def test_a_read_only_deployment_never_registers_it(self) -> None:
         """Registering it there would advertise a write the resolvers would refuse."""
