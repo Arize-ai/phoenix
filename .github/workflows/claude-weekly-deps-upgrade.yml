@@ -63,6 +63,19 @@ jobs:
             echo "date=$DATE"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Bump exact Python pins
+        # `uv lock --upgrade` won't cross `==` pins; `uv pip compile` inherits
+        # `exclude-newer` from `[tool.uv]` and skips yanked/pre-releases.
+        run: |
+          pins=$(printf 'strawberry-graphql\npydantic-monty\n' \
+            | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.10)
+          echo "$pins"
+          while IFS='=' read -r name _ version; do
+            [ -n "$name" ] || continue
+            sed -i -E "s/(\"${name}(\[[^]]*\])?==)[0-9][^\"]*\"/\1${version}\"/g" pyproject.toml
+          done <<< "$pins"
+          git diff --stat -- pyproject.toml
+
       - name: Upgrade Python (uv)
         run: |
           uv lock --upgrade
@@ -188,6 +201,7 @@ jobs:
               --title "chore(deps): weekly dependency upgrade ${DATE}" \
               --body "Automated weekly dependency upgrade.
 
+          - exact \`==\` pins bumped to the newest PyPI release outside the 3-day cool-down (Python)
           - \`uv lock --upgrade\` (Python)
           - \`pnpm update --recursive\` in \`js/\`
 
@@ -338,6 +352,7 @@ jobs:
             echo "> The narrative below was written by Claude after the upgrade caused verification failures."
             echo "> Review the diff and fixes carefully before merging."
             echo ""
+            echo "- exact \`==\` pins bumped to the newest PyPI release outside the 3-day cool-down (Python)"
             echo "- \`uv lock --upgrade\` (Python)"
             echo "- \`pnpm update --recursive\` in \`js/\`"
             echo ""

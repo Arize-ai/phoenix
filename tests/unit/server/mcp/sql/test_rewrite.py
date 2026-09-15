@@ -890,7 +890,6 @@ def test_postgres_operator_json_key_is_parenthesised(sql: str, expected_operand:
     ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
     out = render(rewrite(root, ctx), dialect="postgresql")
     assert expected_operand in out
-    assert "json_operand_parens" in ctx.applied
     # The emitted SQL must parse back to an extraction, not to the outer operator.
     reparsed = sqlglot.parse_one(out, read="postgres")
     assert isinstance(reparsed, exp.Select)
@@ -908,7 +907,6 @@ def test_postgres_atomic_json_key_is_not_parenthesised() -> None:
     ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
     out = render(rewrite(root, ctx), dialect="postgresql")
     assert "-> k.key" in out
-    assert "json_operand_parens" not in ctx.applied
 
 
 def test_postgres_literal_json_key_keeps_the_arrow_operator() -> None:

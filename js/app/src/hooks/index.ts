@@ -18,3 +18,4 @@ export * from "./usePersistedState";
 export * from "./useOwnedPreloadedQuery";
 export * from "./useLabelFilterSearchParams";
 export * from "./useMediaQuery";
+export * from "./useUnsavedChangesBlocker";

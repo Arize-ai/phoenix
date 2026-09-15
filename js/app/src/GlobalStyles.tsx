@@ -823,6 +823,7 @@ export const lightThemeCSS = css`
     --global-color-info-700: rgba(20, 122, 243, 0.7);
     --global-color-info-500: rgba(20, 122, 243, 0.5);
     // red-800: #ea3829
+    --global-color-danger-rgb: 234, 56, 41;
     --global-color-danger: var(--global-color-red-800);
     --global-color-danger-900: rgba(234, 56, 41, 0.9);
     --global-color-danger-700: rgba(234, 56, 41, 0.7);
@@ -834,6 +835,7 @@ export const lightThemeCSS = css`
     --global-color-success-500: rgba(0, 143, 93, 0.5);
     --global-color-success-100: rgba(0, 143, 93, 0.1);
     // orange-700: #e46f00
+    --global-color-warning-rgb: 228, 111, 0;
     --global-color-warning: var(--global-color-orange-700);
     --global-color-warning-900: rgba(228, 111, 0, 0.9);
     --global-color-warning-700: rgba(228, 111, 0, 0.7);
@@ -1270,6 +1272,19 @@ const tableCSS = (theme: Theme) => css`
     );
     --global-table-bordered-cell-border-color: var(--global-color-gray-100);
     --global-table-pagination-border-color: var(--global-color-gray-300);
+    /* editable tables: a cell with a pending change, and a row marked for deletion */
+    --global-table-cell-dirty-background-color: rgba(
+      var(--global-color-warning-rgb),
+      0.16
+    );
+    --global-table-cell-dirty-hover-background-color: rgba(
+      var(--global-color-warning-rgb),
+      0.24
+    );
+    --global-table-row-deleted-background-color: rgba(
+      var(--global-color-danger-rgb),
+      0.06
+    );
 
     --global-table-cell-padding-y: var(--global-dimension-size-100);
     --global-table-cell-padding-x: var(--global-dimension-size-200);
