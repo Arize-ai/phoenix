@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<25955b4e8a51541e43d9940351ac5162>>
+ * @generated SignedSource<<5b4e955336160b910219c7795707f3ef>>
  * @lightSyntaxTransform
  */
 
@@ -14,20 +14,21 @@ export type PatchExperimentInput = {
   metadata?: any | null;
   name?: string | null;
 };
-export type ExperimentActionMenuRenameExperimentMutation$variables = {
+export type ExperimentActionMenuEditExperimentMutation$variables = {
   input: PatchExperimentInput;
 };
-export type ExperimentActionMenuRenameExperimentMutation$data = {
+export type ExperimentActionMenuEditExperimentMutation$data = {
   readonly patchExperiment: {
     readonly experiment: {
+      readonly description: string | null;
       readonly id: string;
       readonly name: string;
     };
   };
 };
-export type ExperimentActionMenuRenameExperimentMutation = {
-  response: ExperimentActionMenuRenameExperimentMutation$data;
-  variables: ExperimentActionMenuRenameExperimentMutation$variables;
+export type ExperimentActionMenuEditExperimentMutation = {
+  response: ExperimentActionMenuEditExperimentMutation$data;
+  variables: ExperimentActionMenuEditExperimentMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -74,6 +75,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "name",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -87,7 +95,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExperimentActionMenuRenameExperimentMutation",
+    "name": "ExperimentActionMenuEditExperimentMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -96,20 +104,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "ExperimentActionMenuRenameExperimentMutation",
+    "name": "ExperimentActionMenuEditExperimentMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "341739eb1436a8ce49e72f0e4eaef78c",
+    "cacheID": "bc49e5a299992c63babe5b603ab28994",
     "id": null,
     "metadata": {},
-    "name": "ExperimentActionMenuRenameExperimentMutation",
+    "name": "ExperimentActionMenuEditExperimentMutation",
     "operationKind": "mutation",
-    "text": "mutation ExperimentActionMenuRenameExperimentMutation(\n  $input: PatchExperimentInput!\n) {\n  patchExperiment(input: $input) {\n    experiment {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation ExperimentActionMenuEditExperimentMutation(\n  $input: PatchExperimentInput!\n) {\n  patchExperiment(input: $input) {\n    experiment {\n      id\n      name\n      description\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0dce74504eedb022d5f8444871bbf8c6";
+(node as any).hash = "22d7fc3c1bf79256ded3d71927942f6a";
 
 export default node;

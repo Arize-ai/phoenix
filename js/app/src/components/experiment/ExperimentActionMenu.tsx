@@ -22,6 +22,7 @@ import {
   ModalOverlay,
   Popover,
   Text,
+  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
@@ -49,7 +50,7 @@ export enum ExperimentAction {
   TOGGLE_BASELINE = "TOGGLE_BASELINE",
   STOP_EXPERIMENT = "STOP_EXPERIMENT",
   RESUME_EXPERIMENT = "RESUME_EXPERIMENT",
-  RENAME_EXPERIMENT = "RENAME_EXPERIMENT",
+  EDIT_EXPERIMENT = "EDIT_EXPERIMENT",
   DELETE_EXPERIMENT = "DELETE_EXPERIMENT",
 }
 
@@ -85,12 +86,14 @@ type ExperimentActionMenuProps = ExperimentActionMenuBaseProps &
   ) &
   (
     | {
-        canRenameExperiment: true;
+        canEditExperiment: true;
         experimentName: string;
+        experimentDescription: string | null;
       }
     | {
-        canRenameExperiment?: false;
+        canEditExperiment?: false;
         experimentName?: undefined;
+        experimentDescription?: undefined;
       }
   );
 
@@ -132,7 +135,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const credentials = useCredentialsContext((state) => state);
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
   const notify = useNotify();
   const notifyError = useNotifyError();
@@ -294,11 +297,11 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </MenuItem>
     );
   }
-  if (props.canRenameExperiment) {
+  if (props.canEditExperiment) {
     menuItems.push(
       <MenuItem
-        key={ExperimentAction.RENAME_EXPERIMENT}
-        id={ExperimentAction.RENAME_EXPERIMENT}
+        key={ExperimentAction.EDIT_EXPERIMENT}
+        id={ExperimentAction.EDIT_EXPERIMENT}
       >
         <Flex
           direction="row"
@@ -307,7 +310,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           alignItems="center"
         >
           <Icon svg={<Icons.Edit2 />} />
-          <Text>Rename</Text>
+          <Text>Edit</Text>
         </Flex>
       </MenuItem>
     );
@@ -430,8 +433,8 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   });
                   break;
                 }
-                case ExperimentAction.RENAME_EXPERIMENT: {
-                  setIsRenameDialogOpen(true);
+                case ExperimentAction.EDIT_EXPERIMENT: {
+                  setIsEditDialogOpen(true);
                   break;
                 }
                 case ExperimentAction.DELETE_EXPERIMENT: {
@@ -506,12 +509,13 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           </Dialog>
         </Modal>
       </ModalOverlay>
-      {props.canRenameExperiment ? (
-        <RenameExperimentDialog
+      {props.canEditExperiment ? (
+        <EditExperimentDialog
           experimentId={props.experimentId}
           experimentName={props.experimentName}
-          isOpen={isRenameDialogOpen}
-          onOpenChange={setIsRenameDialogOpen}
+          experimentDescription={props.experimentDescription}
+          isOpen={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
         />
       ) : null}
       {/* Metadata Dialog */}
@@ -538,36 +542,50 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   );
 }
 
-function RenameExperimentDialog({
+function normalizeDescription(value: string | null | undefined): string {
+  return (value ?? "").trim();
+}
+
+function EditExperimentDialog({
   experimentId,
   experimentName,
+  experimentDescription,
   isOpen,
   onOpenChange,
 }: {
   experimentId: string;
   experimentName: string;
+  experimentDescription: string | null;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }) {
   const notifySuccess = useNotifySuccess();
-  const [renameValue, setRenameValue] = useState(experimentName);
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const [commitRenameExperiment, isRenamingExperiment] = useMutation(graphql`
-    mutation ExperimentActionMenuRenameExperimentMutation(
+  const [nameValue, setNameValue] = useState(experimentName);
+  const [descriptionValue, setDescriptionValue] = useState(
+    experimentDescription ?? ""
+  );
+  const [editError, setEditError] = useState<string | null>(null);
+  const [commitEditExperiment, isEditingExperiment] = useMutation(graphql`
+    mutation ExperimentActionMenuEditExperimentMutation(
       $input: PatchExperimentInput!
     ) {
       patchExperiment(input: $input) {
         experiment {
           id
           name
+          description
         }
       }
     }
   `);
-  const trimmedName = renameValue.trim();
-  const isUnchanged = trimmedName === experimentName;
-  const isRenameSaveDisabled =
-    isRenamingExperiment || !trimmedName || isUnchanged;
+  const trimmedName = nameValue.trim();
+  const trimmedDescription = descriptionValue.trim();
+  const descriptionInput = trimmedDescription || null;
+  const isUnchanged =
+    trimmedName === experimentName &&
+    normalizeDescription(descriptionInput) ===
+      normalizeDescription(experimentDescription);
+  const isSaveDisabled = isEditingExperiment || !trimmedName || isUnchanged;
 
   return (
     <ModalOverlay
@@ -575,8 +593,9 @@ function RenameExperimentDialog({
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (open) {
-          setRenameValue(experimentName);
-          setRenameError(null);
+          setNameValue(experimentName);
+          setDescriptionValue(experimentDescription ?? "");
+          setEditError(null);
         }
         onOpenChange(open);
       }}
@@ -585,41 +604,41 @@ function RenameExperimentDialog({
         <Dialog>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Rename experiment</DialogTitle>
+              <DialogTitle>Edit experiment</DialogTitle>
               <DialogTitleExtra>
                 <DialogCloseButton slot="close" />
               </DialogTitleExtra>
             </DialogHeader>
-            {renameError ? (
+            {editError ? (
               <View paddingX="size-200" paddingTop="size-100">
                 <Alert variant="danger" banner>
-                  {renameError}
+                  {editError}
                 </Alert>
               </View>
             ) : null}
             <Form
               onSubmit={(event) => {
                 event.preventDefault();
-                if (isRenameSaveDisabled) {
+                if (isSaveDisabled) {
                   return;
                 }
-                setRenameError(null);
-                commitRenameExperiment({
+                setEditError(null);
+                commitEditExperiment({
                   variables: {
                     input: {
                       experimentId,
                       name: trimmedName,
+                      description: descriptionInput,
                     },
                   },
                   onCompleted: () => {
                     notifySuccess({
-                      title: "Experiment renamed",
-                      message: `The experiment is now named "${trimmedName}".`,
+                      title: "Experiment updated",
                     });
                     onOpenChange(false);
                   },
                   onError: (error) => {
-                    setRenameError(
+                    setEditError(
                       getErrorMessagesFromRelayMutationError(error)?.[0] ??
                         error.message
                     );
@@ -628,34 +647,44 @@ function RenameExperimentDialog({
               }}
             >
               <View padding="size-200">
-                <TextField
-                  value={renameValue}
-                  onChange={setRenameValue}
-                  isDisabled={isRenamingExperiment}
-                  isInvalid={!trimmedName}
-                  autoFocus
-                >
-                  <Label>Name</Label>
-                  <Input />
-                  <Text slot="description">The name cannot be empty.</Text>
-                </TextField>
+                <Flex direction="column" gap="size-100">
+                  <TextField
+                    value={nameValue}
+                    onChange={setNameValue}
+                    isDisabled={isEditingExperiment}
+                    isInvalid={!trimmedName}
+                    autoFocus
+                  >
+                    <Label>Name</Label>
+                    <Input />
+                    <Text slot="description">The name cannot be empty.</Text>
+                  </TextField>
+                  <TextField
+                    value={descriptionValue}
+                    onChange={setDescriptionValue}
+                    isDisabled={isEditingExperiment}
+                  >
+                    <Label>Description</Label>
+                    <TextArea />
+                  </TextField>
+                </Flex>
               </View>
               <DialogFooter>
                 <Button
                   size="S"
                   variant="default"
                   onPress={() => onOpenChange(false)}
-                  isDisabled={isRenamingExperiment}
+                  isDisabled={isEditingExperiment}
                 >
                   Cancel
                 </Button>
                 <Button
                   size="S"
-                  variant={isRenameSaveDisabled ? "default" : "primary"}
+                  variant={isSaveDisabled ? "default" : "primary"}
                   type="submit"
-                  isDisabled={isRenameSaveDisabled}
+                  isDisabled={isSaveDisabled}
                 >
-                  {isRenamingExperiment ? "Renaming..." : "Rename"}
+                  {isEditingExperiment ? "Saving..." : "Save"}
                 </Button>
               </DialogFooter>
             </Form>
