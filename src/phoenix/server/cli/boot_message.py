@@ -130,7 +130,6 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 {% for path in skills_paths[1:] %}
                       {{ path }}
 {% endfor %}
-  Skills visibility   {{ skills_visibility }}
 {% else %}
   External skills     {{ not_configured }}
 {% endif %}
@@ -220,7 +219,6 @@ class BootMessage:
     # the banner omits the Assistant section entirely.
     assistant_config: Optional[AssistantConfig] = None
     skills_paths: list[str] = field(default_factory=list)
-    skills_visibility: str = "all"
     dev_mode: bool = False
     debug_logging: bool = False
     dev_vite_url: Optional[str] = None

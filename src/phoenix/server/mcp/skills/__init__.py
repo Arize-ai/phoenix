@@ -7,22 +7,25 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Any, Literal, Optional, get_args
+from typing import Annotated, Any, Optional
 
+import httpx
 import yaml
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.tools.base import Tool
 from mcp_types import ToolAnnotations
 from pydantic import Field
-from typing_extensions import TypeGuard
 
-from phoenix.config import get_env_skills_paths, get_env_skills_visibility
+from phoenix.config import get_env_skills_paths, get_working_dir
 from phoenix.server.agents.prompts.templating import get_template
+from phoenix.server.mcp.skills.github import (
+    GitHubSkillSource,
+    is_github_source,
+    materialize_github_source,
+)
 
 logger = logging.getLogger(__name__)
-
-SkillVisibility = Literal["visible", "hidden"]
 
 _SERVER_DIR = Path(__file__).resolve().parents[2]
 
@@ -38,7 +41,6 @@ SKILL_TOOL_NAMES: tuple[str, ...] = (LOAD_SKILL_TOOL_NAME, LOAD_SKILL_REFERENCE_
 _INSTRUCTIONS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 
 _SKILL_FILE = "SKILL.md"
-_VISIBILITY_METADATA_KEY = "arize-phoenix-visibility"
 _REFERENCES_DIR = "references"
 _SUMMARY_MAX_CHARS = 140
 
@@ -66,7 +68,6 @@ class Skill:
     text: str
     path: Path
     references: tuple[SkillReference, ...] = ()
-    visibility: Optional[SkillVisibility] = None
 
     @classmethod
     def from_directory(cls, directory: Path) -> Skill:
@@ -93,7 +94,6 @@ class Skill:
             text=text,
             path=directory,
             references=_scan_references(directory),
-            visibility=frontmatter.visibility,
         )
 
     def get_reference(self, name: str) -> Optional[SkillReference]:
@@ -107,11 +107,6 @@ class _Frontmatter:
     name: str
     description: str
     summary: str
-    visibility: Optional[SkillVisibility]
-
-
-def _is_skill_visibility(value: Any) -> TypeGuard[SkillVisibility]:
-    return value in get_args(SkillVisibility)
 
 
 def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
@@ -130,18 +125,7 @@ def _parse_frontmatter(text: str, source: Path) -> _Frontmatter:
         name=_required_string(mapping, "name", source),
         description=description,
         summary=summary.strip() if summary else _truncate(description, _SUMMARY_MAX_CHARS),
-        visibility=_parse_visibility(mapping, source),
     )
-
-
-def _parse_visibility(frontmatter: dict[str, Any], source: Path) -> Optional[SkillVisibility]:
-    metadata = frontmatter.get("metadata") or {}
-    if not isinstance(metadata, dict):
-        raise ValueError(f"{source}: metadata must be a mapping")
-    visibility = metadata.get(_VISIBILITY_METADATA_KEY)
-    if visibility is not None and not _is_skill_visibility(visibility):
-        raise ValueError(f"{source}: {_VISIBILITY_METADATA_KEY} must be 'visible' or 'hidden'")
-    return visibility
 
 
 def _required_string(frontmatter: dict[str, Any], key: str, source: Path) -> str:
@@ -196,22 +180,19 @@ def _skill_directories(root: Path) -> list[Path]:
     return sorted(filter(_is_skill_directory, root.iterdir()))
 
 
-def _load_root(root: Path, *, explicit: bool) -> Iterator[Skill]:
+def _load_root(root: Path) -> Iterator[Skill]:
     if not root.is_dir():
         raise ValueError(f"Skills root {root} is not a directory")
     for directory in _skill_directories(root):
-        skill = Skill.from_directory(directory)
-        if explicit and skill.visibility != "visible":
-            continue
-        yield skill
+        yield Skill.from_directory(directory)
 
 
 @lru_cache(maxsize=None)
-def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Skill, ...]:
+def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
     """Every skill under ``roots``: root order first, name order within a root."""
     skills: dict[str, Skill] = {}
     for root in roots:
-        for skill in _load_root(root, explicit=explicit):
+        for skill in _load_root(root):
             if skill.name in skills:
                 raise ValueError(
                     f"Skill {skill.name!r} is defined in both "
@@ -221,12 +202,36 @@ def load_skills(roots: tuple[Path, ...], *, explicit: bool = False) -> tuple[Ski
     return tuple(skills.values())
 
 
+def resolve_skill_roots(
+    entries: Sequence[str],
+    *,
+    cache_dir: Optional[Path] = None,
+    client: Optional[httpx.Client] = None,
+) -> tuple[Path, ...]:
+    """Turn configured skills entries into local directories, in order.
+
+    A local path is resolved against the working directory. A ``github:`` entry
+    is fetched into ``cache_dir`` (``PHOENIX_WORKING_DIR/skills`` by default),
+    which is only touched when such an entry exists. ``client`` overrides the
+    GitHub API client, for tests.
+    """
+    roots: list[Path] = []
+    for entry in entries:
+        if is_github_source(entry):
+            if cache_dir is None:
+                cache_dir = get_working_dir() / "skills"
+            source = GitHubSkillSource.parse(entry)
+            roots.append(materialize_github_source(source, cache_dir=cache_dir, client=client))
+        else:
+            roots.append(Path(entry).expanduser().resolve())
+    return tuple(roots)
+
+
 def load_external_skills() -> tuple[Skill, ...]:
     builtin_skills = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
-    explicit = get_env_skills_visibility() == "explicit"
     skills: dict[str, Skill] = {}
-    for root in get_env_skills_paths():
-        for skill in _load_root(root, explicit=explicit):
+    for root in resolve_skill_roots(get_env_skills_paths()):
+        for skill in _load_root(root):
             if skill.name in builtin_skills:
                 logger.error(
                     "Ignoring external skill %r at %s: the name is taken by a built-in skill",
@@ -350,6 +355,8 @@ __all__ = [
     "Skill",
     "SkillReference",
     "load_skills",
+    "load_configured_skills",
     "register_skill_tools",
+    "resolve_skill_roots",
     "get_skill_instructions",
 ]

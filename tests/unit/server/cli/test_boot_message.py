@@ -102,14 +102,12 @@ def test_render_marks_external_skills_not_configured_by_default() -> None:
     lines = _boot_message().render(unicode_ok=False).splitlines()
 
     assert "  External skills     Not configured" in lines
-    assert not any("Skills visibility" in line for line in lines)
 
 
 def test_render_lists_every_external_skills_path_under_server() -> None:
     message = replace(
         _boot_message(),
         skills_paths=["/opt/skills/team", "/home/me/.agents/skills"],
-        skills_visibility="explicit",
     )
 
     lines = message.render(unicode_ok=True).splitlines()
@@ -117,7 +115,6 @@ def test_render_lists_every_external_skills_path_under_server() -> None:
     server_header = next(i for i, line in enumerate(lines) if "Server" in line)
     assert lines.index("  External skills     /opt/skills/team") > server_header
     assert "                      /home/me/.agents/skills" in lines
-    assert "  Skills visibility   explicit" in lines
 
 
 def test_render_omits_development_section_by_default() -> None:
