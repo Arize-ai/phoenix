@@ -8,11 +8,16 @@ Install the Phoenix client with its Harbor integration on Python 3.12 or newer:
 pip install "arize-phoenix-client[harbor]"
 ```
 
-Build Phoenix and stage the wheel and container assets (from the repository root):
+Build Phoenix and stage each task's build context (from the repository root): the wheel,
+the container assets, and the task's fixture database, which is baked into the image from
+`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`.
 
 ```bash
 make harbor-stage-environments
 ```
+
+Each task keeps its grading material under `tests/`, which Harbor uploads only when the
+verifier runs, so the agent never sees the ground truth or the checks.
 
 Validate with the bundled oracle:
 
@@ -35,7 +40,7 @@ make dev-backend
 uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
 uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -p evals/harbor/tasks/regression-triage -a oracle -e docker \
+  harbor run -p evals/harbor/tasks/error-analysis -a oracle -e docker \
   --plugin arize-phoenix \
   --plugin-kwarg endpoint=http://127.0.0.1:6006 \
   --plugin-kwarg trace_mode=none \
@@ -84,7 +89,7 @@ easy to distinguish by name in Phoenix.
 Both trial targets accept overrides, e.g.:
 
 ```bash
-make harbor-run HARBOR_TASK=evals/harbor/tasks/regression-triage \
+make harbor-run HARBOR_TASK=evals/harbor/tasks/error-analysis \
   HARBOR_MODEL=anthropic/claude-sonnet-4-5 \
   HARBOR_ENV=docker \
   HARBOR_ATTEMPTS=1
@@ -104,8 +109,13 @@ export HARBOR_PHOENIX_API_KEY=...
 export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ```
 
-## Publish fixtures
+## Fixtures
+
+The error-analysis fixture is hand-prepared. To replace it, upload the new database and
+restage:
 
 ```bash
-make harbor-publish-fixtures
+gcloud storage cp --cache-control=no-store phoenix.db \
+  gs://arize-phoenix-assets/evals/harbor/error-analysis/phoenix.db
+make harbor-stage-environments
 ```
