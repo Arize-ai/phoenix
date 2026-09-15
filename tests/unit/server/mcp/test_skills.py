@@ -365,7 +365,7 @@ def test_visibility_is_part_of_the_cache_key(tmp_path: Path) -> None:
     assert load_skills((tmp_path,), explicit=True) == ()
 
 
-def test_external_skill_cannot_override_bundled_skill(
+def test_external_skill_cannot_override_builtin_skill(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     _write_skill(tmp_path / "datasets")
