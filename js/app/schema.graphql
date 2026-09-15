@@ -3060,7 +3060,7 @@ type Project implements Node {
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
   """
-  traceAnnotationsNames: [String!]!
+  traceAnnotationNames: [String!]!
 
   """
   Names of all available annotations for spans. (The list contains no duplicates.)
