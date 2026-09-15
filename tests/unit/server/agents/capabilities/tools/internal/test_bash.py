@@ -283,6 +283,13 @@ async def test_schema_search_finds_a_field(run_bash: RunBash) -> None:
     assert result["stdout"].startswith("Query\n  echo(text: String!): String!")
 
 
+async def test_schema_looks_up_several_names_at_once(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema Query Mutation")
+    assert result["exitCode"] == 0
+    assert "type Query {" in result["stdout"]
+    assert "Mutation" in result["stdout"]
+
+
 async def test_schema_lookup_prints_a_type(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql schema Query")
     assert result["exitCode"] == 0

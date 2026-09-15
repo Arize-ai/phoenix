@@ -147,7 +147,7 @@ def _format_graphql_errors(messages: list[str]) -> str:
 _HELP_TEXT_TEMPLATE: Template = Template(
     """\
 Usage: phoenix-gql [query] [options] [query-or-file]
-       phoenix-gql schema <terms | Type | Type.field | mutationName>
+       phoenix-gql schema <terms | Type | Type.field | mutationName | names...>
 
 Execute GraphQL operations against Phoenix, or search its schema.
 
@@ -163,9 +163,9 @@ Permissions: queries and mutations are ENABLED.
 {% endif %}
 Recommended flow:
   1. `phoenix-gql schema <terms>` to find the types and fields you need; name a
-     type, `Type.field`, or mutation to see it in full with how to reach it.
-     Search again with the return types and input types you see rather than
-     repeating the same terms
+     type, `Type.field`, or mutation to see it in full with how to reach it,
+     or several names at once to see each. Search again with the return types
+     and input types you see rather than repeating the same terms
   2. add filters, sorting, and deeper fields only after the base query works
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
@@ -181,6 +181,7 @@ Options:
 Examples:
   phoenix-gql schema span cost
   phoenix-gql schema Experiment
+  phoenix-gql schema TimeRange TimeBinConfig
   phoenix-gql '{ projects { edges { node { name } } } }'
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
