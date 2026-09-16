@@ -1,5 +1,5 @@
 import base64
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import pytest
 import sqlean
@@ -701,7 +701,7 @@ def test_latency_ms_keeps_its_name_in_the_select_list() -> None:
 def test_experiment_runs_latency_ms_is_substituted() -> None:
     """experiment_runs stores the same two timestamps the overlay is built from."""
     _, rendered = _rewritten("SELECT latency_ms FROM experiment_runs", dialect="sqlite")
-    assert "UNIXEPOCH" in rendered.upper()
+    assert "TIME_SUB" in rendered.upper()
     assert "AS latency_ms" in rendered
 
 
@@ -1066,7 +1066,7 @@ def test_latency_ms_through_a_derived_relation_is_left_alone() -> None:
     assert "AVG(latency_ms)" in out
     # The inner reference must still be substituted, or the alias has nothing
     # behind it and the test would pass against a pass that did nothing at all.
-    assert "UNIXEPOCH" in out
+    assert "TIME_SUB" in out
 
 
 @pytest.mark.parametrize("dialect", ["sqlite", "postgres"])
@@ -1104,7 +1104,18 @@ def test_latency_ms_binds_as_tightly_as_a_column(dialect: str, expression: str) 
     # inside it. Re-parsing the rendered SQL and re-rendering must be stable.
     rendered = out.sql(dialect=dialect)
     assert rendered == sqlglot.parse_one(rendered, dialect=dialect).sql(dialect=dialect)
-    substituted = out.find(exp.Mul)
+    substituted: Optional[exp.Expression]
+    if dialect == "sqlite":
+        substituted = next(
+            (
+                div
+                for div in out.find_all(exp.Div)
+                if isinstance(div.this, exp.Anonymous) and div.this.name == "time_sub"
+            ),
+            None,
+        )
+    else:
+        substituted = out.find(exp.Mul)
     assert substituted is not None
     assert isinstance(substituted.parent, exp.Paren), rendered
 
@@ -1687,7 +1698,7 @@ class TestOneSharedResolver:
             self._rewritten("SELECT AVG(s.latency_ms) FROM spans s")
         )
 
-        assert "UNIXEPOCH" in projection
+        assert "TIME_SUB" in projection
 
     def test_c1_a_cte_column_of_the_same_name_is_not_overwritten(self) -> None:
         rendered = self._rewritten(

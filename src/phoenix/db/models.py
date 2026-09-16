@@ -9,7 +9,6 @@ from openinference.semconv.trace import RerankerAttributes, SpanAttributes
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import (
     JSON,
-    NUMERIC,
     TIMESTAMP,
     Boolean,
     CheckConstraint,
@@ -893,7 +892,7 @@ class Span(HasId):
 
     @hybrid_property
     def latency_ms(self) -> float:
-        return round((self.end_time - self.start_time).total_seconds() * 1000, 1)
+        return (self.end_time - self.start_time).total_seconds() * 1000
 
     @latency_ms.inplace.expression
     @classmethod
@@ -1064,13 +1063,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
-        func.round(
-            func.cast(
-                (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000,
-                NUMERIC,
-            ),
-            1,
-        ),
+        (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000,
         **kw,
     )
 
@@ -1079,14 +1072,11 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
-    return compiler.process(
-        # We don't know why sqlite returns a slightly different value.
-        # postgresql is correct because it matches the value computed by Python.
-        func.round(
-            (func.unixepoch(end_time, "subsec") - func.unixepoch(start_time, "subsec")) * 1000, 1
-        ),
-        **kw,
-    )
+    # time_sub (sqlean's time extension) returns exact integer nanoseconds,
+    # unlike unixepoch(..., 'subsec') which keeps only milliseconds.
+    nanoseconds = func.time_sub(func.time_parse(end_time), func.time_parse(start_time))
+    # .op("/") rather than "/": SQLAlchemy renders "/" as "x / (y + 0.0)" on SQLite.
+    return compiler.process(nanoseconds.op("/")(1e6), **kw)
 
 
 class NumDocuments(expression.FunctionElement[int]):

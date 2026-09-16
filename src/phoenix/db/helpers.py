@@ -460,7 +460,7 @@ def date_trunc(
 
     Note:
         - For PostgreSQL, uses the native `date_trunc` function with timezone support.
-        - For SQLite, implements custom truncation logic using datetime functions.
+        - For SQLite, uses `time_trunc` from sqlean's time extension.
         - Week truncation starts on Monday (ISO 8601 standard).
         - The result is always returned in UTC, regardless of the input offset.
 
@@ -479,8 +479,14 @@ def date_trunc(
 
         >>> expr = date_trunc(SupportedSQLDialect.SQLITE, "day", source, -300)
         >>> print(expr.compile(dialect=sqlite.dialect(), compile_kwargs=kw))
-        datetime(datetime(strftime('%Y-%m-%d 00:00:00',
-        datetime(start_time, '-300 minutes'))), '300 minutes')
+        time_fmt_datetime(time_add(time_trunc(time_add(time_parse(start_time),
+        -18000000000000), 'day'), 18000000000000))
+
+        Without an offset the two shifts are omitted:
+
+        >>> expr = date_trunc(SupportedSQLDialect.SQLITE, "week", source)
+        >>> print(expr.compile(dialect=sqlite.dialect(), compile_kwargs=kw))
+        time_fmt_datetime(time_trunc(time_parse(start_time), 'week'))
     """
     if dialect is SupportedSQLDialect.POSTGRESQL:
         # Note: the usage of the timezone parameter in the form of e.g. "+05:00"
@@ -510,84 +516,22 @@ def _date_trunc_for_sqlite(
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
     """
-    SQLite-specific implementation of datetime truncation with UTC offset handling.
-
-    This private helper function implements date truncation for SQLite databases, which
-    lack a native date_trunc function. It uses SQLite's datetime and strftime functions
-    to achieve the same result as PostgreSQL's date_trunc function.
-
-    Args:
-        field: The time unit to truncate to. Valid values are:
-            - "minute": Truncate to the start of the minute (seconds set to 0)
-            - "hour": Truncate to the start of the hour (minutes and seconds set to 0)
-            - "day": Truncate to the start of the day (time set to 00:00:00)
-            - "week": Truncate to the start of the week (Monday at 00:00:00)
-            - "month": Truncate to the first day of the month (day set to 1, time to 00:00:00)
-            - "year": Truncate to the first day of the year (date set to Jan 1, time to 00:00:00)
-        source: The datetime column or expression to truncate.
-        utc_offset_minutes: UTC offset in minutes to apply before truncation.
-            Positive values represent time zones ahead of UTC (e.g., +60 for UTC+1).
-            Negative values represent time zones behind UTC (e.g., -300 for UTC-5).
-
-    Returns:
-        A SQL column expression representing the truncated datetime in UTC.
-
-    Implementation Details:
-        - Uses SQLite's strftime() function to format and extract date components
-        - Applies UTC offset before truncation using datetime(source, "N minutes")
-        - Converts result back to UTC by subtracting the offset
-        - Week truncation uses day-of-week calculations where:
-            * strftime('%w') returns 0=Sunday, 1=Monday, ..., 6=Saturday
-            * Truncates to Monday (start of week) using case-based day adjustments
-        - Month/year truncation reconstructs dates using extracted components
-
-    Raises:
-        ValueError: If the field parameter is not one of the supported values.
-
-    Note:
-        This is a private helper function intended only for use by the date_trunc function
-        when the dialect is SupportedSQLDialect.SQLITE.
+    SQLite implementation of date_trunc, built on sqlean's time extension (enabled in
+    phoenix.db.engines): parse the stored text, shift by the UTC offset, truncate
+    (time_trunc's "week" starts on Monday, like PostgreSQL), shift back, and render
+    as 'YYYY-MM-DD HH:MM:SS'.
     """
-    # SQLite does not have a built-in date truncation function, so we use datetime functions
-    # First apply UTC offset, then truncate
-    offset_source = func.datetime(source, f"{utc_offset_minutes} minutes")
-
-    if field == "minute":
-        t = func.datetime(func.strftime("%Y-%m-%d %H:%M:00", offset_source))
-    elif field == "hour":
-        t = func.datetime(func.strftime("%Y-%m-%d %H:00:00", offset_source))
-    elif field == "day":
-        t = func.datetime(func.strftime("%Y-%m-%d 00:00:00", offset_source))
-    elif field == "week":
-        # Truncate to Monday (start of week)
-        # SQLite strftime('%w') returns: 0=Sunday, 1=Monday, ..., 6=Saturday
-        dow = func.strftime("%w", offset_source)
-        t = func.datetime(
-            case(
-                (dow == "0", func.date(offset_source, "-6 days")),  # Sunday -> go back 6 days
-                (dow == "1", func.date(offset_source, "+0 days")),  # Monday -> stay
-                (dow == "2", func.date(offset_source, "-1 days")),  # Tuesday -> go back 1 day
-                (dow == "3", func.date(offset_source, "-2 days")),  # Wednesday -> go back 2 days
-                (dow == "4", func.date(offset_source, "-3 days")),  # Thursday -> go back 3 days
-                (dow == "5", func.date(offset_source, "-4 days")),  # Friday -> go back 4 days
-                (dow == "6", func.date(offset_source, "-5 days")),  # Saturday -> go back 5 days
-            ),
-            "00:00:00",
-        )
-    elif field == "month":
-        # Extract year and month, then construct first day of month
-        year = func.strftime("%Y", offset_source)
-        month = func.strftime("%m", offset_source)
-        t = func.datetime(year + "-" + month + "-01 00:00:00")
-    elif field == "year":
-        # Extract year, then construct first day of year
-        year = func.strftime("%Y", offset_source)
-        t = func.datetime(year + "-01-01 00:00:00")
-    else:
+    if field not in ("minute", "hour", "day", "week", "month", "year"):
         raise ValueError(f"Unsupported field for date truncation: {field}")
-
-    # Convert back to UTC by subtracting the offset
-    return func.datetime(t, f"{-utc_offset_minutes} minutes")
+    # Durations in the time extension are integer nanoseconds.
+    offset_ns = utc_offset_minutes * 60 * 1_000_000_000
+    t = func.time_parse(source)
+    if offset_ns:
+        t = func.time_add(t, offset_ns)
+    t = func.time_trunc(t, field)
+    if offset_ns:
+        t = func.time_add(t, -offset_ns)
+    return func.time_fmt_datetime(t)
 
 
 def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:

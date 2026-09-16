@@ -74,7 +74,8 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         )
     dialect_functions = (
         "JSON json_extract, json_type, json_each; "
-        "time date, datetime, unixepoch, julianday, strftime; typeof, median"
+        "time date, datetime, unixepoch, julianday, strftime, time_parse, time_trunc, "
+        "time_sub, time_fmt_datetime; typeof, median"
         if dialect == "sqlite"
         else "JSON jsonb_agg, jsonb_each, jsonb_object_keys, jsonb_path_exists, jsonb_set, "
         "jsonb_typeof; time date_trunc, extract, to_char"
