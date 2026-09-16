@@ -76,6 +76,12 @@ def async_warp_time(start: Optional[float]):
             yield
 
 
+@pytest.mark.parametrize("rate", [0.0, -1.0, float("nan"), float("inf")])
+def test_token_bucket_rejects_invalid_initial_rate(rate: float) -> None:
+    with pytest.raises(ValueError, match="initial_per_second_request_rate must be finite and > 0"):
+        AdaptiveTokenBucket(rate)
+
+
 def test_token_bucket_gains_tokens_over_time():
     start = time.time()
 

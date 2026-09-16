@@ -1,7 +1,7 @@
 import asyncio
 import time
 from functools import wraps
-from math import exp
+from math import exp, isfinite
 from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from tqdm.auto import tqdm
@@ -57,6 +57,8 @@ class AdaptiveTokenBucket:
         rate_increase_factor: float = 0.01,
         cooldown_seconds: float = 5,
     ):
+        if not isfinite(initial_per_second_request_rate) or initial_per_second_request_rate <= 0:
+            raise ValueError("initial_per_second_request_rate must be finite and > 0")
         self._initial_rate = initial_per_second_request_rate
         self.rate_reduction_factor = rate_reduction_factor
         self.enforcement_window = enforcement_window_minutes * 60
