@@ -9,15 +9,15 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.60",
-    "@arizeai/openinference-vercel": "^3.1.11",
+    "@ai-sdk/openai": "^4.0.66",
+    "@arizeai/openinference-vercel": "^3.1.12",
     "@arizeai/phoenix-otel": "workspace:*",
-    "ai": "^7.0.93",
+    "ai": "^7.0.99",
     "eve": "^0.25.3",
-    "zod": "^4.5.4"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.1",
     "typescript": "^7.0.2"
   },
   "engines": {

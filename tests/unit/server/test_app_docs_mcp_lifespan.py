@@ -22,7 +22,7 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
     OfflineDocsMCPServer,
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -46,7 +46,7 @@ async def test_app_starts_up_when_docs_mcp_server_init_fails(
     monkeypatch.setattr("phoenix.server.app.MintlifyDocsMCPServer", _ExplodingDocsMCPServer)
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,

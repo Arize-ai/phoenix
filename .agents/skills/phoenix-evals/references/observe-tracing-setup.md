@@ -59,6 +59,26 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
+#### Filtering with `SpanQuery().where(...)`
+
+The `where` string is a span filter expression, the same language as the UI spans filter bar and
+the GraphQL `filterCondition`. Root spans are a clause in it: `parent_id is None` keeps spans with
+no parent id, and `parent_span is None` also keeps orphans whose parent was never received. The
+full vocabulary, operators, and rules are in
+[filter-expressions](filter-expressions.md); read it before writing any other condition, because
+an unknown name compiles as an attribute path and silently matches nothing.
+
+```python span-filter
+parent_id is None
+parent_id is None and status_code == 'ERROR'
+span_kind == 'LLM' and llm.model_name == 'gpt-4o'
+span_kind == 'RETRIEVER'
+'refund' in input.value
+metadata['client_type'] == 'enterprise'
+annotations['correctness'].label is None
+start_time > '2026-09-01T00:00:00Z'
+```
+
 ### Spans (TypeScript)
 
 ```typescript

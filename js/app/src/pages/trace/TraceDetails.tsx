@@ -74,8 +74,7 @@ export function TraceDetails(props: TraceDetailsProps) {
               ...ConnectedTraceTree
               rootSpans: spans(
                 first: 1
-                rootSpansOnly: true
-                orphanSpanAsRootSpan: true
+                filterCondition: "parent_span is None"
               ) {
                 edges {
                   span: node {

@@ -1201,6 +1201,14 @@
     <lastmod>2026-04-02T15:57:00+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/java/google-adk</loc>
+    <lastmod>2026-09-15T21:10:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/java/google-adk/google-adk-tracing</loc>
+    <lastmod>2026-09-15T21:10:16+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/java/langchain4j</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb6f6d8b05ef2483a8d5a94fc65ad8d2>>
+ * @generated SignedSource<<c2bf3f89e54a0ba42d5f50daeaa6ecd3>>
  * @lightSyntaxTransform
  */
 
@@ -394,8 +394,8 @@ return {
       "args": [
         {
           "kind": "Literal",
-          "name": "rootSpansOnly",
-          "value": true
+          "name": "filterCondition",
+          "value": "parent_span is None"
         },
         {
           "kind": "Variable",
@@ -675,6 +675,6 @@ return {
 };
 })();
 
-(node as any).hash = "9a65fd03128e6daf24bf3b4887765164";
+(node as any).hash = "ecd2b25fcf05120a75d45782fa89471b";
 
 export default node;

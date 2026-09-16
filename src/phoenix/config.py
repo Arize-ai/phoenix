@@ -160,7 +160,7 @@ Phoenix supports two types of database URLs:
 - SQLite: 'sqlite:///path/to/database.db'
 - PostgreSQL: 'postgresql://@host/dbname?user=user&password=password' or 'postgresql://user:password@host/dbname'
 
-Note that if you plan on using SQLite, it's advised to to use a persistent volume
+Note that if you plan on using SQLite, it's advised to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 ENV_PHOENIX_SQL_DATABASE_READ_REPLICA_URL = "PHOENIX_SQL_DATABASE_READ_REPLICA_URL"

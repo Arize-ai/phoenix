@@ -67,6 +67,7 @@ import {
   ToolPart,
   type ToolPartType,
 } from "@phoenix/components/agent/ToolPart";
+import { AgentChatRuntimeProvider } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -122,7 +123,9 @@ function AgentStoreStoryProvider({
   });
 
   return (
-    <AgentContext.Provider value={store}>{children}</AgentContext.Provider>
+    <AgentContext.Provider value={store}>
+      <AgentChatRuntimeProvider>{children}</AgentChatRuntimeProvider>
+    </AgentContext.Provider>
   );
 }
 
@@ -552,6 +555,7 @@ const toolPartMeta = {
   // override with `defaultOpen: false`.
   args: { defaultOpen: true },
   decorators: [
+    withAgentStore(),
     (Story) => (
       <div css={containerCSS}>
         <Story />
@@ -764,6 +768,47 @@ export const LoadSkillExpanded: Story = {
 /** A load_skill tool that failed to find the skill. */
 export const LoadSkillError: Story = {
   args: { part: loadSkillErrorPart },
+};
+
+const loadSkillReferenceInput = {
+  skill_name: "phoenix-graphql",
+  reference_name: "project-spans-traces.md",
+};
+
+const loadSkillReferenceCompletedPart = makePart({
+  toolName: "load_skill_reference",
+  state: "output-available",
+  input: loadSkillReferenceInput,
+  output: "# Project spans and traces\n\nQuery spans and traces for a project.",
+});
+
+export const LoadSkillReferenceCollapsed: Story = {
+  args: { part: loadSkillReferenceCompletedPart, defaultOpen: false },
+};
+
+export const LoadSkillReferenceExpanded: Story = {
+  args: { part: loadSkillReferenceCompletedPart },
+};
+
+export const LoadSkillReferenceRunning: Story = {
+  args: {
+    part: makePart({
+      toolName: "load_skill_reference",
+      state: "input-available",
+      input: loadSkillReferenceInput,
+    }),
+  },
+};
+
+export const LoadSkillReferenceError: Story = {
+  args: {
+    part: makePart({
+      toolName: "load_skill_reference",
+      state: "output-error",
+      input: loadSkillReferenceInput,
+      errorText: "Reference not found in the skill registry.",
+    }),
+  },
 };
 
 // ---------------------------------------------------------------------------

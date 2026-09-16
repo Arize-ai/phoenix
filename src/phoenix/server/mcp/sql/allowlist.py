@@ -136,15 +136,11 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # cost is bounded by that document's size. `@>` and `<@` also test
             # array containment, bounded the same way.
             #
-            # SQLGlot models PostgreSQL `?` (key exists) as JSONBContains, whose
-            # sql name is jsonb_contains. That is a name collision: PostgreSQL's
-            # jsonb_contains is the `@>` support function; `?` is jsonb_exists.
-            # After parse, `jsonb_contains(x, y)` and `x ? y` are the same node,
-            # so we emit `?`. Do not rewrite this class to `@>` — that would
-            # change real `?` queries. `@>` is ArrayContainsAll.
-            # Workaround for https://github.com/tobymao/sqlglot/issues/8152,
-            # fixed upstream but unreleased at the pinned version.
+            # `?` (key exists) is JSONBContainsTopKey. JSONBContains is the
+            # `jsonb_contains(x, y)` function, PostgreSQL's support function for
+            # `@>`; the operator itself is ArrayContainsAll.
             exp.JSONBContains,
+            exp.JSONBContainsTopKey,
             exp.JSONBContainsAnyTopKeys,
             exp.JSONBContainsAllTopKeys,
             exp.ArrayContainsAll,
@@ -179,6 +175,11 @@ ALLOWED_FUNC_CLASSES_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[type[ex
             # which is why admitting it has to be done by class rather than by
             # the spelling the caller used.
             exp.TimeToStr,
+            # time_sub(t, u) from the bundled time extension: the elapsed
+            # nanoseconds between two parsed times, and what latency_ms is built
+            # on. The parser gives it a node class of its own rather than
+            # treating it as a generic call, so it is admitted here by class.
+            exp.TimeSub,
             # date() truncates a timestamp to its day, which is the coarser half
             # of the same bucketing need and the spelling most callers try
             # first. The authorizer permits it, so admission must too, or a
@@ -353,6 +354,9 @@ SQLITE_AUTHORIZER_FUNCTIONS: frozenset[str] = frozenset(
         "datetime",
         "time",
         "strftime",
+        # What the latency_ms overlay renders to. Admitted by class above, so
+        # a caller may also write it directly.
+        "time_sub",
         # Percentiles, from the bundled stats extension.
         "percentile",
         "median",
@@ -533,8 +537,15 @@ ALLOWED_ANON_FUNCTIONS_BY_DIALECT: dict[SupportedSQLDialectName, frozenset[str]]
             # It returns days as a float near 2.46e6, so a difference between
             # two of them carries fewer significant digits than the equivalent
             # unixepoch subtraction. That is a precision characteristic, not a
-            # safety one, and it is why latency_ms is built on unixepoch.
+            # safety one; latency_ms itself is built on the time extension's
+            # nanosecond-exact time_sub.
             "julianday",
+            # From the bundled time extension. time_trunc is SQLite's date_trunc.
+            # It takes a parsed time value, so time_parse has to come with it,
+            # and time_fmt_datetime renders the result back as text.
+            "time_parse",
+            "time_trunc",
+            "time_fmt_datetime",
             "json_each",
             # SQLite's continuous percentile, from the bundled stats extension.
             # Verified to agree with Postgres percentile_cont to within floating

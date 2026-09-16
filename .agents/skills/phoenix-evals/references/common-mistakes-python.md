@@ -126,9 +126,8 @@ llm_spans = all_spans[all_spans["span_kind"] == "LLM"]
 ```
 
 **Why**: For end-to-end evaluation (e.g., overall answer quality), scope the query to root
-spans with `SpanQuery().where("parent_id is None")` — the `root_spans_only=True` argument is
-deprecated. Use `parent_span is None` instead if you also want orphans (spans whose parent is
-absent) counted as roots.
+spans with `SpanQuery().where("parent_id is None")`. Use `parent_span is None` instead if you
+also want orphans (spans whose parent is absent) counted as roots.
 For RAG systems, you often need child spans separately — retriever spans for
 RetrievalRelevance and LLM spans for Faithfulness. Choose the right span level
 for your evaluation target.

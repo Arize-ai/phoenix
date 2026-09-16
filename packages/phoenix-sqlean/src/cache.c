@@ -2,6 +2,8 @@
  *
  * Copyright (C) 2004-2010 Gerhard Häring <gh@ghaering.de>
  *
+ * Modified by the Arize Phoenix team, 2026.
+ *
  * This file is part of pysqlite.
  *
  * This software is provided 'as-is', without any express or implied
@@ -193,12 +195,11 @@ PyObject* pysqlite_cache_get(pysqlite_Cache* self, PyObject* key)
         }
 
         node = pysqlite_new_node(key, data);
+        Py_DECREF(data);
         if (!node) {
             return NULL;
         }
         node->prev = self->last;
-
-        Py_DECREF(data);
 
         if (PyDict_SetItem(self->mapping, key, (PyObject*)node) != 0) {
             Py_DECREF(node);

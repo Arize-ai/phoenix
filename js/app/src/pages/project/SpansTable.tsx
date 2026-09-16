@@ -316,11 +316,9 @@ export function SpansTable(props: SpansTableProps) {
     setIsExpanded: setAreRowsExpanded,
     tableProps: rowsExpandedTableProps,
   } = useTableRowsExpanded();
-  // Root-span scoping is expressed inside `filterCondition`, so the query below
-  // deliberately passes neither `rootSpansOnly` nor `orphanSpanAsRootSpan`:
-  // sending both would AND two independent root filters together, and the
-  // stricter one would silently win. `rootSpansOnly` survives only as a
-  // presentation flag selecting cumulative versus per-span metric fields.
+  // Root-span scoping is a clause of `filterCondition`; the server has no
+  // root-span argument. `rootSpansOnly` here is a presentation flag only,
+  // selecting cumulative versus per-span metric fields.
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
