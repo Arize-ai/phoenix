@@ -1092,7 +1092,7 @@ def describe(
             break
         share = max(remaining // left, _MIN_SHARE)
         if kind == "name":
-            text = _budgeted(_lookup_parts(index, arg), share)
+            text = _with_legend(_budgeted(_lookup_parts(index, arg), share))
         else:
             header = f"# search: {arg}\n" if labelled else ""
             text = header + _free_text_search(index, arg, share - len(header))

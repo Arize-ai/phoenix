@@ -362,6 +362,10 @@ def test_names_are_each_looked_up_within_one_budget(toy: Index) -> None:
         "enum TimeBinScale {",
     ]
     assert lookup_many(toy, ["Span", "NoSuch"]).endswith("named 'NoSuch'. Try search('NoSuch').")
+    # A looked-up name that collapses pagination gets the key, once, at the end.
+    text = lookup_many(toy, ["Query", "Project.spans", "Trace"])
+    assert text.count(PAGINATION_LEGEND) == 1
+    assert text.splitlines()[-1] == PAGINATION_LEGEND
     assert len(lookup_many(toy, ["Project", "Span"], budget=600)) <= 600
     # Several names as free text are a search, not a lookup.
     assert "in full:" in search(toy, "TimeRange, TimeBinConfig TimeBinScale")
@@ -373,7 +377,9 @@ def test_describe_shares_one_budget_and_names_what_it_omits(toy: Index) -> None:
     assert len(text) <= 1500
     shown = [b for b in text.split("\n\n") if not b.startswith("--")]
     assert 3 <= len(shown) < 30
-    assert text.splitlines()[-1].endswith("more requests omitted; ask for fewer at once.")
+    assert any(
+        line.endswith("more requests omitted; ask for fewer at once.") for line in text.splitlines()
+    )
     both = describe(toy, names=["TimeRange"], search=["session duration", "projects"], budget=2000)
     blocks = both.split("\n\n")
     assert blocks[0].startswith("input TimeRange {")
