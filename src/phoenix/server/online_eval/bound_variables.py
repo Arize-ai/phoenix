@@ -25,8 +25,18 @@ from phoenix.db.session_aggregates import (
     earliest_root_span_by_session,
     root_span_io_value_by_session,
 )
+from phoenix.db.trace_aggregates import (
+    SPAN_ROWID as TRACE_ROOT_SPAN_ROWID,
+)
+from phoenix.db.trace_aggregates import (
+    TRACE_ROWID,
+    representative_root_span_by_trace,
+)
 from phoenix.trace.dsl.filter import SPAN_BINDINGS
-from phoenix.trace.dsl.session_filter import _AGGREGATE_SPECS, SESSION_BINDINGS
+from phoenix.trace.dsl.session_filter import _AGGREGATE_SPECS as _SESSION_AGGREGATE_SPECS
+from phoenix.trace.dsl.session_filter import SESSION_BINDINGS
+from phoenix.trace.dsl.trace_filter import _AGGREGATE_SPECS as _TRACE_AGGREGATE_SPECS
+from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS, root_span_io_value
 
 _ROOT_SPAN_IO_NAMES: tuple[RootSpanIOKind, ...] = ("first_input", "last_output")
 _USER_ID = "user_id"
@@ -49,13 +59,28 @@ SESSION_BOUND_VARIABLE_NAMES = _bindable(
         (_USER_ID,),
     )
 )
-BOUND_VARIABLE_NAMES = SPAN_BOUND_VARIABLE_NAMES | SESSION_BOUND_VARIABLE_NAMES
+TRACE_BOUND_VARIABLE_NAMES = _bindable(
+    chain(
+        TRACE_BINDINGS.string_names,
+        TRACE_BINDINGS.float_names,
+        TRACE_BINDINGS.aggregate_names,
+    )
+)
+BOUND_VARIABLE_NAMES = (
+    SPAN_BOUND_VARIABLE_NAMES | SESSION_BOUND_VARIABLE_NAMES | TRACE_BOUND_VARIABLE_NAMES
+)
+
+# Trace-filter root I/O binds at the context's top level, outside `metadata`.
+TRACE_ROOT_IO_NAMES = TRACE_BINDINGS.caller_bound_string_names
 
 # Mirrored by the frontend's SPAN/SESSION_METADATA_FIELDS via test_bound_variables.py.
 SPAN_METADATA_FIELD_NAMES = frozenset(
     {"start_time", "end_time", "attributes", "events", "annotations"}
 )
 SESSION_METADATA_FIELD_NAMES = frozenset({"start_time", "end_time", "turns"})
+TRACE_METADATA_FIELD_NAMES = frozenset(
+    {"start_time", "end_time", "attributes", "events", "trace_annotations"}
+)
 
 # Entry shapes inside two of the containers above, mirrored the same way.
 SPAN_ANNOTATION_ENTRY_FIELD_NAMES = frozenset(
@@ -64,14 +89,13 @@ SPAN_ANNOTATION_ENTRY_FIELD_NAMES = frozenset(
 SESSION_TURN_FIELD_NAMES = frozenset({"input", "output", "metadata", "event_time", "span_id"})
 
 
-def session_duration_ms(start_time: datetime, end_time: datetime) -> float:
-    """A session's wall-clock duration, rounded the way the filter language rounds it."""
+def _duration_ms(start_time: datetime, end_time: datetime) -> float:
+    """Wall-clock duration, rounded the way the filter language rounds it."""
     return round((end_time - start_time).total_seconds() * 1000, 1)
 
 
 async def load_session_bound_variables(
     session: AsyncSession,
-    *,
     project_session_rowids: Collection[int],
 ) -> dict[int, dict[str, Any]]:
     """Session vocabulary values for a batch of sessions, keyed by session row id.
@@ -95,7 +119,7 @@ async def load_session_bound_variables(
     )
     for rowid, session_id, start_time, end_time in session_rows:
         resolved[rowid]["session_id"] = session_id
-        resolved[rowid]["duration_ms"] = session_duration_ms(start_time, end_time)
+        resolved[rowid]["duration_ms"] = _duration_ms(start_time, end_time)
         resolved[rowid]["start_time"] = start_time.isoformat()
         resolved[rowid]["end_time"] = end_time.isoformat()
     for io_name in _ROOT_SPAN_IO_NAMES:
@@ -104,9 +128,9 @@ async def load_session_bound_variables(
             resolved[rowid][io_name] = value
     grouped_aggregates: dict[str, list[str]] = defaultdict(list)
     for name in sorted(SESSION_BINDINGS.aggregate_names):
-        grouped_aggregates[_AGGREGATE_SPECS[name].builder_key].append(name)
+        grouped_aggregates[_SESSION_AGGREGATE_SPECS[name].builder_key].append(name)
     for group in grouped_aggregates.values():
-        specs = [_AGGREGATE_SPECS[name] for name in group]
+        specs = [_SESSION_AGGREGATE_SPECS[name] for name in group]
         aggregate_rows = await session.execute(
             specs[0]
             .builder()
@@ -130,4 +154,62 @@ async def load_session_bound_variables(
     for values in resolved.values():
         for name in SESSION_BOUND_VARIABLE_NAMES:
             values.setdefault(name, 0 if name in SESSION_BINDINGS.aggregate_names else None)
+    return resolved
+
+
+async def load_trace_bound_variables(
+    session: AsyncSession,
+    trace_rowids: Collection[int],
+) -> dict[int, dict[str, Any]]:
+    """Trace vocabulary values for a batch of traces, keyed by trace row id."""
+    rowids = sorted(set(trace_rowids))
+    resolved: dict[int, dict[str, Any]] = {rowid: {} for rowid in rowids}
+    if not rowids:
+        return resolved
+    trace_rows = await session.execute(
+        select(
+            models.Trace.id,
+            models.Trace.trace_id,
+            models.Trace.start_time,
+            models.Trace.end_time,
+        ).where(models.Trace.id.in_(rowids))
+    )
+    for rowid, trace_id, start_time, end_time in trace_rows:
+        resolved[rowid]["trace_id"] = trace_id
+        resolved[rowid]["latency_ms"] = _duration_ms(start_time, end_time)
+        resolved[rowid]["start_time"] = start_time.isoformat()
+        resolved[rowid]["end_time"] = end_time.isoformat()
+    root_spans = representative_root_span_by_trace(keys=rowids).subquery()
+    root_io_rows = await session.execute(
+        select(
+            root_spans.c[TRACE_ROWID],
+            root_span_io_value(models.Span.attributes, "input"),
+            root_span_io_value(models.Span.attributes, "output"),
+        ).join_from(
+            root_spans,
+            models.Span,
+            models.Span.id == root_spans.c[TRACE_ROOT_SPAN_ROWID],
+        )
+    )
+    for rowid, input_value, output_value in root_io_rows:
+        resolved[rowid]["input"] = input_value
+        resolved[rowid]["output"] = output_value
+    grouped_aggregates: dict[str, list[str]] = defaultdict(list)
+    for name in sorted(TRACE_BINDINGS.aggregate_names):
+        grouped_aggregates[_TRACE_AGGREGATE_SPECS[name].builder_key].append(name)
+    for group in grouped_aggregates.values():
+        specs = [_TRACE_AGGREGATE_SPECS[name] for name in group]
+        aggregate_rows = await session.execute(
+            specs[0]
+            .builder()
+            .as_grouped_subquery(keys=rowids, values=[spec.value_column for spec in specs])
+        )
+        for aggregate_row in aggregate_rows.mappings():
+            values = resolved[aggregate_row[TRACE_ROWID]]
+            for name, spec in zip(group, specs):
+                values[name] = aggregate_row[spec.value_column]
+    # Aggregates default to zero, the way a filter condition coalesces them.
+    for values in resolved.values():
+        for name in chain(TRACE_BOUND_VARIABLE_NAMES, TRACE_ROOT_IO_NAMES):
+            values.setdefault(name, 0 if name in TRACE_BINDINGS.aggregate_names else None)
     return resolved
