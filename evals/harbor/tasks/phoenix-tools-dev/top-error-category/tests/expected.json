@@ -1,0 +1,20 @@
+{
+  "kind": "name",
+  "aliases": [
+    [
+      "Formatting Errors",
+      "formatting error",
+      "formatting"
+    ]
+  ],
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; 124 trail_error annotations, next is Instruction Non-compliance at 65",
+  "accept": [
+    "Formatting Errors",
+    "Formatting errors (124), ahead of Instruction Non-compliance (65)."
+  ],
+  "reject": [
+    "Instruction Non-compliance",
+    "Formatting Errors or Instruction Non-compliance",
+    ""
+  ]
+}

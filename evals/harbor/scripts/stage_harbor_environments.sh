@@ -1,11 +1,20 @@
 #!/bin/bash
 # Build Phoenix and stage the generated build-context artifacts into every
 # task's environment/ directory: the wheel, the container assets, and the
-# task's fixture database from cloud storage.
+# task's fixture database.
+#
+# A task with its own environment/Dockerfile gets its fixture from cloud
+# storage. The Phoenix tool benchmark tasks under tasks/phoenix-tools-*/ share
+# the image in evals/harbor/environment, whose database `make harbor-seed`
+# seeds locally (TRAIL is gated, so it is never published): that directory is
+# copied into each of them with hard links, and they are skipped until the
+# seeded database exists.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
-CONTAINER_ASSETS="$ROOT/evals/harbor/container_assets"
-TASKS_DIR="$ROOT/evals/harbor/tasks"
+HERE="$ROOT/evals/harbor"
+CONTAINER_ASSETS="$HERE/container_assets"
+TASKS_DIR="$HERE/tasks"
+SHARED="$HERE/environment"
 FIXTURES_URL="https://storage.googleapis.com/arize-phoenix-assets/evals/harbor"
 
 # Clear stale wheels first: `uv pip install /wheels/*.whl` in the task Dockerfile
@@ -24,10 +33,25 @@ for environment in "$TASKS_DIR"/*/environment; do
   curl -fsSL "$FIXTURES_URL/$task/phoenix.db" -o "$environment/data/phoenix.db"
   staged=$((staged + 1))
 done
-
-if [ "$staged" -eq 0 ]; then
-  echo "error: no tasks with an environment/ directory found under $TASKS_DIR" >&2
-  exit 1
-fi
-
 echo "Staged build-context artifacts for $staged task(s)."
+
+if [ ! -f "$SHARED/data/phoenix.db" ]; then
+  echo "Skipped the Phoenix tool benchmark tasks: no seeded database at $SHARED/data/phoenix.db (run 'make harbor-seed')."
+  exit 0
+fi
+rm -rf "$SHARED/wheels" "$SHARED/lib" "$SHARED/container_assets"
+mkdir -p "$SHARED/wheels" "$SHARED/lib/evals/harbor"
+cp "$ROOT"/dist/arize_phoenix-*.whl "$SHARED/wheels/"
+cp "$ROOT/evals/__init__.py" "$SHARED/lib/evals/"
+cp "$HERE/__init__.py" "$SHARED/lib/evals/harbor/"
+rsync -a --exclude __pycache__ "$HERE/lib/" "$SHARED/lib/evals/harbor/lib/"
+rsync -a --exclude __pycache__ "$CONTAINER_ASSETS/" "$SHARED/container_assets/"
+tools=0
+for task in "$TASKS_DIR"/phoenix-tools-*/*/; do
+  [ -f "$task/task.toml" ] || continue
+  # Hard links keep ten copies of the database from costing ten times the disk;
+  # Docker and Daytona read them as ordinary files.
+  rsync -a --delete --link-dest="$SHARED/" "$SHARED/" "$task/environment/"
+  tools=$((tools + 1))
+done
+echo "Staged the shared tool benchmark environment into $tools task(s)."

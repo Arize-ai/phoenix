@@ -1,0 +1,78 @@
+# The Phoenix tool benchmark on its dev split: every condition on every task.
+#   make harbor-run HARBOR_JOB=evals/harbor/jobs/phoenix-tools-dev.yaml
+# Pass overrides through HARBOR_ARGS: `-e docker`, `-k 3` for three attempts, `--job-name`
+# to label the experiments, or `-a oracle` to run the reference solutions through the
+# verifiers with no model calls. For a subset of conditions or tasks, copy this file or
+# let scripts/subset_job.py write the copy.
+#
+# Each condition is a Harbor agent under a condition name; Harbor keeps `name` as a label
+# when `import_path` names the class. Every condition runs the same image, built from
+# evals/harbor/environment by `make harbor-stage`, and the plugin records the job to the
+# Phoenix dataset named after the task directory, phoenix-tools-dev.
+#
+# Network: the tasks allow nothing by themselves. The environment grants the Phoenix docs
+# hosts to every trial (PXI's docs tool and `px docs`); each agent grants its own LLM
+# provider for its run phase. Claude Code and Codex are in the image at the pinned
+# versions, so Harbor verifies them instead of installing.
+datasets:
+  - path: evals/harbor/tasks/phoenix-tools-dev
+agents:
+  # Claude Code with the Phoenix MCP server; px is never installed for it.
+  - name: claude-code-mcp
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+    kwargs:
+      version: "2.1.267"
+      reasoning_effort: high
+      disallowed_tools: "WebSearch,WebFetch"
+  # Claude Code with px built from this checkout and the public phoenix-cli skill.
+  - name: claude-code-cli
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+    kwargs:
+      version: "2.1.267"
+      reasoning_effort: high
+      disallowed_tools: "WebSearch,WebFetch"
+    env:
+      NO_COLOR: "1"
+    skills:
+      - .agents/skills/phoenix-cli
+  # Codex with the Phoenix MCP server.
+  - name: codex-mcp
+    import_path: evals.harbor.agents.coding_agents:CodexMcpAgent
+    model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      version: "0.154.0"
+      reasoning_effort: high
+      web_search: disabled
+  # Codex with px built from this checkout and the public phoenix-cli skill.
+  - name: codex-cli
+    import_path: evals.harbor.agents.coding_agents:CodexCliAgent
+    model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      version: "0.154.0"
+      reasoning_effort: high
+      web_search: disabled
+    env:
+      NO_COLOR: "1"
+    skills:
+      - .agents/skills/phoenix-cli
+  # PXI inside the Phoenix server, through the agent session chat route.
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+environment:
+  type: daytona
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
+  # Have Daytona clean up sandboxes orphaned by a killed run so they don't eat org quota.
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+# Retry trials that die on infrastructure errors; reward-scored failures are not retried.
+retry:
+  max_retries: 1

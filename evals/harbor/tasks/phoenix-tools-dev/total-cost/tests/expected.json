@@ -1,0 +1,32 @@
+{
+  "kind": "number",
+  "value": 16.0022467,
+  "places": 2,
+  "aliases": [
+    "cost",
+    "costs",
+    "total",
+    "spent",
+    "spend",
+    "bill",
+    "USD",
+    "dollars"
+  ],
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; Phoenix project costSummary.total.cost",
+  "accept": [
+    "$16.00",
+    "16.0022 USD",
+    "The run cost $16.00 in total.",
+    "117 traces cost $16.00 in total.",
+    "Total: $16.00 (117 traces, 3,579 spans)."
+  ],
+  "reject": [
+    "$16.10",
+    "about $16",
+    "$16.00 or $16.01",
+    "16.5",
+    "",
+    "The most expensive trace cost $2.10; the run's total was $16.10.",
+    "Phoenix reports $16.00 for the trail-gaia project, but research-assistant cost $16.10."
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "kind": "number",
+  "value": 45.3221,
+  "places": 1,
+  "aliases": [
+    "share",
+    "percent",
+    "percentage",
+    "account",
+    "accounts",
+    "accounted",
+    "comes from",
+    "come from",
+    "of the total",
+    "of total",
+    "of spend",
+    "of the spend",
+    "of the bill"
+  ],
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; the top 12 traces (10% of 117, rounded up) of $16.00 total",
+  "accept": [
+    "45.3%",
+    "The top 12 traces account for 45.3% of the $16.00 total.",
+    "45.32 percent",
+    "12 traces (10% of 117, rounded up) account for 45.3% of the bill.",
+    "45.3% of spend comes from the top 12 traces."
+  ],
+  "reject": [
+    "43.1%",
+    "about 45%",
+    "45.3% or 43.1%",
+    "12",
+    "",
+    "The top 12 traces account for 43.1% of spend; 45.3% of traces had errors.",
+    "The top 12 traces cost $7.25 of $16.00, so 45.3% of traces carry most of the cost, which comes to 43.1%."
+  ]
+}

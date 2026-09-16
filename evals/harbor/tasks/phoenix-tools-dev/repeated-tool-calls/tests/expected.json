@@ -1,0 +1,22 @@
+{
+  "kind": "entity_count",
+  "aliases": [
+    "FinderTool"
+  ],
+  "value": 24,
+  "source": "solution/solve.sh through px against the seeded image, cross-checked against the TRAIL rows; next is SearchInformationTool at 20 in another trace",
+  "accept": [
+    "FinderTool: 24 calls",
+    "Yes. The tool called most within one trace is FinderTool, with 24 calls.",
+    "FinderTool was called 24 times in one trace; SearchInformationTool reached 20 in another.",
+    "24 calls to FinderTool"
+  ],
+  "reject": [
+    "FinderTool had 20 calls; SearchInformationTool had 24.",
+    "SearchInformationTool: 24 calls",
+    "FinderTool: 23 calls",
+    "FinderTool: 24 or 25 calls",
+    "24",
+    "FinderTool appears in 117 traces; the tool called most within one trace is SearchInformationTool, 24 times."
+  ]
+}
