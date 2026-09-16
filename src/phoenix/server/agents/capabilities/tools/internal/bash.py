@@ -56,8 +56,9 @@ should not be assumed to work.
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
 - phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API. \
-`phoenix-gql schema <terms>` finds the types and fields to query; run \
-`phoenix-gql --help` for usage and current permissions.
+`phoenix-gql schema --search <text>` finds the types and fields to query and \
+`--names <A,B>` prints named ones in full; run `phoenix-gql --help` for usage \
+and current permissions.
 - Dataset reads go through here. `Query.datasets(filter: {col: name, value: "..."}, \
 first, after)` lists datasets (names are unique — check before a `ui.dataset.create`). \
 `node(id: <datasetId>) { ... on Dataset { examples(first, after) { edges { node { id \
@@ -148,7 +149,7 @@ def _format_graphql_errors(messages: list[str]) -> str:
 _HELP_TEXT_TEMPLATE: Template = Template(
     """\
 Usage: phoenix-gql [query] [options] [query-or-file]
-       phoenix-gql schema [terms] [--search <text>]... [--names <A,B>]...
+       phoenix-gql schema [--search <text>]... [--names <A,B>]...
 
 Execute GraphQL operations against Phoenix, or search its schema.
 
@@ -163,12 +164,12 @@ executes for real, exactly once.
 Permissions: queries and mutations are ENABLED.
 {% endif %}
 Recommended flow:
-  1. `phoenix-gql schema <terms>` to find the types and fields you need; name a
-     type, `Type.field`, or mutation to see it in full with how to reach it.
-     `--names A,B` looks several up and `--search <text>` adds a search; batch
-     what you already know you need into one call. Add the word "mutations"
-     to a search to see only mutations. Name the return types and input types
-     you see rather than repeating the same terms
+  1. `phoenix-gql schema --search <text>` to find the types and fields you
+     need, and `--names <Type,Type.field,mutationName>` to see each in full with
+     how to reach it; both repeat, and both fit in one call, so batch what you
+     already know you need. With no flags it prints the query root. Add the
+     word "mutations" to a search to see only mutations. Name the return types
+     and input types you see rather than repeating the same terms
   2. add filters, sorting, and deeper fields only after the base query works
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
@@ -182,8 +183,8 @@ Options:
   --help                Show this help text
 
 Examples:
-  phoenix-gql schema span cost
-  phoenix-gql schema Experiment
+  phoenix-gql schema --search "span cost"
+  phoenix-gql schema --names Experiment
   phoenix-gql schema --search "trace by otel id" --names TimeRange,TimeBinConfig
   phoenix-gql '{ projects { edges { node { name } } } }'
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
@@ -205,29 +206,25 @@ _SCHEMA_BUDGET = 3000
 
 
 def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
-    """``(searches, names)`` from the words and flags after ``schema``.
+    """``(searches, names)`` from the flags after ``schema``.
 
-    Bare words are one search. ``--search TEXT`` adds a search and ``--names A,B``
-    adds exact names; both repeat.
+    ``--search TEXT`` adds a search and ``--names A,B`` adds exact names; both
+    repeat. Nothing else is accepted.
     """
     searches: list[str] = []
     names: list[str] = []
-    words: list[str] = []
     it = iter(args)
     for arg in it:
         flag, has_value, inline = arg.partition("=")
-        if flag in ("--search", "--names"):
-            value = inline if has_value else next(it, None)
-            if value is None or not value.strip():
-                raise ValueError(f"{flag} needs a value")
-            if flag == "--search":
-                searches.append(value.strip())
-            else:
-                names.extend(n for n in re.split(r"[,\s]+", value) if n)
+        if flag not in ("--search", "--names"):
+            raise ValueError(f"unexpected argument {arg!r}: use --search <text> and --names <A,B>")
+        value = inline if has_value else next(it, None)
+        if value is None or not value.strip():
+            raise ValueError(f"{flag} needs a value")
+        if flag == "--search":
+            searches.append(value.strip())
         else:
-            words.append(arg)
-    if words:
-        searches.append(" ".join(words))
+            names.extend(n for n in re.split(r"[,\s]+", value) if n)
     return searches, names
 
 
