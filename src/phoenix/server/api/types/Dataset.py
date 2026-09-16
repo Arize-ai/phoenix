@@ -164,7 +164,7 @@ class Dataset(Node):
         async with info.context.db.read() as session:
             stmt = select(models.DatasetVersion).filter_by(dataset_id=self.id)
             if sort:
-                # For now assume the the column names match 1:1 with the enum values
+                # For now assume the column names match 1:1 with the enum values
                 sort_col = getattr(models.DatasetVersion, sort.col.value)
                 if sort.dir is SortDir.desc:
                     stmt = stmt.order_by(sort_col.desc(), models.DatasetVersion.id.desc())
