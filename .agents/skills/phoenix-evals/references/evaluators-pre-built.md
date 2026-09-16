@@ -61,15 +61,20 @@ const faithfulnessEval = createFaithfulnessEvaluator({ model: openai("gpt-4o") }
   itself: `input` holds the full history the assistant saw, including tool
   calls and results, and there is no `context` field — use it for multi-turn
   agents and chat.
-- **Completeness scores finished work, not acknowledgement.** A delivered
-  answer, a delivered artifact including its required parts, or an action whose
-  success is visible in the record counts as complete; a refusal, a clarifying
-  question, or a blocker report does not, and a request the user withdrew is
-  excluded from the judgement. For agent traces put tool calls and tool results
-  into the single `conversation` field so the judge can verify that an action
-  actually succeeded — with tools omitted it falls back to the visible dialogue
-  and will credit a claimed action. The `explanation` lists each request it
-  found and what happened to it.
+- **Completeness scores finished work across the whole conversation.** It
+  enumerates every request the user made in any turn and labels the
+  conversation `incomplete` if any non-withdrawn request was never fulfilled,
+  so a single final turn is not enough input. A delivered answer, a delivered
+  artifact including its required parts, or an action whose success is visible
+  in the record counts as fulfilled; a refusal, a clarifying question, or a
+  blocker report does not, and a request the user withdrew is excluded from the
+  decision. Correctness and grounding are out of scope: a wrong-but-delivered
+  answer still counts as complete. For agent traces put tool calls and tool
+  results into the single `conversation` field so the judge can verify that an
+  action actually succeeded — with tools omitted it falls back to the visible
+  dialogue and will credit a claimed action. The `explanation` is an
+  `INTENTIONS:` block with one line per request and its state, which you can
+  parse to see which request was dropped.
 - **PII detection screens the whole record.** The single `conversation` field
   should include everything — system instructions, tool calls and results,
   retrieved documents — not just what the user saw. The judge's `explanation`
