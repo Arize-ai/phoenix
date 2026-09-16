@@ -141,7 +141,7 @@ class TraceDataset:
                 evaluations for the spans in the dataset. If provided, the evaluations
                 can be materialized into a unified dataframe as annotations.
         """
-        # Validate the the dataframe has required fields
+        # Validate that the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
             raise ValueError(
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
