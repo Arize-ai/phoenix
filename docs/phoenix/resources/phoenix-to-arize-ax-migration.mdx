@@ -5,6 +5,26 @@ description: Seamlessly migrate your data from Phoenix to Arize AX
 
 If you are looking to migrate to Arize AX but want to preserve your data, this tool will help migrate your traces, evaluations, annotations, datasets, and experiments from Phoenix.
 
+## Migrate with a coding agent
+
+The [`arize-phoenix-migration` skill](https://github.com/Arize-ai/arize-skills/tree/main/skills/arize-phoenix-migration) gives coding agents a verified workflow for historical traces, dataset versions, experiments, and stored experiment evaluation results. It does not rerun evaluators or make model calls during migration.
+
+```bash
+npx skills add Arize-ai/arize-skills --skill arize-phoenix-migration --yes
+```
+
+Create a private, Git-ignored `.env` containing `PHOENIX_BASE_URL`, `PHOENIX_PROJECT_NAME`, `PHOENIX_API_KEY` when authentication is enabled, `ARIZE_API_KEY`, `ARIZE_SPACE_ID`, and a fresh `ARIZE_PROJECT_NAME` for traces. Give the agent the file path rather than pasting keys into chat.
+
+Then ask:
+
+> Use the Arize Phoenix migration skill and my local `.env`. Migrate the historical traces into a fresh AX project. Migrate all datasets, dataset versions, experiments, and stored evaluation results with the prefix `migrated-`. Verify every imported data type.
+
+The agent sets expectations and asks once before beginning. Migration can take several minutes, and AX indexing and verification can take 15 minutes or longer. Only the final `verified` results establish that the migration completed.
+
+<Note>
+The skill currently excludes evaluator definitions, prompts, tags, attachments, and span/trace/session annotations. It stops instead of silently dropping dataset history it cannot reproduce. The script-based tool below has different behavior and limits, including trace annotations; choose it when you need those currently unsupported objects.
+</Note>
+
 <Card 
   title="Migration Tool Repo" 
   href="https://github.com/Arize-ai/phoenix-to-ax-migration"
