@@ -165,7 +165,11 @@ jobs:
           fi
 
           # Never let an RCA fix touch automation or agent-instruction files.
-          blocked_files=$(git diff --name-only | awk '
+          # Cover both tracked modifications (git diff) AND newly created files
+          # (git ls-files --others): Claude has Write, so a brand-new file under
+          # a blocked dir would otherwise slip past `git diff` and ride along in
+          # the `git add -A` below.
+          blocked_files=$({ git diff --name-only; git ls-files --others --exclude-standard; } | sort -u | awk '
             /^\.github\// ||
             /^\.cursor\// ||
             /^\.claude\// ||
