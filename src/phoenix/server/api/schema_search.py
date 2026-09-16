@@ -921,19 +921,24 @@ def _within(parts: Sequence[str], budget: int) -> str:
             out.append(part)
             used += len(part) + 1
             continue
-        room = budget - used - 40
+        lines = part.splitlines()
+        closing = ["}"] if part.rstrip().endswith("}") else []
+        sections = [f"# ... {len(parts) - 1} more sections omitted"] if len(parts) > 1 else []
+        # The cut costs its own trailer: the omitted-lines note, the closing brace,
+        # and the omitted-sections note. Reserve them at their longest.
+        trailer = len(f"  # ... {len(lines)} more lines omitted") + 1
+        trailer += sum(len(line) + 1 for line in (*closing, *sections))
+        room = budget - used - trailer
         if i == 0 and room > 0:
             kept: list[str] = []
-            for line in part.splitlines():
+            for line in lines:
                 if sum(len(k) + 1 for k in kept) + len(line) + 1 > room:
                     break
                 kept.append(line)
-            kept.append(f"  # ... {len(part.splitlines()) - len(kept)} more lines omitted")
-            if part.rstrip().endswith("}"):
-                kept.append("}")
+            kept.append(f"  # ... {len(lines) - len(kept)} more lines omitted")
+            kept.extend(closing)
             out.append("\n".join(kept))
-            if len(parts) > 1:
-                out.append(f"# ... {len(parts) - 1} more sections omitted")
+            out.extend(sections)
         else:
             out.append(f"# ... {len(parts) - i} more sections omitted")
         break
