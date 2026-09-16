@@ -48,10 +48,7 @@ class ClaudeCodeCliAgent(ClaudeCode):
     async def install(self, environment: BaseEnvironment) -> None:
         await super().install(environment)
         if not _CLI_ARCHIVE.is_file():
-            raise RuntimeError(
-                f"No px CLI archive at {_CLI_ARCHIVE}; "
-                "run 'make harbor-stage-environments' first"
-            )
+            raise RuntimeError(f"No px CLI archive at {_CLI_ARCHIVE}")
         archive = f"{_CLI_UPLOAD_DIR}/{_CLI_ARCHIVE.name}"
         script = f"{_CLI_UPLOAD_DIR}/{_CLI_INSTALL_SCRIPT.name}"
         await environment.exec(f"mkdir -p {_CLI_UPLOAD_DIR}", user="root")

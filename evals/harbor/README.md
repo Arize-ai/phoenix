@@ -10,16 +10,24 @@ pip install "arize-phoenix-client[harbor]"
 
 Build Phoenix and stage each task's build context (from the repository root): the wheel,
 the container assets, and the task's fixture database, which is baked into the image from
-`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`. The same command builds the px
-CLI from source and assembles its production dependencies in a Docker container into
-`dist/phoenix-cli/phoenix-cli.tar.gz`, outside every
-build context, so the `claude-code-cli` agent tests the checkout's CLI without exposing it
-to the other agents. Docker must be running. The archive targets `linux/amd64` by default;
-set `HARBOR_CLI_PLATFORM` to match the trial environment when using another architecture.
+`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`.
 
 ```bash
 make harbor-stage-environments
 ```
+
+The `claude-code-cli` agent also needs the px CLI archive. This builds the CLI from source
+and assembles its production dependencies in a Docker container into
+`dist/phoenix-cli/phoenix-cli.tar.gz`, outside every build context, so the agent tests the
+checkout's CLI without exposing it to the other agents. Docker must be running. The archive
+targets `linux/amd64` by default; set `HARBOR_CLI_PLATFORM` to match the trial environment
+when using another architecture.
+
+```bash
+make harbor-build-cli-archive
+```
+
+`make harbor-stage` runs both.
 
 Each task keeps its grading material under `tests/`, which Harbor uploads only when the
 verifier runs, so the agent never sees the ground truth or the checks.

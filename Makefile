@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-plugin-e2e harbor-oracle harbor-run harbor-compare harbor-view \
+	harbor-stage harbor-stage-environments harbor-build-cli-archive harbor-plugin-e2e harbor-oracle harbor-run harbor-compare harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -108,7 +108,9 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  harbor-stage-environments - Build the Phoenix wheel, stage each Harbor task environment, and pack the px CLI"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Stage every Harbor task environment and build the px CLI archive"
+	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
+	@echo -e "  harbor-build-cli-archive  - Build the px CLI archive the claude-code-cli agent installs"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run one agent on the task (HARBOR_AGENT=..., HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
@@ -548,20 +550,27 @@ HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VER
 	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
 # The wheel, container assets, and fixture database are staged into the task's Docker build
-# context by stage_harbor_task_environments.sh, which also assembles the px CLI archive the
-# claude-code-cli agent uploads into its own sandbox.
+# context by stage_harbor_environments.sh. build_phoenix_cli_archive.sh assembles the px CLI
+# archive the claude-code-cli agent uploads into its own sandbox.
 define check-harbor-staged
 	@test -d $(HARBOR_TASK)/environment/container_assets -a -f $(HARBOR_TASK)/environment/data/phoenix.db || \
 		{ echo -e "$(RED)Missing staged assets in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
 endef
 define check-harbor-cli-archive
 	@test -f dist/phoenix-cli/phoenix-cli.tar.gz || \
-		{ echo -e "$(RED)Missing px CLI archive in dist/phoenix-cli/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
+		{ echo -e "$(RED)Missing px CLI archive in dist/phoenix-cli/ — run 'make harbor-build-cli-archive' first$(NC)"; exit 1; }
 endef
+
+harbor-stage: harbor-stage-environments harbor-build-cli-archive ## Stage every Harbor task environment and build the px CLI archive
 
 harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
-	./evals/harbor/scripts/stage_harbor_task_environments.sh
+	./evals/harbor/scripts/stage_harbor_environments.sh
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+harbor-build-cli-archive: ## Build the px CLI archive the claude-code-cli agent installs (HARBOR_CLI_PLATFORM=...)
+	@echo -e "$(CYAN)Building the px CLI archive...$(NC)"
+	./evals/harbor/scripts/build_phoenix_cli_archive.sh
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
