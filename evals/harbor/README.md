@@ -50,7 +50,7 @@ attributable to the surface:
 | `claude-code-cli` | Claude Code | `@arizeai/phoenix-cli` installed from the `dist/phoenix-cli/phoenix-cli.tar.gz` archive with `PHOENIX_ENDPOINT` set, plus the four public skills from `.agents/skills/` passed with `--skill` |
 
 The Claude Code agents are subclasses of Harbor's installed `claude-code` agent in
-`evals/harbor/agents/claude_code_agents.py`. They run with Harbor's default
+`evals/harbor/agents/coding_agents.py`. They run with Harbor's default
 `bypassPermissions`, matching the chat agent's auto-approved tool calls, and with
 `--resume-trajectory` so step 2 continues step 1's conversation. Claude Code only speaks
 the Anthropic API, so pass an `anthropic/` model.

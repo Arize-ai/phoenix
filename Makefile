@@ -508,9 +508,9 @@ HARBOR_PUBLIC_SKILLS := $(addprefix .agents/skills/,phoenix-cli phoenix-error-an
 ifeq ($(HARBOR_AGENT),phoenix-chat-agent)
 HARBOR_AGENT_ARGS := -a evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
 else ifeq ($(HARBOR_AGENT),claude-code-mcp)
-HARBOR_AGENT_ARGS := -a evals.harbor.agents.claude_code_agents:ClaudeCodeMcpAgent $(HARBOR_CLAUDE_CODE_ARGS)
+HARBOR_AGENT_ARGS := -a evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent $(HARBOR_CLAUDE_CODE_ARGS)
 else ifeq ($(HARBOR_AGENT),claude-code-cli)
-HARBOR_AGENT_ARGS := -a evals.harbor.agents.claude_code_agents:ClaudeCodeCliAgent $(HARBOR_CLAUDE_CODE_ARGS) \
+HARBOR_AGENT_ARGS := -a evals.harbor.agents.coding_agents:ClaudeCodeCliAgent $(HARBOR_CLAUDE_CODE_ARGS) \
 	$(foreach skill,$(HARBOR_PUBLIC_SKILLS),--skill $(skill))
 endif
 # Extra arguments for harbor-compare, e.g. --plugin arize-phoenix ...
