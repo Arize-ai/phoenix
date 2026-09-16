@@ -64,17 +64,28 @@ MUST be one of feat, fix, chore, docs, refactor, test, ci, perf, style, build.
 
 Write the PR body to `.scratch/pr-body.md`. It MUST include: the failure
 dimension and its occurrence count; the root cause; what you changed and why;
-how you validated it; and evidence links to the offending spans/traces using
-the dev Phoenix redirect URLs — build them from the deployment origin as
-`<origin>/redirects/spans/<spanId>` and `<origin>/redirects/traces/<traceId>`,
-reading the hex OTel `spanId`/`traceId` (NOT the Relay `id`). State plainly
-that this is an automated RCA-proposed fix for human review.
+how you validated it; and the evidence links already produced by
+phoenix-error-analysis wrap-up (copy them unchanged). State plainly that
+this is an automated RCA-proposed fix for human review.
 
 ### If there is NO fixable bug
 
 Make NO edits to the repository. Write a short findings report to
 `.scratch/rca-findings.md` summarizing what you analyzed and why no PR is
-warranted (all-healthy, out-of-repo cause, needs-human-judgment, etc.). Then
-exit.
+warranted (all-healthy, out-of-repo cause, needs-human-judgment, etc.).
+Include the skill's wrap-up links unchanged. Then exit.
+
+## Evidence links
+
+Do **not** invent a second URL scheme (no `/redirects/spans/…` or
+`/redirects/traces/…`). phoenix-error-analysis already defines the UI
+links: `<endpoint>` from the skill's wrap-up (MCP origin, not
+`PHOENIX_AGENTS_COLLECTOR_ENDPOINT`), plus `/projects/<project-node-id>/…`
+paths for traces, spans (`selectedSpanNodeId`), filtered tables, and
+config. Paste those URLs into `.scratch/pr-body.md` or
+`.scratch/rca-findings.md` as-is.
+
+Write `**Phoenix:** <endpoint>` at the top of the findings/PR body so the
+origin is obvious.
 
 Do exactly one thing: either one focused fix or a findings report.
