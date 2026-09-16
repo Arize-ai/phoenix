@@ -13,6 +13,7 @@ import {
   formatEvaluationTarget,
   formatEvaluationTargetPlural,
   formatSamplingRate,
+  hasEvaluationDelay,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
@@ -25,11 +26,6 @@ const filterValueCSS = css`
   overflow-wrap: anywhere;
 `;
 
-/**
- * Read-only view of the policy a project evaluator runs under: what it
- * targets, which spans it matches, and how many of them it samples. Whether
- * the evaluator runs at all is the page header's enabled switch.
- */
 export function ProjectEvaluatorScopeDetails({
   projectEvaluatorRef,
 }: {
@@ -46,7 +42,7 @@ export function ProjectEvaluatorScopeDetails({
     `,
     projectEvaluatorRef
   );
-  const isSessionTarget = projectEvaluator.evaluationTarget === "SESSION";
+  const isDelayedTarget = hasEvaluationDelay(projectEvaluator.evaluationTarget);
 
   return (
     <Card title="Scope">
@@ -74,7 +70,7 @@ export function ProjectEvaluatorScopeDetails({
             {formatSamplingRate(projectEvaluator.samplingRate)}
           </Text>
         </EvaluatorDetailRow>
-        {isSessionTarget ? (
+        {isDelayedTarget ? (
           <EvaluatorDetailRow label="Evaluation delay">
             <Text size="S">
               {formatEvaluationDelay(projectEvaluator.evaluationDelaySeconds)}
