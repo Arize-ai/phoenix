@@ -278,7 +278,7 @@ def test_stemmed_terms_reach_their_identifiers(toy: Index, query: str, expected:
 
 def test_snake_case_terms_find_camel_case_fields(toy: Index) -> None:
     top = search(toy, "status_code").splitlines()[:3]
-    assert top[0] == "Span"
+    assert top[0] == "Span  via Query.getSpanByOtelId"
     assert all(line.startswith("  ") and "StatusCode" in line for line in top[1:])
 
 
@@ -295,7 +295,10 @@ def test_single_owner_hits_group_under_their_owner(toy: Index) -> None:
     owners = [lines[i].split("  ")[0] for i in headers]
     assert len(owners) == len(set(owners))
     assert all(lines[i + 1].startswith("  ") for i in headers)
-    assert search(toy, "annotate spans").startswith("Span\n  spanAnnotations(")
+    # A read root's header carries its entry point.
+    assert search(toy, "annotate spans").startswith(
+        "Span  via Query.getSpanByOtelId\n  spanAnnotations("
+    )
 
 
 def test_shared_hits_list_every_owner(toy: Index) -> None:
@@ -388,9 +391,42 @@ def test_misses_say_so(toy: Index) -> None:
     assert lookup(toy, "Project.nonexistent").startswith(
         "-- Project has no field 'nonexistent'. Try search('Project nonexistent')."
     )
-    text = search(toy, "Project.nonexistent")
-    assert first_line(text) == "-- Project has no field 'nonexistent'. Closest matches:"
-    assert len(text.splitlines()) > 1
+    # The caller's spelling is echoed, not the lookup key.
+    assert (
+        lookup(toy, "Span.traceIdX")
+        == "-- Span has no field 'traceIdX'. Try search('Span traceIdX')."
+    )
+    assert search(toy, "Project.nonexistent") == (
+        "-- Project has no field 'nonexistent', and nothing on Project matches it. "
+        "Try search('nonexistent')."
+    )
+
+
+def test_a_missing_member_searches_within_its_type(toy: Index) -> None:
+    lines = search(toy, "Project.latency").splitlines()
+    assert lines[0] == "-- Project has no field 'latency'. On Project:"
+    assert lines[1] == "Project  via Query.getProjectByName"
+    assert lines[2].startswith("  latencyMsQuantile(")
+    headers = [line for line in lines[1:] if re.fullmatch(r"[A-Z]\w*(  via .*)?", line)]
+    assert headers == ["Project  via Query.getProjectByName"]
+
+
+def test_the_tail_says_where_the_rest_lives(toy: Index) -> None:
+    text = search(toy, "id", budget=350)
+    trailer = next(line for line in text.splitlines() if line.startswith("... "))
+    assert re.fullmatch(
+        r"\.\.\. \d+ more; narrow the search \((\w+ \d+)(, \w+ \d+){0,2}\)", trailer
+    )
+
+
+def test_a_close_runner_up_is_shown_in_full_too() -> None:
+    index = build_index(
+        build_schema("type Query { a: A }\ntype A { fooBar: Int, fooBaz: Int, other: Int }")
+    )
+    text = search(index, "foo")
+    assert "# A.fooBar in full:" in text and "# A.fooBaz in full:" in text
+    clear = search(index, "other")
+    assert clear.count(" in full:") == 1
 
 
 def test_relay_wrappers_say_what_they_wrap(toy: Index) -> None:
@@ -454,7 +490,7 @@ def test_lookup_truncates_at_whole_lines_and_keeps_the_block_closed() -> None:
     )
     assert "}" in lines
     assert any(
-        line.startswith("# ... ") and line.endswith("more sections omitted") for line in lines
+        line.startswith("# ... ") and "more sections omitted: Other" in line for line in lines
     )
 
 
@@ -765,6 +801,23 @@ def test_every_type_lookup_is_well_formed_sdl(index: Index) -> None:
     assert checked > 0
 
 
+def test_every_search_answer_respects_its_budget(index: Index) -> None:
+    """Holds across query shapes and budgets, expansions and trailers included."""
+    queries = [
+        "id",
+        "name",
+        "span cost",
+        "trace by otel id",
+        "dataset mutations",
+        "Span.cost",
+        "Project",
+    ]
+    for query in queries:
+        for budget in (300, 800, 1500, 4000):
+            text = search(index, query, budget)
+            assert len(text) <= budget + len(PAGINATION_LEGEND) + 1, (query, budget, len(text))
+
+
 def test_grouped_lines_apply_to_every_listed_owner(index: Index) -> None:
     for query in ("cost summary time range", "start time", "id", "name", "created at"):
         for line in search(index, query, budget=6000).splitlines():
@@ -797,7 +850,7 @@ def test_oversized_queries_are_bounded(index: Index) -> None:
     started = time.perf_counter()
     text = search(index, query)
     assert time.perf_counter() - started < 2.0
-    assert any(line.endswith("more; narrow the search") for line in text.splitlines())
+    assert any("more; narrow the search (" in line for line in text.splitlines())
 
 
 def test_budget_bounds_a_broad_search(index: Index) -> None:

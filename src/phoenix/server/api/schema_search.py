@@ -608,13 +608,22 @@ def _kind_adjustment(index: Index, u: Unit, wants_mutation: bool) -> float:
 
 
 def _rank(
-    index: Index, terms: Sequence[str], wants_mutation: bool, only_mutations: bool = False
+    index: Index,
+    terms: Sequence[str],
+    wants_mutation: bool,
+    only_mutations: bool = False,
+    owner: Optional[str] = None,
 ) -> list[tuple[float, Unit]]:
     """Score every unit: BM25F, a share of the owning type's own score, a boost
     for proximity to a read root normalized over the matches, then kind adjustments.
-    With ``only_mutations`` nothing but mutations is scored.
+    With ``only_mutations`` nothing but mutations is scored; with ``owner``, only
+    that type's own members.
     """
-    units = [u for u in index.units if u.kind == "mutation"] if only_mutations else index.units
+    units = index.units
+    if only_mutations:
+        units = [u for u in units if u.kind == "mutation"]
+    if owner is not None:
+        units = [u for u in units if u.parent == owner]
     bm25 = [(u, _bm25f(index, u, terms)) for u in units]
     type_score = {u.name: s for u, s in bm25 if u.kind == "type"}
     matched = [(u, s) for u, s in bm25 if s]
@@ -691,7 +700,11 @@ def _entry(index: Index, group: Sequence[Unit], terms: Sequence[str]) -> tuple[O
 
 def _owner_header(index: Index, owner: str) -> str:
     via = index.via(owner)
-    return f"{owner}  via {via}" if via and via != owner else owner
+    if via and via != owner:
+        return f"{owner}  via {via}"
+    # A read root is reached from the query root; its first path is its entry point.
+    paths = reach_paths(index, owner, limit=1)
+    return f"{owner}  via {' > '.join(paths[0])}" if paths else owner
 
 
 _MUTATIONS_DISABLED = "-- Mutations are disabled for this session and are not listed."
@@ -745,11 +758,11 @@ def _is_hidden_mutation_root(index: Index, key: str) -> bool:
     )
 
 
-def _unknown_member(index: Index, key: str) -> Optional[tuple[str, str]]:
-    """``(Type, member)`` when ``key`` is ``Type.member`` for an indexed type that
-    has no such member."""
-    owner_key, dot, member = key.partition(".")
-    owner = index.by_key.get(owner_key)
+def _unknown_member(index: Index, name: str) -> Optional[tuple[str, str]]:
+    """``(Type, member)`` when ``name`` is ``Type.member`` for an indexed type that
+    has no such member. ``member`` keeps the caller's spelling."""
+    owner_key, dot, member = name.strip().partition(".")
+    owner = index.by_key.get(owner_key.lower())
     if not dot or not member or owner is None or owner.kind != "type":
         return None
     return owner.name, member
@@ -762,16 +775,24 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     naming that owner and the path that reaches it.
 
     A query that exactly names a type, ``Type.field``, or mutation is a lookup.
+    ``Type.words`` for a type with no such field searches within that type.
     A query containing the word "mutations" on its own is answered with
     mutations only.
     """
     key = query.strip().lower()
     if _is_exact(index, key):
         return lookup(index, query, budget)
-    if unknown := _unknown_member(index, key):
+    if unknown := _unknown_member(index, query):
         owner, member = unknown
-        body = search(index, f"{owner} {member}", budget)
-        return "\n".join([f"-- {owner} has no field {member!r}. Closest matches:", body])
+        terms = _query_terms(member)
+        scored = _rank(index, terms, False, owner=owner) if terms else []
+        if not scored:
+            return (
+                f"-- {owner} has no field {member!r}, and nothing on {owner} matches it. "
+                f"Try search({member!r})."
+            )
+        lead = [f"-- {owner} has no field {member!r}. On {owner}:"]
+        return _ranked_answer(index, terms, budget, scored=scored, note=[], lead=lead)
     terms = _query_terms(query)
     if not terms:
         return (
@@ -790,14 +811,33 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     if not index.includes_mutations and (wants_mutation or _names_excluded_mutation(index, terms)):
         note.append(_MUTATIONS_DISABLED)
     scored = _rank(index, terms, wants_mutation, only_mutations)
+    if not scored:
+        miss = f"-- No type, field, argument, enum value, or description matched {query!r}."
+        return "\n".join([miss, *note])
+    lead = [_MUTATIONS_ONLY] if only_mutations else []
+    return _ranked_answer(index, terms, budget, scored=scored, note=note, lead=lead)
+
+
+_CLEAR_MARGIN = 0.1
+"""Relative score gap above which the top hit alone is shown in full."""
+
+
+def _ranked_answer(
+    index: Index,
+    terms: Sequence[str],
+    budget: int,
+    *,
+    scored: Sequence[tuple[float, Unit]],
+    note: Sequence[str],
+    lead: Sequence[str],
+) -> str:
     # One line per distinct signature; the parents it occurs on are listed
     # best score first, so the type the query named leads the list.
     groups: dict[tuple[str, str], list[Unit]] = {}
-    for _, u in scored:
+    group_score: dict[tuple[str, str], float] = {}
+    for score, u in scored:
         groups.setdefault((u.kind, u.signature), []).append(u)
-    if not groups:
-        miss = f"-- No type, field, argument, enum value, or description matched {query!r}."
-        return "\n".join([miss, *note])
+        group_score.setdefault((u.kind, u.signature), score)
     # Hits with one owner sit under that owner's header, which appears where the
     # owner's best hit ranks; every other hit keeps its own rank position.
     entries = [_entry(index, group, terms) for group in groups.values()]
@@ -805,25 +845,32 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     for parent, text in entries:
         if parent is not None:
             by_parent[parent].append(text)
-    ordered: list[tuple[bool, str]] = []  # (counts as a hit, line)
+    ordered: list[tuple[bool, str, Optional[str]]] = []  # (counts as a hit, line, owner)
     opened: set[str] = set()
     for parent, text in entries:
         if parent is None:
-            ordered.append((True, text))
+            ordered.append((True, text, None))
         elif parent not in opened:
             opened.add(parent)
-            ordered.append((False, _owner_header(index, parent)))
-            ordered.extend((True, hit) for hit in by_parent[parent])
+            ordered.append((False, _owner_header(index, parent), parent))
+            ordered.extend((True, hit, parent) for hit in by_parent[parent])
     # The best hit, when it is one field or mutation, follows the list in full so
-    # a search whose top hit is right needs no second call.
-    top = next(iter(groups.values()))
-    expand = len(top) == 1 and top[0].kind in ("field", "mutation")
-    detail_budget = min(_TOP_HIT_BUDGET, budget // 3) if expand else 0
-    lines: list[str] = [_MUTATIONS_ONLY] if only_mutations else []
+    # a search whose top hit is right needs no second call. When the runner-up is
+    # nearly as good, both follow.
+    keys = list(groups)
+    leaders = [k for k in keys[:2] if len(groups[k]) == 1 and k[0] in ("field", "mutation")]
+    if len(keys) > 1 and leaders[:1] == keys[:1]:
+        gap = (group_score[keys[0]] - group_score[keys[1]]) / group_score[keys[0]]
+        if gap >= _CLEAR_MARGIN or keys[1] not in leaders:
+            leaders = leaders[:1]
+    else:
+        leaders = leaders[:1]
+    detail_budget = min(_TOP_HIT_BUDGET, budget // 3) if leaders else 0
+    lines: list[str] = list(lead)
     used = sum(len(n) + 1 for n in [*note, *lines]) + len(_PAGINATION_LEGEND) + 1 + detail_budget
-    shown = 0
-    for i, (is_hit, line) in enumerate(ordered):
-        trailer = f"... {len(entries) - shown} more; narrow the search"
+    left: Counter[str] = Counter(owner or "shared" for owner, _ in entries)
+    for i, (is_hit, line, owner) in enumerate(ordered):
+        trailer = _trailer(left)
         # A header only goes in with the hit that follows it.
         need = len(line) + 1 if is_hit else len(line) + 1 + len(ordered[i + 1][1]) + 1
         if used + need + len(trailer) > budget:
@@ -831,14 +878,24 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
             break
         lines.append(line)
         used += len(line) + 1
-        shown += is_hit
-    if expand:
-        u = top[0]
+        if is_hit:
+            left[owner or "shared"] -= 1
+    for k in leaders:
+        u = groups[k][0]
         key = u.name if u.kind == "mutation" else f"{u.parent}.{u.name}"
         header = f"# {key} in full:"
+        share = detail_budget // len(leaders)
         lines.append(header)
-        lines.append(_within(_lookup_parts(index, key), detail_budget - len(header) - 1))
+        lines.append(_within(_lookup_parts(index, key), share - len(header) - 1))
     return "\n".join([_with_legend("\n".join(lines)), *note])
+
+
+def _trailer(left: Counter[str]) -> str:
+    """The count of hits not shown, with the types most of them sit on."""
+    remaining = +left
+    total = sum(remaining.values())
+    where = ", ".join(f"{owner} {n}" for owner, n in remaining.most_common(3))
+    return f"... {total} more; narrow the search ({where})"
 
 
 def _member_names(t: GraphQLNamedType) -> list[str]:
@@ -937,36 +994,62 @@ def _path_lines(paths: Iterable[tuple[str, ...]]) -> list[str]:
 
 def _within(parts: Sequence[str], budget: int) -> str:
     """Join ``parts`` up to ``budget`` characters, cutting only at whole parts or, for
-    the first part, at whole lines with the block kept closed."""
+    the first part, at whole lines with the block kept closed. A cut always leaves
+    room for the note that names what was cut."""
     out: list[str] = []
     used = 0
     for i, part in enumerate(parts):
-        if used + len(part) + 1 <= budget:
+        after = parts[i + 1 :]
+        # Accept a whole part only if the note for whatever follows still fits.
+        reserve = len(_omitted(after, limit=0)) + 1 if after else 0
+        if used + len(part) + 1 + reserve <= budget:
             out.append(part)
             used += len(part) + 1
             continue
+        if i > 0:
+            out.append(_fitting_note(parts[i:], budget - used))
+            break
         lines = part.splitlines()
         closing = ["}"] if part.rstrip().endswith("}") else []
-        sections = [f"# ... {len(parts) - 1} more sections omitted"] if len(parts) > 1 else []
+        sections = [_fitting_note(after, budget // 4)] if after else []
         # The cut costs its own trailer: the omitted-lines note, the closing brace,
         # and the omitted-sections note. Reserve them at their longest.
         trailer = len(f"  # ... {len(lines)} more lines omitted") + 1
         trailer += sum(len(line) + 1 for line in (*closing, *sections))
         room = budget - used - trailer
-        if i == 0 and room > 0:
-            kept: list[str] = []
-            for line in lines:
-                if sum(len(k) + 1 for k in kept) + len(line) + 1 > room:
-                    break
-                kept.append(line)
-            kept.append(f"  # ... {len(lines) - len(kept)} more lines omitted")
-            kept.extend(closing)
-            out.append("\n".join(kept))
-            out.extend(sections)
-        else:
-            out.append(f"# ... {len(parts) - i} more sections omitted")
+        kept: list[str] = []
+        for line in lines:
+            if sum(len(k) + 1 for k in kept) + len(line) + 1 > room:
+                break
+            kept.append(line)
+        kept.append(f"  # ... {len(lines) - len(kept)} more lines omitted")
+        kept.extend(closing)
+        out.append("\n".join(kept))
+        out.extend(sections)
         break
     return "\n".join(out)
+
+
+def _fitting_note(parts: Sequence[str], room: int) -> str:
+    """The omitted-sections note with names when they fit in ``room``, else the count."""
+    named = _omitted(parts)
+    return named if len(named) + 1 <= room else _omitted(parts, limit=0)
+
+
+def _omitted(parts: Sequence[str], limit: int = 8) -> str:
+    """The note for sections a budget cut, naming the types they describe."""
+    names = [n for n in (_section_name(part) for part in parts) if n]
+    shown = ", ".join(names[:limit]) + (f" +{len(names) - limit}" if len(names) > limit else "")
+    return f"# ... {len(parts)} more sections omitted" + (f": {shown}" if shown else "")
+
+
+def _section_name(part: str) -> Optional[str]:
+    first = part.splitlines()[0] if part else ""
+    if m := re.match(r"#\s+([A-Za-z_]\w*):", first):
+        return m.group(1)
+    if m := re.match(r"(?:type|interface|input|enum|union)\s+([A-Za-z_]\w*)", first):
+        return m.group(1)
+    return None
 
 
 def lookup(index: Index, name: str, budget: int = 4000) -> str:
@@ -1052,7 +1135,7 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
         if wrapper := _plumbing_miss(index, key.partition(".")[0]):
             return [wrapper]
-        if unknown := _unknown_member(index, key):
+        if unknown := _unknown_member(index, name):
             owner, member = unknown
             return [f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."]
         return [f"-- No type, field, or mutation named {name!r}. Try search('{name}')."]
