@@ -29,12 +29,12 @@ Top-level `Query` entrypoints get you to a starting entity; per-entity schema de
 
 Per-entity field references and examples are split into reference files. Load **only** the one(s) you need with `load_skill_reference`, after loading this skill:
 
-- `references/project-spans-traces.md` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
-- `references/sessions.md` — ProjectSession: multi-turn session metrics, token/cost, session traces.
-- `references/datasets.md` — Dataset and DatasetExample: examples, versions, splits, labels.
-- `references/experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
-- `references/prompts.md` — Prompt and PromptVersion: versions, templates, tags.
-- `references/annotations.md` — Span/Trace/Session/ExperimentRun annotation fields, how to read them, and the mutations that write notes, labels, and annotation configs.
+- [Projects, spans, and traces](references/project-spans-traces.md): Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
+- [Sessions](references/sessions.md): ProjectSession multi-turn session metrics, token/cost, and session traces.
+- [Datasets](references/datasets.md): Dataset and DatasetExample examples, versions, splits, and labels.
+- [Experiments](references/experiments.md): Experiment and ExperimentRun runs, aggregate metrics, and comparison.
+- [Prompts](references/prompts.md): Prompt and PromptVersion versions, templates, and tags.
+- [Annotations](references/annotations.md): Span, trace, session, and experiment-run annotation fields; how to read them; and the mutations that write notes, labels, and annotation configs.
 
 ### Conventions
 
