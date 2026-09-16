@@ -974,8 +974,8 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
     return _with_legend(_budgeted(_lookup_parts(index, name), budget))
 
 
-_MIN_SHARE = 200
-"""Below this many characters a section cannot say anything useful."""
+_MIN_SHARE = 400
+"""Below this many characters a section holds little more than its header."""
 _free_text_search = search
 
 
