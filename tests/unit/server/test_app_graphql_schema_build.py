@@ -13,7 +13,7 @@ from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import create_app
 from phoenix.server.types import DbSessionFactory
 from tests.unit import conftest
-from tests.unit.conftest import TestBulkInserter, patch_batched_caller, patch_grpc_server
+from tests.unit.conftest import TestBulkInserter, patch_dml_event_handler, patch_grpc_server
 
 
 class _Extension(SchemaExtension):
@@ -33,7 +33,7 @@ def _extension_factory() -> SchemaExtension:
 async def _build_app(db: DbSessionFactory) -> FastAPI:
     """Build an app the way the ``app`` fixture does."""
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         return create_app(
             db=db,
