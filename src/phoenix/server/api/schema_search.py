@@ -758,7 +758,12 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     if _is_exact(index, key):
         return lookup(index, query)
     names = [t for t in re.split(r"[,\s]+", query.strip()) if t]
-    if len(names) > 1 and all(_is_exact(index, n.lower()) for n in names):
+    # The mutation root's own name is a filter word here, not one name among several.
+    if (
+        len(names) > 1
+        and _MUTATION_TERM not in _query_terms(query)
+        and all(_is_exact(index, n.lower()) for n in names)
+    ):
         return lookup_many(index, names)
     if unknown := _unknown_member(index, key):
         owner, member = unknown
