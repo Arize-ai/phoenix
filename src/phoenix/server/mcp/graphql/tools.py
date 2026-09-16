@@ -14,7 +14,6 @@ from phoenix.server.api.graphql_execute import (
     GraphQLRefusalCode,
     admit,
     execute_operation,
-    operation_types,
     validate_document,
 )
 from phoenix.server.api.schema_search import cached_index, describe
@@ -202,13 +201,15 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         `{valid, notes}`; it does not check variable values or permissions.
         """
         try:
-            if GraphQLOperationType.MUTATION not in operation_types(mutation):
+            # An unparseable document declares nothing; its syntax error is
+            # reported by validation or execution, not mistaken for a read.
+            declared = admit(mutation, allow_mutations=True)
+            if declared and GraphQLOperationType.MUTATION not in declared:
                 raise GraphQLRefusal(
                     GraphQLRefusalCode.NOT_A_MUTATION,
                     "This tool runs mutations. Use executeGraphqlQuery to read.",
                 )
             if validate_only:
-                admit(mutation, allow_mutations=True)
                 validate_document(_schema(), mutation)
                 return ValidateGraphqlEnvelope.passed()
             outcome = await execute_operation(
