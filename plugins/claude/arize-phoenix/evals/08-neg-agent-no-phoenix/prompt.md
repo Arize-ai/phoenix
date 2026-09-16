@@ -10,10 +10,12 @@ My LangGraph agent never finishes. It bounces between the planner node and the t
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
+
 def should_continue(state: AgentState):
     if state["messages"]:
         return "tools"
     return END
+
 
 graph = StateGraph(AgentState)
 graph.add_node("planner", call_model)
