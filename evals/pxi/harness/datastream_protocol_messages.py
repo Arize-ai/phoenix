@@ -1,4 +1,4 @@
-"""Fixture authoring helpers at Phoenix's public session-transcript boundary."""
+"""Convert PXI eval fixtures to Phoenix data stream protocol messages."""
 
 from __future__ import annotations
 
@@ -9,7 +9,9 @@ from phoenix.db.types.data_stream_protocol.phoenix_types import PhoenixUIMessage
 from phoenix.db.types.data_stream_protocol.request_types import TextUIPart
 
 
-def fixture_messages(raw: Any) -> list[PhoenixUIMessage]:
+def convert_fixture_data_to_datastream_protocol_messages(
+    raw: Any,
+) -> list[PhoenixUIMessage]:
     """Accept public UI messages or compile the existing compact YAML notation.
 
     Tool results belong to assistant message parts in a stored Phoenix session.

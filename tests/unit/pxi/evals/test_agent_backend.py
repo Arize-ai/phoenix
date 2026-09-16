@@ -192,14 +192,18 @@ async def test_primed_tool_inputs_match_current_agent_schemas(
     import jsonschema
     import yaml
 
-    from evals.pxi.harness.transcript import fixture_messages
+    from evals.pxi.harness.datastream_protocol_messages import (
+        convert_fixture_data_to_datastream_protocol_messages,
+    )
 
     def respond(messages: Any, info: AgentInfo) -> ModelResponse:
         definitions = {tool.name: tool for tool in info.function_tools}
         datasets = Path(__file__).parents[4] / "evals" / "pxi" / "datasets"
         for path in sorted(datasets.glob("*.yaml")):
             for example in yaml.safe_load(path.read_text())["examples"]:
-                for message in fixture_messages(example["input"]["messages"]):
+                for message in convert_fixture_data_to_datastream_protocol_messages(
+                    example["input"]["messages"]
+                ):
                     for part in message.model_dump(by_alias=True)["parts"]:
                         if not part["type"].startswith("tool-"):
                             continue

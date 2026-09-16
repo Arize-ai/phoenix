@@ -18,7 +18,9 @@ from evals.pxi.harness.backend import (
     eval_phoenix_mcp_server,
     unavailable_graphql_context,
 )
-from evals.pxi.harness.transcript import fixture_messages
+from evals.pxi.harness.datastream_protocol_messages import (
+    convert_fixture_data_to_datastream_protocol_messages,
+)
 from phoenix.config import (
     get_env_allow_external_resources,
     get_env_collector_endpoint,
@@ -217,7 +219,11 @@ def _build_contexts(input: dict[str, Any]) -> ResolvedContexts:
     raw_contexts = input.get("contexts", [])
     if not isinstance(raw_contexts, list):
         raise ValueError("PXI eval input.contexts must be a list when provided")
-    messages = fixture_messages(input["messages"]) if "messages" in input else []
+    messages = (
+        convert_fixture_data_to_datastream_protocol_messages(input["messages"])
+        if "messages" in input
+        else []
+    )
     if "contexts" not in input:
         for message in reversed(messages):
             metadata = _get_user_message_metadata(message)
@@ -233,7 +239,11 @@ def _build_contexts(input: dict[str, Any]) -> ResolvedContexts:
 
 
 def _build_dependencies(input: dict[str, Any]) -> AgentDependencies:
-    messages = fixture_messages(input["messages"]) if "messages" in input else []
+    messages = (
+        convert_fixture_data_to_datastream_protocol_messages(input["messages"])
+        if "messages" in input
+        else []
+    )
     edit_permission = input.get("editPermission")
     if edit_permission is None:
         for message in reversed(messages):
@@ -257,7 +267,7 @@ def _ui_state_block(deps: AgentDependencies) -> str:
 
 
 def _prepare_transcript(input: dict[str, Any]) -> list[PhoenixUIMessage]:
-    messages = fixture_messages(input.get("messages"))
+    messages = convert_fixture_data_to_datastream_protocol_messages(input.get("messages"))
     rendered = _prepend_ui_state_blocks_from_metadata(messages)
     # Legacy shorthand has no persisted metadata. Its top-level contexts describe
     # the active turn, including a continuation after a primed tool result.

@@ -19,7 +19,9 @@ from evals.pxi.harness.agent_task import (
     _prepare_transcript,
 )
 from evals.pxi.harness.backend import eval_graphql_schema
-from evals.pxi.harness.transcript import fixture_messages
+from evals.pxi.harness.datastream_protocol_messages import (
+    convert_fixture_data_to_datastream_protocol_messages,
+)
 from phoenix.server.agents.capabilities.tools.internal.bash import BashToolResult
 
 _DATASETS = Path(__file__).parents[4] / "evals" / "pxi" / "datasets"
@@ -127,7 +129,7 @@ def test_public_tool_output_keeps_structured_result(dynamic: bool) -> None:
 )
 def test_rejects_unresumable_or_invalid_prefixes(raw: Any) -> None:
     with pytest.raises(ValueError):
-        fixture_messages(raw)
+        convert_fixture_data_to_datastream_protocol_messages(raw)
 
 
 def test_rejects_conflicting_context_sources() -> None:
@@ -142,11 +144,11 @@ def test_shorthand_pairs_parallel_outputs_and_rejects_duplicate_ids() -> None:
         {"role": "tool", "tool_call_id": "c2", "name": "second", "content": "two"},
         {"role": "tool", "tool_call_id": "c1", "name": "first", "content": "one"},
     ]
-    result = fixture_messages(raw)[0].model_dump(by_alias=True)
+    result = convert_fixture_data_to_datastream_protocol_messages(raw)[0].model_dump(by_alias=True)
     assert [part["output"] for part in result["parts"]] == ["one", "two"]
     raw.append({"role": "assistant", "tool_calls": [calls[0]]})
     with pytest.raises(ValueError, match="Duplicate"):
-        fixture_messages(raw)
+        convert_fixture_data_to_datastream_protocol_messages(raw)
 
 
 @pytest.mark.parametrize("path", sorted(_DATASETS.glob("*.yaml")), ids=lambda p: p.stem)
@@ -158,7 +160,7 @@ def test_all_fixtures_use_current_transcript_and_bash_result_contracts(path: Pat
         assert history, example["id"]
         commands = {
             part["toolCallId"]: part["input"].get("command")
-            for message in fixture_messages(inp["messages"])
+            for message in convert_fixture_data_to_datastream_protocol_messages(inp["messages"])
             for part in message.model_dump(by_alias=True)["parts"]
             if part["type"] == "tool-bash"
         }
