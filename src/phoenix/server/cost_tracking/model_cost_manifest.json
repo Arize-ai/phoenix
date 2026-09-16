@@ -28,7 +28,7 @@
           "token_type": "input"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -38,12 +38,12 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 0.00001,
+          "base_rate": 8e-6,
           "is_prompt": true,
           "token_type": "image"
         },
         {
-          "base_rate": 0.00004,
+          "base_rate": 0.000032,
           "is_prompt": false,
           "token_type": "image"
         }
@@ -958,12 +958,12 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 1e-7,
+          "base_rate": 1.5e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 4e-7,
+          "base_rate": 6e-7,
           "is_prompt": false,
           "token_type": "output"
         },
@@ -973,7 +973,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 7e-7,
+          "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -1448,6 +1448,11 @@
           "base_rate": 7e-7,
           "is_prompt": true,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "audio"
         }
       ]
     },
@@ -1491,12 +1496,35 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-6
+          }
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000018
+          }
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 4e-7
+          }
         },
         {
           "base_rate": 0.00012,
@@ -1581,6 +1609,11 @@
           "base_rate": 3e-6,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         },
         {
           "base_rate": 0.00006,
@@ -2111,6 +2144,11 @@
           "base_rate": 0.000012,
           "is_prompt": false,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "image"
         }
       ]
     },
@@ -3184,7 +3222,7 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 6e-7,
           "is_prompt": true,
           "token_type": "input"
         },
@@ -3206,7 +3244,7 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 6e-7,
           "is_prompt": true,
           "token_type": "input"
         },
@@ -3228,7 +3266,7 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 6e-7,
           "is_prompt": true,
           "token_type": "input"
         },
@@ -4305,6 +4343,28 @@
             "threshold": 272000.0,
             "new_rate": 1e-6
           }
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.5-cyber",
+      "name_pattern": "gpt-5\\.5-cyber",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -5494,6 +5554,11 @@
           "token_type": "output"
         },
         {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
           "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "audio"
@@ -5502,6 +5567,11 @@
           "base_rate": 0.00002,
           "is_prompt": false,
           "token_type": "audio"
+        },
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "image"
         }
       ]
     },
@@ -5576,6 +5646,28 @@
           "base_rate": 8e-7,
           "is_prompt": true,
           "token_type": "image"
+        }
+      ]
+    },
+    {
+      "name": "gpt-rosalind-research",
+      "name_pattern": "gpt-rosalind-research",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -7638,8 +7730,116 @@
       ]
     },
     {
+      "name": "together_ai/NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+      "name_pattern": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "together_ai/Qwen/QwQ-32B",
       "name_pattern": "Qwen/QwQ-32B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen2-1.5B-Instruct",
+      "name_pattern": "Qwen/Qwen2-1\\.5B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-8,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen2-72B-Instruct",
+      "name_pattern": "Qwen/Qwen2-72B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 9e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen2-VL-72B-Instruct",
+      "name_pattern": "Qwen/Qwen2-VL-72B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen2.5-14B-Instruct",
+      "name_pattern": "Qwen/Qwen2\\.5-14B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen2.5-72B-Instruct",
+      "name_pattern": "Qwen/Qwen2\\.5-72B-Instruct",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -7686,6 +7886,42 @@
         },
         {
           "base_rate": 3e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen2.5-Coder-32B-Instruct",
+      "name_pattern": "Qwen/Qwen2\\.5-Coder-32B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen2.5-VL-72B-Instruct",
+      "name_pattern": "Qwen/Qwen2\\.5-VL-72B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.95e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -7995,6 +8231,24 @@
       ]
     },
     {
+      "name": "together_ai/arcee-ai/trinity-mini",
+      "name_pattern": "arcee-ai/trinity-mini",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 4.5e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "together_ai/arize-ai/qwen-2-1.5b-instruct",
       "name_pattern": "arize-ai/qwen-2-1\\.5b-instruct",
       "source": "litellm",
@@ -8061,6 +8315,60 @@
         },
         {
           "base_rate": 2.19e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1\\.5B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.6e-6,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -8172,6 +8480,65 @@
       ]
     },
     {
+      "name": "together_ai/deepseek-ai/DeepSeek-V4.1-Flash",
+      "name_pattern": "deepseek-ai/DeepSeek-V4\\.1-Flash",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.2e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-9,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/deepseek-ai/deepseek-coder-33b-instruct",
+      "name_pattern": "deepseek-ai/deepseek-coder-33b-instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/google/gemma-2-27b-it",
+      "name_pattern": "google/gemma-2-27b-it",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
       "name": "together_ai/google/gemma-3n-E4B-it",
       "name_pattern": "google/gemma-3n-E4B-it",
       "source": "litellm",
@@ -8220,6 +8587,78 @@
         },
         {
           "base_rate": 2e-8,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-llama/Llama-3-8b-chat-hf",
+      "name_pattern": "meta-llama/Llama-3-8b-chat-hf",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-llama/Llama-3.1-405B-Instruct",
+      "name_pattern": "meta-llama/Llama-3\\.1-405B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-llama/Llama-3.2-1B-Instruct",
+      "name_pattern": "meta-llama/Llama-3\\.2-1B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-llama/Llama-3.2-3B-Instruct",
+      "name_pattern": "meta-llama/Llama-3\\.2-3B-Instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-8,
           "is_prompt": false,
           "token_type": "output"
         }
@@ -8282,6 +8721,42 @@
     {
       "name": "together_ai/meta-llama/Llama-Guard-4-12B",
       "name_pattern": "meta-llama/Llama-Guard-4-12B",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-llama/Meta-Llama-3-70B-Instruct-Turbo",
+      "name_pattern": "meta-llama/Meta-Llama-3-70B-Instruct-Turbo",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8.8e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/meta-llama/Meta-Llama-3-8B-Instruct",
+      "name_pattern": "meta-llama/Meta-Llama-3-8B-Instruct",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8602,6 +9077,24 @@
           "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
+      "name_pattern": "nvidia/Llama-3\\.1-Nemotron-70B-Instruct-HF",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 8.8e-7,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
