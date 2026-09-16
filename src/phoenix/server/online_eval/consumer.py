@@ -129,6 +129,7 @@ class OnlineEvalConsumer(DaemonTask):
         )
         self._executor = OnlineEvalExecutor(
             db,
+            evaluation_target=self._evaluation_target,
             coordinator=self._coordinator,
             decrypt=decrypt,
             sandbox_session_manager=sandbox_session_manager,

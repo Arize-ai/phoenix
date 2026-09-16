@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections import Counter, defaultdict
+from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from enum import Enum
@@ -454,8 +454,8 @@ def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
 
 
-# Keyed by target as well as row id: a row id is unique only within its own entity table.
-_TargetVocabularies: TypeAlias = Mapping[tuple[models.EvaluationTarget, int], Mapping[str, Any]]
+# Keyed by target row id; an executor serves one target, so its row ids are unique.
+_TargetVocabularies: TypeAlias = Mapping[int, Mapping[str, Any]]
 
 
 class _TargetContextLoader(Protocol):
@@ -514,7 +514,7 @@ async def _load_session_context(
         session,
         project_session_rowid=project_session.id,
         project_id=project_id,
-        vocabulary=target_vocabularies[unit.evaluation_target, unit.target_rowid],
+        vocabulary=target_vocabularies[unit.target_rowid],
     )
     if not has_eligible_root_turns(loaded.applied_policy):
         return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
@@ -536,7 +536,7 @@ async def _load_trace_context(
     context = await load_trace_eval_context(
         session,
         trace_rowid=trace.id,
-        vocabulary=target_vocabularies[unit.evaluation_target, unit.target_rowid],
+        vocabulary=target_vocabularies[unit.target_rowid],
     )
     if context is None:
         return HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)
@@ -600,6 +600,7 @@ class OnlineEvalExecutor:
         self,
         db: DbSessionFactory,
         *,
+        evaluation_target: models.EvaluationTarget,
         coordinator: EvalWorkCoordinator,
         decrypt: Callable[[bytes], bytes],
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
@@ -610,6 +611,11 @@ class OnlineEvalExecutor:
         tracer_factory: Optional[Callable[[], Tracer]] = None,
     ) -> None:
         self._db = db
+        target_spec = _EVALUATION_TARGET_SPECS.get(evaluation_target)
+        if target_spec is None:
+            raise ValueError(f"Online evaluation execution does not support {evaluation_target}")
+        self._evaluation_target: models.EvaluationTarget = evaluation_target
+        self._target_spec = target_spec
         self._coordinator = coordinator
         self._decrypt = decrypt
         self._sandbox_session_manager = sandbox_session_manager
@@ -676,12 +682,10 @@ class OnlineEvalExecutor:
                 failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_MISSING)
             else:
                 project_evaluator, evaluator = row
-                target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
                 if not project_evaluator.enabled:
                     failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_DISABLED)
-                elif target_spec is None:
+                elif unit.evaluation_target != self._evaluation_target:
                     failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
-
                 elif evaluator is None:
                     failure = HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
                 elif (
@@ -739,27 +743,18 @@ class OnlineEvalExecutor:
                 continue
             outcomes.append(None)
 
-        target_vocabularies: dict[tuple[models.EvaluationTarget, int], dict[str, Any]] = {}
-        indices_by_target: dict[models.EvaluationTarget, list[int]] = defaultdict(list)
-        for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
-            spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
-            if outcome is None and spec is not None and spec.load_vocabularies is not None:
-                indices_by_target[unit.evaluation_target].append(index)
-        for evaluation_target, indices in indices_by_target.items():
-            load_vocabularies = _EVALUATION_TARGET_SPECS[evaluation_target].load_vocabularies
-            assert load_vocabularies is not None
+        target_vocabularies: dict[int, dict[str, Any]] = {}
+        load_vocabularies = self._target_spec.load_vocabularies
+        pending = [index for index, outcome in enumerate(outcomes) if outcome is None]
+        if load_vocabularies is not None and pending:
             try:
                 async with session.begin_nested():
-                    vocabularies = await load_vocabularies(
+                    target_vocabularies = await load_vocabularies(
                         session,
-                        {units[index].target_rowid for index in indices},
+                        {units[index].target_rowid for index in pending},
                     )
-                target_vocabularies |= {
-                    (evaluation_target, target_rowid): vocabulary
-                    for target_rowid, vocabulary in vocabularies.items()
-                }
             except Exception as error:
-                for index in indices:
+                for index in pending:
                     outcomes[index] = SharedHydrationFailure(error)
 
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
@@ -891,12 +886,7 @@ class OnlineEvalExecutor:
         target_vocabularies: _TargetVocabularies,
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
         """The bindable context, plus the applied session policy for a SESSION unit."""
-        target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
-        if target_spec is None:
-            raise EvalExecutionError(
-                f"unsupported online evaluation target {unit.evaluation_target!r}"
-            )
-        return await target_spec.load_context(
+        return await self._target_spec.load_context(
             session,
             unit,
             project_id=project_id,
@@ -1172,11 +1162,7 @@ class OnlineEvalExecutor:
                         f"categorical output {result['name']!r} returned invalid label "
                         f"{label!r}; expected one of {sorted(allowed_labels)!r}"
                     )
-        target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
-        if target_spec is None:
-            raise EvalExecutionError(
-                f"unsupported online evaluation target {unit.evaluation_target!r}"
-            )
+        target_spec = self._target_spec
         records = [
             {
                 target_spec.target_column: unit.target_rowid,

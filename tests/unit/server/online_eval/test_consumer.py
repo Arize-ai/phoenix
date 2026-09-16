@@ -674,6 +674,7 @@ def _executor(
     """An executor publishing through a coordinator bound to the same target."""
     return OnlineEvalExecutor(
         db,
+        evaluation_target=evaluation_target,
         coordinator=DbEvalWorkCoordinator(db, evaluation_target=evaluation_target),
         decrypt=lambda value: value,
         **kwargs,
@@ -1177,7 +1178,7 @@ async def test_trace_hydration_binds_the_trace_context(
         evaluation_target="TRACE",
     )
     fingerprint = await _config_fingerprint(db, evaluator_id, project_evaluator_id)
-    executor = _executor(db)
+    executor = _executor(db, evaluation_target="TRACE")
 
     hydrated = await executor.hydrate(
         _claimed_trace_unit(
@@ -1522,7 +1523,7 @@ async def test_hydration_savepoint_isolates_a_unit_database_error(
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        target_vocabularies: Mapping[tuple[models.EvaluationTarget, int], Mapping[str, Any]],
+        target_vocabularies: Mapping[int, Mapping[str, Any]],
     ) -> Any:
         if unit.target_rowid == bad_span.id:
             await session.execute(text("SELECT 1 / 0"))
@@ -2089,7 +2090,9 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
     monkeypatch.setattr(executor_module, "build_sandbox_backend", _build_backend)
     monkeypatch.setattr(executor_module, "CodeEvaluatorRunner", _build_runner)
-    executor = _executor(db, sandbox_session_manager=cast(Any, manager))
+    executor = _executor(
+        db, evaluation_target="SESSION", sandbox_session_manager=cast(Any, manager)
+    )
 
     hydrated = await executor.hydrate(unit)
 
