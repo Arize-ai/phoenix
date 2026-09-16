@@ -2,11 +2,17 @@ import { css } from "@emotion/react";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Header, ListBoxSection } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Outlet, useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   Button,
   Counter,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   ExpandableContent,
   Flex,
   Heading,
@@ -22,6 +28,8 @@ import {
   SelectValue,
   Skeleton,
   Text,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
@@ -35,27 +43,20 @@ import {
 } from "@phoenix/components/code";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import {
-  PROJECT_EVALUATOR_CATEGORY_PARAM,
-  PROJECT_EVALUATOR_PARAM,
-  PROJECT_EVALUATOR_TEMPLATE_PARAM,
-} from "@phoenix/constants/searchParams";
 import { useTheme } from "@phoenix/contexts";
 import type { projectEvaluatorDetailsQuery as ProjectEvaluatorDetailsQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { projectEvaluatorGalleryPageQuery as ProjectEvaluatorGalleryPageQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryPageQuery.graphql";
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
+import type { ProjectEvaluatorGallerySelection } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryContext";
 import {
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
   type CodeProjectEvaluatorDetails,
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import {
-  type ProjectEvaluatorCreationPaths,
-  useProjectEvaluatorPaths,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
@@ -246,30 +247,76 @@ function getGalleryItemSection(item: GalleryItem): GallerySection {
     : getGalleryCategory(item.template.category);
 }
 
-export function ProjectEvaluatorGalleryPage() {
+/**
+ * The gallery itself, as a fullscreen modal over the evaluator list.
+ *
+ * Selection lives in component state because browsing the modal is not
+ * navigation. `initialSelection` lets entry points open directly to a card.
+ */
+export function ProjectEvaluatorGalleryModal({
+  creationPaths,
+  newLlmFromTemplatePath,
+  initialSelection,
+  onClose,
+}: {
+  creationPaths: ProjectEvaluatorCreationPaths;
+  newLlmFromTemplatePath: (templateName: string) => string;
+  initialSelection?: ProjectEvaluatorGallerySelection;
+  onClose: () => void;
+}) {
   return (
-    <main css={galleryContainerCSS}>
-      <ErrorBoundary fallback={EvaluatorGalleryError}>
-        <Suspense fallback={<EvaluatorGallerySkeleton />}>
-          <EvaluatorGallery />
-        </Suspense>
-      </ErrorBoundary>
-      <Suspense fallback={null}>
-        <Outlet />
-      </Suspense>
-    </main>
+    <ViewportModalOverlay
+      isOpen
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          onClose();
+        }
+      }}
+    >
+      <ViewportModal size="fullscreen">
+        <Dialog>
+          {({ close }) => (
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Evaluator gallery</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton close={close} aria-label="Close gallery" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <div css={galleryContainerCSS}>
+                <ErrorBoundary fallback={EvaluatorGalleryError}>
+                  <Suspense fallback={<EvaluatorGallerySkeleton />}>
+                    <EvaluatorGallery
+                      creationPaths={creationPaths}
+                      newLlmFromTemplatePath={newLlmFromTemplatePath}
+                      initialSelection={initialSelection}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </DialogContent>
+          )}
+        </Dialog>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }
 
 // oxlint-disable-next-line complexity
-function EvaluatorGallery() {
+function EvaluatorGallery({
+  creationPaths,
+  newLlmFromTemplatePath,
+  initialSelection,
+}: {
+  creationPaths: ProjectEvaluatorCreationPaths;
+  newLlmFromTemplatePath: (templateName: string) => string;
+  initialSelection?: ProjectEvaluatorGallerySelection;
+}) {
   const navigate = useNavigate();
-  const paths = useProjectEvaluatorPaths();
   const { projectId } = useParams();
   if (!projectId) {
     throw new Error("projectId is required");
   }
-  const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<ProjectEvaluatorGalleryPageQueryType>(
     projectEvaluatorGalleryPageQuery,
     { projectId },
@@ -338,20 +385,20 @@ function EvaluatorGallery() {
     ),
     count: templatesByCategory.get(category)?.length ?? 0,
   }));
-  const requestedTemplateName = searchParams.get(
-    PROJECT_EVALUATOR_TEMPLATE_PARAM
-  );
-  const requestedEvaluatorId = searchParams.get(PROJECT_EVALUATOR_PARAM);
-  const requestedCategoryParam = searchParams.get(
-    PROJECT_EVALUATOR_CATEGORY_PARAM
-  ) as TemplateCategory | null;
+  const [selection, setSelection] = useState<
+    ProjectEvaluatorGallerySelection | undefined
+  >(initialSelection);
+  const requestedTemplateName = selection?.templateName;
+  const requestedEvaluatorId = selection?.evaluatorId;
+  const requestedCategoryParam = (selection?.category ??
+    null) as TemplateCategory | null;
   const requestedCategory =
     requestedCategoryParam && categories.includes(requestedCategoryParam)
       ? requestedCategoryParam
       : undefined;
 
-  // URL selections are optional deep links. Resolve them through the same item
-  // index that backs card selection so invalid or stale values are harmless.
+  // Resolve the requested selection through the same item index that backs
+  // card selection so an invalid or stale value is harmless.
   let requestedItem: GalleryItem | undefined;
   if (requestedEvaluatorId) {
     requestedItem = galleryItemsByKey.get(
@@ -378,7 +425,7 @@ function EvaluatorGallery() {
       ? { kind: "template", template: requestedCategoryTemplate }
       : undefined;
 
-  // Prefer deep-linked content, then fall back to the first available card.
+  // Prefer requested content, then fall back to the first available card.
   const selectedItem =
     requestedItem ?? requestedCategoryItem ?? galleryItems[0];
   const selectedItemKey = selectedItem
@@ -403,11 +450,11 @@ function EvaluatorGallery() {
     setActiveSection(section);
   };
 
-  // Keep the scroll position synchronized with gallery deep links. Prefer the
-  // requested card and fall back to its section when no card is available.
+  // Keep the scroll position synchronized with the requested card. Prefer the
+  // card and fall back to its section when no card is available.
   useEffect(() => {
-    // Wait for the route commit and React Aria collection layout before moving
-    // the scroll port; otherwise router scroll restoration can win this race.
+    // Wait for React Aria to finish laying out its collection before moving
+    // the scroll port.
     const animationFrameId = requestAnimationFrame(() => {
       const requestedCard = requestedItemKeyToScroll
         ? cardRefs.current.get(requestedItemKeyToScroll)
@@ -483,25 +530,14 @@ function EvaluatorGallery() {
   }, [sections]);
 
   const setSelectedItem = (item: GalleryItem) => {
-    setSearchParams((currentSearchParams) => {
-      const nextSearchParams = new URLSearchParams(currentSearchParams);
-      if (item.kind === "custom") {
-        nextSearchParams.set(PROJECT_EVALUATOR_PARAM, item.evaluator.id);
-        nextSearchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
-        nextSearchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
-      } else {
-        nextSearchParams.set(
-          PROJECT_EVALUATOR_CATEGORY_PARAM,
-          getGalleryCategory(item.template.category)
-        );
-        nextSearchParams.set(
-          PROJECT_EVALUATOR_TEMPLATE_PARAM,
-          item.template.name
-        );
-        nextSearchParams.delete(PROJECT_EVALUATOR_PARAM);
-      }
-      return nextSearchParams;
-    });
+    setSelection(
+      item.kind === "custom"
+        ? { evaluatorId: item.evaluator.id }
+        : {
+            category: getGalleryCategory(item.template.category),
+            templateName: item.template.name,
+          }
+    );
   };
   const renderSectionItem = ({
     id,
@@ -527,7 +563,7 @@ function EvaluatorGallery() {
         className="project-evaluator-gallery__categories"
         aria-label="Evaluator gallery navigation"
       >
-        <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
+        <EvaluatorGalleryAddMenu creationPaths={creationPaths} />
         <div className="project-evaluator-gallery__category-scroll-region">
           <ListBox
             aria-label="Evaluator gallery sections"
@@ -576,7 +612,7 @@ function EvaluatorGallery() {
       >
         <div className="project-evaluator-gallery__template-controls">
           <div className="project-evaluator-gallery__compact-add-evaluator-menu">
-            <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
+            <EvaluatorGalleryAddMenu creationPaths={creationPaths} />
           </div>
           <Select
             aria-label="Evaluator gallery section"
@@ -644,13 +680,13 @@ function EvaluatorGallery() {
             if (item?.kind === "custom") {
               navigate(
                 getCustomEvaluatorKind(item.evaluator) === "LLM"
-                  ? paths.galleryCreation.copyLlm(item.evaluator.id)
-                  : paths.galleryCreation.attachCode(item.evaluator.id)
+                  ? creationPaths.copyLlm(item.evaluator.id)
+                  : creationPaths.attachCode(item.evaluator.id)
               );
               return;
             }
             if (item?.kind === "template") {
-              navigate(paths.galleryNewLlmFromTemplate(item.template.name));
+              navigate(newLlmFromTemplatePath(item.template.name));
             }
           }}
         >
@@ -796,17 +832,13 @@ function EvaluatorGallery() {
               <CustomEvaluatorDetails
                 evaluator={selectedItem.evaluator}
                 onAttachCodeEvaluator={() =>
-                  navigate(
-                    paths.galleryCreation.attachCode(selectedItem.evaluator.id)
-                  )
+                  navigate(creationPaths.attachCode(selectedItem.evaluator.id))
                 }
                 onDuplicateEvaluator={() =>
                   navigate(
                     getCustomEvaluatorKind(selectedItem.evaluator) === "LLM"
-                      ? paths.galleryCreation.copyLlm(selectedItem.evaluator.id)
-                      : paths.galleryCreation.copyCode(
-                          selectedItem.evaluator.id
-                        )
+                      ? creationPaths.copyLlm(selectedItem.evaluator.id)
+                      : creationPaths.copyCode(selectedItem.evaluator.id)
                   )
                 }
               />
@@ -816,9 +848,7 @@ function EvaluatorGallery() {
           <EvaluatorTemplateDetails
             template={selectedItem.template}
             onUseTemplate={() =>
-              navigate(
-                paths.galleryNewLlmFromTemplate(selectedItem.template.name)
-              )
+              navigate(newLlmFromTemplatePath(selectedItem.template.name))
             }
           />
         ) : (

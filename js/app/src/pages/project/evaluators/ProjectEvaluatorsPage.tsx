@@ -10,6 +10,11 @@ import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluat
 import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import {
+  OpenProjectEvaluatorGalleryProvider,
+  type ProjectEvaluatorGallerySelection,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryContext";
+import { ProjectEvaluatorGalleryModal } from "@phoenix/pages/project/evaluators/ProjectEvaluatorGalleryPage";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
@@ -34,31 +39,53 @@ export function ProjectEvaluatorsPage() {
     },
     [setUrlFilter]
   );
+  const [gallery, setGallery] = useState<{
+    selection?: ProjectEvaluatorGallerySelection;
+  } | null>(null);
+  const openGallery = (selection?: ProjectEvaluatorGallerySelection) => {
+    setGallery({ selection });
+  };
+  const paths = useProjectEvaluatorPaths();
   return (
-    <main
-      css={css`
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-      `}
-    >
-      <Suspense fallback={<Loading />}>
-        <ProjectEvaluatorsTableProvider>
-          <ProjectEvaluatorsPageContent
-            projectId={projectId}
-            filter={filter}
-            onFilterChange={handleFilterChange}
+    // Wraps the gallery too: the gallery's own add-evaluator menu shares the
+    // menu component that reads this context.
+    <OpenProjectEvaluatorGalleryProvider value={openGallery}>
+      <main
+        css={css`
+          flex: 1 1 auto;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        `}
+      >
+        <Suspense fallback={<Loading />}>
+          <ProjectEvaluatorsTableProvider>
+            <ProjectEvaluatorsPageContent
+              projectId={projectId}
+              filter={filter}
+              onFilterChange={handleFilterChange}
+            />
+          </ProjectEvaluatorsTableProvider>
+        </Suspense>
+        {/* Mounted before the nested editor outlet so an editor opened from
+            the gallery occupies the top overlay layer. */}
+        {gallery ? (
+          <ProjectEvaluatorGalleryModal
+            creationPaths={paths.creation}
+            newLlmFromTemplatePath={paths.newLlmFromTemplate}
+            initialSelection={gallery.selection}
+            onClose={() => setGallery(null)}
           />
-        </ProjectEvaluatorsTableProvider>
-      </Suspense>
-      {/* The create and edit slideovers, each on its own nested route. The
-          copy and attach routes suspend while loading the evaluator they are
-          seeded from; the list stays interactive until the slideover opens. */}
-      <Suspense fallback={null}>
-        <Outlet />
-      </Suspense>
-    </main>
+        ) : null}
+        {/* The create and edit slideovers, each on its own nested route. The
+            copy and attach routes suspend while loading the evaluator they are
+            seeded from; the list stays interactive until the slideover
+            opens. */}
+        <Suspense fallback={null}>
+          <Outlet />
+        </Suspense>
+      </main>
+    </OpenProjectEvaluatorGalleryProvider>
   );
 }
 
@@ -108,10 +135,7 @@ function ProjectEvaluatorsPageContent({
               tool calls, then return labels or scores you can filter, chart,
               and alert on.
             </Text>
-            <AddProjectEvaluatorMenu
-              size="M"
-              creationPaths={paths.listCreation}
-            />
+            <AddProjectEvaluatorMenu size="M" creationPaths={paths.creation} />
           </Flex>
         </View>
       ) : (
