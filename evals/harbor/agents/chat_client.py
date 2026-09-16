@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Run one PXI turn through the agent session chat route of the local Phoenix server.
-
-Mirrors what the ``pxi`` CLI does in ``js/packages/phoenix-cli/src/pxi/client.ts``:
-create a session, submit a user message with ``headless: true``, read the SSE
-data stream into an assistant message, and answer tool approvals until the turn
-settles. Runs inside the task container, where the Phoenix wheel is installed,
-so the stream is reduced by the server's own port of the AI SDK reducer.
-"""
+"""Run one headless PXI turn against a Phoenix server and save the transcript and spans."""
 
 import argparse
 import asyncio
@@ -52,7 +45,6 @@ _CHUNK_TYPES: dict[str, type[BaseChunk]] = {
 
 
 def parse_chunk(payload: dict[str, Any]) -> BaseChunk | None:
-    """``None`` for chunk types the reducer has no model for."""
     chunk_type = payload["type"]
     if chunk_type.startswith("data-"):
         return DataChunk.model_validate(payload)
@@ -73,12 +65,6 @@ async def iter_sse_chunks(lines: AsyncIterator[str]) -> AsyncIterator[BaseChunk]
 async def accumulate_assistant_message(
     chunks: AsyncIterator[BaseChunk],
 ) -> tuple[Message, list[str]]:
-    """The reduced assistant message plus any ``error`` chunks the server emitted.
-
-    A server error (a usage limit, a provider failure) ends the turn; the message
-    reduced so far is still the agent's output for that turn and is returned for
-    grading rather than raised.
-    """
     errors: list[str] = []
     latest: Any = None
     async for message in read_ui_message_stream(
@@ -229,11 +215,6 @@ class AgentSessionChatClient:
                 return spans
 
     async def fetch_turn_spans(self, trace_contexts: list[dict[str, Any]]) -> list[TurnSpan]:
-        """The trimmed spans of the turn's traces, once the server has persisted them.
-
-        The chat route persists a continuation's local trace after its stream ends, so
-        poll until each trace's root span has finished and the span count holds still.
-        """
         if not trace_contexts:
             return []
         deadline = asyncio.get_running_loop().time() + _SPAN_SETTLE_TIMEOUT_SECONDS
@@ -355,12 +336,6 @@ class AgentSessionChatClient:
 
 
 def trim_span(span: dict[str, Any]) -> TurnSpan:
-    """Keep what the ATIF builder times and meters a step with; drop the payloads.
-
-    An LLM span carries its whole prompt in ``attributes``, so a turn's raw spans run to
-    megabytes. The builder matches tool spans by ``tool_call.id`` and LLM spans by the
-    tool call IDs they emitted, and reads the LLM span's token counts.
-    """
     attributes = span.get("attributes") or {}
     kind = span.get("span_kind") or attributes.get("openinference.span.kind")
     output_tool_call_ids = sorted(

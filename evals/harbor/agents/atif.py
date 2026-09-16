@@ -1,18 +1,4 @@
-"""Convert a Phoenix agent-session transcript into a Harbor ATIF trajectory.
-
-The chat route returns Vercel AI SDK UI messages: each message has a ``role`` and a
-list of ``parts``. An assistant message holds one ``step-start`` part per LLM call,
-followed by that call's ``reasoning``, ``text``, and ``tool-<name>`` parts, so each
-run of parts between two ``step-start`` markers becomes one ATIF agent step.
-
-A message carries one timestamp and one usage figure for the whole turn, so on its own
-it times every step at the same instant. When the chat client also saved the turn's
-own trace (``turn_spans.json``, the trimmed span records PXI's instrumentation wrote to
-the local Phoenix), each step is matched to its LLM span and its tool spans: tool calls
-by ``tool_call.id``, text-only steps by order among the LLM spans that called no tool.
-The step then gets its real timestamp, its own token counts, and the LLM latency Harbor's
-Phoenix plugin reads from ``AgentContext.metadata["api_request_times_msec"]``.
-"""
+"""Convert a PXI turn's UI messages, timed and metered by its spans, into an ATIF trajectory."""
 
 from __future__ import annotations
 
@@ -38,7 +24,6 @@ TurnSpan = dict[str, Any]
 ``output_tool_call_ids`` (LLM spans), and ``token_counts``."""
 
 LLM_LATENCY_MS_KEY = "llm_latency_ms"
-"""Key under ``Step.extra`` holding the matched LLM span's duration in milliseconds."""
 
 _TOOL_PREFIX = "tool-"
 _RESULT_STATES = {"output-available", "output-error", "output-denied"}
@@ -79,7 +64,6 @@ def trajectory_from_ui_messages(
 
 
 def final_reply(trajectory: Trajectory) -> str:
-    """The text of the last agent step that said anything."""
     for step in reversed(trajectory.steps):
         if step.source == "agent" and isinstance(step.message, str) and step.message:
             return step.message
@@ -105,8 +89,6 @@ def llm_latencies_ms(trajectory: Trajectory) -> list[float] | None:
 
 @dataclass
 class _SpanIndex:
-    """The turn's spans, keyed the way steps are matched to them."""
-
     tool_spans: dict[str, TurnSpan] = field(default_factory=dict)
     llm_by_output_tool_id: dict[str, TurnSpan] = field(default_factory=dict)
     text_only_llm_spans: list[TurnSpan] = field(default_factory=list)
@@ -169,11 +151,8 @@ def _assistant_steps(message: Message, *, first_step_id: int, index: _SpanIndex)
 
 
 def _apply_spans(step: Step, index: _SpanIndex) -> None:
-    """Time and meter one agent step from its matched LLM span and tool spans.
-
-    A step happened when its tool results were observed, or when the LLM call finished
-    if it called no tool. Spans that match nothing leave the message timestamp in place.
-    """
+    """A step happened when its tool results were observed, or when the LLM call
+    finished if it called no tool."""
     llm_span = index.llm_span_for(step.tool_calls or [])
     tool_spans = [
         span

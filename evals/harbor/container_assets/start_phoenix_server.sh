@@ -1,6 +1,5 @@
 #!/bin/sh
 # Start Phoenix against the fixture database unless it is already serving.
-# This script is idempotent.
 set -eu
 LOG=/var/lib/phoenix-eval/server.log
 HEALTH_URL=http://127.0.0.1:6006/healthz

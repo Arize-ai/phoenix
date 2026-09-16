@@ -1,11 +1,3 @@
-"""The chat agent's ATIF trajectory, replayed from a saved PXI open-coding turn.
-
-The fixtures are the first step of a real error-analysis trial: the turn's UI messages
-with their payloads truncated, and the trimmed spans of the trace PXI's own
-instrumentation wrote for that turn. Harbor is not a dependency of the development
-environment, so the module is skipped without it.
-"""
-
 from __future__ import annotations
 
 import json

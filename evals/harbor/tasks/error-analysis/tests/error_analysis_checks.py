@@ -1,12 +1,3 @@
-"""Shared verifier logic for the error-analysis Harbor task.
-
-Both step verifiers import this module. Harbor uploads it, with the ground truth
-beside it, into ``/tests`` only when the verifier runs, so nothing here is visible
-to the agent. Paths default to the Harbor container layout and can be overridden
-through environment variables so the checks also run against a local Phoenix
-server and a local logs directory.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -53,7 +44,6 @@ Trajectory = dict[str, Any]
 
 
 def load_trajectory() -> Trajectory:
-    """Harbor's ``trajectory.json`` for the agent run, or ``{}`` when the agent wrote none."""
     path = AGENT_LOGS_DIR / "trajectory.json"
     if not path.exists():
         return {}
@@ -66,8 +56,8 @@ def agent_steps(trajectory: Trajectory) -> list[dict[str, Any]]:
 
 
 def final_reply(trajectory: Trajectory) -> str:
-    """The text of the last agent step that said anything. With a resumed session the
-    trajectory spans every step, and the last message is still the current reply."""
+    """With a resumed session the trajectory spans every step, and the last message is
+    still the current reply."""
     for step in reversed(agent_steps(trajectory)):
         message = step.get("message")
         if isinstance(message, str) and message:
@@ -342,7 +332,6 @@ def sidecar_rows(
 def entities_mirrored(
     annotations: list[Annotation], rows: list[dict[str, Any]]
 ) -> tuple[bool, dict[str, Any]]:
-    """Every DB annotation's entity appears in the sidecar rows and vice versa."""
     sidecar_ids = {str(r.get("entity_id", "")) for r in rows} - {""}
     accepted = set().union(*(a.accepted_ids for a in annotations)) if annotations else set()
     missing_from_sidecar = [a.otel_id for a in annotations if not (a.accepted_ids & sidecar_ids)]

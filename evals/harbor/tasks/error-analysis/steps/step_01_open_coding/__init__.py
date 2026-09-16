@@ -1,1 +1,0 @@
-"""Open coding evaluation step."""

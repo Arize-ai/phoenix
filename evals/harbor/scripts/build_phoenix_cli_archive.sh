@@ -1,8 +1,6 @@
 #!/bin/bash
 # Build the px CLI from source and assemble it with its production dependencies
-# into dist/phoenix-cli/phoenix-cli.tar.gz, outside every task's build context:
-# the claude-code-cli agent uploads the archive into its own sandbox at install
-# time, so the other agents never see the CLI.
+# into dist/phoenix-cli/phoenix-cli.tar.gz.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 CLI_TARBALLS_DIR="$ROOT/dist/phoenix-cli"

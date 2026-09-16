@@ -520,10 +520,8 @@ UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
 	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
-# The wheel, container assets, and fixture database are staged into each task's Docker build
-# context by stage_harbor_environments.sh. build_phoenix_cli_archive.sh assembles the px CLI
-# archive the claude-code-cli agent uploads into its own sandbox; it is only required when
-# the job file's agents are in effect, i.e. `-a` does not replace them.
+# The px CLI archive is only required when the job file's agents are in effect, i.e. `-a`
+# does not replace them.
 define check-harbor-staged
 	@for task in evals/harbor/tasks/*/; do \
 		test -d "$$task/environment/container_assets" -a -f "$$task/environment/data/phoenix.db" || \

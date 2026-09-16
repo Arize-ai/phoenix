@@ -1,6 +1,3 @@
-"""Step 2 verifier: axial coding produced granular per-dimension annotation configs and
-labelled the entities that carry open-coding notes, mirrored in the axial sidecar."""
-
 import error_analysis_checks as ea
 
 truth = ea.load_truth()

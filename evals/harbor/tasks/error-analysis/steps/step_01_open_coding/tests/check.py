@@ -1,6 +1,3 @@
-"""Step 1 verifier: open coding happened, is mirrored locally, found the planted defects,
-and the reply stopped at an offer to continue with axial coding."""
-
 import error_analysis_checks as ea
 
 # The second quarterly-report turn compounds the first, so a reviewer may fold both into

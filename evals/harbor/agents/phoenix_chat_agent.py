@@ -58,12 +58,7 @@ class PhoenixChatAgent(BaseAgent):
         self._session_id = (await self._exec(environment, f"cat {out_dir}/session_id")).strip()
 
     def populate_context_post_run(self, context: AgentContext) -> None:
-        """Harbor calls this after downloading ``/logs/agent``; the turn's transcript becomes
-        the ATIF ``trajectory.json`` that Harbor uploads back for the verifier.
-
-        The turn's own spans, when the chat client saved them, time and meter each step;
-        the per-step LLM latencies go on the context under the key the Phoenix plugin
-        reads to give the LLM spans a duration."""
+        """Write the downloaded transcript as the ATIF ``trajectory.json``."""
         step_dir = self.logs_dir / "steps" / str(self._step)
         turn_path = step_dir / "turn_messages.json"
         if not turn_path.exists():
