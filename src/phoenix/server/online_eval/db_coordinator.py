@@ -17,6 +17,7 @@ from sqlalchemy import and_, case, func, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -264,7 +265,7 @@ class DbEvalWorkCoordinator:
                     .join(models.Trace, self._target_row_column == models.Trace.id)
                     .where(work_unit_model.id == work_unit_id)
                 )
-            else:
+            elif self._evaluation_target == "SPAN":
                 identity_statement = (
                     select(
                         work_unit_model.project_evaluator_id,
@@ -275,6 +276,8 @@ class DbEvalWorkCoordinator:
                     .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
                     .where(work_unit_model.id == work_unit_id)
                 )
+            else:
+                assert_never(self._evaluation_target)
             identity = (await session.execute(identity_statement)).one_or_none()
             if identity is None:
                 raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
@@ -302,22 +305,22 @@ class DbEvalWorkCoordinator:
                 )
                 if trace_rowid is None:
                     raise PublicationClaimLostError(f"work unit {work_unit_id} trace is missing")
-            else:
-                project_session_rowid = identity.project_session_rowid
-                if project_session_rowid is not None:
-                    content_complete = await session.scalar(
-                        select(models.ProjectSession.content_complete)
-                        .where(models.ProjectSession.id == project_session_rowid)
-                        .with_for_update()
-                    )
-                    if content_complete is not True:
-                        raise PublicationClaimLostError(
-                            f"work unit {work_unit_id} session content is incomplete or missing"
-                        )
-                elif self._evaluation_target == "SESSION":
+            elif self._evaluation_target == "SESSION":
+                if identity.project_session_rowid is None:
                     raise PublicationClaimLostError(
                         f"work unit {work_unit_id} session content is missing"
                     )
+                await self._require_complete_session(
+                    session, work_unit_id, identity.project_session_rowid
+                )
+            elif self._evaluation_target == "SPAN":
+                # A span in a session takes the session grain's lock and completeness check.
+                if identity.project_session_rowid is not None:
+                    await self._require_complete_session(
+                        session, work_unit_id, identity.project_session_rowid
+                    )
+            else:
+                assert_never(self._evaluation_target)
 
             fenced = await session.scalar(
                 select(work_unit_model.id)
@@ -333,6 +336,22 @@ class DbEvalWorkCoordinator:
                     f"work unit {work_unit_id} is no longer owned and live"
                 )
             await write(session)
+
+    @staticmethod
+    async def _require_complete_session(
+        session: AsyncSession,
+        work_unit_id: int,
+        project_session_rowid: int,
+    ) -> None:
+        content_complete = await session.scalar(
+            select(models.ProjectSession.content_complete)
+            .where(models.ProjectSession.id == project_session_rowid)
+            .with_for_update()
+        )
+        if content_complete is not True:
+            raise PublicationClaimLostError(
+                f"work unit {work_unit_id} session content is incomplete or missing"
+            )
 
     async def fail(
         self,
