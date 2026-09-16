@@ -10,7 +10,8 @@ from harbor.models.agent.context import AgentContext
 
 from evals.harbor.agents.atif import llm_latencies_ms, trajectory_from_ui_messages
 
-_ASSETS_DIR = "/opt/phoenix-eval"
+_AGENT_DIR = "/installed-agent/phoenix-chat"
+_CHAT_CLIENT = Path(__file__).with_name("chat_client.py")
 _STEPS_DIR = "/logs/agent/steps"
 _INSTRUCTION_PATH = "/tmp/instruction.md"
 _TRACE_ENDPOINT_ENV_VAR = "HARBOR_PHOENIX_COLLECTOR_ENDPOINT"
@@ -29,6 +30,8 @@ class PhoenixChatAgent(BaseAgent):
         return self._phoenix_version
 
     async def setup(self, environment: BaseEnvironment) -> None:
+        await self._exec(environment, f"mkdir -p {_AGENT_DIR}")
+        await environment.upload_file(_CHAT_CLIENT, f"{_AGENT_DIR}/{_CHAT_CLIENT.name}")
         version = await self._exec(
             environment, "python -c 'import phoenix; print(phoenix.__version__)'"
         )
@@ -45,7 +48,7 @@ class PhoenixChatAgent(BaseAgent):
         out_dir = f"{_STEPS_DIR}/{self._step}"
         await self._upload_instruction(environment, instruction)
         command = [
-            f"python {_ASSETS_DIR}/chat_client.py",
+            f"python {_AGENT_DIR}/{_CHAT_CLIENT.name}",
             f"--model {shlex.quote(self.model_name)}",
             f"--instruction-file {_INSTRUCTION_PATH}",
             "--step-config step-config.json",

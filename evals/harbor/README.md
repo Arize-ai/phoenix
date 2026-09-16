@@ -10,10 +10,12 @@ pip install "arize-phoenix-client[harbor]"
 
 Build Phoenix and stage each task's build context (from the repository root): the wheel,
 the container assets, and the task's fixture database, which is baked into the image from
-`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`. The same command packs the px
-CLI and its workspace dependencies from source into `dist/phoenix-cli/`, outside every
+`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`. The same command builds the px
+CLI from source and assembles its production dependencies in a Docker container into
+`dist/phoenix-cli/phoenix-cli.tar.gz`, outside every
 build context, so the `claude-code-cli` agent tests the checkout's CLI without exposing it
-to the other agents.
+to the other agents. Docker must be running. The archive targets `linux/amd64` by default;
+set `HARBOR_CLI_PLATFORM` to match the trial environment when using another architecture.
 
 ```bash
 make harbor-stage-environments
@@ -45,7 +47,7 @@ attributable to the surface:
 | --- | --- | --- |
 | `phoenix-chat-agent` | PXI inside the Phoenix server | The agent session chat route; sidecars live in the PXI virtual shell |
 | `claude-code-mcp` | Claude Code | The remote MCP server at `/mcp`, which also serves the error-analysis skill |
-| `claude-code-cli` | Claude Code | `@arizeai/phoenix-cli` installed from the `dist/phoenix-cli/` tarballs with `PHOENIX_ENDPOINT` set, plus the four public skills from `.agents/skills/` passed with `--skill` |
+| `claude-code-cli` | Claude Code | `@arizeai/phoenix-cli` installed from the `dist/phoenix-cli/phoenix-cli.tar.gz` archive with `PHOENIX_ENDPOINT` set, plus the four public skills from `.agents/skills/` passed with `--skill` |
 
 The Claude Code agents are subclasses of Harbor's installed `claude-code` agent in
 `evals/harbor/agents/claude_code_agents.py`. They run with Harbor's default
@@ -68,9 +70,12 @@ real timestamp and token counts, and the per-call LLM latencies reach the Phoeni
 through `AgentContext.metadata["api_request_times_msec"]`, so the experiment's spans have
 durations comparable to the Claude Code agents'.
 
-The `claude-code-cli` agent uploads the packed tarballs into its own sandbox during install
-and runs `evals/harbor/agents/install_phoenix_cli.sh`, which turns each tarball into an npm
-override so the workspace packages resolve to the local builds.
+The `phoenix-chat-agent` uploads its `chat_client.py` during setup; the shared task image
+contains only the server startup script, wheel, and fixture database.
+
+The `claude-code-cli` agent uploads the complete archive into its own sandbox during install
+and runs `evals/harbor/agents/install_phoenix_cli.sh` to extract it and link the executables.
+Only the host build container accesses npm; the trial needs no npm registry allowance.
 
 Test the Harbor plugin against a local Phoenix server with the direct task path used by
 the PXI workflow:

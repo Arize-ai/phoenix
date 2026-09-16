@@ -1,13 +1,3 @@
-# Compare the three Phoenix surfaces on the error-analysis task in one Harbor job.
-# Run from the repository root:
-#   make harbor-compare
-# Add the Phoenix plugin to record one experiment per agent on the same dataset:
-#   make harbor-compare HARBOR_ARGS='--plugin arize-phoenix --plugin-kwarg endpoint=... \
-#     --plugin-kwarg "experiment_name_template={job.name} · {agent.name}"'
-# Network: the task allows nothing by itself. Each agent names its LLM provider hosts,
-# granted during its run only; the environment grants the Phoenix docs hosts to every
-# agent for the whole trial. To export PXI traces, add the results Phoenix host with
-# HARBOR_ARGS='--allow-environment-host <host> ...'.
 tasks:
   - path: evals/harbor/tasks/error-analysis
 agents:
@@ -37,9 +27,7 @@ agents:
       - .agents/skills/phoenix-tracing
 environment:
   type: daytona
-  # PXI's docs tool and `px docs` read the Phoenix docs: the Mintlify MCP server and the
-  # docs site. Delete this line for a sealed run.
-  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
+  extra_allowed_hosts: [downloads.claude.ai, arizeai-433a7140.mintlify.app, arize.com]
   kwargs:
     auto_stop_interval_mins: 30
     auto_delete_interval_mins: 30

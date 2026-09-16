@@ -10,7 +10,7 @@ from harbor.models.task.config import MCPServerConfig
 
 PHOENIX_URL = "http://127.0.0.1:6006"
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_CLI_TARBALLS_DIR = _REPO_ROOT / "dist" / "phoenix-cli"
+_CLI_ARCHIVE = _REPO_ROOT / "dist" / "phoenix-cli" / "phoenix-cli.tar.gz"
 _CLI_INSTALL_SCRIPT = Path(__file__).with_name("install_phoenix_cli.sh")
 _CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
 
@@ -47,14 +47,14 @@ class ClaudeCodeCliAgent(ClaudeCode):
 
     async def install(self, environment: BaseEnvironment) -> None:
         await super().install(environment)
-        if not any(_CLI_TARBALLS_DIR.glob("*.tgz")):
+        if not _CLI_ARCHIVE.is_file():
             raise RuntimeError(
-                f"No px CLI tarballs in {_CLI_TARBALLS_DIR}; "
+                f"No px CLI archive at {_CLI_ARCHIVE}; "
                 "run 'make harbor-stage-environments' first"
             )
-        tarballs_dir = f"{_CLI_UPLOAD_DIR}/tarballs"
+        archive = f"{_CLI_UPLOAD_DIR}/{_CLI_ARCHIVE.name}"
         script = f"{_CLI_UPLOAD_DIR}/{_CLI_INSTALL_SCRIPT.name}"
-        await environment.exec(f"mkdir -p {tarballs_dir}", user="root")
-        await environment.upload_dir(_CLI_TARBALLS_DIR, tarballs_dir)
+        await environment.exec(f"mkdir -p {_CLI_UPLOAD_DIR}", user="root")
+        await environment.upload_file(_CLI_ARCHIVE, archive)
         await environment.upload_file(_CLI_INSTALL_SCRIPT, script)
-        await self.exec_as_agent(environment, f"sh {script} {tarballs_dir} && px --version")
+        await self.exec_as_agent(environment, f"sh {script} {archive} && px --version")
