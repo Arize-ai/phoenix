@@ -1,0 +1,92 @@
+name: Plugin Evals
+
+# Runs the claude plugin eval suite for the arize-phoenix Claude Code plugin
+# whenever the plugin or the skill it tests changes. See
+# plugins/claude/arize-phoenix/evals/README.md for the suite and its flags.
+
+on:
+  pull_request:
+    paths:
+      - ".agents/skills/phoenix-cli/**"
+      - "plugins/claude/arize-phoenix/**"
+      - ".github/workflows/plugin-evals.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: plugin-evals-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    # Secrets are not available to forks; skip rather than fail.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+
+      - name: Install subprocess isolation deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
+      - name: Install Claude Code
+        # Pinned so scores stay comparable; bump deliberately.
+        run: npm install -g @anthropic-ai/claude-code@2.1.273
+
+      - name: Run eval suite
+        working-directory: plugins/claude/arize-phoenix
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          WORKSPACE: ${{ github.workspace }}
+        # --threshold gates the with-plugin score; Δ is gated in the next step.
+        # --allow-tools: Write lets the script case create its file; the Read
+        # grants let the skill open its references/ from inside the sandbox.
+        run: |
+          mkdir -p evals/results
+          claude plugin eval . \
+            --trust-plugin \
+            --ablation with-without \
+            --json evals/results/ci-results.json \
+            --threshold 0.8 \
+            --model claude-sonnet-5 \
+            --judge-model claude-sonnet-5 \
+            --allow-tools Write \
+              "Read(//${WORKSPACE}/plugins/claude/arize-phoenix/**)" \
+              "Read(//${WORKSPACE}/.agents/skills/**)" \
+            --no-publish \
+            --max-cost-usd 25 \
+            -j 3
+
+      - name: Gate on uplift (Δ)
+        working-directory: plugins/claude/arize-phoenix
+        # Baseline mean Δ is about +0.19 across all cases (negatives contribute 0).
+        run: |
+          delta=$(jq -r '.aggregates.meanDelta' evals/results/ci-results.json)
+          echo "mean Δ (with-plugin minus without-plugin): ${delta}"
+          jq -e '.aggregates.meanDelta >= 0.10' evals/results/ci-results.json > /dev/null \
+            || { echo "::error::mean Δ ${delta} is below 0.10; the plugin is adding less than it used to"; exit 1; }
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: plugin-eval-results
+          if-no-files-found: ignore
+          path: |
+            plugins/claude/arize-phoenix/evals/results/ci-results.json
+            plugins/claude/arize-phoenix/evals/results/**/report.html
