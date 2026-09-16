@@ -11,7 +11,9 @@ CONTAINER_ASSETS="$ROOT/evals/harbor/container_assets"
 TASKS_DIR="$ROOT/evals/harbor/tasks"
 FIXTURES_URL="https://storage.googleapis.com/arize-phoenix-assets/evals/harbor"
 CLI_TARBALLS_DIR="$ROOT/dist/phoenix-cli"
-# @arizeai/phoenix-cli plus the workspace packages it depends on, transitively.
+# @arizeai/phoenix-cli plus the workspace packages it depends on at runtime, transitively.
+# The build below also covers build-time-only workspace packages (phoenix-client's types
+# import phoenix-evals), which are not packed.
 CLI_PACKAGES="phoenix-config phoenix-otel phoenix-client phoenix-cli"
 
 # Clear stale wheels first: `uv pip install /wheels/*.whl` in the task Dockerfile
@@ -21,9 +23,11 @@ uv build --wheel
 
 rm -rf "$CLI_TARBALLS_DIR"
 mkdir -p "$CLI_TARBALLS_DIR"
+# `pkg...` selects the package and its workspace dependencies, dev ones included, and
+# builds them in topological order.
+(cd "$ROOT/js" && pnpm --filter "@arizeai/phoenix-cli..." run build >/dev/null)
 for package in $CLI_PACKAGES; do
-  (cd "$ROOT/js" && pnpm --filter "@arizeai/$package" run build >/dev/null \
-    && pnpm --filter "@arizeai/$package" pack --pack-destination "$CLI_TARBALLS_DIR" >/dev/null)
+  (cd "$ROOT/js" && pnpm --filter "@arizeai/$package" pack --pack-destination "$CLI_TARBALLS_DIR" >/dev/null)
 done
 
 staged=0
