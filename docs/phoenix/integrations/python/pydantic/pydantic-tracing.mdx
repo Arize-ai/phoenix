@@ -81,7 +81,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import Instrumentation
 from pydantic_ai.models.instrumented import InstrumentationSettings
-import httpx
+import httpx2
 
 class WeatherInfo(BaseModel):
     location: str
@@ -101,7 +101,7 @@ weather_agent = Agent(
 async def get_weather_data(ctx: RunContext[object], location: str) -> str:
     """Get current weather data for a location."""
     # Mock weather API call - replace with actual weather service
-    async with httpx.AsyncClient() as client:
+    async with httpx2.AsyncClient() as client:
         # This is a placeholder - use a real weather API
         mock_data = {
             "temperature": 22.5,
