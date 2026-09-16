@@ -48,7 +48,11 @@ describe("createPlaygroundEvaluatorTask", () => {
       name: "",
       includeExplanation: true,
       code: null,
-      source: { evaluatorId: null, datasetEvaluatorId: null },
+      source: {
+        evaluatorId: null,
+        datasetEvaluatorId: null,
+        projectEvaluatorId: null,
+      },
       savedRevision: null,
     });
     expect(task.outputConfigs).toEqual([DEFAULT_EVALUATOR_TASK_OUTPUT_CONFIG]);
@@ -67,7 +71,11 @@ describe("createPlaygroundEvaluatorTask", () => {
     const task = createPlaygroundEvaluatorTask({
       kind: "LLM",
       name: "correctness",
-      source: { evaluatorId: "E1", datasetEvaluatorId: null },
+      source: {
+        evaluatorId: "E1",
+        datasetEvaluatorId: null,
+        projectEvaluatorId: null,
+      },
     });
 
     expect(task.name).toBe("correctness");

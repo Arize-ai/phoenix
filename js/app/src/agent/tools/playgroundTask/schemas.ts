@@ -48,6 +48,16 @@ const datasetEvaluatorTaskSourceSchema = z.strictObject({
     .describe("The node id of an evaluator bound to a dataset."),
 });
 
+const projectEvaluatorTaskSourceSchema = z.strictObject({
+  type: z.literal("projectEvaluator"),
+  projectEvaluatorId: z
+    .string()
+    .min(1)
+    .describe(
+      "The node id of an evaluator bound to a project; the task carries that binding's input mapping."
+    ),
+});
+
 /**
  * Where a task comes from: a fresh draft, or a saved prompt or evaluator
  * that the page fetches into the instance. Mirrors the store's
@@ -59,6 +69,7 @@ export const taskSourceSchema = z.discriminatedUnion("type", [
   promptTaskSourceSchema,
   evaluatorTaskSourceSchema,
   datasetEvaluatorTaskSourceSchema,
+  projectEvaluatorTaskSourceSchema,
 ]);
 
 export type TaskSource = z.infer<typeof taskSourceSchema>;

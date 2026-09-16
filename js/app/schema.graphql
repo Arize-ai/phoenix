@@ -2021,6 +2021,18 @@ input EvaluatorTaskInput {
   """The evaluator, inline or stored, in the shape the evaluator test uses"""
   evaluator: EvaluatorPreviewInput!
   inputMapping: EvaluatorInputMappingInput!
+
+  """
+  The saved evaluator, prompt version and dataset or project binding the task was opened from, kept on the experiment so its calibration can be traced back.
+  """
+  source: EvaluatorTaskSourceInput = null
+}
+
+input EvaluatorTaskSourceInput {
+  evaluatorId: ID = null
+  promptVersionId: ID = null
+  datasetEvaluatorId: ID = null
+  projectEvaluatorId: ID = null
 }
 
 interface ExampleRevision {

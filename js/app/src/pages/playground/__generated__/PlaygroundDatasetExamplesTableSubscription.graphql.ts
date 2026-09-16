@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ee83261abfe4c4a58f6361c7b06cc73>>
+ * @generated SignedSource<<948fe3cd4411bc6b2455a991bcbf00ba>>
  * @lightSyntaxTransform
  */
 
@@ -301,6 +301,7 @@ export type FreeformAnnotationConfigInput = {
 export type EvaluatorTaskInput = {
   evaluator: EvaluatorPreviewInput;
   inputMapping: EvaluatorInputMappingInput;
+  source?: EvaluatorTaskSourceInput | null;
 };
 export type EvaluatorPreviewInput = {
   builtInEvaluatorId: string;
@@ -336,6 +337,12 @@ export type InlineCodeEvaluatorInput = {
   outputConfigs: ReadonlyArray<AnnotationConfigInput>;
   sandboxConfigId?: string | null;
   sourceCode: string;
+};
+export type EvaluatorTaskSourceInput = {
+  datasetEvaluatorId?: string | null;
+  evaluatorId?: string | null;
+  projectEvaluatorId?: string | null;
+  promptVersionId?: string | null;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ExperimentsOverDatasetInput;

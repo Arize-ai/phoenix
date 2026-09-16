@@ -6,6 +6,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   PlaygroundEvaluatorTask,
+  PlaygroundEvaluatorTaskSource,
   PlaygroundEvaluatorTaskKind,
   PlaygroundInstance,
   PlaygroundInstanceLoadingSource,
@@ -85,6 +86,20 @@ export const fetchPlaygroundEvaluatorDatasetEvaluatorFragment = graphql`
   }
 `;
 
+export const fetchPlaygroundEvaluatorProjectEvaluatorFragment = graphql`
+  fragment fetchPlaygroundEvaluator_projectEvaluator on ProjectEvaluator {
+    id
+    name
+    inputMapping {
+      literalMapping
+      pathMapping
+    }
+    evaluator {
+      ...fetchPlaygroundEvaluator_source @relay(mask: false)
+    }
+  }
+`;
+
 export const fetchPlaygroundEvaluatorOutputFragment = graphql`
   fragment fetchPlaygroundEvaluator_output on BuiltInEvaluatorOutputConfig {
     __typename
@@ -120,6 +135,9 @@ const fetchPlaygroundEvaluatorQueryNode = graphql`
       }
       ... on DatasetEvaluator {
         ...fetchPlaygroundEvaluator_datasetEvaluator @relay(mask: false)
+      }
+      ... on ProjectEvaluator {
+        ...fetchPlaygroundEvaluator_projectEvaluator @relay(mask: false)
       }
     }
   }
@@ -193,18 +211,38 @@ export type FetchedPlaygroundEvaluator = {
   templateFormat: TemplateFormat | null;
 };
 
+/** Where the task came from: the shared evaluator, and the binding if the node is one. */
+function buildTaskSource({
+  node,
+  evaluator,
+  binding,
+}: {
+  node: NonNullable<EvaluatorNode>;
+  evaluator: EvaluatorSource;
+  binding: "datasetEvaluator" | "projectEvaluator" | null;
+}): PlaygroundEvaluatorTaskSource {
+  return {
+    evaluatorId: evaluator.id ?? null,
+    datasetEvaluatorId:
+      binding === "datasetEvaluator" ? (node.id ?? null) : null,
+    projectEvaluatorId:
+      binding === "projectEvaluator" ? (node.id ?? null) : null,
+  };
+}
+
 /** The evaluator draft a fetched node stands for. */
 function buildEvaluatorTask({
   node,
   evaluator,
   kind,
+  binding,
 }: {
   node: NonNullable<EvaluatorNode>;
   evaluator: EvaluatorSource;
   kind: PlaygroundEvaluatorTaskKind;
+  /** Which binding the node is, when it is one rather than the evaluator itself. */
+  binding: "datasetEvaluator" | "projectEvaluator" | null;
 }): PlaygroundEvaluatorTask {
-  const isBinding = node.evaluator != null;
-
   const outputConfigs = toEvaluatorTaskOutputConfigs(
     node.outputConfigs ?? evaluator.outputConfigs ?? []
   );
@@ -231,10 +269,7 @@ function buildEvaluatorTask({
             sandboxConfigId: evaluator.sandboxConfig?.id ?? null,
           }
         : null,
-    source: {
-      evaluatorId: evaluator.id ?? null,
-      datasetEvaluatorId: isBinding ? (node.id ?? null) : null,
-    },
+    source: buildTaskSource({ node, evaluator, binding }),
   });
 
   // A saved evaluator with no outputs keeps the draft's default output.
@@ -280,8 +315,9 @@ function buildJudgeInstance(
 }
 
 /**
- * Fetches a saved LLM or code evaluator, by evaluator id or by dataset
- * evaluator id, as a playground instance. An LLM evaluator's judge prompt
+ * Fetches a saved LLM or code evaluator, by evaluator id or by dataset or
+ * project evaluator id, as a playground instance. A binding's own input
+ * mapping is what the task carries, so what is calibrated is what runs. An LLM evaluator's judge prompt
  * becomes the instance's template, model and prompt reference; a code
  * evaluator's code lands on the task. Resolves null for built-in, deleted
  * or otherwise uneditable evaluators.
@@ -289,13 +325,15 @@ function buildJudgeInstance(
 export async function fetchPlaygroundEvaluatorAsInstance(
   source: Extract<
     PlaygroundInstanceLoadingSource,
-    { type: "evaluator" | "datasetEvaluator" }
+    { type: "evaluator" | "datasetEvaluator" | "projectEvaluator" }
   >
 ): Promise<FetchedPlaygroundEvaluator | null> {
   const id =
     source.type === "evaluator"
       ? source.evaluatorId
-      : source.datasetEvaluatorId;
+      : source.type === "datasetEvaluator"
+        ? source.datasetEvaluatorId
+        : source.projectEvaluatorId;
 
   const data = await fetchQuery<fetchPlaygroundEvaluatorQuery>(
     RelayEnvironment,
@@ -309,8 +347,9 @@ export async function fetchPlaygroundEvaluatorAsInstance(
     return null;
   }
 
-  // A dataset evaluator binds a shared evaluator; the binding's own mapping
-  // and outputs win over the evaluator's.
+  // A dataset or project evaluator binds a shared evaluator; the binding's
+  // own mapping (and, for a dataset evaluator, outputs) win over the
+  // evaluator's.
   const evaluator: EvaluatorSource = node.evaluator ?? node;
   const kind = getEditableKind(evaluator);
 
@@ -318,11 +357,18 @@ export async function fetchPlaygroundEvaluatorAsInstance(
     return null;
   }
 
+  const binding =
+    node.evaluator == null
+      ? null
+      : source.type === "projectEvaluator"
+        ? "projectEvaluator"
+        : "datasetEvaluator";
+
   const draft: Omit<PlaygroundInstance, "id"> = {
     ...createEvaluatorTaskInstance({ kind }),
     task: {
       kind: "evaluator",
-      evaluator: buildEvaluatorTask({ node, evaluator, kind }),
+      evaluator: buildEvaluatorTask({ node, evaluator, kind, binding }),
     },
   };
 

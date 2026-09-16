@@ -18,7 +18,14 @@ export type PromptParam = {
 export type EvaluatorTaskParam = {
   evaluatorId: string | null;
   datasetEvaluatorId: string | null;
+  projectEvaluatorId: string | null;
 };
+
+const EVALUATOR_PARAM_KEYS = {
+  evaluator: "evaluatorId",
+  datasetEvaluator: "datasetEvaluatorId",
+  projectEvaluator: "projectEvaluatorId",
+} as const satisfies Record<string, keyof EvaluatorTaskParam>;
 
 /**
  * Every task the page holds, in instance order, as the URL names it. The
@@ -33,7 +40,8 @@ export const TASK_KIND_PARAM = "taskKind";
 
 const EVALUATOR_TASK_KIND = "evaluator";
 
-const EVALUATOR_PARAM_PATTERN = /^(evaluator|datasetEvaluator)(\d+)$/;
+const EVALUATOR_PARAM_PATTERN =
+  /^(evaluator|datasetEvaluator|projectEvaluator)(\d+)$/;
 
 /** The evaluator tasks a URL names, and whether it asks for an evaluator page at all. */
 export type EvaluatorTaskParamsParse = {
@@ -42,8 +50,8 @@ export type EvaluatorTaskParamsParse = {
 };
 
 /**
- * Reads the evaluator tasks from `evaluator{n}` and `datasetEvaluator{n}`
- * params, ordered by their position `n`. Positions are compacted: the URL
+ * Reads the evaluator tasks from `evaluator{n}`, `datasetEvaluator{n}` and
+ * `projectEvaluator{n}` params, ordered by their position `n`. Positions are compacted: the URL
  * names saved tasks only, so a gap left by a draft carries nothing.
  *
  * `isEvaluatorKind` is also true for `taskKind=evaluator` with no sources,
@@ -66,11 +74,13 @@ export function parseEvaluatorTaskParams(
     const current = byPosition.get(position) ?? {
       evaluatorId: null,
       datasetEvaluatorId: null,
+      projectEvaluatorId: null,
     };
 
     byPosition.set(position, {
       ...current,
-      [match[1] === "evaluator" ? "evaluatorId" : "datasetEvaluatorId"]: value,
+      [EVALUATOR_PARAM_KEYS[match[1] as keyof typeof EVALUATOR_PARAM_KEYS]]:
+        value,
     });
   }
 
@@ -102,11 +112,11 @@ export function getPlaygroundTaskParams(
           return null;
         }
 
-        const { evaluatorId, datasetEvaluatorId } =
+        const { evaluatorId, datasetEvaluatorId, projectEvaluatorId } =
           instance.task.evaluator.source;
 
-        return evaluatorId || datasetEvaluatorId
-          ? { evaluatorId, datasetEvaluatorId }
+        return evaluatorId || datasetEvaluatorId || projectEvaluatorId
+          ? { evaluatorId, datasetEvaluatorId, projectEvaluatorId }
           : null;
       }),
     };

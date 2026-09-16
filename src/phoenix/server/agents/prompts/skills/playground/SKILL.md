@@ -155,10 +155,14 @@ separate evaluator form dialogs and never touches playground tasks.
    LLM evaluator is the instance's own prompt: read and edit it with `ui.playground.prompt.read`
    and `ui.playground.prompt.edit`, manage its tools with `ui.playground.prompt.tools.*`, and
    change its model with `ui.playground.model.set`.
-5. The dataset example's `output` is the judged response and `reference` starts empty; inspect
-   actual example content and configure `inputMapping` from it rather than assuming a
-   prompt-experiment output shape. The example's `metadata.annotations`, where expected outputs
-   are stored as HUMAN annotations, never reaches the evaluator.
+5. An evaluator task judges the dataset example itself: its context is the example's `input`,
+   `output` and `metadata`, exactly as the span→example converter wrote them, so a mapping
+   drafted here runs unchanged when the evaluator is assigned to a project. There is no
+   `reference` (a record has none); inspect actual example content and configure
+   `inputMapping` from it rather than assuming a prompt-experiment output shape. Expected
+   outputs are stored as HUMAN annotations under the example's `metadata.annotations`; the run
+   removes only this task's own expected outputs from that key, so the evaluator never reads
+   its answer key but still sees every other annotation, as it would online.
 6. Run with `ui.playground.run({})`. Every task runs over the loaded dataset as its own
    experiment — recorded when `recordExperiments` is on (`ui.playground.experiment.setRecording`),
    ephemeral otherwise — and the call resolves with `experimentIds` in instance order. It is

@@ -1489,10 +1489,18 @@ describe("addInstance", () => {
     });
     expect(
       second.task.kind === "evaluator" && second.task.evaluator.source
-    ).toEqual({ evaluatorId: "E1", datasetEvaluatorId: null });
+    ).toEqual({
+      evaluatorId: "E1",
+      datasetEvaluatorId: null,
+      projectEvaluatorId: null,
+    });
     expect(
       third.task.kind === "evaluator" && third.task.evaluator.source
-    ).toEqual({ evaluatorId: null, datasetEvaluatorId: "DE1" });
+    ).toEqual({
+      evaluatorId: null,
+      datasetEvaluatorId: "DE1",
+      projectEvaluatorId: null,
+    });
   });
 });
 

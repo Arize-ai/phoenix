@@ -164,6 +164,9 @@ export function EvaluatorTaskSaveButton({
           source: {
             evaluatorId: saved.evaluatorId,
             datasetEvaluatorId: saved.datasetEvaluatorId,
+            // A save targets the dataset; the project binding it was opened
+            // from is not what was written.
+            projectEvaluatorId: null,
           },
         };
 

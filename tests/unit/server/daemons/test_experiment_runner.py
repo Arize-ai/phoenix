@@ -1634,13 +1634,29 @@ class TestEvaluatorTaskWorkItem:
         """The evaluator judges the example itself and never sees the reviewer's answer key."""
         exp = _make_running_experiment()
         revision = _make_dataset_example_revision()
-        revision.metadata_ = {"annotations": [{"name": "length", "score": 5.0}], "source": "unit"}
+        # As the span→example converter writes them: records grouped by name. The
+        # ``length`` HUMAN record is this task's own expected output; the LLM record under
+        # the same name and the ``tone`` annotation are what the online evaluator would
+        # also see, so they stay.
+        revision.metadata_ = {
+            "annotations": {
+                "length": [
+                    {"label": "long", "score": 5.0, "annotator_kind": "HUMAN"},
+                    {"label": "short", "score": 1.0, "annotator_kind": "LLM"},
+                ],
+                "tone": [{"label": "polite", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        }
+        evaluator_task = MagicMock(spec=models.ExperimentEvaluatorTask)
+        evaluator_task.name = Identifier("length")
+        evaluator_task.output_configs = [_LENGTH_CONFIG]
         work_item = EvaluatorTaskWorkItem(
             running_experiment=exp,
             experiment=exp._experiment,
             dataset_example_revision=revision,
             repetition_number=1,
-            evaluator_task=MagicMock(spec=models.ExperimentEvaluatorTask),
+            evaluator_task=evaluator_task,
             evaluator=MagicMock(spec=BaseEvaluator),
             db=exp._db,
             tracer_factory=exp._tracer_factory,
@@ -1650,8 +1666,13 @@ class TestEvaluatorTaskWorkItem:
         assert work_item._build_context() == {
             "input": {"question": "test"},
             "output": {"answer": "42"},
-            "reference": {},
-            "metadata": {"source": "unit"},
+            "metadata": {
+                "annotations": {
+                    "length": [{"label": "short", "score": 1.0, "annotator_kind": "LLM"}],
+                    "tone": [{"label": "polite", "annotator_kind": "HUMAN"}],
+                },
+                "source": "unit",
+            },
         }
 
     async def test_code_evaluator_persists_run_and_annotation_and_broadcasts(

@@ -9,11 +9,11 @@ import { createEvaluatorMappingSource } from "./evaluatorResults";
 
 /**
  * Binds the editor's mapping sample to the first example of the dataset the
- * page is on, in the shape a run hands the evaluator: the example's output
- * is what is judged, `reference` starts empty, and the annotations holding
- * expected outputs are left out. So the Input mapping tab offers the paths a
- * run will resolve. Without a dataset, or with an empty one, the store's
- * dataset default stands in.
+ * page is on, in the shape a run hands the evaluator: the example revision
+ * itself, `input`, `output` and `metadata`, as the span it may have been
+ * converted from. So the Input mapping tab offers exactly the paths a run
+ * resolves here and online. Without a dataset, or with an empty one, the
+ * store's dataset default stands in.
  */
 export function EvaluatorTaskMappingSource({
   datasetId,

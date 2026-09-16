@@ -254,6 +254,8 @@ export type PlaygroundEvaluatorTaskCode = {
 export type PlaygroundEvaluatorTaskSource = {
   evaluatorId: string | null;
   datasetEvaluatorId: string | null;
+  /** The project binding the task was opened from; its mapping is what the task carries. */
+  projectEvaluatorId: string | null;
 };
 
 /**
@@ -299,7 +301,8 @@ export type PlaygroundInstanceSource =
       tagName?: string | null;
     }
   | { type: "evaluator"; evaluatorId: string }
-  | { type: "datasetEvaluator"; datasetEvaluatorId: string };
+  | { type: "datasetEvaluator"; datasetEvaluatorId: string }
+  | { type: "projectEvaluator"; projectEvaluatorId: string };
 
 /** A source that names a saved entity, so its content has to be fetched. */
 export type PlaygroundInstanceLoadingSource = Exclude<

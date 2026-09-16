@@ -7,7 +7,7 @@ annotation records. A human expected output is the record in that list whose
 playground and an example built from an annotated span share one shape.
 """
 
-from typing import Any, Mapping, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 ANNOTATIONS_METADATA_KEY = "annotations"
 HUMAN_ANNOTATOR_KIND = "HUMAN"
@@ -43,6 +43,31 @@ def get_expected_outputs(metadata: Mapping[str, Any]) -> dict[str, dict[str, Any
             if _is_expected_output(record):
                 expected[name] = dict(record)
     return expected
+
+
+def without_expected_outputs(
+    metadata: Mapping[str, Any], annotation_names: Iterable[str]
+) -> dict[str, Any]:
+    """Return a copy of ``metadata`` without the human expected outputs for the given names.
+
+    Everything else stays: other annotation names, and records of other annotator kinds
+    under the same names. This is the only difference between the context an evaluator
+    task judges and the example revision itself, and it exists so an evaluator never
+    reads the answer key it is being calibrated against.
+    """
+    annotations = metadata.get(ANNOTATIONS_METADATA_KEY)
+    names = set(annotation_names)
+    if not isinstance(annotations, Mapping) or not names & set(annotations):
+        return dict(metadata)
+    kept: dict[str, Any] = {}
+    for name, records in annotations.items():
+        if name in names and isinstance(records, list):
+            remaining = [record for record in records if not _is_expected_output(record)]
+            if remaining:
+                kept[name] = remaining
+        else:
+            kept[name] = records
+    return {**metadata, ANNOTATIONS_METADATA_KEY: kept}
 
 
 def set_expected_output(

@@ -79,6 +79,11 @@ export function hasInstanceLoaded(
         getPlaygroundEvaluatorTask(instance)?.source.datasetEvaluatorId ===
         source.datasetEvaluatorId
       );
+    case "projectEvaluator":
+      return (
+        getPlaygroundEvaluatorTask(instance)?.source.projectEvaluatorId ===
+        source.projectEvaluatorId
+      );
     default:
       return assertUnreachable(source);
   }
@@ -92,6 +97,8 @@ function describeLoadFailure(source: PlaygroundInstanceSource): string {
       return `Evaluator ${source.evaluatorId} could not be loaded. It may have been deleted, or it is a built-in evaluator, which the playground cannot edit.`;
     case "datasetEvaluator":
       return `Dataset evaluator ${source.datasetEvaluatorId} could not be loaded. It may have been deleted, or it binds a built-in evaluator, which the playground cannot edit.`;
+    case "projectEvaluator":
+      return `Project evaluator ${source.projectEvaluatorId} could not be loaded. It may have been deleted, or it binds a built-in evaluator, which the playground cannot edit.`;
     default:
       return "The task could not be loaded.";
   }

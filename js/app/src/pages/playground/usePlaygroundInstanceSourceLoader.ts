@@ -24,6 +24,7 @@ function describeSource(source: PlaygroundInstanceLoadingSource): string {
       return "The prompt could not be loaded. It may have been deleted.";
     case "evaluator":
     case "datasetEvaluator":
+    case "projectEvaluator":
       return "The evaluator could not be loaded. It may have been deleted, or it is a built-in evaluator that cannot be edited here.";
     default:
       return assertUnreachable(source);

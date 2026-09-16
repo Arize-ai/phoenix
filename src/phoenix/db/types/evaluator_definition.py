@@ -25,6 +25,23 @@ from phoenix.db.types.prompts import (
 )
 
 
+class EvaluatorSource(DBBaseModel):
+    """Where a task's evaluator came from, so a calibration experiment can be traced back.
+
+    Every field is optional: a draft that was never saved has none of them, a task opened
+    from the evaluators table has an evaluator (and, for an LLM evaluator, the prompt
+    version it showed), and one opened from a dataset's or a project's evaluators also
+    names that binding, whose input mapping is what the task carried.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    evaluator_id: int | None = None
+    prompt_version_id: int | None = None
+    dataset_evaluator_id: int | None = None
+    project_evaluator_id: int | None = None
+
+
 class InlineLLMEvaluatorPromptVersion(DBBaseModel):
     """The judge prompt and model of an inline LLM evaluator, frozen as drafted."""
 
@@ -50,6 +67,7 @@ class InlineLLMEvaluatorDefinition(DBBaseModel):
     description: str | None = None
     prompt_version: InlineLLMEvaluatorPromptVersion
     output_configs: list[CategoricalOutputConfig]
+    source: EvaluatorSource | None = None
 
 
 class InlineCodeEvaluatorDefinition(DBBaseModel):
@@ -64,6 +82,7 @@ class InlineCodeEvaluatorDefinition(DBBaseModel):
     source_code: str
     sandbox_config_id: int
     output_configs: list[OutputConfigType]
+    source: EvaluatorSource | None = None
 
 
 class StoredCodeEvaluatorDefinition(DBBaseModel):
@@ -79,6 +98,7 @@ class StoredCodeEvaluatorDefinition(DBBaseModel):
     type: Literal["code_evaluator"]
     code_evaluator_id: int
     code_evaluator_version_id: int | None = None
+    source: EvaluatorSource | None = None
 
 
 class BuiltInEvaluatorDefinition(DBBaseModel):

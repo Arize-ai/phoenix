@@ -611,10 +611,12 @@ export function ProjectEvaluatorsTable({
                   leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   size="S"
                   aria-label="Open in playground"
-                  // A project evaluator scores spans, so the playground opens
+                  // The project evaluator, not its shared evaluator: its own
+                  // input mapping is what runs on spans, so it is what gets
+                  // calibrated. It scores spans, so the playground opens
                   // without a dataset; pick one there to run the evaluator.
                   to={`/playground?${new URLSearchParams({
-                    evaluator0: row.original.evaluator.id,
+                    projectEvaluator0: row.original.id,
                   })}`}
                 >
                   Playground

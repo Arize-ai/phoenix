@@ -72,7 +72,9 @@ describe("playgroundPageLoader", () => {
       codeEvaluator(
         source.type === "evaluator"
           ? source.evaluatorId
-          : source.datasetEvaluatorId
+          : source.type === "datasetEvaluator"
+            ? source.datasetEvaluatorId
+            : source.projectEvaluatorId
       )
     );
 

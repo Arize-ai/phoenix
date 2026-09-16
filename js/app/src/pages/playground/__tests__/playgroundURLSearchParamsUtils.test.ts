@@ -23,7 +23,11 @@ const promptInstance = (id: string | null): TaskInstance => ({
 });
 
 const evaluatorInstance = (
-  source: { evaluatorId?: string; datasetEvaluatorId?: string } = {}
+  source: {
+    evaluatorId?: string;
+    datasetEvaluatorId?: string;
+    projectEvaluatorId?: string;
+  } = {}
 ): TaskInstance => ({
   task: {
     kind: "evaluator",
@@ -32,6 +36,7 @@ const evaluatorInstance = (
       source: {
         evaluatorId: source.evaluatorId ?? null,
         datasetEvaluatorId: source.datasetEvaluatorId ?? null,
+        projectEvaluatorId: source.projectEvaluatorId ?? null,
       },
     }),
   },
@@ -251,8 +256,16 @@ describe("parseEvaluatorTaskParams", () => {
     ).toEqual({
       isEvaluatorKind: true,
       evaluators: [
-        { evaluatorId: null, datasetEvaluatorId: "DE0" },
-        { evaluatorId: "E2", datasetEvaluatorId: null },
+        {
+          evaluatorId: null,
+          datasetEvaluatorId: "DE0",
+          projectEvaluatorId: null,
+        },
+        {
+          evaluatorId: "E2",
+          datasetEvaluatorId: null,
+          projectEvaluatorId: null,
+        },
       ],
     });
   });
@@ -286,11 +299,21 @@ describe("getPlaygroundTaskParams", () => {
     expect(
       getPlaygroundTaskParams([
         evaluatorInstance(),
-        evaluatorInstance({ evaluatorId: "E1", datasetEvaluatorId: "DE1" }),
+        evaluatorInstance({
+          evaluatorId: "E1",
+          datasetEvaluatorId: "DE1",
+        }),
       ])
     ).toEqual({
       kind: "evaluator",
-      evaluators: [null, { evaluatorId: "E1", datasetEvaluatorId: "DE1" }],
+      evaluators: [
+        null,
+        {
+          evaluatorId: "E1",
+          datasetEvaluatorId: "DE1",
+          projectEvaluatorId: null,
+        },
+      ],
     });
   });
 });
@@ -304,7 +327,13 @@ describe("arePlaygroundTaskParamsEqual", () => {
 
     const evaluators: PlaygroundTaskParams = {
       kind: "evaluator",
-      evaluators: [{ evaluatorId: "E1", datasetEvaluatorId: null }],
+      evaluators: [
+        {
+          evaluatorId: "E1",
+          datasetEvaluatorId: null,
+          projectEvaluatorId: null,
+        },
+      ],
     };
 
     expect(arePlaygroundTaskParamsEqual(prompts, { ...prompts })).toBe(true);
@@ -312,7 +341,13 @@ describe("arePlaygroundTaskParamsEqual", () => {
     expect(
       arePlaygroundTaskParamsEqual(evaluators, {
         kind: "evaluator",
-        evaluators: [{ evaluatorId: "E1", datasetEvaluatorId: null }],
+        evaluators: [
+          {
+            evaluatorId: "E1",
+            datasetEvaluatorId: null,
+            projectEvaluatorId: null,
+          },
+        ],
       })
     ).toBe(true);
     expect(
@@ -336,8 +371,16 @@ describe("setPlaygroundTaskParams", () => {
         kind: "evaluator",
         evaluators: [
           null,
-          { evaluatorId: "E1", datasetEvaluatorId: "DE1" },
-          { evaluatorId: "E2", datasetEvaluatorId: null },
+          {
+            evaluatorId: "E1",
+            datasetEvaluatorId: "DE1",
+            projectEvaluatorId: null,
+          },
+          {
+            evaluatorId: "E2",
+            datasetEvaluatorId: null,
+            projectEvaluatorId: null,
+          },
         ],
       },
     });
@@ -354,12 +397,25 @@ describe("setPlaygroundTaskParams", () => {
       searchParams,
       tasks: {
         kind: "evaluator",
-        evaluators: [{ evaluatorId: "E0", datasetEvaluatorId: null }, null],
+        evaluators: [
+          {
+            evaluatorId: "E0",
+            datasetEvaluatorId: null,
+            projectEvaluatorId: null,
+          },
+          null,
+        ],
       },
     });
     expect(parseEvaluatorTaskParams(searchParams)).toEqual({
       isEvaluatorKind: true,
-      evaluators: [{ evaluatorId: "E0", datasetEvaluatorId: null }],
+      evaluators: [
+        {
+          evaluatorId: "E0",
+          datasetEvaluatorId: null,
+          projectEvaluatorId: null,
+        },
+      ],
     });
   });
 
@@ -373,7 +429,13 @@ describe("setPlaygroundTaskParams", () => {
         searchParams,
         tasks: {
           kind: "evaluator",
-          evaluators: [{ evaluatorId: "E0", datasetEvaluatorId: null }],
+          evaluators: [
+            {
+              evaluatorId: "E0",
+              datasetEvaluatorId: null,
+              projectEvaluatorId: null,
+            },
+          ],
         },
       })
     ).toBe(false);

@@ -136,6 +136,14 @@ function getExperimentTaskInput({
         datasetId,
       }),
       inputMapping: evaluator.inputMapping,
+      // Where the task came from, kept on the experiment so the calibration
+      // can be traced back to the evaluator it was for.
+      source: {
+        evaluatorId: evaluator.source.evaluatorId,
+        promptVersionId: instance.prompt?.version ?? null,
+        datasetEvaluatorId: evaluator.source.datasetEvaluatorId,
+        projectEvaluatorId: evaluator.source.projectEvaluatorId,
+      },
     },
   };
 }

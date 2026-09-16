@@ -11,7 +11,7 @@ import {
 } from "../evaluatorResults";
 
 describe("evaluator results", () => {
-  it("keeps annotations, expected outputs included, out of whole-object evaluator mappings", () => {
+  it("judges the example revision as it is, with no reference and its annotations kept", () => {
     const metadata = {
       customer: "test",
       annotations: {
@@ -25,10 +25,12 @@ describe("evaluator results", () => {
       metadata,
     });
 
-    expect(context.reference).toEqual({});
-    expect(context.output).toEqual({ response: "hello" });
-    expect(context.metadata).toEqual({ customer: "test" });
-    expect(metadata).toHaveProperty("annotations");
+    expect(context).toEqual({
+      input: { question: "hello" },
+      output: { response: "hello" },
+      metadata,
+    });
+    expect(context).not.toHaveProperty("reference");
   });
   it("offers an example's context as a dataset-grain mapping source, wrapping primitive fields", () => {
     expect(
@@ -40,8 +42,7 @@ describe("evaluator results", () => {
     ).toEqual({
       input: { value: "What is 2 + 2?" },
       output: { answer: "4" },
-      reference: {},
-      metadata: { topic: "math" },
+      metadata: { annotations: { quality: [] }, topic: "math" },
     });
   });
   it("reduces an output config to the labels, scores and bounds a cell validates against", () => {

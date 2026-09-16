@@ -159,14 +159,21 @@ async function loadEvaluatorTaskInstances(
   fetchEvaluatorAsInstance: PlaygroundPageLoaderFetchers["fetchEvaluatorAsInstance"]
 ): Promise<Extract<PlaygroundPageLoaderData, { source: "evaluator" }>> {
   const fetches = evaluators.map((param) => {
-    const source = param.datasetEvaluatorId
+    // A binding names its evaluator too, so the binding wins: its mapping is
+    // what the task should carry.
+    const source = param.projectEvaluatorId
       ? {
-          type: "datasetEvaluator" as const,
-          datasetEvaluatorId: param.datasetEvaluatorId,
+          type: "projectEvaluator" as const,
+          projectEvaluatorId: param.projectEvaluatorId,
         }
-      : param.evaluatorId
-        ? { type: "evaluator" as const, evaluatorId: param.evaluatorId }
-        : null;
+      : param.datasetEvaluatorId
+        ? {
+            type: "datasetEvaluator" as const,
+            datasetEvaluatorId: param.datasetEvaluatorId,
+          }
+        : param.evaluatorId
+          ? { type: "evaluator" as const, evaluatorId: param.evaluatorId }
+          : null;
 
     return source
       ? fetchEvaluatorAsInstance(source).catch(() => null)

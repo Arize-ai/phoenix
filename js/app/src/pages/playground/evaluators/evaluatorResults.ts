@@ -31,22 +31,18 @@ export type EvaluatorPrediction =
   | { status: "error"; error: string };
 
 /**
- * Keep annotations out of evaluator context, even for whole-object mappings.
- * Expected outputs live in the example's annotations alongside any annotations
- * carried over from a span, and none of them should inform the judge.
+ * The context an evaluator task judges: the example revision itself, which
+ * the span→example converter built with the same `input`, `output` and
+ * `metadata` the online evaluator sees on the span. Nothing is added (a
+ * record has no `reference`) and nothing is removed here; the server drops
+ * only the task's own expected outputs from `metadata.annotations` at run
+ * time so the judge never reads its answer key.
  */
 export function createEvaluatorContext(example: EvaluatorContextExample) {
-  const metadata = isStringKeyedObject(example.metadata)
-    ? { ...example.metadata }
-    : {};
-
-  delete metadata.annotations;
-
   return {
     input: example.input,
     output: example.output,
-    reference: {},
-    metadata,
+    metadata: isStringKeyedObject(example.metadata) ? example.metadata : {},
   };
 }
 
@@ -63,7 +59,6 @@ export function createEvaluatorMappingSource(
   return {
     input: asMappingRecord(context.input),
     output: asMappingRecord(context.output),
-    reference: context.reference,
     metadata: context.metadata,
   };
 }

@@ -32,7 +32,11 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.types.evaluator_definition import EvaluatorDefinition, evaluator_kind_of
+from phoenix.db.types.evaluator_definition import (
+    BuiltInEvaluatorDefinition,
+    EvaluatorDefinition,
+    evaluator_kind_of,
+)
 from phoenix.db.types.experiment_config import PlaygroundConfig
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
@@ -591,6 +595,8 @@ async def _resolve_evaluator_task(
     # Pin what the experiment freezes: a stored evaluator's current version, not a
     # pointer its owner can edit while the experiment is paused.
     definition = await pin_evaluator_definition(task.evaluator.to_definition(), session=session)
+    if task.source is not None and not isinstance(definition, BuiltInEvaluatorDefinition):
+        definition = definition.model_copy(update={"source": task.source.to_source()})
     evaluator = await build_evaluator_from_definition(
         definition=definition,
         session=session,

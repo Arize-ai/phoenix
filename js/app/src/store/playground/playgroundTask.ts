@@ -63,7 +63,11 @@ export function createPlaygroundEvaluatorTask({
             sandboxConfigId: null,
           }
         : null,
-    source: { evaluatorId: null, datasetEvaluatorId: null },
+    source: {
+      evaluatorId: null,
+      datasetEvaluatorId: null,
+      projectEvaluatorId: null,
+    },
     savedRevision: null,
     ...overrides,
   };

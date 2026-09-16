@@ -322,6 +322,10 @@ function createInstanceFromSource(
               source.type === "datasetEvaluator"
                 ? source.datasetEvaluatorId
                 : null,
+            projectEvaluatorId:
+              source.type === "projectEvaluator"
+                ? source.projectEvaluatorId
+                : null,
           },
         },
       },

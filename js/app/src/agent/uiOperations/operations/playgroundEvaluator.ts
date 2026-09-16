@@ -43,6 +43,7 @@ export const evaluatorTaskReadOutputSchema = z.object({
   source: z.object({
     evaluatorId: z.string().nullable(),
     datasetEvaluatorId: z.string().nullable(),
+    projectEvaluatorId: z.string().nullable(),
   }),
   datasetId: z.string().nullable(),
   saveTarget: z.object({

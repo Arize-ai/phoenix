@@ -7,6 +7,7 @@ from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.db.types.evaluator_definition import EvaluatorSource
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ConnectionConfigInput import ConnectionConfigInput
@@ -48,13 +49,50 @@ class PromptTaskInput:
 
 
 @strawberry.input
+class EvaluatorTaskSourceInput:
+    """The saved evaluator a task was opened from, recorded on the frozen definition."""
+
+    evaluator_id: Optional[GlobalID] = None
+    prompt_version_id: Optional[GlobalID] = None
+    dataset_evaluator_id: Optional[GlobalID] = None
+    project_evaluator_id: Optional[GlobalID] = None
+
+    def to_source(self) -> EvaluatorSource:
+        return EvaluatorSource(
+            evaluator_id=_optional_node_id(self.evaluator_id, ("LLMEvaluator", "CodeEvaluator")),
+            prompt_version_id=_optional_node_id(self.prompt_version_id, ("PromptVersion",)),
+            dataset_evaluator_id=_optional_node_id(
+                self.dataset_evaluator_id, ("DatasetEvaluator",)
+            ),
+            project_evaluator_id=_optional_node_id(
+                self.project_evaluator_id, ("ProjectEvaluator",)
+            ),
+        )
+
+
+def _optional_node_id(global_id: Optional[GlobalID], type_names: tuple[str, ...]) -> Optional[int]:
+    if global_id is None:
+        return None
+    if global_id.type_name not in type_names:
+        raise BadRequest(
+            f"Expected a {' or '.join(type_names)} id, got {global_id.type_name}: {global_id}"
+        )
+    return int(global_id.node_id)
+
+
+@strawberry.input
 class EvaluatorTaskInput:
-    """An evaluator run on every example, judging the example's own output."""
+    """An evaluator run on every example, judging the example as the span it came from."""
 
     evaluator: EvaluatorPreviewInput = strawberry.field(
         description="The evaluator, inline or stored, in the shape the evaluator test uses",
     )
     input_mapping: EvaluatorInputMappingInput
+    source: Optional[EvaluatorTaskSourceInput] = strawberry.field(
+        default=None,
+        description="The saved evaluator, prompt version and dataset or project binding the "
+        "task was opened from, kept on the experiment so its calibration can be traced back.",
+    )
 
 
 @strawberry.input(one_of=True)

@@ -156,7 +156,11 @@ describe("getTaskMenuSelectedKey and getTaskMenuLabel", () => {
   it("selects a loaded evaluator by its id and names the draft", () => {
     const loaded = evaluatorInstance({
       name: "tone",
-      source: { evaluatorId: "E1", datasetEvaluatorId: "DE1" },
+      source: {
+        evaluatorId: "E1",
+        datasetEvaluatorId: "DE1",
+        projectEvaluatorId: null,
+      },
     });
 
     expect(getTaskMenuSelectedKey(loaded)).toBe("evaluator:E1");
