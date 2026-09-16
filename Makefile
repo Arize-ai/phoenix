@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
+	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -109,11 +109,9 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  harbor-stage-environments - Build the Phoenix wheel and stage each Harbor task environment"
-	@echo -e "  harbor-publish-fixtures   - Regenerate fixtures and publish to cloud storage"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
-	@echo -e "  $(YELLOW)harbor-oracle$(NC)            - Validate the task with the oracle (HARBOR_TASK=..., HARBOR_ENV=...)"
-	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run the real headless-agent trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=...)"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -500,61 +498,61 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # Harbor Evals
 #=============================================================================
 
-HARBOR_TASK ?= evals/harbor/tasks/regression-triage
-HARBOR_MODEL ?= anthropic/claude-sonnet-4-5
-# Environment backend for trials (harbor run -e): docker, daytona, etc.
-# Cloud backends need credentials in the host env (e.g. DAYTONA_API_KEY).
-HARBOR_ENV ?= docker
+# A Harbor job file defines a run: its tasks, agents, environment, attempts, retries, and
+# network policy. The default is the full benchmark CI runs. Point HARBOR_JOB at another
+# file for a subset, and pass anything else `harbor run` accepts through HARBOR_ARGS,
+# e.g. `-e docker`, `-k 1`, or `-a oracle` (which keeps the file's tasks and environment
+# but replaces its agents).
+HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
+HARBOR_ARGS ?=
+# harbor-stage also builds the px CLI archive that the claude-code-cli agent installs, a
+# pnpm build plus a Docker step. Set HARBOR_CLI=0 to skip it when no run needs that agent.
+HARBOR_CLI ?= 1
+# Every run records its tasks, trials, scores, and traces in Phoenix through the
+# arize-phoenix plugin, which reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY from the
+# environment. Runs from any job file share one dataset so their experiments compare.
+# Set HARBOR_PLUGIN= to run without recording.
+HARBOR_DATASET ?= pxi-benchmark
+HARBOR_PLUGIN ?= --plugin arize-phoenix --plugin-kwarg dataset=$(HARBOR_DATASET)
 HARBOR_VERSION ?= 0.21.0
+# Phoenix client that provides the arize-phoenix Harbor plugin.
+HARBOR_CLIENT_VERSION ?= 3.5.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
 # harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
 # repo's .python-version (3.10).
 HARBOR_PYTHON ?= 3.13
-HARBOR_ATTEMPTS ?= 1
-# Retry trials that die on transient infrastructure errors (e.g. a cloud
-# sandbox failing to start); reward-scored failures are not retried.
-HARBOR_RETRIES ?= 1
-# Daytona sandboxes orphaned by a killed run (e.g. a canceled CI job) would
-# otherwise occupy org quota forever and starve later runs into
-# EnvironmentStartTimeoutError; have Daytona stop and delete them itself.
-ifeq ($(HARBOR_ENV),daytona)
-HARBOR_ENV_KWARGS := --ek auto_stop_interval_mins=30 --ek auto_delete_interval_mins=30
-endif
 UVX := uvx
-HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' harbor
+HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
+	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
-# The runner is staged into the task's Docker build context by stage_harbor_task_environments.sh.
+# The px CLI archive is only required when the job file's agents are in effect, i.e. `-a`
+# does not replace them.
 define check-harbor-staged
-	@test -f $(HARBOR_TASK)/environment/run_headless_agent.py || \
-		{ echo -e "$(RED)Missing staged runner in $(HARBOR_TASK)/environment/ — run 'make harbor-stage-environments' first$(NC)"; exit 1; }
+	@for task in evals/harbor/tasks/*/; do \
+		test -d "$$task/environment/container_assets" -a -f "$$task/environment/data/phoenix.db" || \
+			{ echo -e "$(RED)Missing staged assets in $$task/environment/ — run 'make harbor-stage' first$(NC)"; exit 1; }; \
+	done
+	@$(if $(filter -a,$(HARBOR_ARGS)),true,! grep -q ClaudeCodeCliAgent $(HARBOR_JOB)) || test -f dist/phoenix-cli/phoenix-cli.tar.gz || \
+		{ echo -e "$(RED)Missing px CLI archive in dist/phoenix-cli/ — run 'make harbor-stage' first$(NC)"; exit 1; }
 endef
 
-harbor-stage-environments: ## Build the Phoenix wheel and stage each Harbor task environment
+harbor-stage: ## Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip, HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
-	./evals/harbor/scripts/stage_harbor_task_environments.sh
+	./evals/harbor/scripts/stage_harbor_environments.sh
+	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
+	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
-
-harbor-publish-fixtures: ## Regenerate Harbor fixtures and publish to cloud storage
-	@echo -e "$(CYAN)Publishing Harbor fixtures...$(NC)"
-	./evals/harbor/scripts/publish_fixtures.sh
 
 harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
 		HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
 		uv run python tests/integration/harbor/run_plugin_e2e.py
 
-harbor-oracle: ## Validate the Harbor task with the oracle solution (HARBOR_TASK=..., HARBOR_ENV=...)
+harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)
 	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor oracle trial for $(HARBOR_TASK) on $(HARBOR_ENV)...$(NC)"
-	$(HARBOR) run -p $(HARBOR_TASK) -a oracle -e $(HARBOR_ENV) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
-
-harbor-run: ## Run the real headless-agent Harbor trial (HARBOR_TASK=..., HARBOR_MODEL=..., HARBOR_ENV=..., HARBOR_ATTEMPTS=...)
-	$(check-harbor-staged)
-	@echo -e "$(CYAN)Running Harbor headless-agent trial for $(HARBOR_TASK) with $(HARBOR_MODEL) on $(HARBOR_ENV)...$(NC)"
-	PYTHONPATH=. $(HARBOR) run -p $(HARBOR_TASK) \
-		-a evals.harbor.agents.phoenix_headless_agent:PhoenixHeadlessAgent \
-		-m $(HARBOR_MODEL) -e $(HARBOR_ENV) -k $(HARBOR_ATTEMPTS) -r $(HARBOR_RETRIES) $(HARBOR_ENV_KWARGS) --yes
+	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
+	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs
