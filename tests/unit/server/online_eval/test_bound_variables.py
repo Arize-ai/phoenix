@@ -12,6 +12,7 @@ is edited to match.
 
 from __future__ import annotations
 
+import inspect
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -29,8 +30,11 @@ from phoenix.server.online_eval.bound_variables import (
     SPAN_ANNOTATION_ENTRY_FIELD_NAMES,
     SPAN_BOUND_VARIABLE_NAMES,
     SPAN_METADATA_FIELD_NAMES,
+    TRACE_BOUND_VARIABLE_NAMES,
+    TRACE_METADATA_FIELD_NAMES,
 )
 from phoenix.server.online_eval.executor import span_eval_context
+from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS
 
 _MIRROR = (
     Path(__file__).parents[4]
@@ -192,10 +196,31 @@ def test_span_metadata_is_exactly_the_vocabulary_and_the_record_fields() -> None
     )
 
 
-def test_no_record_field_name_collides_with_a_vocabulary_name() -> None:
-    assert not SPAN_BOUND_VARIABLE_NAMES & SPAN_METADATA_FIELD_NAMES
-    assert not SESSION_BOUND_VARIABLE_NAMES & SESSION_METADATA_FIELD_NAMES, (
+@pytest.mark.parametrize(
+    "vocabulary,record_fields",
+    [
+        pytest.param(SPAN_BOUND_VARIABLE_NAMES, SPAN_METADATA_FIELD_NAMES, id="span"),
+        pytest.param(SESSION_BOUND_VARIABLE_NAMES, SESSION_METADATA_FIELD_NAMES, id="session"),
+        pytest.param(TRACE_BOUND_VARIABLE_NAMES, TRACE_METADATA_FIELD_NAMES, id="trace"),
+    ],
+)
+def test_no_record_field_name_collides_with_a_vocabulary_name(
+    vocabulary: frozenset[str],
+    record_fields: frozenset[str],
+) -> None:
+    assert not vocabulary & record_fields, (
         "Record fields share `metadata` with the grain vocabulary flat, so a "
         "vocabulary name spelled like a record field would shadow it. Rename "
         "the new name."
     )
+
+
+def test_every_trace_scalar_is_assigned_by_the_loader() -> None:
+    """A non-aggregate name the trace filter language binds must be assigned by
+    ``load_trace_bound_variables``; the defaulting sweep would otherwise hand the
+    evaluator ``None`` for it without any test noticing."""
+    source = inspect.getsource(bound_variables.load_trace_bound_variables)
+    assigned = set(re.findall(r'resolved\[rowid\]\["(\w+)"\]\s*=', source))
+    scalars = bound_variables.TRACE_BOUND_VARIABLE_NAMES - TRACE_BINDINGS.aggregate_names
+    assert scalars, "the trace filter language binds no scalar names"
+    assert scalars <= assigned, sorted(scalars - assigned)

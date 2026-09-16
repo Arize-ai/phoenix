@@ -13,12 +13,24 @@ from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, AsyncIterator, Callable, Literal, Mapping, Optional, Protocol, Sequence
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Collection,
+    Literal,
+    Mapping,
+    Optional,
+    Protocol,
+    Sequence,
+)
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
 from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias
 
 from phoenix.config import (
     get_env_online_eval_max_llm_message_bytes,
@@ -26,6 +38,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.trace_aggregates import SPAN_ROWID, representative_root_span_by_trace
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OutputConfigType,
@@ -50,9 +63,14 @@ from phoenix.server.dml_event import (
     DmlEvent,
     ProjectSessionAnnotationInsertEvent,
     SpanAnnotationInsertEvent,
+    TraceAnnotationInsertEvent,
 )
 from phoenix.server.online_eval import session_policy
-from phoenix.server.online_eval.bound_variables import load_session_bound_variables
+from phoenix.server.online_eval.bound_variables import (
+    TRACE_ROOT_IO_NAMES,
+    load_session_bound_variables,
+    load_trace_bound_variables,
+)
 from phoenix.server.online_eval.coordinator import (
     ClaimedWorkUnit,
     EvalWorkCoordinator,
@@ -116,8 +134,11 @@ class HydrationFailureReason(str, Enum):
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
     SESSION_CONTENT_INCOMPLETE = "SESSION_CONTENT_INCOMPLETE"
+    TRACE_MISSING = "TRACE_MISSING"
+    TRACE_PROJECT_MISMATCH = "TRACE_PROJECT_MISMATCH"
     UNSUPPORTED_TARGET = "UNSUPPORTED_TARGET"
     NO_ROOT_TURNS = "NO_ROOT_TURNS"
+    ROOT_SPAN_MISSING = "ROOT_SPAN_MISSING"
 
 
 @dataclass(frozen=True)
@@ -352,11 +373,89 @@ def has_eligible_root_turns(applied_policy: Mapping[str, Any]) -> bool:
     return bool(applied_policy["total_eligible_root_count"])
 
 
+def _trace_annotations_by_name(
+    annotations: Sequence[models.TraceAnnotation],
+) -> dict[str, list[dict[str, Any]]]:
+    """A trace's annotations grouped by name, without the annotator's identity."""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for annotation in sorted(annotations, key=lambda annotation: annotation.id):
+        grouped.setdefault(annotation.name, []).append(
+            {
+                "label": annotation.label,
+                "score": annotation.score,
+                "explanation": annotation.explanation,
+                "metadata": annotation.metadata_,
+                "annotator_kind": annotation.annotator_kind,
+            }
+        )
+    return grouped
+
+
+def trace_eval_context(
+    *,
+    vocabulary: Mapping[str, Any],
+    attributes: Mapping[str, Any],
+    events: Sequence[Mapping[str, Any]],
+    annotations: Sequence[models.TraceAnnotation],
+) -> dict[str, Any]:
+    """Trace context; ``vocabulary`` must be as ``load_trace_bound_variables`` returns it."""
+    return {
+        "input": vocabulary["input"],
+        "output": vocabulary["output"],
+        "metadata": {
+            **{
+                name: value for name, value in vocabulary.items() if name not in TRACE_ROOT_IO_NAMES
+            },
+            "attributes": attributes,
+            "events": events,
+            "trace_annotations": _trace_annotations_by_name(annotations),
+        },
+    }
+
+
+async def load_trace_eval_context(
+    session: AsyncSession,
+    *,
+    trace_rowid: int,
+    vocabulary: Mapping[str, Any],
+) -> Optional[dict[str, Any]]:
+    """The trace's evaluation context, ``None`` without a displayed root span; the
+    executor and the GraphQL preview field both read it.
+    """
+    root_spans = representative_root_span_by_trace(keys=[trace_rowid]).subquery()
+    root_span = (
+        await session.execute(
+            select(models.Span.attributes, models.Span.events).join_from(
+                root_spans,
+                models.Span,
+                models.Span.id == root_spans.c[SPAN_ROWID],
+            )
+        )
+    ).first()
+    if root_span is None:
+        return None
+    annotations = (
+        await session.scalars(
+            select(models.TraceAnnotation).where(models.TraceAnnotation.trace_rowid == trace_rowid)
+        )
+    ).all()
+    return trace_eval_context(
+        vocabulary=vocabulary,
+        attributes=root_span.attributes,
+        events=root_span.events,
+        annotations=annotations,
+    )
+
+
 def _evaluator_trace_metadata(result: EvaluationResult) -> dict[str, Any]:
     """The evaluator trace this annotation came from, for readers that want to
     open the evaluation behind a score."""
     trace_id = result.get("trace_id")
     return {_EVALUATOR_TRACE_ID_METADATA_KEY: trace_id} if trace_id else {}
+
+
+# Keyed by target row id; an executor serves one target, so its row ids are unique.
+_TargetVocabularies: TypeAlias = Mapping[int, Mapping[str, Any]]
 
 
 class _TargetContextLoader(Protocol):
@@ -366,7 +465,7 @@ class _TargetContextLoader(Protocol):
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        session_vocabularies: Mapping[int, Mapping[str, Any]],
+        target_vocabularies: _TargetVocabularies,
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure: ...
 
 
@@ -375,7 +474,7 @@ async def _load_span_context(
     unit: ClaimedWorkUnit,
     *,
     project_id: int,
-    session_vocabularies: Mapping[int, Mapping[str, Any]],
+    target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
     span = await session.get(
         models.Span,
@@ -402,7 +501,7 @@ async def _load_session_context(
     unit: ClaimedWorkUnit,
     *,
     project_id: int,
-    session_vocabularies: Mapping[int, Mapping[str, Any]],
+    target_vocabularies: _TargetVocabularies,
 ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
     project_session = await session.get(models.ProjectSession, unit.target_rowid)
     if project_session is None:
@@ -415,20 +514,49 @@ async def _load_session_context(
         session,
         project_session_rowid=project_session.id,
         project_id=project_id,
-        vocabulary=session_vocabularies[unit.target_rowid],
+        vocabulary=target_vocabularies[unit.target_rowid],
     )
     if not has_eligible_root_turns(loaded.applied_policy):
         return HydrationFailure(HydrationFailureReason.NO_ROOT_TURNS)
     return loaded.context, loaded.applied_policy
 
 
+async def _load_trace_context(
+    session: AsyncSession,
+    unit: ClaimedWorkUnit,
+    *,
+    project_id: int,
+    target_vocabularies: _TargetVocabularies,
+) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
+    trace = await session.get(models.Trace, unit.target_rowid)
+    if trace is None:
+        return HydrationFailure(HydrationFailureReason.TRACE_MISSING)
+    if trace.project_rowid != project_id:
+        return HydrationFailure(HydrationFailureReason.TRACE_PROJECT_MISMATCH)
+    context = await load_trace_eval_context(
+        session,
+        trace_rowid=trace.id,
+        vocabulary=target_vocabularies[unit.target_rowid],
+    )
+    if context is None:
+        return HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)
+    return context, None
+
+
 @dataclass(frozen=True)
 class _EvaluationTargetSpec:
     """What one evaluation target contributes to hydration and publication."""
 
+    load_vocabularies: Optional[
+        Callable[[AsyncSession, Collection[int]], Awaitable[dict[int, dict[str, Any]]]]
+    ]
     load_context: _TargetContextLoader
     target_column: str
-    annotation_table: type[models.SpanAnnotation] | type[models.ProjectSessionAnnotation]
+    annotation_table: (
+        type[models.SpanAnnotation]
+        | type[models.ProjectSessionAnnotation]
+        | type[models.TraceAnnotation]
+    )
     unique_by: tuple[str, ...]
     on_conflict: OnConflict
     insert_event: Callable[[tuple[int, ...]], DmlEvent]
@@ -436,6 +564,7 @@ class _EvaluationTargetSpec:
 
 _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] = {
     "SPAN": _EvaluationTargetSpec(
+        load_vocabularies=None,
         load_context=_load_span_context,
         target_column="span_rowid",
         annotation_table=models.SpanAnnotation,
@@ -444,12 +573,22 @@ _EVALUATION_TARGET_SPECS: dict[models.EvaluationTarget, _EvaluationTargetSpec] =
         insert_event=SpanAnnotationInsertEvent,
     ),
     "SESSION": _EvaluationTargetSpec(
+        load_vocabularies=load_session_bound_variables,
         load_context=_load_session_context,
         target_column="project_session_id",
         annotation_table=models.ProjectSessionAnnotation,
         unique_by=("name", "project_session_id", "identifier"),
         on_conflict=OnConflict.DO_UPDATE,
         insert_event=ProjectSessionAnnotationInsertEvent,
+    ),
+    "TRACE": _EvaluationTargetSpec(
+        load_vocabularies=load_trace_bound_variables,
+        load_context=_load_trace_context,
+        target_column="trace_rowid",
+        annotation_table=models.TraceAnnotation,
+        unique_by=("name", "trace_rowid", "identifier"),
+        on_conflict=OnConflict.DO_UPDATE,
+        insert_event=TraceAnnotationInsertEvent,
     ),
 }
 
@@ -461,6 +600,7 @@ class OnlineEvalExecutor:
         self,
         db: DbSessionFactory,
         *,
+        evaluation_target: models.EvaluationTarget,
         coordinator: EvalWorkCoordinator,
         decrypt: Callable[[bytes], bytes],
         sandbox_session_manager: Optional[SandboxSessionManager] = None,
@@ -471,6 +611,11 @@ class OnlineEvalExecutor:
         tracer_factory: Optional[Callable[[], Tracer]] = None,
     ) -> None:
         self._db = db
+        target_spec = _EVALUATION_TARGET_SPECS.get(evaluation_target)
+        if target_spec is None:
+            raise ValueError(f"Online evaluation execution does not support {evaluation_target}")
+        self._evaluation_target: models.EvaluationTarget = evaluation_target
+        self._target_spec = target_spec
         self._coordinator = coordinator
         self._decrypt = decrypt
         self._sandbox_session_manager = sandbox_session_manager
@@ -537,10 +682,9 @@ class OnlineEvalExecutor:
                 failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_MISSING)
             else:
                 project_evaluator, evaluator = row
-                target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
                 if not project_evaluator.enabled:
                     failure = HydrationFailure(HydrationFailureReason.PROJECT_EVALUATOR_DISABLED)
-                elif target_spec is None:
+                elif unit.evaluation_target != self._evaluation_target:
                     failure = HydrationFailure(HydrationFailureReason.UNSUPPORTED_TARGET)
                 elif evaluator is None:
                     failure = HydrationFailure(HydrationFailureReason.EVALUATOR_MISSING)
@@ -599,25 +743,18 @@ class OnlineEvalExecutor:
                 continue
             outcomes.append(None)
 
-        session_vocabularies: dict[int, dict[str, Any]] = {}
-        session_indices = [
-            index
-            for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True))
-            if outcome is None and unit.evaluation_target == "SESSION"
-        ]
-        if session_indices:
+        target_vocabularies: dict[int, dict[str, Any]] = {}
+        load_vocabularies = self._target_spec.load_vocabularies
+        pending = [index for index, outcome in enumerate(outcomes) if outcome is None]
+        if load_vocabularies is not None and pending:
             try:
-                # One savepointed batch read: a failure here is infrastructure,
-                # not a property of any one session's data.
                 async with session.begin_nested():
-                    session_vocabularies = await load_session_bound_variables(
+                    target_vocabularies = await load_vocabularies(
                         session,
-                        project_session_rowids={
-                            units[index].target_rowid for index in session_indices
-                        },
+                        {units[index].target_rowid for index in pending},
                     )
             except Exception as error:
-                for index in session_indices:
+                for index in pending:
                     outcomes[index] = SharedHydrationFailure(error)
 
         contexts: list[Optional[dict[str, Any]]] = [None for _ in units]
@@ -633,7 +770,7 @@ class OnlineEvalExecutor:
                         session,
                         unit,
                         project_id=project_evaluator.project_id,
-                        session_vocabularies=session_vocabularies,
+                        target_vocabularies=target_vocabularies,
                     )
             except Exception as error:
                 outcomes[index] = error
@@ -746,19 +883,14 @@ class OnlineEvalExecutor:
         unit: ClaimedWorkUnit,
         *,
         project_id: int,
-        session_vocabularies: Mapping[int, Mapping[str, Any]],
+        target_vocabularies: _TargetVocabularies,
     ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
         """The bindable context, plus the applied session policy for a SESSION unit."""
-        target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
-        if target_spec is None:
-            raise EvalExecutionError(
-                f"unsupported online evaluation target {unit.evaluation_target!r}"
-            )
-        return await target_spec.load_context(
+        return await self._target_spec.load_context(
             session,
             unit,
             project_id=project_id,
-            session_vocabularies=session_vocabularies,
+            target_vocabularies=target_vocabularies,
         )
 
     def hydrate_from_snapshot(
@@ -1030,11 +1162,7 @@ class OnlineEvalExecutor:
                         f"categorical output {result['name']!r} returned invalid label "
                         f"{label!r}; expected one of {sorted(allowed_labels)!r}"
                     )
-        target_spec = _EVALUATION_TARGET_SPECS.get(unit.evaluation_target)
-        if target_spec is None:
-            raise EvalExecutionError(
-                f"unsupported online evaluation target {unit.evaluation_target!r}"
-            )
+        target_spec = self._target_spec
         records = [
             {
                 target_spec.target_column: unit.target_rowid,
