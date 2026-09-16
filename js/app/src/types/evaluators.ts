@@ -196,11 +196,26 @@ export type SessionEvaluatorMappingSource = {
   metadata: Record<string, unknown>;
 };
 
-export type EvaluatorMappingSourceGrain = "dataset" | "span" | "session";
+/**
+ * As produced by the server: the root span's `input`/`output` under their trace-filter
+ * names, and everything else flat under `metadata`.
+ */
+export type TraceEvaluatorMappingSource = {
+  input: unknown;
+  output: unknown;
+  metadata: Record<string, unknown>;
+};
+
+export type EvaluatorMappingSourceGrain =
+  | "dataset"
+  | "span"
+  | "trace"
+  | "session";
 
 export type EvaluatorMappingSourceByGrain = {
   dataset: DatasetEvaluatorMappingSource;
   span: SpanEvaluatorMappingSource;
+  trace: TraceEvaluatorMappingSource;
   session: SessionEvaluatorMappingSource;
 };
 
