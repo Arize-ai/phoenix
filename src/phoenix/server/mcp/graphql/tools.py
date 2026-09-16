@@ -13,8 +13,7 @@ from phoenix.server.api.graphql_execute import (
     GraphQLRefusal,
     execute_operation,
 )
-from phoenix.server.api.schema_search import cached_index, lookup, lookup_many, search_many
-from phoenix.server.api.schema_search import search as search_schema
+from phoenix.server.api.schema_search import cached_index, describe
 from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
     ExecuteGraphqlOutput,
@@ -115,17 +114,8 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         """
         index = cached_index(_schema()._schema, include_mutations=allow_mutations)
         wanted = [n for item in _listed(names) for n in re.split(r"[,\s]+", item) if n]
-        queries = _listed(search)
-        parts = [_preamble(index.query_root)]
-        if wanted:
-            parts.append(lookup_many(index, wanted, _SEARCH_BUDGET))
-        if len(queries) == 1:
-            parts.append(search_schema(index, queries[0], _SEARCH_BUDGET))
-        elif queries:
-            parts.append(search_many(index, queries, _SEARCH_BUDGET))
-        if not wanted and not queries:
-            parts.append(lookup(index, index.query_root))
-        return "\n\n".join(parts)
+        answer = describe(index, search=_listed(search), names=wanted, budget=_SEARCH_BUDGET)
+        return "\n\n".join([_preamble(index.query_root), answer])
 
     @mcp.tool(
         tags={_GRAPHQL_TAG},
