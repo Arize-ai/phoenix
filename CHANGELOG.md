@@ -1,5 +1,37 @@
 # Changelog
 
+## [20.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.12.0...arize-phoenix-v20.13.0) (2026-09-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **datasets:** applyDatasetExampleChanges is renamed to patchDatasetExamples; datasetId is required and null patch fields are rejected.
+
+### Features
+
+* **datasets:** editable dataset examples table ([705ef38](https://github.com/Arize-ai/phoenix/commit/705ef38d24f2e63aed35f2ce62085fcd215733ec))
+* **db:** use sqlean time extension for date_trunc and latency_ms on SQLite ([#16196](https://github.com/Arize-ai/phoenix/issues/16196)) ([5269488](https://github.com/Arize-ai/phoenix/commit/5269488cee26a49d52fa63bab4e184f9e9153d98))
+* **graphql:** express patchDatasetExamples as an ordered JSON Patch-style operation list ([c7aa7c0](https://github.com/Arize-ai/phoenix/commit/c7aa7c0feb62ba93f93b293464f0e0687119aec5))
+* **graphql:** remove rootSpansOnly in favor of the span filter DSL and document the DSL in the skills ([#16190](https://github.com/Arize-ai/phoenix/issues/16190)) ([2aa7a88](https://github.com/Arize-ai/phoenix/commit/2aa7a88b08a4aafcc958e7efdd5f5af1fedd966e))
+* **harbor:** add harbor test for error analysis testing against pxi, claude with mcp, claude with px cli and skills ([#16154](https://github.com/Arize-ai/phoenix/issues/16154)) ([3b50303](https://github.com/Arize-ai/phoenix/commit/3b503033ec9bb615c3d50e2c5b3cb1ad4d5ec2dc))
+
+
+### Bug Fixes
+
+* **agents:** retain partial output on interrupted turn spans ([#15457](https://github.com/Arize-ai/phoenix/issues/15457)) ([06a21cd](https://github.com/Arize-ai/phoenix/commit/06a21cd04bcf533066b22e7b032ff4346996ed37))
+* **api:** rename Project.traceAnnotationsNames to traceAnnotationNames ([#16197](https://github.com/Arize-ai/phoenix/issues/16197)) ([eaca28a](https://github.com/Arize-ai/phoenix/commit/eaca28ade5c98c20df8b2e7f47e8eacdf9aa4e8a))
+
+
+### Documentation
+
+* add Google ADK for Java to the README integrations table ([23e8402](https://github.com/Arize-ai/phoenix/commit/23e84022610d0727b53e0d3f98fe25089700026c))
+* add Google ADK Java tracing guide ([43347e5](https://github.com/Arize-ai/phoenix/commit/43347e5d541387617ac5d622c6d589d3c729748d))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix 20.13.0 ([#16253](https://github.com/Arize-ai/phoenix/issues/16253)) ([1bc2d99](https://github.com/Arize-ai/phoenix/commit/1bc2d99d27666a6f54e9020b93857e71a2c74a9f))
+
 ## [20.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.11.0...arize-phoenix-v20.12.0) (2026-09-14)
 
 
