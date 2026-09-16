@@ -8,6 +8,8 @@ import {
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
+import type { EvaluatorMappingSourceState } from "@phoenix/store/evaluatorStore";
 import { SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT } from "@phoenix/store/evaluatorStore";
 import type {
   EvaluatorMappingSource,
@@ -211,6 +213,11 @@ describe("the preview binds what a live run binds", () => {
       source: getSampleSpanEvaluationContext().context,
     },
     {
+      label: "sample trace",
+      grain: "trace",
+      source: getSampleTraceEvaluationContext().context,
+    },
+    {
       label: "sample session",
       grain: "session",
       source: getSampleSessionEvaluationContext().context,
@@ -222,10 +229,10 @@ describe("the preview binds what a live run binds", () => {
     ({ grain, source }) => {
       const materialized = materializeEvaluatorContext({
         grain,
-        evaluatorMappingSource:
-          grain === "span"
-            ? { grain, source: source as EvaluatorMappingSource<"span"> }
-            : { grain, source: source as EvaluatorMappingSource<"session"> },
+        evaluatorMappingSource: {
+          grain,
+          source,
+        } as EvaluatorMappingSourceState,
         inputMapping: UNMAPPED,
       });
 
