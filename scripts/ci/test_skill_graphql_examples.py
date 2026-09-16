@@ -2,67 +2,20 @@
 
 from __future__ import annotations
 
-import json
-import re
-from pathlib import Path
-from typing import Any
-
 import pytest
-import yaml
-from graphql import GraphQLSchema, build_schema, parse, validate
+from graphql import GraphQLSchema, build_schema, parse, specified_rules, validate
+from graphql.validation.rules.custom.no_deprecated import NoDeprecatedCustomRule
+from skill_examples import (
+    AGENT_SKILLS_ROOT,
+    SCHEMA_PATH,
+    graphql_queries_by_location,
+    public_agent_skill_dirs,
+)
 
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOT, SHARED_SKILLS_ROOT
+# Deprecated fields and arguments fail validation.
+_VALIDATION_RULES = (*specified_rules, NoDeprecatedCustomRule)
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_PATH = REPO_ROOT / "js" / "app" / "schema.graphql"
-AGENT_SKILLS_ROOT = REPO_ROOT / ".agents" / "skills"
-THIRD_PARTY_SKILLS_LOCKFILE = REPO_ROOT / "skills-lock.json"
-
-_GRAPHQL_FENCE = re.compile(r"^[ \t]*```graphql[^\n]*\n(.*?)^[ \t]*```", re.DOTALL | re.MULTILINE)
-_FRONTMATTER = re.compile(r"\A---\n(.*?)\n---", re.DOTALL)
-
-
-def _frontmatter(skill_dir: Path) -> dict[str, Any]:
-    match = _FRONTMATTER.match((skill_dir / "SKILL.md").read_text(encoding="utf-8"))
-    return yaml.safe_load(match.group(1)) if match else {}
-
-
-def _is_internal(skill_dir: Path) -> bool:
-    return bool(_frontmatter(skill_dir).get("metadata", {}).get("internal"))
-
-
-def _skill_dirs(root: Path) -> list[Path]:
-    return sorted(path for path in root.iterdir() if (path / "SKILL.md").is_file())
-
-
-def _public_agent_skill_dirs() -> list[Path]:
-    third_party = json.loads(THIRD_PARTY_SKILLS_LOCKFILE.read_text(encoding="utf-8"))["skills"]
-    return [
-        skill_dir
-        for skill_dir in _skill_dirs(AGENT_SKILLS_ROOT)
-        if skill_dir.name not in third_party and not _is_internal(skill_dir)
-    ]
-
-
-def _shipped_skill_dirs() -> list[Path]:
-    return [
-        *_skill_dirs(SHARED_SKILLS_ROOT),
-        *_skill_dirs(PXI_SKILLS_ROOT),
-        *_public_agent_skill_dirs(),
-    ]
-
-
-def _queries_by_location() -> dict[str, str]:
-    queries: dict[str, str] = {}
-    for skill_dir in _shipped_skill_dirs():
-        for path in sorted(skill_dir.rglob("*.md")):
-            text = path.read_text(encoding="utf-8")
-            for index, match in enumerate(_GRAPHQL_FENCE.finditer(text)):
-                queries[f"{path.relative_to(REPO_ROOT)}#{index}"] = match.group(1)
-    return queries
-
-
-QUERIES_BY_LOCATION = _queries_by_location()
+QUERIES_BY_LOCATION = graphql_queries_by_location()
 
 
 @pytest.fixture(scope="module")
@@ -71,7 +24,7 @@ def schema() -> GraphQLSchema:
 
 
 def test_public_agent_skills_exist() -> None:
-    assert _public_agent_skill_dirs()
+    assert public_agent_skill_dirs()
 
 
 @pytest.mark.parametrize(
@@ -79,7 +32,7 @@ def test_public_agent_skills_exist() -> None:
 )
 def test_non_public_agent_skills_are_excluded(skill_name: str) -> None:
     assert (AGENT_SKILLS_ROOT / skill_name / "SKILL.md").is_file()
-    assert skill_name not in {skill_dir.name for skill_dir in _public_agent_skill_dirs()}
+    assert skill_name not in {skill_dir.name for skill_dir in public_agent_skill_dirs()}
 
 
 def test_fence_pattern_finds_examples() -> None:
@@ -88,5 +41,5 @@ def test_fence_pattern_finds_examples() -> None:
 
 @pytest.mark.parametrize("query", QUERIES_BY_LOCATION.values(), ids=QUERIES_BY_LOCATION.keys())
 def test_example_validates_against_exported_schema(schema: GraphQLSchema, query: str) -> None:
-    errors = validate(schema, parse(query))
+    errors = validate(schema, parse(query), _VALIDATION_RULES)
     assert not errors, [error.message for error in errors]

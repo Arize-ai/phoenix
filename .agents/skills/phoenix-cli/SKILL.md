@@ -5,7 +5,7 @@ license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.4.0"
+  version: "3.5.0"
 ---
 
 # Phoenix CLI
@@ -422,126 +422,77 @@ px api graphql '{ evaluators { edges { node { name kind } } } }' | jq '.data.eva
 px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' | jq '.data.__type.fields[]'
 ```
 
-Key root fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
+Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
 
-### Span filter expressions
+`getProjectByName(name:)` targets one project; `projects(first: 1)` picks an
+arbitrary one. There is no `traces` connection: to list traces, query `spans`
+with `filterCondition: "parent_span is None"`, which keeps root spans, as the
+UI's traces table does. See [Filter expressions](#filter-expressions) below.
 
-`Project.spans` takes a `filterCondition` — a Python expression over per-span
-values, the same language the UI's **spans** filter bar compiles. (The traces
-tab compiles the separate trace-level language described below.) Annotations are reached through three
-subscript accessors, and **the accessor picks the level**:
+### Filter expressions
+
+`spans`, `sessions`, and the project aggregates take filter conditions: Python
+boolean expressions compiled server-side. There are three languages, and the
+argument picks the language. Read
+[references/filter-expressions.md](references/filter-expressions.md) before
+writing a condition; it has the full vocabulary, operators, and compiled
+examples for each.
+
+| Argument | Matches | Names come from |
+| -------- | ------- | --------------- |
+| `filterCondition` | individual spans | the exhaustive table in the reference |
+| `traceFilterCondition` | whole traces | `traceFilterVocabulary` |
+| `sessionFilterCondition` | sessions | `sessionFilterVocabulary` |
+
+**Root spans.** There is no `traces` connection and no root-span argument.
+`filterCondition: "parent_span is None"` keeps root spans, including orphans
+whose parent was never received, and is what the UI's traces table runs;
+`parent_id is None` keeps only spans with no parent id. A root span is usually
+one per trace, and either clause composes with the rest of the filter:
+
+```bash
+px api graphql '{
+  getProjectByName(name: "default") { spans(
+    first: 20
+    filterCondition: "parent_id is None and status_code == \"ERROR\""
+    sort: { col: startTime, dir: desc }
+  ) { edges { node { spanId name latencyMs } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
+```
+
+**Annotations.** The accessor picks the level, and the wrong level matches
+nothing:
 
 | Accessor | Matches annotations on | Written by |
 | -------- | ---------------------- | ---------- |
 | `annotations["name"]` | the span itself | `px span annotate`, `px span add-note` |
-| `evals["name"]` | the span itself (accepted alongside `annotations`) | same as above |
-| `trace_annotations["name"]` | the span's parent **trace** | `px trace annotate`, `px trace add-note` |
-
-Each yields `.label`, `.score`, and `.explanation`. `trace_annotations` joins a
-span through its trace row ID, so every span in an annotated trace matches — pair
-it with `rootSpansOnly: true` when you want one row per trace:
+| `trace_annotations["name"]` | the span's parent trace | `px trace annotate`, `px trace add-note` |
+| `session_annotations["name"]` | the session (session filter only) | `px session annotate`, `px session add-note` |
 
 ```bash
 px api graphql '{
-  projects(first: 1) { edges { node { spans(
+  getProjectByName(name: "default") { spans(
     first: 20
-    rootSpansOnly: true
-    filterCondition: "trace_annotations[\"quality\"].label == \"poor\""
-  ) { edges { node { spanId name } } } } } }
-}' | jq '.data.projects.edges[0].node.spans.edges[].node'
+    filterCondition: "parent_id is None and trace_annotations[\"quality\"].label == \"poor\""
+  ) { edges { node { spanId name } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
-Picking the wrong accessor fails silently rather than erroring: filtering with
-`annotations[...]` for an annotation that was written at the trace level joins
-against span annotations and matches nothing.
-
-Which accessors a filter accepts depends on the filter, and only the span filter accepts more than one:
-
-| Filter | Accepted annotation accessors |
-| ------ | ----------------------------- |
-| `filterCondition` (span) | `annotations[...]`, `evals[...]`, `trace_annotations[...]` |
-| `traceFilterCondition` (trace) | `trace_annotations[...]` |
-| `sessionFilterCondition` (session) | `session_annotations[...]` |
-
-An accessor used at the wrong level is a compile error, not a silent miss —
-e.g. `annotations[...]` in a trace filter fails with `` `annotations[...]` is
-not available in the trace filter; use `trace_annotations[...]` for trace
-annotations, or iterate `span_annotations` for span-level annotations ``.
-
-### Trace filter expressions
-
-`Project.spans` also takes a `traceFilterCondition` — a trace-level expression
-that keeps spans whose **trace** matches. It is the language the UI's traces
-table compiles, and it is the filter to reach for when the question is about
-whole traces ("which traces errored and took over a second") rather than
-individual spans. Pair it with `rootSpansOnly: true` for one row per trace:
+**Traces.** `traceFilterCondition` keeps the spans of matching traces and
+composes with `filterCondition`:
 
 ```bash
 px api graphql '{
-  projects(first: 1) { edges { node { spans(
+  getProjectByName(name: "default") { spans(
     first: 20
-    rootSpansOnly: true
+    filterCondition: "parent_id is None"
     traceFilterCondition: "error_count > 0 and latency_ms > 1000"
-  ) { edges { node { spanId name latencyMs } } } } } }
-}' | jq '.data.projects.edges[0].node.spans.edges[].node'
+  ) { edges { node { spanId name latencyMs } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
 ```
 
-`traceFilterCondition` and the span-level `filterCondition` are **not** mutually
-exclusive on `spans` — passing both narrows to matching spans inside matching
-traces.
-
-Discover names and check an expression the same way as for sessions:
-
-```bash
-px api graphql '{ projects(first: 1) { edges { node { traceFilterVocabulary {
-  name type category description iterableName } } } } }' \
-  | jq '.data.projects.edges[0].node.traceFilterVocabulary[] | {name, type, category}'
-
-px api graphql '{ projects(first: 1) { edges { node {
-  validateTraceFilterCondition(condition: "error_count > 0") {
-    isValid errorMessage warnings }
-} } } }'
-```
-
-Bound names: the intrinsics `trace_id`, `start_time`, `end_time`, `latency_ms`;
-the span-derived rollups `num_spans`, `error_count`, `token_count_prompt`,
-`token_count_completion`, `token_count_total`, `prompt_cost`,
-`completion_cost`, `total_cost`, `tool_span_count`, `llm_span_count`; the
-root-span reads `input`, `output`, `attributes["llm.model_name"]`, `user.id`,
-and `metadata["key"]`; `trace_annotations["name"]` for trace annotations; and
-the iterables `spans`, `trace_annotations`, `span_annotations`, and
-`span_cost_details` for comprehensions (`any` / `all` / `len` / `sum` / `max` /
-`min`). Inside a `spans` comprehension each element exposes `name`,
-`parent_id`, `span_kind`, `status_code`, `start_time`, `end_time`,
-`latency_ms`, the `cumulative_*` subtree rollups, and the relations
-`parent_span`, `children`, `siblings`, `annotations`, and `cost_details`:
-
-```python
-any(span.span_kind == "LLM" and span.latency_ms > 5000 for span in spans)
-any(span.parent_span.span_kind == "LLM" and span.span_kind == "TOOL" for span in spans)
-any(annotation.label == "hallucinated" for annotation in span_annotations)
-```
-
-Four rules the trace filter enforces, the first two of which differ from the
-span filter:
-
-- **Unknown names are rejected**, with a `did you mean "…"?` suggestion. Span
-  filters instead read an unknown name as an attribute path, so a typo there
-  matches nothing; here a typo is an explicit error.
-- **Rollups are `0`, never null.** `error_count == 0` matches traces with no
-  errors; there is no missing case to test with `is None`.
-- **Datetime literals need an explicit offset** — `start_time >=
-  "2026-07-01T00:00:00Z"`. A naive literal is rejected, as in every filter.
-- **Root-span reads follow the displayed root.** `input`, `output`,
-  `attributes[...]`, `user.id`, and `metadata[...]` bind to the same
-  representative span the traces table shows, so a predicate matches what you
-  see. A trace with no root candidate has no values for these.
-
-### Session filter expressions
-
-`px session list` has no filter flag, so selecting sessions by shape means going
-through GraphQL. `Project.sessions` takes a `sessionFilterCondition` — a Python
-expression over per-session values, analogous to the span filter language:
+**Sessions.** `px session list` has no filter flag, so selecting sessions by
+shape goes through GraphQL:
 
 ```bash
 px api graphql '{
@@ -552,44 +503,23 @@ px api graphql '{
 }' | jq '.data.projects.edges[0].node.sessions.edges[].node'
 ```
 
-Discover the bindable names for a project with the vocabulary query. The
-vocabulary is generated from the compiler's own bindings, so it always matches
-what compiles:
+**Discover names and validate.** The vocabularies are generated from the
+compiler's own bindings, so they always match what compiles:
 
 ```bash
-px api graphql '{ projects(first: 1) { edges { node { sessionFilterVocabulary {
+px api graphql '{ projects(first: 1) { edges { node { traceFilterVocabulary {
   name type category description iterableName } } } } }' \
-  | jq '.data.projects.edges[0].node.sessionFilterVocabulary[] | {name, type, category}'
+  | jq '.data.projects.edges[0].node.traceFilterVocabulary[] | {name, type, category}'
 
-# Check an expression before running it
 px api graphql '{ projects(first: 1) { edges { node {
+  validateSpanFilterCondition(condition: "parent_id is None") { isValid errorMessage }
+  validateTraceFilterCondition(condition: "error_count > 0") { isValid errorMessage }
   validateSessionFilterCondition(condition: "num_traces > 5") { isValid errorMessage }
 } } } }'
 ```
 
-Commonly bound names: `session_id`, `start_time`, `end_time`, `duration_ms`,
-`num_traces`, `num_traces_with_error`, `token_count_prompt`,
-`token_count_completion`, `token_count_total`, `prompt_cost`, `completion_cost`,
-`total_cost`, `tool_span_count`, `llm_span_count`, the root-span text values
-`first_input` / `last_output` and their existential counterparts `any_input` /
-`any_output`, root-span attribute access via `attributes["llm.model_name"]`
-(with `user.id` and `metadata["key"]` accepted as proxies), the iterables
-`spans`, `traces`, `session_annotations`, and `span_annotations` for
-comprehensions (`any(...)` / `all(...)` / `len([...])`), and
-`session_annotations["name"].score|.label` for session annotations. Three rules
-the DSL enforces and an agent will otherwise get wrong:
-
-- **A missing value fails every comparison, in both directions.** A session with
-  no recorded input matches neither `'x' in first_input` nor its negation. Target
-  the missing case explicitly with `is None`.
-- **`in` against a string ignores case; `==` matches exactly.** This holds at
-  every filter, so the same query gives the same answer in the spans view.
-- **`any_input` / `any_output` are containment tests, not values.** Write
-  `'refund' in any_input`, never `any_input == 'refund'`.
-
-On fields that accept both filter levels (e.g. `Project.recordCount`),
-`sessionFilterCondition` and the span-level `filterCondition` are mutually
-exclusive — passing both is a request error.
+On fields that accept both levels (e.g. `Project.recordCount`),
+`sessionFilterCondition` and `filterCondition` are mutually exclusive.
 
 ## Docs
 

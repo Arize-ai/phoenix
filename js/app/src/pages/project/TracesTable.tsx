@@ -334,7 +334,7 @@ export function TracesTable(props: TracesTableProps) {
             first: $first
             after: $after
             sort: $sort
-            rootSpansOnly: true
+            filterCondition: "parent_span is None"
             traceFilterCondition: $traceFilterCondition
             timeRange: $timeRange
           ) @connection(key: "TracesTable_rootSpans") {

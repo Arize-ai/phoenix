@@ -4,6 +4,7 @@ import unittest
 
 from tests.backup import suite as backup_suite
 from tests.dbapi import suite as dbapi_suite
+from tests.driver_regressions import suite as driver_regressions_suite
 from tests.extensions import suite as extensions_suite
 from tests.factory import suite as factory_suite
 from tests.hooks import suite as hooks_suite
@@ -18,6 +19,7 @@ def test(verbosity=1, failfast=False):
     all_tests = unittest.TestSuite((
         backup_suite(),
         dbapi_suite(),
+        driver_regressions_suite(),
         extensions_suite(),
         factory_suite(),
         hooks_suite(),

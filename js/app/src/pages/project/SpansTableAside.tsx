@@ -54,7 +54,7 @@ function getSpansAsideValues(project: SpansAsideProject) {
       project?.spanAnnotationNames ?? []
     ),
     traceAnnotationNames: getNonNoteAnnotationNames(
-      project?.traceAnnotationsNames ?? []
+      project?.traceAnnotationNames ?? []
     ),
     traceCount: project?.timeRangeTraceCount,
   };
@@ -105,7 +105,7 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
               filterCondition: $filterCondition
             )
             spanAnnotationNames
-            traceAnnotationsNames
+            traceAnnotationNames
             documentEvaluationNames
           }
         }

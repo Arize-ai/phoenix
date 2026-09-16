@@ -430,7 +430,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List dataset splits */
+        get: operations["listDatasetSplits"];
         put?: never;
         /** Create a dataset split */
         post: operations["createDatasetSplit"];
@@ -3979,6 +3980,13 @@ export interface components {
         ListDatasetLabelsForDatasetResponseBody: {
             /** Data */
             data: components["schemas"]["DatasetLabel"][];
+        };
+        /** ListDatasetSplitsResponseBody */
+        ListDatasetSplitsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetSplit"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** ListDatasetVersionsResponseBody */
         ListDatasetVersionsResponseBody: {
@@ -8959,6 +8967,61 @@ export interface operations {
             };
         };
     };
+    listDatasetSplits: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination */
+                cursor?: string | null;
+                /** @description The max number of dataset splits to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDatasetSplitsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     createDatasetSplit: {
         parameters: {
             query?: never;
@@ -10112,12 +10175,23 @@ export interface operations {
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
-                /** @description Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI. */
+                /**
+                 * @deprecated
+                 * @description Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.
+                 */
                 error?: boolean | null;
-                /** @description Inclusive lower bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.
+                 */
                 min_latency_ms?: number | null;
-                /** @description Inclusive upper bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.
+                 */
                 max_latency_ms?: number | null;
+                /** @description Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -10135,6 +10209,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
@@ -11904,6 +11987,8 @@ export interface operations {
                 limit?: number;
                 /** @description Sort order by ID: 'asc' (ascending) or 'desc' (descending). */
                 order?: "asc" | "desc";
+                /** @description Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -11921,6 +12006,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetSessionsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */

@@ -1,4 +1,5 @@
 import {
+  blankJSONValue,
   clearJSONValues,
   createEmptyJSONStructure,
   expandStringifiedJSON,
@@ -1165,6 +1166,37 @@ describe("clearJSONValues", () => {
         ],
       });
     });
+  });
+});
+
+describe("blankJSONValue", () => {
+  it("keeps keys and clears leaf values", () => {
+    expect(
+      blankJSONValue({
+        question: "What is Phoenix?",
+        attempts: 3,
+        graded: true,
+        note: null,
+      })
+    ).toEqual({ question: "", attempts: 0, graded: false, note: null });
+  });
+
+  it("keeps a single blanked element as an array sample", () => {
+    expect(
+      blankJSONValue({
+        messages: [
+          { role: "user", content: "hi" },
+          { role: "assistant", content: "hello" },
+        ],
+        tags: [],
+      })
+    ).toEqual({ messages: [{ role: "", content: "" }], tags: [] });
+  });
+
+  it("recurses through nested objects", () => {
+    expect(
+      blankJSONValue({ tools: { required: ["get_route_info"], count: 1 } })
+    ).toEqual({ tools: { required: [""], count: 0 } });
   });
 });
 

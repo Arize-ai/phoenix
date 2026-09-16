@@ -1,5 +1,71 @@
 # Changelog
 
+## [20.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.12.0...arize-phoenix-v20.13.0) (2026-09-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **datasets:** applyDatasetExampleChanges is renamed to patchDatasetExamples; datasetId is required and null patch fields are rejected.
+
+### Features
+
+* **datasets:** editable dataset examples table ([705ef38](https://github.com/Arize-ai/phoenix/commit/705ef38d24f2e63aed35f2ce62085fcd215733ec))
+* **db:** use sqlean time extension for date_trunc and latency_ms on SQLite ([#16196](https://github.com/Arize-ai/phoenix/issues/16196)) ([5269488](https://github.com/Arize-ai/phoenix/commit/5269488cee26a49d52fa63bab4e184f9e9153d98))
+* **graphql:** express patchDatasetExamples as an ordered JSON Patch-style operation list ([c7aa7c0](https://github.com/Arize-ai/phoenix/commit/c7aa7c0feb62ba93f93b293464f0e0687119aec5))
+* **graphql:** remove rootSpansOnly in favor of the span filter DSL and document the DSL in the skills ([#16190](https://github.com/Arize-ai/phoenix/issues/16190)) ([2aa7a88](https://github.com/Arize-ai/phoenix/commit/2aa7a88b08a4aafcc958e7efdd5f5af1fedd966e))
+* **harbor:** add harbor test for error analysis testing against pxi, claude with mcp, claude with px cli and skills ([#16154](https://github.com/Arize-ai/phoenix/issues/16154)) ([3b50303](https://github.com/Arize-ai/phoenix/commit/3b503033ec9bb615c3d50e2c5b3cb1ad4d5ec2dc))
+
+
+### Bug Fixes
+
+* **agents:** retain partial output on interrupted turn spans ([#15457](https://github.com/Arize-ai/phoenix/issues/15457)) ([06a21cd](https://github.com/Arize-ai/phoenix/commit/06a21cd04bcf533066b22e7b032ff4346996ed37))
+* **api:** rename Project.traceAnnotationsNames to traceAnnotationNames ([#16197](https://github.com/Arize-ai/phoenix/issues/16197)) ([eaca28a](https://github.com/Arize-ai/phoenix/commit/eaca28ade5c98c20df8b2e7f47e8eacdf9aa4e8a))
+
+
+### Documentation
+
+* add Google ADK for Java to the README integrations table ([23e8402](https://github.com/Arize-ai/phoenix/commit/23e84022610d0727b53e0d3f98fe25089700026c))
+* add Google ADK Java tracing guide ([43347e5](https://github.com/Arize-ai/phoenix/commit/43347e5d541387617ac5d622c6d589d3c729748d))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix 20.13.0 ([#16253](https://github.com/Arize-ai/phoenix/issues/16253)) ([1bc2d99](https://github.com/Arize-ai/phoenix/commit/1bc2d99d27666a6f54e9020b93857e71a2c74a9f))
+
+## [20.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.11.0...arize-phoenix-v20.12.0) (2026-09-14)
+
+
+### Features
+
+* **api:** expose trace and session filter expressions ([#16077](https://github.com/Arize-ai/phoenix/issues/16077)) ([d613de7](https://github.com/Arize-ai/phoenix/commit/d613de73943972bef1dd966de4d5e36254235d06))
+* **server:** add GET /datasets/{dataset_identifier}/splits ([e60697f](https://github.com/Arize-ai/phoenix/commit/e60697fe1e24ca84909e602b207b62af42bb3860)), closes [#12090](https://github.com/Arize-ai/phoenix/issues/12090)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([25b95d7](https://github.com/Arize-ai/phoenix/commit/25b95d7fd4d2dbeaf6faa3fe8b72fde255f60e47))
+* **server:** address review findings for GET /datasets/{dataset_identifier}/splits ([655802b](https://github.com/Arize-ai/phoenix/commit/655802b21016aa74d42dec2d4e38ea6fdc5ea969))
+* **server:** scope listed dataset splits by example membership only ([eafa87c](https://github.com/Arize-ai/phoenix/commit/eafa87c45ee1b0d39676f21ddcee19a9a6140fb3))
+
+## [20.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.10.0...arize-phoenix-v20.11.0) (2026-09-12)
+
+
+### Features
+
+* **annotations:** add GraphQL mutations for span, trace, and session notes ([#16053](https://github.com/Arize-ai/phoenix/issues/16053)) ([e374a4d](https://github.com/Arize-ai/phoenix/commit/e374a4d92afc7852da4479abffd6c42e1391230b))
+* **mcp:** serve the shared skills root on the /mcp mount ([#15726](https://github.com/Arize-ai/phoenix/issues/15726)) ([dd2e22d](https://github.com/Arize-ai/phoenix/commit/dd2e22dd0d9adb315c130150312b9163b98e48b5))
+* **skills:** add phoenix-error-analysis skill ([#15727](https://github.com/Arize-ai/phoenix/issues/15727)) ([df349f2](https://github.com/Arize-ai/phoenix/commit/df349f2bad089dfa5088c8947dee1f9b2d11a205))
+
+
+### Bug Fixes
+
+* **mcp:** carry lifespan state into in-process tool dispatch ([#16109](https://github.com/Arize-ai/phoenix/issues/16109)) ([a516ac3](https://github.com/Arize-ai/phoenix/commit/a516ac3cd136691d026e423e894c6e6529c0f6ef))
+
+
+### Documentation
+
+* restructure the Claude Code plugin docs as its own section ([400d187](https://github.com/Arize-ai/phoenix/commit/400d187aa28dd1c322ddea6696487f5f38bd8e7c))
+
 ## [20.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.9.0...arize-phoenix-v20.10.0) (2026-09-11)
 
 

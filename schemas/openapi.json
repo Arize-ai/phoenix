@@ -2924,6 +2924,100 @@
       }
     },
     "/v1/datasets/{dataset_identifier}/splits": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List dataset splits",
+        "operationId": "listDatasetSplits",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The max number of dataset splits to return at a time.",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "The max number of dataset splits to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetSplitsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      },
       "post": {
         "tags": [
           "datasets"
@@ -4755,10 +4849,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
+              "deprecated": true,
               "title": "Error"
             },
-            "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI."
+            "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
+            "deprecated": true
           },
           {
             "name": "min_latency_ms",
@@ -4774,10 +4870,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive lower bound on trace latency in milliseconds.",
+              "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+              "deprecated": true,
               "title": "Min Latency Ms"
             },
-            "description": "Inclusive lower bound on trace latency in milliseconds."
+            "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+            "deprecated": true
           },
           {
             "name": "max_latency_ms",
@@ -4793,10 +4891,30 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive upper bound on trace latency in milliseconds.",
+              "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+              "deprecated": true,
               "title": "Max Latency Ms"
             },
-            "description": "Inclusive upper bound on trace latency in milliseconds."
+            "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+            "deprecated": true
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -4819,6 +4937,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -7631,6 +7759,24 @@
               "title": "Order"
             },
             "description": "Sort order by ID: 'asc' (ascending) or 'desc' (descending)."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -7653,6 +7799,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -15158,6 +15314,34 @@
           "data"
         ],
         "title": "ListDatasetLabelsForDatasetResponseBody"
+      },
+      "ListDatasetSplitsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplit"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListDatasetSplitsResponseBody"
       },
       "ListDatasetVersionsResponseBody": {
         "properties": {

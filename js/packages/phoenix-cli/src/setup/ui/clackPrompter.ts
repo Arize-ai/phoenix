@@ -7,16 +7,9 @@
  * command handler.
  */
 
-import {
-  intro,
-  isCancel,
-  log,
-  outro,
-  password,
-  select,
-  text,
-} from "@clack/prompts";
+import { intro, log, outro, password, select, text } from "@clack/prompts";
 
+import { isCancelled } from "../../clackCancel";
 import type { Prompter, SelectOption } from "../deps";
 import { SetupCancelledError } from "../errors";
 
@@ -48,7 +41,7 @@ export function createClackPrompter(): Prompter {
             hint: option.hint,
           })) as Parameters<typeof select<T>>[0]["options"],
         });
-        if (isCancel(answer)) {
+        if (isCancelled(answer)) {
           throw new SetupCancelledError();
         }
         const picked = args.options.find((option) => option.value === answer);
@@ -83,7 +76,7 @@ export function createClackPrompter(): Prompter {
             }
           : undefined,
       });
-      if (isCancel(answer)) {
+      if (isCancelled(answer)) {
         throw new SetupCancelledError();
       }
       return answer;
@@ -100,7 +93,7 @@ export function createClackPrompter(): Prompter {
           ? (value) => args.validate?.(value ?? "")
           : undefined,
       });
-      if (isCancel(answer)) {
+      if (isCancelled(answer)) {
         throw new SetupCancelledError();
       }
       return answer;

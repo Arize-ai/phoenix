@@ -8,7 +8,7 @@ from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
 
 import strawberry
-from aioitertools.itertools import groupby, islice
+from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
 from sqlalchemy import Select, case, desc, distinct, func, or_, select
@@ -17,7 +17,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
 from strawberry import ID, UNSET, lazy
-from strawberry.relay import Connection, Edge, GlobalID, Node, NodeID, PageInfo
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -40,7 +40,7 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
 )
-from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
@@ -83,7 +83,6 @@ from phoenix.server.session_filters import (
 )
 from phoenix.server.trace_filters import (
     TraceFilterConditionError,
-    apply_trace_filter_to_page,
     compile_trace_filter,
     get_filtered_trace_rowids_subquery,
     trace_filter_errors,
@@ -602,7 +601,17 @@ class Project(Node):
                 return None
         return Trace(id=trace.id, db_record=trace)
 
-    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
+    @strawberry.field(
+        extensions=[RequireForwardPaginationExtension()],
+        description="Spans in the project. filterCondition is a span filter expression: a "
+        "Python boolean expression over span fields (span_kind, status_code, latency_ms, "
+        "parent_id, attributes, annotations[...], ...), not a substring of the span's "
+        "input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` "
+        "to also count orphan spans whose parent was never received. traceFilterCondition is a "
+        "trace filter expression (see "
+        "traceFilterVocabulary) that keeps the spans of matching traces; the two arguments "
+        "compose.",
+    )  # type: ignore[untyped-decorator]
     async def spans(
         self,
         info: Info[Context, None],
@@ -612,22 +621,9 @@ class Project(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         sort: Optional[SpanSort] = UNSET,
-        root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
-        orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
-        if root_spans_only and not filter_condition and sort and sort.col is SpanColumn.startTime:
-            return await _paginate_span_by_trace_start_time(
-                db=info.context.db,
-                project_rowid=self.id,
-                time_range=time_range,
-                first=first,
-                after=after,
-                sort=sort,
-                orphan_span_as_root_span=orphan_span_as_root_span,
-                trace_filter_condition=trace_filter_condition,
-            )
         stmt = (
             select(models.Span.id)
             .select_from(models.Span)
@@ -646,18 +642,8 @@ class Project(Node):
                 start_time=time_range.start if time_range else None,
                 end_time=time_range.end if time_range else None,
                 lowering="probe",
-                orphan_span_as_root_span=bool(orphan_span_as_root_span),
             )
             stmt = stmt.where(models.Span.trace_rowid.in_(filtered_trace_rowids))
-        if root_spans_only:
-            representative_root_spans = representative_root_span_by_trace(
-                project_rowids=[self.id],
-                orphan_span_as_root_span=bool(orphan_span_as_root_span),
-            ).subquery()
-            stmt = stmt.join(
-                representative_root_spans,
-                models.Span.id == representative_root_spans.c[TRACE_SPAN_ROWID],
-            )
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
@@ -936,7 +922,7 @@ class Project(Node):
         description="Names of all available annotations for traces. "
         "(The list contains no duplicates.)"
     )  # type: ignore
-    async def trace_annotations_names(
+    async def trace_annotation_names(
         self,
         info: Info[Context, None],
     ) -> list[str]:
@@ -2861,189 +2847,6 @@ def _as_datetime(value: Any) -> datetime:
     if isinstance(value, str):
         return cast(datetime, normalize_datetime(datetime.fromisoformat(value), timezone.utc))
     raise ValueError(f"Cannot convert {value} to datetime")
-
-
-async def _paginate_span_by_trace_start_time(
-    db: DbSessionFactory,
-    project_rowid: int,
-    first: int,
-    time_range: Optional[TimeRange] = None,
-    after: Optional[CursorString] = None,
-    sort: SpanSort = SpanSort(col=SpanColumn.startTime, dir=SortDir.desc),
-    orphan_span_as_root_span: Optional[bool] = True,
-    trace_filter_condition: Optional[str] = None,
-    retries: int = 3,
-) -> Connection[Span]:
-    """Return one representative root span per trace, ordered by trace start time.
-
-    **Note**: Despite the function name, cursors are based on trace rowids, not span rowids.
-    This is because we paginate by traces (one span per trace), not individual spans.
-
-    **Important**: The edges list can be empty while has_next_page=True. This happens
-    when traces exist but have no matching root spans. Pagination continues because there
-    may be more traces ahead with spans.
-
-    Args:
-        db: Database session factory.
-        project_rowid: Project ID to query spans from.
-        time_range: Optional time range filter on trace start times.
-        first: Maximum number of edges to return (default: DEFAULT_PAGE_SIZE).
-        after: Cursor for pagination (points to trace position, not span).
-        sort: Sort by trace start time (asc/desc only).
-        orphan_span_as_root_span: Whether to include orphan spans as root spans.
-            True: spans with parent_id=NULL OR pointing to non-existent spans.
-            False: only spans with parent_id=NULL.
-        trace_filter_condition: Optional trace-grain expression applied before pagination.
-        retries: Maximum number of retry attempts when insufficient edges are found.
-            When traces exist but lack root spans, the function retries pagination
-            to find traces with spans. Set to 0 to disable retries.
-
-    Returns:
-        Connection[Span] with:
-        - edges: At most one Edge per trace (may be empty list).
-        - page_info: Pagination info based on trace positions.
-
-    Key Points:
-        - Traces without root spans produce NO edges
-        - Spans ordered by trace start time, not span start time
-        - Cursors track trace positions for efficient large-scale pagination
-    """
-    # Build base trace query ordered by start time
-    traces = select(
-        models.Trace.id,
-        models.Trace.start_time,
-    ).where(models.Trace.project_rowid == project_rowid)
-    if sort.dir is SortDir.desc:
-        traces = traces.order_by(
-            models.Trace.start_time.desc(),
-            models.Trace.id.desc(),
-        )
-    else:
-        traces = traces.order_by(
-            models.Trace.start_time.asc(),
-            models.Trace.id.asc(),
-        )
-
-    # Apply time range filters
-    if time_range:
-        if time_range.start:
-            traces = traces.where(time_range.start <= models.Trace.start_time)
-        if time_range.end:
-            traces = traces.where(models.Trace.start_time < time_range.end)
-
-    if trace_filter_condition:
-        traces = apply_trace_filter_to_page(
-            traces,
-            trace_filter_condition=trace_filter_condition,
-            project_rowids=[project_rowid],
-            start_time=time_range.start if time_range else None,
-            end_time=time_range.end if time_range else None,
-            lowering="probe",
-            orphan_span_as_root_span=bool(orphan_span_as_root_span),
-        )
-
-    # Apply cursor pagination
-    if after:
-        cursor = Cursor.from_string(after)
-        assert cursor.sort_column
-        compare = operator.lt if sort.dir is SortDir.desc else operator.gt
-        traces = traces.where(
-            compare(
-                tuple_(models.Trace.start_time, models.Trace.id),
-                (cursor.sort_column.value, cursor.rowid),
-            )
-        )
-
-    # Limit for pagination
-    traces = traces.limit(
-        first + 1  # over-fetch by one to determine whether there's a next page
-    )
-    traces_cte = traces.cte()
-
-    representative_root_spans = representative_root_span_by_trace(
-        keys=select(traces_cte.c.id),
-        orphan_span_as_root_span=bool(orphan_span_as_root_span),
-    ).subquery()
-    stmt = select(
-        traces_cte.c.id,
-        traces_cte.c.start_time,
-        representative_root_spans.c[TRACE_SPAN_ROWID],
-    ).join_from(
-        traces_cte,
-        representative_root_spans,
-        onclause=representative_root_spans.c[TRACE_ROWID] == traces_cte.c.id,
-        isouter=True,
-    )
-
-    # Order by trace time, then pick earliest span per trace
-    if sort.dir is SortDir.desc:
-        stmt = stmt.order_by(
-            traces_cte.c.start_time.desc(),
-            traces_cte.c.id.desc(),
-        )
-    else:
-        stmt = stmt.order_by(
-            traces_cte.c.start_time.asc(),
-            traces_cte.c.id.asc(),
-        )
-
-    # Process results and build edges
-    edges: list[Edge[Span]] = []
-    start_cursor: Optional[str] = None
-    end_cursor: Optional[str] = None
-    async with db() as session:
-        records = groupby(await session.stream(stmt), key=lambda record: record[:2])
-        async for (trace_rowid, trace_start_time), group in islice(records, first):
-            cursor = Cursor(
-                rowid=trace_rowid,
-                sort_column=CursorSortColumn(
-                    type=CursorSortColumnDataType.DATETIME,
-                    value=trace_start_time,
-                ),
-            )
-            if start_cursor is None:
-                start_cursor = str(cursor)
-            end_cursor = str(cursor)
-            first_record = group[0]
-            # Only create edge if trace has a root span
-            if (span_rowid := first_record[2]) is not None:
-                edges.append(Edge(node=Span(id=span_rowid), cursor=str(cursor)))
-        has_next_page = True
-        try:
-            await records.__anext__()
-        except StopAsyncIteration:
-            has_next_page = False
-
-    # Retry if we need more edges and more traces exist
-    if len(edges) < first and has_next_page:
-        while retries and (num_needed := first - len(edges)) and has_next_page:
-            retries -= 1
-            batch_size = max(first, 1000)
-            more = await _paginate_span_by_trace_start_time(
-                db=db,
-                project_rowid=project_rowid,
-                time_range=time_range,
-                first=batch_size,
-                after=end_cursor,
-                sort=sort,
-                orphan_span_as_root_span=orphan_span_as_root_span,
-                trace_filter_condition=trace_filter_condition,
-                retries=0,
-            )
-            edges.extend(more.edges[:num_needed])
-            start_cursor = start_cursor or more.page_info.start_cursor
-            end_cursor = more.page_info.end_cursor if len(edges) < first else edges[-1].cursor
-            has_next_page = len(more.edges) > num_needed or more.page_info.has_next_page
-
-    return Connection(
-        edges=edges,
-        page_info=PageInfo(
-            start_cursor=start_cursor,
-            end_cursor=end_cursor,
-            has_previous_page=False,
-            has_next_page=has_next_page,
-        ),
-    )
 
 
 def to_gql_project(project: models.Project) -> Project:

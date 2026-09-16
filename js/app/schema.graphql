@@ -63,6 +63,13 @@ type AddAnnotationConfigToProjectPayload {
   project: Project!
 }
 
+"""
+Adds an example with the given value. Added examples are not linked to a span; use `addExamplesToDataset` for span-sourced examples.
+"""
+input AddDatasetExampleOperation {
+  value: DatasetExampleValueInput!
+}
+
 input AddExamplesToDatasetInput {
   datasetId: ID!
   examples: [DatasetExampleInput!]!
@@ -1245,6 +1252,7 @@ type DatasetExample implements Node {
   id: ID!
   externalId: String
   createdAt: DateTime!
+  dataset: Dataset!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String, experimentIds: [ID!]): ExperimentRunConnection!
@@ -1270,6 +1278,13 @@ type DatasetExampleEdge {
   node: DatasetExample!
 }
 
+"""A field of a dataset example that a `replace` operation can target."""
+enum DatasetExampleField {
+  INPUT
+  OUTPUT
+  METADATA
+}
+
 input DatasetExampleInput {
   input: JSON!
   output: JSON!
@@ -1278,11 +1293,13 @@ input DatasetExampleInput {
   externalId: String
 }
 
-input DatasetExamplePatch {
-  exampleId: ID!
-  input: JSON
-  output: JSON
-  metadata: JSON
+"""
+One change to a dataset's examples, after JSON Patch (RFC 6902). Exactly one of `add`, `replace`, or `remove` is set.
+"""
+input DatasetExampleOperation @oneOf {
+  add: AddDatasetExampleOperation
+  replace: ReplaceDatasetExampleFieldOperation
+  remove: RemoveDatasetExampleOperation
 }
 
 type DatasetExampleRevision implements ExampleRevision {
@@ -1291,6 +1308,16 @@ type DatasetExampleRevision implements ExampleRevision {
   metadata: JSON!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+}
+
+"""
+The full value of a dataset example. `input`, `output`, and `metadata` must be JSON objects. `externalId` is an optional custom ID; leave it out to have one generated.
+"""
+input DatasetExampleValueInput {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  externalId: String
 }
 
 type DatasetExperimentAnnotationSummary {
@@ -2880,15 +2907,14 @@ input PatchCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]
 }
 
+"""
+Input to the `patchDatasetExamples` mutation. The operations are applied in order and committed together as one new dataset version, or not at all. Later operations see the effect of earlier ones: replacing a field twice keeps the last value, removing an example discards its replacements, and targeting an example after it was removed is an error.
+"""
 input PatchDatasetExamplesInput {
-  patches: [DatasetExamplePatch!]!
+  datasetId: ID!
+  operations: [DatasetExampleOperation!]!
   versionDescription: String
   versionMetadata: JSON
-
-  """
-  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
-  """
-  datasetId: ID
 }
 
 input PatchDatasetInput {
@@ -3030,7 +3056,11 @@ type Project implements Node {
   """
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, traceFilterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+
+  """
+  Spans in the project. filterCondition is a span filter expression: a Python boolean expression over span fields (span_kind, status_code, latency_ms, parent_id, attributes, annotations[...], ...), not a substring of the span's input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` to also count orphan spans whose parent was never received. traceFilterCondition is a trace filter expression (see traceFilterVocabulary) that keeps the spans of matching traces; the two arguments compose.
+  """
+  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, filterCondition: String, traceFilterCondition: String): SpanConnection!
 
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).
@@ -3060,7 +3090,7 @@ type Project implements Node {
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
   """
-  traceAnnotationsNames: [String!]!
+  traceAnnotationNames: [String!]!
 
   """
   Names of all available annotations for spans. (The list contains no duplicates.)
@@ -3971,6 +4001,20 @@ type RemoveAnnotationConfigFromProjectPayload {
   project: Project!
 }
 
+"""Removes an existing example from the dataset."""
+input RemoveDatasetExampleOperation {
+  exampleId: ID!
+}
+
+"""
+Replaces one field of an existing example with `value`, a JSON object. Fields the operation list never names carry over from the example's latest revision.
+"""
+input ReplaceDatasetExampleFieldOperation {
+  exampleId: ID!
+  field: DatasetExampleField!
+  value: JSON!
+}
+
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
 
 type ResumeExperimentPayload {
@@ -4785,7 +4829,11 @@ type Trace implements Node {
   Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket.
   """
   errorsByType: [SpanErrorTypeCount!]!
-  spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true, filterCondition: String): SpanConnection!
+
+  """
+  Spans in the trace, newest first. filterCondition is a span filter expression: a Python boolean expression over span fields, not a substring of the span's input/output. Use `rootSpan` for the trace's representative root span.
+  """
+  spans(first: Int!, last: Int, after: String, before: String, filterCondition: String): SpanConnection!
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort, filter: AnnotationFilter = null): [TraceAnnotation!]!

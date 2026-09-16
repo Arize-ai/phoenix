@@ -1311,8 +1311,8 @@ examples:
                 summary: Read the requested Phoenix data.
                 command: >-
                   phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project
-                  { spans(first: 5, rootSpansOnly: true, sort: {col: startTime,
-                  dir: desc}) { edges { node { startTime } } } } } }'
+                  { spans(first: 5, filterCondition: "parent_id is None", sort: {col:
+                  startTime, dir: desc}) { edges { node { startTime } } } } } }'
         - role: tool
           tool_call_id: t1
           name: bash
