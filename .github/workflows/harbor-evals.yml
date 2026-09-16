@@ -15,16 +15,17 @@ concurrency:
 
 jobs:
   harbor-eval:
-    name: Headless agent regression triage (Daytona)
+    name: PXI benchmark (Daytona)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
+    # The run itself (agents, attempts, Daytona) is defined by
+    # evals/harbor/jobs/benchmark.yaml; the Phoenix plugin records it under
+    # PHOENIX_COLLECTOR_ENDPOINT.
     env:
-      HARBOR_ENV: daytona
-      # Two attempts, gated on the mean: a one-off agent slip passes while a
-      # consistent regression still fails.
-      HARBOR_ATTEMPTS: "2"
       DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+      PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -50,8 +51,8 @@ jobs:
         working-directory: js
         run: pnpm install --frozen-lockfile
 
-      - name: Build the Phoenix wheel and stage the Harbor task environments
-        run: make harbor-stage-environments
+      - name: Build the Phoenix wheel, stage the Harbor task environments, and build the px CLI archive
+        run: make harbor-stage
 
       # The oracle validates the environment build, fixture download, and
       # verifiers without spending agent tokens; it gates the real-agent run
@@ -59,12 +60,12 @@ jobs:
       - name: Run oracle trial
         if: hashFiles('evals/harbor/tasks/error-analysis/solution/solve.sh') != ''
         run: |
-          make harbor-oracle
+          make harbor-run HARBOR_ARGS='-a oracle -k 1'
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 1.0
 
-      # The agent is nondeterministic; require 3 of 4 steps rather than
+      # The agents are nondeterministic; require 3 of 4 steps rather than
       # perfection. Tighten once there's a pass-rate history.
-      - name: Run headless-agent trial
+      - name: Run the benchmark
         run: |
           make harbor-run
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75

@@ -10,41 +10,56 @@ pip install "arize-phoenix-client[harbor]"
 
 Build Phoenix and stage each task's build context (from the repository root): the wheel,
 the container assets, and the task's fixture database, which is baked into the image from
-`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`.
-
-```bash
-make harbor-stage-environments
-```
-
-The `claude-code-cli` agent also needs the px CLI archive. This builds the CLI from source
-and assembles its production dependencies in a Docker container into
+`gs://arize-phoenix-assets/evals/harbor/<task>/phoenix.db`. The same command builds the px
+CLI archive the `claude-code-cli` agent installs: the CLI is built from source and assembled
+with its production dependencies in a Docker container into
 `dist/phoenix-cli/phoenix-cli.tar.gz`, outside every build context, so the agent tests the
-checkout's CLI without exposing it to the other agents. Docker must be running. The archive
-targets `linux/amd64` by default; set `HARBOR_CLI_PLATFORM` to match the trial environment
-when using another architecture.
+checkout's CLI without exposing it to the other agents.
 
 ```bash
-make harbor-build-cli-archive
+make harbor-stage
 ```
 
-`make harbor-stage` runs both.
+The archive step needs Docker and takes a few minutes; `HARBOR_CLI=0` skips it when no run
+needs that agent. It targets `linux/amd64` by default; set `HARBOR_CLI_PLATFORM` to match
+the trial environment when using another architecture.
 
 Each task keeps its grading material under `tests/`, which Harbor uploads only when the
 verifier runs, so the agent never sees the ground truth or the checks.
 
-Run one agent on the task:
+A Harbor job file defines a run: its tasks, agents, environment, attempts, and network
+policy. `evals/harbor/jobs/benchmark.yaml` is the full benchmark, every agent on every
+task on Daytona, and is what CI runs:
 
 ```bash
-make harbor-run                                # PXI through the chat route
-make harbor-run HARBOR_AGENT=claude-code-mcp   # Claude Code + the Phoenix MCP server
-make harbor-run HARBOR_AGENT=claude-code-cli   # Claude Code + the px CLI and public skills
+make harbor-run
 ```
 
-Run all three on the error-analysis task in one Daytona job, one trial per agent:
+Anything `harbor run` accepts passes through `HARBOR_ARGS` and overrides the file, e.g. a
+local Docker run with one attempt, or the oracle trial that validates the environment and
+verifiers without spending agent tokens:
 
 ```bash
-make harbor-compare
+make harbor-run HARBOR_ARGS='-e docker -k 1'
+make harbor-run HARBOR_ARGS='-a oracle -k 1'
 ```
+
+`-a` replaces the file's agents but keeps its tasks and environment, so a one-off agent
+passed that way needs its own model, hosts, and kwargs on the command line. For anything
+more than that, copy the benchmark file, trim its tasks and agents, and point `HARBOR_JOB`
+at it:
+
+```bash
+make harbor-run HARBOR_JOB=my-job.yaml
+```
+
+Every run records its tasks, trials, scores, and traces in Phoenix through the
+`arize-phoenix` Harbor plugin, which reads `PHOENIX_COLLECTOR_ENDPOINT` and
+`PHOENIX_API_KEY` from the environment (a local server on the default port needs neither).
+Runs from any job file share the `pxi-benchmark` dataset, so a subset run's experiments sit
+next to CI's; `HARBOR_DATASET=` picks another dataset and `HARBOR_PLUGIN=` (empty) runs
+without recording. The plugin fails the job before any trial starts if it cannot reach
+Phoenix.
 
 ## Agents
 
@@ -85,40 +100,25 @@ The `claude-code-cli` agent uploads the complete archive into its own sandbox du
 and runs `evals/harbor/agents/install_phoenix_cli.sh` to extract it and link the executables.
 Only the host build container accesses npm; the trial needs no npm registry allowance.
 
-Test the Harbor plugin against a local Phoenix server with the direct task path used by
-the PXI workflow:
+To test an unreleased Phoenix client's plugin, build its wheel and put it in the Harbor
+environment in place of the pinned release:
 
 ```bash
-make dev-backend
-# In another terminal:
 uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
 PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -p evals/harbor/tasks/error-analysis \
-  -a evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent -m openai/gpt-6-astra -e docker \
-  --plugin arize-phoenix \
-  --plugin-kwarg endpoint=http://127.0.0.1:6006 \
-  --plugin-kwarg trace_mode=null \
-  --yes
+  harbor run -c evals/harbor/jobs/benchmark.yaml -e docker -k 1 \
+  --plugin arize-phoenix --plugin-kwarg dataset=pxi-benchmark --yes
 ```
-
-A single direct task uses `harbor-task/<declared task name>` as its Phoenix dataset.
-For several direct tasks, pass `--plugin-kwarg dataset=<name>` to name the synthetic
-dataset explicitly.
 
 ## Experiment names
 
-When a Harbor job has one agent configuration, give its Phoenix experiment an exact name with:
+The plugin creates one Phoenix experiment per agent configuration, named by default
+`{job.name} · {agent.name} · {agent.model}`. To rename them, pass a template through
+`HARBOR_ARGS`:
 
 ```bash
---plugin-kwarg experiment_name=my-baseline
-```
-
-An exact name is literal, so braces have no formatting behavior. Jobs with several agent
-configurations create one Phoenix experiment per configuration and must use a template instead:
-
-```bash
---plugin-kwarg 'experiment_name_template={job.name} · {agent.name} · {agent.model}'
+make harbor-run HARBOR_ARGS="--plugin-kwarg 'experiment_name_template={job.name} · {agent.name}'"
 ```
 
 The available template fields are:
@@ -134,28 +134,13 @@ The available template fields are:
 
 Python callers can inspect the same field catalog through
 `phoenix.client.harbor.EXPERIMENT_NAME_TEMPLATE_FIELDS`. Standard format specifications work for
-the string-valued fields.
+the string-valued fields. A job with a single agent configuration may use an exact
+`experiment_name=...` instead; an exact name is literal, so braces have no formatting behavior.
 
 The plugin identifies an experiment by its Harbor job ID, Phoenix dataset version, and agent
 configuration digest, not by its display name. Two jobs may use the same exact name without being
 treated as the same experiment. Include `{job.name}` or `{job.id}` when those jobs should also be
 easy to distinguish by name in Phoenix.
-
-`make harbor-compare` takes plugin flags through `HARBOR_ARGS`:
-
-```bash
-make harbor-compare HARBOR_ARGS='--plugin arize-phoenix --plugin-kwarg endpoint=http://127.0.0.1:6006 \
-  --plugin-kwarg "experiment_name_template={job.name} · {agent.name}"'
-```
-
-The trial targets accept overrides, e.g.:
-
-```bash
-make harbor-run HARBOR_TASK=evals/harbor/tasks/error-analysis \
-  HARBOR_MODEL=anthropic/claude-sonnet-4-5 \
-  HARBOR_ENV=docker \
-  HARBOR_ATTEMPTS=1
-```
 
 Browse job results in a local web viewer:
 
@@ -172,8 +157,8 @@ export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
 ```
 
 The task runs under Harbor's allowlist network policy, so grant the collector's host for
-the trial or the export is silently dropped: `HARBOR_ARGS='--allow-environment-host <host>'`
-for `harbor-compare`, or the same flag on a direct `harbor run`.
+the trial or the export is silently dropped: `HARBOR_ARGS='--allow-environment-host <host>'`.
+This is separate from the plugin, which runs on the host and needs no allowance.
 
 ## Network allowlists
 
@@ -188,10 +173,9 @@ new provider or operator.
 | Job environment | `environment.extra_allowed_hosts` in the job file, or `--allow-environment-host` | the whole trial, every agent | the Phoenix docs hosts; the results Phoenix host when exporting |
 | Agent | `extra_allowed_hosts` on an agent entry, or `--allow-agent-host` | that agent's run only | the agent's LLM provider |
 
-`make harbor-run` derives the provider host from `HARBOR_MODEL` and grants the docs hosts
-(`HARBOR_DOCS_HOSTS`, empty to run sealed); `make harbor-compare` reads the same from
-`jobs/error-analysis.yaml`. Agent-level hosts are not in effect during agent install, so
-anything an agent installs at that point must already be in the image or in the upload.
+The job file grants the docs hosts and each agent's provider host; delete them there for
+a sealed run. Agent-level hosts are not in effect during agent install, so anything an
+agent installs at that point must already be in the image or in the upload.
 
 ## Fixtures
 
@@ -201,5 +185,5 @@ restage:
 ```bash
 gcloud storage cp --cache-control=no-store phoenix.db \
   gs://arize-phoenix-assets/evals/harbor/error-analysis/phoenix.db
-make harbor-stage-environments
+make harbor-stage HARBOR_CLI=0
 ```

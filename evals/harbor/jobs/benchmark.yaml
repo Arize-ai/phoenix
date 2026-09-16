@@ -1,3 +1,5 @@
+# The full benchmark: every agent on every task. `make harbor-run` runs it; pass
+# overrides through HARBOR_ARGS (e.g. `-e docker -k 1`), or copy this file for a subset.
 tasks:
   - path: evals/harbor/tasks/error-analysis
 agents:
@@ -28,8 +30,12 @@ agents:
 environment:
   type: daytona
   extra_allowed_hosts: [downloads.claude.ai, arizeai-433a7140.mintlify.app, arize.com]
+  # Have Daytona clean up sandboxes orphaned by a killed run so they don't eat org quota.
   kwargs:
     auto_stop_interval_mins: 30
     auto_delete_interval_mins: 30
+# Two attempts, gated on the mean, so a one-off slip passes but a consistent regression fails.
+n_attempts: 2
+# Retry trials that die on infrastructure errors; reward-scored failures are not retried.
 retry:
   max_retries: 1
