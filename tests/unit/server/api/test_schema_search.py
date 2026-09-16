@@ -37,6 +37,7 @@ from phoenix.server.api.schema_search import (
     _terms,
     build_index,
     cached_index,
+    describe,
     lookup,
     lookup_many,
     reach_paths,
@@ -324,15 +325,23 @@ def test_top_hit_follows_the_list_in_full(toy: Index) -> None:
 
 
 def test_search_with_an_exact_name_is_a_full_lookup(toy: Index) -> None:
-    assert search(toy, "Project") == lookup(toy, "Project")
+    assert search(toy, "Project", budget=4000) == lookup(toy, "Project")
     assert search(toy, "span.costsummary") == lookup(toy, "Span.costSummary")
+    # The caller's budget holds for a lookup reached this way.
+    assert len(search(toy, "Project", budget=400)) <= 400 + len(PAGINATION_LEGEND)
 
 
 def test_several_searches_answer_together(toy: Index, toy_reads_only: Index) -> None:
     text = search_many(toy, ["session duration", "projects"], budget=3000)
     first, second = text.split("\n\n", 1)
-    assert first_line(first).startswith("Project.averageSessionDurationMs")
+    assert first.splitlines()[0] == "# search: session duration"
+    assert first_line("\n".join(first.splitlines()[1:])).startswith(
+        "Project.averageSessionDurationMs"
+    )
+    assert second.startswith("# search: projects\n")
     assert f"\n  projects({PAGINATION}, " in second
+    # A single search carries no label.
+    assert "# search:" not in search_many(toy, ["projects"])
     assert text.count(PAGINATION_LEGEND) == 1
     assert text.splitlines()[-1] == PAGINATION_LEGEND
     assert len(text) <= 3000 + len(PAGINATION_LEGEND)
@@ -341,19 +350,34 @@ def test_several_searches_answer_together(toy: Index, toy_reads_only: Index) -> 
     assert text.splitlines()[-1] == DISABLED
 
 
-def test_several_exact_names_are_each_looked_up(toy: Index) -> None:
-    text = search(toy, "TimeRange, TimeBinConfig TimeBinScale")
-    assert text == lookup_many(toy, ["TimeRange", "TimeBinConfig", "TimeBinScale"])
+def test_names_are_each_looked_up_within_one_budget(toy: Index) -> None:
+    text = lookup_many(toy, ["TimeRange", "TimeBinConfig", "TimeBinScale"])
     blocks = text.split("\n\n")
     assert [first_line(b) for b in blocks] == [
         "input TimeRange {",
         "input TimeBinConfig {",
         "enum TimeBinScale {",
     ]
-    # One unknown name makes it a free-text search again.
-    assert "in full:" in search(toy, "TimeRange bogus")
     assert lookup_many(toy, ["Span", "NoSuch"]).endswith("named 'NoSuch'. Try search('NoSuch').")
-    assert len(lookup_many(toy, ["Project", "Span"], budget=600)) <= 600 + len(PAGINATION_LEGEND)
+    assert len(lookup_many(toy, ["Project", "Span"], budget=600)) <= 600
+    # Several names as free text are a search, not a lookup.
+    assert "in full:" in search(toy, "TimeRange, TimeBinConfig TimeBinScale")
+
+
+def test_describe_shares_one_budget_and_names_what_it_omits(toy: Index) -> None:
+    names = [u.name for u in toy.units if u.kind == "type"][:30]
+    text = describe(toy, names=names, budget=1500)
+    assert len(text) <= 1500
+    shown = [b for b in text.split("\n\n") if not b.startswith("--")]
+    assert 3 <= len(shown) < 30
+    assert text.splitlines()[-1].endswith("more requests omitted; ask for fewer at once.")
+    both = describe(toy, names=["TimeRange"], search=["session duration", "projects"], budget=2000)
+    blocks = both.split("\n\n")
+    assert blocks[0].startswith("input TimeRange {")
+    assert blocks[1].startswith("# search: session duration\n")
+    assert blocks[2].startswith("# search: projects\n")
+    assert both.count(PAGINATION_LEGEND) == 1
+    assert describe(toy) == lookup(toy, "Query")
 
 
 def test_misses_say_so(toy: Index) -> None:
@@ -563,13 +587,18 @@ def test_the_word_mutations_restricts_a_search_to_mutations(
     toy: Index, toy_reads_only: Index
 ) -> None:
     text = search(toy, "dataset mutations")
-    listed = text.split(" in full:", 1)[0].splitlines()[:-1]
+    lines = text.split(" in full:", 1)[0].splitlines()
+    assert lines[0] == "# mutations only"
+    listed = lines[1:-1]
     assert listed and all(line.startswith("mutation ") for line in listed)
+    # The word inside an identifier names a type and does not filter.
+    payload = search(toy, "DatasetMutationPayload fields")
+    assert "# mutations only" not in payload
+    assert payload.startswith("type DatasetMutationPayload  returned by Mutation.")
     assert "mutation deleteDataset(" in text and "mutation addExamplesToDataset(" in text
     assert search(toy, "mutations") == lookup(toy, "Mutation")
-    # Two exact names would be a multi-lookup, but the root's name is the filter.
     project = search(toy, "project mutation")
-    assert first_line(project).startswith("mutation clearProject(")
+    assert project.splitlines()[1].startswith("mutation clearProject(")
     assert "type Project" not in project
     assert search(toy_reads_only, "dataset mutations") == DISABLED
 

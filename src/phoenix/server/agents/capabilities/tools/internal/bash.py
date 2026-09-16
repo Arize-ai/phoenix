@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 import posixpath
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Generic, Optional
+from typing import Any, Awaitable, Callable, Generic, Optional, Sequence
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
@@ -24,7 +25,7 @@ from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.api.context import Context
-from phoenix.server.api.schema_search import cached_index, search
+from phoenix.server.api.schema_search import cached_index, describe
 
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
@@ -147,7 +148,7 @@ def _format_graphql_errors(messages: list[str]) -> str:
 _HELP_TEXT_TEMPLATE: Template = Template(
     """\
 Usage: phoenix-gql [query] [options] [query-or-file]
-       phoenix-gql schema <terms | Type | Type.field | mutationName | names...>
+       phoenix-gql schema [terms] [--search <text>]... [--names <A,B>]...
 
 Execute GraphQL operations against Phoenix, or search its schema.
 
@@ -163,10 +164,11 @@ Permissions: queries and mutations are ENABLED.
 {% endif %}
 Recommended flow:
   1. `phoenix-gql schema <terms>` to find the types and fields you need; name a
-     type, `Type.field`, or mutation to see it in full with how to reach it,
-     or several names at once to see each. Add the word "mutations" to see
-     only mutations. Search again with the return types and input types you
-     see rather than repeating the same terms
+     type, `Type.field`, or mutation to see it in full with how to reach it.
+     `--names A,B` looks several up and `--search <text>` adds a search; batch
+     what you already know you need into one call. Add the word "mutations"
+     to a search to see only mutations. Name the return types and input types
+     you see rather than repeating the same terms
   2. add filters, sorting, and deeper fields only after the base query works
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
@@ -182,7 +184,7 @@ Options:
 Examples:
   phoenix-gql schema span cost
   phoenix-gql schema Experiment
-  phoenix-gql schema TimeRange TimeBinConfig
+  phoenix-gql schema --search "trace by otel id" --names TimeRange,TimeBinConfig
   phoenix-gql '{ projects { edges { node { name } } } }'
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
@@ -195,6 +197,38 @@ def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> 
         mutations_enabled=mutations_enabled,
         approval_required=approval_required,
     )
+
+
+# One `phoenix-gql schema` answer shares a terminal with the rest of a command's
+# output, so it is held below the MCP tool's budget.
+_SCHEMA_BUDGET = 3000
+
+
+def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
+    """``(searches, names)`` from the words and flags after ``schema``.
+
+    Bare words are one search. ``--search TEXT`` adds a search and ``--names A,B``
+    adds exact names; both repeat.
+    """
+    searches: list[str] = []
+    names: list[str] = []
+    words: list[str] = []
+    it = iter(args)
+    for arg in it:
+        flag, has_value, inline = arg.partition("=")
+        if flag in ("--search", "--names"):
+            value = inline if has_value else next(it, None)
+            if value is None or not value.strip():
+                raise ValueError(f"{flag} needs a value")
+            if flag == "--search":
+                searches.append(value.strip())
+            else:
+                names.extend(n for n in re.split(r"[,\s]+", value) if n)
+        else:
+            words.append(arg)
+    if words:
+        searches.append(" ".join(words))
+    return searches, names
 
 
 @dataclass
@@ -334,9 +368,9 @@ def create_phoenix_gql_builtin(
         try:
             argv = list(ctx.argv)
             if argv and argv[0] == "schema":
-                return BuiltinResult(
-                    stdout=search(index, " ".join(argv[1:])) + "\n", stderr="", exit_code=0
-                )
+                searches, names = _parse_schema_args(argv[1:])
+                text = describe(index, search=searches, names=names, budget=_SCHEMA_BUDGET)
+                return BuiltinResult(stdout=text + "\n", stderr="", exit_code=0)
             parsed = _parse_args(argv)
 
             if parsed.show_help:

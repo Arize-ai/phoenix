@@ -45,6 +45,7 @@ __all__ = [
     "Unit",
     "build_index",
     "cached_index",
+    "describe",
     "lookup",
     "lookup_many",
     "reach_paths",
@@ -152,6 +153,16 @@ def _query_terms(query: str) -> list[str]:
 
 _MUTATION_TERM = _stem("mutation")
 """The query word that restricts a search to mutations."""
+_MUTATIONS_ONLY = "# mutations only"
+
+
+def _asks_mutations_only(query: str) -> bool:
+    """Whether ``query`` contains "mutation" or "mutations" as a word of its own.
+
+    The word inside an identifier such as ``DatasetMutationPayload`` names a
+    type and does not filter.
+    """
+    return any(_stem(w.lower()) == _MUTATION_TERM for w in re.findall(r"[A-Za-z]+", query))
 
 
 @dataclass(frozen=True)
@@ -751,20 +762,12 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     naming that owner and the path that reaches it.
 
     A query that exactly names a type, ``Type.field``, or mutation is a lookup.
-    A query containing the word "mutations" is answered with mutations only.
+    A query containing the word "mutations" on its own is answered with
+    mutations only.
     """
     key = query.strip().lower()
-    # A definition has its own budget: it is one answer, not a list to trim.
     if _is_exact(index, key):
-        return lookup(index, query)
-    names = [t for t in re.split(r"[,\s]+", query.strip()) if t]
-    # The mutation root's own name is a filter word here, not one name among several.
-    if (
-        len(names) > 1
-        and _MUTATION_TERM not in _query_terms(query)
-        and all(_is_exact(index, n.lower()) for n in names)
-    ):
-        return lookup_many(index, names)
+        return lookup(index, query, budget)
     if unknown := _unknown_member(index, key):
         owner, member = unknown
         body = search(index, f"{owner} {member}", budget)
@@ -775,12 +778,13 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
             "-- Empty query. Search for a concept ('span cost') "
             "or name a type or field ('Span.costSummary')."
         )
-    only_mutations = _MUTATION_TERM in terms
-    terms = [t for t in terms if t != _MUTATION_TERM]
+    only_mutations = _asks_mutations_only(query)
+    if only_mutations:
+        terms = [t for t in terms if t != _MUTATION_TERM]
     if only_mutations and not index.includes_mutations:
         return _MUTATIONS_DISABLED
     if only_mutations and not terms:
-        return lookup(index, index.mutation_root or "")
+        return lookup(index, index.mutation_root or "", budget)
     wants_mutation = only_mutations or any(t in index.action_verbs for t in terms)
     note: list[str] = []
     if not index.includes_mutations and (wants_mutation or _names_excluded_mutation(index, terms)):
@@ -815,8 +819,8 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     top = next(iter(groups.values()))
     expand = len(top) == 1 and top[0].kind in ("field", "mutation")
     detail_budget = min(_TOP_HIT_BUDGET, budget // 3) if expand else 0
-    lines: list[str] = []
-    used = sum(len(n) + 1 for n in note) + len(_PAGINATION_LEGEND) + 1 + detail_budget
+    lines: list[str] = [_MUTATIONS_ONLY] if only_mutations else []
+    used = sum(len(n) + 1 for n in [*note, *lines]) + len(_PAGINATION_LEGEND) + 1 + detail_budget
     shown = 0
     for i, (is_hit, line) in enumerate(ordered):
         trailer = f"... {len(entries) - shown} more; narrow the search"
@@ -970,32 +974,65 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
     return _with_legend(_budgeted(_lookup_parts(index, name), budget))
 
 
-def search_many(index: Index, queries: Sequence[str], budget: int = 4000) -> str:
-    """One ranked answer per query, each within an equal share of ``budget``.
+_MIN_SHARE = 200
+"""Below this many characters a section cannot say anything useful."""
+_free_text_search = search
 
-    The pagination key and the mutations note are fixed lines, so they appear
-    once at the end rather than under every answer.
+
+def describe(
+    index: Index,
+    *,
+    search: Sequence[str] = (),
+    names: Sequence[str] = (),
+    budget: int = 4000,
+) -> str:
+    """Every name in full, then one ranked answer per search, within ``budget``.
+
+    With neither, the query root. Sections share the budget: each takes an
+    equal part of what remains, never less than a useful minimum, so a short
+    definition leaves room for the next. When what remains cannot hold another
+    section, the rest are named as omitted. Fixed trailing lines appear once
+    at the end.
     """
-    share = max(budget // max(len(queries), 1), 300)
+    requests = [("name", n) for n in names] + [("search", q) for q in search]
+    if not requests:
+        return lookup(index, index.query_root, budget)
     trailing = (_PAGINATION_LEGEND, _MUTATIONS_DISABLED)
+    labelled = len(search) > 1
     sections: list[str] = []
     seen: list[str] = []
-    for query in queries:
+    remaining = budget - sum(len(t) + 1 for t in trailing)
+    for i, (kind, arg) in enumerate(requests):
+        left = len(requests) - i
+        if remaining < _MIN_SHARE:
+            sections.append(f"-- {left} more requests omitted; ask for fewer at once.")
+            break
+        share = max(remaining // left, _MIN_SHARE)
+        if kind == "name":
+            text = _budgeted(_lookup_parts(index, arg), share)
+        else:
+            header = f"# search: {arg}\n" if labelled else ""
+            text = header + _free_text_search(index, arg, share - len(header))
         kept: list[str] = []
-        for line in search(index, query, share).splitlines():
+        for line in text.splitlines():
             if line in trailing:
                 if line not in seen:
                     seen.append(line)
             else:
                 kept.append(line)
         sections.append("\n".join(kept))
+        remaining -= len(sections[-1]) + 2
     return "\n".join(["\n\n".join(sections), *seen])
 
 
+def search_many(index: Index, queries: Sequence[str], budget: int = 4000) -> str:
+    """One ranked answer per query, within ``budget`` overall."""
+    return describe(index, search=queries, budget=budget)
+
+
 def lookup_many(index: Index, names: Sequence[str], budget: int = 4000) -> str:
-    """Every name in full, each within an equal share of ``budget``."""
-    share = max(budget // max(len(names), 1), 300)
-    return _with_legend("\n\n".join(_budgeted(_lookup_parts(index, n), share) for n in names))
+    """Every name in full, within ``budget`` overall."""
+    return describe(index, names=names, budget=budget)
 
 
 def _budgeted(parts: Sequence[str], budget: int) -> str:

@@ -283,11 +283,26 @@ async def test_schema_search_finds_a_field(run_bash: RunBash) -> None:
     assert result["stdout"].startswith("Query\n  echo(text: String!): String!")
 
 
-async def test_schema_looks_up_several_names_at_once(run_bash: RunBash) -> None:
-    result = await run_bash("phoenix-gql schema Query Query.echo")
+async def test_schema_looks_up_names_and_searches_in_one_call(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --names Query,Query.echo --search hello")
     assert result["exitCode"] == 0
-    assert "type Query {" in result["stdout"]
-    assert "\n\nQuery.echo(text: String!): String!" in result["stdout"]
+    blocks = result["stdout"].split("\n\n")
+    assert blocks[0].startswith("type Query {")
+    assert blocks[1].startswith("Query.echo(text: String!): String!")
+    assert "  hello: String!" in blocks[2]
+
+
+async def test_schema_labels_several_searches(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --search hello --search=echo")
+    assert result["exitCode"] == 0
+    assert result["stdout"].startswith("# search: hello\n")
+    assert "\n\n# search: echo\n" in result["stdout"]
+
+
+async def test_schema_flag_without_a_value_is_an_error(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema hello --names")
+    assert result["exitCode"] == 1
+    assert "--names needs a value" in result["stderr"]
 
 
 async def test_schema_lookup_prints_a_type(run_bash: RunBash) -> None:
