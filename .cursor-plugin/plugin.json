@@ -24,6 +24,7 @@
   "skills": [
     ".agents/skills/phoenix-cli",
     ".agents/skills/phoenix-evals",
+    ".agents/skills/phoenix-to-ax-migration",
     ".agents/skills/phoenix-tracing"
   ],
   "variables": {

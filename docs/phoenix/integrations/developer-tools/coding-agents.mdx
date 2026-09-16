@@ -390,6 +390,9 @@ This installs skills into the project's agent directory (for example, `.claude/s
   <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-tracing/SKILL.md">
     Implement OpenInference tracing conventions and instrumentation in Python and TypeScript.
   </Card>
+  <Card title="phoenix-to-ax-migration" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-to-ax-migration/SKILL.md">
+    Migrate and verify historical Phoenix traces, datasets, experiments, and stored evaluation results in Arize AX.
+  </Card>
   <Card title="phoenix-harbor" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-harbor/SKILL.md">
     Configure Harbor agent evaluations and interpret their Phoenix experiments, scores, and ATIF traces.
   </Card>
@@ -413,6 +416,9 @@ npx skills add Arize-ai/phoenix --skill phoenix-cli -g
 
 # Install CLI + tracing skills together
 npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
+
+# Install the Phoenix-to-AX migration skill
+npx skills add Arize-ai/phoenix --skill phoenix-to-ax-migration
 
 # Install for specific coding agents
 npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor

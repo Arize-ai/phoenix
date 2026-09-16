@@ -1,0 +1,4 @@
+arize==8.52.1
+arize-phoenix-client==3.5.0
+httpx==0.28.1
+python-dotenv==1.2.2

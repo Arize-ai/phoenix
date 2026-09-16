@@ -7,17 +7,17 @@ If you are looking to migrate to Arize AX but want to preserve your data, this t
 
 ## Migrate with a coding agent
 
-The [`arize-phoenix-migration` skill](https://github.com/Arize-ai/arize-skills/tree/main/skills/arize-phoenix-migration) gives coding agents a verified workflow for historical traces, dataset versions, experiments, and stored experiment evaluation results. It does not rerun evaluators or make model calls during migration.
+The [`phoenix-to-ax-migration` skill](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills/phoenix-to-ax-migration) gives coding agents a verified workflow for historical traces, dataset versions, experiments, and stored experiment evaluation results. It does not rerun evaluators or make model calls during migration.
 
 ```bash
-npx skills add Arize-ai/arize-skills --skill arize-phoenix-migration --yes
+npx skills add Arize-ai/phoenix --skill phoenix-to-ax-migration --yes
 ```
 
 If you already have a private, Git-ignored `.env`, give the agent its path. Otherwise, provide the Phoenix URL and project name and let the agent create a private credential-entry helper. Run the one command it gives you in a separate terminal to enter the Phoenix API key when required and the AX API key. Do not paste keys into agent chat or an agent-controlled terminal session because those inputs can be recorded in the transcript.
 
 Then ask:
 
-> Use the Arize Phoenix migration skill and my local `.env`. Migrate the historical traces into a fresh AX project. Migrate all datasets, dataset versions, experiments, and stored evaluation results with the prefix `migrated-`. Verify every imported data type.
+> Use the Phoenix-to-AX migration skill and my local `.env`. Migrate the historical traces into a fresh AX project. Migrate all datasets, dataset versions, experiments, and stored evaluation results with the prefix `migrated-`. Verify every imported data type.
 
 The agent first inventories the supported resources in Phoenix and reports their counts, exclusions, AX space, and fresh destination names. If your request does not already select the scope, it offers all, trace-only, dataset/experiment-only, and selected-resource choices. Migration can take several minutes, and AX indexing and verification can take 15 minutes or longer. Only the final `verified` results establish that the migration completed. After verification, the agent prints a results table with direct AX links to the trace project, dataset examples and versions, and experiments with their stored evaluation results. Historical trace links include the migrated time window so the imported spans are visible immediately.
 
