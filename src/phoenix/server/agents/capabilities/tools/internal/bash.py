@@ -164,8 +164,9 @@ Permissions: queries and mutations are ENABLED.
 Recommended flow:
   1. `phoenix-gql schema <terms>` to find the types and fields you need; name a
      type, `Type.field`, or mutation to see it in full with how to reach it,
-     or several names at once to see each. Search again with the return types
-     and input types you see rather than repeating the same terms
+     or several names at once to see each. Add the word "mutations" to see
+     only mutations. Search again with the return types and input types you
+     see rather than repeating the same terms
   2. add filters, sorting, and deeper fields only after the base query works
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
