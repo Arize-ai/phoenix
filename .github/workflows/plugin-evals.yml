@@ -7,7 +7,10 @@ name: Plugin Evals
 on:
   pull_request:
     paths:
+      # The plugin ships these three skills as symlinks into .agents/skills/.
       - ".agents/skills/phoenix-cli/**"
+      - ".agents/skills/phoenix-evals/**"
+      - ".agents/skills/phoenix-tracing/**"
       - "plugins/claude/arize-phoenix/**"
       - ".github/workflows/plugin-evals.yml"
   workflow_dispatch:
@@ -74,12 +77,22 @@ jobs:
 
       - name: Gate on uplift (Δ)
         working-directory: plugins/claude/arize-phoenix
-        # Baseline mean Δ is about +0.19 across all cases (negatives contribute 0).
+        # Δ = with-plugin score minus without-plugin score. Should-not-fire
+        # cases (neg-*) score 1.0 in both arms by design, so they are left out
+        # of the mean. Baseline for the fire cases is about +0.25 (Sep 2026);
+        # 0.15 leaves room for run-to-run noise while catching a real drop.
+        env:
+          MIN_DELTA: "0.15"
         run: |
-          delta=$(jq -r '.aggregates.meanDelta' evals/results/ci-results.json)
-          echo "mean Δ (with-plugin minus without-plugin): ${delta}"
-          jq -e '.aggregates.meanDelta >= 0.10' evals/results/ci-results.json > /dev/null \
-            || { echo "::error::mean Δ ${delta} is below 0.10; the plugin is adding less than it used to"; exit 1; }
+          printf 'case\twith\twithout\tdelta\n' > /tmp/delta-table.tsv
+          jq -r '.cases[] | "\(.name)\t\(.aggregates.score)\t\(.aggregates.scoreWithout)\t\(.aggregates.delta)"' \
+            evals/results/ci-results.json >> /tmp/delta-table.tsv
+          column -t -s $'\t' /tmp/delta-table.tsv
+          delta=$(jq -r '[.cases[] | select(.name | test("-neg-") | not) | .aggregates.delta] | add / length' \
+            evals/results/ci-results.json)
+          echo "mean Δ over fire cases: ${delta} (minimum ${MIN_DELTA})"
+          awk -v d="${delta}" -v m="${MIN_DELTA}" 'BEGIN { exit !(d+0 >= m+0) }' \
+            || { echo "::error::mean Δ ${delta} is below ${MIN_DELTA}; the plugin adds less uplift than it used to"; exit 1; }
 
       - name: Upload results
         if: always()
