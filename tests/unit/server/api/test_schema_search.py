@@ -567,6 +567,10 @@ def test_the_word_mutations_restricts_a_search_to_mutations(
     assert listed and all(line.startswith("mutation ") for line in listed)
     assert "mutation deleteDataset(" in text and "mutation addExamplesToDataset(" in text
     assert search(toy, "mutations") == lookup(toy, "Mutation")
+    # Two exact names would be a multi-lookup, but the root's name is the filter.
+    project = search(toy, "project mutation")
+    assert first_line(project).startswith("mutation clearProject(")
+    assert "type Project" not in project
     assert search(toy_reads_only, "dataset mutations") == DISABLED
 
 
