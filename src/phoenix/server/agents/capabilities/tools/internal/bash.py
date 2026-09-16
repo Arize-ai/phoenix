@@ -167,9 +167,10 @@ Recommended flow:
   1. `phoenix-gql schema --search <text>` to find the types and fields you
      need, and `--names <Type,Type.field,mutationName>` to see each in full with
      how to reach it; both repeat, and both fit in one call, so batch what you
-     already know you need. With no flags it prints the query root. Add the
-     word "mutations" to a search to see only mutations. Name the return types
-     and input types you see rather than repeating the same terms
+     already know you need. With no flags it prints the query root. Narrow a
+     noisy search to one type with `--search "Span.cost"`, and add the word
+     "mutations" to see only mutations. Name the return types and input types
+     you see rather than repeating the same terms
   2. add filters, sorting, and deeper fields only after the base query works
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
@@ -200,9 +201,9 @@ def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> 
     )
 
 
-# One `phoenix-gql schema` answer shares a terminal with the rest of a command's
-# output, so it is held below the MCP tool's budget.
-_SCHEMA_BUDGET = 3000
+# The query root alone needs most of this, and a root cut short hides entry
+# points; the MCP tool uses the same figure.
+_SCHEMA_BUDGET = 4000
 
 
 def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
