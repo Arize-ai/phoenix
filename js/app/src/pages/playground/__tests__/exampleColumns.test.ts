@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getDisplayedMetadata,
+  getExampleColumnLabels,
   getExampleColumnVisibility,
   hasDisplayableMetadata,
 } from "../exampleColumns";
@@ -94,5 +95,15 @@ describe("getExampleColumnVisibility", () => {
         storedVisibility: { metadata: false, output: false },
       })
     ).toEqual({ metadata: false, output: false });
+  });
+});
+
+describe("getExampleColumnLabels", () => {
+  it("calls the example's output the reference on a prompt page", () => {
+    expect(getExampleColumnLabels("prompt").output).toBe("reference output");
+  });
+
+  it("calls it the output on an evaluator page, where it is what is judged", () => {
+    expect(getExampleColumnLabels("evaluator").output).toBe("output");
   });
 });

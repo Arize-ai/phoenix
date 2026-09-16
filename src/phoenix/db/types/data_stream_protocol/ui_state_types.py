@@ -103,6 +103,9 @@ class PlaygroundEvaluatorTaskUIContext(BaseUIContext):
     """An evaluator draft judged over the dataset; its judge prompt is the instance's prompt."""
 
     kind: Literal["evaluator"] = "evaluator"
+    # ``kind`` is the task discriminator above, so the evaluator's own kind needs another
+    # name here; PlaygroundEvaluatorUIContext, which is not a task, can call it ``kind``.
+    # Built-in evaluators are never offered as tasks.
     evaluator_kind: Literal["LLM", "CODE"]
     name: str
     is_dirty: bool = False

@@ -1,5 +1,6 @@
 import type { VisibilityState } from "@tanstack/react-table";
 
+import type { PlaygroundTaskKind } from "@phoenix/store/playground/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
@@ -10,12 +11,21 @@ export const EXAMPLE_COLUMNS = ["input", "output", "metadata"] as const;
 
 export type ExampleColumn = (typeof EXAMPLE_COLUMNS)[number];
 
-/** Column labels as the table's headers spell them. */
-export const EXAMPLE_COLUMN_LABELS: Record<ExampleColumn, string> = {
-  input: "input",
-  output: "reference output",
-  metadata: "metadata",
-};
+/**
+ * Column labels as the table's headers spell them. The example's output is
+ * the reference a prompt task's output is judged against, but for an
+ * evaluator task it is the output being judged, so the label follows the
+ * page's kind of task.
+ */
+export function getExampleColumnLabels(
+  taskKind: PlaygroundTaskKind
+): Record<ExampleColumn, string> {
+  return {
+    input: "input",
+    output: taskKind === "evaluator" ? "output" : "reference output",
+    metadata: "metadata",
+  };
+}
 
 /** Where an example keeps its annotations, expected outputs included. */
 export const ANNOTATIONS_KEY = "annotations";

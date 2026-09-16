@@ -2,7 +2,7 @@ import asyncio
 import logging
 from collections import deque
 from collections.abc import AsyncIterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import (
     Any,
     AsyncGenerator,
@@ -432,13 +432,21 @@ async def _stream_experiments_over_dataset(
     ](max_buffer_size=_EXPERIMENT_STREAM_BUFFER_SIZE * len(experiments))
     merge_task: Optional[asyncio.Task[None]] = None
     try:
-        for experiment, experiment_id in zip(experiments, experiment_ids):
-            _, experiment_stream = await runner.start_experiment(
-                experiment.id,
-                credentials=credentials,
-                subscribe=True,
-            )
-            streams.append((experiment_id, experiment_stream))
+        try:
+            for experiment, experiment_id in zip(experiments, experiment_ids):
+                _, experiment_stream = await runner.start_experiment(
+                    experiment.id,
+                    credentials=credentials,
+                    subscribe=True,
+                )
+                streams.append((experiment_id, experiment_stream))
+        except BaseException:
+            # The run is all-or-nothing from the user's side: if a later task fails to
+            # start, stop the ones already running rather than leave a partial run
+            # going in the background that nothing is streaming.
+            for experiment in experiments:
+                await runner.stop_experiment(experiment.id)
+            raise
         merge_task = asyncio.create_task(_merge_experiment_streams(streams, send_stream))
         # Stream results until every experiment closes its stream (completion or stop)
         async for payload in receive_stream:
@@ -484,8 +492,9 @@ async def _forward_experiment_payloads(
 ) -> None:
     async with send_stream:
         async for payload in experiment_stream:
-            payload.experiment_id = experiment_id
-            await send_stream.send(payload)
+            # The runner broadcasts one payload object to every subscriber, so stamp a
+            # copy rather than writing to the shared instance.
+            await send_stream.send(replace(payload, experiment_id=experiment_id))
 
 
 async def _resolve_dataset_run_target(
@@ -615,7 +624,10 @@ def _add_prompt_task(
     max_concurrency: int,
 ) -> None:
     """Freeze the prompt in an ExperimentPromptTask row and attach its dataset evaluators."""
-    prompt_version: models.PromptVersion = task.prompt_version.to_orm_prompt_version()
+    try:
+        prompt_version: models.PromptVersion = task.prompt_version.to_orm_prompt_version()
+    except ValidationError as error:
+        raise BadRequest(str(error))
     # Connection JSON is mutually exclusive with custom_provider_id (DB constraint).
     # If custom provider is set, connection overrides are ignored.
     task_connection = (

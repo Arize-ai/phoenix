@@ -124,6 +124,7 @@ import { getEvaluatorTaskName } from "./evaluators/evaluatorTaskSnapshot";
 import {
   ANNOTATIONS_KEY,
   getDisplayedMetadata,
+  getExampleColumnLabels,
   getExampleColumnVisibility,
   hasDisplayableMetadata,
 } from "./exampleColumns";
@@ -858,6 +859,7 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const columnLabels = getExampleColumnLabels(getPlaygroundTaskKind(instances));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
     const experimentIds = instances.map((instance) => instance.experiment?.id);
     const [baseExperimentId, ...compareExperimentIds] = experimentIds;
@@ -1583,7 +1585,7 @@ export function PlaygroundDatasetExamplesTable({
         ),
       },
       {
-        header: "input",
+        header: columnLabels.input,
         accessorKey: "input",
         cell: ({ row }) => (
           <ExperimentInputCell
@@ -1603,7 +1605,7 @@ export function PlaygroundDatasetExamplesTable({
       {
         header: () => (
           <Flex direction="column" gap="size-50">
-            <span>reference output</span>
+            <span>{columnLabels.output}</span>
             <ExperimentCostAndLatencySummary
               executionState="idle"
               isPlaceholder={true}
@@ -1620,12 +1622,13 @@ export function PlaygroundDatasetExamplesTable({
           <ExperimentReferenceOutputCell
             value={row.original.output}
             height={CELL_PRIMARY_CONTENT_HEIGHT + annotationListHeight}
+            label={columnLabels.output}
           />
         ),
         size: 200,
       },
       {
-        header: "metadata",
+        header: columnLabels.metadata,
         accessorKey: "metadata",
         cell: ({ row }) => {
           const { value, isHidingAnnotations } = getDisplayedMetadata(
@@ -1646,6 +1649,7 @@ export function PlaygroundDatasetExamplesTable({
       ...playgroundInstanceOutputColumns,
     ],
     [
+      columnLabels,
       annotationListHeight,
       evaluatorOutputConfigs,
       hasSomeRunIds,

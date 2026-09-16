@@ -1256,39 +1256,6 @@ def evaluation_result_to_span_annotation(
     )
 
 
-def create_llm_evaluator_from_inline(
-    *,
-    prompt_version_orm: models.PromptVersion,
-    llm_client: "PlaygroundClient[Any]",
-    output_configs: Sequence[CategoricalOutputConfig],
-    name: str,
-    description: Optional[str] = None,
-    max_message_bytes: Optional[int] = None,
-) -> LLMEvaluator:
-    """
-    Creates an LLMEvaluator instance from inline definition without database persistence.
-    Used for evaluator preview functionality.
-    """
-    template = prompt_version_orm.template
-    assert isinstance(template, PromptChatTemplate)
-    tools = prompt_version_orm.tools
-    assert tools is not None
-
-    return LLMEvaluator(
-        name=name,
-        description=description,
-        template=template,
-        template_format=prompt_version_orm.template_format,
-        tools=tools,
-        invocation_parameters=prompt_version_orm.invocation_parameters,
-        model_provider=prompt_version_orm.model_provider,
-        llm_client=llm_client,
-        output_configs=output_configs,
-        prompt_name="preview-prompt",
-        max_message_bytes=max_message_bytes,
-    )
-
-
 async def build_evaluator_from_definition(
     *,
     definition: EvaluatorDefinition,

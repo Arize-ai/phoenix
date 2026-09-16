@@ -519,18 +519,21 @@ function EvaluatorTaskEditorContent({
           <Tab id="output">Output</Tab>
         </TabList>
         <TabPanel id="editor" css={taskTabPanelCSS}>
-          {kind === "LLM" ? (
-            <JudgePromptEditor instanceId={instanceId} />
-          ) : (
-            <CodeEditor
-              code={code}
-              onChange={setCode}
-              sandboxConfigs={sandboxConfigs}
-              // A saved code evaluator keeps its language; only a draft may
-              // switch.
-              isLanguageLocked={evaluator.source.evaluatorId != null}
-            />
-          )}
+          <Flex direction="column" gap="size-200">
+            <EvaluatorTaskNameField />
+            {kind === "LLM" ? (
+              <JudgePromptEditor instanceId={instanceId} />
+            ) : (
+              <CodeEditor
+                code={code}
+                onChange={setCode}
+                sandboxConfigs={sandboxConfigs}
+                // A saved code evaluator keeps its language; only a draft may
+                // switch.
+                isLanguageLocked={evaluator.source.evaluatorId != null}
+              />
+            )}
+          </Flex>
         </TabPanel>
         <TabPanel id="mapping" css={taskTabPanelCSS}>
           <Flex direction="column" gap="size-100">
@@ -551,7 +554,6 @@ function EvaluatorTaskEditorContent({
         </TabPanel>
         <TabPanel id="output" css={taskTabPanelCSS}>
           <Flex direction="column" gap="size-200">
-            <EvaluatorTaskNameField />
             {outputNames.length > 1 ? (
               <Select
                 aria-label="Output"

@@ -1,4 +1,4 @@
-"""add online eval coordination
+"""add online eval coordination and experiment evaluator tasks
 
 The traces.last_span_ingested_at index is created inside this migration's transaction and does not
 honor PHOENIX_MIGRATE_INDEX_CONCURRENTLY because the column is added in the same transaction.
@@ -50,6 +50,10 @@ def _(*args: Any, **kwargs: Any) -> str:
 
 
 JSON_ = JSON().with_variant(postgresql.JSONB(), "postgresql").with_variant(JSONB(), "sqlite")
+
+# Experiment job types before and after this migration adds evaluator tasks.
+_JOB_TYPES_BEFORE = "type IN ('PROMPT', 'EVAL_ONLY')"
+_JOB_TYPES_AFTER = "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')"
 
 # revision identifiers, used by Alembic.
 revision: str = "a7f1c3e9d2b4"
@@ -518,9 +522,74 @@ def upgrade() -> None:
     )
     _create_session_work_units_table()
     _create_trace_work_units_table()
+    _add_experiment_evaluator_tasks()
+
+
+def _add_experiment_evaluator_tasks() -> None:
+    """Add EVALUATOR as an experiment job type, with its joined task table.
+
+    An evaluator task is a playground evaluator draft run over a dataset as an experiment;
+    the table freezes the evaluator definition so the runner can rebuild it on resume.
+    """
+    # SQLite cannot alter a CHECK constraint in place, so batch mode rewrites the table.
+    with op.batch_alter_table("experiment_jobs") as batch_op:
+        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
+        batch_op.create_check_constraint(
+            constraint_name="valid_type",
+            condition=_JOB_TYPES_AFTER,
+        )
+    op.create_table(
+        "experiment_evaluator_tasks",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "type",
+            sa.String(),
+            sa.CheckConstraint("type = 'EVALUATOR'", name="valid_type"),
+            nullable=False,
+            server_default="EVALUATOR",
+        ),
+        sa.ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+        # The evaluator's name; run annotations are named after it
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column(
+            "evaluator_kind",
+            sa.String(),
+            sa.CheckConstraint(
+                "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')",
+                name="valid_evaluator_kind",
+            ),
+            nullable=False,
+        ),
+        # The evaluator as drafted (inline prompt version or code) or a stored evaluator's id
+        sa.Column("definition", JSON_, nullable=False),
+        sa.Column("input_mapping", JSON_, nullable=False),
+        sa.Column("output_configs", JSON_, nullable=False),
+    )
+
+
+def _drop_experiment_evaluator_tasks() -> None:
+    # Restoring the narrower CHECK fails while EVALUATOR jobs exist, which stops the
+    # downgrade before it touches anything else rather than discarding those experiments'
+    # bookkeeping.
+    with op.batch_alter_table("experiment_jobs") as batch_op:
+        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
+        batch_op.create_check_constraint(
+            constraint_name="valid_type",
+            condition=_JOB_TYPES_BEFORE,
+        )
+    op.drop_table("experiment_evaluator_tasks")
 
 
 def downgrade() -> None:
+    _drop_experiment_evaluator_tasks()
     op.drop_index(
         "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
     )

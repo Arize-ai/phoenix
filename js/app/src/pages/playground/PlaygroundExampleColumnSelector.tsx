@@ -6,10 +6,12 @@ import {
   Popover,
 } from "@phoenix/components";
 import { ColumnSelectorMenu } from "@phoenix/components/table/columnSelector";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
 import {
-  EXAMPLE_COLUMN_LABELS,
   EXAMPLE_COLUMNS,
+  getExampleColumnLabels,
   getExampleColumnVisibility,
 } from "./exampleColumns";
 import { usePlaygroundDatasetExamplesTablePreferences } from "./PlaygroundDatasetExamplesTablePreferences";
@@ -40,6 +42,10 @@ export function PlaygroundExampleColumnSelector({
     storedVisibility,
   });
 
+  const columnLabels = usePlaygroundContext((state) =>
+    getExampleColumnLabels(getPlaygroundTaskKind(state.instances))
+  );
+
   return (
     <DialogTrigger>
       <Button size="S" leadingVisual={<Icon svg={<Icons.Column />} />}>
@@ -49,7 +55,7 @@ export function PlaygroundExampleColumnSelector({
         <ColumnSelectorMenu
           columns={EXAMPLE_COLUMNS.map((column) => ({
             id: column,
-            label: EXAMPLE_COLUMN_LABELS[column],
+            label: columnLabels[column],
           }))}
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
