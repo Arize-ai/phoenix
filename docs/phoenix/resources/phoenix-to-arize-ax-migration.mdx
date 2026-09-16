@@ -19,7 +19,7 @@ Then ask:
 
 > Use the Arize Phoenix migration skill and my local `.env`. Migrate the historical traces into a fresh AX project. Migrate all datasets, dataset versions, experiments, and stored evaluation results with the prefix `migrated-`. Verify every imported data type.
 
-The agent first inventories the supported resources in Phoenix and reports their counts. If your request did not specify a scope, it asks whether to migrate traces, dataset/experiment data, or both. It then sets expectations and asks once before accessing AX. Migration can take several minutes, and AX indexing and verification can take 15 minutes or longer. Only the final `verified` results establish that the migration completed.
+The agent first inventories the supported resources in Phoenix and reports their counts, exclusions, and suggested destination names. It offers all, trace-only, dataset/experiment-only, and selected-resource scopes together with the expected wait. Reply `go` to migrate everything listed using the suggestions, or name a subset and say `go`; the agent then proceeds without another confirmation. Migration can take several minutes, and AX indexing and verification can take 15 minutes or longer. Only the final `verified` results establish that the migration completed.
 
 <Note>
 The skill currently excludes evaluator definitions, prompts, tags, attachments, and span/trace/session annotations. It stops instead of silently dropping dataset history it cannot reproduce. The script-based tool below has different behavior and limits, including trace annotations; choose it when you need those currently unsupported objects.
