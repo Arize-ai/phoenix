@@ -176,6 +176,9 @@ export function createExpectedOutputQueue({
     inFlight = null;
 
     if (result.ok) {
+      // A Retry reaches here without passing through enqueue, so the failure
+      // it recovered from is cleared here too.
+      error = null;
       showSaved = true;
       cancelSavedTimer?.();
       cancelSavedTimer = schedule(() => {

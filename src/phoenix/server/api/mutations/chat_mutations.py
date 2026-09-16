@@ -34,6 +34,7 @@ from phoenix.server.monty_runtime import (
     MontyWorkerCrashed,
     MontyWorkerTurnTimedOut,
 )
+from phoenix.server.online_eval.session_policy import ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 
 logger = logging.getLogger(__name__)
 
@@ -138,9 +139,11 @@ class ChatCompletionMutationMixin:
             # the same caps, and a client-supplied cap would not be one.
             max_message_bytes: Optional[int] = None
             max_payload_bytes: Optional[int] = None
+            payload_limit_remediation: Optional[str] = None
             if preview_item.apply_online_evaluation_limits:
                 max_message_bytes = get_env_online_eval_max_llm_message_bytes()
                 max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
+                payload_limit_remediation = ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 
             definition = preview_item.evaluator.to_definition()
             # Preview runs are ephemeral by design: no sandbox session manager is
@@ -156,6 +159,7 @@ class ChatCompletionMutationMixin:
                     sandbox_runtime=info.context.sandbox_runtime,
                     max_message_bytes=max_message_bytes,
                     max_payload_bytes=max_payload_bytes,
+                    payload_limit_remediation=payload_limit_remediation,
                 )
             eval_results = await _evaluate_preview(
                 evaluator,

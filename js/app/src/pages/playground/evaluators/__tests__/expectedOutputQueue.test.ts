@@ -154,6 +154,31 @@ describe("expected output queue", () => {
     expect(queue.getState().status).toBe("saved");
   });
 
+  it("clears the error when a retry of the failed batch succeeds", async () => {
+    const timers = createTimers();
+
+    const flush = vi
+      .fn<
+        (
+          batch: PendingExpectedOutputs
+        ) => Promise<{ ok: true } | { ok: false; error: string }>
+      >()
+      .mockResolvedValueOnce({ ok: false, error: "offline" })
+      .mockResolvedValueOnce({ ok: true });
+
+    const queue = createExpectedOutputQueue({ flush, ...timers });
+    queue.enqueue("ex1", "judge", { label: "pass" });
+    expect(await queue.flushNow()).toEqual({ ok: false, error: "offline" });
+    expect(queue.getState().status).toBe("error");
+    // Retry calls flushNow directly, without a new annotation in between.
+    expect(await queue.flushNow()).toEqual({ ok: true });
+    expect(queue.getState()).toMatchObject({
+      status: "saved",
+      error: null,
+      pendingCount: 0,
+    });
+  });
+
   it("flushes no later than the maximum wait while annotating continues", async () => {
     const timers = createTimers();
     const flush = vi.fn(async () => ({ ok: true as const }));

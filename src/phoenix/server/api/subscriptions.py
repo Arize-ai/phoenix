@@ -37,7 +37,11 @@ from phoenix.db.types.experiment_config import PlaygroundConfig
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import BaseEvaluator, build_evaluator_from_definition
+from phoenix.server.api.evaluators import (
+    BaseEvaluator,
+    build_evaluator_from_definition,
+    pin_evaluator_definition,
+)
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
@@ -584,7 +588,9 @@ async def _resolve_evaluator_task(
     session: AsyncSession,
     credentials: Sequence[GenerativeCredentialInput],
 ) -> _ResolvedEvaluatorTask:
-    definition = task.evaluator.to_definition()
+    # Pin what the experiment freezes: a stored evaluator's current version, not a
+    # pointer its owner can edit while the experiment is paused.
+    definition = await pin_evaluator_definition(task.evaluator.to_definition(), session=session)
     evaluator = await build_evaluator_from_definition(
         definition=definition,
         session=session,

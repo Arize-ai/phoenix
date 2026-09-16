@@ -67,12 +67,18 @@ class InlineCodeEvaluatorDefinition(DBBaseModel):
 
 
 class StoredCodeEvaluatorDefinition(DBBaseModel):
-    """A stored code evaluator, run at the version current when the evaluator is built."""
+    """A stored code evaluator.
+
+    Without ``code_evaluator_version_id`` the evaluator runs at its current version, which
+    is what a preview wants. An experiment pins the version before freezing the definition,
+    so the evaluator rebuilt on a resume runs the same code as the one that started.
+    """
 
     model_config = ConfigDict(frozen=True)
 
     type: Literal["code_evaluator"]
     code_evaluator_id: int
+    code_evaluator_version_id: int | None = None
 
 
 class BuiltInEvaluatorDefinition(DBBaseModel):

@@ -127,6 +127,7 @@ from phoenix.server.api.evaluators import (
     EvaluationResult,
     LLMEvaluator,
     build_evaluator_from_definition,
+    code_evaluator_sandbox_session_key,
     evaluation_result_to_model,
     get_evaluators,
 )
@@ -3171,8 +3172,10 @@ class ExperimentRunner(DaemonTask):
                 sandbox_runtime=self._sandbox_runtime,
                 sandbox_session_manager=self._sandbox_session_manager,
                 # One warm sandbox per experiment and replica, as for dataset evaluators
-                session_key=(
-                    f"evaluator-task:exp:{experiment_id}:{self._sandbox_session_manager.replica_id}"
+                session_key=code_evaluator_sandbox_session_key(
+                    evaluator="task",
+                    experiment_id=experiment_id,
+                    replica_id=self._sandbox_session_manager.replica_id,
                 ),
             )
         else:

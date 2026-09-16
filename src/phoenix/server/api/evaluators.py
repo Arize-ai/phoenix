@@ -74,7 +74,6 @@ from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMes
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.monty_runtime import MontyServiceError
 from phoenix.server.online_eval.failure_policy import FailureDisposition
-from phoenix.server.online_eval.session_policy import ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 from phoenix.server.sandbox import (  # noqa: E402
     MissingSecretError,
     SecretsContext,
@@ -966,13 +965,10 @@ async def get_evaluators(
                     evaluator_version_id=str(
                         GlobalID("CodeEvaluatorVersion", str(code_version.id))
                     ),
-                    # Partition by evaluator × experiment × replica so
-                    # concurrent runs never converge on the same provider
-                    # sandbox while intra-experiment reuse still amortizes.
-                    session_key=(
-                        f"evaluator:{code_row.id}"
-                        f":exp:{experiment_id}"
-                        f":{sandbox_session_manager.replica_id}"
+                    session_key=code_evaluator_sandbox_session_key(
+                        evaluator=str(code_row.id),
+                        experiment_id=experiment_id,
+                        replica_id=sandbox_session_manager.replica_id,
                     ),
                     sandbox_session_manager=sandbox_session_manager,
                 )
@@ -1256,6 +1252,47 @@ def evaluation_result_to_span_annotation(
     )
 
 
+# What a code evaluator's payload-limit error suggests when the caller sets no remediation.
+DEFAULT_PAYLOAD_LIMIT_REMEDIATION = "Reduce the mapped inputs or raise the caller's payload limit."
+
+
+def code_evaluator_sandbox_session_key(
+    *, evaluator: str, experiment_id: int, replica_id: str
+) -> str:
+    """The sandbox session key for a code evaluator running in an experiment.
+
+    Partitioned by evaluator, experiment and replica so concurrent runs never converge on
+    the same provider sandbox while reuse within one experiment still amortizes. Dataset
+    evaluators pass their id; an experiment's own evaluator task passes ``"task"``.
+    """
+    return f"evaluator:{evaluator}:exp:{experiment_id}:{replica_id}"
+
+
+async def pin_evaluator_definition(
+    definition: EvaluatorDefinition, *, session: AsyncSession
+) -> EvaluatorDefinition:
+    """The definition with every mutable reference resolved to a version.
+
+    A stored code evaluator names a pointer that its owner can edit; before an experiment
+    freezes the definition the current version is pinned, so every start and resume of
+    the experiment runs the same code.
+    """
+    if (
+        isinstance(definition, StoredCodeEvaluatorDefinition)
+        and definition.code_evaluator_version_id is None
+    ):
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
+            [definition.code_evaluator_id], session
+        )
+        version = latest_versions.get(definition.code_evaluator_id)
+        if version is None:
+            raise BadRequest(
+                f"Code evaluator with id {definition.code_evaluator_id} has no current version"
+            )
+        return definition.model_copy(update={"code_evaluator_version_id": version.id})
+    return definition
+
+
 async def build_evaluator_from_definition(
     *,
     definition: EvaluatorDefinition,
@@ -1267,6 +1304,7 @@ async def build_evaluator_from_definition(
     session_key: Optional[str] = None,
     max_message_bytes: Optional[int] = None,
     max_payload_bytes: Optional[int] = None,
+    payload_limit_remediation: Optional[str] = None,
 ) -> BaseEvaluator:
     """
     Build the runtime evaluator a definition describes.
@@ -1285,6 +1323,9 @@ async def build_evaluator_from_definition(
         session_key: Partitions sandbox sessions; required with a session manager.
         max_message_bytes: Cap on the rendered LLM messages, or None for no cap.
         max_payload_bytes: Cap on the rendered sandbox payload, or None for no cap.
+        payload_limit_remediation: What the payload-limit error tells the user to do; it
+            names the cap the caller applied, so the caller that sets ``max_payload_bytes``
+            sets this too.
 
     Raises:
         BadRequest: The definition cannot be honoured: a missing or disabled sandbox
@@ -1310,6 +1351,7 @@ async def build_evaluator_from_definition(
             sandbox_session_manager=sandbox_session_manager,
             session_key=session_key,
             max_payload_bytes=max_payload_bytes,
+            payload_limit_remediation=payload_limit_remediation,
         )
     if isinstance(definition, InlineCodeEvaluatorDefinition):
         return await _build_inline_code_evaluator(
@@ -1320,6 +1362,7 @@ async def build_evaluator_from_definition(
             sandbox_session_manager=sandbox_session_manager,
             session_key=session_key,
             max_payload_bytes=max_payload_bytes,
+            payload_limit_remediation=payload_limit_remediation,
         )
     assert_never(definition)
 
@@ -1390,16 +1433,28 @@ async def _build_stored_code_evaluator(
     sandbox_session_manager: Optional[SandboxSessionManager],
     session_key: Optional[str],
     max_payload_bytes: Optional[int],
+    payload_limit_remediation: Optional[str],
 ) -> "CodeEvaluatorRunner":
     record = await session.get(models.CodeEvaluator, definition.code_evaluator_id)
     if record is None:
         raise BadRequest(f"Code evaluator with id {definition.code_evaluator_id} not found")
-    latest_versions = await latest_code_evaluator_versions_by_evaluator_id([record.id], session)
-    version = latest_versions.get(record.id)
-    if version is None:
-        raise BadRequest(
-            f"Code evaluator with id {definition.code_evaluator_id} has no current version"
+    if definition.code_evaluator_version_id is not None:
+        version = await session.get(
+            models.CodeEvaluatorVersion, definition.code_evaluator_version_id
         )
+        if version is None or version.code_evaluator_id != record.id:
+            raise BadRequest(
+                f"Code evaluator version with id {definition.code_evaluator_version_id} "
+                f"not found for code evaluator {record.id}"
+            )
+    else:
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id([record.id], session)
+        latest = latest_versions.get(record.id)
+        if latest is None:
+            raise BadRequest(
+                f"Code evaluator with id {definition.code_evaluator_id} has no current version"
+            )
+        version = latest
     evaluator_name = record.name.root
     if record.sandbox_config_id is None:
         raise BadRequest(
@@ -1426,7 +1481,7 @@ async def _build_stored_code_evaluator(
         sandbox_session_manager=sandbox_session_manager,
         session_key=session_key,
         max_payload_bytes=max_payload_bytes,
-        payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
+        payload_limit_remediation=(payload_limit_remediation or DEFAULT_PAYLOAD_LIMIT_REMEDIATION),
     )
 
 
@@ -1439,6 +1494,7 @@ async def _build_inline_code_evaluator(
     sandbox_session_manager: Optional[SandboxSessionManager],
     session_key: Optional[str],
     max_payload_bytes: Optional[int],
+    payload_limit_remediation: Optional[str],
 ) -> "CodeEvaluatorRunner":
     sandbox_backend, sandbox_timeout = await _resolve_sandbox_backend(
         session=session,
@@ -1458,7 +1514,7 @@ async def _build_inline_code_evaluator(
         sandbox_session_manager=sandbox_session_manager,
         session_key=session_key,
         max_payload_bytes=max_payload_bytes,
-        payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
+        payload_limit_remediation=(payload_limit_remediation or DEFAULT_PAYLOAD_LIMIT_REMEDIATION),
     )
 
 
@@ -2865,9 +2921,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         evaluator_version_id: Optional[str] = None,
         session_key: Optional[str] = None,
         max_payload_bytes: Optional[int] = None,
-        payload_limit_remediation: str = (
-            "Reduce the mapped inputs or raise the caller's payload limit."
-        ),
+        payload_limit_remediation: str = DEFAULT_PAYLOAD_LIMIT_REMEDIATION,
     ) -> None:
         self._name = name
         self._description = description
