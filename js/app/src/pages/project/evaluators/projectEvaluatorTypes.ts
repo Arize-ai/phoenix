@@ -110,8 +110,7 @@ export function getDefaultProjectEvaluatorFilterCondition(
 
 /**
  * The evaluator's result annotations live at the level its target selects on
- * the evaluated project. TRACE evaluators are stored but never scheduled, so
- * an empty trace-level chart is the honest reading for them.
+ * the evaluated project.
  */
 export function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
@@ -138,9 +137,13 @@ export type ProjectEvaluatorScope = {
   targetType: ProjectEvaluatorTarget;
   filterCondition: string;
   samplingRate: number;
-  /** Only session evaluators schedule off this; see `toEvaluationDelayInput`. */
   evaluationDelaySeconds: number;
 };
+
+const DELAYED_PROJECT_EVALUATOR_TARGETS: readonly ProjectEvaluatorTarget[] = [
+  "TRACE",
+  "SESSION",
+];
 
 /**
  * Moves a scope to a target and applies the filter that target starts with.
@@ -162,17 +165,19 @@ export function withProjectEvaluatorTarget({
   };
 }
 
-/**
- * The delay half of a create or update input, spread in by every mutation that
- * carries a scope. Only session scheduling waits out a delay, and the server
- * rejects one sent for a span evaluator, so non-session targets send nothing.
- */
+/** The server rejects `evaluationDelaySeconds` for span targets. */
 export function toEvaluationDelayInput(scope: ProjectEvaluatorScope): {
   evaluationDelaySeconds?: number;
 } {
-  return scope.targetType === "SESSION"
+  return DELAYED_PROJECT_EVALUATOR_TARGETS.includes(scope.targetType)
     ? { evaluationDelaySeconds: scope.evaluationDelaySeconds }
     : {};
+}
+
+export function hasEvaluationDelay(target: EvaluationTarget): boolean {
+  return DELAYED_PROJECT_EVALUATOR_TARGETS.includes(
+    target as ProjectEvaluatorTarget
+  );
 }
 
 export const isProjectEvaluatorTarget = (
@@ -186,21 +191,15 @@ export type ProjectEvaluatorMappingSourceGrain = Exclude<
   "dataset"
 >;
 
-/**
- * Which mapping-source vocabulary the records of an evaluated target speak.
- *
- * Span and session sources are structurally identical, so this is the only thing
- * that can tell them apart; every place that builds or resets a project
- * evaluator's mapping source goes through here.
- */
 export function toEvaluatorMappingSourceGrain(
   target: ProjectEvaluatorTarget
 ): ProjectEvaluatorMappingSourceGrain {
   switch (target) {
     case "SESSION":
       return "session";
-    case "SPAN":
     case "TRACE":
+      return "trace";
+    case "SPAN":
       return "span";
     default:
       return assertUnreachable(target);
