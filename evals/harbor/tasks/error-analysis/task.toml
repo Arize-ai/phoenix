@@ -14,18 +14,15 @@ memory_mb = 4096
 # The task itself needs nothing from outside: every host is added at a narrower level.
 # Each agent entry in the job file (or --allow-agent-host) names its own LLM provider,
 # which applies during agent.run() only; the job's environment.extra_allowed_hosts (or
-# --allow-environment-host) carries the docs hosts and, when exporting, the results
-# Phoenix host. Keeping hosts out of this file keeps the task digest, and so the Phoenix
-# dataset version, stable across providers and operators.
+# --allow-environment-host) carries the docs hosts. Keeping hosts out of this file keeps
+# the task digest, and so the Phoenix dataset version, stable across providers and
+# operators.
 network_mode = "allowlist"
 build_timeout_sec = 1200.0
 
 [environment.env]
 ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
 OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
-HARBOR_PHOENIX_COLLECTOR_ENDPOINT = "${HARBOR_PHOENIX_COLLECTOR_ENDPOINT:-}"
-HARBOR_PHOENIX_API_KEY = "${HARBOR_PHOENIX_API_KEY:-}"
-HARBOR_PHOENIX_PROJECT_NAME = "${HARBOR_PHOENIX_PROJECT_NAME:-}"
 
 # The verifier's LLM judge (error_analysis_checks.judge) calls its provider, and the
 # agent-phase hosts do not carry over to verification. Nothing the verifier does needs

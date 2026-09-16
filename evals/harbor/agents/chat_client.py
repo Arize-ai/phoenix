@@ -294,7 +294,6 @@ class AgentSessionChatClient:
         mutations_enabled: bool,
         approve: ApprovalPolicy,
         record_local_traces: bool = False,
-        export_remote_traces: bool = False,
     ) -> Turn:
         transcript = await self.list_messages(session_id)
         last_message_id = transcript[-1]["id"] if transcript else None
@@ -306,7 +305,6 @@ class AgentSessionChatClient:
             "editPermission": edit_permission,
             "contexts": chat_contexts(mutations_enabled=mutations_enabled),
             "recordLocalTraces": record_local_traces,
-            "exportRemoteTraces": export_remote_traces,
         }
         turn = Turn(user_message=user_message(instruction))
         message, errors = await self._chat(
@@ -445,7 +443,6 @@ async def run(args: argparse.Namespace) -> None:
             mutations_enabled=allow_mutations,
             approve=lambda _part: approve_tool_calls,
             record_local_traces=True,
-            export_remote_traces=args.export_remote_traces,
         )
         transcript = await client.list_messages(session_id)
         turn_spans = await client.fetch_turn_spans(turn.trace_contexts)
@@ -473,7 +470,6 @@ def main() -> None:
         "--session-id", default=None, help="Continue this session; omit to create one"
     )
     parser.add_argument("--step-config", type=Path, default=None)
-    parser.add_argument("--export-remote-traces", action="store_true")
     asyncio.run(run(parser.parse_args()))
 
 

@@ -1,5 +1,4 @@
 import json
-import os
 import shlex
 import tempfile
 from pathlib import Path
@@ -14,7 +13,6 @@ _AGENT_DIR = "/installed-agent/phoenix-chat"
 _CHAT_CLIENT = Path(__file__).with_name("chat_client.py")
 _STEPS_DIR = "/logs/agent/steps"
 _INSTRUCTION_PATH = "/tmp/instruction.md"
-_TRACE_ENDPOINT_ENV_VAR = "HARBOR_PHOENIX_COLLECTOR_ENDPOINT"
 
 
 class PhoenixChatAgent(BaseAgent):
@@ -56,8 +54,6 @@ class PhoenixChatAgent(BaseAgent):
         ]
         if self._session_id is not None:
             command.append(f"--session-id {shlex.quote(self._session_id)}")
-        if os.getenv(_TRACE_ENDPOINT_ENV_VAR):
-            command.append("--export-remote-traces")
         await self._exec(environment, " ".join(command))
         self._session_id = (await self._exec(environment, f"cat {out_dir}/session_id")).strip()
 

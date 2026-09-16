@@ -148,18 +148,6 @@ Browse job results in a local web viewer:
 make harbor-view
 ```
 
-Optionally export traces to a remote Phoenix instance:
-
-```bash
-export HARBOR_PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.example.com
-export HARBOR_PHOENIX_API_KEY=...
-export HARBOR_PHOENIX_PROJECT_NAME=harbor-server-agent-evals
-```
-
-The task runs under Harbor's allowlist network policy, so grant the collector's host for
-the trial or the export is silently dropped: `HARBOR_ARGS='--allow-environment-host <host>'`.
-This is separate from the plugin, which runs on the host and needs no allowance.
-
 ## Network allowlists
 
 The task allows nothing by itself; every host is granted at the narrowest level that
@@ -170,7 +158,7 @@ new provider or operator.
 | --- | --- | --- | --- |
 | Task baseline | `[environment]` in `task.toml` | the whole trial | nothing: `network_mode = "allowlist"` with no hosts |
 | Verifier phase | `[verifier]` in `task.toml` | verification only | `network_mode = "public"`: the LLM judge reaches its provider without a second allowlist |
-| Job environment | `environment.extra_allowed_hosts` in the job file, or `--allow-environment-host` | the whole trial, every agent | the Phoenix docs hosts; the results Phoenix host when exporting |
+| Job environment | `environment.extra_allowed_hosts` in the job file, or `--allow-environment-host` | the whole trial, every agent | the Phoenix docs hosts |
 | Agent | `extra_allowed_hosts` on an agent entry, or `--allow-agent-host` | that agent's run only | the agent's LLM provider |
 
 The job file grants the docs hosts and each agent's provider host; delete them there for
