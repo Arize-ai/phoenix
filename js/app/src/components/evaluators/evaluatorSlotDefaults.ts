@@ -54,6 +54,30 @@ const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
       },
     ],
   },
+  trace: {
+    input: [
+      {
+        path: "metadata.attributes.input",
+        description: "The root span's input attribute, with mime type.",
+      },
+    ],
+    output: [
+      {
+        path: "metadata.attributes.output",
+        description: "The root span's output attribute, with mime type.",
+      },
+    ],
+    metadata: [
+      {
+        path: "metadata.attributes",
+        description: "The root span's whole attribute tree.",
+      },
+      {
+        path: "metadata.trace_annotations",
+        description: "Trace annotations, by name.",
+      },
+    ],
+  },
   session: {
     input: [
       {

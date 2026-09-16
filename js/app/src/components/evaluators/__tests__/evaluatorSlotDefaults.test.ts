@@ -1,6 +1,7 @@
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
+import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
 
 import { materializeEvaluatorContext } from "../evaluatorContext";
 import { resolveEvaluatorPath } from "../evaluatorPathCompletions";
@@ -20,6 +21,7 @@ const SAMPLE_CONTEXT_BY_GRAIN: Record<
   () => { context: unknown }
 > = {
   span: getSampleSpanEvaluationContext,
+  trace: getSampleTraceEvaluationContext,
   session: getSampleSessionEvaluationContext,
 };
 
@@ -42,6 +44,9 @@ const RECORD_PATHS: Record<
   Partial<Record<EvaluatorSlotName, string>>
 > = {
   span: {
+    metadata: "metadata",
+  },
+  trace: {
     metadata: "metadata",
   },
   session: {
@@ -123,6 +128,12 @@ describe("evaluator slot defaults", () => {
     ]);
     expect(paths("session", "output")).toEqual(["metadata.turns[0].output"]);
     expect(paths("session", "metadata")).toEqual([]);
+    expect(paths("trace", "input")).toEqual(["metadata.attributes.input"]);
+    expect(paths("trace", "output")).toEqual(["metadata.attributes.output"]);
+    expect(paths("trace", "metadata")).toEqual([
+      "metadata.attributes",
+      "metadata.trace_annotations",
+    ]);
   });
 
   it("suggests only paths a real record resolves", () => {
