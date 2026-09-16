@@ -1,8 +1,8 @@
 import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
- * The values a span or session carries under `metadata`, each read by a mapping
- * entry whose path is `metadata.<name>`. Mirrors the server's
+ * The values a span, trace, or session carries under `metadata`, each read by a
+ * mapping entry whose path is `metadata.<name>`. Mirrors the server's
  * `phoenix.server.online_eval.bound_variables`, held in sync by
  * `tests/unit/server/online_eval/test_bound_variables.py`.
  */
@@ -61,7 +61,26 @@ const SESSION_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   { name: "total_cost", type: "number" },
 ];
 
-/** Mirrors the server's SPAN/SESSION_METADATA_FIELD_NAMES via the same test as above. */
+const TRACE_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
+  { name: "trace_id", type: "text" },
+  { name: "latency_ms", type: "number" },
+  { name: "num_spans", type: "number" },
+  {
+    name: "error_count",
+    type: "number",
+    description: "Spans with an ERROR status.",
+  },
+  { name: "llm_span_count", type: "number" },
+  { name: "tool_span_count", type: "number" },
+  { name: "token_count_prompt", type: "number" },
+  { name: "token_count_completion", type: "number" },
+  { name: "token_count_total", type: "number" },
+  { name: "prompt_cost", type: "number" },
+  { name: "completion_cost", type: "number" },
+  { name: "total_cost", type: "number" },
+];
+
+/** Mirrors the server's per-grain `<GRAIN>_METADATA_FIELD_NAMES` via the same test as above. */
 const SPAN_METADATA_FIELDS: EvaluatorBoundVariable[] = [
   { name: "start_time", type: "text" },
   { name: "end_time", type: "text" },
@@ -74,6 +93,18 @@ const SESSION_METADATA_FIELDS: EvaluatorBoundVariable[] = [
   { name: "start_time", type: "text" },
   { name: "end_time", type: "text" },
   { name: "turns", type: "list", description: "Oldest first." },
+];
+
+const TRACE_METADATA_FIELDS: EvaluatorBoundVariable[] = [
+  { name: "start_time", type: "text" },
+  { name: "end_time", type: "text" },
+  { name: "attributes", type: "object", description: "From the root span." },
+  { name: "events", type: "list", description: "From the root span." },
+  {
+    name: "trace_annotations",
+    type: "object",
+    description: "Grouped by name.",
+  },
 ];
 
 /** Every key of a `metadata.turns` entry; mirrors the server via the same test. */
@@ -102,6 +133,7 @@ const BOUND_VARIABLES_BY_GRAIN: Record<
   EvaluatorBoundVariable[]
 > = {
   span: SPAN_BOUND_VARIABLES,
+  trace: TRACE_BOUND_VARIABLES,
   session: SESSION_BOUND_VARIABLES,
 };
 
@@ -110,6 +142,7 @@ const METADATA_FIELDS_BY_GRAIN: Record<
   EvaluatorBoundVariable[]
 > = {
   span: SPAN_METADATA_FIELDS,
+  trace: TRACE_METADATA_FIELDS,
   session: SESSION_METADATA_FIELDS,
 };
 
