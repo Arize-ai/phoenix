@@ -28,12 +28,21 @@ from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_strea
 EditPermission = Literal["manual", "bypass"]
 Message = dict[str, Any]
 Part = dict[str, Any]
+TurnSpan = dict[str, Any]
 ApprovalPolicy = Callable[[Part], bool]
 
 _SSE_DATA_PREFIX = "data: "
 _SSE_DONE = "data: [DONE]"
 _BUSY_RETRY_DELAY_SECONDS = 2.0
 _BUSY_RETRY_ATTEMPTS = 30
+_SPAN_SETTLE_TIMEOUT_SECONDS = 30.0
+_SPAN_SETTLE_POLL_SECONDS = 1.0
+_TOKEN_COUNT_ATTRIBUTES = {
+    "prompt": "llm.token_count.prompt",
+    "completion": "llm.token_count.completion",
+    "cache_read": "llm.token_count.prompt_details.cache_read",
+    "cache_write": "llm.token_count.prompt_details.cache_write",
+}
 
 _CHUNK_TYPES: dict[str, type[BaseChunk]] = {
     default: chunk_type
@@ -150,6 +159,18 @@ class Turn:
         usage = (metadata.get("phoenix") or {}).get("usage")
         return usage if isinstance(usage, dict) else None
 
+    @property
+    def trace_contexts(self) -> list[dict[str, Any]]:
+        """The ``turnTraceContext`` of each assistant message: the trace PXI's own
+        instrumentation wrote for that continuation, with its root span."""
+        contexts: list[dict[str, Any]] = []
+        for message in self.assistant_messages:
+            metadata = message.get("metadata") or {}
+            context = (metadata.get("phoenix") or {}).get("turnTraceContext")
+            if isinstance(context, dict) and context.get("traceId"):
+                contexts.append(context)
+        return contexts
+
 
 class AgentSessionChatClient:
     def __init__(
@@ -176,6 +197,76 @@ class AgentSessionChatClient:
         )
         _raise_for_status(response)
         return str(response.json()["data"]["id"])
+
+    async def list_projects(self) -> list[dict[str, Any]]:
+        projects: list[dict[str, Any]] = []
+        cursor: str | None = None
+        while True:
+            params: dict[str, str | int] = {"limit": 100}
+            if cursor:
+                params["cursor"] = cursor
+            response = await self._http.get("/v1/projects", params=params)
+            _raise_for_status(response)
+            payload = response.json()
+            projects.extend(payload["data"])
+            cursor = payload.get("next_cursor")
+            if not cursor:
+                return projects
+
+    async def list_trace_spans(self, project_id: str, trace_id: str) -> list[dict[str, Any]]:
+        spans: list[dict[str, Any]] = []
+        cursor: str | None = None
+        while True:
+            params: dict[str, str | int] = {"trace_id": trace_id, "limit": 1000}
+            if cursor:
+                params["cursor"] = cursor
+            response = await self._http.get(f"/v1/projects/{project_id}/spans", params=params)
+            _raise_for_status(response)
+            payload = response.json()
+            spans.extend(payload["data"])
+            cursor = payload.get("next_cursor")
+            if not cursor:
+                return spans
+
+    async def fetch_turn_spans(self, trace_contexts: list[dict[str, Any]]) -> list[TurnSpan]:
+        """The trimmed spans of the turn's traces, once the server has persisted them.
+
+        The chat route persists a continuation's local trace after its stream ends, so
+        poll until each trace's root span has finished and the span count holds still.
+        """
+        if not trace_contexts:
+            return []
+        deadline = asyncio.get_running_loop().time() + _SPAN_SETTLE_TIMEOUT_SECONDS
+        previous: dict[str, int] = {}
+        while True:
+            spans_by_trace = await self._spans_by_trace(trace_contexts)
+            counts = {trace_id: len(spans) for trace_id, spans in spans_by_trace.items()}
+            settled = counts == previous and all(
+                _root_finished(spans_by_trace.get(str(context["traceId"]), []), context)
+                for context in trace_contexts
+            )
+            if settled or asyncio.get_running_loop().time() >= deadline:
+                if not settled:
+                    print(
+                        "warning: the turn's traces did not settle in "
+                        f"{_SPAN_SETTLE_TIMEOUT_SECONDS:.0f}s; timing may be incomplete",
+                        file=sys.stderr,
+                    )
+                return [trim_span(span) for spans in spans_by_trace.values() for span in spans]
+            previous = counts
+            await asyncio.sleep(_SPAN_SETTLE_POLL_SECONDS)
+
+    async def _spans_by_trace(
+        self, trace_contexts: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
+        wanted = {str(context["traceId"]) for context in trace_contexts}
+        found: dict[str, list[dict[str, Any]]] = {}
+        for project in await self.list_projects():
+            for trace_id in wanted - found.keys():
+                spans = await self.list_trace_spans(str(project["id"]), trace_id)
+                if spans:
+                    found[trace_id] = spans
+        return found
 
     async def list_messages(self, session_id: str) -> list[Message]:
         messages: list[Message] = []
@@ -265,6 +356,49 @@ class AgentSessionChatClient:
             return await accumulate_assistant_message(iter_sse_chunks(response.aiter_lines()))
 
 
+def trim_span(span: dict[str, Any]) -> TurnSpan:
+    """Keep what the ATIF builder times and meters a step with; drop the payloads.
+
+    An LLM span carries its whole prompt in ``attributes``, so a turn's raw spans run to
+    megabytes. The builder matches tool spans by ``tool_call.id`` and LLM spans by the
+    tool call IDs they emitted, and reads the LLM span's token counts.
+    """
+    attributes = span.get("attributes") or {}
+    kind = span.get("span_kind") or attributes.get("openinference.span.kind")
+    output_tool_call_ids = sorted(
+        {
+            str(value)
+            for key, value in attributes.items()
+            if key.startswith("llm.output_messages.") and key.endswith(".tool_call.id")
+        }
+    )
+    token_counts = {
+        name: attributes[key]
+        for name, key in _TOKEN_COUNT_ATTRIBUTES.items()
+        if isinstance(attributes.get(key), int)
+    }
+    return {
+        "span_id": span["context"]["span_id"],
+        "trace_id": span["context"]["trace_id"],
+        "parent_id": span.get("parent_id"),
+        "name": span.get("name"),
+        "kind": kind,
+        "start_time": span.get("start_time"),
+        "end_time": span.get("end_time"),
+        "tool_call_id": attributes.get("tool_call.id"),
+        "output_tool_call_ids": output_tool_call_ids,
+        "token_counts": token_counts,
+    }
+
+
+def _root_finished(spans: list[dict[str, Any]], context: dict[str, Any]) -> bool:
+    root_span_id = context.get("rootSpanId")
+    for span in spans:
+        if span["context"]["span_id"] == root_span_id:
+            return bool(span.get("end_time"))
+    return False
+
+
 def _raise_for_status(response: httpx.Response) -> None:
     if response.status_code < 400:
         return
@@ -310,9 +444,11 @@ async def run(args: argparse.Namespace) -> None:
             edit_permission=edit_permission,
             mutations_enabled=allow_mutations,
             approve=lambda _part: approve_tool_calls,
+            record_local_traces=True,
             export_remote_traces=args.export_remote_traces,
         )
         transcript = await client.list_messages(session_id)
+        turn_spans = await client.fetch_turn_spans(turn.trace_contexts)
     finally:
         await client.aclose()
 
@@ -321,6 +457,7 @@ async def run(args: argparse.Namespace) -> None:
     args.out_dir.joinpath("turn_messages.json").write_text(_dump_json(turn.messages))
     args.out_dir.joinpath("messages.json").write_text(_dump_json(transcript))
     args.out_dir.joinpath("usage.json").write_text(_dump_json(turn.usage))
+    args.out_dir.joinpath("turn_spans.json").write_text(_dump_json(turn_spans))
     args.out_dir.joinpath("stream_errors.json").write_text(_dump_json(turn.stream_errors))
     for error in turn.stream_errors:
         print(f"warning: the server ended the turn with an error: {error}", file=sys.stderr)

@@ -8,7 +8,7 @@ from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
-from evals.harbor.agents.atif import trajectory_from_ui_messages
+from evals.harbor.agents.atif import llm_latencies_ms, trajectory_from_ui_messages
 
 _ASSETS_DIR = "/opt/phoenix-eval"
 _STEPS_DIR = "/logs/agent/steps"
@@ -60,17 +60,25 @@ class PhoenixChatAgent(BaseAgent):
 
     def populate_context_post_run(self, context: AgentContext) -> None:
         """Harbor calls this after downloading ``/logs/agent``; the turn's transcript becomes
-        the ATIF ``trajectory.json`` that Harbor uploads back for the verifier."""
-        turn_path = self.logs_dir / "steps" / str(self._step) / "turn_messages.json"
+        the ATIF ``trajectory.json`` that Harbor uploads back for the verifier.
+
+        The turn's own spans, when the chat client saved them, time and meter each step;
+        the per-step LLM latencies go on the context under the key the Phoenix plugin
+        reads to give the LLM spans a duration."""
+        step_dir = self.logs_dir / "steps" / str(self._step)
+        turn_path = step_dir / "turn_messages.json"
         if not turn_path.exists():
             self.logger.debug(f"No transcript at {turn_path}; skipping the ATIF trajectory")
             return
+        spans_path = step_dir / "turn_spans.json"
+        spans = json.loads(spans_path.read_text()) if spans_path.exists() else None
         trajectory = trajectory_from_ui_messages(
             json.loads(turn_path.read_text()),
             session_id=self._session_id,
             agent_name=self.name(),
             agent_version=self.version() or "unknown",
             model_name=self.model_name,
+            spans=spans,
         )
         self.logs_dir.joinpath("trajectory.json").write_text(
             json.dumps(trajectory.to_json_dict(), indent=2, ensure_ascii=False)
@@ -79,6 +87,8 @@ class PhoenixChatAgent(BaseAgent):
             context.n_input_tokens = metrics.total_prompt_tokens
             context.n_cache_tokens = metrics.total_cached_tokens
             context.n_output_tokens = metrics.total_completion_tokens
+        if (latencies := llm_latencies_ms(trajectory)) is not None:
+            context.metadata = {**(context.metadata or {}), "api_request_times_msec": latencies}
 
     @staticmethod
     async def _upload_instruction(environment: BaseEnvironment, instruction: str) -> None:

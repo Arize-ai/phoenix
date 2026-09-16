@@ -60,6 +60,14 @@ verifier takes the final reply from the last agent step, counts tool calls from 
 finds the PXI agent session through the trajectory's `session_id`. Sidecars are read from
 `/app/.px/coding` on disk when present and from the PXI snapshot otherwise.
 
+A chat transcript carries one timestamp and one usage figure per turn, so the chat agent
+also records each turn's trace in the container's Phoenix (tracing is forced in
+`start_phoenix_server.sh`) and saves its trimmed spans next to the transcript. Each ATIF
+step is matched to its LLM span and tool spans by tool call ID, which gives the step its
+real timestamp and token counts, and the per-call LLM latencies reach the Phoenix plugin
+through `AgentContext.metadata["api_request_times_msec"]`, so the experiment's spans have
+durations comparable to the Claude Code agents'.
+
 The `claude-code-cli` agent uploads the packed tarballs into its own sandbox during install
 and runs `evals/harbor/agents/install_phoenix_cli.sh`, which turns each tarball into an npm
 override so the workspace packages resolve to the local builds.
