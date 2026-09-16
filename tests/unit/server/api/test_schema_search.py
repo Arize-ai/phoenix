@@ -166,6 +166,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   clearProject(input: ClearProjectInput!): Query!
   createSession(input: CreateSessionInput!): Session!
+  transferTraces(traceIds: [ID!]!, projectId: ID!): Query!
 }
 input DeleteDatasetInput { datasetId: ID! }
 input AddExamplesToDatasetInput { datasetId: ID! examples: [DatasetExampleInput!]! }
@@ -495,9 +496,7 @@ def test_input_types_are_labelled_by_their_mutation(toy: Index) -> None:
 
 
 def test_unreachable_types_say_what_returns_them(toy: Index) -> None:
-    assert "type DatasetMutationPayload  returned by Mutation." in search(
-        toy, "dataset mutation payload"
-    )
+    assert "type DatasetMutationPayload  returned by Mutation." in search(toy, "dataset payload")
 
 
 def test_abstract_types_list_their_possible_types(toy: Index) -> None:
@@ -552,6 +551,23 @@ def test_enums_returned_by_fields_say_so(toy: Index) -> None:
     assert first_line(search(toy, "unset")) == (
         "enum SpanStatusCode.UNSET  used by Span.statusCode, Span.propagatedStatusCode"
     )
+
+
+def test_action_verbs_come_from_the_mutations_themselves(toy: Index) -> None:
+    assert first_line(search(toy, "transfer traces")).startswith("mutation transferTraces(")
+    # A read query is not pushed toward mutations.
+    assert not first_line(search(toy, "trace latency")).startswith("mutation ")
+
+
+def test_the_word_mutations_restricts_a_search_to_mutations(
+    toy: Index, toy_reads_only: Index
+) -> None:
+    text = search(toy, "dataset mutations")
+    listed = text.split(" in full:", 1)[0].splitlines()[:-1]
+    assert listed and all(line.startswith("mutation ") for line in listed)
+    assert "mutation deleteDataset(" in text and "mutation addExamplesToDataset(" in text
+    assert search(toy, "mutations") == lookup(toy, "Mutation")
+    assert search(toy_reads_only, "dataset mutations") == DISABLED
 
 
 # --- hidden roots ----------------------------------------------------------------

@@ -150,10 +150,8 @@ def _query_terms(query: str) -> list[str]:
     return [_stem(t) for w in words[:_MAX_QUERY_TERMS] for t in _expand(w)]
 
 
-_ACTION_VERBS = frozenset(
-    _stem(v)
-    for v in ("create", "add", "delete", "patch", "set", "update", "clear", "remove", "revoke")
-)
+_MUTATION_TERM = _stem("mutation")
+"""The query word that restricts a search to mutations."""
 
 
 @dataclass(frozen=True)
@@ -180,6 +178,7 @@ class Index:
     schema: GraphQLSchema
     query_root: str
     mutation_root: Optional[str]
+    action_verbs: frozenset[str]  # stemmed leading token of every mutation name
     roots: frozenset[str]
     includes_mutations: bool
     excluded_mutations: Mapping[str, frozenset[str]]  # lowercase name -> its stemmed tokens
@@ -409,6 +408,10 @@ def build_index(
     mutation_root = mutation.name if mutation is not None else None
     hidden = [t for t in (schema.subscription_type,) if t is not None]
     excluded_mutations: dict[str, frozenset[str]] = {}
+    # A query that opens with a verb some mutation opens with wants a write.
+    action_verbs = frozenset(
+        _stem(tokenize(fname)[0]) for fname in (mutation.fields if mutation is not None else ())
+    )
     if mutation is not None and not include_mutations:
         hidden.append(mutation)
         for fname in mutation.fields:
@@ -506,6 +509,7 @@ def build_index(
         schema=schema,
         query_root=query_root,
         mutation_root=mutation_root,
+        action_verbs=action_verbs,
         roots=frozenset(present_roots),
         includes_mutations=include_mutations,
         excluded_mutations=excluded_mutations,
@@ -592,11 +596,15 @@ def _kind_adjustment(index: Index, u: Unit, wants_mutation: bool) -> float:
     return s
 
 
-def _rank(index: Index, terms: Sequence[str], wants_mutation: bool) -> list[tuple[float, Unit]]:
+def _rank(
+    index: Index, terms: Sequence[str], wants_mutation: bool, only_mutations: bool = False
+) -> list[tuple[float, Unit]]:
     """Score every unit: BM25F, a share of the owning type's own score, a boost
     for proximity to a read root normalized over the matches, then kind adjustments.
+    With ``only_mutations`` nothing but mutations is scored.
     """
-    bm25 = [(u, _bm25f(index, u, terms)) for u in index.units]
+    units = [u for u in index.units if u.kind == "mutation"] if only_mutations else index.units
+    bm25 = [(u, _bm25f(index, u, terms)) for u in units]
     type_score = {u.name: s for u, s in bm25 if u.kind == "type"}
     matched = [(u, s) for u, s in bm25 if s]
     if not matched:
@@ -743,6 +751,7 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     naming that owner and the path that reaches it.
 
     A query that exactly names a type, ``Type.field``, or mutation is a lookup.
+    A query containing the word "mutations" is answered with mutations only.
     """
     key = query.strip().lower()
     # A definition has its own budget: it is one answer, not a list to trim.
@@ -761,11 +770,17 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
             "-- Empty query. Search for a concept ('span cost') "
             "or name a type or field ('Span.costSummary')."
         )
-    wants_mutation = any(t in _ACTION_VERBS for t in terms)
+    only_mutations = _MUTATION_TERM in terms
+    terms = [t for t in terms if t != _MUTATION_TERM]
+    if only_mutations and not index.includes_mutations:
+        return _MUTATIONS_DISABLED
+    if only_mutations and not terms:
+        return lookup(index, index.mutation_root or "")
+    wants_mutation = only_mutations or any(t in index.action_verbs for t in terms)
     note: list[str] = []
     if not index.includes_mutations and (wants_mutation or _names_excluded_mutation(index, terms)):
         note.append(_MUTATIONS_DISABLED)
-    scored = _rank(index, terms, wants_mutation)
+    scored = _rank(index, terms, wants_mutation, only_mutations)
     # One line per distinct signature; the parents it occurs on are listed
     # best score first, so the type the query named leads the list.
     groups: dict[tuple[str, str], list[Unit]] = {}
