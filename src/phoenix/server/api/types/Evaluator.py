@@ -1102,11 +1102,11 @@ class DatasetEvaluator(Node):
         if evaluator is None:
             raise NotFound(f"Evaluator not found: {record.evaluator_id}")
         if isinstance(evaluator, models.LLMEvaluator):
-            return LLMEvaluator(id=evaluator.id)
+            return LLMEvaluator(id=evaluator.id, db_record=evaluator)
         elif isinstance(evaluator, models.CodeEvaluator):
-            return CodeEvaluator(id=evaluator.id)
+            return CodeEvaluator(id=evaluator.id, db_record=evaluator)
         elif isinstance(evaluator, models.BuiltinEvaluator):
-            return BuiltInEvaluator(id=evaluator.id)
+            return BuiltInEvaluator(id=evaluator.id, db_record=evaluator)
         else:
             raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
@@ -1308,11 +1308,11 @@ class ProjectEvaluator(Node):
         record = await self._get_record(info)
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if isinstance(evaluator, models.LLMEvaluator):
-            return LLMEvaluator(id=evaluator.id)
+            return LLMEvaluator(id=evaluator.id, db_record=evaluator)
         if isinstance(evaluator, models.CodeEvaluator):
-            return CodeEvaluator(id=evaluator.id)
+            return CodeEvaluator(id=evaluator.id, db_record=evaluator)
         if isinstance(evaluator, models.BuiltinEvaluator):
-            return BuiltInEvaluator(id=evaluator.id)
+            return BuiltInEvaluator(id=evaluator.id, db_record=evaluator)
         project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
         raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
 
