@@ -312,6 +312,7 @@
 ### Java Frameworks
 
 - [Arconia Tracing](https://arize.com/docs/phoenix/integrations/java/arconia/arconia-tracing): Auto-instrument Spring Boot and Spring AI applications
+- [Google ADK Tracing (Java)](https://arize.com/docs/phoenix/integrations/java/google-adk/google-adk-tracing): Attach the OpenInference Java agent JAR to enrich Google ADK spans — no code changes
 - [LangChain4j Tracing](https://arize.com/docs/phoenix/integrations/java/langchain4j/langchain4j-tracing): Auto-instrument LangChain4j chains and agents
 - [Spring AI Tracing](https://arize.com/docs/phoenix/integrations/java/springai/springai-tracing): Auto-instrument Spring AI applications
 
@@ -347,6 +348,7 @@
 ### Java Frameworks — Additional
 
 - [Arconia Integration](https://arize.com/docs/phoenix/integrations/java/arconia): Connect Arconia's cloud-native Spring tooling to Phoenix
+- [Google ADK Integration (Java)](https://arize.com/docs/phoenix/integrations/java/google-adk): Connect Google Agent Development Kit agents written in Java to Phoenix
 - [LangChain4j Integration](https://arize.com/docs/phoenix/integrations/java/langchain4j): Connect LangChain4j Java chains and agents to Phoenix
 - [Spring AI Integration](https://arize.com/docs/phoenix/integrations/java/springai): Connect Spring AI applications to Phoenix
 
@@ -368,7 +370,7 @@
 - [BeeAI Integration (Python)](https://arize.com/docs/phoenix/integrations/python/beeai): Connect BeeAI agent composition to Phoenix from Python
 - [CrewAI Integration](https://arize.com/docs/phoenix/integrations/python/crewai): Connect CrewAI role-playing agent crews to Phoenix
 - [DSPy Integration](https://arize.com/docs/phoenix/integrations/python/dspy): Connect DSPy modules and optimizers to Phoenix
-- [Google ADK Integration](https://arize.com/docs/phoenix/integrations/python/google-adk): Connect Google ADK Gemini agents to Phoenix
+- [Google ADK Integration (Python)](https://arize.com/docs/phoenix/integrations/python/google-adk): Connect Google ADK Gemini agents to Phoenix
 - [Graphite Integration](https://arize.com/docs/phoenix/integrations/python/graphite): Connect Graphite's visual multi-agent workflows to Phoenix
 - [Guardrails AI Integration](https://arize.com/docs/phoenix/integrations/python/guardrails-ai): Connect Guardrails AI input/output validators to Phoenix
 - [Haystack Integration](https://arize.com/docs/phoenix/integrations/python/haystack): Connect Haystack search and QA pipelines to Phoenix
@@ -845,6 +847,7 @@
 - [08.17.2026: Trace Filter Expressions and Analytics SQL](https://arize.com/docs/phoenix/release-notes/08-2026/08-17-2026-trace-filters-and-analytics-sql): Filter the traces table with a full expression language and query Phoenix with read-only SQL over MCP
 - [08.25.2026: Smarter PXI Workflows and Retrieval Evaluation](https://arize.com/docs/phoenix/release-notes/08-2026/08-25-2026-pxi-browser-actions-and-retrieval-relevance): Run approval-gated multi-step PXI workflows across the UI and score retrievals from any source
 - [09.01.2026: GitHub Issues from PXI, PII Detection, and Client Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-01-2026-github-issues-pii-detection-and-client-updates): File GitHub issues from PXI, screen conversations for PII, and create prompt versions over REST
+- [09.08.2026: New Model Providers, Trace Filters, and PXI Updates](https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi): Run Z.ai, MiniMax, and Meta models in the Playground and PXI; filter traces by error status and latency
 
 ### 2025
 
