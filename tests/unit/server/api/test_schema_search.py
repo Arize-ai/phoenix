@@ -417,6 +417,15 @@ def test_a_missing_member_searches_within_its_type(toy: Index) -> None:
     assert headers == ["Project  via Query.getProjectByName"]
 
 
+def test_a_dotted_query_on_an_unknown_type_is_not_searched_at_large(toy: Index) -> None:
+    miss = "-- No type named 'Spann'. Did you mean Span, SpanColumn, SpanSort? Try search('Span.cost')."
+    assert search(toy, "Spann.cost") == miss
+    assert lookup(toy, "Spann.cost") == miss
+    assert search(toy, "Zzzz.cost") == "-- No type named 'Zzzz'. Try search('cost')."
+    # A sentence with a full stop is still free text.
+    assert "# On " not in search(toy, "cost. summary")
+
+
 def test_the_tail_says_where_the_rest_lives(toy: Index) -> None:
     text = search(toy, "id", budget=350)
     trailer = next(line for line in text.splitlines() if line.startswith("... "))

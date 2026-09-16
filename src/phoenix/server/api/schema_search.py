@@ -8,6 +8,7 @@ path that reaches it. Every renderer works to a character budget.
 
 from __future__ import annotations
 
+import difflib
 import functools
 import itertools
 import math
@@ -758,6 +759,21 @@ def _is_hidden_mutation_root(index: Index, key: str) -> bool:
     )
 
 
+def _unknown_type(index: Index, name: str) -> Optional[str]:
+    """The miss for ``Word.member`` when ``Word`` is no type, with the nearest
+    type names. A dotted query is scoped on purpose and is not searched at large."""
+    owner, dot, member = name.strip().partition(".")
+    if not dot or not member or not owner or owner.lower() in index.by_key:
+        return None
+    if " " in owner or " " in member.strip():
+        return None
+    types = {u.name.lower(): u.name for u in index.units if u.kind == "type"}
+    near = [types[k] for k in difflib.get_close_matches(owner.lower(), types, n=3, cutoff=0.6)]
+    hint = f" Did you mean {', '.join(near)}?" if near else ""
+    retry = f"search('{near[0]}.{member}')" if near else f"search('{member}')"
+    return f"-- No type named {owner!r}.{hint} Try {retry}."
+
+
 def _unknown_member(index: Index, name: str) -> Optional[tuple[str, str]]:
     """``(Type, member)`` when ``name`` is ``Type.member`` for an indexed type that
     has no such member. ``member`` keeps the caller's spelling."""
@@ -782,6 +798,8 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     key = query.strip().lower()
     if _is_exact(index, key):
         return lookup(index, query, budget)
+    if miss := _unknown_type(index, query):
+        return miss
     if unknown := _unknown_member(index, query):
         owner, member = unknown
         terms = _query_terms(member)
@@ -1153,6 +1171,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
         if unknown := _unknown_member(index, name):
             owner, member = unknown
             return [f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."]
+        if miss := _unknown_type(index, name):
+            return [miss]
         return [f"-- No type, field, or mutation named {name!r}. Try search('{name}')."]
     schema = index.schema
     parts: list[str]
