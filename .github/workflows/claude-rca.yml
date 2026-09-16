@@ -2,8 +2,10 @@ name: Claude RCA (dev Phoenix)
 
 # Point headless Claude at the dev Phoenix instance over MCP, run root-cause analysis on the spans
 # streaming in, and — ONLY when a real, confidently-fixable Phoenix bug is
-# found — open a PR with a proposed fix. No triggers exist yet, so this runs on
-# a schedule. If there is no issue, there is no code change and therefore no PR.
+# found AND the proposed fix passes a deterministic verification gate — open a
+# PR with the fix. No triggers exist yet, so this runs on a schedule. If there
+# is no issue, there is no code change and therefore no PR; if the fix does not
+# verify, it is suppressed (no PR) and its logs are uploaded as an artifact.
 
 on:
   schedule:
@@ -139,9 +141,93 @@ jobs:
           prompt: "/rca-dev-phoenix ${{ inputs.project || 'pxi_dev' }} ${{ inputs.lookback_hours || '24' }}"
           claude_args: '--model opus --mcp-config .scratch/mcp.json --strict-mcp-config --allowedTools mcp__phoenix,Read,Write,Edit,Glob,Grep,Agent,Skill,"Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(make:*)","Bash(uv:*)","Bash(pnpm:*)","Bash(mkdir:*)","Bash(cat:*)","Bash(ls:*)","Bash(find:*)","Bash(grep:*)"'
 
+      - name: Detect fix changes
+        # `.scratch` and `.px` are gitignored, so --exclude-standard hides them:
+        # "changed" means Claude actually edited tracked repo files (a real fix),
+        # not just its own scratch report. No fix -> nothing to verify or PR.
+        id: changes
+        if: steps.claude.outcome == 'success'
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No fix produced; skipping verification."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify RCA fix
+        # Deterministic gate: do NOT trust the model's self-report that it ran
+        # the checks. Re-run them here; a fix only becomes a PR if this is green.
+        # Full test suites are deferred to the PR's own CI.
+        id: verify
+        if: steps.claude.outcome == 'success' && steps.changes.outputs.changed == 'true'
+        continue-on-error: true # if this step fails, the job keeps going. in gh actions a step's outcome is: success, failure, skipped, cancelled.
+        run: |
+          # install deps
+          uv sync
+          ( cd js && pnpm install --frozen-lockfile )
+
+          # create a directory to store the verify logs
+          mkdir -p .scratch/verify
+          failed=0
+          # Each check: run, capture stdout+stderr to a per-check log, record exit
+          # code. Do NOT short-circuit on first failure — capture everything.
+          run() {
+            local name="$1"; shift
+            local log=".scratch/verify/${name}.log"
+            echo "::group::${name}"
+            if "$@" > "$log" 2>&1; then
+              echo "✓ ${name}" | tee -a "$log"
+            else
+              echo "✗ ${name} (see $log)" | tee -a "$log"
+              failed=1
+            fi
+            cat "$log"
+            echo "::endgroup::"
+          }
+          # run <log-name> <command>
+          run gen-graphql         make graphql
+          run gen-openapi         make openapi
+          run gen-generative-ui   make schema-generative-ui
+          run gen-ui-reducer      make ui-message-stream-fixtures
+          # Formatters run in write mode: style churn rides along in the commit.
+          run python-format       make format-python
+          run python-lint         make lint-python
+          run python-typecheck    make typecheck-python
+          run js-fmt              make format-ts
+          run js-lint             make lint-ts
+          # Build before typecheck/test: workspace packages resolve each other via
+          # dist/, so checks against unbuilt packages fail on module resolution.
+          run js-build            make build-ts
+          run js-typecheck        make typecheck-ts
+          run js-test             make test-ts
+
+          # create a summary: one PASS/FAIL line per check, using whether the log contains a ✗ line.
+          {
+            echo "# Verify summary ($(date -u +%FT%TZ))"
+            for log in .scratch/verify/*.log; do
+              name=$(basename "$log" .log)
+              if grep -q "^✗ " "$log"; then
+                echo "FAIL  $name  ($log)"
+              else
+                echo "PASS  $name"
+              fi
+            done
+          } > .scratch/verify/SUMMARY.md
+          cat .scratch/verify/SUMMARY.md
+          exit "$failed"
+
+      - name: Report suppressed fix
+        # A fix existed but failed deterministic verification: open no PR, but make
+        # the suppression loud. The verify logs ship in the report artifact below.
+        if: steps.claude.outcome == 'success' && steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure'
+        run: |
+          echo "::warning::RCA produced a fix but deterministic verification failed; no PR opened. See the claude-rca-report artifact (.scratch/verify/) for logs."
+
       - name: Commit and open PR
-        # No issue -> Claude made no code change -> git diff is clean -> no PR.
-        if: steps.claude.outcome == 'success' && env.DRY_RUN != 'true'
+        # Only when a real fix was produced AND it passed verification. No issue ->
+        # no code change -> no PR. Bad fix -> verify fails -> no PR.
+        if: steps.claude.outcome == 'success' && env.DRY_RUN != 'true' && steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'success'
         env:
           # Separate publishing token; the claude-code-action app token has
           # already been revoked by this point.
@@ -242,6 +328,8 @@ jobs:
           path: |
             .scratch/rca-findings.md
             .scratch/pr-body.md
+            .scratch/verify/SUMMARY.md
+            .scratch/verify/*.log
             .px/coding/*.jsonl
           if-no-files-found: ignore
           retention-days: 14
