@@ -791,7 +791,7 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
                 f"-- {owner} has no field {member!r}, and nothing on {owner} matches it. "
                 f"Try search({member!r})."
             )
-        lead = [f"-- {owner} has no field {member!r}. On {owner}:"]
+        lead = [f"# On {owner}, matching {member!r}:"]
         return _ranked_answer(index, terms, budget, scored=scored, note=[], lead=lead)
     terms = _query_terms(query)
     if not terms:
@@ -845,6 +845,12 @@ def _ranked_answer(
     for parent, text in entries:
         if parent is not None:
             by_parent[parent].append(text)
+    # A type whose fields are grouped is already named by their header.
+    entries = [
+        (parent, text)
+        for parent, text in entries
+        if parent is not None or not _names_grouped_type(text, by_parent)
+    ]
     ordered: list[tuple[bool, str, Optional[str]]] = []  # (counts as a hit, line, owner)
     opened: set[str] = set()
     for parent, text in entries:
@@ -868,7 +874,7 @@ def _ranked_answer(
     detail_budget = min(_TOP_HIT_BUDGET, budget // 3) if leaders else 0
     lines: list[str] = list(lead)
     used = sum(len(n) + 1 for n in [*note, *lines]) + len(_PAGINATION_LEGEND) + 1 + detail_budget
-    left: Counter[str] = Counter(owner or "shared" for owner, _ in entries)
+    left: Counter[str] = Counter(owner or _SHARED for owner, _ in entries)
     for i, (is_hit, line, owner) in enumerate(ordered):
         trailer = _trailer(left)
         # A header only goes in with the hit that follows it.
@@ -879,7 +885,7 @@ def _ranked_answer(
         lines.append(line)
         used += len(line) + 1
         if is_hit:
-            left[owner or "shared"] -= 1
+            left[owner or _SHARED] -= 1
     for k in leaders:
         u = groups[k][0]
         key = u.name if u.kind == "mutation" else f"{u.parent}.{u.name}"
@@ -888,6 +894,14 @@ def _ranked_answer(
         lines.append(header)
         lines.append(_within(_lookup_parts(index, key), share - len(header) - 1))
     return "\n".join([_with_legend("\n".join(lines)), *note])
+
+
+def _names_grouped_type(line: str, by_parent: Mapping[str, list[str]]) -> bool:
+    return line.startswith("type ") and line.split("  ", 1)[0].removeprefix("type ") in by_parent
+
+
+_SHARED = "several types"
+"""The trailer's label for hits that sit on more than one type."""
 
 
 def _trailer(left: Counter[str]) -> str:
@@ -1038,8 +1052,9 @@ def _fitting_note(parts: Sequence[str], room: int) -> str:
 
 def _omitted(parts: Sequence[str], limit: int = 8) -> str:
     """The note for sections a budget cut, naming the types they describe."""
-    names = [n for n in (_section_name(part) for part in parts) if n]
-    shown = ", ".join(names[:limit]) + (f" +{len(names) - limit}" if len(names) > limit else "")
+    names = [n for n in (_section_name(part) for part in parts) if n][:limit]
+    hidden = len(parts) - len(names)
+    shown = ", ".join(names) + (f" +{hidden}" if names and hidden else "")
     return f"# ... {len(parts)} more sections omitted" + (f": {shown}" if shown else "")
 
 

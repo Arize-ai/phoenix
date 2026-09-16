@@ -410,7 +410,7 @@ def test_misses_say_so(toy: Index) -> None:
 
 def test_a_missing_member_searches_within_its_type(toy: Index) -> None:
     lines = search(toy, "Project.latency").splitlines()
-    assert lines[0] == "-- Project has no field 'latency'. On Project:"
+    assert lines[0] == "# On Project, matching 'latency':"
     assert lines[1] == "Project  via Query.getProjectByName"
     assert lines[2].startswith("  latencyMsQuantile(")
     headers = [line for line in lines[1:] if re.fullmatch(r"[A-Z]\w*(  via .*)?", line)]
@@ -421,8 +421,32 @@ def test_the_tail_says_where_the_rest_lives(toy: Index) -> None:
     text = search(toy, "id", budget=350)
     trailer = next(line for line in text.splitlines() if line.startswith("... "))
     assert re.fullmatch(
-        r"\.\.\. \d+ more; narrow the search \((\w+ \d+)(, \w+ \d+){0,2}\)", trailer
+        r"\.\.\. \d+ more; narrow the search \(([\w ]+ \d+)(, [\w ]+ \d+){0,2}\)", trailer
     )
+    assert "shared" not in trailer
+
+
+def test_a_grouped_type_is_not_listed_twice(toy: Index) -> None:
+    text = search(toy, "cost summary")
+    assert "SpanCostSummary  via " in text
+    assert "type SpanCostSummary" not in text
+
+
+def test_omitted_note_without_names_is_the_bare_count() -> None:
+    from phoenix.server.api.schema_search import _omitted
+
+    assert _omitted(["# A: x", "# B: y"], limit=0) == "# ... 2 more sections omitted"
+    assert _omitted(["# A: x", "# B: y"], limit=1) == "# ... 2 more sections omitted: A +1"
+    assert _omitted(["# via Query.a"]) == "# ... 1 more sections omitted"
+
+
+def test_the_query_root_fits_the_builtin_budget(index: Index) -> None:
+    # A root cut short hides entry points. If this fails, raise the builtin's
+    # schema budget rather than accept the cut.
+    from phoenix.server.agents.capabilities.tools.internal.bash import _SCHEMA_BUDGET
+
+    root = lookup(index, index.query_root, budget=_SCHEMA_BUDGET)
+    assert "more lines omitted" not in root.split("\n}", 1)[0]
 
 
 def test_a_close_runner_up_is_shown_in_full_too() -> None:
