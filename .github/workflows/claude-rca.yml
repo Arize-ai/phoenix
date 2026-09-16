@@ -1,7 +1,6 @@
 name: Claude RCA (dev Phoenix)
 
-# Closing-the-loop dogfood (issue #15568): on a cron, point headless Claude at
-# the dev Phoenix instance over MCP, run root-cause analysis on the spans
+# Point headless Claude at the dev Phoenix instance over MCP, run root-cause analysis on the spans
 # streaming in, and — ONLY when a real, confidently-fixable Phoenix bug is
 # found — open a PR with a proposed fix. No triggers exist yet, so this runs on
 # a schedule. If there is no issue, there is no code change and therefore no PR.
@@ -126,22 +125,17 @@ jobs:
 
       - name: Run Claude RCA
         id: claude
+        # this action installs the Claude Code CLI on the runner, and runs the RCA prompt
         uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
-          # Hand the action the read-only workflow token instead of letting it
-          # mint a write-scoped Claude App token via OIDC. Claude never writes
-          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
-          # in its environment stays read-only.
           github_token: ${{ github.token }}
 
-          # Surface the full Claude SDK message stream in the step log. Note:
-          # logs are public and GitHub masks registered secrets. Span contents
-          # pulled over MCP are treated as untrusted (see the rca-dev-phoenix skill).
           show_full_output: 'true'
+          # This line is what claude code recieves as the user message. It is a command to the Claude Code CLI to run the RCA prompt.
           prompt: "/rca-dev-phoenix ${{ inputs.project || 'pxi_dev' }} ${{ inputs.lookback_hours || '24' }}"
           claude_args: '--model opus --mcp-config .scratch/mcp.json --strict-mcp-config --allowedTools mcp__phoenix,Read,Write,Edit,Glob,Grep,Agent,Skill,"Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(make:*)","Bash(uv:*)","Bash(pnpm:*)","Bash(mkdir:*)","Bash(cat:*)","Bash(ls:*)","Bash(find:*)","Bash(grep:*)"'
 
@@ -235,7 +229,7 @@ jobs:
             --title "$PR_TITLE" \
             --body-file .scratch/pr-body-full.md
         
-        # saves whatever Claude wrote in .scratch as a GitHub Actions artifact
+        # Scratch report plus phoenix-error-analysis coding sidecars.
       - name: Upload RCA report
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -244,22 +238,6 @@ jobs:
           path: |
             .scratch/rca-findings.md
             .scratch/pr-body.md
+            .px/coding/*.jsonl
           if-no-files-found: ignore
           retention-days: 14
-
-  slack-notification:
-    name: Slack notification
-    runs-on: ubuntu-latest
-    needs: [rca]
-    if: ${{ always() && needs.rca.result == 'failure' }}
-    permissions: {}
-    steps:
-      - name: Notify failure
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": ":x: Claude RCA (dev Phoenix) failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
