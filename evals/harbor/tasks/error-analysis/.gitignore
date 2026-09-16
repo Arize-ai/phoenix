@@ -1,5 +1,5 @@
-# Harbor hashes every file under environment/ into the task digest, which the Phoenix
-# plugin uses as the dataset version. The staged wheel and fixture database must not
-# change that version on every restage.
-environment/wheels/
-environment/data/
+# environment/ is the build context that scripts/stage_harbor_environments.sh writes
+# from evals/harbor/environments and the task's fixture. Harbor hashes every file under
+# it into the task digest, which the Phoenix plugin uses as the dataset version, so the
+# image, the wheel, and the database stay out of git and out of the digest.
+environment/

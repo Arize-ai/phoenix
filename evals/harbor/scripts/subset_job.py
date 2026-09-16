@@ -10,7 +10,7 @@ bare entry and drops the MCP servers, environment, and skills that define a
 condition. Selecting by name here keeps the full entries and narrows the file's
 datasets with ``task_names``. Usage::
 
-    uv run --script evals/harbor/scripts/subset_job.py evals/harbor/jobs/phoenix-tools-dev.yaml \
+    uv run --script evals/harbor/scripts/subset_job.py evals/harbor/jobs/trail-benchmark-dev.yaml \
         --agents claude-code-mcp codex-cli --tasks count-traces --out evals/harbor/.cache/subset.yaml
     make harbor-run HARBOR_JOB=evals/harbor/.cache/subset.yaml HARBOR_ARGS='-e docker'
 """

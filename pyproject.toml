@@ -341,7 +341,10 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
-  "evals/harbor/tasks/phoenix-tools-(dev|test)/",
+  # Staged build contexts carry a copy of evals.harbor.verifiers; the task solutions
+  # import it from /opt/verifier inside the image.
+  "evals/harbor/tasks/[^/]+/environment/",
+  "evals/harbor/tasks/trail-benchmark-dev/",
   "examples/",
   "packages/",
   "scripts/",

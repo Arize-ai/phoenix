@@ -1,4 +1,4 @@
-"""Every tool benchmark task keeps the shared layout and grades its own example answers."""
+"""Every TRAIL benchmark task keeps the shared layout and a well-formed expected answer."""
 
 import json
 import os
@@ -7,11 +7,8 @@ from typing import Any
 
 import pytest
 
-from evals.harbor.lib import grade
-
 TASKS_DIR = Path(__file__).resolve().parents[3] / "evals" / "harbor" / "tasks"
-SPLITS = ("phoenix-tools-dev", "phoenix-tools-test")
-TASKS = sorted(path for split in SPLITS for path in (TASKS_DIR / split).iterdir() if path.is_dir())
+TASKS = sorted(path for path in (TASKS_DIR / "trail-benchmark-dev").iterdir() if path.is_dir())
 REFERENCE = TASKS[0]
 
 
@@ -34,10 +31,13 @@ def test_task_layout_matches_the_shared_files(task: Path) -> None:
     reference_header, _, reference_shared = _task_config(REFERENCE)
     assert (header, shared) == (reference_header, reference_shared), "task.toml"
     assert metadata.startswith("[task]\n")
-    assert f'name = "arize/phoenix-tools-{task.name}"' in metadata
+    assert f'name = "arize/trail-benchmark-{task.name}"' in metadata
+    assert "keywords" not in metadata
+    assert 'fixture = "trail"' in shared
+    assert 'user = "agent"' in shared
     for name in ("tests/test.sh", "solution/solve.sh"):
         assert os.access(task / name, os.X_OK), f"{name} is not executable"
-    # environment/ is staged from evals/harbor/environment and never committed: the
+    # environment/ is staged from evals/harbor/environments and never committed: the
     # task-level .gitignore keeps it out of git and out of the task digest.
     assert "environment/" in (task / ".gitignore").read_text().splitlines()
     for path in (task / "environment").rglob("*") if (task / "environment").exists() else []:
@@ -48,10 +48,10 @@ def test_task_layout_matches_the_shared_files(task: Path) -> None:
 
 
 @pytest.mark.parametrize("task", TASKS, ids=lambda path: path.name)
-def test_expected_examples_grade_as_labelled(task: Path) -> None:
+def test_expected_answer_is_well_formed(task: Path) -> None:
     spec = _expected(task)
-    assert spec["source"] and spec["accept"] and spec["reject"]
-    wrongly_rejected = [text for text in spec["accept"] if not grade.grade_answer(text, spec)]
-    wrongly_accepted = [text for text in spec["reject"] if grade.grade_answer(text, spec)]
-    assert not wrongly_rejected, f"rejected: {wrongly_rejected}"
-    assert not wrongly_accepted, f"accepted: {wrongly_accepted}"
+    assert spec["source"], "say how the reference value was derived"
+    kinds = [key for key in ("exact", "reference") if key in spec]
+    assert len(kinds) == 1, "expected.json needs exactly one of 'exact' or 'reference'"
+    assert isinstance(spec[kinds[0]], str) and spec[kinds[0]].strip()
+    assert set(spec) <= {"exact", "reference", "notes", "source"}, "unknown keys"

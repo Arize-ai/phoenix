@@ -1,57 +1,89 @@
 #!/bin/bash
-# Build Phoenix and stage the generated build-context artifacts into every
-# task's environment/ directory: the wheel, the container assets, and the
-# task's fixture database.
+# Build Phoenix and stage every task's build context: the shared image definition from
+# evals/harbor/environments plus the fixture the task names in its task.toml.
 #
-# A task with its own environment/Dockerfile gets its fixture from cloud
-# storage. The Phoenix tool benchmark tasks under tasks/phoenix-tools-*/ share
-# the image in evals/harbor/environment, whose database `make harbor-seed`
-# seeds locally (TRAIL is gated, so it is never published): that directory is
-# copied into each of them with hard links, and they are skipped until the
-# seeded database exists.
+# The shared context (Dockerfile, the wheel, the verifiers, the container assets) is
+# assembled once under evals/harbor/.cache/environment. Each fixture is produced once by
+# evals/harbor/environments/fixtures/<name>/fixture.sh into
+# evals/harbor/.cache/fixtures/<name>/phoenix.db (RESEED=1 rebuilds it). A fixture script
+# that exits 2 cannot run on this machine (the trail fixture without HF_TOKEN), and the
+# tasks that need it are skipped and listed. Every task then gets the context copied into
+# its environment/ with hard links, plus its fixture as environment/data/phoenix.db; the
+# task's .gitignore keeps that directory out of git and out of the task digest.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 HERE="$ROOT/evals/harbor"
-CONTAINER_ASSETS="$HERE/container_assets"
+ENVIRONMENTS="$HERE/environments"
+CONTEXT="$HERE/.cache/environment"
+FIXTURES="$HERE/.cache/fixtures"
 TASKS_DIR="$HERE/tasks"
-SHARED="$HERE/environment"
-FIXTURES_URL="https://storage.googleapis.com/arize-phoenix-assets/evals/harbor"
 
-# Clear stale wheels first: `uv pip install /wheels/*.whl` in the task Dockerfile
-# would otherwise see the previous version alongside the new one.
+# Clear stale wheels first: `uv pip install /wheels/*.whl` in the Dockerfile would
+# otherwise see the previous version alongside the new one.
 rm -f "$ROOT"/dist/arize_phoenix-*.whl
-uv build --wheel
+(cd "$ROOT" && uv build --wheel)
+
+rm -rf "$CONTEXT"
+mkdir -p "$CONTEXT/wheels" "$CONTEXT/verifier/evals/harbor"
+cp "$ENVIRONMENTS/Dockerfile" "$CONTEXT/Dockerfile"
+cp "$ROOT"/dist/arize_phoenix-*.whl "$CONTEXT/wheels/"
+cp "$ROOT/evals/__init__.py" "$CONTEXT/verifier/evals/"
+cp "$HERE/__init__.py" "$CONTEXT/verifier/evals/harbor/"
+rsync -a --exclude __pycache__ "$HERE/verifiers/" "$CONTEXT/verifier/evals/harbor/verifiers/"
+rsync -a --exclude __pycache__ "$ENVIRONMENTS/container_assets/" "$CONTEXT/container_assets/"
+
+unavailable=""
+# Produce a fixture once; prints nothing and returns 0 when it is available, 1 when its
+# script declined (exit 2), and exits on any other failure.
+ensure_fixture() {
+  local name=$1 dir="$FIXTURES/$1" script="$ENVIRONMENTS/fixtures/$1/fixture.sh"
+  case " $unavailable " in *" $name "*) return 1 ;; esac
+  if [ "${RESEED:-0}" = 1 ] && [ ! -f "$dir/.reseeded" ]; then
+    rm -f "$dir/phoenix.db"
+    mkdir -p "$dir" && touch "$dir/.reseeded"
+  fi
+  [ -f "$dir/phoenix.db" ] && return 0
+  if [ ! -x "$script" ]; then
+    echo "No fixture script at $script" >&2
+    exit 1
+  fi
+  echo "Producing the $name fixture..."
+  local status=0
+  "$script" "$dir" || status=$?
+  if [ "$status" = 0 ]; then
+    return 0
+  elif [ "$status" = 2 ]; then
+    unavailable="$unavailable $name"
+    return 1
+  fi
+  echo "$script failed with exit code $status" >&2
+  exit "$status"
+}
 
 staged=0
-for environment in "$TASKS_DIR"/*/environment; do
-  [ -d "$environment" ] || continue
-  task=$(basename "$(dirname "$environment")")
-  rm -rf "$environment/wheels" "$environment/container_assets" "$environment/data"
-  mkdir -p "$environment/wheels" "$environment/data"
-  cp "$ROOT"/dist/arize_phoenix-*.whl "$environment/wheels/"
-  rsync -a --exclude __pycache__ "$CONTAINER_ASSETS/" "$environment/container_assets/"
-  curl -fsSL "$FIXTURES_URL/$task/phoenix.db" -o "$environment/data/phoenix.db"
+skipped=""
+for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
+  [ -f "$config" ] || continue
+  task=$(dirname "$config")
+  fixture=$(sed -n 's/^fixture = "\(.*\)"$/\1/p' "$config")
+  if [ -z "$fixture" ]; then
+    echo "$config names no fixture: add [metadata] fixture = \"<name>\"" >&2
+    exit 1
+  fi
+  if ! ensure_fixture "$fixture"; then
+    skipped="$skipped ${task#"$TASKS_DIR/"}"
+    continue
+  fi
+  # Hard links keep a dozen copies of the wheel and the database from costing a dozen
+  # times the disk; Docker and Daytona read them as ordinary files.
+  rsync -a --delete --link-dest="$CONTEXT/" "$CONTEXT/" "$task/environment/"
+  mkdir -p "$task/environment/data"
+  ln -f "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db" 2>/dev/null \
+    || cp "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db"
   staged=$((staged + 1))
 done
-echo "Staged build-context artifacts for $staged task(s)."
-
-if [ ! -f "$SHARED/data/phoenix.db" ]; then
-  echo "Skipped the Phoenix tool benchmark tasks: no seeded database at $SHARED/data/phoenix.db (run 'make harbor-seed')."
-  exit 0
+rm -f "$FIXTURES"/*/.reseeded
+echo "Staged $staged task(s)."
+if [ -n "$skipped" ]; then
+  echo "Skipped (fixture unavailable:$unavailable):$skipped"
 fi
-rm -rf "$SHARED/wheels" "$SHARED/lib" "$SHARED/container_assets"
-mkdir -p "$SHARED/wheels" "$SHARED/lib/evals/harbor"
-cp "$ROOT"/dist/arize_phoenix-*.whl "$SHARED/wheels/"
-cp "$ROOT/evals/__init__.py" "$SHARED/lib/evals/"
-cp "$HERE/__init__.py" "$SHARED/lib/evals/harbor/"
-rsync -a --exclude __pycache__ "$HERE/lib/" "$SHARED/lib/evals/harbor/lib/"
-rsync -a --exclude __pycache__ "$CONTAINER_ASSETS/" "$SHARED/container_assets/"
-tools=0
-for task in "$TASKS_DIR"/phoenix-tools-*/*/; do
-  [ -f "$task/task.toml" ] || continue
-  # Hard links keep ten copies of the database from costing ten times the disk;
-  # Docker and Daytona read them as ordinary files.
-  rsync -a --delete --link-dest="$SHARED/" "$SHARED/" "$task/environment/"
-  tools=$((tools + 1))
-done
-echo "Staged the shared tool benchmark environment into $tools task(s)."

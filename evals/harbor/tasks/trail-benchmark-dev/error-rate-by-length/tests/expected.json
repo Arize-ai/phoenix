@@ -1,0 +1,5 @@
+{
+  "reference": "Yes. Short traces (fewer than 15 spans): 0.8% of their spans errored. Long traces (40 or more spans): 14.6%.",
+  "notes": "The exact rates are 0.79% and 14.61%; accept any rounding of them. Each rate must be attached to the right group, so reversed rates do not match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; short (<15 spans) 5/629 ERROR spans, long (>=40 spans) 312/2136"
+}

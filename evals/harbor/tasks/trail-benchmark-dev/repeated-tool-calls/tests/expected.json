@@ -1,0 +1,5 @@
+{
+  "reference": "FinderTool, called 24 times within one trace",
+  "notes": "Both the tool and the count must match.",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; next is SearchInformationTool at 20 in another trace"
+}

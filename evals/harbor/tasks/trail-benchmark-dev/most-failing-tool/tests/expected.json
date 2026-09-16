@@ -1,0 +1,5 @@
+{
+  "reference": "PageDownTool",
+  "notes": "page_down is the same tool (its tool.name attribute).",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; 109 ERROR tool spans, next is TextInspectorTool at 29"
+}

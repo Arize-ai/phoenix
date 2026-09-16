@@ -7,6 +7,9 @@ name = "arize/phoenix-error-analysis"
 description = "PXI open-codes a project's traces into notes, then axial-codes them into per-dimension annotation configs, through the agent session chat route"
 keywords = ["pxi", "agent_session_chat", "error_analysis"]
 
+[metadata]
+fixture = "error-analysis"
+
 [environment]
 os = "linux"
 cpus = 2
@@ -23,6 +26,19 @@ build_timeout_sec = 1200.0
 [environment.env]
 ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
 OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+
+# Harbor runs this inside the container as root after it starts and before any step, so
+# Phoenix serves the fixture the agent user cannot open. Each step's workdir/setup.sh
+# calls the same idempotent script and finds it already serving.
+[environment.healthcheck]
+command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
+timeout_sec = 180.0
+retries = 2
+
+# The agent phase runs as an unprivileged user: it can reach the data only through
+# Phoenix, never by opening /data/phoenix.db.
+[agent]
+user = "agent"
 
 # The verifier's LLM judge (error_analysis_checks.judge) calls its provider, and the
 # agent-phase hosts do not carry over to verification. Nothing the verifier does needs

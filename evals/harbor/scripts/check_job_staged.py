@@ -23,7 +23,7 @@ from typing import Any
 
 import yaml
 
-STAGED = ("Dockerfile", "wheels", "container_assets", "data/phoenix.db")
+STAGED = ("Dockerfile", "wheels", "verifier", "container_assets", "data/phoenix.db")
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
 
 
@@ -62,7 +62,7 @@ def main() -> int:
     if failures:
         print("\n".join(failures), file=sys.stderr)
         print(
-            "Run 'make harbor-stage' first; the phoenix-tools tasks also need 'make harbor-seed'.",
+            "Run 'make harbor-stage' first; the trail-benchmark tasks need HF_TOKEN set for it.",
             file=sys.stderr,
         )
         return 1

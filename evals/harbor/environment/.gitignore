@@ -1,6 +1,0 @@
-# Written by scripts/stage_harbor_environments.sh and make harbor-seed; only the
-# Dockerfile is source.
-wheels/
-data/
-lib/
-container_assets/

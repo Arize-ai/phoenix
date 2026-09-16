@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-seed harbor-stage harbor-plugin-e2e harbor-run harbor-view \
+	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -109,8 +109,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  harbor-seed               - Seed the Phoenix tool benchmark database from TRAIL (needs HF_TOKEN and Docker; RESEED=1)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -501,14 +500,16 @@ gh-comment-watch: ## Start the GitHub comment watcher
 
 # A Harbor job file defines a run: its tasks, agents, environment, attempts, retries, and
 # network policy. evals/harbor/jobs/benchmark.yaml is the PXI benchmark CI runs, and
-# evals/harbor/jobs/phoenix-tools-{dev,test}.yaml are the Phoenix tool benchmark. Point
+# evals/harbor/jobs/trail-benchmark-dev.yaml is the Phoenix tool benchmark. Point
 # HARBOR_JOB at one (or at a trimmed copy for a subset), and pass anything else
 # `harbor run` accepts through HARBOR_ARGS, e.g. `-e docker`, `-k 1`, or `-a oracle`
 # (which keeps the file's tasks and environment but replaces its agents).
 HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
 HARBOR_ARGS ?=
-# harbor-stage also builds the px CLI archive that the CLI agents install, a pnpm build
-# plus a Docker step. Set HARBOR_CLI=0 to skip it when no run needs those agents.
+# harbor-stage stages every task whose fixture it can produce: the error-analysis fixture
+# downloads from the public assets bucket, the TRAIL fixture is seeded locally and needs
+# HF_TOKEN (tasks on it are skipped otherwise). It also builds the px CLI archive that the
+# CLI agents install, a pnpm build plus a Docker step; HARBOR_CLI=0 skips that.
 HARBOR_CLI ?= 1
 # Every run records its tasks, trials, scores, and traces in Phoenix through the
 # arize-phoenix plugin, which reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY from the
@@ -536,10 +537,7 @@ define check-harbor-staged
 	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
 endef
 
-harbor-seed: ## Seed the Phoenix tool benchmark database from the TRAIL rows (needs HF_TOKEN and Docker; RESEED=1 to rebuild)
-	./evals/harbor/scripts/seed_phoenix_tools.sh
-
-harbor-stage: ## Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip, HARBOR_CLI_PLATFORM=...)
+harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_environments.sh
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
