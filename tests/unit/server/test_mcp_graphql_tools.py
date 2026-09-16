@@ -387,6 +387,30 @@ class TestMutationTool:
         assert content["valid"] is True
         assert "data" not in content
 
+    async def test_a_malformed_document_reports_its_syntax_error(
+        self, mutating_mcp: FastMCP
+    ) -> None:
+        broken = 'mutation { deleteDataset(datasetId: "1" }'
+        checked = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": broken, "validate_only": True}
+        )
+        content = checked.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.PARSE_ERROR.value
+        ran = await mutating_mcp.call_tool("executeGraphqlMutation", {"mutation": broken})
+        content = ran.structured_content
+        assert content is not None
+        assert content["data"] is None
+        assert "Syntax Error" in content["errors"][0]["message"]
+
+    async def test_a_subscription_is_refused_as_such(self, mutating_mcp: FastMCP) -> None:
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": "subscription { anything }"}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.SUBSCRIPTION_NOT_SUPPORTED.value
+
     async def test_validate_only_still_refuses_a_read_only_document(
         self, mutating_mcp: FastMCP
     ) -> None:
