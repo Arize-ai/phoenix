@@ -2086,6 +2086,117 @@ def test_a_literal_with_a_variable_is_not_kept() -> None:
     assert "$missing" not in lookup(index, "Query.f")
 
 
+def test_a_slotted_output_object_compares_its_slots() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    class Slotted:
+        __slots__ = ("a", "__dict__")
+
+        def __init__(self, a: object) -> None:
+            self.a = a
+
+    opt = GraphQLInputObjectType(
+        "Opt", {"a": GraphQLInputField(GraphQLScalarType("Val"))}, out_type=lambda d: Slotted(**d)
+    )
+    arg = GraphQLArgument(opt, {"a": 1})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Opt")),
+        default_value=parse_value("{a: true}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
+def test_a_datetime_default_renders_through_its_scalar() -> None:
+    from datetime import datetime
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    when = GraphQLScalarType(
+        "DateTime", serialize=lambda d: d.isoformat(), parse_value=datetime.fromisoformat
+    )
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "f": GraphQLField(
+                GraphQLString, args={"x": GraphQLArgument(when, datetime(2026, 9, 17))}
+            )
+        },
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert (
+        first_line(lookup(index, "Query.f"))
+        == 'Query.f(x: DateTime = "2026-09-17T00:00:00"): String'
+    )
+
+
+def test_a_renamed_default_renders_even_when_output_names_overlap_input_names() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInt,
+        GraphQLNonNull,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    opt = GraphQLInputObjectType(
+        "Opt",
+        {
+            "a": GraphQLInputField(GraphQLInt, out_name="b"),
+            "b": GraphQLInputField(GraphQLInt, out_name="c"),
+        },
+    )
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "f": GraphQLField(
+                GraphQLString, args={"x": GraphQLArgument(GraphQLNonNull(opt), {"b": 1})}
+            )
+        },
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt! = {a: 1}): String"
+
+
+def test_a_type_definition_without_directives_does_not_crash() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInt,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputObjectTypeDefinitionNode, NameNode
+
+    opt = GraphQLInputObjectType("Opt", {"a": GraphQLInputField(GraphQLInt)})
+    opt.ast_node = InputObjectTypeDefinitionNode(name=NameNode(value="Opt"), fields=[])
+    query = GraphQLObjectType(
+        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Opt")) == "input Opt {"
+    assert "Opt" in search(index, "Query.f")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
