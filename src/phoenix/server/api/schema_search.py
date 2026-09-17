@@ -14,7 +14,6 @@ import itertools
 import math
 import re
 import threading
-import weakref
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union
@@ -34,7 +33,6 @@ from graphql import (
     GraphQLUnionType,
     get_named_type,
     is_introspection_type,
-    is_non_null_type,
 )
 from graphql.language import print_ast
 from graphql.pyutils import Undefined
@@ -127,11 +125,26 @@ def tokenize(identifier: str) -> list[str]:
 # The schema vocabulary is about a thousand stems; the rest of the cache holds
 # query words and evicts the least recently used once full.
 @functools.lru_cache(maxsize=8192)
-def _stem(word: str) -> str:
-    if len(word) > _MAX_STEM_CHARS:
-        return word
+def _stem_cached(word: str) -> str:
     with _stemmer_lock:
         return str(_stemmer.stemWord(word))
+
+
+def _stem(word: str) -> str:
+    return word if len(word) > _MAX_STEM_CHARS else _stem_cached(word)
+
+
+def _clip(text: str) -> str:
+    """Caller text bounded before any of it is scanned, stemmed, or echoed."""
+    return text.strip()[:_MAX_QUERY_CHARS]
+
+
+_MAX_ECHO = 80
+
+
+def _echo(text: str) -> str:
+    """Caller text as a message quotes it back, cut to a fixed length."""
+    return text if len(text) <= _MAX_ECHO else text[: _MAX_ECHO - 1] + "…"
 
 
 def _expand(word: str) -> list[str]:
@@ -202,8 +215,13 @@ class Index:
     nearest: Mapping[str, tuple[str, int, tuple[str, ...]]]  # type -> (root, depth, hops)
     used_by: Mapping[str, list[str]]  # input or enum type -> referencing "Type.field"
     returned_by: Mapping[str, list[str]]  # object type -> "Type.field" returning it
-    by_key: Mapping[str, Unit]  # lowercase "Type", "Type.field", "mutationName"
+    by_key: Mapping[str, Unit]  # "Type", "Type.field", "mutationName"
+    folded: Mapping[str, Unit]  # lowercase key -> its unit, when only one spelling has it
     plumbing: Mapping[str, str]  # lowercase name -> Relay wrapper type left out of the index
+
+    def resolve(self, name: str) -> Optional[Unit]:
+        """The unit ``name`` denotes: by exact spelling, else case-insensitively when unique."""
+        return self.by_key.get(name) or self.folded.get(name.lower())
 
     def depth(self, type_name: str) -> int:
         return self.nearest.get(type_name, ("", _MAX_DEPTH, ()))[1]
@@ -271,9 +289,7 @@ def _is_pagination(name: str, arg: GraphQLArgument) -> bool:
     A required ``first: Int!`` is not: collapsing it would hide that the caller
     must pass it.
     """
-    return str(get_named_type(arg.type)) == _PAGINATION_ARGS.get(name) and not is_non_null_type(
-        arg.type
-    )
+    return str(arg.type) == _PAGINATION_ARGS.get(name)
 
 
 def _signature(name: str, field: _FieldLike) -> str:
@@ -334,12 +350,17 @@ def _object_fields(t: GraphQLNamedType) -> Iterator[tuple[str, GraphQLField]]:
         yield from t.fields.items()
 
 
-def _returned_types(schema: GraphQLSchema, named: GraphQLNamedType) -> Iterator[GraphQLNamedType]:
-    """The types a field of type ``named`` delivers: the collapsed type itself and,
-    for a union, each of its members."""
+def _returned_types(
+    schema: GraphQLSchema, named: GraphQLNamedType, *, implementations: bool = False
+) -> Iterator[GraphQLNamedType]:
+    """The types a field of type ``named`` delivers: the collapsed type itself, each
+    member of a union, and with ``implementations`` each implementation of an
+    interface."""
     node = _node_type(named)
     yield node
     if isinstance(node, GraphQLUnionType):
+        yield from schema.get_possible_types(node)
+    elif implementations and isinstance(node, GraphQLInterfaceType):
         yield from schema.get_possible_types(node)
 
 
@@ -357,50 +378,39 @@ def _input_closure(start: Iterable[GraphQLNamedType]) -> list[GraphQLNamedType]:
     return list(seen.values())
 
 
-def _types_only_serving(schema: GraphQLSchema, hidden: Sequence[GraphQLObjectType]) -> set[str]:
-    """Types that exist only to serve the ``hidden`` roots: their input closures and payloads."""
+def _reachable(schema: GraphQLSchema, roots: Iterable[GraphQLNamedType]) -> set[str]:
+    """Every type a selection or an argument can reach from ``roots``."""
+    seen: set[str] = set()
+    queue = deque(roots)
+    while queue:
+        t = queue.popleft()
+        if t.name in seen:
+            continue
+        seen.add(t.name)
+        nxt: list[GraphQLNamedType] = []
+        if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
+            for f in t.fields.values():
+                nxt.extend(_returned_types(schema, get_named_type(f.type), implementations=True))
+                nxt.extend(get_named_type(a.type) for a in f.args.values())
+            if isinstance(t, GraphQLInterfaceType):
+                nxt.extend(schema.get_possible_types(t))
+        elif isinstance(t, GraphQLInputObjectType):
+            nxt.extend(get_named_type(f.type) for f in t.fields.values())
+        elif isinstance(t, GraphQLUnionType):
+            nxt.extend(t.types)
+        queue.extend(n for n in nxt if n.name not in seen)
+    return seen
+
+
+def _types_only_serving(
+    schema: GraphQLSchema,
+    hidden: Sequence[GraphQLObjectType],
+    visible: Sequence[GraphQLObjectType],
+) -> set[str]:
+    """Types reachable from the ``hidden`` roots and from none of the ``visible`` ones."""
     if not hidden:
         return set()
-    hidden_names = {t.name for t in hidden}
-    others = [
-        t
-        for t in schema.type_map.values()
-        if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType))
-        and t.name not in hidden_names
-        and not is_introspection_type(t)
-    ]
-    from_hidden = _input_closure(
-        get_named_type(a.type) for t in hidden for f in t.fields.values() for a in f.args.values()
-    )
-    elsewhere = _input_closure(
-        get_named_type(a.type) for t in others for f in t.fields.values() for a in f.args.values()
-    )
-    only = {t.name for t in from_hidden} - {t.name for t in elsewhere}
-    # Payloads: object types returned only by hidden-root fields or by other payloads.
-    # A root is never a payload, even though some mutations return the query root
-    # so a client can refetch after a write.
-    roots = {
-        t.name
-        for t in (schema.query_type, schema.mutation_type, schema.subscription_type)
-        if t is not None
-    } - hidden_names
-    returned: dict[str, set[str]] = defaultdict(set)
-    for t in (*others, *hidden):
-        for f in t.fields.values():
-            for target in _returned_types(schema, get_named_type(f.type)):
-                returned[target.name].add(t.name)
-                # A field typed as an interface delivers any of its implementations.
-                if isinstance(target, GraphQLInterfaceType):
-                    for impl in schema.get_possible_types(target):
-                        returned[impl.name].add(t.name)
-    changed = True
-    while changed:
-        changed = False
-        for name, parents in returned.items():
-            if name not in only | roots and parents <= only | hidden_names:
-                only.add(name)
-                changed = True
-    return only
+    return _reachable(schema, hidden) - _reachable(schema, visible)
 
 
 def build_index(
@@ -424,17 +434,21 @@ def build_index(
     excluded_mutations: dict[str, frozenset[str]] = {}
     # A query that opens with a verb some mutation opens with wants a write.
     action_verbs = frozenset(
-        _stem(tokenize(fname)[0]) for fname in (mutation.fields if mutation is not None else ())
+        _stem(tokens[0])
+        for fname in (mutation.fields if mutation is not None else ())
+        if (tokens := tokenize(fname))
     )
     if mutation is not None and not include_mutations:
         hidden.append(mutation)
         for fname in mutation.fields:
             excluded_mutations[fname.lower()] = frozenset(_ident_terms(fname))
-    excluded_types = _types_only_serving(schema, hidden) | {t.name for t in hidden}
+    visible = [t for t in (schema.query_type, mutation) if t is not None and t not in hidden]
+    excluded_types = _types_only_serving(schema, hidden, visible) | {t.name for t in hidden}
 
     units: list[Unit] = []
     used_by: dict[str, list[str]] = defaultdict(list)
     returned_by: dict[str, list[str]] = defaultdict(list)
+    through_interface: dict[str, list[str]] = defaultdict(list)
     for t in schema.type_map.values():
         if _skip(t, schema) or t.name in excluded_types:
             continue
@@ -446,6 +460,9 @@ def build_index(
                 named = get_named_type(f.type)
                 for target in _returned_types(schema, named):
                     returned_by[target.name].append(f"{t.name}.{fname}")
+                if isinstance(node := _node_type(named), GraphQLInterfaceType):
+                    for impl in schema.get_possible_types(node):
+                        through_interface[impl.name].append(f"{t.name}.{fname}")
                 if isinstance(named, GraphQLEnumType):
                     used_by[named.name].append(f"{t.name}.{fname}")
                 units.append(
@@ -489,36 +506,57 @@ def build_index(
     avg_len = {f: sum(sum(u.terms[f].values()) for u in units) / n for f in _FIELD_WEIGHTS}
 
     # Multi-source breadth-first search from the read roots over forward edges,
-    # with connections collapsed to their node type.
+    # with connections collapsed to their node type. A field typed as an
+    # interface delivers its implementations too, but only once every type a
+    # concrete field delivers has been reached.
     present_roots = [query_root, *(r for r in roots if r in schema.type_map and r != query_root)]
     nearest: dict[str, tuple[str, int, tuple[str, ...]]] = {r: (r, 0, ()) for r in present_roots}
     queue = deque(nearest)
-    while queue:
+    deferred: deque[tuple[str, str, str]] = deque()  # (implementation, parent, hop)
+    while queue or deferred:
+        if not queue:
+            # Nearest parent first, then by hop name, so the path is deterministic.
+            deferred = deque(sorted(deferred, key=lambda d: (nearest[d[1]][1], d[2])))
+            implementation, parent, hop = deferred.popleft()
+            if implementation in nearest:
+                continue
+            root, depth, hops = nearest[parent]
+            nearest[implementation] = (root, depth + 1, (*hops, hop))
+            queue.append(implementation)
+            continue
         cur = queue.popleft()
         root, depth, hops = nearest[cur]
         for fname, f in _object_fields(schema.type_map[cur]):
-            for nxt in _returned_types(schema, get_named_type(f.type)):
+            named = get_named_type(f.type)
+            for nxt in _returned_types(schema, named):
                 if nxt.name not in nearest and isinstance(
                     nxt, (GraphQLObjectType, GraphQLInterfaceType)
                 ):
                     nearest[nxt.name] = (root, depth + 1, (*hops, f"{cur}.{fname}"))
                     queue.append(nxt.name)
+            if isinstance(node := _node_type(named), GraphQLInterfaceType):
+                deferred.extend(
+                    (impl.name, cur, f"{cur}.{fname}") for impl in schema.get_possible_types(node)
+                )
 
-    # Entry points first: query-root fields, then fields on read roots, then the rest.
+    # Entry points first: query-root fields, then fields on read roots, then the
+    # rest; sources that deliver a type through an interface come last.
     rank = {r: i for i, r in enumerate(present_roots)}
-    for sources in returned_by.values():
+    for sources in (*returned_by.values(), *through_interface.values()):
         sources.sort(key=lambda s: (rank.get(s.split(".")[0], len(rank)), s))
+    for name, sources in through_interface.items():
+        returned_by[name].extend(src for src in sources if src not in returned_by[name])
 
     plumbing = {t.name.lower(): t.name for t in schema.type_map.values() if _is_relay_plumbing(t)}
-    by_key: dict[str, Unit] = {}
+    by_key: dict[str, Unit] = {u.label: u for u in units}
+    # A bare mutation name resolves to the mutation unless a type spells it the same.
     for u in units:
-        if u.kind == "type":
-            by_key[u.name.lower()] = u
-        elif u.kind == "mutation":
-            by_key[u.name.lower()] = u
-            by_key[f"{u.parent.lower()}.{u.name.lower()}"] = u
-        else:
-            by_key[f"{u.parent.lower()}.{u.name.lower()}"] = u
+        if u.kind == "mutation":
+            by_key.setdefault(u.name, u)
+    folded: dict[str, Optional[Unit]] = {}
+    for key, u in by_key.items():
+        low = key.lower()
+        folded[low] = u if folded.get(low, u) is u else None
     return Index(
         schema=schema,
         query_root=query_root,
@@ -534,21 +572,27 @@ def build_index(
         used_by=dict(used_by),
         returned_by=dict(returned_by),
         by_key=by_key,
+        folded={k: u for k, u in folded.items() if u is not None},
         plumbing=plumbing,
     )
 
 
-_INDEX_CACHE: weakref.WeakKeyDictionary[GraphQLSchema, dict[bool, Index]] = (
-    weakref.WeakKeyDictionary()
-)
+@functools.lru_cache(maxsize=8)
+def _cached_index(schema: GraphQLSchema, include_mutations: bool) -> Index:
+    return build_index(schema, include_mutations=include_mutations)
+
+
+_index_lock = threading.Lock()
 
 
 def cached_index(schema: GraphQLSchema, *, include_mutations: bool = True) -> Index:
-    """The index for ``schema``, built once per schema object and mutation setting."""
-    variants = _INDEX_CACHE.setdefault(schema, {})
-    if include_mutations not in variants:
-        variants[include_mutations] = build_index(schema, include_mutations=include_mutations)
-    return variants[include_mutations]
+    """The index for ``schema``, built once per schema object and mutation setting.
+
+    Building is serialized so concurrent first callers share one index. The
+    last few schemas stay referenced by the cache.
+    """
+    with _index_lock:
+        return _cached_index(schema, include_mutations)
 
 
 def reach_paths(index: Index, type_name: str, limit: int = _REACH_PATHS) -> list[tuple[str, ...]]:
@@ -667,6 +711,10 @@ def _line(index: Index, group: Sequence[Unit], terms: Sequence[str]) -> str:
             line = f"type {u.name}  returned by {', '.join(sources[:2])}"
         else:
             line = f"type {u.name}"
+    elif len(group) > 1:
+        line = f"{u.signature}  # on {_owners(group)}"
+        if u.kind in ("enum", "input"):
+            line = f"{u.kind} {line}"
     elif u.kind == "enum":
         line = f"enum {u.parent}.{u.name}  used by {', '.join(index.used_by.get(u.parent, [])[:2])}"
     elif u.kind == "input":
@@ -674,16 +722,16 @@ def _line(index: Index, group: Sequence[Unit], terms: Sequence[str]) -> str:
         line = f"input {u.parent}.{u.signature}  input for {owners}"
     elif u.kind == "mutation":
         line = f"mutation {u.signature}"
-    elif len(group) == 1:
+    else:
         line = f"{u.parent}.{u.signature}"
         if u.parent != index.query_root:
             line += f"  via {index.via(u.parent)}"
-    else:
-        on = ", ".join(x.parent for x in group[:6])
-        if len(group) > 6:
-            on += f" +{len(group) - 6}"
-        line = f"{u.signature}  # on {on}"
     return line + _matched_description(u, terms)
+
+
+def _owners(group: Sequence[Unit]) -> str:
+    on = ", ".join(x.parent for x in group[:6])
+    return on + (f" +{len(group) - 6}" if len(group) > 6 else "")
 
 
 def _matched_description(u: Unit, terms: Sequence[str]) -> str:
@@ -720,10 +768,11 @@ def _names_excluded_mutation(index: Index, terms: Sequence[str]) -> bool:
     return any(tokens <= have for tokens in index.excluded_mutations.values())
 
 
-def _is_exact(index: Index, key: str) -> bool:
-    """Whether ``key`` names one type, field, or mutation, listed or hidden."""
+def _is_exact(index: Index, name: str) -> bool:
+    """Whether ``name`` names one type, field, or mutation, listed or hidden."""
+    key = name.lower()
     return (
-        key in index.by_key
+        index.resolve(name) is not None
         or key in index.excluded_mutations
         or key in index.plumbing
         or _is_hidden_mutation_root(index, key)
@@ -765,25 +814,26 @@ def _unknown_type(index: Index, name: str) -> Optional[str]:
     """The miss for ``Word.member`` when ``Word`` is no type, with the nearest
     type names. A dotted query is scoped on purpose and is not searched at large."""
     owner, dot, member = name.strip().partition(".")
-    if not dot or not member or not owner or owner.lower() in index.by_key:
+    if not dot or not member or not owner or index.resolve(owner) is not None:
         return None
     if " " in owner or " " in member.strip():
         return None
     types = {u.name.lower(): u.name for u in index.units if u.kind == "type"}
     near = [types[k] for k in difflib.get_close_matches(owner.lower(), types, n=3, cutoff=0.6)]
     hint = f" Did you mean {', '.join(near)}?" if near else ""
+    member = _echo(member)
     retry = f"search('{near[0]}.{member}')" if near else f"search('{member}')"
-    return f"-- No type named {owner!r}.{hint} Try {retry}."
+    return f"-- No type named {_echo(owner)!r}.{hint} Try {retry}."
 
 
 def _unknown_member(index: Index, name: str) -> Optional[tuple[str, str]]:
     """``(Type, member)`` when ``name`` is ``Type.member`` for an indexed type that
     has no such member. ``member`` keeps the caller's spelling."""
     owner_key, dot, member = name.strip().partition(".")
-    owner = index.by_key.get(owner_key.lower())
+    owner = index.resolve(owner_key)
     if not dot or not member or owner is None or owner.kind != "type":
         return None
-    return owner.name, member
+    return owner.name, _echo(member)
 
 
 def search(index: Index, query: str, budget: int = 1500) -> str:
@@ -797,8 +847,8 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     A query containing the word "mutations" on its own is answered with
     mutations only.
     """
-    key = query.strip().lower()
-    if _is_exact(index, key):
+    query = _clip(query)
+    if _is_exact(index, query):
         return lookup(index, query, budget)
     if miss := _unknown_type(index, query):
         return miss
@@ -822,6 +872,8 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     only_mutations = _asks_mutations_only(query)
     if only_mutations:
         terms = [t for t in terms if t != _MUTATION_TERM]
+    if only_mutations and index.mutation_root is None:
+        return "-- The schema has no mutations."
     if only_mutations and not index.includes_mutations:
         return _MUTATIONS_DISABLED
     if only_mutations and not terms:
@@ -832,7 +884,7 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
         note.append(_MUTATIONS_DISABLED)
     scored = _rank(index, terms, wants_mutation, only_mutations)
     if not scored:
-        miss = f"-- No type, field, argument, enum value, or description matched {query!r}."
+        miss = f"-- No type, field, argument, enum value, or description matched {_echo(query)!r}."
         return "\n".join([miss, *note])
     lead = [_MUTATIONS_ONLY] if only_mutations else []
     return _ranked_answer(index, terms, budget, scored=scored, note=note, lead=lead)
@@ -884,36 +936,41 @@ def _ranked_answer(
     # a search whose top hit is right needs no second call. When the runner-up is
     # nearly as good, both follow.
     keys = list(groups)
-    leaders = [k for k in keys[:2] if len(groups[k]) == 1 and k[0] in ("field", "mutation")]
-    if len(keys) > 1 and leaders[:1] == keys[:1]:
-        gap = (group_score[keys[0]] - group_score[keys[1]]) / group_score[keys[0]]
-        if gap >= _CLEAR_MARGIN or keys[1] not in leaders:
-            leaders = leaders[:1]
-    else:
-        leaders = leaders[:1]
-    detail_budget = min(_TOP_HIT_BUDGET, budget // 3) if leaders else 0
+    leaders = [k for k in keys[:1] if _expandable(groups[k])]
+    if leaders and len(keys) > 1 and _expandable(groups[keys[1]]):
+        top, second = group_score[keys[0]], group_score[keys[1]]
+        if top > 0 and (top - second) / top < _CLEAR_MARGIN:
+            leaders.append(keys[1])
+    expansions: list[str] = []
+    for k in leaders:
+        u = groups[k][0]
+        header = f"# {u.name if u.kind == 'mutation' else u.label} in full:"
+        share = min(_TOP_HIT_BUDGET, budget // 3) // len(leaders)
+        body = _within(_lookup_parts(index, u.label), share - len(header) - 1)
+        # An expansion holding only the count of what it left out is dropped.
+        if body and not body.startswith("# ..."):
+            expansions.append(f"{header}\n{body}")
     lines: list[str] = list(lead)
-    used = sum(len(n) + 1 for n in [*note, *lines]) + len(_PAGINATION_LEGEND) + 1 + detail_budget
+    used = sum(len(n) + 1 for n in [*note, *lines, *expansions]) + len(_PAGINATION_LEGEND) + 1
     left: Counter[str] = Counter(owner or _SHARED for owner, _ in entries)
     for i, (is_hit, line, owner) in enumerate(ordered):
         trailer = _trailer(left)
         # A header only goes in with the hit that follows it.
         need = len(line) + 1 if is_hit else len(line) + 1 + len(ordered[i + 1][1]) + 1
         if used + need + len(trailer) > budget:
-            lines.append(trailer)
+            if used + len(trailer) + 1 <= budget:
+                lines.append(trailer)
             break
         lines.append(line)
         used += len(line) + 1
         if is_hit:
             left[owner or _SHARED] -= 1
-    for k in leaders:
-        u = groups[k][0]
-        key = u.name if u.kind == "mutation" else f"{u.parent}.{u.name}"
-        header = f"# {key} in full:"
-        share = detail_budget // len(leaders)
-        lines.append(header)
-        lines.append(_within(_lookup_parts(index, key), share - len(header) - 1))
+    lines.extend(expansions)
     return "\n".join([_with_legend("\n".join(lines)), *note])
+
+
+def _expandable(group: Sequence[Unit]) -> bool:
+    return len(group) == 1 and group[0].kind in ("field", "mutation")
 
 
 def _names_grouped_type(line: str, by_parent: Mapping[str, list[str]]) -> bool:
@@ -1029,7 +1086,8 @@ def _path_lines(paths: Iterable[tuple[str, ...]]) -> list[str]:
 def _within(parts: Sequence[str], budget: int) -> str:
     """Join ``parts`` up to ``budget`` characters, cutting only at whole parts or, for
     the first part, at whole lines with the block kept closed. A cut always leaves
-    room for the note that names what was cut."""
+    room for the note that names what was cut; when not even that fits, the
+    answer is the bare count, or nothing."""
     out: list[str] = []
     used = 0
     for i, part in enumerate(parts):
@@ -1043,25 +1101,35 @@ def _within(parts: Sequence[str], budget: int) -> str:
         if i > 0:
             out.append(_fitting_note(parts[i:], budget - used))
             break
-        lines = part.splitlines()
-        closing = ["}"] if part.rstrip().endswith("}") else []
-        sections = [_fitting_note(after, budget // 4)] if after else []
-        # The cut costs its own trailer: the omitted-lines note, the closing brace,
-        # and the omitted-sections note. Reserve them at their longest.
-        trailer = len(f"  # ... {len(lines)} more lines omitted") + 1
-        trailer += sum(len(line) + 1 for line in (*closing, *sections))
-        room = budget - used - trailer
-        kept: list[str] = []
-        for line in lines:
-            if sum(len(k) + 1 for k in kept) + len(line) + 1 > room:
-                break
-            kept.append(line)
-        kept.append(f"  # ... {len(lines) - len(kept)} more lines omitted")
-        kept.extend(closing)
-        out.append("\n".join(kept))
-        out.extend(sections)
-        break
+        cut = _cut(part, after, budget)
+        if cut is not None:
+            return cut
+        count = _omitted(parts, limit=0)
+        return count if len(count) <= budget else ""
     return "\n".join(out)
+
+
+def _cut(part: str, after: Sequence[str], budget: int) -> Optional[str]:
+    """The head of ``part`` that fits ``budget`` beside its own trailer: the
+    omitted-lines note, the closing brace, and the note naming ``after``. None
+    when not even the first line fits."""
+    lines = part.splitlines()
+    closing = ["}"] if part.rstrip().endswith("}") else []
+    body = lines[: len(lines) - len(closing)]
+    sections = [_fitting_note(after, budget // 4)] if after else []
+    trailer = len(f"  # ... {len(body)} more lines omitted") + 1
+    trailer += sum(len(line) + 1 for line in (*closing, *sections))
+    room = budget - trailer
+    kept: list[str] = []
+    for line in body:
+        if sum(len(k) + 1 for k in kept) + len(line) + 1 > room:
+            break
+        kept.append(line)
+    if not kept:
+        return None
+    if len(kept) < len(body):
+        kept.append(f"  # ... {len(body) - len(kept)} more lines omitted")
+    return "\n".join([*kept, *closing, *sections])
 
 
 def _fitting_note(parts: Sequence[str], room: int) -> str:
@@ -1089,7 +1157,7 @@ def _section_name(part: str) -> Optional[str]:
 
 def lookup(index: Index, name: str, budget: int = 4000) -> str:
     """One type, ``Type.field``, or mutation rendered in full with the path that reaches it."""
-    return _with_legend(_budgeted(_lookup_parts(index, name), budget))
+    return _with_legend(_budgeted(_lookup_parts(index, _clip(name)), budget))
 
 
 _MIN_SHARE = 400
@@ -1129,7 +1197,7 @@ def describe(
         if kind == "name":
             text = _with_legend(_budgeted(_lookup_parts(index, arg), share))
         else:
-            header = f"# search: {arg}\n" if labelled else ""
+            header = f"# search: {_echo(_clip(arg))}\n" if labelled else ""
             text = header + _free_text_search(index, arg, share - len(header))
         kept: list[str] = []
         for line in text.splitlines():
@@ -1161,11 +1229,12 @@ def _budgeted(parts: Sequence[str], budget: int) -> str:
 
 
 def _lookup_parts(index: Index, name: str) -> list[str]:
-    key = name.strip().lower()
-    u = index.by_key.get(key)
+    name = _clip(name)
+    key = name.lower()
+    u = index.resolve(name)
     if u is None:
         if key in index.excluded_mutations:
-            return [f"-- {name.strip()} is a mutation. {_MUTATIONS_DISABLED}"]
+            return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
         if wrapper := _plumbing_miss(index, key.partition(".")[0]):
@@ -1175,7 +1244,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."]
         if miss := _unknown_type(index, name):
             return [miss]
-        return [f"-- No type, field, or mutation named {name!r}. Try search('{name}')."]
+        shown = _echo(name)
+        return [f"-- No type, field, or mutation named {shown!r}. Try search('{shown}')."]
     schema = index.schema
     parts: list[str]
     if u.kind == "type":

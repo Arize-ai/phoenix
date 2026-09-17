@@ -34,6 +34,8 @@ from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.api.schema_search import (
     READ_ROOTS,
     Index,
+    _stem,
+    _stem_cached,
     _terms,
     build_index,
     cached_index,
@@ -727,6 +729,142 @@ def test_subscription_only_types_are_never_indexed(toy: Index) -> None:
     assert "TextChunk" not in names
 
 
+# --- bounds and edge cases -------------------------------------------------------
+
+
+def test_oversized_queries_are_answered_within_budget(toy: Index) -> None:
+    assert len(search(toy, "z" * 10000, 400)) <= 400
+    assert len(search(toy, "Span." + "w" * 3000, 400)) <= 400
+    assert len(describe(toy, search=["cost " * 1000, "id"], budget=4000)) <= 4000
+    assert len(describe(toy, names=["Span", "z" * 10000], budget=1000)) <= 1000
+    # A quoted-back query is cut, so the message stays short.
+    assert "…" in search(toy, "zz" * 100)
+
+
+def test_oversized_words_are_not_cached() -> None:
+    before = _stem_cached.cache_info().currsize
+    assert _stem("x" * 41) == "x" * 41
+    assert _stem_cached.cache_info().currsize == before
+
+
+@pytest.mark.parametrize("budget", [1, 30, 48, 100, 200, 314])
+@pytest.mark.parametrize("query", ["projects", "span cost", "Project", "Span.costSummary"])
+def test_tiny_budgets_are_respected(toy: Index, query: str, budget: int) -> None:
+    assert len(search(toy, query, budget)) <= budget
+    assert len(lookup(toy, query, budget)) <= budget
+
+
+def test_a_mutation_name_with_no_word_tokens_indexes() -> None:
+    index = build_index(build_schema("type Query { ok: Int } type Mutation { _: Int }"))
+    assert "  _: Int" in search(index, "mutations")
+
+
+def test_the_mutations_word_on_a_schema_without_mutations() -> None:
+    index = build_index(build_schema("type Query { ok: Int }"))
+    assert search(index, "mutations") == "-- The schema has no mutations."
+
+
+def test_names_differing_only_in_case_stay_distinct() -> None:
+    index = build_index(
+        build_schema("type Query { a: Thing b: thing } type Thing { x: Int } type thing { y: Int }")
+    )
+    assert first_line(lookup(index, "Thing")) == "type Thing {"
+    assert first_line(lookup(index, "thing")) == "type thing {"
+    assert lookup(index, "THING").startswith("-- No type, field, or mutation named 'THING'")
+    # A unique spelling still resolves case-insensitively.
+    assert first_line(lookup(index, "QUERY")) == "type Query {"
+
+
+def test_a_type_and_a_mutation_with_one_name_are_both_reachable() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: makeThing } type makeThing { x: Int } "
+            "type Mutation { makeThing(x: Int): makeThing }"
+        )
+    )
+    assert first_line(lookup(index, "makeThing")) == "type makeThing {"
+    assert (
+        first_line(lookup(index, "Mutation.makeThing")) == "mutation makeThing(x: Int): makeThing"
+    )
+
+
+def test_a_type_the_query_side_returns_stays_when_mutations_are_hidden() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { status: Status } enum Status { A B } "
+            "type Mutation { change(status: Status): Int }"
+        ),
+        include_mutations=False,
+    )
+    assert first_line(lookup(index, "Status")) == "enum Status {"
+
+
+def test_a_hidden_payload_that_references_itself_goes() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { ok: Int } type Subscription { s: Payload } "
+            "type Payload { next: Payload secret: String }"
+        )
+    )
+    assert [u.label for u in index.units] == ["Query.ok", "Query"]
+
+
+def test_grouped_enum_values_and_input_fields_name_every_owner() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a(x: A, y: B, p: P, q: R): Int } enum A { OK } enum B { OK } "
+            "input P { limit: Int } input R { limit: Int }"
+        )
+    )
+    assert first_line(search(index, "OK")) == "enum OK  # on A, B"
+    assert first_line(search(index, "limit")) == "input limit: Int  # on P, R"
+
+
+def test_an_implementation_is_reached_through_its_interface_when_nothing_concrete_delivers_it() -> (
+    None
+):
+    sdl = (
+        "interface Node { id: ID! } type Query { node: Node } type Item implements Node { id: ID! }"
+    )
+    index = build_index(build_schema(sdl))
+    assert "# via Query.node" in lookup(index, "Item")
+    assert index.via("Item") == "Query.node"
+    # A concrete field wins over the interface, which stays listed after it.
+    direct = build_index(build_schema(sdl + " extend type Query { item: Item }"))
+    assert direct.via("Item") == "Query.item"
+    assert reach_paths(direct, "Item") == [("Query.item",), ("Query.node",)]
+
+
+def test_a_list_typed_first_argument_is_not_pagination() -> None:
+    index = build_index(build_schema("type Query { xs(first: [Int], after: [String]): Int }"))
+    text = lookup(index, "Query")
+    assert "xs(first: [Int], after: [String]): Int" in text and PAGINATION_LEGEND not in text
+
+
+def test_a_runner_up_is_not_expanded_behind_a_shared_top_hit() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: A b: B c: C } type A { size: Int } type B { size: Int } "
+            "type C { sizeLimit(irrelevant: Int): Int }"
+        )
+    )
+    assert " in full:" not in search(index, "size")
+
+
+def test_omitted_line_count_excludes_the_closing_brace() -> None:
+    index = build_index(build_schema("type Query { a: Int b: Int c: Int d: Int e: Int }"))
+    assert lookup(index, "Query", 48) == "type Query {\n  # ... 5 more lines omitted\n}"
+
+
+def test_concurrent_first_callers_share_one_index() -> None:
+    import concurrent.futures
+
+    schema = build_schema("type Query { ok: Int }")
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:
+        built = list(pool.map(lambda _: cached_index(schema), range(8)))
+    assert all(b is built[0] for b in built)
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
@@ -742,7 +880,7 @@ def test_every_default_renders_as_its_graphql_literal(index: Index) -> None:
     for t in index.schema.type_map.values():
         if (
             isinstance(t, (GraphQLObjectType, GraphQLInterfaceType))
-            and t.name.lower() in index.by_key
+            and index.resolve(t.name) is not None
         ):
             for fname, f in t.fields.items():
                 line = first_line(lookup(index, f"{t.name}.{fname}"))
@@ -751,7 +889,7 @@ def test_every_default_renders_as_its_graphql_literal(index: Index) -> None:
                         continue
                     assert f"{a}: {arg.type} = {_literal(arg)}" in line, line
                     checked += 1
-        elif isinstance(t, GraphQLInputObjectType) and t.name.lower() in index.by_key:
+        elif isinstance(t, GraphQLInputObjectType) and index.resolve(t.name) is not None:
             for fname, field in t.fields.items():
                 if field.default_value is Undefined:
                     continue
@@ -771,7 +909,7 @@ def test_pagination_collapses_exactly_when_every_pagination_argument_is_optional
     for t in index.schema.type_map.values():
         if (
             not isinstance(t, (GraphQLObjectType, GraphQLInterfaceType))
-            or t.name.lower() not in index.by_key
+            or index.resolve(t.name) is None
         ):
             continue
         for fname, f in t.fields.items():
@@ -854,7 +992,7 @@ def test_every_search_answer_respects_its_budget(index: Index) -> None:
     for query in queries:
         for budget in (300, 800, 1500, 4000):
             text = search(index, query, budget)
-            assert len(text) <= budget + len(PAGINATION_LEGEND) + 1, (query, budget, len(text))
+            assert len(text) <= budget, (query, budget, len(text))
 
 
 def test_grouped_lines_apply_to_every_listed_owner(index: Index) -> None:
@@ -864,6 +1002,7 @@ def test_grouped_lines_apply_to_every_listed_owner(index: Index) -> None:
                 continue
             signature, rest = line.split("  # on ", 1)
             owners = rest.split('  "', 1)[0].split(" +")[0].split(", ")
+            signature = signature.removeprefix("enum ").removeprefix("input ")
             field = signature.split("(", 1)[0].split(":", 1)[0]
             for owner in owners:
                 assert first_line(lookup(index, f"{owner}.{field}")) == f"{owner}.{signature}"
