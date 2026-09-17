@@ -1490,6 +1490,8 @@ def _search(index: Index, query: str, budget: int) -> str:
         return lookup(index, query, budget)
     if implicit := _implicit_field(index, query):
         return implicit
+    if _is_hidden_mutation_root(index, query.partition(".")[0].lower()):
+        return lookup(index, query, budget)
     if miss := _unknown_type(index, query):
         return miss
     if "." in query and (wrapper := _wrapper_guidance(index, query)):
@@ -1917,8 +1919,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     if name in index.plumbing:
         u = None
     if u is None:
-        if name.startswith("__") and name in schema.type_map:
-            return [_print_compact(schema.type_map[name], index)]
+        if name.startswith("__") and (exact := index.type_name(name)) is not None:
+            return [_print_compact(schema.type_map[exact], index)]
         if implicit := _implicit_field(index, name):
             return [implicit]
         if wrapper := _wrapper_guidance(index, name):
