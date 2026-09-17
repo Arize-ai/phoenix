@@ -129,6 +129,7 @@ from phoenix.server.api.evaluators import (
     build_evaluator_from_definition,
     code_evaluator_sandbox_session_key,
     evaluation_result_to_model,
+    evaluator_annotation_names,
     get_evaluators,
 )
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
@@ -867,15 +868,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
 
     @cached_property
     def annotation_names(self) -> list[str]:
-        """The names the evaluator gives its results.
-
-        Mirrors ``BaseEvaluator.evaluate``: the task name alone for one output config,
-        ``<task name>.<config name>`` for each config when there are several.
-        """
-        name = self._evaluator_task.name.root
-        if len(self.output_configs) > 1:
-            return [f"{name}.{config.name}" for config in self.output_configs]
-        return [name]
+        return evaluator_annotation_names(self._evaluator_task.name.root, self.output_configs)
 
     @cached_property
     def debug_identifier(self) -> str:
@@ -910,8 +903,12 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         start_time = datetime.now(timezone.utc)
         try:
             with anyio.fail_after(self._timeout):
+                context = self._build_context()
+                context["metadata"] = without_expected_outputs(
+                    context["metadata"], self.annotation_names
+                )
                 eval_results = await self._evaluator.evaluate(
-                    context=self._build_context(),
+                    context=context,
                     input_mapping=self._evaluator_task.input_mapping,
                     name=self._evaluator_task.name.root,
                     output_configs=self.output_configs,
@@ -1295,6 +1292,10 @@ class EvalWorkItem(WorkItem):
                     "output": self._experiment_run.output.get("task_output"),
                     "metadata": self._dataset_example_revision.metadata_,
                 }
+                context_dict["metadata"] = without_expected_outputs(
+                    context_dict["metadata"],
+                    evaluator_annotation_names(self._output_configs[0].name, self._output_configs),
+                )
                 eval_results = await self._evaluator.evaluate(
                     context=context_dict,
                     input_mapping=self._input_mapping,
