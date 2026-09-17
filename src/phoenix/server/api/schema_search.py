@@ -252,14 +252,14 @@ class Index:
         owner, dot, _ = name.partition(".")
         if u is None or not dot:
             return u
-        return u if _by_case([*self.owners, *self.plumbing], owner) == u.parent else None
+        return u if _by_case({*self.owners, *self.plumbing}, owner) == u.parent else None
 
     def owner(self, name: str) -> Optional[str]:
         """The type ``name`` denotes as an owner of members, wrappers included."""
+        if (match := _by_case({*self.owners, *self.plumbing}, name)) is not None:
+            return match
         u = self.resolve(name)
-        if u is not None:
-            return u.name if u.kind == "type" else None
-        return _by_case(self.owners, name)
+        return u.name if u is not None and u.kind == "type" else None
 
     def depth(self, type_name: str) -> int:
         return self.nearest.get(type_name, ("", _MAX_DEPTH, ()))[1]
@@ -1082,6 +1082,9 @@ def _search(index: Index, query: str, budget: int) -> str:
         return lookup(index, query, budget)
     if miss := _unknown_type(index, query):
         return miss
+    owner_part, dot, _ = query.partition(".")
+    if dot and owner_part in index.plumbing and owner_part not in index.owners:
+        return _plumbing_miss(index, owner_part) or ""
     if unknown := _unknown_member(index, query):
         owner, member = unknown
         terms = _query_terms(member)
@@ -1327,7 +1330,7 @@ def _field_dependencies(index: Index, u: Unit) -> list[str]:
 
 
 def _commented(text: str) -> str:
-    return "\n".join(f"# {line}" if line else "#" for line in text.strip().splitlines())
+    return "\n".join(f"# {line}" if line else "#" for line in text.strip().split("\n"))
 
 
 def _path_lines(paths: Iterable[tuple[str, ...]]) -> list[str]:
@@ -1367,7 +1370,7 @@ def _cut(part: str, after: Sequence[str], budget: int) -> Optional[str]:
     """The head of ``part`` that fits ``budget`` beside its own trailer: the
     omitted-lines note, the closing brace, and the note naming ``after``. None
     when not even the first line fits."""
-    lines = part.splitlines()
+    lines = part.split("\n")
     closing = ["}"] if part.rstrip().endswith("}") else []
     body = lines[: len(lines) - len(closing)]
     sections = [_fitting_note(after, budget // 4)] if after else []
@@ -1401,7 +1404,7 @@ def _omitted(parts: Sequence[str], limit: int = 8) -> str:
 
 
 def _section_name(part: str) -> Optional[str]:
-    first = part.splitlines()[0] if part else ""
+    first = part.split("\n", 1)[0]
     if m := re.match(r"#\s+([A-Za-z_]\w*):", first):
         return m.group(1)
     if m := re.match(r"(?:type|interface|input|enum|union)\s+([A-Za-z_]\w*)", first):
@@ -1456,7 +1459,7 @@ def describe(
             header = f"# search: {_echo(_clip(arg))}\n" if labelled else ""
             text = header + _free_text_search(index, arg, share - len(header))
         kept: list[str] = []
-        for line in text.splitlines():
+        for line in text.split("\n"):
             if line in trailing:
                 if line not in seen:
                     seen.append(line)
@@ -1520,7 +1523,9 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
         else:
             if isinstance(t, GraphQLInterfaceType):
                 possible = ", ".join(
-                    p.name for p in schema.get_possible_types(t) if index.resolve(p.name)
+                    p.name
+                    for p in schema.get_possible_types(t)
+                    if p.name in index.by_key or p.name in index.plumbing
                 )
                 if possible:
                     parts.append(f"# possible types: {possible}")
