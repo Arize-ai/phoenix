@@ -1,0 +1,68 @@
+# Run every benchmark condition on every TRAIL task.
+#   make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml
+# Use HARBOR_ARGS to pass options such as `-e docker`, `-k 3`, `--job-name`, or
+# `-a oracle`. To select conditions or tasks, use scripts/subset_job.py.
+#
+# Each condition uses the same image and TRAIL fixture. The plugin records all results in
+# the trail-benchmark-dev Phoenix dataset.
+#
+# The environment allows the Phoenix documentation hosts and the Claude Code download
+# host. Each agent allows its model provider. The image includes Codex because its
+# installer requires a host that the network policy blocks.
+datasets:
+  - path: evals/harbor/tasks/trail-benchmark-dev
+agents:
+  - name: claude-code-mcp
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+    kwargs:
+      version: "2.1.267"
+      reasoning_effort: high
+      disallowed_tools: "WebSearch,WebFetch"
+  - name: claude-code-cli
+    import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+    kwargs:
+      version: "2.1.267"
+      reasoning_effort: high
+      disallowed_tools: "WebSearch,WebFetch"
+    env:
+      NO_COLOR: "1"
+    skills:
+      - .agents/skills/phoenix-cli
+  - name: codex-mcp
+    import_path: evals.harbor.agents.coding_agents:CodexMcpAgent
+    model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      version: "0.154.0"
+      reasoning_effort: high
+      web_search: disabled
+  - name: codex-cli
+    import_path: evals.harbor.agents.coding_agents:CodexCliAgent
+    model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      version: "0.154.0"
+      reasoning_effort: high
+      web_search: disabled
+    env:
+      NO_COLOR: "1"
+    skills:
+      - .agents/skills/phoenix-cli
+  - name: phoenix-chat-agent
+    import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
+    model_name: anthropic/claude-opus-5
+    extra_allowed_hosts: [api.anthropic.com]
+environment:
+  type: daytona
+  extra_allowed_hosts: [downloads.claude.ai, arizeai-433a7140.mintlify.app, arize.com]
+  # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+# Retry infrastructure errors, but do not retry trials that produce a reward.
+retry:
+  max_retries: 1

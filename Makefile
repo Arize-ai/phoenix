@@ -109,7 +109,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -498,46 +498,37 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # Harbor Evals
 #=============================================================================
 
-# A Harbor job file defines a run: its tasks, agents, environment, attempts, retries, and
-# network policy. The default is the full benchmark CI runs. Point HARBOR_JOB at another
-# file for a subset, and pass anything else `harbor run` accepts through HARBOR_ARGS,
-# e.g. `-e docker`, `-k 1`, or `-a oracle` (which keeps the file's tasks and environment
-# but replaces its agents).
+# HARBOR_JOB selects the benchmark configuration. HARBOR_ARGS passes options to
+# `harbor run`. The `-a` option preserves the tasks and environment but replaces the
+# configured agents.
 HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
 HARBOR_ARGS ?=
-# harbor-stage also builds the px CLI archive that the claude-code-cli agent installs, a
-# pnpm build plus a Docker step. Set HARBOR_CLI=0 to skip it when no run needs that agent.
+# harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
+# HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
 HARBOR_CLI ?= 1
-# Every run records its tasks, trials, scores, and traces in Phoenix through the
-# arize-phoenix plugin, which reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY from the
-# environment. Runs from any job file share one dataset so their experiments compare.
-# Set HARBOR_PLUGIN= to run without recording.
-HARBOR_DATASET ?= pxi-benchmark
-HARBOR_PLUGIN ?= --plugin arize-phoenix --plugin-kwarg dataset=$(HARBOR_DATASET)
+# The arize-phoenix plugin records tasks, trials, scores, and traces. Jobs that define
+# `datasets:` use the task directory name as the dataset name. Other jobs use
+# pxi-benchmark by default. HARBOR_DATASET overrides the name. Set HARBOR_PLUGIN to an
+# empty value to disable recording.
+HARBOR_DATASET ?= $(if $(shell grep -l '^datasets:' $(HARBOR_JOB) 2>/dev/null),,pxi-benchmark)
+HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
-# Phoenix client that provides the arize-phoenix Harbor plugin.
+# This client package provides the arize-phoenix Harbor plugin.
 HARBOR_CLIENT_VERSION ?= 3.5.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
-# harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
-# repo's .python-version (3.10).
+# Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.10.
 HARBOR_PYTHON ?= 3.13
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
 	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
-# The px CLI archive is only required when the job file's agents are in effect, i.e. `-a`
-# does not replace them.
+# Require the px archive only when HARBOR_ARGS does not replace the configured agents.
 define check-harbor-staged
-	@for task in evals/harbor/tasks/*/; do \
-		test -d "$$task/environment/container_assets" -a -f "$$task/environment/data/phoenix.db" || \
-			{ echo -e "$(RED)Missing staged assets in $$task/environment/ — run 'make harbor-stage' first$(NC)"; exit 1; }; \
-	done
-	@$(if $(filter -a,$(HARBOR_ARGS)),true,! grep -q ClaudeCodeCliAgent $(HARBOR_JOB)) || test -f dist/phoenix-cli/phoenix-cli.tar.gz || \
-		{ echo -e "$(RED)Missing px CLI archive in dist/phoenix-cli/ — run 'make harbor-stage' first$(NC)"; exit 1; }
+	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
 endef
 
-harbor-stage: ## Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip, HARBOR_CLI_PLATFORM=...)
+harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_environments.sh
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\

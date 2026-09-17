@@ -341,6 +341,9 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
+  # Staging copies evals.harbor.verifiers to /opt/verifier for task solutions to import.
+  "evals/harbor/tasks/[^/]+/environment/",
+  "evals/harbor/tasks/trail-benchmark-dev/",
   "examples/",
   "packages/",
   "scripts/",
