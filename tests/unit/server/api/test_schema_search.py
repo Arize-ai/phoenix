@@ -1079,6 +1079,50 @@ def test_one_of_inputs_keep_their_directive() -> None:
     assert first_line(lookup(index, "Locator")) == "input Locator @oneOf {"
 
 
+def test_a_default_no_literal_can_spell_is_quoted_as_json() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    json_scalar = GraphQLScalarType("JSON")
+    query = GraphQLObjectType(
+        "Query",
+        {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(json_scalar, {"a-b": 1})})},
+    )
+    index = build_index(GraphQLSchema(query=query))
+    line = first_line(lookup(index, "Query.ok"))
+    assert line == 'Query.ok(x: JSON = "{\\"a-b\\": 1}"): String'
+    parse("type Q { " + line.split(".", 1)[1] + " }")
+
+
+def test_a_scoped_search_on_an_indexed_wrapper_works() -> None:
+    index = build_index(build_schema(TOY_SDL + " extend type ProjectConnection { cursor: String }"))
+    text = search(index, "ProjectConnection.cur")
+    assert text.startswith("# On ProjectConnection, matching 'cur':")
+    assert "  cursor: String" in text
+
+
+def test_a_multi_part_lookup_that_exactly_fits_is_printed() -> None:
+    index = build_index(build_schema("type Query { obj: A } type A { a: Int }"))
+    assert lookup(index, "Query.obj", 19) == "Query.obj: A\n# A: a"
+
+
+def test_relay_shapes_are_checked_by_field_types() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { record: Record items: Items } "
+            "type Record { node: Int cursor: String other: Int } "
+            "type Items { edges: [String!]! pageInfo: Int }"
+        )
+    )
+    assert first_line(lookup(index, "Record")) == "type Record {"
+    assert first_line(lookup(index, "Items")) == "type Items {"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
