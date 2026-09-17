@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { truncateJsonPreview } from "../jsonPreview";
+import { truncateJsonPreview } from "../truncateJsonPreview";
 
 describe("truncateJsonPreview", () => {
   it("returns short documents untouched", () => {
