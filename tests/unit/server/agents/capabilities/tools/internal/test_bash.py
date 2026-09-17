@@ -700,3 +700,13 @@ class TestRegressionsFromTheDigestEraApprovalFlow:
         )
         assert result["exitCode"] == 0, result["stderr"]
         assert len(TAG_EVERYTHING_CALLS) == 1
+
+
+def test_schema_flag_values_are_bounded() -> None:
+    from phoenix.server.agents.capabilities.tools.internal.bash import (
+        _MAX_VALUE_CHARS,
+        _parse_schema_args,
+    )
+
+    _, names = _parse_schema_args(["--names", "id," * 100_000])
+    assert len(names) <= _MAX_VALUE_CHARS // 3 + 1

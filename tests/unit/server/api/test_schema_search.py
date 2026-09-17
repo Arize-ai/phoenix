@@ -969,9 +969,13 @@ def test_a_cut_last_hit_is_counted_in_the_trailer() -> None:
     )
 
 
-def test_a_custom_scalar_default_renders_as_json() -> None:
-    index = build_index(build_schema("scalar JSON type Query { ok(x: JSON = {a: 1}): Int }"))
-    assert first_line(lookup(index, "Query.ok")) == 'Query.ok(x: JSON = {"a": 1}): Int'
+def test_a_custom_scalar_default_renders_as_a_graphql_literal() -> None:
+    sdl = 'scalar JSON type Query { ok(x: JSON = {a: [1, "b", null, true]}): Int }'
+    index = build_index(build_schema(sdl))
+    assert (
+        first_line(lookup(index, "Query.ok"))
+        == 'Query.ok(x: JSON = {a: [1, "b", null, true]}): Int'
+    )
 
 
 def test_a_cold_query_stems_no_more_than_the_term_limit(toy: Index) -> None:
@@ -1023,6 +1027,56 @@ def test_requests_past_the_cap_are_omitted_before_any_is_served(toy: Index) -> N
     text = describe(toy, names=["Span"] * (_MAX_REQUESTS + 4), budget=10**6)
     assert text.endswith("-- 4 more requests omitted; ask for fewer at once.")
     assert text.count("type Span ") == _MAX_REQUESTS
+
+
+def test_an_interface_reached_by_implements_is_not_walked() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { item: A } interface Node { child: Node } "
+            "type A implements Node { child: A } "
+            "type B implements Node { child: B secret: String } type Mutation { get: B }"
+        ),
+        include_mutations=False,
+    )
+    assert index.resolve("B") is None and index.resolve("Node") is not None
+
+
+def test_a_full_description_is_commented_line_by_line() -> None:
+    sdl = 'type Query { """metadata\ntype Fake { secret: Int }""" hello: Int }'
+    index = build_index(build_schema(sdl))
+    assert lookup(index, "Query.hello").startswith(
+        "Query.hello: Int\n# metadata\n# type Fake { secret: Int }"
+    )
+
+
+def test_wrapper_extras_follow_the_wrapper_shape() -> None:
+    sdl = TOY_SDL + " extend type ProjectConnection { cursor: String }"
+    sdl += " extend type ProjectEdge { stats: Int }"
+    index = build_index(build_schema(sdl))
+    assert (
+        first_line(lookup(index, "ProjectConnection.cursor")) == "ProjectConnection.cursor: String"
+    )
+    assert lookup(index, "ProjectEdge.stats").splitlines()[:2] == [
+        "ProjectEdge.stats: Int",
+        "# via Query.projects > ProjectConnection.edges > ProjectEdge.stats",
+    ]
+
+
+def test_an_answer_that_exactly_fills_its_budget_is_printed() -> None:
+    index = build_index(build_schema("type Query { sizeOne: Int sizeTwo: String }"))
+    whole = "Query\n  sizeOne: Int\n  sizeTwo: String"
+    assert search(index, "size", len(whole)) == whole
+    single = build_index(build_schema("type Query { x: Int }"))
+    assert lookup(single, "Query", 23) == "type Query {\n  x: Int\n}"
+
+
+def test_one_of_inputs_keep_their_directive() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { find(by: Locator!): Int } input Locator @oneOf { id: ID name: String }"
+        )
+    )
+    assert first_line(lookup(index, "Locator")) == "input Locator @oneOf {"
 
 
 # --- properties of the real schema -----------------------------------------------

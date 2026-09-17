@@ -270,15 +270,27 @@ def _is_relay_plumbing(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
     return t.name == "PageInfo" or {"edges", "pageInfo"} <= keys or {"node", "cursor"} <= keys
 
 
-_WRAPPER_FIELDS = frozenset({"edges", "pageInfo", "node", "cursor"})
-
-
 def _wrapper_extras(t: GraphQLNamedType, schema: GraphQLSchema) -> list[str]:
     """Fields a connection or edge type carries beyond the Relay shape."""
     if not _is_relay_plumbing(t, schema) or t.name == "PageInfo":
         return []
     assert isinstance(t, GraphQLObjectType)
-    return [n for n in t.fields if n not in _WRAPPER_FIELDS]
+    shape = (
+        {"edges", "pageInfo"} if {"edges", "pageInfo"} <= t.fields.keys() else {"node", "cursor"}
+    )
+    return [n for n in t.fields if n not in shape]
+
+
+def _wrapper_walk(t: GraphQLNamedType, schema: GraphQLSchema) -> list[str]:
+    """The fields of a wrapper worth following: its extras, and ``edges`` when the
+    edge type has extras of its own."""
+    walk = _wrapper_extras(t, schema)
+    if walk or _is_relay_plumbing(t, schema):
+        assert isinstance(t, GraphQLObjectType)
+        edges = t.fields.get("edges")
+        if edges is not None and _wrapper_extras(get_named_type(edges.type), schema):
+            walk = [*walk, "edges"]
+    return walk
 
 
 def _skip(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
@@ -300,9 +312,20 @@ def _default(value_def: _ValueDef) -> str:
     try:
         node = ast_from_value(value_def.default_value, value_def.type)
     except TypeError:
-        # A custom scalar's default has no AST; its JSON form is the next best literal.
-        return f" = {json.dumps(value_def.default_value, default=str)}"
+        # A custom scalar's default has no AST of its own.
+        return f" = {_literal(value_def.default_value)}"
     return f" = {print_ast(node)}" if node is not None else ""
+
+
+def _literal(value: object) -> str:
+    """``value`` as the GraphQL input literal it would be written as."""
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{k}: {_literal(v)}" for k, v in value.items()) + "}"
+    if isinstance(value, (list, tuple)):
+        return "[" + ", ".join(_literal(v) for v in value) + "]"
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return json.dumps(value)
+    return json.dumps(str(value))
 
 
 _PAGINATION = "\u2026"
@@ -423,6 +446,9 @@ def _reachable(schema: GraphQLSchema, roots: Iterable[GraphQLNamedType]) -> set[
             continue
         seen.add(t.name)
         nxt: list[tuple[GraphQLNamedType, bool]] = []
+        if isinstance(t, GraphQLInterfaceType) and not expand:
+            # Its fields are the implementing type's fields, already walked.
+            continue
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
             for f in t.fields.values():
                 nxt.append((get_named_type(f.type), True))
@@ -490,21 +516,24 @@ def build_index(
     for t in schema.type_map.values():
         if t.name in excluded_types:
             continue
-        extras = _wrapper_extras(t, schema)
-        if _skip(t, schema) and not extras:
+        walk = _wrapper_walk(t, schema)
+        if _skip(t, schema) and not walk:
             continue
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
             kind = "mutation" if t is mutation else "field"
+            extras = _wrapper_extras(t, schema)
             for fname, f in t.fields.items():
-                if extras and fname not in extras:
+                if walk and fname not in walk:
+                    continue
+                named = get_named_type(f.type)
+                if _wrapper_walk(named, schema):
+                    returned_by[named.name].append(f"{t.name}.{fname}")
+                if walk and fname not in extras:
                     continue
                 arg_terms = [tok for a in f.args for tok in (a.lower(), *_ident_terms(a))]
                 arg_desc = " ".join(a.description or "" for a in f.args.values())
-                named = get_named_type(f.type)
                 for target in _returned_types(schema, named):
                     returned_by[target.name].append(f"{t.name}.{fname}")
-                if _wrapper_extras(named, schema):
-                    returned_by[named.name].append(f"{t.name}.{fname}")
                 if isinstance(node := _node_type(named), GraphQLInterfaceType):
                     for impl in schema.get_possible_types(node):
                         through_interface[impl.name].append(f"{t.name}.{fname}")
@@ -523,7 +552,7 @@ def build_index(
                 )
                 for arg in f.args.values():
                     used_by[get_named_type(arg.type).name].append(f"{t.name}.{fname}")
-            if extras:
+            if walk:
                 continue
         elif isinstance(t, GraphQLInputObjectType):
             for fname, input_field in t.fields.items():
@@ -569,13 +598,13 @@ def build_index(
         if (interfaces, length) != cost[cur]:
             continue
         root, _, hops = nearest[cur]
-        extras = _wrapper_extras(schema.type_map[cur], schema)
+        walk = _wrapper_walk(schema.type_map[cur], schema)
         for fname, f in _object_fields(schema.type_map[cur]):
-            if extras and fname not in extras:
+            if walk and fname not in walk:
                 continue
             named = get_named_type(f.type)
             edges = [(nxt, 0) for nxt in _returned_types(schema, named)]
-            if _wrapper_extras(named, schema):
+            if _wrapper_walk(named, schema):
                 edges.append((named, 0))
             if isinstance(node := _node_type(named), GraphQLInterfaceType):
                 edges.extend((impl, 1) for impl in schema.get_possible_types(node))
@@ -1009,6 +1038,8 @@ def _ranked_answer(
         if body and not body.startswith("# ..."):
             expansions.append(f"{header}\n{body}")
     lines: list[str] = list(lead)
+    # Every line costs its length plus a newline; the last newline is not printed.
+    budget += 1
     used = sum(len(n) + 1 for n in [*note, *lines, *expansions])
     if any(_uses_pagination(text) for _, text, _ in ordered) or any(
         map(_uses_pagination, expansions)
@@ -1106,7 +1137,7 @@ def _print_compact(t: GraphQLNamedType) -> str:
         head = f"enum {t.name}"
         members = [(v, value.description) for v, value in t.values.items()]
     elif isinstance(t, GraphQLInputObjectType):
-        head = f"input {t.name}"
+        head = f"input {t.name}{' @oneOf' if _is_one_of(t) else ''}"
         members = [(_signature(n, f), f.description) for n, f in t.fields.items()]
     else:
         assert isinstance(t, (GraphQLObjectType, GraphQLInterfaceType))
@@ -1120,6 +1151,13 @@ def _print_compact(t: GraphQLNamedType) -> str:
     lines.extend(f"  {sig}" + (f"  # {_first_sentence(d)}" if d else "") for sig, d in members)
     lines.append("}")
     return "\n".join(lines)
+
+
+def _is_one_of(t: GraphQLInputObjectType) -> bool:
+    if getattr(t, "is_one_of", False):
+        return True
+    directives = t.ast_node.directives if t.ast_node is not None else ()
+    return any(d.name.value == "oneOf" for d in directives)
 
 
 _NEIGHBOR_STUBS = 8
@@ -1144,6 +1182,10 @@ def _field_dependencies(index: Index, u: Unit) -> list[str]:
     return parts
 
 
+def _commented(text: str) -> str:
+    return "\n".join(f"# {line}" if line else "#" for line in text.strip().splitlines())
+
+
 def _path_lines(paths: Iterable[tuple[str, ...]]) -> list[str]:
     """One ``# via`` line per path of ``Type.field`` hops."""
     return [f"# via {' > '.join(path)}" for path in paths]
@@ -1155,12 +1197,12 @@ def _within(parts: Sequence[str], budget: int) -> str:
     room for the note that names what was cut; when not even that fits, the
     answer is the bare count, or nothing."""
     out: list[str] = []
-    used = 0
+    used = 0  # every line costs its length plus a newline; the last newline is not printed
     for i, part in enumerate(parts):
         after = parts[i + 1 :]
         # Accept a whole part only if the note for whatever follows still fits.
         reserve = len(_omitted(after, limit=0)) + 1 if after else 0
-        if used + len(part) + 1 + reserve <= budget:
+        if used + len(part) + 1 + reserve <= budget + 1:
             out.append(part)
             used += len(part) + 1
             continue
@@ -1185,7 +1227,7 @@ def _cut(part: str, after: Sequence[str], budget: int) -> Optional[str]:
     sections = [_fitting_note(after, budget // 4)] if after else []
     trailer = len(f"  # ... {len(body)} more lines omitted") + 1
     trailer += sum(len(line) + 1 for line in (*closing, *sections))
-    room = budget - trailer
+    room = budget + 1 - trailer
     kept: list[str] = []
     for line in body:
         if sum(len(k) + 1 for k in kept) + len(line) + 1 > room:
@@ -1344,7 +1386,7 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
         f = mutation.fields[u.name]
         parts = [f"mutation {u.signature}"]
         if u.description:
-            parts.append(f"# {u.description}")
+            parts.append(_commented(u.description))
         parts.extend(
             _print_compact(t)
             for t in _input_closure(get_named_type(a.type) for a in f.args.values())
@@ -1353,7 +1395,7 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     else:
         parts = [f"{u.parent}.{u.signature}"]
         if u.description:
-            parts.append(f"# {u.description}")
+            parts.append(_commented(u.description))
         if u.kind == "field":
             hop = f"{u.parent}.{u.name}"
             parts.extend(_path_lines((*p, hop) for p in reach_paths(index, u.parent)))
