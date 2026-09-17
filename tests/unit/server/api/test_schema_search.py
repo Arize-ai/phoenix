@@ -1376,14 +1376,14 @@ def test_every_custom_scalar_default_must_coerce_back() -> None:
     assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: Shifted = <unprintable>): String"
 
 
-def test_a_tuple_default_for_a_list_type_renders_element_by_element() -> None:
+def test_a_tuple_default_for_a_list_type_is_not_shown_as_a_list() -> None:
     from graphql import GraphQLArgument, GraphQLField, GraphQLList, GraphQLSchema, GraphQLString
 
     arg = GraphQLArgument(GraphQLList(_wrapped_scalar()), (1, 2))
     query = GraphQLObjectType("Query", {"ok": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
-    line = first_line(lookup(index, "Query.ok"))
-    assert line == "Query.ok(x: [Wrapped] = [{value: 1}, {value: 2}]): String"
+    # Omission delivers the tuple itself; any literal delivers a list.
+    assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: [Wrapped] = <unprintable>): String"
 
 
 def test_a_dotted_name_never_takes_a_member_from_a_case_folded_owner() -> None:
@@ -2631,6 +2631,54 @@ def test_an_input_field_default_is_compared_raw() -> None:
     text = lookup(index, "Opt")
     assert "xs: [Int] = <unprintable>" in text
     assert "m: JSON = {b: 2, a: 1}" in text
+
+
+def test_an_argument_default_is_compared_exactly_as_delivered() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInt,
+        GraphQLNonNull,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    flt = GraphQLInputObjectType(
+        "Filter", {"a": GraphQLInputField(GraphQLInt), "b": GraphQLInputField(GraphQLInt)}
+    )
+    arg = GraphQLArgument(GraphQLNonNull(flt), {"b": 2, "a": 1})
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Filter! = <unprintable>): String"
+
+
+def test_a_float_subclass_default_keeps_the_sign_of_zero() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    class TokenFloat(float):
+        pass
+
+    number = GraphQLScalarType("TokenFloat", serialize=float, parse_value=TokenFloat)
+    arg = GraphQLArgument(number, TokenFloat(-0.0))
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="TokenFloat")),
+        default_value=parse_value("0.0"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) in (
+        "Query.f(x: TokenFloat = -0.0): String",
+        "Query.f(x: TokenFloat = -0): String",
+    )
 
 
 # --- properties of the real schema -----------------------------------------------
