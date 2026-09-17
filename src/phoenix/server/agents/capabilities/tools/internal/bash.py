@@ -357,9 +357,8 @@ def create_phoenix_gql_builtin(
     mutation_policy: GraphQLMutationPolicy,
 ) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
     """Build the ``phoenix-gql`` custom shell command."""
-    # The compiled graphql-core schema, which carries the descriptions and
-    # deprecations the index renders; strawberry exposes it only as a
-    # private attribute and is pinned to an exact version.
+    # The compiled graphql-core schema carries the descriptions and
+    # deprecations the index renders; strawberry exposes it only as ``_schema``.
     index = cached_index(schema._schema, include_mutations=mutation_policy.allow_mutations)
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:

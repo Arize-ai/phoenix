@@ -1,9 +1,9 @@
 """Searchable sub-graph of the GraphQL schema for agents.
 
-The full schema is far too large for a model's context. ``build_index`` runs
-once per schema; ``search`` returns ranked hits for a free-text
-query and ``lookup`` renders one type, field, or mutation in full with the
-path that reaches it. Every renderer works to a character budget.
+``build_index`` runs once per schema. ``search`` ranks hits for free text,
+``lookup`` renders one type, field, or mutation in full with the path that
+reaches it, and ``describe`` answers several of either within one budget.
+Every renderer works to a character budget.
 """
 
 from __future__ import annotations
