@@ -8,7 +8,9 @@ Every renderer works to a character budget.
 
 from __future__ import annotations
 
+import dataclasses
 import difflib
+import enum
 import functools
 import heapq
 import itertools
@@ -49,6 +51,7 @@ from graphql.language import (
     NameNode,
     ObjectValueNode,
     ValueNode,
+    parse_const_value,
     parse_value,
     print_ast,
 )
@@ -437,7 +440,7 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
     """Whether supplying ``literal`` hands a resolver the same value as omitting
     the argument or field, as graphql-core coerces each."""
     try:
-        node = parse_value(literal)
+        node = parse_const_value(literal)
         if (
             value_from_ast(node, value_def.type) is Undefined
             or not _names_known_fields(node, value_def.type)
@@ -534,7 +537,15 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         return len(a) == len(b) and all(
             _equivalent(x, y, sequences=sequences) for x, y in zip(a, b)
         )
-    return bool(a == b)
+    if isinstance(a, (str, int, float, bool, enum.Enum)) or a is None:
+        return bool(a == b)
+    if dataclasses.is_dataclass(a) and not isinstance(a, type):
+        fields = [f.name for f in dataclasses.fields(a)]
+        return all(_equivalent(getattr(a, f), getattr(b, f), sequences=sequences) for f in fields)
+    if hasattr(a, "__dict__"):
+        return _equivalent(vars(a), vars(b), sequences=sequences)
+    # Equality of an opaque object says nothing about the kinds inside it.
+    return False
 
 
 def _literal(
@@ -555,7 +566,13 @@ def _literal(
         items = [_literal(v, type_.of_type, enum_by_name=enum_by_name) for v in values]
         return None if None in items else "[" + ", ".join(i for i in items if i) + "]"
     if isinstance(type_, GraphQLInputObjectType):
-        if not isinstance(value, dict) or not all(k in type_.fields for k in value):
+        if not isinstance(value, dict):
+            return None
+        # A value keyed by an output name is written by the input name it came from.
+        reverse = {f.out_name: n for n, f in type_.fields.items() if f.out_name}
+        reverse = {o: n for o, n in reverse.items() if o not in type_.fields}
+        value = {k if k in type_.fields else reverse.get(k, k): v for k, v in value.items()}
+        if not all(k in type_.fields for k in value):
             return None
         fields = {
             k: _literal(v, type_.fields[k].type, enum_by_name=enum_by_name)
