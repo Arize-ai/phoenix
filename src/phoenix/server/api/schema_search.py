@@ -738,7 +738,8 @@ _PAGINATION_ARGS: Mapping[str, str] = {
     "after": "String",
     "before": "String",
 }
-_PAGINATION_LEGEND = f"# {_PAGINATION} = first: Int, last: Int, after: String, before: String"
+# The page size and its default stay visible; the marker stands for the rest.
+_PAGINATION_LEGEND = f"# {_PAGINATION} = last: Int, after: String, before: String"
 
 
 def _is_pagination(name: str, arg: GraphQLArgument) -> bool:
@@ -755,7 +756,7 @@ def _signature(name: str, field: _FieldLike) -> str:
     collapsed = all(a in args and _is_pagination(a, args[a]) for a in _PAGINATION_ARGS)
     rendered: list[str] = []
     for a, arg in args.items():
-        if collapsed and a in _PAGINATION_ARGS:
+        if collapsed and a in _PAGINATION_ARGS and a != "first":
             if _PAGINATION not in rendered:
                 rendered.append(_PAGINATION)
             continue

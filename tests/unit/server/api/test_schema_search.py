@@ -187,7 +187,7 @@ type TextChunk implements ChatCompletionPayload { datasetExampleId: ID content: 
 '''
 
 PAGINATION = "…"
-PAGINATION_ARGUMENTS = "first: Int, last: Int, after: String, before: String"
+PAGINATION_ARGUMENTS = "last: Int, after: String, before: String"
 PAGINATION_LEGEND = f"# {PAGINATION} = {PAGINATION_ARGUMENTS}"
 DISABLED = "-- Mutations are disabled for this session and are not listed."
 
@@ -345,7 +345,7 @@ def test_several_searches_answer_together(toy: Index, toy_reads_only: Index) -> 
         "Project.averageSessionDurationMs"
     )
     assert second.startswith("# search: projects\n")
-    assert f"\n  projects({PAGINATION}, " in second
+    assert f"\n  projects(first: Int = 50, {PAGINATION}, " in second
     # A single search carries no label.
     assert "# search:" not in search_many(toy, ["projects"])
     assert text.count(PAGINATION_LEGEND) == 1
@@ -539,13 +539,14 @@ def test_lookup_truncates_at_whole_lines_and_keeps_the_block_closed() -> None:
 def test_optional_pagination_arguments_collapse_to_one_marker(toy: Index) -> None:
     text = lookup(toy, "Query.projects")
     assert first_line(text) == (
-        f"Query.projects({PAGINATION}, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!"
+        f"Query.projects(first: Int = 50, {PAGINATION}, sort: ProjectSort, filter: ProjectFilter): "
+        "ProjectConnection!"
     )
     assert text.splitlines()[-1] == PAGINATION_LEGEND
     # A required `first` stays visible: the caller must pass it.
     assert "spans(first: Int!, timeRange: TimeRange, last: Int," in lookup(toy, "Project.spans")
     hits = search(toy, "datasets")
-    assert f"\n  datasets({PAGINATION}): DatasetConnection!" in hits
+    assert f"\n  datasets(first: Int = 50, {PAGINATION}): DatasetConnection!" in hits
     assert hits.splitlines()[-1] == PAGINATION_LEGEND
     assert PAGINATION not in lookup(toy, "Span.spanAnnotations")
 
@@ -2828,8 +2829,9 @@ def test_every_default_renders_as_its_graphql_literal(index: Index) -> None:
 
 
 def test_pagination_collapses_exactly_for_the_complete_optional_relay_set(index: Index) -> None:
-    """The marker stands for all four arguments, so it appears only when a field
-    takes all four as optional; a forward-only field keeps its arguments visible."""
+    """The marker stands for the three cursor arguments, so it appears only when a
+    field takes all four Relay arguments as optional; ``first`` and its default
+    stay visible everywhere, and a forward-only field keeps every argument."""
     pagination = {"first": "Int", "last": "Int", "after": "String", "before": "String"}
     checked = 0
     for t in index.schema.type_map.values():
@@ -2847,7 +2849,7 @@ def test_pagination_collapses_exactly_for_the_complete_optional_relay_set(index:
                 for a, expected in pagination.items()
             )
             assert (PAGINATION in line) == complete, line
-            assert ("first:" in line) != complete, line
+            assert "first:" in line, line
             checked += 1
     assert checked > 0
 
