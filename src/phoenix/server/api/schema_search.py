@@ -17,8 +17,7 @@ import json
 import math
 import re
 import threading
-import weakref
-from collections import Counter, defaultdict, deque
+from collections import Counter, OrderedDict, defaultdict, deque
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union, cast
@@ -415,7 +414,10 @@ def _args(field: _FieldLike) -> Mapping[str, GraphQLArgument]:
 _UNPRINTABLE = "<unprintable>"
 
 
-_DEFAULTS: "weakref.WeakKeyDictionary[_ValueDef, str]" = weakref.WeakKeyDictionary()
+# Definitions are unhashable and identity-keyed entries must outlive id reuse,
+# so each entry keeps its definition; the cache is bounded like the others.
+_DEFAULTS: "OrderedDict[int, tuple[_ValueDef, str]]" = OrderedDict()
+_DEFAULTS_MAX = 65536
 
 
 def _default(value_def: _ValueDef) -> str:
@@ -425,15 +427,13 @@ def _default(value_def: _ValueDef) -> str:
     argument or input field, since the checks are not cheap."""
     if value_def.default_value is Undefined:
         return ""
-    try:
-        return _DEFAULTS[value_def]
-    except (KeyError, TypeError):
-        pass
+    cached = _DEFAULTS.get(id(value_def))
+    if cached is not None and cached[0] is value_def:
+        return cached[1]
     rendered = _render_default(value_def)
-    try:
-        _DEFAULTS[value_def] = rendered
-    except TypeError:
-        pass
+    _DEFAULTS[id(value_def)] = (value_def, rendered)
+    while len(_DEFAULTS) > _DEFAULTS_MAX:
+        _DEFAULTS.popitem(last=False)
     return rendered
 
 
@@ -552,6 +552,11 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         return len(a) == len(b) and all(_equivalent(x, y, sequences=True) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
+    if isinstance(a, OrderedDict) and isinstance(b, OrderedDict):
+        return len(a) == len(b) and all(
+            _equivalent(k, m, sequences=sequences) and _equivalent(a[k], b[m], sequences=sequences)
+            for k, m in zip(a, b)
+        )
     if isinstance(a, Mapping) and isinstance(b, Mapping):
         pairs = _pair_off(a, b)
         return pairs is not None and all(
@@ -571,6 +576,10 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
     if not state_a or not state_b:
         # Without Python-level state, a datetime say, equality is all there is.
         return bool(a == b)
+    # A native payload, as a datetime subclass carries, is judged by the
+    # equality the class inherits; only object's own identity test is skipped.
+    if type(a).__eq__ is not object.__eq__ and not (a == b):
+        return False
     return _equivalent(state_a, state_b, sequences=sequences)
 
 
@@ -583,19 +592,23 @@ def _pair_off(
     """Each item of ``left`` paired with an item of ``right`` equivalent to it, every
     item on the right used once, or None when no such pairing exists. Primitive
     items pair by hash; the rest by search."""
-    remaining = list(right)
-    by_kind = {(type(x), x): x for x in remaining if isinstance(x, _Primitive)}
+    others: list[object] = []
+    by_kind: dict[tuple[type, object], list[object]] = defaultdict(list)
+    for x in right:
+        (by_kind[(type(x), x)] if isinstance(x, _Primitive) else others).append(x)
     pairs: list[tuple[object, object]] = []
     for item in left:
         if isinstance(item, _Primitive):
-            match = by_kind.pop((type(item), item), _NO_MATCH)
-        else:
-            match = next((x for x in remaining if _equivalent(item, x)), _NO_MATCH)
-        if match is _NO_MATCH:
+            bucket = by_kind.get((type(item), item))
+            if not bucket:
+                return None
+            pairs.append((item, bucket.pop()))
+            continue
+        at = next((i for i, x in enumerate(others) if _equivalent(item, x)), -1)
+        if at < 0:
             return None
-        remaining.remove(match)
-        pairs.append((item, match))
-    return pairs if not remaining else None
+        pairs.append((item, others.pop(at)))
+    return pairs if not others and not any(by_kind.values()) else None
 
 
 _NO_MATCH = object()
@@ -619,7 +632,7 @@ def _state(obj: object) -> Optional[dict[str, object]]:
                 continue
             found = True
             try:
-                state[f"{cls.__qualname__}.{name}"] = descriptor.__get__(obj, cls)
+                state[f"slot:{id(descriptor)}"] = descriptor.__get__(obj, cls)
             except AttributeError:
                 continue
     return state if found else None
