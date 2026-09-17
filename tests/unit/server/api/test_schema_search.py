@@ -2347,7 +2347,7 @@ def test_a_rendered_default_is_cached_per_definition() -> None:
     query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
     lookup(index, "Query", budget=100)
-    assert _DEFAULTS[id(arg)][0] is arg
+    assert any(k[0] == id(arg) and v[0] is arg for k, v in _DEFAULTS.items())
 
 
 def test_a_native_subclass_whose_attributes_differ_is_marked() -> None:
@@ -2473,6 +2473,86 @@ def test_negative_zero_keeps_its_sign() -> None:
     assert first_line(lookup(build_index(schema), "Query.f")) in (
         "Query.f(x: Float = -0.0): String",
         "Query.f(x: Float = -0): String",
+    )
+
+
+def test_a_rebuild_re_renders_a_changed_default() -> None:
+    schema = build_schema("type Query { f(x: Int = 1): String }")
+    assert schema.query_type is not None
+    assert "x: Int = 1" in lookup(build_index(schema), "Query.f")
+    schema.query_type.fields["f"].args["x"].default_value = 2
+    assert "x: Int = 2" in lookup(build_index(schema), "Query.f")
+
+
+def test_an_aware_datetime_default_keeps_its_zone() -> None:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    when = GraphQLScalarType(
+        "DateTime", serialize=lambda d: d.isoformat(), parse_value=datetime.fromisoformat
+    )
+    zoned = datetime(2026, 9, 17, 12, tzinfo=ZoneInfo("America/Los_Angeles"))
+    query = GraphQLObjectType(
+        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(when, zoned)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: DateTime = <unprintable>): String"
+
+
+def test_primitive_subclasses_default_factories_and_signed_zero_in_sets() -> None:
+    from collections import defaultdict
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    class Token(str):
+        pass
+
+    token = Token("abc")
+    token.source = "schema"  # type: ignore[attr-defined]
+    cases = [
+        (GraphQLScalarType("Token", serialize=str, parse_value=Token), token),
+        (
+            GraphQLScalarType(
+                "Map", serialize=dict, parse_value=lambda v: defaultdict(lambda: "parsed", v)
+            ),
+            defaultdict(lambda: "schema", {"a": "1"}),
+        ),
+    ]
+    for scalar, default in cases:
+        query = GraphQLObjectType(
+            "Query",
+            {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(scalar, default)})},
+        )
+        index = build_index(GraphQLSchema(query=query))
+        assert "<unprintable>" in first_line(lookup(index, "Query.f")), scalar.name
+    # A set member keeps the sign of zero: the source literal [0.0] is refused, [-0.0] delivers.
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    arg = GraphQLArgument(GraphQLScalarType("FloatSet", serialize=list, parse_value=set), {-0.0})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="FloatSet")),
+        default_value=parse_value("[0.0]"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) in (
+        "Query.f(x: FloatSet = [-0.0]): String",
+        "Query.f(x: FloatSet = [-0]): String",
     )
 
 
