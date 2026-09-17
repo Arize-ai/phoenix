@@ -2803,6 +2803,27 @@ def test_a_cursor_argument_with_a_default_is_written_out() -> None:
     assert PAGINATION not in line
 
 
+def test_a_batch_that_omits_requests_keeps_its_legend(toy_reads_only: Index) -> None:
+    text = describe(
+        toy_reads_only, search=["mutations", "Query.projects", *(["Span"] * 12)], budget=1200
+    )
+    assert len(text) <= 1200
+    assert "more requests omitted" in text
+    assert (PAGINATION in text) == (PAGINATION_LEGEND in text)
+
+
+def test_a_deprecated_field_shows_its_reason() -> None:
+    index = build_index(
+        build_schema(
+            'type Query { p: P } type P { oldName: String @deprecated(reason: "Use name.") name: String }'
+        )
+    )
+    signature = 'P.oldName: String @deprecated(reason: "Use name.")'
+    assert first_line(lookup(index, "P.oldName")) == signature
+    assert '  oldName: String @deprecated(reason: "Use name.")' in lookup(index, "P")
+    parse(lookup(index, "P"))
+
+
 # --- properties of the real schema -----------------------------------------------
 
 

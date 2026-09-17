@@ -767,6 +767,8 @@ def _signature(name: str, field: _FieldLike) -> str:
         rendered.append(f"{a}: {arg.type}{_default(arg)}")
     joined = ", ".join(rendered)
     suffix = _default(field) if isinstance(field, GraphQLInputField) else ""
+    if field.deprecation_reason is not None:
+        suffix += f" @deprecated(reason: {json.dumps(field.deprecation_reason)})"
     return f"{name}({joined}): {field.type}{suffix}" if joined else f"{name}: {field.type}{suffix}"
 
 
@@ -1877,6 +1879,10 @@ def describe(
     sections: list[str] = []
     seen: list[str] = []
     remaining = budget - sum(len(t) + 1 for t in trailing)
+    if total > 1:
+        # The notice for requests left unserved is reserved up front, so a final
+        # trim never has to drop a trailing line to make room for it.
+        remaining -= len(_omitted_requests(total)) + 2
     done = 0
     for kind, arg in itertools.islice(requests, _MAX_REQUESTS):
         if remaining < _MIN_SHARE:
@@ -1898,8 +1904,12 @@ def describe(
         remaining -= len(sections[-1]) + 2
         done += 1
     if done < total:
-        sections.append(f"-- {total - done} more requests omitted; ask for fewer at once.")
+        sections.append(_omitted_requests(total - done))
     return _fit("\n".join(["\n\n".join(sections), *seen]), budget)
+
+
+def _omitted_requests(count: int) -> str:
+    return f"-- {count} more requests omitted; ask for fewer at once."
 
 
 def search_many(index: Index, queries: Sequence[str], budget: int = 4000) -> str:
