@@ -8,6 +8,7 @@ Every renderer works to a character budget.
 
 from __future__ import annotations
 
+import datetime
 import difflib
 import enum
 import functools
@@ -416,8 +417,9 @@ _UNPRINTABLE = "<unprintable>"
 
 # Definitions are unhashable and identity-keyed entries must outlive id reuse,
 # so each entry keeps its definition; the cache is bounded like the others.
-_DEFAULTS: "OrderedDict[int, tuple[_ValueDef, str]]" = OrderedDict()
+_DEFAULTS: "OrderedDict[tuple[int, int], tuple[_ValueDef, str]]" = OrderedDict()
 _DEFAULTS_MAX = 65536
+_BUILD_EPOCH = [0]  # advanced by every build, so a rebuild re-renders changed defaults
 
 
 def _default(value_def: _ValueDef) -> str:
@@ -427,11 +429,12 @@ def _default(value_def: _ValueDef) -> str:
     argument or input field, since the checks are not cheap."""
     if value_def.default_value is Undefined:
         return ""
-    cached = _DEFAULTS.get(id(value_def))
+    key = (id(value_def), _BUILD_EPOCH[0])
+    cached = _DEFAULTS.get(key)
     if cached is not None and cached[0] is value_def:
         return cached[1]
     rendered = _render_default(value_def)
-    _DEFAULTS[id(value_def)] = (value_def, rendered)
+    _DEFAULTS[key] = (value_def, rendered)
     while len(_DEFAULTS) > _DEFAULTS_MAX:
         _DEFAULTS.popitem(last=False)
     return rendered
@@ -555,8 +558,11 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         return False
     if isinstance(a, float) and isinstance(b, float):
         return a == b and math.copysign(1.0, a) == math.copysign(1.0, b)
-    if isinstance(a, (str, bytes, int, bool, enum.Enum)) or a is None:
+    if type(a) in (str, bytes, int, bool) or isinstance(a, enum.Enum) or a is None:
         return bool(a == b)
+    if isinstance(a, datetime.datetime) and isinstance(b, datetime.datetime):
+        if a.tzinfo != b.tzinfo or a.fold != b.fold:
+            return False
     if isinstance(a, Mapping) and isinstance(b, Mapping):
         same = len(a) == len(b) and all(
             _equivalent(k, m, sequences=sequences) and _equivalent(a[k], b[m], sequences=sequences)
@@ -578,6 +584,9 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         return False
     if isinstance(a, deque) and isinstance(b, deque) and a.maxlen != b.maxlen:
         return False
+    if isinstance(a, defaultdict) and isinstance(b, defaultdict):
+        if a.default_factory is not b.default_factory:
+            return False
     state_a, state_b = _state(a), _state(b)
     if state_a is None and state_b is None:
         return same if isinstance(a, (Mapping, Sequence, AbstractSet)) else bool(a == b)
@@ -600,10 +609,11 @@ def _pair_off(
     pairs: list[tuple[object, object]] = []
     for item in left:
         if isinstance(item, _Primitive):
-            bucket = by_kind.get((type(item), item))
-            if not bucket:
+            bucket = by_kind.get((type(item), item), [])
+            hit = next((i for i, x in enumerate(bucket) if _equivalent(item, x)), -1)
+            if hit < 0:
                 return None
-            pairs.append((item, bucket.pop()))
+            pairs.append((item, bucket.pop(hit)))
             continue
         at = next((i for i, x in enumerate(others) if _equivalent(item, x)), -1)
         if at < 0:
@@ -887,6 +897,7 @@ def build_index(
     that cannot run mutations is never shown one. Mutation names are kept so a
     lookup can say why they are absent.
     """
+    _BUILD_EPOCH[0] += 1
     query_root = schema.query_type.name if schema.query_type is not None else "Query"
     mutation = schema.mutation_type
     mutation_root = mutation.name if mutation is not None else None
@@ -1102,7 +1113,7 @@ def cached_index(schema: GraphQLSchema, *, include_mutations: bool = True) -> In
 def reach_paths(index: Index, type_name: str, limit: int = _REACH_PATHS) -> list[tuple[str, ...]]:
     """Up to ``limit`` paths of ``Type.field`` hops from a read root down to ``type_name``.
 
-    Shortest paths come first; among equals, paths from earlier roots come first.
+    Shortest paths come first.
     """
     found: list[tuple[str, ...]] = []
     queue: deque[tuple[str, tuple[str, ...]]] = deque([(type_name, ())])
