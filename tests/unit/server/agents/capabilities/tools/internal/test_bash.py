@@ -710,3 +710,10 @@ def test_schema_flag_values_are_bounded() -> None:
 
     _, names = _parse_schema_args(["--names", "id," * 100_000])
     assert len(names) <= _MAX_VALUE_CHARS // 3 + 1
+
+
+def test_schema_flag_count_is_bounded() -> None:
+    from phoenix.server.agents.capabilities.tools.internal.bash import _MAX_ARGS, _parse_schema_args
+
+    _, names = _parse_schema_args(["--names", "id"] * 1000)
+    assert len(names) == _MAX_ARGS // 2

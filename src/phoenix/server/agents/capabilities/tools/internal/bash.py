@@ -207,6 +207,7 @@ _SCHEMA_BUDGET = 4000
 
 
 _MAX_VALUE_CHARS = 2000
+_MAX_ARGS = 64
 
 
 def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
@@ -217,7 +218,7 @@ def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
     """
     searches: list[str] = []
     names: list[str] = []
-    it = iter(args)
+    it = iter(args[:_MAX_ARGS])
     for arg in it:
         flag, has_value, inline = arg.partition("=")
         if flag not in ("--search", "--names"):

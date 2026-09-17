@@ -94,6 +94,7 @@ _STOPWORDS = frozenset(
 )
 _CAMEL = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|\d+")
 _WORD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_NAME = re.compile(r"[_A-Za-z][_0-9A-Za-z]*")
 # BM25F field weights: a match on the unit's own name outranks one on an
 # argument, which outranks one on the parent type or in the description.
 _FIELD_WEIGHTS: Mapping[str, float] = {"name": 3.0, "ident": 2.0, "parent": 0.5, "desc": 1.0}
@@ -234,10 +235,18 @@ class Index:
     by_key: Mapping[str, Unit]  # "Type", "Type.field", "mutationName"
     folded: Mapping[str, Unit]  # lowercase key -> its unit, when only one spelling has it
     plumbing: Mapping[str, str]  # lowercase name -> Relay wrapper type left out of the index
+    owners: Mapping[str, str]  # lowercase name -> every type that owns an indexed member
 
     def resolve(self, name: str) -> Optional[Unit]:
         """The unit ``name`` denotes: by exact spelling, else case-insensitively when unique."""
         return self.by_key.get(name) or self.folded.get(name.lower())
+
+    def owner(self, name: str) -> Optional[str]:
+        """The type ``name`` denotes as an owner of members, wrappers included."""
+        u = self.resolve(name)
+        if u is not None:
+            return u.name if u.kind == "type" else None
+        return self.owners.get(name.lower())
 
     def depth(self, type_name: str) -> int:
         return self.nearest.get(type_name, ("", _MAX_DEPTH, ()))[1]
@@ -266,8 +275,17 @@ def _is_relay_plumbing(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
     """Whether ``t`` is a connection, edge, or page-info type. A root never is."""
     if not isinstance(t, GraphQLObjectType) or t in (schema.query_type, schema.mutation_type):
         return False
-    keys = t.fields.keys()
-    return t.name == "PageInfo" or {"edges", "pageInfo"} <= keys or {"node", "cursor"} <= keys
+    if t.name == "PageInfo":
+        return True
+    fields = t.fields
+    if {"edges", "pageInfo"} <= fields.keys():
+        edge = get_named_type(fields["edges"].type)
+        return isinstance(edge, GraphQLObjectType) and "node" in edge.fields
+    if {"node", "cursor"} <= fields.keys():
+        node = get_named_type(fields["node"].type)
+        composite = (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)
+        return isinstance(node, composite) and str(fields["cursor"].type).rstrip("!") == "String"
+    return False
 
 
 def _wrapper_extras(t: GraphQLNamedType, schema: GraphQLSchema) -> list[str]:
@@ -320,6 +338,8 @@ def _default(value_def: _ValueDef) -> str:
 def _literal(value: object) -> str:
     """``value`` as the GraphQL input literal it would be written as."""
     if isinstance(value, dict):
+        if not all(isinstance(k, str) and _NAME.fullmatch(k) for k in value):
+            return json.dumps(json.dumps(value, default=str))
         return "{" + ", ".join(f"{k}: {_literal(v)}" for k, v in value.items()) + "}"
     if isinstance(value, (list, tuple)):
         return "[" + ", ".join(_literal(v) for v in value) + "]"
@@ -654,6 +674,7 @@ def build_index(
         by_key=by_key,
         folded={k: u for k, u in folded.items() if u is not None},
         plumbing=plumbing,
+        owners={u.owner.lower(): u.owner for u in units if u.owner},
     )
 
 
@@ -896,7 +917,7 @@ def _unknown_type(index: Index, name: str) -> Optional[str]:
     """The miss for ``Word.member`` when ``Word`` is no type, with the nearest
     type names. A dotted query is scoped on purpose and is not searched at large."""
     owner, dot, member = name.strip().partition(".")
-    if not dot or not member or not owner or index.resolve(owner) is not None:
+    if not dot or not member or not owner or index.owner(owner) is not None:
         return None
     if " " in owner or " " in member.strip():
         return None
@@ -912,10 +933,10 @@ def _unknown_member(index: Index, name: str) -> Optional[tuple[str, str]]:
     """``(Type, member)`` when ``name`` is ``Type.member`` for an indexed type that
     has no such member. ``member`` keeps the caller's spelling."""
     owner_key, dot, member = name.strip().partition(".")
-    owner = index.resolve(owner_key)
-    if not dot or not member or owner is None or owner.kind != "type":
+    owner = index.owner(owner_key)
+    if not dot or not member or owner is None:
         return None
-    return owner.name, member
+    return owner, member
 
 
 def search(index: Index, query: str, budget: int = 1500) -> str:
@@ -1196,6 +1217,8 @@ def _within(parts: Sequence[str], budget: int) -> str:
     the first part, at whole lines with the block kept closed. A cut always leaves
     room for the note that names what was cut; when not even that fits, the
     answer is the bare count, or nothing."""
+    if sum(len(part) + 1 for part in parts) <= budget + 1:
+        return "\n".join(parts)
     out: list[str] = []
     used = 0  # every line costs its length plus a newline; the last newline is not printed
     for i, part in enumerate(parts):
