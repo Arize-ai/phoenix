@@ -105,7 +105,7 @@ def check(reply: str, expected: dict[str, Any]) -> tuple[float, str]:
     if "reference" in expected:
         from evals.harbor.verifiers import llm_judge
 
-        verdict = llm_judge.reply_matches_reference(
+        verdict = llm_judge.matches_reference(
             reply, str(expected["reference"]), notes=str(expected.get("notes", ""))
         )
         return float(verdict.score or 0.0), str(verdict.explanation or verdict.label)

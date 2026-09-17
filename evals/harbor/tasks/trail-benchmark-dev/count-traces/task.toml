@@ -30,5 +30,5 @@ timeout_sec = 600.0
 
 [verifier]
 network_mode = "allowlist"
-allowed_hosts = ["api.anthropic.com"]
+allowed_hosts = ["api.openai.com"]
 timeout_sec = 180.0

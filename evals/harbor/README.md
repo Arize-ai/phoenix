@@ -26,8 +26,8 @@ compare the conditions in the Phoenix UI.
 - Install Docker for local runs, or set `DAYTONA_API_KEY` to use Daytona. Local Docker
   must support Harbor's allowlist network policy. Recent Docker Desktop versions support
   this policy. Harbor stops the run if the Docker installation does not support it.
-- Set `ANTHROPIC_API_KEY` for the Claude conditions and the TRAIL judge. Set
-  `OPENAI_API_KEY` for the Codex conditions.
+- Set `ANTHROPIC_API_KEY` for the Claude conditions. Set `OPENAI_API_KEY` for the Codex
+  conditions and the TRAIL judge.
 - To run the TRAIL benchmark, use a Hugging Face token for an account that has accepted
   the terms of
   [PatronusAI/TRAIL](https://huggingface.co/datasets/PatronusAI/TRAIL). TRAIL is gated
@@ -44,8 +44,10 @@ Phoenix wheel, creates the fixture databases and task build contexts, and builds
 archive for the CLI agents:
 
 ```bash
-make harbor-stage                 # error-analysis only
-HF_TOKEN=... make harbor-stage    # also seeds the TRAIL fixture and stages its tasks
+# Stage error-analysis only.
+make harbor-stage
+# Also seed the TRAIL fixture and stage its tasks.
+HF_TOKEN=... make harbor-stage
 ```
 
 The px archive requires Docker and takes a few minutes to build. If the job has no CLI
@@ -61,8 +63,10 @@ Run a job file after staging. `HARBOR_JOB` selects the file, and `HARBOR_ARGS` p
 arguments to `harbor run`:
 
 ```bash
-make harbor-run                                                          # the PXI benchmark, as CI runs it
-make harbor-run HARBOR_ARGS='-e docker -k 1'                             # local Docker, one attempt
+# Run the PXI benchmark as CI runs it.
+make harbor-run
+# Run one attempt with local Docker.
+make harbor-run HARBOR_ARGS='-e docker -k 1'
 make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml HARBOR_ARGS='-e docker'
 make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml HARBOR_ARGS='-a oracle -e docker'
 make harbor-run HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml HARBOR_ARGS='-e docker -k 3 --job-name px-1.19'
@@ -126,7 +130,7 @@ through `px`. PXI is a separate condition and is not available to the other agen
 
 ## The TRAIL benchmark
 
-The TRAIL benchmark contains ten questions about the `research-assistant` project. Each
+The TRAIL benchmark contains questions about the `research-assistant` project. Each
 condition answers every question in its final reply, and the verifier grades that reply.
 
 The `tests/expected.json` file in each task selects one of two grading methods:
@@ -144,7 +148,7 @@ or an answer to a different question fails. `notes` provides extra guidance to t
 such as "page_down is the same tool." `source` records how the reference value was
 derived.
 
-The judge uses a `phoenix.evals` classifier with `claude-haiku-4-5`. Set
+The judge uses a `phoenix.evals` classifier with `gpt-5-nano`. Set
 `PHOENIX_EVAL_JUDGE_MODEL` and `PHOENIX_EVAL_JUDGE_PROVIDER` to use another model. Add
 the provider host to the task's `[verifier]` table.
 

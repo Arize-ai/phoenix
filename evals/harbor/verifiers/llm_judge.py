@@ -10,8 +10,8 @@ import os
 
 from phoenix.evals import LLM, ClassificationEvaluator, Score
 
-JUDGE_PROVIDER = os.environ.get("PHOENIX_EVAL_JUDGE_PROVIDER", "anthropic")
-JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "claude-haiku-4-5")
+JUDGE_PROVIDER = os.environ.get("PHOENIX_EVAL_JUDGE_PROVIDER", "openai")
+JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "gpt-5-nano")
 
 _REFERENCE_TEMPLATE = """You are grading the final reply of an AI agent that was asked a question about data in an observability tool. You are given the reference answer.
 
@@ -28,10 +28,10 @@ Decide whether the reply commits to the same final answer as the reference. Word
 Does the reply commit to the same final answer as the reference?"""
 
 
-def reply_matches_reference(reply: str, reference: str, notes: str = "") -> Score:
+def matches_reference(reply: str, reference: str, notes: str = "") -> Score:
     """Use ``notes`` for equivalent terms or other grading rules."""
     evaluator = ClassificationEvaluator(
-        name="reply_matches_reference",
+        name="matches_reference",
         llm=LLM(provider=JUDGE_PROVIDER, model=JUDGE_MODEL),
         prompt_template=_REFERENCE_TEMPLATE,
         choices={"match": 1.0, "mismatch": 0.0},
