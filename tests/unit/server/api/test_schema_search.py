@@ -2776,6 +2776,21 @@ def test_a_scoped_search_on_the_hidden_mutation_root_says_mutations_are_disabled
     assert "Mutations are disabled" in describe(toy_reads_only, search=["Mutation.deleteDataset"])
 
 
+def test_a_scalar_spelled_like_the_hidden_root_is_not_taken_for_it() -> None:
+    index = build_index(
+        build_schema("scalar mutation type Query { x: mutation } type Mutation { f: String }"),
+        include_mutations=False,
+    )
+    assert lookup(index, "mutation.x").startswith("-- mutation is a scalar")
+    assert search(index, "mutation.x").startswith("-- mutation is a scalar")
+    assert "Mutations are disabled" in lookup(index, "Mutation.f")
+
+
+def test_implicit_field_names_fold_case(toy: Index) -> None:
+    assert lookup(toy, "Query.__TYPENAME").startswith("Query.__typename: String!")
+    assert search(toy, "Query.__TYPE").startswith("Query.__type(name: String!): __Type")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
