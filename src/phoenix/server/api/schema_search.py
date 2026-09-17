@@ -482,9 +482,7 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
             )
             return _same_input(*omitted.values(), *supplied.values(), type_=value_def.type)
         # An omitted input field passes its default through uncoerced.
-        return _same_input(
-            value_from_ast(node, value_def.type), value_def.default_value, type_=value_def.type
-        )
+        return _equivalent(value_from_ast(node, value_def.type), value_def.default_value)
     except Exception:
         return False
 
@@ -556,11 +554,13 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         return len(a) == len(b) and all(_equivalent(x, y, sequences=True) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
-    if isinstance(a, float) and isinstance(b, float):
+    if type(a) is float:
         return a == b and math.copysign(1.0, a) == math.copysign(1.0, b)
     if type(a) in (str, bytes, int, bool) or isinstance(a, enum.Enum) or a is None:
         return bool(a == b)
-    if isinstance(a, datetime.datetime) and isinstance(b, datetime.datetime):
+    if isinstance(a, (datetime.datetime, datetime.time)) and isinstance(
+        b, (datetime.datetime, datetime.time)
+    ):
         if a.tzinfo != b.tzinfo or a.fold != b.fold:
             return False
     if isinstance(a, Mapping) and isinstance(b, Mapping):
@@ -1656,7 +1656,11 @@ def _print_compact(t: GraphQLNamedType, index: Optional[Index] = None) -> str:
 
 
 def _is_one_of(t: GraphQLInputObjectType) -> bool:
+    """Whether the input takes exactly one field: by graphql-core's flag, by the
+    definition strawberry attaches, or by the ``@oneOf`` directive in SDL."""
     if getattr(t, "is_one_of", False):
+        return True
+    if getattr(t.extensions.get("strawberry-definition"), "is_one_of", False):
         return True
     directives = (t.ast_node.directives or ()) if t.ast_node is not None else ()
     return any(d.name.value == "oneOf" for d in directives)
