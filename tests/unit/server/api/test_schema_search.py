@@ -2738,7 +2738,12 @@ def test_the_implicit_fields_are_known(toy: Index) -> None:
 
 
 def test_a_connection_needs_a_list_of_edges_and_one_page_info() -> None:
-    for shape in ("edges: Edge pageInfo: PageInfo", "edges: [Edge] pageInfo: [PageInfo]"):
+    shapes = (
+        "edges: Edge pageInfo: PageInfo",
+        "edges: [Edge] pageInfo: [PageInfo]",
+        "edges: [[Edge]] pageInfo: PageInfo",
+    )
+    for shape in shapes:
         index = build_index(
             build_schema(
                 f"type Query {{ c: Conn }} type Conn {{ {shape} }} "
@@ -2747,6 +2752,19 @@ def test_a_connection_needs_a_list_of_edges_and_one_page_info() -> None:
             )
         )
         assert first_line(lookup(index, "Conn")) == "type Conn {"
+
+
+def test_an_edge_whose_node_is_a_list_is_an_ordinary_type() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { e: Edge } type Edge { node: [N!]! cursor: String } type N { id: ID }"
+        )
+    )
+    assert first_line(lookup(index, "Edge.node")) == "Edge.node: [N!]!"
+
+
+def test_introspection_names_fold_case_when_unique(toy: Index) -> None:
+    assert lookup(toy, "__type.name") == "__Type.name: String"
 
 
 # --- properties of the real schema -----------------------------------------------
