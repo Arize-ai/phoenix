@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import posixpath
 import re
@@ -369,12 +370,12 @@ def create_phoenix_gql_builtin(
 
     async def phoenix_gql(ctx: BuiltinContext) -> BuiltinResult:
         try:
-            argv = list(ctx.argv)
-            if argv and argv[0] == "schema":
-                searches, names = _parse_schema_args(argv[1:])
+            if ctx.argv and ctx.argv[0] == "schema":
+                flags = list(itertools.islice(ctx.argv, 1, _MAX_ARGS + 1))
+                searches, names = _parse_schema_args(flags)
                 text = describe(index, search=searches, names=names, budget=_SCHEMA_BUDGET)
                 return BuiltinResult(stdout=text + "\n", stderr="", exit_code=0)
-            parsed = _parse_args(argv)
+            parsed = _parse_args(list(ctx.argv))
 
             if parsed.show_help:
                 return BuiltinResult(

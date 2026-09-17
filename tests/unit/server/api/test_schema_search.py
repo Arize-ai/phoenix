@@ -1167,6 +1167,88 @@ def test_relay_shapes_are_checked_by_field_types() -> None:
     assert first_line(lookup(index, "Items")) == "type Items {"
 
 
+def test_a_custom_scalar_default_renders_as_it_serializes() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    wrapped = GraphQLScalarType("Wrapped", serialize=lambda v: {"value": v})
+    query = GraphQLObjectType(
+        "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(wrapped, 7)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: Wrapped = {value: 7}): String"
+
+
+def test_a_scalar_whose_serializer_raises_marks_its_default() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLError,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    def refuse(_: object) -> object:
+        raise GraphQLError("Upload is input-only")
+
+    upload = GraphQLScalarType("Upload", serialize=refuse)
+    query = GraphQLObjectType(
+        "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(upload, {"a": 1})})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: Upload = <unprintable>): String"
+
+
+def test_a_block_string_default_renders_on_one_line() -> None:
+    rows = "\n".join(f"row {i}" for i in range(30))
+    index = build_index(build_schema(f'type Query {{ ok(x: String = """{rows}"""): String }}'))
+    text = lookup(index, "Query")
+    assert text.splitlines()[1].startswith('  ok(x: String = "row 0\\nrow 1\\n')
+    parse(text)
+
+
+def test_page_info_is_recognised_by_shape() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { p: PageInfo } type PageInfo { node: Int cursor: String total: Int }"
+        )
+    )
+    assert first_line(lookup(index, "PageInfo")) == "type PageInfo {"
+    assert first_line(lookup(index, "PageInfo.total")) == "PageInfo.total: Int"
+
+
+def test_a_wrapper_whose_node_needs_an_argument_is_not_collapsed() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { c: Conn } type Conn { edges: [Edge] pageInfo: PageInfo } "
+            "type PageInfo { hasNextPage: Boolean! } type Node { id: ID } "
+            "type Edge { node(key: ID!): Node cursor: String }"
+        )
+    )
+    assert first_line(lookup(index, "Edge")) == "type Edge {"
+    assert "node(key: ID!): Node" in lookup(index, "Edge")
+
+
+def test_wrapper_lookup_resolves_exact_case_first() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: Conn b: conn } type PageInfo { hasNextPage: Boolean! } "
+            "type Conn { edges: [CE] pageInfo: PageInfo } type CE { node: Node cursor: String } "
+            "type conn { edges: [OE] pageInfo: PageInfo } type OE { node: Other cursor: String } "
+            "type Node { id: ID } type Other { value: String }"
+        )
+    )
+    assert "Conn is a connection over Node" in lookup(index, "Conn")
+    assert "conn is a connection over Other" in lookup(index, "conn")
+    assert lookup(index, "CONN").startswith("-- No type, field, or mutation named 'CONN'")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
