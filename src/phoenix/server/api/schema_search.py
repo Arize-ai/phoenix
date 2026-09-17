@@ -527,18 +527,28 @@ def _repeats_a_field(node: ValueNode) -> bool:
 
 def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
     """Whether two coerced values are the same value of the same kind, so ``True``
-    never passes for ``1``. With ``sequences``, a tuple and a list of the same
-    items are the same value."""
+    never passes for ``1``, inside containers and dictionary keys included. With
+    ``sequences``, a tuple and a list of the same items are the same value."""
     if sequences and isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         return len(a) == len(b) and all(_equivalent(x, y, sequences=True) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
     if isinstance(a, dict) and isinstance(b, dict):
-        return a.keys() == b.keys() and all(_equivalent(a[k], b[k], sequences=sequences) for k in a)
+        return (
+            len(a) == len(b)
+            and all(
+                _equivalent(a[k], b[match], sequences=sequences)
+                for k in a
+                if (match := _only_match(k, b)) is not _NO_MATCH
+            )
+            and all(_only_match(k, b) is not _NO_MATCH for k in a)
+        )
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         return len(a) == len(b) and all(
             _equivalent(x, y, sequences=sequences) for x, y in zip(a, b)
         )
+    if isinstance(a, (set, frozenset)) and isinstance(b, (set, frozenset)):
+        return len(a) == len(b) and all(_only_match(x, b) is not _NO_MATCH for x in a)
     if isinstance(a, (str, int, float, bool, enum.Enum)) or a is None:
         return bool(a == b)
     state_a, state_b = _state(a), _state(b)
@@ -548,15 +558,27 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
     return _equivalent(state_a, state_b, sequences=sequences)
 
 
+_NO_MATCH = object()
+
+
+def _only_match(item: object, among: Iterable[object]) -> object:
+    """The one element of ``among`` equivalent to ``item``, else a sentinel."""
+    matches = [x for x in among if _equivalent(item, x)]
+    return matches[0] if len(matches) == 1 else _NO_MATCH
+
+
 def _state(obj: object) -> Optional[dict[str, object]]:
     """The attributes an object carries in its dictionary and its slots, or None
-    when it has neither."""
-    slots = [
-        name
-        for cls in type(obj).__mro__
-        for name in getattr(cls, "__slots__", ())
-        if name != "__dict__"
-    ]
+    when it has neither. A private slot is read under its mangled name."""
+    slots: list[str] = []
+    for cls in type(obj).__mro__:
+        declared = getattr(cls, "__slots__", ())
+        for name in [declared] if isinstance(declared, str) else declared:
+            if name in ("__dict__", "__weakref__"):
+                continue
+            if name.startswith("__") and not name.endswith("__"):
+                name = f"_{cls.__name__.lstrip('_')}{name}"
+            slots.append(name)
     if not slots and not hasattr(obj, "__dict__"):
         return None
     state: dict[str, object] = dict(getattr(obj, "__dict__", {}))

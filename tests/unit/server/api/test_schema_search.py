@@ -2197,6 +2197,56 @@ def test_a_type_definition_without_directives_does_not_crash() -> None:
     assert "Opt" in search(index, "Query.f")
 
 
+def _opt_with_output(out_type: object) -> Index:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    opt = GraphQLInputObjectType(
+        "Opt",
+        {"a": GraphQLInputField(GraphQLScalarType("Val"))},
+        out_type=out_type,  # type: ignore[arg-type]
+    )
+    arg = GraphQLArgument(opt, {"a": 1})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Opt")),
+        default_value=parse_value("{a: true}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    return build_index(GraphQLSchema(query=query))
+
+
+def test_string_and_private_slots_are_compared() -> None:
+    class Box:
+        __slots__ = "value"
+
+        def __init__(self, a: object) -> None:
+            self.value = a
+
+    class Private:
+        __slots__ = ("__value",)
+
+        def __init__(self, a: object) -> None:
+            self.__value = a
+
+    for box in (Box, Private):
+        index = _opt_with_output(lambda d, box=box: box(**d))
+        assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
+def test_sets_and_dictionary_keys_are_compared_by_kind() -> None:
+    for out in (lambda d: {d["a"]}, lambda d: frozenset({d["a"]}), lambda d: {d["a"]: "x"}):
+        index = _opt_with_output(out)
+        assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
