@@ -1,4 +1,4 @@
-name: Stanford Issue Triage
+name: Claude Issue Triage
 
 on:
   schedule:
@@ -25,7 +25,7 @@ on:
         default: 'on'
 
 concurrency:
-  group: stanford-triage
+  group: claude-issue-triage
   # Do not cancel in progress: a manual backlog sweep can run for the better part of
   # an hour, and the every-2-days schedule would otherwise kill it partway through.
   cancel-in-progress: false
