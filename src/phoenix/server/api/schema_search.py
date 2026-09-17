@@ -366,7 +366,10 @@ def _connection_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
         edges_type = edges_type.of_type
     if not isinstance(edges_type, GraphQLList):
         return None
-    if not _is_page_info(get_named_type(t.fields["pageInfo"].type)):
+    page_type = t.fields["pageInfo"].type
+    if isinstance(page_type, GraphQLNonNull):
+        page_type = page_type.of_type
+    if isinstance(page_type, GraphQLList) or not _is_page_info(page_type):
         return None
     if _takes_arguments(t.fields["edges"]) or _takes_arguments(t.fields["pageInfo"]):
         return None
@@ -1370,20 +1373,30 @@ def _hidden_type_note(index: Index, name: str) -> Optional[str]:
     return f"-- {exact} is reachable only through subscriptions, which cannot run here."
 
 
-def _typename_field(index: Index, name: str) -> Optional[str]:
-    """The implicit ``__typename`` of a visible object, interface, or union, when
-    ``name`` asks for it."""
+def _implicit_field(index: Index, name: str) -> Optional[str]:
+    """The field the specification adds to every type when ``name`` asks for it:
+    ``__typename`` on any visible object, interface, or union, wrappers included,
+    and ``__schema`` or ``__type`` on the query root."""
     owner, dot, member = name.strip().partition(".")
-    if not dot or member.strip() != "__typename":
+    member = member.strip()
+    if not dot or not member.startswith("__"):
         return None
     exact = index.type_name(owner)
-    if exact is None or not _is_visible_type(index, exact):
+    if exact is None or exact in index.aliases or exact not in index.schema.type_map:
         return None
-    composite = (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)
-    if not isinstance(index.schema.type_map[exact], composite):
+    if not (_is_visible_type(index, exact) or exact in index.plumbing):
         return None
-    note = "# The name of the concrete type, on every object, interface, and union."
-    return f"{exact}.__typename: String!\n{note}"
+    t = index.schema.type_map[exact]
+    if member == "__typename":
+        if not isinstance(t, (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)):
+            return None
+        note = "# The name of the concrete type, on every object, interface, and union."
+        return f"{exact}.__typename: String!\n{note}"
+    if t is index.schema.query_type and member == "__schema":
+        return f"{exact}.__schema: __Schema!\n# Introspection: every type and directive."
+    if t is index.schema.query_type and member == "__type":
+        return f"{exact}.__type(name: String!): __Type\n# Introspection: one type by name."
+    return None
 
 
 def _unknown_type(index: Index, name: str) -> Optional[str]:
@@ -1451,10 +1464,10 @@ def _search(index: Index, query: str, budget: int) -> str:
         return lookup(index, query, budget)
     if miss := _unknown_type(index, query):
         return miss
+    if implicit := _implicit_field(index, query):
+        return implicit
     if "." in query and (wrapper := _wrapper_guidance(index, query)):
         return wrapper
-    if typename := _typename_field(index, query):
-        return typename
     if unknown := _unknown_member(index, query):
         owner, member = unknown
         terms = _query_terms(member)
@@ -1878,6 +1891,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     if name in index.plumbing:
         u = None
     if u is None:
+        if implicit := _implicit_field(index, name):
+            return [implicit]
         if wrapper := _wrapper_guidance(index, name):
             return [wrapper]
         if (scalar := index.type_name(name)) and isinstance(
@@ -1893,8 +1908,6 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, root_key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
-        if typename := _typename_field(index, name):
-            return [typename]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
             shown = _echo(member)
