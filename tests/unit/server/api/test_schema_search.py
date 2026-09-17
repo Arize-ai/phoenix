@@ -2723,6 +2723,11 @@ def test_the_implicit_fields_are_known(toy: Index) -> None:
     assert lookup(toy, "Query.__type").startswith("Query.__type(name: String!): __Type")
     assert search(toy, "Query.__schema").startswith("Query.__schema: __Schema!")
     assert "has no field" in lookup(toy, "Span.__type")
+    assert first_line(lookup(toy, "__Type")).startswith("type __Type {")
+    assert lookup(toy, "__Type.name") == "__Type.name: String"
+    assert search(toy, "__Type.fields").startswith(
+        "__Type.fields(includeDeprecated: Boolean = false)"
+    )
 
 
 def test_a_connection_needs_a_list_of_edges_and_one_page_info() -> None:
