@@ -808,7 +808,7 @@ def create_graphql_router(
     """Creates the GraphQL router.
 
     Args:
-        schema (BaseSchema): The GraphQL schema.
+        graphql_schema (strawberry.Schema): The GraphQL schema.
         db (DbSessionFactory): The database session factory pointing to a SQL database.
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
