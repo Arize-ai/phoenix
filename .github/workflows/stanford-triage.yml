@@ -12,7 +12,7 @@ on:
       limit:
         description: 'Issues to fetch in Pass A. Raise for a sweep; keep each slice under the 1000-result search cap.'
         required: false
-        default: '50'
+        default: '25'
       stages:
         description: 'Triage stages to run, e.g. 1-7 (all), 1-4 (labels only), 3-4'
         required: false
@@ -80,7 +80,7 @@ jobs:
 
             Run scope:
               created:    ${{ inputs.created || '(none - whole backlog)' }}
-              limit:      ${{ inputs.limit || '50' }}
+              limit:      ${{ inputs.limit || '25' }}
               sort:       ${{ inputs.created && 'created-asc' || 'updated-asc' }}
               stages:     ${{ inputs.stages || '1-7' }}
               regression: ${{ inputs.regression || 'on' }}
