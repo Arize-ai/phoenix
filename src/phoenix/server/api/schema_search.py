@@ -1293,7 +1293,7 @@ def _is_exact(index: Index, name: str) -> bool:
         index.resolve(name) is not None
         or ("." not in name and _names_schema_type(index, name))
         or key in index.excluded_mutations
-        or _is_hidden_mutation_root(index, key)
+        or _is_hidden_mutation_root(index, name)
     )
 
 
@@ -1359,11 +1359,14 @@ def _plumbing_miss(index: Index, asked: str) -> Optional[str]:
     return f"-- {name} is Relay pagination plumbing: {', '.join(t.fields)}."
 
 
-def _is_hidden_mutation_root(index: Index, key: str) -> bool:
+def _is_hidden_mutation_root(index: Index, name: str) -> bool:
+    """Whether ``name`` spells the mutation root while mutations are hidden. The
+    spelling resolves like any other name, so a type that merely folds to the
+    root's name is not taken for it."""
     return (
         not index.includes_mutations
         and index.mutation_root is not None
-        and key == index.mutation_root.lower()
+        and index.type_name(name.strip()) == index.mutation_root
         and index.mutation_root not in index.by_key
     )
 
@@ -1392,7 +1395,7 @@ def _implicit_field(index: Index, name: str) -> Optional[str]:
     ``__typename`` on any visible object, interface, or union, wrappers included,
     and ``__schema`` or ``__type`` on the query root."""
     owner, dot, member = name.strip().partition(".")
-    member = member.strip()
+    member = _by_case(("__typename", "__schema", "__type"), member.strip()) or member.strip()
     if not dot or not (member.startswith("__") or owner.startswith("__")):
         return None
     exact = index.type_name(owner)
@@ -1490,7 +1493,7 @@ def _search(index: Index, query: str, budget: int) -> str:
         return lookup(index, query, budget)
     if implicit := _implicit_field(index, query):
         return implicit
-    if _is_hidden_mutation_root(index, query.partition(".")[0].lower()):
+    if _is_hidden_mutation_root(index, query.partition(".")[0]):
         return lookup(index, query, budget)
     if miss := _unknown_type(index, query):
         return miss
@@ -1931,12 +1934,13 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [_print_compact(schema.type_map[scalar])]
         if hidden := _hidden_type_note(index, name.partition(".")[0]):
             return [hidden]
-        root_key, _, member_key = key.partition(".")
+        root_part, _, member_key = name.partition(".")
+        member_key = member_key.lower()
         if key in index.excluded_mutations or (
-            _is_hidden_mutation_root(index, root_key) and member_key in index.excluded_mutations
+            _is_hidden_mutation_root(index, root_part) and member_key in index.excluded_mutations
         ):
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
-        if _is_hidden_mutation_root(index, root_key):
+        if _is_hidden_mutation_root(index, root_part):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
