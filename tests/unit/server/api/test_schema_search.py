@@ -1842,6 +1842,34 @@ def test_a_default_renders_as_the_literal_that_delivers_it() -> None:
     assert first_line(lookup(index, "Query.f")) == "Query.f(x: Choice = B): String"
 
 
+def test_a_tuple_default_for_a_custom_scalar_is_not_shown_as_a_list() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    seq = GraphQLScalarType("Seq", serialize=list)
+    query = GraphQLObjectType(
+        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(seq, (1, 2))})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Seq = <unprintable>): String"
+
+
+def test_a_stale_literal_that_no_longer_validates_is_not_kept() -> None:
+    schema = build_schema(
+        "input Opt { a: Int old: Int } type Query { f(x: Opt = {a: 1, old: 2}): String }"
+    )
+    opt = schema.type_map["Opt"]
+    assert isinstance(opt, GraphQLInputObjectType) and schema.query_type is not None
+    del opt.fields["old"]
+    schema.query_type.fields["f"].args["x"].default_value = {"a": 1}
+    assert first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
