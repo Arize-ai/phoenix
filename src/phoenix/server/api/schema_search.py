@@ -42,7 +42,7 @@ from graphql import (
 )
 from graphql.language import parse_value, print_ast
 from graphql.pyutils import Undefined, is_collection
-from graphql.utilities import ast_from_value
+from graphql.utilities import ast_from_value, value_from_ast
 
 __all__ = [
     "READ_ROOTS",
@@ -410,7 +410,11 @@ def _default(value_def: _ValueDef) -> str:
     ast = value_def.ast_node
     literal: Optional[str] = None
     if ast is not None and ast.default_value is not None:
-        literal = print_ast(ast.default_value)
+        try:
+            current = value_from_ast(ast.default_value, value_def.type) == value
+        except Exception:
+            current = False
+        literal = print_ast(ast.default_value) if current else None
     if literal is None or "\n" in literal:
         try:
             literal = _literal(value, value_def.type)
@@ -921,7 +925,11 @@ def _rank(
     """
     units = index.units
     if only_mutations:
-        units = [u for u in units if u.kind == "mutation"]
+        # On a root shared with the query side, every field also runs as a mutation.
+        shared = index.mutation_root == index.query_root
+        units = [
+            u for u in units if u.kind == "mutation" or (shared and u.parent == index.query_root)
+        ]
     if owner is not None:
         units = [u for u in units if u.parent == owner]
     bm25 = [(u, _bm25f(index, u, terms)) for u in units]
@@ -1110,7 +1118,12 @@ def _hidden_type_note(index: Index, name: str) -> Optional[str]:
         return None
     if exact == index.mutation_root or isinstance(index.schema.type_map[exact], GraphQLScalarType):
         return None
-    if not index.includes_mutations and index.mutation_root is not None:
+    mutation = index.schema.mutation_type
+    if (
+        not index.includes_mutations
+        and mutation is not None
+        and exact in _reachable(index.schema, [mutation])
+    ):
         return f"-- {exact} is reachable only through mutations. {_MUTATIONS_DISABLED}"
     return f"-- {exact} is reachable only through subscriptions, which cannot run here."
 

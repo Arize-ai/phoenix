@@ -1687,6 +1687,32 @@ def test_an_overlong_name_is_never_cut_onto_another_name() -> None:
     assert not search(index, f"Query.{long}").startswith(f"Query.{short}:")
 
 
+def test_a_shared_root_answers_a_mutations_only_search() -> None:
+    index = build_index(
+        build_schema("schema { query: Root mutation: Root } type Root { write: Int }")
+    )
+    assert "  write: Int" in search(index, "mutations write")
+
+
+def test_a_source_literal_is_used_only_while_it_spells_the_current_default() -> None:
+    schema = build_schema("type Query { f(x: Int = 1): Int }")
+    assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default_value = 2
+    assert first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: Int = 2): Int"
+
+
+def test_a_hidden_type_note_names_the_operation_that_reaches_it() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { ok: Int } type Mutation { write: Secret } type Subscription { event: Event } "
+            "type Event { id: ID } type Secret { id: ID }"
+        ),
+        include_mutations=False,
+    )
+    assert lookup(index, "Event").startswith("-- Event is reachable only through subscriptions")
+    assert lookup(index, "Secret").startswith("-- Secret is reachable only through mutations")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
