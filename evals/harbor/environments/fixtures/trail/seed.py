@@ -1,11 +1,8 @@
 """Seed a Phoenix database with the TRAIL rows and leave a complete SQLite file behind.
 
-Runs on the host through ``uv run`` from the repository root, so the Phoenix
-that seeds is the checkout's own: it starts ``phoenix serve`` on free ports
-against a scratch working directory, loads the rows through the repository's
-TRAIL loader (a uv inline script on the public client API), waits until the API reports every trace
-and its computed costs, stops the server, checkpoints the write-ahead log, and
-moves the database to ``--output``.
+Runs on the host through ``uv run`` from the repository root, so the Phoenix that
+seeds is the checkout's own. The file is complete: the write-ahead log is
+checkpointed before the database is moved to ``--output``.
 """
 
 from __future__ import annotations

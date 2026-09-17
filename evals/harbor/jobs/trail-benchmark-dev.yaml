@@ -18,7 +18,6 @@
 datasets:
   - path: evals/harbor/tasks/trail-benchmark-dev
 agents:
-  # Claude Code with the Phoenix MCP server; px is never installed for it.
   - name: claude-code-mcp
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent
     model_name: anthropic/claude-opus-5
@@ -27,7 +26,6 @@ agents:
       version: "2.1.267"
       reasoning_effort: high
       disallowed_tools: "WebSearch,WebFetch"
-  # Claude Code with px built from this checkout and the public phoenix-cli skill.
   - name: claude-code-cli
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent
     model_name: anthropic/claude-opus-5
@@ -40,7 +38,6 @@ agents:
       NO_COLOR: "1"
     skills:
       - .agents/skills/phoenix-cli
-  # Codex with the Phoenix MCP server.
   - name: codex-mcp
     import_path: evals.harbor.agents.coding_agents:CodexMcpAgent
     model_name: openai/gpt-5.6
@@ -49,7 +46,6 @@ agents:
       version: "0.154.0"
       reasoning_effort: high
       web_search: disabled
-  # Codex with px built from this checkout and the public phoenix-cli skill.
   - name: codex-cli
     import_path: evals.harbor.agents.coding_agents:CodexCliAgent
     model_name: openai/gpt-5.6

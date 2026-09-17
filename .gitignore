@@ -103,8 +103,6 @@ helm/charts/*.tgz
 /evals/harbor/**/*.whl
 /evals/harbor/tasks/**/environment/container_assets/
 /evals/harbor/tasks/**/environment/data/
-# The Phoenix tool benchmark stages its whole shared environment/ into each task
-/evals/harbor/tasks/phoenix-tools-*/*/environment/
 
 # WebAssembly binaries
 **/wasm/*.wasm

@@ -24,7 +24,7 @@ import argparse
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from phoenix.evals.metrics import exact_match
 
@@ -33,6 +33,8 @@ TRAJECTORY_PATH = Path("/logs/agent/trajectory.json")
 REWARD_PATH = Path("/logs/verifier/reward.json")
 
 _MARKUP = re.compile(r"[*`_]")
+
+ReplySource = Literal["trajectory", "answer_file"]
 
 
 def read_trajectory(path: Path) -> dict[str, Any] | None:
@@ -59,8 +61,7 @@ def agent_steps(trajectory: dict[str, Any] | None) -> list[dict[str, Any]]:
 def final_reply(trajectory: dict[str, Any] | None) -> str:
     """The text of the last agent step that said anything.
 
-    Harbor writes the trajectory for the coding agents, and the PXI agent builds
-    one from its transcript. A message is either a string or a list of typed parts.
+    An ATIF message is either a string or a list of typed parts.
     """
     for step in reversed(agent_steps(trajectory)):
         message = step.get("message")
@@ -86,8 +87,8 @@ def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
     return {"tool_call_count": float(tool_calls), "agent_turn_count": float(len(steps))}
 
 
-def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, str]:
-    """The reply to grade and where it came from: ``trajectory`` or ``answer_file``."""
+def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, ReplySource]:
+    """The reply to grade and where it came from."""
     trajectory = read_trajectory(trajectory_path)
     if trajectory is not None:
         return final_reply(trajectory), "trajectory"

@@ -1,11 +1,7 @@
 # The one image every Harbor task runs in: Phoenix from this checkout over a fixture
-# database, the shared verifiers, and the coding agents' runtime. Staging
-# (scripts/stage_harbor_environments.sh) assembles a build context from this file plus
-# wheels/, verifier/, container_assets/, and the task's fixture as data/phoenix.db, and
-# copies it into each task's environment/, from which Harbor builds the image on Docker
-# or Daytona. The task healthcheck starts Phoenix through
-# /opt/phoenix-eval/start_phoenix_server.sh as root; the agent phase runs as `agent`,
-# which cannot open the database file and reaches the data only through Phoenix.
+# database, the shared verifiers, and the coding agents' runtime. The build context is
+# this file plus wheels/, verifier/, container_assets/, and the task's fixture as
+# data/phoenix.db, assembled by scripts/stage_harbor_environments.sh.
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 # Node 22 for the coding agents and the px CLI. Copied from the official image because
 # Debian bookworm ships Node 18.
@@ -31,4 +27,5 @@ RUN uv pip install --system --no-cache /wheels/*.whl
 COPY verifier/ /opt/verifier/
 COPY container_assets/ /opt/phoenix-eval/
 COPY data/ /data/
+# Root-only: the agent phase runs as `agent` and reaches the data only through Phoenix.
 RUN chmod 700 /data && chmod 600 /data/phoenix.db

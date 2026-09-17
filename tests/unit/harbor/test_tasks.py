@@ -37,9 +37,9 @@ def test_task_layout_matches_the_shared_files(task: Path) -> None:
     assert 'user = "agent"' in shared
     for name in ("tests/test.sh", "solution/solve.sh"):
         assert os.access(task / name, os.X_OK), f"{name} is not executable"
-    # environment/ is staged from evals/harbor/environments and never committed: the
-    # task-level .gitignore keeps it out of git and out of the task digest.
-    assert "environment/" in (task / ".gitignore").read_text().splitlines()
+    assert "environment/" in (task / ".gitignore").read_text().splitlines(), (
+        "the staged environment/ must stay out of git and out of the task digest"
+    )
     for path in (task / "environment").rglob("*") if (task / "environment").exists() else []:
         assert not path.is_symlink(), f"{path} is a symlink; Docker cannot build from one"
     instruction = (task / "instruction.md").read_text()

@@ -4,10 +4,8 @@
 # ///
 """Download the TRAIL rows that seed the trail fixture.
 
-TRAIL is gated on Hugging Face and its terms forbid resharing outside the hub,
-so every developer downloads it with their own token. `fixture.sh` runs this
-through `uv run --script`; the output is cached under evals/harbor/.cache and
-never committed, and the seeded database stays local.
+TRAIL is gated on Hugging Face, so ``HF_TOKEN`` must carry a token whose account
+has accepted its terms.
 """
 
 from __future__ import annotations
