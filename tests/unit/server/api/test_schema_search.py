@@ -1409,6 +1409,45 @@ def test_possible_types_omit_hidden_implementations() -> None:
     assert "Secret" not in lookup(index, "Shared")
 
 
+def test_a_scoped_search_on_a_wrapper_explains_the_wrapper() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: Conn b: conn } type PageInfo { hasNextPage: Boolean! } "
+            "type Conn { edges: [CE] pageInfo: PageInfo } type CE { node: Node cursor: String } "
+            "type Node { id: ID } type conn { value: String }"
+        )
+    )
+    assert "Conn is a connection over Node" in search(index, "Conn.value")
+    assert first_line(search(index, "conn.val")) == "# On conn, matching 'val':"
+
+
+def test_a_wrapper_member_still_resolves_case_insensitively() -> None:
+    index = build_index(build_schema(TOY_SDL + " extend type ProjectConnection { stats: Int }"))
+    assert first_line(lookup(index, "PROJECTCONNECTION.STATS")) == "ProjectConnection.stats: Int"
+
+
+def test_possible_types_are_filtered_by_exact_visibility() -> None:
+    index = build_index(
+        build_schema(
+            "interface Shared { id: ID } type Query { visible: Visible other: secret c: Conn } "
+            "type Visible implements Shared { id: ID } type secret { ok: Int } "
+            "type Secret implements Shared { id: ID token: String } "
+            "type Conn implements Shared { id: ID edges: [CE] pageInfo: PageInfo } "
+            "type CE { node: Visible cursor: String } type PageInfo { hasNextPage: Boolean! } "
+            "type Mutation { create: Secret }"
+        ),
+        include_mutations=False,
+    )
+    assert "# possible types: Visible, Conn" in lookup(index, "Shared")
+
+
+def test_unicode_line_separators_inside_a_literal_survive() -> None:
+    index = build_index(build_schema('type Query { ok(x: String = "left\u2028right"): Int }'))
+    text = describe(index, names=["Query"])
+    assert "left\u2028right" in text
+    parse(text)
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
