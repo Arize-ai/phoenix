@@ -2707,6 +2707,13 @@ def test_a_named_timezone_and_a_decimal_exponent_are_kept() -> None:
         assert "<unprintable>" in first_line(lookup(index, "Query.f")), scalar.name
 
 
+def test_a_scoped_request_on_a_scalar_says_it_has_no_fields() -> None:
+    index = build_index(build_schema("scalar DateTime type Query { createdAt: DateTime }"))
+    for text in (search(index, "DateTime.year"), lookup(index, "DateTime.year")):
+        assert text == "-- DateTime is a scalar and has no fields to select. Try search('year')."
+    assert lookup(index, "DateTime") == "scalar DateTime"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
