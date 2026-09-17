@@ -37,6 +37,7 @@ from graphql import (
     GraphQLUnionType,
     get_named_type,
     is_introspection_type,
+    is_required_argument,
     specified_scalar_types,
 )
 from graphql.language import print_ast
@@ -237,8 +238,8 @@ class Index:
     returned_by: Mapping[str, list[str]]  # object type -> "Type.field" returning it
     by_key: Mapping[str, Unit]  # "Type", "Type.field", "mutationName"
     folded: Mapping[str, Unit]  # lowercase key -> its unit, when only one spelling has it
-    plumbing: Mapping[str, str]  # lowercase name -> Relay wrapper type left out of the index
-    owners: Mapping[str, str]  # exact and, when unique, lowercase name -> owner of members
+    plumbing: frozenset[str]  # Relay wrapper types left out of the index
+    owners: frozenset[str]  # every type that owns an indexed member, wrappers included
 
     def resolve(self, name: str) -> Optional[Unit]:
         """The unit ``name`` denotes: by exact spelling, else case-insensitively when unique."""
@@ -249,7 +250,7 @@ class Index:
         u = self.resolve(name)
         if u is not None:
             return u.name if u.kind == "type" else None
-        return self.owners.get(name) or self.owners.get(name.lower())
+        return _by_case(self.owners, name)
 
     def depth(self, type_name: str) -> int:
         return self.nearest.get(type_name, ("", _MAX_DEPTH, ()))[1]
@@ -264,14 +265,34 @@ class Index:
 # --- index -----------------------------------------------------------------------
 
 
+_PAGE_INFO_FIELDS = frozenset({"hasNextPage", "hasPreviousPage", "startCursor", "endCursor"})
+
+
+def _is_page_info(t: GraphQLNamedType) -> bool:
+    """Whether ``t`` is Relay page info by shape: only the four cursor-page fields."""
+    return (
+        isinstance(t, GraphQLObjectType)
+        and t.fields.keys() <= _PAGE_INFO_FIELDS
+        and ("hasNextPage" in t.fields or "hasPreviousPage" in t.fields)
+    )
+
+
+def _requires_arguments(field: GraphQLField) -> bool:
+    return any(is_required_argument(a) for a in field.args.values())
+
+
 def _edge_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
     """The node type of ``t`` when it is a Relay edge: a composite ``node`` beside a
-    ``String`` ``cursor``."""
+    ``String`` ``cursor``, neither needing an argument."""
     if not isinstance(t, GraphQLObjectType) or not {"node", "cursor"} <= t.fields.keys():
         return None
     node = get_named_type(t.fields["node"].type)
     composite = (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)
-    if isinstance(node, composite) and str(t.fields["cursor"].type).rstrip("!") == "String":
+    if (
+        isinstance(node, composite)
+        and str(t.fields["cursor"].type).rstrip("!") == "String"
+        and not _requires_arguments(t.fields["node"])
+    ):
         return node
     return None
 
@@ -281,7 +302,9 @@ def _connection_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
     an object ``pageInfo``."""
     if not isinstance(t, GraphQLObjectType) or not {"edges", "pageInfo"} <= t.fields.keys():
         return None
-    if not isinstance(get_named_type(t.fields["pageInfo"].type), GraphQLObjectType):
+    if not _is_page_info(get_named_type(t.fields["pageInfo"].type)):
+        return None
+    if _requires_arguments(t.fields["edges"]):
         return None
     return _edge_node(get_named_type(t.fields["edges"].type))
 
@@ -295,12 +318,12 @@ def _is_relay_plumbing(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
     """Whether ``t`` is a connection, edge, or page-info type. A root never is."""
     if not isinstance(t, GraphQLObjectType) or t in (schema.query_type, schema.mutation_type):
         return False
-    return t.name == "PageInfo" or _connection_node(t) is not None or _edge_node(t) is not None
+    return _is_page_info(t) or _connection_node(t) is not None or _edge_node(t) is not None
 
 
 def _wrapper_extras(t: GraphQLNamedType, schema: GraphQLSchema) -> list[str]:
     """Fields a connection or edge type carries beyond the Relay shape."""
-    if not _is_relay_plumbing(t, schema) or t.name == "PageInfo":
+    if not _is_relay_plumbing(t, schema) or _is_page_info(t):
         return []
     assert isinstance(t, GraphQLObjectType)
     shape = (
@@ -345,9 +368,16 @@ def _default(value_def: _ValueDef) -> str:
     if value is Undefined:
         return ""
     ast = value_def.ast_node
+    literal: Optional[str] = None
     if ast is not None and ast.default_value is not None:
-        return f" = {print_ast(ast.default_value)}"
-    literal = _literal(value, value_def.type)
+        literal = print_ast(ast.default_value)
+    if literal is None or "\n" in literal:
+        try:
+            literal = _literal(value, value_def.type)
+        except Exception:
+            literal = None
+    if literal is not None and "\n" in literal:
+        literal = None
     return f" = {literal if literal is not None else _UNPRINTABLE}"
 
 
@@ -356,7 +386,7 @@ def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
     try:
         node = ast_from_value(value, type_)
         return print_ast(node) if node is not None else None
-    except TypeError:
+    except Exception:
         pass
     named = get_named_type(type_)
     if isinstance(value, (list, tuple)):
@@ -374,7 +404,8 @@ def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
         name = named.serialize(value)
         return name if isinstance(name, str) else None
     if isinstance(named, GraphQLScalarType) and named.name not in specified_scalar_types:
-        return _json_literal(value)
+        # The literal a caller writes is what the scalar serializes to.
+        return _json_literal(named.serialize(value))
     return None
 
 
@@ -692,9 +723,7 @@ def build_index(
     for name, sources in through_interface.items():
         returned_by[name].extend(src for src in sources if src not in returned_by[name])
 
-    plumbing = {
-        t.name.lower(): t.name for t in schema.type_map.values() if _is_relay_plumbing(t, schema)
-    }
+    plumbing = frozenset(t.name for t in schema.type_map.values() if _is_relay_plumbing(t, schema))
     by_key: dict[str, Unit] = {u.label: u for u in units}
     # A bare mutation name resolves to the mutation unless a type spells it the same.
     for u in units:
@@ -721,17 +750,17 @@ def build_index(
         by_key=by_key,
         folded={k: u for k, u in folded.items() if u is not None},
         plumbing=plumbing,
-        owners=_folded_names({u.owner for u in units if u.owner}),
+        owners=frozenset(u.owner for u in units if u.owner),
     )
 
 
-def _folded_names(names: Iterable[str]) -> dict[str, str]:
-    """Each name under its own spelling and, when no other name shares it, its lowercase."""
-    exact = {n: n for n in names}
-    folded: dict[str, Optional[str]] = {}
-    for n in exact:
-        folded[n.lower()] = n if folded.get(n.lower(), n) == n else None
-    return {**{k: v for k, v in folded.items() if v is not None}, **exact}
+def _by_case(names: Iterable[str], asked: str) -> Optional[str]:
+    """``asked`` among ``names`` by exact spelling, else case-insensitively when unique."""
+    names = list(names)
+    if asked in names:
+        return asked
+    matches = [n for n in names if n.lower() == asked.lower()]
+    return matches[0] if len(matches) == 1 else None
 
 
 @functools.lru_cache(maxsize=8)
@@ -931,15 +960,19 @@ def _is_exact(index: Index, name: str) -> bool:
     return (
         index.resolve(name) is not None
         or key in index.excluded_mutations
-        or key in index.plumbing
+        or _plumbing_name(index, name) is not None
         or _is_hidden_mutation_root(index, key)
     )
 
 
-def _plumbing_miss(index: Index, key: str) -> Optional[str]:
+def _plumbing_name(index: Index, name: str) -> Optional[str]:
+    return _by_case(index.plumbing, name)
+
+
+def _plumbing_miss(index: Index, asked: str) -> Optional[str]:
     """What a Relay wrapper is and what to look up instead. They are left out of
     the index because a selection passes through them, never stops at them."""
-    name = index.plumbing.get(key)
+    name = _plumbing_name(index, asked)
     if name is None:
         return None
     t = index.schema.type_map[name]
@@ -1429,7 +1462,7 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
-        if wrapper := _plumbing_miss(index, key.partition(".")[0]):
+        if wrapper := _plumbing_miss(index, name.partition(".")[0]):
             return [wrapper]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
