@@ -969,6 +969,62 @@ def test_a_cut_last_hit_is_counted_in_the_trailer() -> None:
     )
 
 
+def test_a_custom_scalar_default_renders_as_json() -> None:
+    index = build_index(build_schema("scalar JSON type Query { ok(x: JSON = {a: 1}): Int }"))
+    assert first_line(lookup(index, "Query.ok")) == 'Query.ok(x: JSON = {"a": 1}): Int'
+
+
+def test_a_cold_query_stems_no_more_than_the_term_limit(toy: Index) -> None:
+    from phoenix.server.api.schema_search import _MAX_QUERY_TERMS
+
+    words = " ".join("q" + chr(97 + i // 26) + chr(97 + i % 26) for i in range(100))
+    before = _stem_cached.cache_info().misses
+    search(toy, words)
+    assert _stem_cached.cache_info().misses - before <= _MAX_QUERY_TERMS
+
+
+def test_an_implemented_interface_does_not_expose_hidden_siblings() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { item: A } interface Node { id: ID! } type A implements Node { id: ID! } "
+            "type B implements Node { id: ID! secret: String } type Mutation { get: B }"
+        ),
+        include_mutations=False,
+    )
+    assert first_line(lookup(index, "Node")) == "interface Node {"
+    assert "secret" not in search(index, "secret").replace("'secret'", "")
+
+
+def test_a_multiline_description_stays_one_comment() -> None:
+    index = build_index(build_schema('type Query { """metadata\nsecret: Int""" hello: Int }'))
+    assert lookup(index, "Query") == "type Query {\n  hello: Int  # metadata secret: Int\n}"
+
+
+def test_a_field_added_to_a_wrapper_is_indexed_under_the_wrapper() -> None:
+    index = build_index(build_schema(TOY_SDL + " extend type ProjectConnection { stats: Int }"))
+    assert "ProjectConnection  via Query.projects\n  stats: Int" in search(index, "stats")
+    assert lookup(index, "ProjectConnection.stats").splitlines() == [
+        "ProjectConnection.stats: Int",
+        "# via Query.projects > ProjectConnection.stats",
+    ]
+    assert lookup(index, "ProjectConnection").endswith(
+        "It also has stats; look up ProjectConnection.stats."
+    )
+
+
+def test_a_list_that_fits_whole_is_never_cut_for_a_trailer() -> None:
+    index = build_index(build_schema("type Query { sizeOne: Int sizeTwo: String }"))
+    assert search(index, "size", 50) == "Query\n  sizeOne: Int\n  sizeTwo: String"
+
+
+def test_requests_past_the_cap_are_omitted_before_any_is_served(toy: Index) -> None:
+    from phoenix.server.api.schema_search import _MAX_REQUESTS
+
+    text = describe(toy, names=["Span"] * (_MAX_REQUESTS + 4), budget=10**6)
+    assert text.endswith("-- 4 more requests omitted; ask for fewer at once.")
+    assert text.count("type Span ") == _MAX_REQUESTS
+
+
 # --- properties of the real schema -----------------------------------------------
 
 

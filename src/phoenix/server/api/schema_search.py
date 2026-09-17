@@ -12,6 +12,7 @@ import difflib
 import functools
 import heapq
 import itertools
+import json
 import math
 import re
 import threading
@@ -137,7 +138,7 @@ def _stem(word: str) -> str:
 
 def _clip(text: str) -> str:
     """Caller text bounded before any of it is scanned, stemmed, or echoed."""
-    return text.strip()[:_MAX_QUERY_CHARS]
+    return text[: _MAX_QUERY_CHARS * 4].strip()[:_MAX_QUERY_CHARS]
 
 
 _MAX_ECHO = 80
@@ -178,7 +179,8 @@ def _ident_terms(identifier: str) -> list[str]:
 
 def _query_terms(query: str) -> list[str]:
     words = [w for w in _WORD.findall(query[:_MAX_QUERY_CHARS]) if w.lower() not in _STOPWORDS]
-    return [_stem(t) for w in words for t in _expand(w)][:_MAX_QUERY_TERMS]
+    tokens = [t for w in words for t in _expand(w)]
+    return [_stem(t) for t in tokens[:_MAX_QUERY_TERMS]]
 
 
 _MUTATION_TERM = _stem("mutation")
@@ -192,7 +194,7 @@ def _asks_mutations_only(query: str) -> bool:
     The word inside an identifier such as ``DatasetMutationPayload`` names a
     type and does not filter.
     """
-    return any(_stem(w.lower()) == _MUTATION_TERM for w in _WORD.findall(query))
+    return any(w.lower() in ("mutation", "mutations") for w in _WORD.findall(query))
 
 
 @dataclass(frozen=True)
@@ -268,6 +270,17 @@ def _is_relay_plumbing(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
     return t.name == "PageInfo" or {"edges", "pageInfo"} <= keys or {"node", "cursor"} <= keys
 
 
+_WRAPPER_FIELDS = frozenset({"edges", "pageInfo", "node", "cursor"})
+
+
+def _wrapper_extras(t: GraphQLNamedType, schema: GraphQLSchema) -> list[str]:
+    """Fields a connection or edge type carries beyond the Relay shape."""
+    if not _is_relay_plumbing(t, schema) or t.name == "PageInfo":
+        return []
+    assert isinstance(t, GraphQLObjectType)
+    return [n for n in t.fields if n not in _WRAPPER_FIELDS]
+
+
 def _skip(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
     return (
         is_introspection_type(t)
@@ -284,7 +297,11 @@ def _args(field: _FieldLike) -> Mapping[str, GraphQLArgument]:
 def _default(value_def: _ValueDef) -> str:
     if value_def.default_value is Undefined:
         return ""
-    node = ast_from_value(value_def.default_value, value_def.type)
+    try:
+        node = ast_from_value(value_def.default_value, value_def.type)
+    except TypeError:
+        # A custom scalar's default has no AST; its JSON form is the next best literal.
+        return f" = {json.dumps(value_def.default_value, default=str)}"
     return f" = {print_ast(node)}" if node is not None else ""
 
 
@@ -391,27 +408,35 @@ def _input_closure(start: Iterable[GraphQLNamedType]) -> list[GraphQLNamedType]:
 
 
 def _reachable(schema: GraphQLSchema, roots: Iterable[GraphQLNamedType]) -> set[str]:
-    """Every type a selection or an argument can reach from ``roots``."""
+    """Every type a selection or an argument can reach from ``roots``.
+
+    A field typed as an interface or union delivers every implementation or
+    member. An interface reached only because a visible type implements it
+    delivers none: a selection on that type cannot become a sibling."""
     seen: set[str] = set()
-    queue = deque(roots)
+    expanded: set[str] = set()  # interfaces whose implementations were queued
+    queue: deque[tuple[GraphQLNamedType, bool]] = deque((t, True) for t in roots)
     while queue:
-        t = queue.popleft()
-        if t.name in seen:
+        t, expand = queue.popleft()
+        expand = expand and isinstance(t, GraphQLInterfaceType) and t.name not in expanded
+        if t.name in seen and not expand:
             continue
         seen.add(t.name)
-        nxt: list[GraphQLNamedType] = []
+        nxt: list[tuple[GraphQLNamedType, bool]] = []
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
             for f in t.fields.values():
-                nxt.append(get_named_type(f.type))
-                nxt.extend(get_named_type(a.type) for a in f.args.values())
-            nxt.extend(t.interfaces)
-            if isinstance(t, GraphQLInterfaceType):
-                nxt.extend(schema.get_possible_types(t))
+                nxt.append((get_named_type(f.type), True))
+                nxt.extend((get_named_type(a.type), True) for a in f.args.values())
+            nxt.extend((i, False) for i in t.interfaces)
+            if expand:
+                assert isinstance(t, GraphQLInterfaceType)
+                expanded.add(t.name)
+                nxt.extend((impl, True) for impl in schema.get_possible_types(t))
         elif isinstance(t, GraphQLInputObjectType):
-            nxt.extend(get_named_type(f.type) for f in t.fields.values())
+            nxt.extend((get_named_type(f.type), True) for f in t.fields.values())
         elif isinstance(t, GraphQLUnionType):
-            nxt.extend(t.types)
-        queue.extend(n for n in nxt if n.name not in seen)
+            nxt.extend((m, True) for m in t.types)
+        queue.extend(nxt)
     return seen
 
 
@@ -463,16 +488,23 @@ def build_index(
     returned_by: dict[str, list[str]] = defaultdict(list)
     through_interface: dict[str, list[str]] = defaultdict(list)
     for t in schema.type_map.values():
-        if _skip(t, schema) or t.name in excluded_types:
+        if t.name in excluded_types:
+            continue
+        extras = _wrapper_extras(t, schema)
+        if _skip(t, schema) and not extras:
             continue
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
             kind = "mutation" if t is mutation else "field"
             for fname, f in t.fields.items():
+                if extras and fname not in extras:
+                    continue
                 arg_terms = [tok for a in f.args for tok in (a.lower(), *_ident_terms(a))]
                 arg_desc = " ".join(a.description or "" for a in f.args.values())
                 named = get_named_type(f.type)
                 for target in _returned_types(schema, named):
                     returned_by[target.name].append(f"{t.name}.{fname}")
+                if _wrapper_extras(named, schema):
+                    returned_by[named.name].append(f"{t.name}.{fname}")
                 if isinstance(node := _node_type(named), GraphQLInterfaceType):
                     for impl in schema.get_possible_types(node):
                         through_interface[impl.name].append(f"{t.name}.{fname}")
@@ -491,6 +523,8 @@ def build_index(
                 )
                 for arg in f.args.values():
                     used_by[get_named_type(arg.type).name].append(f"{t.name}.{fname}")
+            if extras:
+                continue
         elif isinstance(t, GraphQLInputObjectType):
             for fname, input_field in t.fields.items():
                 named = get_named_type(input_field.type)
@@ -535,9 +569,14 @@ def build_index(
         if (interfaces, length) != cost[cur]:
             continue
         root, _, hops = nearest[cur]
+        extras = _wrapper_extras(schema.type_map[cur], schema)
         for fname, f in _object_fields(schema.type_map[cur]):
+            if extras and fname not in extras:
+                continue
             named = get_named_type(f.type)
             edges = [(nxt, 0) for nxt in _returned_types(schema, named)]
+            if _wrapper_extras(named, schema):
+                edges.append((named, 0))
             if isinstance(node := _node_type(named), GraphQLInterfaceType):
                 edges.extend((impl, 1) for impl in schema.get_possible_types(node))
             for nxt, extra in edges:
@@ -705,7 +744,7 @@ def _rank(
 
 
 def _first_sentence(text: str, limit: int = 80) -> str:
-    head = re.split(r"(?<=[.!?])\s", text.strip(), maxsplit=1)[0]
+    head = re.split(r"(?<=[.!?])\s", " ".join(text.split()), maxsplit=1)[0]
     return head if len(head) <= limit else head[: limit - 1] + "…"
 
 
@@ -800,16 +839,18 @@ def _plumbing_miss(index: Index, key: str) -> Optional[str]:
     t = index.schema.type_map[name]
     assert isinstance(t, GraphQLObjectType)
     node = _node_type(t)
+    extras = _wrapper_extras(t, index.schema)
+    also = f" It also has {', '.join(extras)}; look up {name}.{extras[0]}." if extras else ""
     if node is not t:
         return (
             f"-- {name} is a connection over {node.name}: select "
-            f"`edges {{ node {{ ... }} }}` and `pageInfo`. Look up {node.name}."
+            f"`edges {{ node {{ ... }} }}` and `pageInfo`. Look up {node.name}.{also}"
         )
     if "node" in t.fields:
         inner = get_named_type(t.fields["node"].type).name
         return (
             f"-- {name} is a connection edge over {inner}: select `node {{ ... }}`. "
-            f"Look up {inner}."
+            f"Look up {inner}.{also}"
         )
     return f"-- {name} is Relay pagination plumbing: {', '.join(t.fields)}."
 
@@ -974,6 +1015,8 @@ def _ranked_answer(
     ):
         used += len(_PAGINATION_LEGEND) + 1
     left: Counter[str] = Counter(owner or _SHARED for owner, _ in entries)
+    if used + sum(len(line) + 1 for _, line, _ in ordered) <= budget:
+        ordered, lines = [], [*lines, *(line for _, line, _ in ordered)]
     for i, (is_hit, line, owner) in enumerate(ordered):
         # A header only goes in with the hit that follows it. The last hit leaves
         # no room for a trailer unless it is the one cut.
@@ -1185,6 +1228,8 @@ def lookup(index: Index, name: str, budget: int = 4000) -> str:
 
 _MIN_SHARE = 400
 """Below this many characters a section holds little more than its header."""
+_MAX_REQUESTS = 16
+"""More requests than this in one call are omitted before any is served."""
 _free_text_search = search
 
 
@@ -1203,20 +1248,20 @@ def describe(
     section, the rest are named as omitted. Fixed trailing lines appear once
     at the end.
     """
-    requests = [("name", n) for n in names] + [("search", q) for q in search]
-    if not requests:
+    total = len(names) + len(search)
+    if not total:
         return lookup(index, index.query_root, budget)
+    requests = itertools.chain((("name", n) for n in names), (("search", q) for q in search))
     trailing = (_PAGINATION_LEGEND, _MUTATIONS_DISABLED)
     labelled = len(search) > 1
     sections: list[str] = []
     seen: list[str] = []
     remaining = budget - sum(len(t) + 1 for t in trailing)
-    for i, (kind, arg) in enumerate(requests):
-        left = len(requests) - i
+    done = 0
+    for kind, arg in itertools.islice(requests, _MAX_REQUESTS):
         if remaining < _MIN_SHARE:
-            sections.append(f"-- {left} more requests omitted; ask for fewer at once.")
             break
-        share = max(remaining // left, _MIN_SHARE)
+        share = max(remaining // (total - done), _MIN_SHARE)
         if kind == "name":
             text = _with_legend(_budgeted(_lookup_parts(index, arg), share))
         else:
@@ -1231,6 +1276,9 @@ def describe(
                 kept.append(line)
         sections.append("\n".join(kept))
         remaining -= len(sections[-1]) + 2
+        done += 1
+    if done < total:
+        sections.append(f"-- {total - done} more requests omitted; ask for fewer at once.")
     return _fit("\n".join(["\n\n".join(sections), *seen]), budget)
 
 
