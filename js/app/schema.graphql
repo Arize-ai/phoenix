@@ -1627,7 +1627,11 @@ input DeleteProjectAnnotationsInput {
 
 input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
-  deleteAssociatedPrompt: Boolean! = true
+
+  """
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  """
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteProjectEvaluatorsPayload {

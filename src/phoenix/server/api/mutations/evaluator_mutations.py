@@ -324,7 +324,13 @@ class ProjectEvaluatorMutationPayload:
 @strawberry.input
 class DeleteProjectEvaluatorsInput:
     project_evaluator_ids: list[GlobalID]
-    delete_associated_prompt: bool = True
+    delete_associated_prompt: bool = strawberry.field(
+        default=False,
+        description=(
+            "Also delete each LLM evaluator's prompt when no other evaluator references it. "
+            "Off by default so that a prompt adopted from the prompt hub survives the binding."
+        ),
+    )
 
 
 @strawberry.type

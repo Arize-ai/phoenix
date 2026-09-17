@@ -289,6 +289,11 @@ class DeleteDatasetEvaluatorsRequestBody(TypedDict):
     delete_associated_prompt: NotRequired[bool]
 
 
+class DeleteProjectEvaluatorsRequestBody(TypedDict):
+    project_evaluator_ids: Sequence[str]
+    delete_associated_prompt: NotRequired[bool]
+
+
 class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
 
@@ -486,6 +491,15 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PatchProjectEvaluatorRequest(TypedDict):
+    name: NotRequired[str]
+    sampling_rate: NotRequired[float]
+    filter_condition: NotRequired[str]
+    enabled: NotRequired[bool]
+    input_mapping: NotRequired[InputMapping]
+    evaluation_delay_seconds: NotRequired[int]
+
+
 class PatchPromptRequestBody(TypedDict):
     description: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
@@ -540,6 +554,30 @@ class Project(TypedDict):
     name: str
     id: str
     description: NotRequired[str]
+
+
+class ProjectEvaluator(TypedDict):
+    id: str
+    project_id: str
+    evaluator_id: str
+    evaluator_type: Literal["llm", "code", "builtin"]
+    trace_project_id: str
+    name: str
+    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+    sampling_rate: float
+    filter_condition: str
+    enabled: bool
+    input_mapping: Optional[InputMapping]
+    evaluation_delay_seconds: int
+
+
+class ProjectEvaluatorResponseBody(TypedDict):
+    data: ProjectEvaluator
+
+
+class ProjectEvaluatorsResponseBody(TypedDict):
+    data: Sequence[ProjectEvaluator]
+    next_cursor: Optional[str]
 
 
 class ProjectRetentionPolicyData(TypedDict):
@@ -2573,6 +2611,17 @@ class CreateDatasetEvaluatorRequest(TypedDict):
             ]
         ]
     ]
+
+
+class CreateProjectEvaluatorRequest(TypedDict):
+    name: str
+    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+    sampling_rate: float
+    evaluator: Union[NewLLMEvaluator, NewCodeEvaluator, ExistingEvaluator]
+    filter_condition: NotRequired[str]
+    enabled: NotRequired[bool]
+    input_mapping: NotRequired[InputMapping]
+    evaluation_delay_seconds: NotRequired[int]
 
 
 class EvaluatorDefinitionResponseBody(TypedDict):
