@@ -7,12 +7,16 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OutputConfigType,
+    as_output_configs,
 )
 from phoenix.db.types.prompts import (
     PromptResponseFormat,
@@ -165,6 +169,52 @@ def validate_consistent_llm_evaluator_and_prompt_version(
         evaluator_output_configs=categorical_configs,
         evaluator_description=llm_evaluator.description,
     )
+
+
+async def incompatible_dataset_override_ids(
+    session: AsyncSession,
+    llm_evaluator: models.LLMEvaluator,
+    prompt_version: models.PromptVersion,
+) -> list[str]:
+    """Return the dataset bindings whose output or description overrides this version cannot serve.
+
+    Bindings without overrides follow the evaluator's own outputs and need no separate check.
+    Ids are returned as DatasetEvaluator global ids, ready for an error message.
+    """
+    bindings = (
+        await session.scalars(
+            select(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                or_(
+                    models.DatasetEvaluators.output_configs.is_not(None),
+                    models.DatasetEvaluators.description.is_not(None),
+                ),
+            )
+        )
+    ).all()
+    incompatible: list[str] = []
+    for binding in bindings:
+        configs = (
+            as_output_configs(binding.output_configs)
+            if binding.output_configs is not None
+            else list(llm_evaluator.output_configs)
+        )
+        try:
+            validate_evaluator_prompt_and_configs(
+                prompt_tools=prompt_version.tools,
+                prompt_response_format=prompt_version.response_format,
+                evaluator_output_configs=LLMEvaluatorOutputConfigs.model_validate(
+                    {"configs": configs}
+                ).configs,
+                evaluator_description=(
+                    binding.description
+                    if binding.description is not None
+                    else llm_evaluator.description
+                ),
+            )
+        except (ValueError, ValidationError):
+            incompatible.append(str(GlobalID("DatasetEvaluator", str(binding.id))))
+    return incompatible
 
 
 class _EvaluatorPromptToolFunctionParametersProperty(BaseModel):
