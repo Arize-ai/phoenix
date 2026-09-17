@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import time
+from typing import Optional
 
 import pytest
 import strawberry
@@ -2554,6 +2555,82 @@ def test_primitive_subclasses_default_factories_and_signed_zero_in_sets() -> Non
         "Query.f(x: FloatSet = [-0.0]): String",
         "Query.f(x: FloatSet = [-0]): String",
     )
+
+
+@strawberry.input(name="Choice", one_of=True)
+class _OneOfChoice:
+    id: Optional[str] = strawberry.UNSET
+    name: Optional[str] = strawberry.UNSET
+
+
+@strawberry.type(name="Query")
+class _OneOfQuery:
+    @strawberry.field
+    def find(self, by: _OneOfChoice) -> int:
+        return 1
+
+
+def test_a_strawberry_one_of_input_keeps_its_directive() -> None:
+    index = build_index(strawberry.Schema(query=_OneOfQuery)._schema)
+    assert first_line(lookup(index, "Choice")) == "input Choice @oneOf {"
+
+
+def test_a_time_default_keeps_its_fold_and_float_subclasses_keep_attributes() -> None:
+    from datetime import time
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    clock = GraphQLScalarType(
+        "Time", serialize=lambda t: t.isoformat(), parse_value=time.fromisoformat
+    )
+
+    class TokenFloat(float):
+        pass
+
+    token = TokenFloat(1.0)
+    token.source = "schema"  # type: ignore[attr-defined]
+    number = GraphQLScalarType("TokenFloat", serialize=float, parse_value=TokenFloat)
+    for scalar, default in ((clock, time(1, 30, fold=1)), (number, token)):
+        query = GraphQLObjectType(
+            "Query",
+            {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(scalar, default)})},
+        )
+        index = build_index(GraphQLSchema(query=query))
+        assert "<unprintable>" in first_line(lookup(index, "Query.f")), scalar.name
+
+
+def test_an_input_field_default_is_compared_raw() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInt,
+        GraphQLList,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    opt = GraphQLInputObjectType(
+        "Opt",
+        {
+            "xs": GraphQLInputField(GraphQLList(GraphQLInt), default_value=(1, 2)),
+            "m": GraphQLInputField(GraphQLScalarType("JSON"), default_value={"b": 2, "a": 1}),
+        },
+    )
+    query = GraphQLObjectType(
+        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    text = lookup(index, "Opt")
+    assert "xs: [Int] = <unprintable>" in text
+    assert "m: JSON = {b: 2, a: 1}" in text
 
 
 # --- properties of the real schema -----------------------------------------------
