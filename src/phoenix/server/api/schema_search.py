@@ -9,6 +9,7 @@ Every renderer works to a character budget.
 from __future__ import annotations
 
 import datetime
+import decimal
 import difflib
 import enum
 import functools
@@ -533,10 +534,13 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
             return True
     if type(a) in (str, bytes, int, bool) or isinstance(a, enum.Enum) or a is None:
         return bool(a == b)
+    if isinstance(a, decimal.Decimal) and isinstance(b, decimal.Decimal):
+        if a.as_tuple() != b.as_tuple():
+            return False
     if isinstance(a, (datetime.datetime, datetime.time)) and isinstance(
         b, (datetime.datetime, datetime.time)
     ):
-        if a.tzinfo != b.tzinfo or a.fold != b.fold:
+        if a.tzinfo != b.tzinfo or a.fold != b.fold or a.tzname() != b.tzname():
             return False
     if isinstance(a, Mapping) and isinstance(b, Mapping):
         same = len(a) == len(b) and all(
