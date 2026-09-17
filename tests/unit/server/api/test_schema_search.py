@@ -2010,6 +2010,82 @@ def test_duplicate_fields_inside_a_custom_scalar_literal_are_rejected() -> None:
     assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 2}): String"
 
 
+def test_a_custom_output_object_compares_its_fields_by_kind() -> None:
+    import dataclasses
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    @dataclasses.dataclass
+    class OptValue:
+        a: object
+
+    opt = GraphQLInputObjectType(
+        "Opt", {"a": GraphQLInputField(GraphQLScalarType("Val"))}, out_type=lambda d: OptValue(**d)
+    )
+    arg = GraphQLArgument(opt, {"a": 1})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Opt")),
+        default_value=parse_value("{a: true}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
+def test_a_default_keyed_by_output_names_renders_by_input_names() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInt,
+        GraphQLNonNull,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    opt = GraphQLInputObjectType("Opt", {"a": GraphQLInputField(GraphQLInt, out_name="b")})
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "f": GraphQLField(
+                GraphQLString, args={"x": GraphQLArgument(GraphQLNonNull(opt), {"b": 1})}
+            )
+        },
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt! = {a: 1}): String"
+
+
+def test_a_literal_with_a_variable_is_not_kept() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    arg = GraphQLArgument(GraphQLScalarType("Opt"), {"a": Undefined})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Opt")),
+        default_value=parse_value("{a: $missing}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert "$missing" not in lookup(index, "Query.f")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
