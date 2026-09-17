@@ -31,6 +31,7 @@ from graphql import (
     GraphQLInterfaceType,
     GraphQLList,
     GraphQLNamedType,
+    GraphQLNonNull,
     GraphQLObjectType,
     GraphQLScalarType,
     GraphQLSchema,
@@ -40,7 +41,7 @@ from graphql import (
     is_required_argument,
     specified_scalar_types,
 )
-from graphql.language import print_ast
+from graphql.language import parse_value, print_ast
 from graphql.pyutils import Undefined
 from graphql.utilities import ast_from_value
 
@@ -268,12 +269,25 @@ class Index:
 _PAGE_INFO_FIELDS = frozenset({"hasNextPage", "hasPreviousPage", "startCursor", "endCursor"})
 
 
+_PAGE_INFO_TYPES = {
+    "hasNextPage": "Boolean",
+    "hasPreviousPage": "Boolean",
+    "startCursor": "String",
+    "endCursor": "String",
+}
+
+
 def _is_page_info(t: GraphQLNamedType) -> bool:
-    """Whether ``t`` is Relay page info by shape: only the four cursor-page fields."""
+    """Whether ``t`` is Relay page info by shape: only cursor-page fields of the
+    Relay types, taking no arguments."""
     return (
         isinstance(t, GraphQLObjectType)
         and t.fields.keys() <= _PAGE_INFO_FIELDS
         and ("hasNextPage" in t.fields or "hasPreviousPage" in t.fields)
+        and all(
+            str(f.type).rstrip("!") == _PAGE_INFO_TYPES[n] and not f.args
+            for n, f in t.fields.items()
+        )
     )
 
 
@@ -292,6 +306,7 @@ def _edge_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
         isinstance(node, composite)
         and str(t.fields["cursor"].type).rstrip("!") == "String"
         and not _requires_arguments(t.fields["node"])
+        and not _requires_arguments(t.fields["cursor"])
     ):
         return node
     return None
@@ -304,7 +319,7 @@ def _connection_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
         return None
     if not _is_page_info(get_named_type(t.fields["pageInfo"].type)):
         return None
-    if _requires_arguments(t.fields["edges"]):
+    if _requires_arguments(t.fields["edges"]) or _requires_arguments(t.fields["pageInfo"]):
         return None
     return _edge_node(get_named_type(t.fields["edges"].type))
 
@@ -326,9 +341,7 @@ def _wrapper_extras(t: GraphQLNamedType, schema: GraphQLSchema) -> list[str]:
     if not _is_relay_plumbing(t, schema) or _is_page_info(t):
         return []
     assert isinstance(t, GraphQLObjectType)
-    shape = (
-        {"edges", "pageInfo"} if {"edges", "pageInfo"} <= t.fields.keys() else {"node", "cursor"}
-    )
+    shape = {"edges", "pageInfo"} if _connection_node(t) is not None else {"node", "cursor"}
     return [n for n in t.fields if n not in shape]
 
 
@@ -388,25 +401,36 @@ def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
         return print_ast(node) if node is not None else None
     except Exception:
         pass
-    named = get_named_type(type_)
-    if isinstance(value, (list, tuple)):
-        inner: GraphQLInputType = type_.of_type if isinstance(type_, GraphQLList) else type_
-        items = [_literal(v, inner) for v in value]
+    if isinstance(type_, GraphQLNonNull):
+        type_ = type_.of_type
+    if isinstance(type_, GraphQLList):
+        items = [
+            _literal(v, type_.of_type) for v in (value if isinstance(value, list) else [value])
+        ]
         return None if None in items else "[" + ", ".join(i for i in items if i) + "]"
-    if isinstance(named, GraphQLInputObjectType) and isinstance(value, dict):
-        if not all(k in named.fields for k in value):
+    if isinstance(type_, GraphQLInputObjectType) and isinstance(value, dict):
+        if not all(k in type_.fields for k in value):
             return None
-        fields = {k: _literal(v, named.fields[k].type) for k, v in value.items()}
+        fields = {k: _literal(v, type_.fields[k].type) for k, v in value.items()}
         if None in fields.values():
             return None
         return "{" + ", ".join(f"{k}: {v}" for k, v in fields.items()) + "}"
-    if isinstance(named, GraphQLEnumType):
-        name = named.serialize(value)
+    if isinstance(type_, GraphQLEnumType):
+        name = type_.serialize(value)
         return name if isinstance(name, str) else None
-    if isinstance(named, GraphQLScalarType) and named.name not in specified_scalar_types:
-        # The literal a caller writes is what the scalar serializes to.
-        return _json_literal(named.serialize(value))
+    if isinstance(type_, GraphQLScalarType) and type_.name not in specified_scalar_types:
+        # The literal a caller writes is what the scalar serializes to, provided
+        # the scalar reads it back as the same value.
+        literal = _json_literal(type_.serialize(value))
+        return literal if literal is not None and _coerces_back(type_, literal, value) else None
     return None
+
+
+def _coerces_back(scalar: GraphQLScalarType, literal: str, value: object) -> bool:
+    try:
+        return bool(scalar.parse_literal(parse_value(literal)) == value)
+    except Exception:
+        return False
 
 
 def _json_literal(value: object) -> Optional[str]:
@@ -723,7 +747,11 @@ def build_index(
     for name, sources in through_interface.items():
         returned_by[name].extend(src for src in sources if src not in returned_by[name])
 
-    plumbing = frozenset(t.name for t in schema.type_map.values() if _is_relay_plumbing(t, schema))
+    plumbing = frozenset(
+        t.name
+        for t in schema.type_map.values()
+        if _is_relay_plumbing(t, schema) and t.name not in excluded_types
+    )
     by_key: dict[str, Unit] = {u.label: u for u in units}
     # A bare mutation name resolves to the mutation unless a type spells it the same.
     for u in units:
@@ -1457,6 +1485,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     name = _clip(name)
     key = name.lower()
     u = index.resolve(name)
+    if name in index.plumbing:
+        u = None
     if u is None:
         if key in index.excluded_mutations:
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]

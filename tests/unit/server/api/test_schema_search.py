@@ -19,15 +19,16 @@ from graphql import (
     GraphQLInputObjectType,
     GraphQLInterfaceType,
     GraphQLObjectType,
+    GraphQLScalarType,
     GraphQLSchema,
     GraphQLUnionType,
     build_schema,
     get_named_type,
     parse,
 )
-from graphql.language import print_ast
+from graphql.language import ValueNode, print_ast
 from graphql.pyutils import Undefined
-from graphql.utilities import ast_from_value
+from graphql.utilities import ast_from_value, value_from_ast_untyped
 
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.api.schema_search import (
@@ -1167,16 +1168,29 @@ def test_relay_shapes_are_checked_by_field_types() -> None:
     assert first_line(lookup(index, "Items")) == "type Items {"
 
 
+def _wrapped_scalar() -> GraphQLScalarType:
+    """A scalar that serializes ``v`` as ``{value: v}`` and reads that back."""
+
+    def parse_literal(node: ValueNode, _: object = None) -> object:
+        return value_from_ast_untyped(node)["value"]
+
+    return GraphQLScalarType(
+        "Wrapped",
+        serialize=lambda v: {"value": v},
+        parse_value=lambda v: v["value"],
+        parse_literal=parse_literal,
+    )
+
+
 def test_a_custom_scalar_default_renders_as_it_serializes() -> None:
     from graphql import (
         GraphQLArgument,
         GraphQLField,
-        GraphQLScalarType,
         GraphQLSchema,
         GraphQLString,
     )
 
-    wrapped = GraphQLScalarType("Wrapped", serialize=lambda v: {"value": v})
+    wrapped = _wrapped_scalar()
     query = GraphQLObjectType(
         "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(wrapped, 7)})}
     )
@@ -1247,6 +1261,100 @@ def test_wrapper_lookup_resolves_exact_case_first() -> None:
     assert "Conn is a connection over Node" in lookup(index, "Conn")
     assert "conn is a connection over Other" in lookup(index, "conn")
     assert lookup(index, "CONN").startswith("-- No type, field, or mutation named 'CONN'")
+
+
+def test_a_scalar_default_that_does_not_coerce_back_is_marked() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    asymmetric = GraphQLScalarType(
+        "Asymmetric", serialize=lambda v: {"output": v}, parse_value=lambda v: v["input"]
+    )
+    query = GraphQLObjectType(
+        "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(asymmetric, 7)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert (
+        first_line(lookup(index, "Query.ok")) == "Query.ok(x: Asymmetric = <unprintable>): String"
+    )
+
+
+def test_a_list_valued_scalar_default_serializes_whole() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    wrapped = _wrapped_scalar()
+    query = GraphQLObjectType(
+        "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(wrapped, [1, 2])})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: Wrapped = {value: [1, 2]}): String"
+
+
+def test_page_info_fields_must_have_relay_types_and_no_arguments() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { flags: Flags n: N } type Flags { hasNextPage(key: ID!): N } type N { id: ID }"
+        )
+    )
+    assert first_line(lookup(index, "Flags")) == "type Flags {"
+    assert first_line(lookup(index, "Flags.hasNextPage")) == "Flags.hasNextPage(key: ID!): N"
+
+
+def test_a_wrapper_whose_page_info_or_cursor_needs_an_argument_is_not_collapsed() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { c: Conn } type Conn { edges: [Edge] pageInfo(key: ID!): PageInfo } "
+            "type PageInfo { hasNextPage: Boolean! } type Node { id: ID } "
+            "type Edge { node: Node cursor(key: ID!): String }"
+        )
+    )
+    assert first_line(lookup(index, "Conn")) == "type Conn {"
+    assert first_line(lookup(index, "Edge")) == "type Edge {"
+
+
+def test_an_exactly_named_wrapper_wins_over_a_case_folded_type() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: Conn b: conn } type PageInfo { hasNextPage: Boolean! } "
+            "type Conn { edges: [CE] pageInfo: PageInfo } type CE { node: Node cursor: String } "
+            "type Node { id: ID } type conn { value: String }"
+        )
+    )
+    assert "Conn is a connection over Node" in lookup(index, "Conn")
+    assert first_line(lookup(index, "conn")) == "type conn {"
+
+
+def test_wrapper_extras_follow_the_shape_that_made_it_a_wrapper() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { rec: Rec } type Rec { node: N cursor: String edges: Int pageInfo: Int } "
+            "type N { id: ID }"
+        )
+    )
+    assert first_line(lookup(index, "Rec.edges")) == "Rec.edges: Int"
+    assert first_line(lookup(index, "Rec.pageInfo")) == "Rec.pageInfo: Int"
+
+
+def test_a_hidden_wrapper_is_not_pointed_at() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { ok: Int } type Mutation { create: Conn } type PageInfo { hasNextPage: Boolean! } "
+            "type Conn { edges: [Edge] pageInfo: PageInfo } type Edge { node: Secret cursor: String } "
+            "type Secret { value: String }"
+        ),
+        include_mutations=False,
+    )
+    assert lookup(index, "Conn").startswith("-- No type, field, or mutation named 'Conn'")
 
 
 # --- properties of the real schema -----------------------------------------------
