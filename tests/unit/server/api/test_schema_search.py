@@ -2765,6 +2765,15 @@ def test_an_edge_whose_node_is_a_list_is_an_ordinary_type() -> None:
 
 def test_introspection_names_fold_case_when_unique(toy: Index) -> None:
     assert lookup(toy, "__type.name") == "__Type.name: String"
+    assert first_line(lookup(toy, "__type")).startswith("type __Type {")
+
+
+def test_a_scoped_search_on_the_hidden_mutation_root_says_mutations_are_disabled(
+    toy_reads_only: Index,
+) -> None:
+    text = search(toy_reads_only, "Mutation.deleteDataset")
+    assert "Mutations are disabled" in text and "Did you mean" not in text
+    assert "Mutations are disabled" in describe(toy_reads_only, search=["Mutation.deleteDataset"])
 
 
 # --- properties of the real schema -----------------------------------------------
