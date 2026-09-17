@@ -2,7 +2,7 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/defaultEvaluatorTemplate";
+import { SPAN_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/spanEvaluatorTemplate";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
@@ -111,8 +111,10 @@ export const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
 });
 
 /**
- * The judge prompt a new LLM evaluator draft starts from: the same rubric
- * template the evaluator dialogs open with.
+ * The judge prompt a new LLM evaluator draft starts from. An evaluator task
+ * judges the dataset example as the span it was converted from, so it opens
+ * on the span template (`input` and `output`, no `reference`) rather than the
+ * reference-answer rubric the dataset evaluator form opens with.
  */
 export const generateJudgeChatTemplate = (): PlaygroundChatTemplate => ({
   __type: "chat",
@@ -120,12 +122,12 @@ export const generateJudgeChatTemplate = (): PlaygroundChatTemplate => ({
     {
       id: generateMessageId(),
       role: "system",
-      content: DEFAULT_EVALUATOR_TEMPLATE.systemPrompt,
+      content: SPAN_EVALUATOR_TEMPLATE.systemPrompt,
     },
     {
       id: generateMessageId(),
       role: "user",
-      content: DEFAULT_EVALUATOR_TEMPLATE.userPrompt,
+      content: SPAN_EVALUATOR_TEMPLATE.userPrompt,
     },
   ],
 });
