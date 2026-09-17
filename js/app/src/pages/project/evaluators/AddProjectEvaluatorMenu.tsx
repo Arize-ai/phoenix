@@ -23,11 +23,9 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { View } from "@phoenix/components/core/view";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
+import { useOpenProjectEvaluatorGallery } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryContext";
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import {
-  type ProjectEvaluatorCreationPaths,
-  useProjectEvaluatorPaths,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 export const AddProjectEvaluatorMenu = ({
   size,
@@ -70,7 +68,7 @@ type ProjectEvaluatorMenuTriggerProps = {
   size: ButtonProps["size"];
   buttonClassName?: string;
   buttonLabel?: string;
-  /** Hide the "Browse eval gallery" item, e.g. when already on the gallery page. */
+  /** Hide the "Browse eval gallery" item, e.g. inside the gallery modal. */
   shouldShowGalleryLink?: boolean;
   /** The routes to use for every evaluator-creation action in this menu. */
   creationPaths: ProjectEvaluatorCreationPaths;
@@ -126,7 +124,7 @@ function ProjectEvaluatorMenuItems({
   creationPaths: ProjectEvaluatorCreationPaths;
 }) {
   const navigate = useNavigate();
-  const paths = useProjectEvaluatorPaths();
+  const openGallery = useOpenProjectEvaluatorGallery();
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},
@@ -149,13 +147,17 @@ function ProjectEvaluatorMenuItems({
             navigate(creationPaths.newLlm);
           } else if (action === "createCodeEvaluator") {
             navigate(creationPaths.newCode);
+          } else if (action === "browseGallery") {
+            openGallery();
           }
         }}
       >
         {shouldShowGalleryLink ? (
           <MenuSection>
+            {/* The gallery is modal state, not a destination, so this is an
+                action rather than a link. */}
             <MenuItem
-              href={paths.gallery}
+              id="browseGallery"
               leadingContent={<Icon svg={<Icons.Grid />} />}
             >
               Browse eval gallery

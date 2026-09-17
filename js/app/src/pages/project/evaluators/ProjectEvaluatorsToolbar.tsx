@@ -87,10 +87,7 @@ export function ProjectEvaluatorsToolbar({
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <ProjectEvaluatorsColumnSelector />
-          <AddProjectEvaluatorMenu
-            size="M"
-            creationPaths={paths.listCreation}
-          />
+          <AddProjectEvaluatorMenu size="M" creationPaths={paths.creation} />
         </Flex>
       </Flex>
     </View>
