@@ -28,6 +28,7 @@ from graphql import (
     GraphQLInputField,
     GraphQLInputObjectType,
     GraphQLInputType,
+    GraphQLInt,
     GraphQLInterfaceType,
     GraphQLList,
     GraphQLNamedType,
@@ -40,9 +41,10 @@ from graphql import (
     is_introspection_type,
     specified_scalar_types,
 )
-from graphql.language import parse_value, print_ast
+from graphql.execution.values import get_argument_values
+from graphql.language import ArgumentNode, FieldNode, NameNode, parse_value, print_ast
 from graphql.pyutils import Undefined, is_collection
-from graphql.utilities import ast_from_value, value_from_ast_untyped
+from graphql.utilities import ast_from_value, value_from_ast
 
 __all__ = [
     "READ_ROOTS",
@@ -401,64 +403,92 @@ _UNPRINTABLE = "<unprintable>"
 
 
 def _default(value_def: _ValueDef) -> str:
-    """The `` = literal`` suffix of a default, from its source text when the schema
-    was built from SDL, else rendered by type. A default no literal can spell
-    is marked rather than misspelled."""
+    """The `` = literal`` suffix of a default: its source text when that still
+    delivers the current default, else a rendering by type that does. A default
+    no literal delivers is marked rather than misspelled."""
     value = value_def.default_value
     if value is Undefined:
         return ""
+    candidates: list[Optional[str]] = []
     ast = value_def.ast_node
-    literal: Optional[str] = None
     if ast is not None and ast.default_value is not None:
+        candidates.append(print_ast(ast.default_value))
+    for by_name in (False, True):
         try:
-            # Execution passes a default through uncoerced, so the literal's raw
-            # structure is what must match the value.
-            current = _equivalent(value_from_ast_untyped(ast.default_value), value)
+            candidates.append(_literal(value, value_def.type, enum_by_name=by_name))
         except Exception:
-            current = False
-        literal = print_ast(ast.default_value) if current else None
-    if literal is None or "\n" in literal:
-        try:
-            literal = _literal(value, value_def.type)
-        except Exception:
-            literal = None
-    if literal is not None and "\n" in literal:
-        literal = None
-    return f" = {literal if literal is not None else _UNPRINTABLE}"
+            pass
+    for literal in candidates:
+        if literal is not None and "\n" not in literal and _delivers(value_def, literal):
+            return f" = {literal}"
+    return f" = {_UNPRINTABLE}"
+
+
+def _delivers(value_def: _ValueDef, literal: str) -> bool:
+    """Whether supplying ``literal`` hands a resolver the same value as omitting
+    the argument or field, as graphql-core coerces each."""
+    try:
+        node = parse_value(literal)
+        if isinstance(value_def, GraphQLArgument):
+            field = GraphQLField(GraphQLInt, args={"x": value_def})
+            omitted = get_argument_values(
+                field, FieldNode(name=NameNode(value="f"), arguments=[]), {}
+            )
+            given = ArgumentNode(name=NameNode(value="x"), value=node)
+            supplied = get_argument_values(
+                field, FieldNode(name=NameNode(value="f"), arguments=[given]), {}
+            )
+            return _equivalent(*omitted.values(), *supplied.values())
+        # An omitted input field passes its default through uncoerced.
+        return _equivalent(value_from_ast(node, value_def.type), value_def.default_value)
+    except Exception:
+        return False
 
 
 def _equivalent(a: object, b: object) -> bool:
     """Whether two coerced values are the same value of the same kind, so ``True``
     never passes for ``1``."""
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return len(a) == len(b) and all(_equivalent(x, y) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
     if isinstance(a, dict) and isinstance(b, dict):
         return a.keys() == b.keys() and all(_equivalent(a[k], b[k]) for k in a)
-    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
-        return len(a) == len(b) and all(_equivalent(x, y) for x, y in zip(a, b))
     return bool(a == b)
 
 
-def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
+def _literal(
+    value: object, type_: GraphQLInputType, *, enum_by_name: bool = False
+) -> Optional[str]:
     """``value`` written as an input literal of ``type_``, or None when it cannot be.
 
-    A custom scalar's literal is what it serializes to, accepted only when the
-    scalar reads it back as the same value."""
+    An enum value is written by serialization, or with ``enum_by_name`` taken as
+    a name already: graphql-core reads a default inside an input object as names
+    but a top-level default as values. A custom scalar's literal is what it
+    serializes to, accepted only when the scalar reads it back as the same value."""
     if isinstance(type_, GraphQLNonNull):
         type_ = type_.of_type
     if value is None:
         return "null"
     if isinstance(type_, GraphQLList):
         values = list(cast(Iterable[object], value)) if is_collection(value) else [value]
-        items = [_literal(v, type_.of_type) for v in values]
+        items = [_literal(v, type_.of_type, enum_by_name=enum_by_name) for v in values]
         return None if None in items else "[" + ", ".join(i for i in items if i) + "]"
     if isinstance(type_, GraphQLInputObjectType):
         if not isinstance(value, dict) or not all(k in type_.fields for k in value):
             return None
-        fields = {k: _literal(v, type_.fields[k].type) for k, v in value.items()}
+        fields = {
+            k: _literal(v, type_.fields[k].type, enum_by_name=enum_by_name)
+            for k, v in value.items()
+        }
         if None in fields.values():
             return None
         return "{" + ", ".join(f"{k}: {v}" for k, v in fields.items()) + "}"
+    if isinstance(type_, GraphQLEnumType):
+        if enum_by_name:
+            return value if isinstance(value, str) and value in type_.values else None
+        name = type_.serialize(value)
+        return name if isinstance(name, str) else None
     if isinstance(type_, GraphQLScalarType) and type_.name not in specified_scalar_types:
         literal = _json_literal(type_.serialize(value))
         return literal if literal is not None and _coerces_back(type_, literal, value) else None
