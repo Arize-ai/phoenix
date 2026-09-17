@@ -546,41 +546,42 @@ def _repeats_a_field(node: ValueNode) -> bool:
 
 def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
     """Whether two coerced values are the same value of the same kind, so ``True``
-    never passes for ``1``, inside containers and dictionary keys included. With
-    ``sequences``, a tuple and a list of the same items are the same value."""
+    never passes for ``1``, inside containers and dictionary keys included, and
+    a mapping keeps its order. With ``sequences``, a tuple and a list of the
+    same items are the same value."""
     if sequences and isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         return len(a) == len(b) and all(_equivalent(x, y, sequences=True) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
-    if isinstance(a, OrderedDict) and isinstance(b, OrderedDict):
-        return len(a) == len(b) and all(
+    if isinstance(a, float) and isinstance(b, float):
+        return a == b and math.copysign(1.0, a) == math.copysign(1.0, b)
+    if isinstance(a, (str, bytes, int, bool, enum.Enum)) or a is None:
+        return bool(a == b)
+    if isinstance(a, Mapping) and isinstance(b, Mapping):
+        same = len(a) == len(b) and all(
             _equivalent(k, m, sequences=sequences) and _equivalent(a[k], b[m], sequences=sequences)
             for k, m in zip(a, b)
         )
-    if isinstance(a, Mapping) and isinstance(b, Mapping):
-        pairs = _pair_off(a, b)
-        return pairs is not None and all(
-            _equivalent(a[k], b[m], sequences=sequences) for k, m in pairs
-        )
-    if isinstance(a, (str, bytes)):
-        return bool(a == b)
-    if isinstance(a, Sequence) and isinstance(b, Sequence):
-        return len(a) == len(b) and all(
+    elif isinstance(a, Sequence) and isinstance(b, Sequence):
+        same = len(a) == len(b) and all(
             _equivalent(x, y, sequences=sequences) for x, y in zip(a, b)
         )
-    if isinstance(a, AbstractSet) and isinstance(b, AbstractSet):
-        return _pair_off(a, b) is not None
-    if isinstance(a, (int, float, bool, enum.Enum)) or a is None:
-        return bool(a == b)
-    state_a, state_b = _state(a), _state(b)
-    if not state_a or not state_b:
-        # Without Python-level state, a datetime say, equality is all there is.
-        return bool(a == b)
-    # A native payload, as a datetime subclass carries, is judged by the
-    # equality the class inherits; only object's own identity test is skipped.
-    if type(a).__eq__ is not object.__eq__ and not (a == b):
+    elif isinstance(a, AbstractSet) and isinstance(b, AbstractSet):
+        same = _pair_off(a, b) is not None
+    else:
+        same = True
+        if type(a).__eq__ is not object.__eq__ and not (a == b):
+            # A native payload, as a datetime subclass carries, is judged by the
+            # equality the class inherits; only object's own identity test is skipped.
+            return False
+    if not same:
         return False
-    return _equivalent(state_a, state_b, sequences=sequences)
+    if isinstance(a, deque) and isinstance(b, deque) and a.maxlen != b.maxlen:
+        return False
+    state_a, state_b = _state(a), _state(b)
+    if state_a is None and state_b is None:
+        return same if isinstance(a, (Mapping, Sequence, AbstractSet)) else bool(a == b)
+    return _equivalent(state_a or {}, state_b or {}, sequences=sequences)
 
 
 _Primitive = (str, bytes, int, float, bool, type(None))
