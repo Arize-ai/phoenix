@@ -3426,10 +3426,15 @@ type ProjectEvaluatorEdge {
   node: ProjectEvaluator!
 }
 
-"""The filter key and value for project evaluator connections"""
+"""A filter for project evaluator connections"""
 input ProjectEvaluatorFilter {
-  col: ProjectEvaluatorFilterColumn!
-  value: String!
+  col: ProjectEvaluatorFilterColumn = null
+  value: String = null
+
+  """
+  Match evaluators that produce any of these exact annotation names, before pagination. Single-output evaluators use the project evaluator's name; multiple outputs use '<evaluator name>.<output name>'. An omitted, null, or empty list does not filter.
+  """
+  annotationNames: [String!]
 }
 
 enum ProjectEvaluatorFilterColumn {

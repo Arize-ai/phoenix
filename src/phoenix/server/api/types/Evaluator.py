@@ -2,7 +2,7 @@ import asyncio
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Annotated, Literal, Optional, Sequence, Union
 
 import sqlalchemy as sa
 import strawberry
@@ -32,6 +32,7 @@ from phoenix.server.api.evaluators import (
     infer_input_schema_from_prompt_template,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.evaluators import get_project_evaluator_annotation_names
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import (
@@ -1101,11 +1102,11 @@ class DatasetEvaluator(Node):
         if evaluator is None:
             raise NotFound(f"Evaluator not found: {record.evaluator_id}")
         if isinstance(evaluator, models.LLMEvaluator):
-            return LLMEvaluator(id=evaluator.id)
+            return LLMEvaluator(id=evaluator.id, db_record=evaluator)
         elif isinstance(evaluator, models.CodeEvaluator):
-            return CodeEvaluator(id=evaluator.id)
+            return CodeEvaluator(id=evaluator.id, db_record=evaluator)
         elif isinstance(evaluator, models.BuiltinEvaluator):
-            return BuiltInEvaluator(id=evaluator.id)
+            return BuiltInEvaluator(id=evaluator.id, db_record=evaluator)
         else:
             raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
@@ -1270,21 +1271,6 @@ _ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
 }
 
 
-def _result_annotation_names(
-    project_evaluator_name: str,
-    output_configs: Sequence[Any],
-) -> list[str]:
-    """The names this evaluator's runs persist annotations under.
-
-    Mirrors `BaseEvaluator.evaluate`: a lone output config (or none declared)
-    writes under the project evaluator's own name; multiple configs each write
-    under `"{name}.{config_name}"`.
-    """
-    if len(output_configs) > 1:
-        return [f"{project_evaluator_name}.{config.name}" for config in output_configs]
-    return [project_evaluator_name]
-
-
 @strawberry.type
 class ProjectEvaluator(Node):
     """An evaluator and its project-specific online evaluation policy."""
@@ -1322,11 +1308,11 @@ class ProjectEvaluator(Node):
         record = await self._get_record(info)
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if isinstance(evaluator, models.LLMEvaluator):
-            return LLMEvaluator(id=evaluator.id)
+            return LLMEvaluator(id=evaluator.id, db_record=evaluator)
         if isinstance(evaluator, models.CodeEvaluator):
-            return CodeEvaluator(id=evaluator.id)
+            return CodeEvaluator(id=evaluator.id, db_record=evaluator)
         if isinstance(evaluator, models.BuiltinEvaluator):
-            return BuiltInEvaluator(id=evaluator.id)
+            return BuiltInEvaluator(id=evaluator.id, db_record=evaluator)
         project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
         raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
 
@@ -1379,7 +1365,7 @@ class ProjectEvaluator(Node):
             return []
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
-        annotation_names = _result_annotation_names(record.name.root, output_configs)
+        annotation_names = get_project_evaluator_annotation_names(record.name.root, output_configs)
         stride: Literal["minute", "hour", "day", "week", "month", "year"]
         if isinstance(time_bin_config, TimeBinConfig):
             stride = time_bin_config.scale.value
