@@ -68,7 +68,9 @@ function createPierreTheme(theme: PierreTheme) {
       color: color("variable"),
     },
     {
-      tag: [t.number, t.bool, t.atom],
+      // JSON's `null` carries its own tag; without it here the editor falls
+      // back to CodeMirror's default purple while JSONPreview uses this color.
+      tag: [t.number, t.bool, t.null, t.atom],
       color: color("constant.numeric"),
     },
     {
