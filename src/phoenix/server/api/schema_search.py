@@ -18,7 +18,7 @@ import re
 import threading
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
-from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union
+from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union, cast
 
 import snowballstemmer
 from graphql import (
@@ -42,7 +42,7 @@ from graphql import (
     specified_scalar_types,
 )
 from graphql.language import parse_value, print_ast
-from graphql.pyutils import Undefined
+from graphql.pyutils import Undefined, is_collection
 from graphql.utilities import ast_from_value
 
 __all__ = [
@@ -243,8 +243,16 @@ class Index:
     owners: frozenset[str]  # every type that owns an indexed member, wrappers included
 
     def resolve(self, name: str) -> Optional[Unit]:
-        """The unit ``name`` denotes: by exact spelling, else case-insensitively when unique."""
-        return self.by_key.get(name) or self.folded.get(name.lower())
+        """The unit ``name`` denotes: by exact spelling, else case-insensitively when
+        unique. A dotted name's owner is resolved on its own first, so a member is
+        never taken from a type that merely spells the owner in another case."""
+        if (u := self.by_key.get(name)) is not None:
+            return u
+        u = self.folded.get(name.lower())
+        owner, dot, _ = name.partition(".")
+        if u is None or not dot:
+            return u
+        return u if _by_case([*self.owners, *self.plumbing], owner) == u.parent else None
 
     def owner(self, name: str) -> Optional[str]:
         """The type ``name`` denotes as an owner of members, wrappers included."""
@@ -395,35 +403,33 @@ def _default(value_def: _ValueDef) -> str:
 
 
 def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
-    """``value`` written as an input literal of ``type_``, or None when it cannot be."""
-    try:
-        node = ast_from_value(value, type_)
-        return print_ast(node) if node is not None else None
-    except Exception:
-        pass
+    """``value`` written as an input literal of ``type_``, or None when it cannot be.
+
+    A custom scalar's literal is what it serializes to, accepted only when the
+    scalar reads it back as the same value."""
     if isinstance(type_, GraphQLNonNull):
         type_ = type_.of_type
+    if value is None:
+        return "null"
     if isinstance(type_, GraphQLList):
-        items = [
-            _literal(v, type_.of_type) for v in (value if isinstance(value, list) else [value])
-        ]
+        values = list(cast(Iterable[object], value)) if is_collection(value) else [value]
+        items = [_literal(v, type_.of_type) for v in values]
         return None if None in items else "[" + ", ".join(i for i in items if i) + "]"
-    if isinstance(type_, GraphQLInputObjectType) and isinstance(value, dict):
-        if not all(k in type_.fields for k in value):
+    if isinstance(type_, GraphQLInputObjectType):
+        if not isinstance(value, dict) or not all(k in type_.fields for k in value):
             return None
         fields = {k: _literal(v, type_.fields[k].type) for k, v in value.items()}
         if None in fields.values():
             return None
         return "{" + ", ".join(f"{k}: {v}" for k, v in fields.items()) + "}"
-    if isinstance(type_, GraphQLEnumType):
-        name = type_.serialize(value)
-        return name if isinstance(name, str) else None
     if isinstance(type_, GraphQLScalarType) and type_.name not in specified_scalar_types:
-        # The literal a caller writes is what the scalar serializes to, provided
-        # the scalar reads it back as the same value.
         literal = _json_literal(type_.serialize(value))
         return literal if literal is not None and _coerces_back(type_, literal, value) else None
-    return None
+    try:
+        node = ast_from_value(value, type_)
+    except Exception:
+        return None
+    return print_ast(node) if node is not None else None
 
 
 def _coerces_back(scalar: GraphQLScalarType, literal: str, value: object) -> bool:
@@ -1513,7 +1519,9 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             parts.append(f"# used by {', '.join(index.used_by.get(u.name, [])[:4])}")
         else:
             if isinstance(t, GraphQLInterfaceType):
-                possible = ", ".join(p.name for p in schema.get_possible_types(t))
+                possible = ", ".join(
+                    p.name for p in schema.get_possible_types(t) if index.resolve(p.name)
+                )
                 if possible:
                     parts.append(f"# possible types: {possible}")
             if paths := reach_paths(index, u.name):

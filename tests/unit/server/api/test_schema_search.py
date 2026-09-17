@@ -1357,6 +1357,58 @@ def test_a_hidden_wrapper_is_not_pointed_at() -> None:
     assert lookup(index, "Conn").startswith("-- No type, field, or mutation named 'Conn'")
 
 
+def test_every_custom_scalar_default_must_coerce_back() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    shifted = GraphQLScalarType("Shifted", serialize=lambda v: v + 1, parse_value=lambda v: v)
+    query = GraphQLObjectType(
+        "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(shifted, 7)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: Shifted = <unprintable>): String"
+
+
+def test_a_tuple_default_for_a_list_type_renders_element_by_element() -> None:
+    from graphql import GraphQLArgument, GraphQLField, GraphQLList, GraphQLSchema, GraphQLString
+
+    arg = GraphQLArgument(GraphQLList(_wrapped_scalar()), (1, 2))
+    query = GraphQLObjectType("Query", {"ok": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    line = first_line(lookup(index, "Query.ok"))
+    assert line == "Query.ok(x: [Wrapped] = [{value: 1}, {value: 2}]): String"
+
+
+def test_a_dotted_name_never_takes_a_member_from_a_case_folded_owner() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: Conn b: conn } type PageInfo { hasNextPage: Boolean! } "
+            "type Conn { edges: [CE] pageInfo: PageInfo } type CE { node: Node cursor: String } "
+            "type Node { id: ID } type conn { value: String }"
+        )
+    )
+    assert "Conn is a connection over Node" in lookup(index, "Conn.value")
+    assert first_line(lookup(index, "conn.value")) == "conn.value: String"
+
+
+def test_possible_types_omit_hidden_implementations() -> None:
+    index = build_index(
+        build_schema(
+            "interface Shared { id: ID } type Query { visible: Visible } "
+            "type Visible implements Shared { id: ID } "
+            "type Secret implements Shared { id: ID token: String } type Mutation { create: Secret }"
+        ),
+        include_mutations=False,
+    )
+    assert "# possible types: Visible" in lookup(index, "Shared")
+    assert "Secret" not in lookup(index, "Shared")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
