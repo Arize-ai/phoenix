@@ -762,21 +762,27 @@ class EvalSweeper(DaemonTask):
             )
             if not candidate_entity_rowids:
                 continue
-            matching_entity_rowids_by_project_evaluator_id[
-                project_evaluator.project_evaluator_id
-            ] = set(
-                await session.scalars(
-                    select(target.entity_model.id).where(
-                        target.entity_model.id.in_(
-                            target.filtered_entity_rowids_subquery(
-                                project_evaluator.filter_condition,
-                                [project_evaluator.project_id],
-                                candidate_entity_rowids,
+            try:
+                matching_entity_rowids_by_project_evaluator_id[
+                    project_evaluator.project_evaluator_id
+                ] = set(
+                    await session.scalars(
+                        select(target.entity_model.id).where(
+                            target.entity_model.id.in_(
+                                target.filtered_entity_rowids_subquery(
+                                    project_evaluator.filter_condition,
+                                    [project_evaluator.project_id],
+                                    candidate_entity_rowids,
+                                )
                             )
                         )
                     )
                 )
-            )
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Failed to evaluate filter query for project evaluator "
+                    f"{project_evaluator.project_evaluator_id}"
+                ) from exc
         decisions: list[dict[str, Any]] = []
         for row in rows:
             project_evaluator = project_evaluators_by_id[row.project_evaluator_id]
