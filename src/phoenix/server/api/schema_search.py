@@ -411,7 +411,7 @@ def _default(value_def: _ValueDef) -> str:
     literal: Optional[str] = None
     if ast is not None and ast.default_value is not None:
         try:
-            current = value_from_ast(ast.default_value, value_def.type) == value
+            current = _equivalent(value_from_ast(ast.default_value, value_def.type), value)
         except Exception:
             current = False
         literal = print_ast(ast.default_value) if current else None
@@ -423,6 +423,18 @@ def _default(value_def: _ValueDef) -> str:
     if literal is not None and "\n" in literal:
         literal = None
     return f" = {literal if literal is not None else _UNPRINTABLE}"
+
+
+def _equivalent(a: object, b: object) -> bool:
+    """Whether two coerced values are the same value of the same kind, so ``True``
+    never passes for ``1``."""
+    if type(a) is not type(b):
+        return False
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(_equivalent(a[k], b[k]) for k in a)
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return len(a) == len(b) and all(_equivalent(x, y) for x, y in zip(a, b))
+    return bool(a == b)
 
 
 def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
@@ -790,8 +802,10 @@ def build_index(
     )
     by_key: dict[str, Unit] = {u.label: u for u in units}
     # A bare mutation name resolves to the mutation unless a schema type spells it the same.
+    shared_root = mutation is not None and mutation is schema.query_type and include_mutations
     for u in units:
-        if u.kind == "mutation" and u.name not in schema.type_map:
+        runs_as_mutation = u.kind == "mutation" or (shared_root and u.parent == mutation_root)
+        if runs_as_mutation and u.name not in schema.type_map:
             by_key.setdefault(u.name, u)
     folded: dict[str, Optional[Unit]] = {}
     for key, u in by_key.items():
@@ -821,7 +835,7 @@ def build_index(
         by_member={k: u for k, u in by_member.items() if u is not None},
         plumbing=plumbing,
         owners=frozenset(u.owner for u in units if u.owner),
-        aliases=frozenset(k for k, u in by_key.items() if u.kind == "mutation" and "." not in k),
+        aliases=frozenset(k for k, u in by_key.items() if u.kind != "type" and "." not in k),
     )
 
 
