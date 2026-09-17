@@ -192,7 +192,7 @@ async def _add_live_session_work_unit(
     session: AsyncSession,
     project_session: models.ProjectSession,
 ) -> models.EvalSessionWorkUnit:
-    """Seed a claimed session evaluation, so a deleter's stand-down is observable."""
+    """Seed a claimed session evaluation."""
     from phoenix.db.types.identifier import Identifier
 
     now = datetime.now(timezone.utc)
