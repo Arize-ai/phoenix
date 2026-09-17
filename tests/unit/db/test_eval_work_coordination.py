@@ -220,7 +220,6 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
         fetched_session = await session.get(models.ProjectSession, project_session_id)
         assert fetched_session is not None
         assert fetched_session.last_span_ingested_at is None
-        assert fetched_session.content_complete is True
 
         work_unit = await session.scalar(
             select(models.EvalSessionWorkUnit).options(

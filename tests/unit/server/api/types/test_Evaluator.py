@@ -7,7 +7,7 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.eval_work import MAX_ATTEMPTS, SESSION_CONTENT_INCOMPLETE_ERROR
+from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -1852,8 +1852,8 @@ async def test_project_evaluator_run_summary(
                     status="DONE",
                     updated_at=now - timedelta(minutes=2),
                 ),
-                # Expired because the session's traces were deleted before the
-                # evaluation ran — a lifecycle event outside every bucket.
+                # The session's traces were deleted before the evaluation ran — a
+                # lifecycle event outside every bucket, and never the last error.
                 models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
                     evaluator_id=evaluator.id,
@@ -1861,7 +1861,7 @@ async def test_project_evaluator_run_summary(
                     config_fingerprint=token_hex(8),
                     evaluated_through=now,
                     status="CONTENT_LOST",
-                    error=SESSION_CONTENT_INCOMPLETE_ERROR,
+                    error="NO_ROOT_TURNS",
                     updated_at=now,
                 ),
             ]

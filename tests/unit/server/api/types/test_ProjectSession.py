@@ -321,25 +321,6 @@ class TestProjectSession:
         assert metadata["total_cost"] == 0
         assert metadata["user_id"] is None
 
-    async def test_session_evaluation_context_is_null_when_content_is_incomplete(
-        self,
-        db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        async with db() as session:
-            project = await _add_project(session)
-            trimmed_session = await _add_project_session(session, project)
-            trace = await _add_trace(session, project, trimmed_session)
-            await _add_span(
-                session,
-                trace,
-                attributes={"input": {"value": "hi"}, "output": {"value": "hello"}},
-            )
-            trimmed_session.content_complete = False
-        # The sweeper never claims a trimmed session, so its remaining turns are
-        # not a context any live evaluation would read.
-        assert await self._node("sessionEvaluationContext", trimmed_session, httpx_client) is None
-
     async def test_session_evaluation_context_is_null_for_a_raced_away_session(
         self,
         db: DbSessionFactory,
@@ -371,7 +352,6 @@ class TestProjectSession:
                 db_record=models.ProjectSession(
                     id=rowid,
                     project_id=project_rowid,
-                    content_complete=True,
                 ),
             )
             for rowid in (raced_rowid, live_rowid)

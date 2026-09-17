@@ -182,7 +182,6 @@ CREATE TABLE public.project_sessions (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
     last_span_ingested_at TIMESTAMP WITH TIME ZONE,
-    content_complete BOOLEAN NOT NULL DEFAULT true,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id
         UNIQUE (session_id),

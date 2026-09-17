@@ -133,12 +133,23 @@ class HydrationFailureReason(str, Enum):
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
-    SESSION_CONTENT_INCOMPLETE = "SESSION_CONTENT_INCOMPLETE"
     TRACE_MISSING = "TRACE_MISSING"
     TRACE_PROJECT_MISMATCH = "TRACE_PROJECT_MISMATCH"
     UNSUPPORTED_TARGET = "UNSUPPORTED_TARGET"
     NO_ROOT_TURNS = "NO_ROOT_TURNS"
     ROOT_SPAN_MISSING = "ROOT_SPAN_MISSING"
+
+
+# The subject was scheduled and then lost its content before it was evaluated. Span
+# work is not listed: a span's work unit is deleted with the span it describes.
+_CONTENT_LOST_REASONS = frozenset(
+    {
+        HydrationFailureReason.SESSION_MISSING,
+        HydrationFailureReason.NO_ROOT_TURNS,
+        HydrationFailureReason.TRACE_MISSING,
+        HydrationFailureReason.ROOT_SPAN_MISSING,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -148,10 +159,12 @@ class HydrationFailure:
 
     @property
     def terminal_status(self) -> RetiredWorkStatus:
-        """The status the unit is retired with: the two lifecycle reasons get their own."""
+        """The status the unit is retired with. Two lifecycle reasons get their own, on
+        every grain: the configuration moved under the unit, or the subject had no
+        content left to evaluate by the time it was hydrated."""
         if self.reason is HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH:
             return "SUPERSEDED"
-        if self.reason is HydrationFailureReason.SESSION_CONTENT_INCOMPLETE:
+        if self.reason in _CONTENT_LOST_REASONS:
             return "CONTENT_LOST"
         return "EXPIRED"
 
@@ -508,8 +521,6 @@ async def _load_session_context(
         return HydrationFailure(HydrationFailureReason.SESSION_MISSING)
     if project_session.project_id != project_id:
         return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
-    if not project_session.content_complete:
-        return HydrationFailure(HydrationFailureReason.SESSION_CONTENT_INCOMPLETE)
     loaded = await load_session_eval_context(
         session,
         project_session_rowid=project_session.id,
