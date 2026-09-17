@@ -77,7 +77,8 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     """A unit that was given up on — the only units whose errors the user is owed.
 
     SUPERSEDED (the evaluator's configuration changed under it) and CONTENT_LOST (the
-    session's traces were deleted first) are lifecycle events, not evaluation failures.
+    subject's content was gone by the time the unit was hydrated) are lifecycle events,
+    not evaluation failures.
     DROPPED (shed from the backlog under load) is the system's doing, not the evaluator's.
     """
     return model.status.in_(("FAILED", "EXPIRED"))

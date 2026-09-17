@@ -207,14 +207,11 @@ class TestProjectMutations:
                 "Session with a surviving trace must not be deleted"
             )
 
-    async def test_clear_project_leaves_no_live_session_evaluations(
+    async def test_clear_project_preserves_surviving_session_evaluations(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
     ) -> None:
-        """Clearing a project destroys session content, so no evaluation of that content
-        may stay live — whether the session row itself survives the clear or not.
-        """
         cutoff = datetime.now(timezone.utc)
         async with db() as session:
             project = models.Project(name=token_hex(8))
@@ -270,7 +267,7 @@ class TestProjectMutations:
                     .where(models.ProjectSession.project_id == project_id)
                 )
             )
-        assert all(status == "CONTENT_LOST" for status in statuses)
+        assert statuses == ["RUNNING"]
 
     async def test_create_project(
         self,

@@ -123,7 +123,7 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
                 candidate_session_rowids=candidate_rowids,
             )
         ),
-        is_evaluable=lambda: models.ProjectSession.content_complete.is_(True),
+        is_evaluable=lambda: true(),
         lease_name_prefix=_SESSION_SWEEP_LEASE_NAME,
     ),
     "TRACE": _SweepTarget(
