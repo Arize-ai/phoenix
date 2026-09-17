@@ -975,11 +975,12 @@ def _ranked_answer(
         used += len(_PAGINATION_LEGEND) + 1
     left: Counter[str] = Counter(owner or _SHARED for owner, _ in entries)
     for i, (is_hit, line, owner) in enumerate(ordered):
-        # A header only goes in with the hit that follows it; the last hit needs no trailer.
+        # A header only goes in with the hit that follows it. The last hit leaves
+        # no room for a trailer unless it is the one cut.
+        trailer = _trailer(left)
         last = i + (1 if is_hit else 2) >= len(ordered)
-        trailer = "" if last else _trailer(left)
         need = len(line) + 1 if is_hit else len(line) + 1 + len(ordered[i + 1][1]) + 1
-        if used + need + len(trailer) > budget:
+        if used + need + (0 if last else len(trailer) + 1) > budget:
             if used + len(trailer) + 1 <= budget:
                 lines.append(trailer)
             break

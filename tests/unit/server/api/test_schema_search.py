@@ -957,6 +957,18 @@ def test_a_list_that_fits_is_not_held_back_by_unused_reservations() -> None:
     assert search(index, "hello", 80) == "Query\n  hello: Int"
 
 
+def test_a_cut_last_hit_is_counted_in_the_trailer() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: A b: B } type A { size: Int } "
+            "type B { size(filter: String, rangeStart: Int, rangeEnd: Int): Int }"
+        )
+    )
+    assert search(index, "size", 100) == (
+        "A  via Query.a\n  size: Int\n... 1 more; narrow the search (B 1)"
+    )
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
