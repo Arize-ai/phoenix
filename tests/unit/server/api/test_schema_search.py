@@ -2681,6 +2681,32 @@ def test_a_float_subclass_default_keeps_the_sign_of_zero() -> None:
     )
 
 
+def test_a_named_timezone_and_a_decimal_exponent_are_kept() -> None:
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    when = GraphQLScalarType(
+        "DateTime", serialize=lambda d: d.isoformat(), parse_value=datetime.fromisoformat
+    )
+    named = datetime(2026, 9, 17, tzinfo=timezone(timedelta(hours=1), "CET"))
+    money = GraphQLScalarType("Decimal", serialize=float, parse_value=lambda v: Decimal(str(v)))
+    for scalar, default in ((when, named), (money, Decimal("-0.00"))):
+        query = GraphQLObjectType(
+            "Query",
+            {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(scalar, default)})},
+        )
+        index = build_index(GraphQLSchema(query=query))
+        assert "<unprintable>" in first_line(lookup(index, "Query.f")), scalar.name
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
