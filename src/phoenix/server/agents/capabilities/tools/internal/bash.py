@@ -206,6 +206,9 @@ def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> 
 _SCHEMA_BUDGET = 4000
 
 
+_MAX_VALUE_CHARS = 2000
+
+
 def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
     """``(searches, names)`` from the flags after ``schema``.
 
@@ -222,6 +225,7 @@ def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
         value = inline if has_value else next(it, None)
         if value is None or not value.strip():
             raise ValueError(f"{flag} needs a value")
+        value = value[:_MAX_VALUE_CHARS]
         if flag == "--search":
             searches.append(value.strip())
         else:
