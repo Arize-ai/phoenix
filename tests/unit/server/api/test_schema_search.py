@@ -473,7 +473,7 @@ def test_a_close_runner_up_is_shown_in_full_too() -> None:
 def test_relay_wrappers_say_what_they_wrap(toy: Index) -> None:
     connection = (
         "-- SpanConnection is a connection over Span: select `edges { node { ... } }` "
-        "and `pageInfo`. Look up Span."
+        "and `pageInfo { hasNextPage endCursor }`. Look up Span."
     )
     assert lookup(toy, "SpanConnection") == connection
     assert search(toy, "SpanConnection") == connection
@@ -1654,6 +1654,37 @@ def test_shared_operation_roots_keep_their_query_fields() -> None:
         index = build_index(build_schema(sdl), include_mutations=include)
         assert first_line(lookup(index, "Root.value")) == "Root.value: Int"
         assert "  value: Int" in describe(index)
+
+
+def test_a_root_serving_mutations_and_subscriptions_stays_when_mutations_are_enabled() -> None:
+    sdl = "schema { query: Query mutation: Root subscription: Root } "
+    sdl += "type Query { ok: Int } type Root { value: Int }"
+    index = build_index(build_schema(sdl))
+    assert first_line(lookup(index, "Root.value")) == "mutation value: Int"
+    assert "disabled" not in search(index, "value")
+    hidden = build_index(build_schema(sdl), include_mutations=False)
+    assert "Mutations are disabled" in lookup(hidden, "Root.value")
+
+
+def test_connection_guidance_names_a_page_info_field_the_schema_has() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { items: Conn } type Conn { edges: [Edge] pageInfo: Info } "
+            "type Edge { node: Item cursor: String } type Item { id: ID } type Info { hasNextPage: Boolean }"
+        )
+    )
+    assert "`pageInfo { hasNextPage }`" in lookup(index, "Conn")
+    toy_text = lookup(build_index(build_schema(TOY_SDL)), "ProjectConnection")
+    assert "`pageInfo { hasNextPage endCursor }`" in toy_text
+
+
+def test_an_overlong_name_is_never_cut_onto_another_name() -> None:
+    from phoenix.server.api.schema_search import _MAX_QUERY_CHARS
+
+    short, long = "a" * (_MAX_QUERY_CHARS - 6), "a" * (_MAX_QUERY_CHARS - 5)
+    index = build_index(build_schema(f"type Query {{ {short}: Int {long}: String }}"))
+    assert not lookup(index, f"Query.{long}").startswith(f"Query.{short}:")
+    assert not search(index, f"Query.{long}").startswith(f"Query.{short}:")
 
 
 # --- properties of the real schema -----------------------------------------------

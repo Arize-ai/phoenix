@@ -142,8 +142,10 @@ def _stem(word: str) -> str:
 
 
 def _clip(text: str) -> str:
-    """Caller text bounded before any of it is scanned, stemmed, or echoed."""
-    return text[: _MAX_QUERY_CHARS * 4].strip()[:_MAX_QUERY_CHARS]
+    """Caller text bounded before any of it is scanned, stemmed, or echoed. A cut
+    ends in an ellipsis, so a cut name never spells another name."""
+    text = text[: _MAX_QUERY_CHARS * 4].strip()
+    return text if len(text) <= _MAX_QUERY_CHARS else text[:_MAX_QUERY_CHARS] + "…"
 
 
 _MAX_ECHO = 80
@@ -639,8 +641,11 @@ def build_index(
     query_root = schema.query_type.name if schema.query_type is not None else "Query"
     mutation = schema.mutation_type
     mutation_root = mutation.name if mutation is not None else None
+    enabled = {schema.query_type, mutation if include_mutations else None} - {None}
     hidden = [
-        t for t in (schema.subscription_type,) if t is not None and t is not schema.query_type
+        t
+        for t in (schema.subscription_type, None if include_mutations else mutation)
+        if t is not None and t not in enabled
     ]
     excluded_mutations: dict[str, frozenset[str]] = {}
     # A query that opens with a verb some mutation opens with wants a write.
@@ -649,8 +654,6 @@ def build_index(
         for fname in (mutation.fields if mutation is not None else ())
         if (tokens := tokenize(fname))
     )
-    if mutation is not None and not include_mutations and mutation is not schema.query_type:
-        hidden.append(mutation)
     visible = [t for t in (schema.query_type, mutation) if t is not None and t not in hidden]
     excluded_types = _types_only_serving(schema, hidden, visible)
     # A mutation root a query field returns is read through that field; its
@@ -1072,9 +1075,15 @@ def _plumbing_miss(index: Index, asked: str) -> Optional[str]:
     extras = _wrapper_extras(t, index.schema)
     also = f" It also has {', '.join(extras)}; look up {name}.{extras[0]}." if extras else ""
     if node is not t:
+        page = get_named_type(t.fields["pageInfo"].type)
+        assert isinstance(page, GraphQLObjectType)
+        picks = [f for f in ("hasNextPage", "endCursor") if f in page.fields] or list(page.fields)[
+            :1
+        ]
         return (
             f"-- {name} is a connection over {node.name}: select "
-            f"`edges {{ node {{ ... }} }}` and `pageInfo`. Look up {node.name}.{also}"
+            f"`edges {{ node {{ ... }} }}` and `pageInfo {{ {' '.join(picks)} }}`. "
+            f"Look up {node.name}.{also}"
         )
     if "node" in t.fields:
         inner = get_named_type(t.fields["node"].type).name
