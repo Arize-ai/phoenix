@@ -26,7 +26,7 @@ from graphql import (
     get_named_type,
     parse,
 )
-from graphql.language import ValueNode, print_ast
+from graphql.language import ValueNode, parse_value, print_ast
 from graphql.pyutils import Undefined
 from graphql.utilities import ast_from_value, value_from_ast_untyped
 
@@ -1741,6 +1741,53 @@ def test_a_shared_root_field_resolves_by_bare_name_when_mutations_are_enabled() 
     )
     assert first_line(lookup(index, "write")) == "Root.write: Int"
     assert "Root.write: Int" in describe(index, names=["write"])
+
+
+def test_a_scalar_default_of_another_kind_than_its_literal_is_marked() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    flag = GraphQLScalarType("Flag", serialize=bool)
+    query = GraphQLObjectType(
+        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(flag, 1)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Flag = <unprintable>): String"
+
+
+def test_a_source_literal_is_compared_after_input_field_renaming() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInputObjectType,
+        GraphQLInt,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    opt = GraphQLInputObjectType(
+        "Opt",
+        {
+            "left": GraphQLInputField(GraphQLInt, out_name="right"),
+            "right": GraphQLInputField(GraphQLInt, out_name="left"),
+        },
+    )
+    arg = GraphQLArgument(opt, {"right": 1})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Opt")),
+        default_value=parse_value("{left: 1}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {right: 1}): String"
 
 
 # --- properties of the real schema -----------------------------------------------
