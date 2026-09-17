@@ -22,8 +22,7 @@ from strawberry.types.graphql import OperationType
 from phoenix.server.api.context import Context
 
 # An operation larger than this is refused unexecuted. Enforced at admission,
-# not transport, so it holds however the operation arrived. Matches the SQL
-# surface's limit.
+# not transport, so it holds however the operation arrived.
 MAX_QUERY_BYTES = 2 * 1024
 
 
