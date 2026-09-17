@@ -2247,6 +2247,90 @@ def test_sets_and_dictionary_keys_are_compared_by_kind() -> None:
         assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
 
 
+def test_shadowed_slots_containers_and_native_subclasses_compare_by_kind() -> None:
+    import collections
+
+    class Base:
+        __slots__ = ("value",)
+
+    class Sub(Base):
+        __slots__ = ("value",)
+
+        def __init__(self, a: object) -> None:
+            Base.value.__set__(self, a)  # type: ignore[attr-defined]
+            Sub.value.__set__(self, 0)  # type: ignore[attr-defined]
+
+    class Key:
+        def __init__(self, v: object) -> None:
+            self.value = v
+
+    outputs = (
+        lambda d: Sub(d["a"]),
+        lambda d: collections.deque([d["a"]]),
+        lambda d: {Key(1), Key(d["a"])},
+        lambda d: dict.fromkeys([Key(1), Key(d["a"])], "x"),
+    )
+    for out in outputs:
+        index = _opt_with_output(out)
+        assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
+def test_a_native_subclass_default_keeps_its_value() -> None:
+    from datetime import datetime
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    class Date(datetime):
+        pass
+
+    when = GraphQLScalarType(
+        "When", serialize=lambda d: d.isoformat(), parse_value=Date.fromisoformat
+    )
+    arg = GraphQLArgument(when, Date(2026, 9, 17))
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="When")),
+        default_value=parse_value('"2020-01-01T00:00:00"'),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert (
+        first_line(lookup(index, "Query.f")) == 'Query.f(x: When = "2026-09-17T00:00:00"): String'
+    )
+
+
+def test_a_large_default_is_rendered_once_and_quickly() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    big = {f"k{i}": i for i in range(800)}
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "f": GraphQLField(
+                GraphQLString, args={"x": GraphQLArgument(GraphQLScalarType("JSON"), big)}
+            )
+        },
+    )
+    index = build_index(GraphQLSchema(query=query))
+    started = time.perf_counter()
+    for _ in range(3):
+        lookup(index, "Query", budget=100)
+    assert time.perf_counter() - started < 1.0
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
