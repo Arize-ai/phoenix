@@ -1570,6 +1570,37 @@ def test_a_wrapper_outranks_a_same_named_mutation_in_any_spelling() -> None:
     assert first_line(lookup(index, "Mutation.Edge")) == "mutation Edge: Int"
 
 
+def test_an_exact_extra_on_a_wrapper_wins_over_a_folded_relay_field() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { edge: Edge } type Edge { node: N NODE: Int cursor: String } type N { id: ID }"
+        )
+    )
+    assert first_line(lookup(index, "edge.NODE")) == "Edge.NODE: Int"
+    assert "Edge is a connection edge over N" in lookup(index, "edge.node")
+
+
+def test_a_scalar_is_described_and_never_shadowed_by_a_mutation() -> None:
+    index = build_index(
+        build_schema(
+            '"A calendar date." scalar Date type Query { date: Date } type Mutation { Date: Int }'
+        )
+    )
+    assert lookup(index, "Date") == "scalar Date  # A calendar date."
+    assert first_line(lookup(index, "Mutation.Date")) == "mutation Date: Int"
+
+
+def test_a_relay_field_with_any_argument_keeps_the_wrapper_whole() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { edges: [Edge] } type N { name: String } "
+            'type Edge { node(locale: String = "en"): N cursor: String }'
+        )
+    )
+    assert first_line(lookup(index, "Edge.node")) == 'Edge.node(locale: String = "en"): N'
+    assert "locale" in search(index, "locale")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
