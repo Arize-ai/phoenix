@@ -391,9 +391,8 @@ def create_phoenix_gql_builtin(
 
             query = _resolve_query_text(parsed, ctx)
 
-            # Approval is the one gate the shared core cannot make: it is about
-            # whether a person sanctioned this call, not about what the schema
-            # permits, and it has no meaning on a transport with no one present.
+            # Approval asks whether a person sanctioned this call. Only this
+            # transport can answer that, so the shared core does not.
             if (
                 GraphQLOperationType.MUTATION in operation_types(query)
                 and mutation_policy.allow_mutations

@@ -141,8 +141,8 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         permission error, leaving the rest of `data` populated -- so check
         `errors` even when `data` is present.
 
-        Run a document directly: one that fails validation comes back as
-        `errors` with nothing executed, so there is nothing to check first.
+        Run documents directly: one that fails validation comes back as
+        `errors` with nothing executed.
         """
         try:
             outcome = await execute_operation(
