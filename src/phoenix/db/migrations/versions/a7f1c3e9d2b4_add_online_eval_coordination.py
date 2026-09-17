@@ -253,15 +253,6 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
-    op.add_column(
-        "project_sessions",
-        sa.Column(
-            "content_complete",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("true"),
-        ),
-    )
     op.create_index(
         "ix_project_sessions_project_id_last_span_ingested_at",
         "project_sessions",
@@ -566,5 +557,4 @@ def downgrade() -> None:
         "ix_project_sessions_project_id_last_span_ingested_at",
         table_name="project_sessions",
     )
-    op.drop_column("project_sessions", "content_complete")
     op.drop_column("project_sessions", "last_span_ingested_at")

@@ -3,7 +3,10 @@ from typing import Optional
 from sqlalchemy import delete, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from phoenix.db import models
-from phoenix.db.helpers import delete_projects_and_evaluator_trace_projects, SupportedSQLDialect
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    delete_projects_and_evaluator_trace_projects,
+)
 from phoenix.server.types import DbSessionFactory
 
 
