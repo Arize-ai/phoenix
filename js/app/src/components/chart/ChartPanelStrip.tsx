@@ -123,7 +123,7 @@ const chartPanelStripCSS = (chartCount: number) => css`
 `;
 
 /** The height a chart panel strip reads well at, shared by every placement. */
-export const CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS = 230;
+export const CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS = 208;
 
 /**
  * The horizontal strip of chart panels shown above a table (project spans,
