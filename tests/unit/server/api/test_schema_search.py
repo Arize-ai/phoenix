@@ -1515,13 +1515,47 @@ def test_a_subscription_root_the_query_side_reaches_stays_visible() -> None:
     assert first_line(lookup(index, "Events.value")) == "Events.value: Int"
 
 
-def test_a_disabled_mutation_root_stays_hidden_even_when_the_query_side_reaches_it() -> None:
-    index = build_index(
-        build_schema("type Query { replay: Mutation } type Mutation { value: Int }"),
-        include_mutations=False,
+def test_a_mutation_root_the_query_side_returns_is_read_as_an_ordinary_type() -> None:
+    sdl = "type Query { replay: Mutation } type Mutation { value(limit: Int!): Result } "
+    sdl += "type Result { id: ID }"
+    index = build_index(build_schema(sdl), include_mutations=False)
+    assert first_line(lookup(index, "Mutation.value")) == "Mutation.value(limit: Int!): Result"
+    assert "# via Query.replay > Mutation.value" in lookup(index, "Mutation.value")
+    assert index.resolve("value") is None
+    unreachable = build_index(
+        build_schema("type Query { ok: Int } type Mutation { value: Int }"), include_mutations=False
     )
-    assert "Mutations are disabled" in lookup(index, "Mutation.value")
-    assert "mutation value" not in search(index, "value")
+    assert "Mutations are disabled" in lookup(unreachable, "Mutation.value")
+
+
+def test_a_wrappers_relay_field_is_explained_even_beside_a_same_named_extra() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { edge: Edge } type Edge { node: N NODE: Int cursor: String } type N { id: ID }"
+        )
+    )
+    assert "Edge is a connection edge over N" in lookup(index, "Edge.node")
+    assert first_line(lookup(index, "Edge.NODE")) == "Edge.NODE: Int"
+
+
+def test_hits_with_different_shown_descriptions_do_not_share_a_line() -> None:
+    index = build_index(
+        build_schema(
+            'type Query { a: A b: B } type A { "Latency in milliseconds." latency: Float } '
+            'type B { "Latency in seconds." latency: Float }'
+        )
+    )
+    text = search(index, "latency")
+    assert '  latency: Float  "Latency in milliseconds."' in text
+    assert '  latency: Float  "Latency in seconds."' in text
+
+
+def test_a_member_folds_case_within_its_exact_owner() -> None:
+    index = build_index(
+        build_schema("type Query { a: A b: a } type A { value: Int } type a { value: String }")
+    )
+    assert first_line(lookup(index, "A.VALUE")) == "A.value: Int"
+    assert first_line(lookup(index, "a.VALUE")) == "a.value: String"
 
 
 def test_a_wrapper_outranks_a_same_named_mutation_in_any_spelling() -> None:

@@ -239,6 +239,7 @@ class Index:
     returned_by: Mapping[str, list[str]]  # object type -> "Type.field" returning it
     by_key: Mapping[str, Unit]  # "Type", "Type.field", "mutationName"
     folded: Mapping[str, Unit]  # lowercase key -> its unit, when only one spelling has it
+    by_member: Mapping[tuple[str, str], Unit]  # (owner, lowercase member) -> unit, when unique
     plumbing: frozenset[str]  # Relay wrapper types left out of the index
     owners: frozenset[str]  # every type that owns an indexed member, wrappers included
 
@@ -248,13 +249,19 @@ class Index:
         never taken from a type that merely spells the owner in another case."""
         if (u := self.by_key.get(name)) is not None:
             return u
-        owner, dot, _ = name.partition(".")
-        if not dot and _by_case(self.plumbing, name) is not None:
+        owner, dot, member = name.partition(".")
+        if not dot:
+            return None if _by_case(self.plumbing, name) else self.folded.get(name.lower())
+        exact = _by_case({*self.owners, *self.plumbing}, owner)
+        if exact is None:
             return None
-        u = self.folded.get(name.lower())
-        if u is None or not dot:
-            return u
-        return u if _by_case({*self.owners, *self.plumbing}, owner) == u.parent else None
+        if exact in self.plumbing:
+            t = self.schema.type_map[exact]
+            assert isinstance(t, GraphQLObjectType)
+            # A wrapper's own Relay field is explained, never looked up as a member.
+            if _by_case(t.fields.keys() - set(_wrapper_extras(t, self.schema)), member):
+                return None
+        return self.by_member.get((exact, member.lower()))
 
     def owner(self, name: str) -> Optional[str]:
         """The type ``name`` denotes as an owner of members, wrappers included."""
@@ -633,12 +640,13 @@ def build_index(
     )
     if mutation is not None and not include_mutations:
         hidden.append(mutation)
-        for fname in mutation.fields:
-            excluded_mutations[fname.lower()] = frozenset(_ident_terms(fname))
     visible = [t for t in (schema.query_type, mutation) if t is not None and t not in hidden]
     excluded_types = _types_only_serving(schema, hidden, visible)
-    if mutation is not None and not include_mutations:
-        excluded_types.add(mutation.name)
+    # A mutation root a query field returns is read through that field; its
+    # members are then ordinary fields, whatever the session policy says.
+    if mutation is not None and mutation.name in excluded_types:
+        for fname in mutation.fields:
+            excluded_mutations[fname.lower()] = frozenset(_ident_terms(fname))
 
     units: list[Unit] = []
     used_by: dict[str, list[str]] = defaultdict(list)
@@ -651,7 +659,7 @@ def build_index(
         if _skip(t, schema) and not walk:
             continue
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
-            kind = "mutation" if t is mutation else "field"
+            kind = "mutation" if t is mutation and include_mutations else "field"
             extras = _wrapper_extras(t, schema)
             for fname, f in t.fields.items():
                 if walk and fname not in walk:
@@ -770,6 +778,11 @@ def build_index(
     for key, u in by_key.items():
         low = key.lower()
         folded[low] = u if folded.get(low, u) is u else None
+    by_member: dict[tuple[str, str], Optional[Unit]] = {}
+    for u in units:
+        if u.parent:
+            at = (u.parent, u.name.lower())
+            by_member[at] = u if by_member.get(at, u) is u else None
     return Index(
         schema=schema,
         query_root=query_root,
@@ -786,6 +799,7 @@ def build_index(
         returned_by=dict(returned_by),
         by_key=by_key,
         folded={k: u for k, u in folded.items() if u is not None},
+        by_member={k: u for k, u in by_member.items() if u is not None},
         plumbing=plumbing,
         owners=frozenset(u.owner for u in units if u.owner),
     )
@@ -1056,6 +1070,7 @@ def _is_hidden_mutation_root(index: Index, key: str) -> bool:
         not index.includes_mutations
         and index.mutation_root is not None
         and key == index.mutation_root.lower()
+        and index.mutation_root not in index.by_key
     )
 
 
@@ -1161,11 +1176,13 @@ def _ranked_answer(
 ) -> str:
     # One line per distinct signature; the parents it occurs on are listed
     # best score first, so the type the query named leads the list.
-    groups: dict[tuple[str, str], list[Unit]] = {}
-    group_score: dict[tuple[str, str], float] = {}
+    groups: dict[tuple[str, str, str], list[Unit]] = {}
+    group_score: dict[tuple[str, str, str], float] = {}
     for score, u in scored:
-        groups.setdefault((u.kind, u.signature), []).append(u)
-        group_score.setdefault((u.kind, u.signature), score)
+        # Hits share a line only when the line would read the same for each.
+        key = (u.kind, u.signature, _matched_description(u, terms))
+        groups.setdefault(key, []).append(u)
+        group_score.setdefault(key, score)
     # Hits with one owner sit under that owner's header, which appears where the
     # owner's best hit ranks; every other hit keeps its own rank position.
     entries = [_entry(index, group, terms) for group in groups.values()]
