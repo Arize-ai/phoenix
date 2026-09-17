@@ -5,16 +5,14 @@ _LLM = {"label": "short", "score": 1.0, "annotator_kind": "LLM"}
 
 
 def test_removes_only_the_named_human_expected_outputs() -> None:
-    metadata = {
-        "annotations": {"length": [_HUMAN, _LLM], "tone": [_HUMAN]},
-        "source": "unit",
-    }
+    annotations = {"length": [_HUMAN, _LLM], "tone": [_HUMAN]}
+    metadata = {"annotations": annotations, "source": "unit"}
     assert without_expected_outputs(metadata, ["length"]) == {
         "annotations": {"length": [_LLM], "tone": [_HUMAN]},
         "source": "unit",
     }
     # The input is left alone.
-    assert metadata["annotations"]["length"] == [_HUMAN, _LLM]
+    assert annotations["length"] == [_HUMAN, _LLM]
 
 
 def test_drops_a_name_whose_only_records_were_expected_outputs() -> None:
