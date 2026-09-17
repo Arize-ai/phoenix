@@ -77,6 +77,10 @@ from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
 )
+from phoenix.db.types.evaluator_definition import (
+    EvaluatorDefinition,
+    EvaluatorDefinitionRootModel,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
@@ -718,6 +722,26 @@ class _ConnectionConfig(TypeDecorator[ConnectionConfig]):
         if value is None:
             return None
         return self._adapter.validate_python(value)
+
+
+class _EvaluatorDefinition(TypeDecorator[EvaluatorDefinition]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[EvaluatorDefinition], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        # JSON mode so the enum members (model provider, template format) store as values.
+        return value.model_dump(mode="json")
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[EvaluatorDefinition]:
+        if value is None:
+            return None
+        return EvaluatorDefinitionRootModel.model_validate(value).root
 
 
 class _ExperimentLogDetail(TypeDecorator[ExperimentLogDetail]):
@@ -1958,7 +1982,7 @@ class ExperimentJob(HasId):
     )
     type: Mapped[str] = mapped_column(
         CheckConstraint(
-            "type IN ('PROMPT', 'EVAL_ONLY')",
+            "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')",
             name="valid_type",
         ),
         nullable=False,
@@ -2091,6 +2115,49 @@ class ExperimentEvalOnlyConfig(ExperimentJob):
     __mapper_args__ = {
         "polymorphic_identity": "EVAL_ONLY",
     }
+
+
+class ExperimentEvaluatorTask(ExperimentJob):
+    """Evaluator task configuration for an experiment.
+
+    The evaluator is the task: each dataset example is judged directly and the verdict is
+    the experiment run. ``definition`` freezes the evaluator as it was drafted, or names the
+    stored evaluator, so the runner rebuilds the same evaluator on start and on resume.
+    """
+
+    __tablename__ = "experiment_evaluator_tasks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[Literal["EVALUATOR"]] = mapped_column(
+        CheckConstraint("type = 'EVALUATOR'", name="valid_type"),
+        server_default="EVALUATOR",
+        nullable=False,
+    )
+
+    # The evaluator's name; the run annotations are named after it
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    evaluator_kind: Mapped[EvaluatorKind] = mapped_column(
+        CheckConstraint(
+            "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')",
+            name="valid_evaluator_kind",
+        ),
+        nullable=False,
+    )
+    definition: Mapped[EvaluatorDefinition] = mapped_column(_EvaluatorDefinition, nullable=False)
+    input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
+    output_configs: Mapped[list[OutputConfigType]] = mapped_column(
+        _OutputConfigList, nullable=False
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "EVALUATOR",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+    )
 
 
 class ExperimentDatasetEvaluator(Base):
