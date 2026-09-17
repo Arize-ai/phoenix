@@ -480,7 +480,7 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
             supplied = get_argument_values(
                 field, FieldNode(name=NameNode(value="f"), arguments=[given]), {}
             )
-            return _same_input(*omitted.values(), *supplied.values(), type_=value_def.type)
+            return _equivalent(*omitted.values(), *supplied.values())
         # An omitted input field passes its default through uncoerced.
         return _equivalent(value_from_ast(node, value_def.type), value_def.default_value)
     except Exception:
@@ -506,34 +506,6 @@ def _names_known_fields(node: ValueNode, type_: GraphQLInputType) -> bool:
     return True
 
 
-def _same_input(a: object, b: object, *, type_: GraphQLInputType) -> bool:
-    """Whether two coerced values of ``type_`` are the same value, following the
-    type: a list coerces a tuple to a list, an input object compares field by
-    field, and a scalar or enum keeps its kind."""
-    if isinstance(type_, GraphQLNonNull):
-        type_ = type_.of_type
-    if a is None or b is None:
-        return a is b
-    if isinstance(type_, GraphQLList):
-        if not (isinstance(a, (list, tuple)) and isinstance(b, (list, tuple))):
-            return False
-        return len(a) == len(b) and all(
-            _same_input(x, y, type_=type_.of_type) for x, y in zip(a, b)
-        )
-    if isinstance(type_, GraphQLInputObjectType):
-        by_out = {f.out_name or n: f.type for n, f in type_.fields.items()}
-        # A custom out_type or colliding out_names leave no field to follow.
-        custom = type_.out_type is not GraphQLInputObjectType.out_type
-        if custom or not (isinstance(a, dict) and isinstance(b, dict)):
-            return _equivalent(a, b)
-        if len(by_out) != len(type_.fields):
-            return _equivalent(a, b)
-        if a.keys() != b.keys():
-            return False
-        return all(k in by_out and _same_input(a[k], b[k], type_=by_out[k]) for k in a)
-    return _equivalent(a, b)
-
-
 def _repeats_a_field(node: ValueNode) -> bool:
     """Whether any object in the literal names a field twice, which validation
     rejects even inside a custom scalar."""
@@ -554,8 +526,11 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         return len(a) == len(b) and all(_equivalent(x, y, sequences=True) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
-    if type(a) is float:
-        return a == b and math.copysign(1.0, a) == math.copysign(1.0, b)
+    if isinstance(a, float):
+        if a != b or math.copysign(1.0, a) != math.copysign(1.0, b):
+            return False
+        if type(a) is float:
+            return True
     if type(a) in (str, bytes, int, bool) or isinstance(a, enum.Enum) or a is None:
         return bool(a == b)
     if isinstance(a, (datetime.datetime, datetime.time)) and isinstance(
