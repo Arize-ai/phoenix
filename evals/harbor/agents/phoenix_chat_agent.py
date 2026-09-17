@@ -28,8 +28,8 @@ class PhoenixChatAgent(BaseAgent):
         return self._phoenix_version
 
     async def setup(self, environment: BaseEnvironment) -> None:
-        await self._exec(environment, f"mkdir -p {_AGENT_DIR}")
-        await environment.upload_file(_CHAT_CLIENT, f"{_AGENT_DIR}/{_CHAT_CLIENT.name}")
+        await environment.exec(f"mkdir -p {_AGENT_DIR}", user="root")
+        await self._upload_for_agent(environment, _CHAT_CLIENT, f"{_AGENT_DIR}/{_CHAT_CLIENT.name}")
         version = await self._exec(
             environment, "python -c 'import phoenix; print(phoenix.__version__)'"
         )
@@ -90,9 +90,18 @@ class PhoenixChatAgent(BaseAgent):
             file.write(instruction)
             instruction_file = Path(file.name)
         try:
-            await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
+            await PhoenixChatAgent._upload_for_agent(
+                environment, instruction_file, _INSTRUCTION_PATH
+            )
         finally:
             instruction_file.unlink()
+
+    @staticmethod
+    async def _upload_for_agent(environment: BaseEnvironment, source: Path, target: str) -> None:
+        """Upload a file the agent user must be able to read; ``upload_file`` copies as root."""
+        await environment.upload_file(source, target)
+        if (user := environment.default_user) is not None:
+            await environment.exec(f"chown {shlex.quote(str(user))} {target}", user="root")
 
     @staticmethod
     async def _exec(environment: BaseEnvironment, command: str) -> str:
