@@ -8,7 +8,6 @@ Every renderer works to a character budget.
 
 from __future__ import annotations
 
-import dataclasses
 import difflib
 import enum
 import functools
@@ -426,10 +425,13 @@ def _default(value_def: _ValueDef) -> str:
     if ast is not None and ast.default_value is not None:
         candidates.append(print_ast(ast.default_value))
     for by_name in (False, True):
-        try:
-            candidates.append(_literal(value, value_def.type, enum_by_name=by_name))
-        except Exception:
-            pass
+        for by_output in (False, True):
+            try:
+                candidates.append(
+                    _literal(value, value_def.type, enum_by_name=by_name, keys_by_output=by_output)
+                )
+            except Exception:
+                pass
     for literal in candidates:
         if literal is not None and "\n" not in literal and _delivers(value_def, literal):
             return f" = {literal}"
@@ -539,17 +541,35 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         )
     if isinstance(a, (str, int, float, bool, enum.Enum)) or a is None:
         return bool(a == b)
-    if dataclasses.is_dataclass(a) and not isinstance(a, type):
-        fields = [f.name for f in dataclasses.fields(a)]
-        return all(_equivalent(getattr(a, f), getattr(b, f), sequences=sequences) for f in fields)
-    if hasattr(a, "__dict__"):
-        return _equivalent(vars(a), vars(b), sequences=sequences)
-    # Equality of an opaque object says nothing about the kinds inside it.
-    return False
+    state_a, state_b = _state(a), _state(b)
+    if state_a is None or state_b is None:
+        # An object without Python-level state, a datetime say, is a leaf value.
+        return bool(a == b)
+    return _equivalent(state_a, state_b, sequences=sequences)
+
+
+def _state(obj: object) -> Optional[dict[str, object]]:
+    """The attributes an object carries in its dictionary and its slots, or None
+    when it has neither."""
+    slots = [
+        name
+        for cls in type(obj).__mro__
+        for name in getattr(cls, "__slots__", ())
+        if name != "__dict__"
+    ]
+    if not slots and not hasattr(obj, "__dict__"):
+        return None
+    state: dict[str, object] = dict(getattr(obj, "__dict__", {}))
+    state.update({name: getattr(obj, name) for name in slots if hasattr(obj, name)})
+    return state
 
 
 def _literal(
-    value: object, type_: GraphQLInputType, *, enum_by_name: bool = False
+    value: object,
+    type_: GraphQLInputType,
+    *,
+    enum_by_name: bool = False,
+    keys_by_output: bool = False,
 ) -> Optional[str]:
     """``value`` written as an input literal of ``type_``, or None when it cannot be.
 
@@ -563,19 +583,26 @@ def _literal(
         return "null"
     if isinstance(type_, GraphQLList):
         values = list(cast(Iterable[object], value)) if is_collection(value) else [value]
-        items = [_literal(v, type_.of_type, enum_by_name=enum_by_name) for v in values]
+        items = [
+            _literal(v, type_.of_type, enum_by_name=enum_by_name, keys_by_output=keys_by_output)
+            for v in values
+        ]
         return None if None in items else "[" + ", ".join(i for i in items if i) + "]"
     if isinstance(type_, GraphQLInputObjectType):
         if not isinstance(value, dict):
             return None
-        # A value keyed by an output name is written by the input name it came from.
+        # With ``keys_by_output`` every key is an output name, written by the input
+        # name it came from; otherwise only keys that are no input name are.
         reverse = {f.out_name: n for n, f in type_.fields.items() if f.out_name}
-        reverse = {o: n for o, n in reverse.items() if o not in type_.fields}
-        value = {k if k in type_.fields else reverse.get(k, k): v for k, v in value.items()}
+        if not keys_by_output:
+            reverse = {o: n for o, n in reverse.items() if o not in type_.fields}
+        value = {reverse.get(k, k): v for k, v in value.items()}
         if not all(k in type_.fields for k in value):
             return None
         fields = {
-            k: _literal(v, type_.fields[k].type, enum_by_name=enum_by_name)
+            k: _literal(
+                v, type_.fields[k].type, enum_by_name=enum_by_name, keys_by_output=keys_by_output
+            )
             for k, v in value.items()
         }
         if None in fields.values():
@@ -1545,7 +1572,7 @@ def _print_compact(t: GraphQLNamedType, index: Optional[Index] = None) -> str:
 def _is_one_of(t: GraphQLInputObjectType) -> bool:
     if getattr(t, "is_one_of", False):
         return True
-    directives = t.ast_node.directives if t.ast_node is not None else ()
+    directives = (t.ast_node.directives or ()) if t.ast_node is not None else ()
     return any(d.name.value == "oneOf" for d in directives)
 
 
