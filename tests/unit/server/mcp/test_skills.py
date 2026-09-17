@@ -76,6 +76,11 @@ class TestTools:
 
         assert loaded == (_GRAPHQL_SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
 
+    def test_skill_files_link_to_their_references(self) -> None:
+        for skill in load_skills(PXI_SKILLS_ROOTS):
+            for reference in skill.references:
+                assert f"]({reference.name})" in skill.text
+
     async def test_load_skill_reference_returns_the_file(self) -> None:
         async with Client(_server(PXI_SKILLS_ROOT)) as client:
             content = await _text(
