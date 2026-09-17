@@ -1601,6 +1601,25 @@ def test_a_relay_field_with_any_argument_keeps_the_wrapper_whole() -> None:
     assert "locale" in search(index, "locale")
 
 
+def test_an_exact_member_wins_even_when_its_siblings_fold_to_the_same_name() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { edge: Edge } type N { id: ID } "
+            "type Edge { node: N NODE: Int Node: String cursor: String }"
+        )
+    )
+    assert first_line(lookup(index, "edge.NODE")) == "Edge.NODE: Int"
+    assert first_line(lookup(index, "edge.Node")) == "Edge.Node: String"
+
+
+def test_an_exact_scalar_wins_over_a_folded_mutation() -> None:
+    index = build_index(
+        build_schema("scalar Date type Query { date: Date } type Mutation { date: Int }")
+    )
+    assert lookup(index, "Date") == "scalar Date"
+    assert first_line(lookup(index, "Mutation.date")) == "mutation date: Int"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
