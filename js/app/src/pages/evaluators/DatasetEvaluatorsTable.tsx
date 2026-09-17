@@ -21,7 +21,7 @@ import React, {
 } from "react";
 import { graphql, readInlineData } from "react-relay";
 
-import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, LinkButton, Text } from "@phoenix/components";
 import {
   CompactEmptyState,
   EmptyState,
@@ -33,8 +33,12 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
-import { TextCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { ACTIONS_COLUMN_ID, TextCell } from "@phoenix/components/table";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -462,18 +466,42 @@ export const DatasetEvaluatorsTable = ({
       },
     ];
     if (datasetId) {
+      // Pinned to the right edge like the prompts table's actions column.
       cols.push({
         header: "",
-        id: "actions",
-        size: 50,
+        id: ACTIONS_COLUMN_ID,
+        size: 150,
+        enableSorting: false,
         cell: ({ row }) => (
-          <DatasetEvaluatorActionMenu
-            datasetEvaluatorId={row.original.id}
-            datasetId={datasetId}
-            evaluatorKind={row.original.evaluator.kind}
-            evaluatorName={row.original.name}
-            updateConnectionIds={updateConnectionIds}
-          />
+          <Flex
+            direction="row"
+            gap="size-100"
+            justifyContent="end"
+            width="100%"
+          >
+            {row.original.evaluator.kind !== "BUILTIN" ? (
+              <StopPropagation>
+                <LinkButton
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                  size="S"
+                  aria-label="Open in playground"
+                  to={`/playground?${new URLSearchParams({
+                    datasetId,
+                    datasetEvaluator0: row.original.id,
+                  })}`}
+                >
+                  Playground
+                </LinkButton>
+              </StopPropagation>
+            ) : null}
+            <DatasetEvaluatorActionMenu
+              datasetEvaluatorId={row.original.id}
+              datasetId={datasetId}
+              evaluatorKind={row.original.evaluator.kind}
+              evaluatorName={row.original.name}
+              updateConnectionIds={updateConnectionIds}
+            />
+          </Flex>
         ),
       });
     }
@@ -488,6 +516,7 @@ export const DatasetEvaluatorsTable = ({
     state: {
       sorting,
       columnSizing,
+      columnPinning: { right: [ACTIONS_COLUMN_ID] },
     },
     columnResizeMode: "onChange",
     onSortingChange: setSorting,
@@ -578,6 +607,7 @@ export const DatasetEvaluatorsTable = ({
                   colSpan={header.colSpan}
                   key={header.id}
                   style={{
+                    ...getCommonPinningStyles(header.column),
                     width: `calc(var(--header-${header.id}-size) * 1px)`,
                   }}
                 >
@@ -651,6 +681,7 @@ export const DatasetEvaluatorsTable = ({
                       <td
                         key={cell.id}
                         style={{
+                          ...getCommonPinningStyles(cell.column),
                           width: `calc(var(${colSizeVar}) * 1px)`,
                           maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                           overflow: "hidden",

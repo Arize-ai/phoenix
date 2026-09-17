@@ -8,6 +8,11 @@ const labels = (actions: ReturnType<typeof buildAgentQuickActions>) =>
   actions.map((action) => action.label);
 
 describe("buildAgentQuickActions", () => {
+  it("offers evaluator actions only for evaluator tasks", () => {
+    expect(labels(buildAgentQuickActions(["playground"], "evaluator"))).toEqual(
+      ["Improve an evaluator", "Run evaluators", "Compare a code evaluator"]
+    );
+  });
   it("falls back to the generic defaults when no actionable context is active", () => {
     expect(buildAgentQuickActions([])).toBe(DEFAULT_QUICK_ACTIONS);
     // app/graphql/web_access are request-only metadata and contribute nothing.

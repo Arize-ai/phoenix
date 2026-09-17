@@ -21,6 +21,7 @@ import {
   Icon,
   Icons,
   Link,
+  LinkButton,
   LoadMoreButton,
   Text,
   View,
@@ -113,6 +114,7 @@ const readRow = (
           droppedCount
         }
         evaluator {
+          id
           kind
           # Selections must cover getProjectEvaluatorResultAnnotations, which
           # resolves the names and optimization metadata of the annotations the
@@ -595,15 +597,40 @@ export function ProjectEvaluatorsTable({
       {
         id: ACTIONS_COLUMN_ID,
         header: "actions",
-        size: 80,
+        size: 150,
         cell: ({ row }) => (
-          <ProjectEvaluatorActionMenu
-            projectEvaluatorId={row.original.id}
-            projectId={projectId}
-            evaluatorKind={row.original.evaluator.kind}
-            evaluatorName={row.original.name}
-            onEdit={openEditSlideover}
-          />
+          <Flex
+            direction="row"
+            gap="size-100"
+            justifyContent="end"
+            width="100%"
+          >
+            {row.original.evaluator.kind !== "BUILTIN" ? (
+              <StopPropagation>
+                <LinkButton
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                  size="S"
+                  aria-label="Open in playground"
+                  // The project evaluator, not its shared evaluator: its own
+                  // input mapping is what runs on spans, so it is what gets
+                  // calibrated. It scores spans, so the playground opens
+                  // without a dataset; pick one there to run the evaluator.
+                  to={`/playground?${new URLSearchParams({
+                    projectEvaluator0: row.original.id,
+                  })}`}
+                >
+                  Playground
+                </LinkButton>
+              </StopPropagation>
+            ) : null}
+            <ProjectEvaluatorActionMenu
+              projectEvaluatorId={row.original.id}
+              projectId={projectId}
+              evaluatorKind={row.original.evaluator.kind}
+              evaluatorName={row.original.name}
+              onEdit={openEditSlideover}
+            />
+          </Flex>
         ),
       },
     ],
