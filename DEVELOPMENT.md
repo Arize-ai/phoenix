@@ -110,18 +110,25 @@ Check out the `README.md` file in the `js/app` directory for more information on
 ## Optional Worktree Development Sessions
 
 Phoenix also provides `make dev-session` for developers who run concurrent
-worktrees. Each worktree receives its own Phoenix database and service ports,
-plus stable HTTPS names derived from the worktree ID through
-[Portless](https://portless.sh/). The command stays attached so `Ctrl+C`
-performs a graceful shutdown. The fixed-port `make dev` and `pnpm --dir js/app
-dev` commands remain available.
+worktrees. Each worktree receives its own Phoenix database, service ports, and
+debugpy port, plus stable HTTPS names derived from the worktree ID through
+[Portless](https://portless.sh/). The command stays attached; press `q` or
+`Ctrl+C` in the process list for a graceful shutdown. When no terminal is
+attached (for example an agent starting it in the background), the process
+list runs headless and the session is controlled with `make dev-sessions`. The
+fixed-port `make dev` and `pnpm --dir js/app dev` commands remain available.
+
+Node 24 (see `.nvmrc`) is required. The first start launches the Portless proxy
+on port 1355 when it is not already running, so URLs look like
+`https://phoenix-<id>.localhost:1355`. To drop the port from URLs, run
+`sudo portless proxy start --https` once before starting a session.
 
 Use the control-plane command from any Phoenix worktree to inspect or manage all
 sessions on the machine:
 
 ```bash
 make dev-sessions                                      # list running sessions
-make dev-sessions ARGS="status <session>"              # readiness and URL
+make dev-sessions ARGS="status <session>"              # readiness, URL, and debugpy address
 make dev-sessions ARGS="open <session>"                # open one in a browser
 make dev-sessions ARGS="restart api <session>"         # restart Python after backend changes
 make dev-sessions ARGS="restart frontend <session>"    # restart Vite without changing its URL
@@ -140,12 +147,19 @@ takes a private snapshot of the primary checkout's `js/app/.env` and copies its
 SQLite database with SQLite's online backup API. The current worktree's `.env`
 is then applied as an optional overlay. Session-owned ports, URLs, and writable
 paths always replace inherited values, so the session cannot write to the
-primary database or another worktree's database.
+primary database or another worktree's database. The snapshot is not refreshed
+until you `clean` the session, so rotated secrets in the primary `.env` do not
+reach a running session on their own.
+
+The API runs under debugpy on a per-session loopback port shown by `status`.
+Attach with the launch configuration from the [debugging section](#debugging-the-python-server)
+after updating its `port`.
 
 Service names are saved with each development instance. URLs remain stable
 when a detached worktree gains a branch or a branch is renamed. From another
 checkout, you can still inspect, stop, and clean an instance after its worktree
-directory has been deleted.
+directory has been deleted, and both keep working while the Portless proxy is
+down.
 
 `stop` preserves the environment snapshot and database for the next start.
 `clean` removes them, so the next start takes a fresh snapshot. Set

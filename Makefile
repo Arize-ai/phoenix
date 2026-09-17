@@ -267,10 +267,10 @@ dev: ## Full dev environment (backend + frontend with hot reload)
 	cd $(APP_DIR) && $(PNPM) dev
 
 dev-session: ## Managed worktree dev environment with a stable Portless URL
-	@$(NODE) --disable-warning=ExperimentalWarning scripts/dev-sessions.ts start $(ARGS)
+	@$(NODE) --disable-warning=ExperimentalWarning js/scripts/dev-sessions.mts start $(ARGS)
 
 dev-sessions: ## Manage worktree dev sessions (ARGS="list", "stop", "clean", ...)
-	@$(NODE) --disable-warning=ExperimentalWarning scripts/dev-sessions.ts $(or $(ARGS),list)
+	@$(NODE) --disable-warning=ExperimentalWarning js/scripts/dev-sessions.mts $(or $(ARGS),list)
 
 dev-backend: ## Backend only (FastAPI server)
 	@echo -e "$(CYAN)Starting backend server...$(NC)"

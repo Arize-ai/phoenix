@@ -2,7 +2,7 @@
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, openSync } from "node:fs";
 import {
   chmod,
   copyFile,
@@ -13,13 +13,19 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { createServer } from "node:net";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { createServer, type Server } from "node:net";
 import { homedir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { delimiter, dirname, join, relative, resolve } from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
-const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const REPOSITORY_ROOT = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  ".."
+);
 const APP_ROOT = join(REPOSITORY_ROOT, "js", "app");
 const STATE_ROOT = resolve(
   process.env.PHOENIX_DEV_SESSIONS_DIR ??
@@ -32,8 +38,15 @@ const PORTLESS = join(
   ".bin",
   "portless"
 );
+const PORTLESS_STATE_DIR = resolve(
+  process.env.PORTLESS_STATE_DIR ?? join(homedir(), ".portless")
+);
+/** Port Portless suggests when it cannot bind 443 without sudo. */
+const UNPRIVILEGED_PROXY_PORT = 1355;
 const MPROCS = join(APP_ROOT, "node_modules", ".bin", "mprocs");
+const MINIMUM_NODE_MAJOR = 24;
 const STALE_DATABASE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const SIGNALS: NodeJS.Signals[] = ["SIGHUP", "SIGINT", "SIGTERM"];
 
 type Session = {
   id: string;
@@ -42,10 +55,17 @@ type Session = {
   pid: number | null;
   controlPort: number;
   grpcPort: number;
+  debugpyPort: number | null;
   startedAt: string;
   databaseClonedAt: string | null;
   routes: { api: string; frontend: string };
 };
+
+type PortlessRoute = { hostname: string; pid?: number };
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 function run({
   command,
@@ -81,6 +101,14 @@ function runGit({
   cwd?: string;
 }): string {
   return run({ command: "git", arguments_, cwd });
+}
+
+function assertNodeVersion(): void {
+  const major = Number(process.versions.node.split(".")[0]);
+  if (major < MINIMUM_NODE_MAJOR)
+    throw new Error(
+      `Node ${MINIMUM_NODE_MAJOR} or newer is required (see .nvmrc); this is Node ${process.versions.node}. Run \`nvm use\` first.`
+    );
 }
 
 function getIdentity(): Pick<Session, "id" | "branch" | "worktreePath"> {
@@ -120,6 +148,7 @@ async function readSession(id: string): Promise<Session | null> {
       await readFile(getSessionPath(id), "utf8")
     ) as Session;
     session.routes ??= getRoutes(session.id);
+    session.debugpyPort ??= null;
     return session;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
@@ -128,16 +157,27 @@ async function readSession(id: string): Promise<Session | null> {
 }
 
 async function readSessions(): Promise<Session[]> {
-  let ids: string[];
+  let entries;
   try {
-    ids = await readdir(STATE_ROOT);
+    entries = await readdir(STATE_ROOT, { withFileTypes: true });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
   }
-  return (await Promise.all(ids.map(readSession))).filter(
-    (session): session is Session => session !== null
-  );
+  const sessions: Session[] = [];
+  for (const entry of entries) {
+    // Finder drops .DS_Store here; a corrupt record must not block the rest.
+    if (!entry.isDirectory()) continue;
+    try {
+      const session = await readSession(entry.name);
+      if (session) sessions.push(session);
+    } catch (error) {
+      console.warn(
+        `Skipping unreadable dev session ${join(STATE_ROOT, entry.name)}: ${getErrorMessage(error)}`
+      );
+    }
+  }
+  return sessions;
 }
 
 /**
@@ -172,14 +212,17 @@ async function writeSession(session: Session): Promise<void> {
   await rename(temporaryPath, getSessionPath(session.id));
 }
 
-function isRunning(session: Session): boolean {
-  if (session.pid === null) return false;
+function isProcessAlive(pid: number): boolean {
   try {
-    process.kill(session.pid, 0);
+    process.kill(pid, 0);
     return true;
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "EPERM";
   }
+}
+
+function isRunning(session: Session): boolean {
+  return session.pid !== null && isProcessAlive(session.pid);
 }
 
 async function selectSession(selector?: string): Promise<Session> {
@@ -205,21 +248,41 @@ async function selectSession(selector?: string): Promise<Session> {
   return matches[0] as Session;
 }
 
-async function getFreePort(): Promise<number> {
-  const server = createServer();
-  const port = await new Promise<number>((resolvePort, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string")
-        return reject(new Error("Could not allocate a local port."));
-      resolvePort(address.port);
-    });
-  });
-  await new Promise<void>((resolveClose, reject) =>
-    server.close((error) => (error ? reject(error) : resolveClose()))
-  );
-  return port;
+/**
+ * Allocate distinct free loopback ports. All listeners stay open until every
+ * port is chosen so the same port is never handed out twice.
+ * @param count - Number of ports to allocate.
+ */
+async function getFreePorts(count: number): Promise<number[]> {
+  const servers: Server[] = [];
+  const ports: number[] = [];
+  try {
+    for (let index = 0; index < count; index += 1) {
+      const server = createServer();
+      servers.push(server);
+      ports.push(
+        await new Promise<number>((resolvePort, reject) => {
+          server.once("error", reject);
+          server.listen(0, "127.0.0.1", () => {
+            const address = server.address();
+            if (!address || typeof address === "string")
+              return reject(new Error("Could not allocate a local port."));
+            resolvePort(address.port);
+          });
+        })
+      );
+    }
+  } finally {
+    await Promise.all(
+      servers.map(
+        (server) =>
+          new Promise<void>((resolveClose) =>
+            server.close(() => resolveClose())
+          )
+      )
+    );
+  }
+  return ports;
 }
 
 function getRoutes(id: string): Session["routes"] {
@@ -251,12 +314,122 @@ function hasReachableService(session: Session): boolean {
   );
 }
 
-function stopPortlessServices(session: Session): void {
-  for (const name of Object.values(session.routes)) {
-    run({
-      command: PORTLESS,
-      arguments_: ["--name", name, "--force", "true"],
+async function readProxyPort(): Promise<number | null> {
+  try {
+    const port = parseInt(
+      await readFile(join(PORTLESS_STATE_DIR, "proxy.port"), "utf8"),
+      10
+    );
+    return Number.isNaN(port) ? null : port;
+  } catch {
+    return null;
+  }
+}
+
+function probeProxy({ port, tls }: { port: number; tls: boolean }) {
+  return new Promise<boolean>((resolveProbe) => {
+    const request = (tls ? httpsRequest : httpRequest)(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: "/",
+        method: "HEAD",
+        timeout: 1000,
+        ...(tls ? { rejectUnauthorized: false } : {}),
+      },
+      (response) => {
+        response.resume();
+        resolveProbe(response.headers["x-portless"] === "1");
+      }
+    );
+    request.on("error", () => resolveProbe(false));
+    request.on("timeout", () => {
+      request.destroy();
+      resolveProbe(false);
     });
+    request.end();
+  });
+}
+
+async function isProxyRunning(): Promise<boolean> {
+  const port = await readProxyPort();
+  if (port === null) return false;
+  return (
+    (await probeProxy({ port, tls: true })) ||
+    (await probeProxy({ port, tls: false }))
+  );
+}
+
+/**
+ * Portless needs sudo to bind 443 and refuses without a TTY, which is how
+ * agents and CI shells run this command. Start it on the unprivileged port
+ * instead so `start` never blocks on an interactive prompt.
+ */
+async function ensureProxy(): Promise<void> {
+  if (await isProxyRunning()) return;
+  console.log(
+    `Starting the Portless proxy on port ${UNPRIVILEGED_PROXY_PORT} (no sudo needed). For URLs without a port, run \`sudo portless proxy start --https\` once instead.`
+  );
+  run({
+    command: PORTLESS,
+    arguments_: [
+      "proxy",
+      "start",
+      "--port",
+      String(UNPRIVILEGED_PROXY_PORT),
+      "--https",
+    ],
+    inherit: true,
+  });
+  if (!(await isProxyRunning()))
+    throw new Error(
+      'The Portless proxy did not start. Run `make dev-sessions ARGS="doctor"`.'
+    );
+}
+
+async function readPortlessRoutes(): Promise<PortlessRoute[]> {
+  try {
+    const routes: unknown = JSON.parse(
+      await readFile(join(PORTLESS_STATE_DIR, "routes.json"), "utf8")
+    );
+    return Array.isArray(routes) ? (routes as PortlessRoute[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Release this session's Portless routes without spawning a Portless command,
+ * so stop and clean keep working while the proxy is down. A live route owner
+ * is the Portless CLI wrapping our process; SIGTERM makes it stop its child
+ * and remove its own route. Dead owners are left for `portless prune`.
+ */
+async function releaseRoutes(session: Session): Promise<void> {
+  const names = Object.values(session.routes);
+  const routes = (await readPortlessRoutes()).filter((route) =>
+    names.some(
+      (name) => route.hostname === name || route.hostname.startsWith(`${name}.`)
+    )
+  );
+  let hasStaleRoutes = false;
+  for (const route of routes) {
+    if (route.pid && isProcessAlive(route.pid)) {
+      try {
+        process.kill(route.pid, "SIGTERM");
+      } catch {
+        hasStaleRoutes = true;
+      }
+    } else {
+      hasStaleRoutes = true;
+    }
+  }
+  if (!hasStaleRoutes) return;
+  try {
+    run({ command: PORTLESS, arguments_: ["prune"] });
+  } catch (error) {
+    console.warn(
+      `Could not prune stale Portless routes: ${getErrorMessage(error)}`
+    );
   }
 }
 
@@ -296,7 +469,7 @@ function findSqliteDatabase({
 }): string | null {
   if (process.env.PHOENIX_DEV_DATABASE_SOURCE)
     return resolve(process.env.PHOENIX_DEV_DATABASE_SOURCE);
-  if (environment.PHOENIX_POSTGRES_HOST) return null;
+  // Same precedence as phoenix.config: an explicit URL wins over Postgres vars.
   if (environment.PHOENIX_SQL_DATABASE_URL) {
     const match = environment.PHOENIX_SQL_DATABASE_URL.match(
       /^sqlite(?:\+[^:]+)?:\/\/\/([^?#]*)/
@@ -304,6 +477,7 @@ function findSqliteDatabase({
     if (!match?.[1]) return null;
     return resolve(primaryRoot, "js", "app", decodeURIComponent(match[1]));
   }
+  if (environment.PHOENIX_POSTGRES_HOST) return null;
   return join(
     resolve(environment.PHOENIX_WORKING_DIR ?? join(homedir(), ".phoenix")),
     "phoenix.db"
@@ -344,8 +518,8 @@ async function seedDatabase({
   }
 }
 
-async function prepareSession(session: Session): Promise<boolean> {
-  const primaryRoot = dirname(
+function getPrimaryRoot(session: Session): string {
+  return dirname(
     resolve(
       session.worktreePath,
       runGit({
@@ -354,11 +528,15 @@ async function prepareSession(session: Session): Promise<boolean> {
       })
     )
   );
+}
+
+/** Slow, port-independent setup: directories, the config snapshot, and the database clone. */
+async function prepareSessionState(session: Session): Promise<boolean> {
+  const primaryRoot = getPrimaryRoot(session);
   const directory = getSessionDirectory(session.id);
-  const dataDirectory = getDataDirectory(session.id);
   const primaryEnvironment = join(directory, "primary.env");
   await Promise.all([
-    mkdir(dataDirectory, { recursive: true }),
+    mkdir(getDataDirectory(session.id), { recursive: true }),
     mkdir(getLogDirectory(session.id), { recursive: true }),
   ]);
   if (!existsSync(primaryEnvironment)) {
@@ -367,11 +545,20 @@ async function prepareSession(session: Session): Promise<boolean> {
     else await writeFile(primaryEnvironment, "");
     await chmod(primaryEnvironment, 0o600);
   }
-  const didCloneDatabase = await seedDatabase({
+  return seedDatabase({
     environmentPath: primaryEnvironment,
     primaryRoot,
     targetPath: getDatabasePath(session.id),
   });
+}
+
+/** Write env.sh with this start's ports and URLs. Session-owned values always win over inherited ones. */
+async function writeEnvironmentFile(session: Session): Promise<void> {
+  const dataDirectory = getDataDirectory(session.id);
+  const primaryEnvironment = join(
+    getSessionDirectory(session.id),
+    "primary.env"
+  );
   const appUrl = getPortlessUrl(session.routes.api);
   const viteUrl = getPortlessUrl(session.routes.frontend);
   const environment = [
@@ -385,6 +572,7 @@ async function prepareSession(session: Session): Promise<boolean> {
     "export PHOENIX_TLS_ENABLED_FOR_HTTP=false",
     "export PHOENIX_TLS_ENABLED_FOR_GRPC=false",
     `export PHOENIX_GRPC_PORT=${session.grpcPort}`,
+    `export DEBUGPY_PORT=${session.debugpyPort}`,
     `export PHOENIX_WORKING_DIR=${quoteShell(dataDirectory)}`,
     `export PHOENIX_SQL_DATABASE_URL=${quoteShell(`sqlite:///${join(dataDirectory, "phoenix.db")}`)}`,
     `export PHOENIX_CHAT_LOG_DIR=${quoteShell(join(dataDirectory, "chat-logs"))}`,
@@ -394,10 +582,57 @@ async function prepareSession(session: Session): Promise<boolean> {
     "",
   ].join("\n");
   await writeFile(getEnvironmentPath(session.id), environment, { mode: 0o600 });
-  return didCloneDatabase;
+}
+
+function spawnMprocs({
+  session,
+  headless,
+}: {
+  session: Session;
+  headless: boolean;
+}) {
+  const mprocsArguments = [
+    "--config",
+    join(APP_ROOT, "mprocs.managed.yaml"),
+    "--server",
+    `127.0.0.1:${session.controlPort}`,
+    "--log-dir",
+    getLogDirectory(session.id),
+  ];
+  const env = {
+    ...process.env,
+    PHOENIX_DEV_ENV_FILE: getEnvironmentPath(session.id),
+    PHOENIX_DEV_API_NAME: session.routes.api,
+    PHOENIX_DEV_FRONTEND_NAME: session.routes.frontend,
+    PHOENIX_DEV_NODE: process.execPath,
+  };
+  if (!headless)
+    return spawn(MPROCS, mprocsArguments, {
+      cwd: APP_ROOT,
+      detached: process.platform !== "win32",
+      env,
+      stdio: "inherit",
+    });
+  if (process.platform === "win32")
+    throw new Error("Run `make dev-session` from a terminal on Windows.");
+  // mprocs is a TUI and exits without a TTY, so give it a pseudo-terminal via
+  // `script`. A zero-size window makes it panic, hence the explicit stty.
+  const command = `stty rows 50 cols 200 2>/dev/null; exec ${quoteShell(MPROCS)} ${mprocsArguments.map(quoteShell).join(" ")}`;
+  const scriptArguments =
+    process.platform === "darwin"
+      ? ["-q", "/dev/null", "/bin/sh", "-c", command]
+      : ["-q", "-e", "-c", command, "/dev/null"];
+  const tuiLog = openSync(join(getLogDirectory(session.id), "mprocs.log"), "a");
+  return spawn("script", scriptArguments, {
+    cwd: APP_ROOT,
+    detached: true,
+    env,
+    stdio: ["ignore", tuiLog, tuiLog],
+  });
 }
 
 async function startSession(): Promise<number> {
+  assertNodeVersion();
   if (!existsSync(PORTLESS) || !existsSync(MPROCS))
     throw new Error("Run `make install-node` before starting a dev session.");
   const identity = getIdentity();
@@ -406,80 +641,144 @@ async function startSession(): Promise<number> {
     throw new Error(
       `This worktree is already running at ${getPortlessUrl(existing.routes.api)}`
     );
-  const session: Session = {
+  await ensureProxy();
+  const startedAt = new Date().toISOString();
+  const preparedSession: Session = {
     ...identity,
     routes: getRoutes(identity.id),
     pid: process.pid,
-    controlPort: await getFreePort(),
-    grpcPort: await getFreePort(),
-    startedAt: new Date().toISOString(),
+    controlPort: 0,
+    grpcPort: 0,
+    debugpyPort: null,
+    startedAt,
     databaseClonedAt: existing?.databaseClonedAt ?? null,
   };
-  const didCloneDatabase = await prepareSession(session);
-  const activeSession: Session = {
-    ...session,
+  const didCloneDatabase = await prepareSessionState(preparedSession);
+  // Ports are allocated after the (possibly slow) database clone so the window
+  // in which another process could grab them before mprocs binds is short.
+  const [controlPort, grpcPort, debugpyPort] = await getFreePorts(3);
+  const session: Session = {
+    ...preparedSession,
+    controlPort: controlPort as number,
+    grpcPort: grpcPort as number,
+    debugpyPort: debugpyPort as number,
     databaseClonedAt: didCloneDatabase
-      ? session.startedAt
-      : session.databaseClonedAt,
+      ? startedAt
+      : preparedSession.databaseClonedAt,
   };
-  await writeSession(activeSession);
-  const url = getPortlessUrl(session.routes.api);
+  await writeEnvironmentFile(session);
+  await writeSession(session);
+  const headless = !process.stdin.isTTY;
   console.log(`\nPhoenix dev session ${session.id}`);
-  console.log(`  app       ${url}`);
+  console.log(`  app       ${getPortlessUrl(session.routes.api)}`);
+  console.log(`  debugpy   127.0.0.1:${session.debugpyPort}`);
   console.log(`  data      ${getDataDirectory(session.id)}`);
   console.log(`  logs      ${getLogDirectory(session.id)}`);
-  console.log(`  stop      make dev-sessions ARGS="stop ${session.id}"\n`);
-  const child = spawn(
-    MPROCS,
-    [
-      "--config",
-      join(APP_ROOT, "mprocs.managed.yaml"),
-      "--server",
-      `127.0.0.1:${session.controlPort}`,
-      "--log-dir",
-      getLogDirectory(session.id),
-    ],
-    {
-      cwd: APP_ROOT,
-      detached: process.platform !== "win32",
-      env: {
-        ...process.env,
-        PHOENIX_DEV_ENV_FILE: getEnvironmentPath(session.id),
-        PHOENIX_DEV_API_NAME: session.routes.api,
-        PHOENIX_DEV_FRONTEND_NAME: session.routes.frontend,
-      },
-      stdio: "inherit",
-    }
-  );
+  console.log(`  stop      make dev-sessions ARGS="stop ${session.id}"`);
+  if (headless)
+    console.log(
+      `  headless  no TTY; the process list is hidden, use make dev-sessions ARGS="status ${session.id}"`
+    );
+  console.log("");
+  const child = spawnMprocs({ session, headless });
   let isStopping = false;
-  const stop = (signal: NodeJS.Signals) => {
-    if (isStopping) return;
-    isStopping = true;
+  const signalChild = (signal: NodeJS.Signals) => {
     try {
-      sendMprocs(activeSession, { c: "quit" });
-    } catch {
       if (child.pid)
         process.kill(
           process.platform === "win32" ? child.pid : -child.pid,
           signal
         );
+    } catch {
+      // Already gone; the close handler below finishes the cleanup.
     }
   };
-  const signals: NodeJS.Signals[] = ["SIGHUP", "SIGINT", "SIGTERM"];
-  for (const signal of signals) process.once(signal, stop);
+  const stop = (signal: NodeJS.Signals) => {
+    if (isStopping) {
+      // A repeated signal during graceful shutdown escalates instead of killing
+      // this supervisor before it can release routes and clear the pid.
+      signalChild(signal);
+      return;
+    }
+    isStopping = true;
+    try {
+      sendMprocs(session, { c: "quit" });
+    } catch {
+      signalChild(signal);
+    }
+  };
+  for (const signal of SIGNALS) process.on(signal, stop);
   try {
     return await new Promise<number>((resolveExit, reject) => {
       child.once("error", reject);
       child.once("close", (code) => resolveExit(code ?? 0));
     });
   } finally {
-    for (const signal of signals) process.removeListener(signal, stop);
+    for (const signal of SIGNALS) process.removeListener(signal, stop);
     try {
-      stopPortlessServices(activeSession);
+      await releaseRoutes(session);
     } finally {
-      await writeSession({ ...activeSession, pid: null });
+      await writeSession({ ...session, pid: null });
     }
   }
+}
+
+/**
+ * Entry point mprocs runs once per process (see mprocs.managed.yaml). It
+ * wraps the API or Vite in a Portless route and maps the assigned port onto
+ * the variables Phoenix and Vite expect.
+ * @param target - Which process to run: api or frontend.
+ */
+async function execProcess(target: string): Promise<number> {
+  const environmentPath = process.env.PHOENIX_DEV_ENV_FILE;
+  const name =
+    target === "api"
+      ? process.env.PHOENIX_DEV_API_NAME
+      : target === "frontend"
+        ? process.env.PHOENIX_DEV_FRONTEND_NAME
+        : undefined;
+  if (!environmentPath || !name)
+    throw new Error(
+      "exec is started by mprocs from a dev session; run `make dev-session` instead."
+    );
+  const script =
+    target === "api"
+      ? 'export PHOENIX_PORT="$PORT"; exec uv run python -Xfrozen_modules=off -m debugpy --listen "127.0.0.1:${DEBUGPY_PORT:?}" -m phoenix.server.main serve --dev --debug'
+      : 'export VITE_PORT="$PORT" VITE_HOST="$HOST"; pnpm run build:static && pnpm run build:relay && exec vite';
+  const environment = readEnvironment(environmentPath);
+  const child = spawn(
+    PORTLESS,
+    ["--name", name, "--force", "/bin/sh", "-c", script],
+    {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        ...environment,
+        // Same node as this supervisor, plus the workspace binaries (vite, pnpm).
+        PATH: [
+          dirname(process.execPath),
+          join(APP_ROOT, "node_modules", ".bin"),
+          join(REPOSITORY_ROOT, "js", "node_modules", ".bin"),
+          environment.PATH ?? process.env.PATH ?? "",
+        ].join(delimiter),
+      },
+      stdio: "inherit",
+    }
+  );
+  const forward = (signal: NodeJS.Signals) => {
+    try {
+      child.kill(signal);
+    } catch {
+      // Already exited.
+    }
+  };
+  for (const signal of SIGNALS) process.on(signal, forward);
+  return new Promise<number>((resolveExit, reject) => {
+    child.once("error", reject);
+    child.once("close", (code, signal) =>
+      resolveExit(code ?? (signal ? 1 : 0))
+    );
+  });
 }
 
 function sendMprocs(session: Session, command: unknown): void {
@@ -538,6 +837,9 @@ async function printStatus(selector?: string): Promise<void> {
   console.log(`  api       ${isApiReady ? "ready" : "unavailable"}`);
   console.log(`  frontend  ${isFrontendReady ? "ready" : "unavailable"}`);
   console.log(
+    `  debugpy   ${status === "running" && session.debugpyPort ? `127.0.0.1:${session.debugpyPort}` : "unavailable"}`
+  );
+  console.log(
     `  database  ${databaseAge ? `cloned ${databaseAge.label} ago` : "no primary database clone"}`
   );
   console.log(`  logs      ${getLogDirectory(session.id)}`);
@@ -579,7 +881,7 @@ async function cleanSession(selector?: string): Promise<void> {
   const directory = getSessionDirectory(session.id);
   if (relative(STATE_ROOT, directory).startsWith(".."))
     throw new Error(`Refusing to remove unmanaged path ${directory}.`);
-  stopPortlessServices(session);
+  await releaseRoutes(session);
   await rm(directory, { recursive: true });
   console.log(`Removed data and logs for ${session.id} (${session.branch}).`);
 }
@@ -589,15 +891,24 @@ async function stopSessions(selector?: string): Promise<void> {
     selector === "--all"
       ? await readSessions()
       : [await selectSession(selector)];
+  let failures = 0;
   for (const session of sessions) {
-    if (isRunning(session)) {
-      sendMprocs(session, { c: "quit" });
-    } else {
-      await writeSession({ ...session, pid: null });
+    try {
+      if (isRunning(session)) {
+        sendMprocs(session, { c: "quit" });
+      } else {
+        await writeSession({ ...session, pid: null });
+      }
+      await releaseRoutes(session);
+      console.log(`Stopping ${session.id} (${session.branch})...`);
+    } catch (error) {
+      failures += 1;
+      console.error(
+        `Could not stop ${session.id} (${session.branch}): ${getErrorMessage(error)}`
+      );
     }
-    stopPortlessServices(session);
-    console.log(`Stopping ${session.id} (${session.branch})...`);
   }
+  if (failures > 0) throw new Error(`${failures} session(s) failed to stop.`);
 }
 
 async function runCommand(): Promise<number> {
@@ -605,6 +916,8 @@ async function runCommand(): Promise<number> {
   switch (command) {
     case "start":
       return startSession();
+    case "exec":
+      return execProcess(arguments_[0] ?? "");
     case "list":
       await listSessions();
       break;
@@ -652,7 +965,7 @@ runCommand().then(
     process.exitCode = exitCode;
   },
   (error: unknown) => {
-    console.error(`Error: ${error instanceof Error ? error.message : error}`);
+    console.error(`Error: ${getErrorMessage(error)}`);
     process.exitCode = 1;
   }
 );

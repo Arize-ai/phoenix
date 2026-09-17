@@ -8,7 +8,7 @@ metadata:
 
 # Phoenix PR Screenshot
 
-Capture screenshots of the Phoenix UI to visually document a feature in a pull request. This skill handles the end-to-end workflow: build, launch, screenshot, upload, and attach to PR.
+Capture screenshots of the Phoenix UI to visually document a feature in a pull request. This skill handles the end-to-end workflow: launch, screenshot, upload, and attach to PR.
 
 ## Prerequisites
 
@@ -19,28 +19,38 @@ Capture screenshots of the Phoenix UI to visually document a feature in a pull r
 
 ## Workflow
 
-### Step 1: Build the frontend
+### Step 1: Start Phoenix
 
-The Phoenix backend serves the built frontend from `src/phoenix/server/static/`. Build it from the `js/app/` directory:
+Use a development instance that matches the current checkout. `make dev-session`
+works in any checkout, including the primary one, and gives the instance its own
+database and ports so it never collides with `~/.phoenix/phoenix.db`:
+
+```bash
+# First start only: skip cloning the primary database unless the feature needs real data
+PHOENIX_DEV_SEED_DATABASE=false make dev-session   # attached; run as a background task without a TTY
+
+# In another shell (or after backgrounding): wait until api and frontend are both ready
+make dev-sessions ARGS="status"
+PHOENIX_URL="$(make --silent dev-sessions ARGS=url)"
+```
+
+Add any feature-specific environment variables to the worktree's `js/app/.env`
+before starting. `status` prints the log directory when something fails. See the
+`phoenix-worktree-dev` skill for restarts and handoff, and
+[DEVELOPMENT.md](../../../DEVELOPMENT.md#optional-worktree-development-sessions)
+for the full command reference. Do not start a second server when a suitable
+instance already exists.
+
+### Step 2: Build the frontend (only when not serving from Vite)
+
+Development instances serve the UI from Vite, so no build is needed. Only if you
+serve a production-style build (`phoenix serve` without `--dev`) does the backend
+need `src/phoenix/server/static/` populated:
 
 ```bash
 cd <repo-root>/js/app
-pnpm install   # only if node_modules is missing
 pnpm run build
 ```
-
-This compiles the React app and copies static assets into the Python server's static directory. Without this step, page routes like `/playground` return 404.
-
-### Step 2: Start Phoenix
-
-Use a Phoenix development instance that matches the current checkout. If none is
-running, start one with the repository's development commands and any
-feature-specific environment variables. In a git worktree, follow the
-`phoenix-worktree-dev` skill for optional isolated session management.
-
-Prefer fresh data for screenshots unless the feature needs an existing dataset.
-Record the instance base URL as `PHOENIX_URL`, wait until it is ready, and do not
-start a second server when a suitable one already exists.
 
 ### Step 3: Capture screenshots
 
@@ -85,9 +95,11 @@ Always preserve the existing PR body content — read it first with `gh pr view 
 
 ### Step 6: Cleanup
 
-Stop only the development instance started for this screenshot workflow, using
-the matching development command (`Ctrl+C` or `make dev-sessions ARGS="stop"` for a
-managed session).
+Stop only the development instance you started for this screenshot workflow:
+
+```bash
+make dev-sessions ARGS="stop"
+```
 
 Close the browser session created for the screenshots.
 
