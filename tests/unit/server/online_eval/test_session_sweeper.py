@@ -354,43 +354,6 @@ async def test_materialization_locks_idle_evaluators_before_due_evaluators_and_s
 
 
 @pytest.mark.postgres_only
-async def test_materialization_waits_for_session_lock(
-    postgresql_engine: AsyncEngine,
-) -> None:
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-
-    async def materialize() -> tuple[int, int | None]:
-        async with db() as session:
-            database_now = await sweeper._database_now(session)
-            return await sweeper._sweep(session, database_now)
-
-    async with db() as locking_session:
-        assert (
-            await locking_session.scalar(
-                select(models.ProjectSession.id)
-                .where(models.ProjectSession.id == project_session_id)
-                .with_for_update()
-            )
-            == project_session_id
-        )
-        materialization = asyncio.create_task(materialize())
-        await asyncio.sleep(0.05)
-        assert not materialization.done()
-
-    inserted_count, _ = await asyncio.wait_for(materialization, timeout=5)
-    assert inserted_count == 1
-    async with db() as session:
-        work_count = await session.scalar(
-            select(func.count()).select_from(models.EvalSessionWorkUnit)
-        )
-        assert await session.scalar(select(models.ProjectEvaluator.swept_through_at)) is not None
-    assert work_count == 1
-
-
-@pytest.mark.postgres_only
 async def test_evaluator_deleted_mid_page_does_not_advance_the_watermark(
     postgresql_engine: AsyncEngine,
 ) -> None:

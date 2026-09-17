@@ -900,7 +900,8 @@ async def test_pending_session_with_deleted_trace_is_claimed_hydrated_and_publis
     )
     async with db() as session:
         await delete_traces(session, models.Trace.id == deleted_trace_id)
-    _patch_playground_client(monkeypatch, _StubLLMClient())
+    client = _StubLLMClient()
+    _patch_playground_client(monkeypatch, client)
     consumer = OnlineEvalConsumer(
         db,
         decrypt=lambda value: value,
@@ -917,6 +918,8 @@ async def test_pending_session_with_deleted_trace_is_claimed_hydrated_and_publis
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "DONE"
     assert len(await _session_annotations(db)) == 1
+    # The score describes what survived the deletion, not what was deleted.
+    assert client.requests[0]["messages"][0]["content"] == "Input: new\n\nOutput: new\n\nGood?"
 
 
 async def test_session_whose_traces_were_all_deleted_retires_as_content_lost(

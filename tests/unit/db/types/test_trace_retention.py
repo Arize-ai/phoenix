@@ -291,7 +291,9 @@ class TestTraceRetentionRuleMaxCount:
                 project_evaluator_id=criteria.id,
                 config_fingerprint=token_hex(8),
                 evaluated_through=now,
-                status="DONE",
+                status="RUNNING",
+                claimed_at=now,
+                claimed_by="consumer",
             )
             session.add(work_unit)
             await session.flush()
@@ -340,7 +342,8 @@ class TestTraceRetentionRuleMaxCount:
                     models.Trace.project_session_rowid == project_session_id
                 )
             )
-            assert retained_work.status == "DONE"
+            assert retained_work.status == "RUNNING"
+            assert retained_work.claimed_by == "consumer"
             assert (
                 await session.get(models.ProjectSessionAnnotation, online_eval_annotation_id)
                 is not None

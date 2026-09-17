@@ -284,8 +284,9 @@ class DbEvalWorkCoordinator:
 
             # Publication lock order:
             # - SPAN/SESSION: evaluator -> session -> work unit.
-            # - TRACE: evaluator -> trace -> work unit; never the trace's session.
-            # Both are compatible with `delete_traces`, whose entity order is session -> trace.
+            # - TRACE: evaluator -> trace -> work unit; never the trace's session, because a
+            #   trace annotation does not describe session content.
+            # Deletion takes no session lock, so no path orders session before trace.
             # Exception: the sweep reaps lapsed leases (work-unit locks) before locking evaluators.
             # Exception: per-span ingest widens the trace before the session.
             project_evaluator_enabled = await session.scalar(
@@ -306,17 +307,11 @@ class DbEvalWorkCoordinator:
                 if trace_rowid is None:
                     raise PublicationClaimLostError(f"work unit {work_unit_id} trace is missing")
             elif self._evaluation_target == "SESSION":
-                if identity.project_session_rowid is None:
-                    raise PublicationClaimLostError(
-                        f"work unit {work_unit_id} session content is missing"
-                    )
-                await self._require_session(session, work_unit_id, identity.project_session_rowid)
+                await self._lock_session(session, work_unit_id, identity.project_session_rowid)
             elif self._evaluation_target == "SPAN":
-                # A span in a session takes the session grain's lock and existence fence.
+                # A span in a session takes the session rung of the lock order.
                 if identity.project_session_rowid is not None:
-                    await self._require_session(
-                        session, work_unit_id, identity.project_session_rowid
-                    )
+                    await self._lock_session(session, work_unit_id, identity.project_session_rowid)
             else:
                 assert_never(self._evaluation_target)
 
@@ -336,11 +331,17 @@ class DbEvalWorkCoordinator:
             await write(session)
 
     @staticmethod
-    async def _require_session(
+    async def _lock_session(
         session: AsyncSession,
         work_unit_id: int,
         project_session_rowid: int,
     ) -> None:
+        """Hold the session row for the rest of the publication transaction.
+
+        The lock is the point: it is the session rung of the publication lock order.
+        The missing-row check rarely fires, since a deleted session cascades its work
+        units away before the identity read above.
+        """
         locked_project_session_rowid = await session.scalar(
             select(models.ProjectSession.id)
             .where(models.ProjectSession.id == project_session_rowid)
