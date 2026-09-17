@@ -142,13 +142,14 @@ jobs:
           claude_args: '--model opus --mcp-config .scratch/mcp.json --strict-mcp-config --allowedTools mcp__phoenix,Read,Write,Edit,Glob,Grep,Agent,Skill,"Bash(git status:*)","Bash(git diff:*)","Bash(git log:*)","Bash(make:*)","Bash(uv:*)","Bash(pnpm:*)","Bash(mkdir:*)","Bash(cat:*)","Bash(ls:*)","Bash(find:*)","Bash(grep:*)"'
 
       - name: Detect fix changes
-        # `.scratch` and `.px` are gitignored, so --exclude-standard hides them:
-        # "changed" means Claude actually edited tracked repo files (a real fix),
-        # not just its own scratch report. No fix -> nothing to verify or PR.
+        # `.scratch` is gitignored. phoenix-error-analysis writes CWD-relative
+        # sidecars under `.px/coding/` which are NOT ignored at repo root — they
+        # are report-only (uploaded as an artifact) and must not count as a fix.
         id: changes
         if: steps.claude.outcome == 'success'
         run: |
-          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+          untracked=$(git ls-files --others --exclude-standard | grep -v '^\.px/' || true)
+          if git diff --quiet && [ -z "$untracked" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No fix produced; skipping verification."
           else
@@ -243,10 +244,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # git ls-files --others lists untracked files.
-          # --exclude-standard hides gitignored paths
-          # -z true for an empty string
-          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
-            echo "No fixable issue found (working tree clean); opening no PR."
+          # --exclude-standard hides gitignored paths (.scratch).
+          # `.px/` is not gitignored at repo root but is not a code fix: skip it.
+          untracked=$(git ls-files --others --exclude-standard | grep -v '^\.px/' || true)
+          if git diff --quiet && [ -z "$untracked" ]; then
+            echo "No fixable issue found (working tree clean aside from .px sidecars); opening no PR."
             exit 0
           fi
 
@@ -254,8 +256,9 @@ jobs:
           # Cover both tracked modifications (git diff) AND newly created files
           # (git ls-files --others): Claude has Write, so a brand-new file under
           # a blocked dir would otherwise slip past `git diff` and ride along in
-          # the `git add -A` below.
-          blocked_files=$({ git diff --name-only; git ls-files --others --exclude-standard; } | sort -u | awk '
+          # the `git add` below. `.px/` is omitted here so restore/rm does not
+          # wipe the coding sidecars before the artifact step.
+          blocked_files=$({ git diff --name-only; git ls-files --others --exclude-standard; } | grep -v '^\.px/' | sort -u | awk '
             /^\.github\// ||
             /^\.cursor\// ||
             /^\.claude\// ||
@@ -276,7 +279,8 @@ jobs:
             done <<< "$blocked_files"
           fi
 
-          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+          untracked=$(git ls-files --others --exclude-standard | grep -v '^\.px/' || true)
+          if git diff --quiet && [ -z "$untracked" ]; then
             echo "Only blocked files changed; restored them and opening no PR."
             exit 0
           fi
@@ -310,7 +314,8 @@ jobs:
             fi
           } > .scratch/pr-body-full.md
 
-          git add -A
+          # Stage tracked edits and untracked files except `.px/` sidecars
+          git add -A -- . ':!.px' ':!.px/**'
           git commit -m "$PR_TITLE"
           git push -u origin "$BRANCH"
           gh pr create \
