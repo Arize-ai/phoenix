@@ -124,7 +124,9 @@ def tokenize(identifier: str) -> list[str]:
     return [t.lower() for part in identifier.split("_") for t in _CAMEL.findall(part)]
 
 
-@functools.lru_cache(maxsize=65536)
+# The schema vocabulary is about a thousand stems; the rest of the cache holds
+# query words and evicts the least recently used once full.
+@functools.lru_cache(maxsize=8192)
 def _stem(word: str) -> str:
     if len(word) > _MAX_STEM_CHARS:
         return word
