@@ -1354,7 +1354,7 @@ def test_a_hidden_wrapper_is_not_pointed_at() -> None:
         ),
         include_mutations=False,
     )
-    assert lookup(index, "Conn").startswith("-- No type, field, or mutation named 'Conn'")
+    assert lookup(index, "Conn").startswith("-- Conn is reachable only through mutations.")
 
 
 def test_every_custom_scalar_default_must_coerce_back() -> None:
@@ -1618,6 +1618,42 @@ def test_an_exact_scalar_wins_over_a_folded_mutation() -> None:
     )
     assert lookup(index, "Date") == "scalar Date"
     assert first_line(lookup(index, "Mutation.date")) == "mutation date: Int"
+
+
+def test_an_exact_scalar_wins_over_a_folded_wrapper_and_is_found_by_search() -> None:
+    index = build_index(
+        build_schema(
+            "scalar Edge type Query { value: Edge edge: edge } "
+            "type edge { node: N cursor: String } type N { id: ID }"
+        )
+    )
+    assert lookup(index, "Edge") == "scalar Edge"
+    dated = build_index(
+        build_schema("scalar Date type Query { date: Date } type Mutation { date: Int }")
+    )
+    assert search(dated, "Date") == "scalar Date"
+    assert describe(dated, search=["Date"]).startswith("scalar Date")
+
+
+def test_a_hidden_exact_owner_is_reported_rather_than_folded() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { thing: thing } type thing { value: Int } "
+            "type Mutation { hidden: Thing } type Thing { value: String }"
+        ),
+        include_mutations=False,
+    )
+    assert lookup(index, "Thing.value").startswith("-- Thing is reachable only through mutations.")
+    assert search(index, "Thing.val").startswith("-- Thing is reachable only through mutations.")
+    assert first_line(lookup(index, "thing.value")) == "thing.value: Int"
+
+
+def test_shared_operation_roots_keep_their_query_fields() -> None:
+    sdl = "schema { query: Root mutation: Root } type Root { value: Int }"
+    for include in (True, False):
+        index = build_index(build_schema(sdl), include_mutations=include)
+        assert first_line(lookup(index, "Root.value")) == "Root.value: Int"
+        assert "  value: Int" in describe(index)
 
 
 # --- properties of the real schema -----------------------------------------------
