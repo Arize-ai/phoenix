@@ -1515,6 +1515,27 @@ def test_a_subscription_root_the_query_side_reaches_stays_visible() -> None:
     assert first_line(lookup(index, "Events.value")) == "Events.value: Int"
 
 
+def test_a_disabled_mutation_root_stays_hidden_even_when_the_query_side_reaches_it() -> None:
+    index = build_index(
+        build_schema("type Query { replay: Mutation } type Mutation { value: Int }"),
+        include_mutations=False,
+    )
+    assert "Mutations are disabled" in lookup(index, "Mutation.value")
+    assert "mutation value" not in search(index, "value")
+
+
+def test_a_wrapper_outranks_a_same_named_mutation_in_any_spelling() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { edge: Edge } type Edge { node: N cursor: String } type N { id: ID } "
+            "type Mutation { Edge: Int }"
+        )
+    )
+    assert "Edge is a connection edge over N" in lookup(index, "EDGE")
+    assert "Edge is a connection edge over N" in lookup(index, "Edge.NODE")
+    assert first_line(lookup(index, "Mutation.Edge")) == "mutation Edge: Int"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
