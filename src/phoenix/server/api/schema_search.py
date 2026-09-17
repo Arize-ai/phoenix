@@ -17,7 +17,9 @@ import json
 import math
 import re
 import threading
+import weakref
 from collections import Counter, defaultdict, deque
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import Iterable, Iterator, Mapping, Optional, Sequence, Union, cast
 
@@ -413,13 +415,30 @@ def _args(field: _FieldLike) -> Mapping[str, GraphQLArgument]:
 _UNPRINTABLE = "<unprintable>"
 
 
+_DEFAULTS: "weakref.WeakKeyDictionary[_ValueDef, str]" = weakref.WeakKeyDictionary()
+
+
 def _default(value_def: _ValueDef) -> str:
     """The `` = literal`` suffix of a default: its source text when that still
     delivers the current default, else a rendering by type that does. A default
-    no literal delivers is marked rather than misspelled."""
-    value = value_def.default_value
-    if value is Undefined:
+    no literal delivers is marked rather than misspelled. Rendered once per
+    argument or input field, since the checks are not cheap."""
+    if value_def.default_value is Undefined:
         return ""
+    try:
+        return _DEFAULTS[value_def]
+    except (KeyError, TypeError):
+        pass
+    rendered = _render_default(value_def)
+    try:
+        _DEFAULTS[value_def] = rendered
+    except TypeError:
+        pass
+    return rendered
+
+
+def _render_default(value_def: _ValueDef) -> str:
+    value = value_def.default_value
     candidates: list[Optional[str]] = []
     ast = value_def.ast_node
     if ast is not None and ast.default_value is not None:
@@ -533,44 +552,61 @@ def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
         return len(a) == len(b) and all(_equivalent(x, y, sequences=True) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
-    if isinstance(a, dict) and isinstance(b, dict):
-        return (
-            len(a) == len(b)
-            and all(
-                _equivalent(a[k], b[match], sequences=sequences)
-                for k in a
-                if (match := _only_match(k, b)) is not _NO_MATCH
-            )
-            and all(_only_match(k, b) is not _NO_MATCH for k in a)
+    if isinstance(a, Mapping) and isinstance(b, Mapping):
+        pairs = _pair_off(a, b)
+        return pairs is not None and all(
+            _equivalent(a[k], b[m], sequences=sequences) for k, m in pairs
         )
-    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+    if isinstance(a, (str, bytes)):
+        return bool(a == b)
+    if isinstance(a, Sequence) and isinstance(b, Sequence):
         return len(a) == len(b) and all(
             _equivalent(x, y, sequences=sequences) for x, y in zip(a, b)
         )
-    if isinstance(a, (set, frozenset)) and isinstance(b, (set, frozenset)):
-        return len(a) == len(b) and all(_only_match(x, b) is not _NO_MATCH for x in a)
-    if isinstance(a, (str, int, float, bool, enum.Enum)) or a is None:
+    if isinstance(a, AbstractSet) and isinstance(b, AbstractSet):
+        return _pair_off(a, b) is not None
+    if isinstance(a, (int, float, bool, enum.Enum)) or a is None:
         return bool(a == b)
     state_a, state_b = _state(a), _state(b)
-    if state_a is None or state_b is None:
-        # An object without Python-level state, a datetime say, is a leaf value.
+    if not state_a or not state_b:
+        # Without Python-level state, a datetime say, equality is all there is.
         return bool(a == b)
     return _equivalent(state_a, state_b, sequences=sequences)
+
+
+_Primitive = (str, bytes, int, float, bool, type(None))
+
+
+def _pair_off(
+    left: Iterable[object], right: Iterable[object]
+) -> Optional[list[tuple[object, object]]]:
+    """Each item of ``left`` paired with an item of ``right`` equivalent to it, every
+    item on the right used once, or None when no such pairing exists. Primitive
+    items pair by hash; the rest by search."""
+    remaining = list(right)
+    by_kind = {(type(x), x): x for x in remaining if isinstance(x, _Primitive)}
+    pairs: list[tuple[object, object]] = []
+    for item in left:
+        if isinstance(item, _Primitive):
+            match = by_kind.pop((type(item), item), _NO_MATCH)
+        else:
+            match = next((x for x in remaining if _equivalent(item, x)), _NO_MATCH)
+        if match is _NO_MATCH:
+            return None
+        remaining.remove(match)
+        pairs.append((item, match))
+    return pairs if not remaining else None
 
 
 _NO_MATCH = object()
 
 
-def _only_match(item: object, among: Iterable[object]) -> object:
-    """The one element of ``among`` equivalent to ``item``, else a sentinel."""
-    matches = [x for x in among if _equivalent(item, x)]
-    return matches[0] if len(matches) == 1 else _NO_MATCH
-
-
 def _state(obj: object) -> Optional[dict[str, object]]:
-    """The attributes an object carries in its dictionary and its slots, or None
-    when it has neither. A private slot is read under its mangled name."""
-    slots: list[str] = []
+    """The attributes an object carries in its dictionary and its slots, each slot
+    read through the class that declares it so a shadowed slot stays distinct, or
+    None when it has neither."""
+    state: dict[str, object] = dict(getattr(obj, "__dict__", {}))
+    found = hasattr(obj, "__dict__")
     for cls in type(obj).__mro__:
         declared = getattr(cls, "__slots__", ())
         for name in [declared] if isinstance(declared, str) else declared:
@@ -578,12 +614,15 @@ def _state(obj: object) -> Optional[dict[str, object]]:
                 continue
             if name.startswith("__") and not name.endswith("__"):
                 name = f"_{cls.__name__.lstrip('_')}{name}"
-            slots.append(name)
-    if not slots and not hasattr(obj, "__dict__"):
-        return None
-    state: dict[str, object] = dict(getattr(obj, "__dict__", {}))
-    state.update({name: getattr(obj, name) for name in slots if hasattr(obj, name)})
-    return state
+            descriptor = cls.__dict__.get(name)
+            if descriptor is None:
+                continue
+            found = True
+            try:
+                state[f"{cls.__qualname__}.{name}"] = descriptor.__get__(obj, cls)
+            except AttributeError:
+                continue
+    return state if found else None
 
 
 def _literal(
