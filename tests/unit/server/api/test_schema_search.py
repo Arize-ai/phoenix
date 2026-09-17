@@ -2350,7 +2350,7 @@ def test_a_rendered_default_is_cached_per_definition() -> None:
     assert _DEFAULTS[id(arg)][0] is arg
 
 
-def test_a_native_subclass_with_attributes_still_keeps_its_value() -> None:
+def test_a_native_subclass_whose_attributes_differ_is_marked() -> None:
     from datetime import datetime
 
     from graphql import (
@@ -2360,28 +2360,21 @@ def test_a_native_subclass_with_attributes_still_keeps_its_value() -> None:
         GraphQLSchema,
         GraphQLString,
     )
-    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
 
     class Date(datetime):
-        def __new__(cls, *args: object, **kwargs: object) -> "Date":
-            made = super().__new__(cls, *args, **kwargs)  # type: ignore[arg-type]
-            made.source = "schema"  # type: ignore[attr-defined]
-            return made
+        pass
 
     when = GraphQLScalarType(
         "When", serialize=lambda d: d.isoformat(), parse_value=Date.fromisoformat
     )
-    arg = GraphQLArgument(when, Date(2026, 9, 17))
-    arg.ast_node = InputValueDefinitionNode(
-        name=NameNode(value="x"),
-        type=NamedTypeNode(name=NameNode(value="When")),
-        default_value=parse_value('"2020-01-01T00:00:00"'),
+    default = Date(2026, 9, 17)
+    default.source = "schema"  # type: ignore[attr-defined]
+    query = GraphQLObjectType(
+        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(when, default)})}
     )
-    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
     index = build_index(GraphQLSchema(query=query))
-    assert (
-        first_line(lookup(index, "Query.f")) == 'Query.f(x: When = "2026-09-17T00:00:00"): String'
-    )
+    # A parsed Date lacks the attribute the default carries, so no literal delivers it.
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: When = <unprintable>): String"
 
 
 def test_an_ordered_mapping_default_keeps_its_order() -> None:
@@ -2426,6 +2419,61 @@ def test_slots_from_factory_made_classes_stay_distinct() -> None:
 
     index = _opt_with_output(make)
     assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
+def test_container_metadata_and_plain_dictionary_order_are_compared() -> None:
+    from collections import deque
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    queue = GraphQLScalarType("Queue", serialize=list, parse_value=deque)
+    query = GraphQLObjectType(
+        "Query",
+        {
+            "f": GraphQLField(
+                GraphQLString, args={"x": GraphQLArgument(queue, deque([1], maxlen=1))}
+            )
+        },
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Queue = <unprintable>): String"
+
+    class Tagged(list):  # type: ignore[type-arg]
+        def __init__(self, d: dict[str, object]) -> None:
+            super().__init__()
+            self.value = d["a"]
+
+    assert (
+        first_line(lookup(_opt_with_output(Tagged), "Query.f"))
+        == "Query.f(x: Opt = {a: 1}): String"
+    )
+
+    arg = GraphQLArgument(GraphQLScalarType("JSON"), {"b": 2, "a": 1})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="JSON")),
+        default_value=parse_value("{a: 1, b: 2}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: JSON = {b: 2, a: 1}): String"
+
+
+def test_negative_zero_keeps_its_sign() -> None:
+    schema = build_schema("type Query { f(x: Float = 0.0): String }")
+    assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default_value = -0.0
+    assert first_line(lookup(build_index(schema), "Query.f")) in (
+        "Query.f(x: Float = -0.0): String",
+        "Query.f(x: Float = -0): String",
+    )
 
 
 # --- properties of the real schema -----------------------------------------------
