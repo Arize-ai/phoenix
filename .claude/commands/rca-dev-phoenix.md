@@ -77,7 +77,7 @@ Include the skill's wrap-up links unchanged. Then exit.
 
 ## Evidence links
 
-Do **not** invent a second URL scheme. phoenix-error-analysis already defines the UI
+Do **not** invent a second URL scheme. Don’t use PHOENIX_AGENTS_COLLECTOR_ENDPOINT. phoenix-error-analysis already defines the UI
 links: `<endpoint>` from the skill's wrap-up, plus `/projects/<project-node-id>/…`
 paths for traces, spans (`selectedSpanNodeId`), filtered tables, and
 config. Paste those URLs into `.scratch/pr-body.md` or
