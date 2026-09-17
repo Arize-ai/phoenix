@@ -38,7 +38,6 @@ from graphql import (
     GraphQLUnionType,
     get_named_type,
     is_introspection_type,
-    is_required_argument,
     specified_scalar_types,
 )
 from graphql.language import parse_value, print_ast
@@ -258,8 +257,10 @@ class Index:
         if exact in self.plumbing:
             t = self.schema.type_map[exact]
             assert isinstance(t, GraphQLObjectType)
-            # A wrapper's own Relay field is explained, never looked up as a member.
-            if _by_case(t.fields.keys() - set(_wrapper_extras(t, self.schema)), member):
+            # A wrapper's own Relay field is explained, never looked up as a member;
+            # a member spelled exactly wins over one that merely folds to it.
+            field = _by_case(t.fields, member)
+            if field is not None and field not in _wrapper_extras(t, self.schema):
                 return None
         return self.by_member.get((exact, member.lower()))
 
@@ -308,8 +309,8 @@ def _is_page_info(t: GraphQLNamedType) -> bool:
     )
 
 
-def _requires_arguments(field: GraphQLField) -> bool:
-    return any(is_required_argument(a) for a in field.args.values())
+def _takes_arguments(field: GraphQLField) -> bool:
+    return bool(field.args)
 
 
 def _edge_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
@@ -322,8 +323,8 @@ def _edge_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
     if (
         isinstance(node, composite)
         and str(t.fields["cursor"].type).rstrip("!") == "String"
-        and not _requires_arguments(t.fields["node"])
-        and not _requires_arguments(t.fields["cursor"])
+        and not _takes_arguments(t.fields["node"])
+        and not _takes_arguments(t.fields["cursor"])
     ):
         return node
     return None
@@ -336,7 +337,7 @@ def _connection_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
         return None
     if not _is_page_info(get_named_type(t.fields["pageInfo"].type)):
         return None
-    if _requires_arguments(t.fields["edges"]) or _requires_arguments(t.fields["pageInfo"]):
+    if _takes_arguments(t.fields["edges"]) or _takes_arguments(t.fields["pageInfo"]):
         return None
     return _edge_node(get_named_type(t.fields["edges"].type))
 
@@ -770,9 +771,9 @@ def build_index(
         if _is_relay_plumbing(t, schema) and t.name not in excluded_types
     )
     by_key: dict[str, Unit] = {u.label: u for u in units}
-    # A bare mutation name resolves to the mutation unless a type spells it the same.
+    # A bare mutation name resolves to the mutation unless a schema type spells it the same.
     for u in units:
-        if u.kind == "mutation":
+        if u.kind == "mutation" and u.name not in schema.type_map:
             by_key.setdefault(u.name, u)
     folded: dict[str, Optional[Unit]] = {}
     for key, u in by_key.items():
@@ -1534,12 +1535,16 @@ def _budgeted(parts: Sequence[str], budget: int) -> str:
 def _lookup_parts(index: Index, name: str) -> list[str]:
     name = _clip(name)
     key = name.lower()
+    schema = index.schema
     u = index.resolve(name)
     if name in index.plumbing:
         u = None
     if u is None:
         if wrapper := _wrapper_guidance(index, name):
             return [wrapper]
+        scalars = [t.name for t in schema.type_map.values() if isinstance(t, GraphQLScalarType)]
+        if (scalar := _by_case(scalars, name)) is not None:
+            return [_print_compact(schema.type_map[scalar])]
         root_key, _, member_key = key.partition(".")
         if key in index.excluded_mutations or (
             _is_hidden_mutation_root(index, root_key) and member_key in index.excluded_mutations
@@ -1555,7 +1560,6 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [miss]
         shown = _echo(name)
         return [f"-- No type, field, or mutation named {shown!r}. Try search('{shown}')."]
-    schema = index.schema
     parts: list[str]
     if u.kind == "type":
         t = schema.type_map[u.name]
