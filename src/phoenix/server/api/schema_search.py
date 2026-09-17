@@ -42,7 +42,7 @@ from graphql import (
 )
 from graphql.language import parse_value, print_ast
 from graphql.pyutils import Undefined, is_collection
-from graphql.utilities import ast_from_value, coerce_input_value, value_from_ast
+from graphql.utilities import ast_from_value, value_from_ast_untyped
 
 __all__ = [
     "READ_ROOTS",
@@ -411,11 +411,9 @@ def _default(value_def: _ValueDef) -> str:
     literal: Optional[str] = None
     if ast is not None and ast.default_value is not None:
         try:
-            # Both sides coerced, so renamed input fields compare at the same stage.
-            current = _equivalent(
-                value_from_ast(ast.default_value, value_def.type),
-                coerce_input_value(value, value_def.type),
-            )
+            # Execution passes a default through uncoerced, so the literal's raw
+            # structure is what must match the value.
+            current = _equivalent(value_from_ast_untyped(ast.default_value), value)
         except Exception:
             current = False
         literal = print_ast(ast.default_value) if current else None
@@ -601,33 +599,35 @@ def _reachable(schema: GraphQLSchema, roots: Iterable[GraphQLNamedType]) -> set[
     """Every type a selection or an argument can reach from ``roots``.
 
     A field typed as an interface or union delivers every implementation or
-    member. An interface reached only because a visible type implements it
-    delivers none: a selection on that type cannot become a sibling."""
+    member. An interface reached only because a visible type implements it, or
+    named only in such an interface's signature, delivers none: a selection on
+    that type cannot become a sibling. The types those signatures name are
+    themselves visible."""
     seen: set[str] = set()
-    expanded: set[str] = set()  # interfaces whose implementations were queued
+    expanded: set[str] = set()  # abstract types whose members were queued
     queue: deque[tuple[GraphQLNamedType, bool]] = deque((t, True) for t in roots)
     while queue:
         t, expand = queue.popleft()
-        expand = expand and isinstance(t, GraphQLInterfaceType) and t.name not in expanded
+        abstract = isinstance(t, (GraphQLInterfaceType, GraphQLUnionType))
+        expand = expand and abstract and t.name not in expanded
         if t.name in seen and not expand:
             continue
         seen.add(t.name)
         nxt: list[tuple[GraphQLNamedType, bool]] = []
         if isinstance(t, GraphQLInterfaceType) and not expand:
-            # Its fields are the implementing type's fields, already walked.
-            continue
-        if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
+            nxt.extend((get_named_type(f.type), False) for f in t.fields.values())
+        elif isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
             for f in t.fields.values():
                 nxt.append((get_named_type(f.type), True))
                 nxt.extend((get_named_type(a.type), True) for a in f.args.values())
             nxt.extend((i, False) for i in t.interfaces)
-            if expand:
-                assert isinstance(t, GraphQLInterfaceType)
+            if isinstance(t, GraphQLInterfaceType):
                 expanded.add(t.name)
                 nxt.extend((impl, True) for impl in schema.get_possible_types(t))
         elif isinstance(t, GraphQLInputObjectType):
             nxt.extend((get_named_type(f.type), True) for f in t.fields.values())
-        elif isinstance(t, GraphQLUnionType):
+        elif isinstance(t, GraphQLUnionType) and expand:
+            expanded.add(t.name)
             nxt.extend((m, True) for m in t.types)
         queue.extend(nxt)
     return seen
@@ -1385,11 +1385,13 @@ def _neighbors(index: Index, t: _ObjectLike) -> Iterator[GraphQLNamedType]:
         yield n
 
 
-def _print_compact(t: GraphQLNamedType) -> str:
-    """The type as SDL with one line per member and descriptions as trailing comments."""
+def _print_compact(t: GraphQLNamedType, index: Optional[Index] = None) -> str:
+    """The type as SDL with one line per member and descriptions as trailing comments.
+    With ``index``, a union lists only the members the index can see."""
     note = f"  # {_first_sentence(t.description)}" if t.description else ""
     if isinstance(t, GraphQLUnionType):
-        return f"union {t.name} = {' | '.join(m.name for m in t.types)}{note}"
+        shown = [m.name for m in t.types if index is None or _is_visible_type(index, m.name)]
+        return f"union {t.name} = {' | '.join(shown)}{note}"
     if isinstance(t, GraphQLScalarType):
         return f"scalar {t.name}{note}"
     members: list[tuple[str, Optional[str]]]
@@ -1639,7 +1641,7 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     parts: list[str]
     if u.kind == "type":
         t = schema.type_map[u.name]
-        parts = [_print_compact(t)]
+        parts = [_print_compact(t, index)]
         if isinstance(t, GraphQLInputObjectType):
             parts.append(f"# input for {', '.join(index.used_by.get(u.name, [])[:4])}")
         elif isinstance(t, GraphQLEnumType):

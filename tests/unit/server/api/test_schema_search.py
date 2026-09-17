@@ -1790,6 +1790,41 @@ def test_a_source_literal_is_compared_after_input_field_renaming() -> None:
     assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {right: 1}): String"
 
 
+def test_a_source_literal_of_another_kind_than_the_raw_default_is_not_kept() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    flag = GraphQLScalarType("Flag", serialize=bool, parse_value=bool)
+    arg = GraphQLArgument(flag, 2)
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Flag")),
+        default_value=parse_value("true"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Flag = <unprintable>): String"
+
+
+def test_a_union_named_in_a_visible_interface_signature_is_visible_with_visible_members() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { t: T } interface I { u: U } type T implements I { u: A } "
+            "union U = A | B type A { id: ID } type B { secret: String } type Mutation { write: U }"
+        ),
+        include_mutations=False,
+    )
+    assert "  u: U" in lookup(index, "I")
+    assert first_line(lookup(index, "U")) == "union U = A"
+    assert index.resolve("B") is None
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
