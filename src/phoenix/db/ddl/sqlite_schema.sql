@@ -174,7 +174,6 @@ CREATE TABLE project_sessions (
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
     last_span_ingested_at TIMESTAMP,
-    content_complete BOOLEAN DEFAULT true NOT NULL,
     CONSTRAINT pk_project_sessions PRIMARY KEY (id),
     CONSTRAINT uq_project_sessions_session_id UNIQUE (session_id),
     CONSTRAINT fk_project_sessions_project_id_projects
