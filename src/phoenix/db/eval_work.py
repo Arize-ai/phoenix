@@ -21,8 +21,6 @@ EVAL_SESSION_WORK_STATUSES = (
     *SESSION_DECLINED_STATUSES,
 )
 
-SESSION_CONTENT_INCOMPLETE_ERROR = "session content incomplete"
-
 
 def _status_in(statuses: tuple[str, ...]) -> str:
     return "status IN (" + ", ".join(f"'{status}'" for status in statuses) + ")"
