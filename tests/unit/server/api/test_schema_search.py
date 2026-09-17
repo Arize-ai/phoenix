@@ -1870,6 +1870,29 @@ def test_a_stale_literal_that_no_longer_validates_is_not_kept() -> None:
     assert first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
 
 
+def test_a_tuple_inside_a_list_of_custom_scalars_keeps_its_kind() -> None:
+    schema = build_schema("scalar Seq type Query { f(x: [Seq] = [[1, 2]]): String }")
+    assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default_value = [(1, 2)]
+    assert (
+        first_line(lookup(build_index(schema), "Query.f"))
+        == "Query.f(x: [Seq] = <unprintable>): String"
+    )
+
+
+def test_a_singleton_literal_for_a_list_is_checked_against_the_item_type() -> None:
+    schema = build_schema(
+        "input Opt { a: Int old: Int } type Query { f(x: [Opt] = {a: 1, old: 2}): String }"
+    )
+    opt = schema.type_map["Opt"]
+    assert isinstance(opt, GraphQLInputObjectType) and schema.query_type is not None
+    del opt.fields["old"]
+    schema.query_type.fields["f"].args["x"].default_value = [{"a": 1}]
+    assert (
+        first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: [Opt] = [{a: 1}]): String"
+    )
+
+
 # --- properties of the real schema -----------------------------------------------
 
 

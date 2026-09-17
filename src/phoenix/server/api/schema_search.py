@@ -442,11 +442,6 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
             node, value_def.type
         ):
             return False  # the literal is not valid input for the current type
-        # Only a structured type coerces a tuple to a list on the way in.
-        inner = (
-            value_def.type.of_type if isinstance(value_def.type, GraphQLNonNull) else value_def.type
-        )
-        structured = isinstance(inner, (GraphQLList, GraphQLInputObjectType))
         if isinstance(value_def, GraphQLArgument):
             field = GraphQLField(GraphQLInt, args={"x": value_def})
             omitted = get_argument_values(
@@ -456,10 +451,10 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
             supplied = get_argument_values(
                 field, FieldNode(name=NameNode(value="f"), arguments=[given]), {}
             )
-            return _equivalent(*omitted.values(), *supplied.values(), sequences=structured)
+            return _same_input(*omitted.values(), *supplied.values(), type_=value_def.type)
         # An omitted input field passes its default through uncoerced.
-        return _equivalent(
-            value_from_ast(node, value_def.type), value_def.default_value, sequences=structured
+        return _same_input(
+            value_from_ast(node, value_def.type), value_def.default_value, type_=value_def.type
         )
     except Exception:
         return False
@@ -470,8 +465,10 @@ def _names_known_fields(node: ValueNode, type_: GraphQLInputType) -> bool:
     parser leaves unknown fields in place, validation rejects them."""
     if isinstance(type_, GraphQLNonNull):
         type_ = type_.of_type
-    if isinstance(node, ListValueNode) and isinstance(type_, GraphQLList):
-        return all(_names_known_fields(v, type_.of_type) for v in node.values)
+    if isinstance(type_, GraphQLList):
+        # A single value coerces to a one-item list.
+        items = node.values if isinstance(node, ListValueNode) else [node]
+        return all(_names_known_fields(v, type_.of_type) for v in items)
     if isinstance(node, ObjectValueNode) and isinstance(type_, GraphQLInputObjectType):
         return all(
             f.name.value in type_.fields
@@ -479,6 +476,28 @@ def _names_known_fields(node: ValueNode, type_: GraphQLInputType) -> bool:
             for f in node.fields
         )
     return True
+
+
+def _same_input(a: object, b: object, *, type_: GraphQLInputType) -> bool:
+    """Whether two coerced values of ``type_`` are the same value, following the
+    type: a list coerces a tuple to a list, an input object compares field by
+    field, and a scalar or enum keeps its kind."""
+    if isinstance(type_, GraphQLNonNull):
+        type_ = type_.of_type
+    if a is None or b is None:
+        return a is b
+    if isinstance(type_, GraphQLList):
+        if not (isinstance(a, (list, tuple)) and isinstance(b, (list, tuple))):
+            return False
+        return len(a) == len(b) and all(
+            _same_input(x, y, type_=type_.of_type) for x, y in zip(a, b)
+        )
+    if isinstance(type_, GraphQLInputObjectType):
+        if not (isinstance(a, dict) and isinstance(b, dict)) or a.keys() != b.keys():
+            return False
+        by_out = {f.out_name or n: f.type for n, f in type_.fields.items()}
+        return all(k in by_out and _same_input(a[k], b[k], type_=by_out[k]) for k in a)
+    return _equivalent(a, b)
 
 
 def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
