@@ -1391,8 +1391,18 @@ def _implicit_field(index: Index, name: str) -> Optional[str]:
     if not (_is_visible_type(index, exact) or exact in index.plumbing or exact.startswith("__")):
         return None
     t = index.schema.type_map[exact]
-    if exact.startswith("__") and isinstance(t, GraphQLObjectType) and member in t.fields:
-        return f"{exact}.{_signature(member, t.fields[member])}"
+    if exact.startswith("__") and member != "__typename":
+        # Introspection types are not indexed, so a request on one is answered
+        # from the type itself: the field or value asked for, else what it has.
+        if isinstance(t, GraphQLObjectType):
+            if (field := _by_case(t.fields, member)) is not None:
+                return f"{exact}.{_signature(field, t.fields[field])}"
+            return f"-- {exact} has no field {_echo(member)!r}. Its fields: {', '.join(t.fields)}."
+        if isinstance(t, GraphQLEnumType):
+            if (value := _by_case(t.values, member)) is not None:
+                return f"enum {exact}.{value}"
+            return f"-- {exact} has no value {_echo(member)!r}. Its values: {', '.join(t.values)}."
+        return None
     if member == "__typename":
         if not isinstance(t, (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)):
             return None
@@ -1835,7 +1845,7 @@ def describe(
     With neither, the query root. Sections share the budget: each takes an
     equal part of what remains, never less than a useful minimum, so a short
     definition leaves room for the next. When what remains cannot hold another
-    section, the rest are named as omitted. Fixed trailing lines appear once
+    section, the rest are counted as omitted. Fixed trailing lines appear once
     at the end.
     """
     total = len(names) + len(search)
