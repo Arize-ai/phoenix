@@ -4484,6 +4484,29 @@ export interface components {
             /** Modelname */
             modelName: string;
         };
+        /**
+         * PlaygroundEvaluatorTaskUIContext
+         * @description An evaluator draft judged over the dataset; its judge prompt is the instance's prompt.
+         */
+        PlaygroundEvaluatorTaskUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "evaluator";
+            /**
+             * Evaluatorkind
+             * @enum {string}
+             */
+            evaluatorKind: "LLM" | "CODE";
+            /** Name */
+            name: string;
+            /**
+             * Isdirty
+             * @default false
+             */
+            isDirty?: boolean;
+        };
         /** PlaygroundEvaluatorUIContext */
         PlaygroundEvaluatorUIContext: {
             /** Datasetevaluatorid */
@@ -4520,6 +4543,16 @@ export interface components {
             model?: (components["schemas"]["PlaygroundBuiltinModelUIContext"] | components["schemas"]["PlaygroundCustomProviderModelUIContext"]) | null;
             /** Experimentid */
             experimentId?: string | null;
+            /** Task */
+            task?: (components["schemas"]["PlaygroundPromptTaskUIContext"] | components["schemas"]["PlaygroundEvaluatorTaskUIContext"]) | null;
+        };
+        /** PlaygroundPromptTaskUIContext */
+        PlaygroundPromptTaskUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "prompt";
         };
         /** PlaygroundUIContext */
         PlaygroundUIContext: {
@@ -4528,6 +4561,12 @@ export interface components {
              * @enum {string}
              */
             type: "playground";
+            /**
+             * Taskkind
+             * @default prompt
+             * @enum {string}
+             */
+            taskKind?: "prompt" | "evaluator";
             /**
              * Recordexperiments
              * @default true
