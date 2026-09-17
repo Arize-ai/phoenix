@@ -1079,7 +1079,7 @@ def test_one_of_inputs_keep_their_directive() -> None:
     assert first_line(lookup(index, "Locator")) == "input Locator @oneOf {"
 
 
-def test_a_default_no_literal_can_spell_is_quoted_as_json() -> None:
+def test_a_default_no_literal_can_spell_is_marked() -> None:
     from graphql import (
         GraphQLArgument,
         GraphQLField,
@@ -1094,9 +1094,53 @@ def test_a_default_no_literal_can_spell_is_quoted_as_json() -> None:
         {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(json_scalar, {"a-b": 1})})},
     )
     index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.ok")) == "Query.ok(x: JSON = <unprintable>): String"
+
+
+def test_a_code_first_default_renders_by_type() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLEnumType,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInputObjectType,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    json_scalar = GraphQLScalarType("JSON")
+    choice = GraphQLEnumType("Choice", {"A": "a"})
+    opt = GraphQLInputObjectType(
+        "Opt", {"payload": GraphQLInputField(json_scalar), "choice": GraphQLInputField(choice)}
+    )
+    default = {"payload": {"a": [1, "b", None]}, "choice": "a"}
+    query = GraphQLObjectType(
+        "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt, default)})}
+    )
+    index = build_index(GraphQLSchema(query=query))
     line = first_line(lookup(index, "Query.ok"))
-    assert line == 'Query.ok(x: JSON = "{\\"a-b\\": 1}"): String'
-    parse("type Q { " + line.split(".", 1)[1] + " }")
+    assert line == 'Query.ok(x: Opt = {payload: {a: [1, "b", null]}, choice: A}): String'
+
+
+def test_a_connection_over_a_scalar_is_an_ordinary_type() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { c: Conn } type Conn { edges: [Edge] pageInfo: Int } "
+            "type Edge { node: Int cursor: String }"
+        )
+    )
+    assert first_line(lookup(index, "Conn")) == "type Conn {"
+    assert first_line(lookup(index, "Edge")) == "type Edge {"
+
+
+def test_wrapper_owners_resolve_by_exact_case_first() -> None:
+    sdl = TOY_SDL + " extend type ProjectConnection { stats: Int }"
+    sdl += " type projectconnection { edges: [ProjectEdge!]! pageInfo: PageInfo! size: Int }"
+    sdl += " extend type Query { lower: projectconnection }"
+    index = build_index(build_schema(sdl))
+    assert "  stats: Int" in search(index, "ProjectConnection.stat")
+    assert "  size: Int" in search(index, "projectconnection.siz")
 
 
 def test_a_scoped_search_on_an_indexed_wrapper_works() -> None:
