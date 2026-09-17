@@ -1460,7 +1460,10 @@ async def evaluator_experiment(db: DbSessionFactory) -> _EvaluatorExperiment:
                 input={"question": "Which capital?"},
                 output={"answer": answer},
                 # An expected output a reviewer recorded; the evaluator must never see it
-                metadata_={"annotations": [{"name": "length", "score": 5.0}], "source": "unit"},
+                metadata_={
+                    "annotations": {"length": [{"score": 5.0, "annotator_kind": "HUMAN"}]},
+                    "source": "unit",
+                },
                 revision_kind="CREATE",
             )
             session.add(revision)
