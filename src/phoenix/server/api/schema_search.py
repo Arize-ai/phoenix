@@ -266,7 +266,7 @@ class Index:
         case-insensitively when unique. Scalars, wrappers, and hidden types count,
         so a name is never read as a different one merely because that one is indexed."""
         if asked.startswith("__"):
-            return asked if asked in self.schema.type_map else None
+            return _by_case([n for n in self.schema.type_map if n.startswith("__")], asked)
         names = [n for n in self.schema.type_map if not n.startswith("__")]
         return _by_case([*names, *self.aliases], asked)
 
@@ -346,7 +346,12 @@ def _edge_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
     ``String`` ``cursor``, neither needing an argument."""
     if not isinstance(t, GraphQLObjectType) or not {"node", "cursor"} <= t.fields.keys():
         return None
-    node = get_named_type(t.fields["node"].type)
+    node_type = t.fields["node"].type
+    if isinstance(node_type, GraphQLNonNull):
+        node_type = node_type.of_type
+    if isinstance(node_type, GraphQLList):
+        return None  # a list of nodes is not one node
+    node = get_named_type(node_type)
     composite = (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)
     if (
         isinstance(node, composite)
@@ -368,6 +373,11 @@ def _connection_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
         edges_type = edges_type.of_type
     if not isinstance(edges_type, GraphQLList):
         return None
+    inner = edges_type.of_type
+    if isinstance(inner, GraphQLNonNull):
+        inner = inner.of_type
+    if isinstance(inner, GraphQLList):
+        return None  # exactly one list layer around the edges
     page_type = t.fields["pageInfo"].type
     if isinstance(page_type, GraphQLNonNull):
         page_type = page_type.of_type
