@@ -2714,6 +2714,23 @@ def test_a_scoped_request_on_a_scalar_says_it_has_no_fields() -> None:
     assert lookup(index, "DateTime") == "scalar DateTime"
 
 
+def test_the_implicit_typename_field_is_known(toy: Index) -> None:
+    for name in ("Span.__typename", "Node.__typename", "PromptTemplate.__typename"):
+        assert lookup(toy, name).startswith(f"{name}: String!")
+        assert search(toy, name).startswith(f"{name}: String!")
+    assert "has no field" in lookup(toy, "TimeRange.__typename")
+
+
+def test_a_connection_needs_a_list_of_edges() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { c: Conn } type Conn { edges: Edge pageInfo: PageInfo } "
+            "type Edge { node: N cursor: String } type N { id: ID } type PageInfo { hasNextPage: Boolean! }"
+        )
+    )
+    assert first_line(lookup(index, "Conn")) == "type Conn {"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 

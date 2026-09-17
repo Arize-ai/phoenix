@@ -361,6 +361,11 @@ def _connection_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
     an object ``pageInfo``."""
     if not isinstance(t, GraphQLObjectType) or not {"edges", "pageInfo"} <= t.fields.keys():
         return None
+    edges_type = t.fields["edges"].type
+    if isinstance(edges_type, GraphQLNonNull):
+        edges_type = edges_type.of_type
+    if not isinstance(edges_type, GraphQLList):
+        return None
     if not _is_page_info(get_named_type(t.fields["pageInfo"].type)):
         return None
     if _takes_arguments(t.fields["edges"]) or _takes_arguments(t.fields["pageInfo"]):
@@ -1365,6 +1370,22 @@ def _hidden_type_note(index: Index, name: str) -> Optional[str]:
     return f"-- {exact} is reachable only through subscriptions, which cannot run here."
 
 
+def _typename_field(index: Index, name: str) -> Optional[str]:
+    """The implicit ``__typename`` of a visible object, interface, or union, when
+    ``name`` asks for it."""
+    owner, dot, member = name.strip().partition(".")
+    if not dot or member.strip() != "__typename":
+        return None
+    exact = index.type_name(owner)
+    if exact is None or not _is_visible_type(index, exact):
+        return None
+    composite = (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)
+    if not isinstance(index.schema.type_map[exact], composite):
+        return None
+    note = "# The name of the concrete type, on every object, interface, and union."
+    return f"{exact}.__typename: String!\n{note}"
+
+
 def _unknown_type(index: Index, name: str) -> Optional[str]:
     """The miss for ``Word.member`` when ``Word`` is no type, with the nearest
     type names. A dotted query is scoped on purpose and is not searched at large."""
@@ -1432,6 +1453,8 @@ def _search(index: Index, query: str, budget: int) -> str:
         return miss
     if "." in query and (wrapper := _wrapper_guidance(index, query)):
         return wrapper
+    if typename := _typename_field(index, query):
+        return typename
     if unknown := _unknown_member(index, query):
         owner, member = unknown
         terms = _query_terms(member)
@@ -1870,6 +1893,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, root_key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
+        if typename := _typename_field(index, name):
+            return [typename]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
             shown = _echo(member)
