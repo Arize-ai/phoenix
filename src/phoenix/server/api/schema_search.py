@@ -470,7 +470,8 @@ def _names_known_fields(node: ValueNode, type_: GraphQLInputType) -> bool:
         items = node.values if isinstance(node, ListValueNode) else [node]
         return all(_names_known_fields(v, type_.of_type) for v in items)
     if isinstance(node, ObjectValueNode) and isinstance(type_, GraphQLInputObjectType):
-        return all(
+        names = [f.name.value for f in node.fields]
+        return len(set(names)) == len(names) and all(
             f.name.value in type_.fields
             and _names_known_fields(f.value, type_.fields[f.name.value].type)
             for f in node.fields
@@ -493,9 +494,12 @@ def _same_input(a: object, b: object, *, type_: GraphQLInputType) -> bool:
             _same_input(x, y, type_=type_.of_type) for x, y in zip(a, b)
         )
     if isinstance(type_, GraphQLInputObjectType):
-        if not (isinstance(a, dict) and isinstance(b, dict)) or a.keys() != b.keys():
-            return False
         by_out = {f.out_name or n: f.type for n, f in type_.fields.items()}
+        # A custom out_type or colliding out_names leave no field to follow.
+        if not (isinstance(a, dict) and isinstance(b, dict)) or len(by_out) != len(type_.fields):
+            return _equivalent(a, b)
+        if a.keys() != b.keys():
+            return False
         return all(k in by_out and _same_input(a[k], b[k], type_=by_out[k]) for k in a)
     return _equivalent(a, b)
 

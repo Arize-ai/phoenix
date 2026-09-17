@@ -1893,6 +1893,64 @@ def test_a_singleton_literal_for_a_list_is_checked_against_the_item_type() -> No
     )
 
 
+def test_colliding_output_names_fall_back_to_kind_strict_comparison() -> None:
+    schema = build_schema(
+        "scalar Seq input Opt { a: Seq b: [Int] } type Query { f(x: Opt = {a: [1, 2]}): String }"
+    )
+    opt = schema.type_map["Opt"]
+    assert isinstance(opt, GraphQLInputObjectType) and schema.query_type is not None
+    for field in opt.fields.values():
+        field.out_name = "v"
+    schema.query_type.fields["f"].args["x"].default_value = {"a": (1, 2)}
+    assert (
+        first_line(lookup(build_index(schema), "Query.f"))
+        == "Query.f(x: Opt = <unprintable>): String"
+    )
+
+
+def test_a_custom_output_type_still_renders_a_faithful_default() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInt,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    opt = GraphQLInputObjectType(
+        "Opt", {"a": GraphQLInputField(GraphQLInt)}, out_type=lambda d: tuple(d.items())
+    )
+    query = GraphQLObjectType(
+        "Query", {"f": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt, {"a": 1})})}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
+def test_a_literal_with_duplicate_fields_is_not_kept() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLInputField,
+        GraphQLInt,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    opt = GraphQLInputObjectType("Opt", {"a": GraphQLInputField(GraphQLInt)})
+    arg = GraphQLArgument(opt, {"a": 2})
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Opt")),
+        default_value=parse_value("{a: 1, a: 2}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 2}): String"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
