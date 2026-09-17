@@ -1226,8 +1226,14 @@ def _rank(
 # --- rendering -------------------------------------------------------------------
 
 
+_SENTENCE_END = re.compile(
+    r"(?<!\be\.g\.)(?<!\bi\.e\.)(?<!\betc\.)(?<!\bvs\.)(?<!\bcf\.)(?<=[.!?])\s", re.I
+)
+"""Whitespace after a sentence-ending mark that does not close an abbreviation."""
+
+
 def _first_sentence(text: str, limit: int = 80) -> str:
-    head = re.split(r"(?<=[.!?])\s", " ".join(text.split()), maxsplit=1)[0]
+    head = _SENTENCE_END.split(" ".join(text.split()), maxsplit=1)[0]
     return head if len(head) <= limit else head[: limit - 1] + "…"
 
 
