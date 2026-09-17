@@ -81,9 +81,9 @@ def operation_count(query: str) -> int:
 def operation_types(query: str) -> set[GraphQLOperationType]:
     """Return the set of GraphQL operation types declared in ``query``.
 
-    Comments abutting the keyword and shorthand syntax defeat a naive regex, but the
-    AST-based classifier handles them. Invalid syntax yields an empty set and is left
-    for execution to report.
+    Read from the parsed document, so comments and the shorthand query form are
+    classified correctly. Invalid syntax yields an empty set and is left for
+    execution to report.
 
     >>> operation_types("mutation# do it later\\n{ deleteEverything }")
     {<OperationType.MUTATION: 'mutation'>}
@@ -164,9 +164,8 @@ def validate_document(schema: strawberry.Schema, query: str) -> None:
         document = parse_graphql(query)
     except GraphQLSyntaxError as error:
         raise GraphQLRefusal(GraphQLRefusalCode.PARSE_ERROR, str(error)) from error
-    # The compiled graphql-core schema, which is what validation runs against;
-    # strawberry exposes it only as a private attribute and is pinned to an
-    # exact version.
+    # Validation runs against the compiled graphql-core schema, which
+    # strawberry exposes only as ``_schema``.
     if errors := validate_graphql(schema._schema, document):
         raise GraphQLRefusal(
             GraphQLRefusalCode.VALIDATION_FAILED,
