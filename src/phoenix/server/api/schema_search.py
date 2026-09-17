@@ -250,10 +250,15 @@ class Index:
             return u
         owner, dot, member = name.partition(".")
         if not dot:
-            return None if _by_case(self.plumbing, name) else self.folded.get(name.lower())
+            # A schema type spelled exactly, indexed or not, is never read as another unit.
+            if name in self.schema.type_map or _by_case(self.plumbing, name):
+                return None
+            return self.folded.get(name.lower())
         exact = _by_case({*self.owners, *self.plumbing}, owner)
         if exact is None:
             return None
+        if (u := self.by_key.get(f"{exact}.{member}")) is not None:
+            return u
         if exact in self.plumbing:
             t = self.schema.type_map[exact]
             assert isinstance(t, GraphQLObjectType)
