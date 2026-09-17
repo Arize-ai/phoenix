@@ -2331,6 +2331,103 @@ def test_a_large_default_is_rendered_once_and_quickly() -> None:
     assert time.perf_counter() - started < 1.0
 
 
+def test_a_rendered_default_is_cached_per_definition() -> None:
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+
+    from phoenix.server.api.schema_search import _DEFAULTS
+
+    big = {f"k{i}": i for i in range(800)}
+    arg = GraphQLArgument(GraphQLScalarType("JSON"), big)
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    lookup(index, "Query", budget=100)
+    assert _DEFAULTS[id(arg)][0] is arg
+
+
+def test_a_native_subclass_with_attributes_still_keeps_its_value() -> None:
+    from datetime import datetime
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    class Date(datetime):
+        def __new__(cls, *args: object, **kwargs: object) -> "Date":
+            made = super().__new__(cls, *args, **kwargs)  # type: ignore[arg-type]
+            made.source = "schema"  # type: ignore[attr-defined]
+            return made
+
+    when = GraphQLScalarType(
+        "When", serialize=lambda d: d.isoformat(), parse_value=Date.fromisoformat
+    )
+    arg = GraphQLArgument(when, Date(2026, 9, 17))
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="When")),
+        default_value=parse_value('"2020-01-01T00:00:00"'),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert (
+        first_line(lookup(index, "Query.f")) == 'Query.f(x: When = "2026-09-17T00:00:00"): String'
+    )
+
+
+def test_an_ordered_mapping_default_keeps_its_order() -> None:
+    from collections import OrderedDict
+
+    from graphql import (
+        GraphQLArgument,
+        GraphQLField,
+        GraphQLScalarType,
+        GraphQLSchema,
+        GraphQLString,
+    )
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    json_scalar = GraphQLScalarType("JSON", parse_value=OrderedDict)
+    arg = GraphQLArgument(json_scalar, OrderedDict([("b", 2), ("a", 1)]))
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="JSON")),
+        default_value=parse_value("{a: 1, b: 2}"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: JSON = {b: 2, a: 1}): String"
+
+
+def test_slots_from_factory_made_classes_stay_distinct() -> None:
+    def boxed(base: type) -> type:
+        class Box(base):  # type: ignore[misc]
+            __slots__ = ("value",)
+
+        return Box
+
+    Base = boxed(object)
+    Sub = boxed(Base)
+
+    def make(d: dict[str, object]) -> object:
+        obj = Sub()
+        Base.value.__set__(obj, 0)  # type: ignore[attr-defined]
+        Sub.value.__set__(obj, d["a"])  # type: ignore[attr-defined]
+        return obj
+
+    index = _opt_with_output(make)
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Opt = {a: 1}): String"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
