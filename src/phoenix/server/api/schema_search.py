@@ -28,6 +28,7 @@ import snowballstemmer
 from graphql import (
     GraphQLArgument,
     GraphQLEnumType,
+    GraphQLEnumValue,
     GraphQLField,
     GraphQLInputField,
     GraphQLInputObjectType,
@@ -756,7 +757,8 @@ def _signature(name: str, field: _FieldLike) -> str:
     # The marker stands for the three cursor arguments exactly as the legend
     # spells them, so one with a default of its own is written out.
     collapsed = all(a in args and _is_pagination(a, args[a]) for a in _PAGINATION_ARGS) and all(
-        args[a].default_value is Undefined for a in ("last", "after", "before")
+        args[a].default_value is Undefined and args[a].deprecation_reason is None
+        for a in ("last", "after", "before")
     )
     rendered: list[str] = []
     for a, arg in args.items():
@@ -764,12 +766,17 @@ def _signature(name: str, field: _FieldLike) -> str:
             if _PAGINATION not in rendered:
                 rendered.append(_PAGINATION)
             continue
-        rendered.append(f"{a}: {arg.type}{_default(arg)}")
+        rendered.append(f"{a}: {arg.type}{_default(arg)}{_deprecation(arg)}")
     joined = ", ".join(rendered)
     suffix = _default(field) if isinstance(field, GraphQLInputField) else ""
-    if field.deprecation_reason is not None:
-        suffix += f" @deprecated(reason: {json.dumps(field.deprecation_reason)})"
+    suffix += _deprecation(field)
     return f"{name}({joined}): {field.type}{suffix}" if joined else f"{name}: {field.type}{suffix}"
+
+
+def _deprecation(member: Union[_FieldLike, GraphQLArgument, GraphQLEnumValue]) -> str:
+    """The ``@deprecated`` directive of a field, argument, or enum value, or nothing."""
+    reason = member.deprecation_reason
+    return f" @deprecated(reason: {json.dumps(reason)})" if reason is not None else ""
 
 
 def _uses_pagination(text: str) -> bool:
@@ -990,7 +997,9 @@ def build_index(
                 used_by[named.name].append(f"{t.name}.{fname}")
         elif isinstance(t, GraphQLEnumType):
             for v, value in t.values.items():
-                units.append(_unit("enum", t.name, v, v, "", value.description))
+                units.append(
+                    _unit("enum", t.name, v, f"{v}{_deprecation(value)}", "", value.description)
+                )
         units.append(_unit("type", "", t.name, t.name, "", t.description))
 
     # BM25F statistics: document frequency counts a term once per unit.
@@ -1707,7 +1716,9 @@ def _print_compact(t: GraphQLNamedType, index: Optional[Index] = None) -> str:
     members: list[tuple[str, Optional[str]]]
     if isinstance(t, GraphQLEnumType):
         head = f"enum {t.name}"
-        members = [(v, value.description) for v, value in t.values.items()]
+        members = [
+            (f"{v}{_deprecation(value)}", value.description) for v, value in t.values.items()
+        ]
     elif isinstance(t, GraphQLInputObjectType):
         head = f"input {t.name}{' @oneOf' if _is_one_of(t) else ''}"
         members = [(_signature(n, f), f.description) for n, f in t.fields.items()]

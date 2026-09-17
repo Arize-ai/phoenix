@@ -2824,6 +2824,22 @@ def test_a_deprecated_field_shows_its_reason() -> None:
     parse(lookup(index, "P"))
 
 
+def test_deprecated_arguments_and_enum_values_show_their_reasons() -> None:
+    index = build_index(
+        build_schema(
+            'type Query { items(limit: Int, oldLimit: Int @deprecated(reason: "Use limit."), '
+            "first: Int, last: Int @deprecated, after: String, before: String): Int  s: S } "
+            'enum S { ACTIVE OLD @deprecated(reason: "Use ACTIVE.") }'
+        )
+    )
+    line = first_line(lookup(index, "Query.items"))
+    assert 'oldLimit: Int @deprecated(reason: "Use limit.")' in line
+    assert PAGINATION not in line and 'last: Int @deprecated(reason: "No longer supported")' in line
+    assert '  OLD @deprecated(reason: "Use ACTIVE.")' in lookup(index, "S")
+    assert first_line(lookup(index, "S.OLD")) == 'S.OLD @deprecated(reason: "Use ACTIVE.")'
+    parse(lookup(index, "S"))
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
