@@ -42,7 +42,16 @@ from graphql import (
     specified_scalar_types,
 )
 from graphql.execution.values import get_argument_values
-from graphql.language import ArgumentNode, FieldNode, NameNode, parse_value, print_ast
+from graphql.language import (
+    ArgumentNode,
+    FieldNode,
+    ListValueNode,
+    NameNode,
+    ObjectValueNode,
+    ValueNode,
+    parse_value,
+    print_ast,
+)
 from graphql.pyutils import Undefined, is_collection
 from graphql.utilities import ast_from_value, value_from_ast
 
@@ -429,6 +438,15 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
     the argument or field, as graphql-core coerces each."""
     try:
         node = parse_value(literal)
+        if value_from_ast(node, value_def.type) is Undefined or not _names_known_fields(
+            node, value_def.type
+        ):
+            return False  # the literal is not valid input for the current type
+        # Only a structured type coerces a tuple to a list on the way in.
+        inner = (
+            value_def.type.of_type if isinstance(value_def.type, GraphQLNonNull) else value_def.type
+        )
+        structured = isinstance(inner, (GraphQLList, GraphQLInputObjectType))
         if isinstance(value_def, GraphQLArgument):
             field = GraphQLField(GraphQLInt, args={"x": value_def})
             omitted = get_argument_values(
@@ -438,22 +456,45 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
             supplied = get_argument_values(
                 field, FieldNode(name=NameNode(value="f"), arguments=[given]), {}
             )
-            return _equivalent(*omitted.values(), *supplied.values())
+            return _equivalent(*omitted.values(), *supplied.values(), sequences=structured)
         # An omitted input field passes its default through uncoerced.
-        return _equivalent(value_from_ast(node, value_def.type), value_def.default_value)
+        return _equivalent(
+            value_from_ast(node, value_def.type), value_def.default_value, sequences=structured
+        )
     except Exception:
         return False
 
 
-def _equivalent(a: object, b: object) -> bool:
+def _names_known_fields(node: ValueNode, type_: GraphQLInputType) -> bool:
+    """Whether every object field the literal names exists on ``type_``; the
+    parser leaves unknown fields in place, validation rejects them."""
+    if isinstance(type_, GraphQLNonNull):
+        type_ = type_.of_type
+    if isinstance(node, ListValueNode) and isinstance(type_, GraphQLList):
+        return all(_names_known_fields(v, type_.of_type) for v in node.values)
+    if isinstance(node, ObjectValueNode) and isinstance(type_, GraphQLInputObjectType):
+        return all(
+            f.name.value in type_.fields
+            and _names_known_fields(f.value, type_.fields[f.name.value].type)
+            for f in node.fields
+        )
+    return True
+
+
+def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
     """Whether two coerced values are the same value of the same kind, so ``True``
-    never passes for ``1``."""
-    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
-        return len(a) == len(b) and all(_equivalent(x, y) for x, y in zip(a, b))
+    never passes for ``1``. With ``sequences``, a tuple and a list of the same
+    items are the same value."""
+    if sequences and isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return len(a) == len(b) and all(_equivalent(x, y, sequences=True) for x, y in zip(a, b))
     if type(a) is not type(b):
         return False
     if isinstance(a, dict) and isinstance(b, dict):
-        return a.keys() == b.keys() and all(_equivalent(a[k], b[k]) for k in a)
+        return a.keys() == b.keys() and all(_equivalent(a[k], b[k], sequences=sequences) for k in a)
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        return len(a) == len(b) and all(
+            _equivalent(x, y, sequences=sequences) for x, y in zip(a, b)
+        )
     return bool(a == b)
 
 
