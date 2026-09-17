@@ -140,6 +140,18 @@ class HydrationFailureReason(str, Enum):
     ROOT_SPAN_MISSING = "ROOT_SPAN_MISSING"
 
 
+# The subject was scheduled and then lost its content before it was evaluated. Span
+# work is not listed: a span's work unit is deleted with the span it describes.
+_CONTENT_LOST_REASONS = frozenset(
+    {
+        HydrationFailureReason.SESSION_MISSING,
+        HydrationFailureReason.NO_ROOT_TURNS,
+        HydrationFailureReason.TRACE_MISSING,
+        HydrationFailureReason.ROOT_SPAN_MISSING,
+    }
+)
+
+
 @dataclass(frozen=True)
 class HydrationFailure:
     reason: HydrationFailureReason
@@ -147,9 +159,13 @@ class HydrationFailure:
 
     @property
     def terminal_status(self) -> RetiredWorkStatus:
-        """The status the unit is retired with: the two lifecycle reasons get their own."""
+        """The status the unit is retired with. Two lifecycle reasons get their own, on
+        every grain: the configuration moved under the unit, or the subject had no
+        content left to evaluate by the time it was hydrated."""
         if self.reason is HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH:
             return "SUPERSEDED"
+        if self.reason in _CONTENT_LOST_REASONS:
+            return "CONTENT_LOST"
         return "EXPIRED"
 
 

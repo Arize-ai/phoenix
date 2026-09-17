@@ -1427,6 +1427,7 @@ CREATE TABLE public.eval_session_work_units (
             'FAILED'::character varying,
             'EXPIRED'::character varying,
             'SUPERSEDED'::character varying,
+            'CONTENT_LOST'::character varying,
             'FILTERED_OUT'::character varying,
             'SAMPLED_OUT'::character varying
         ])::text[]))),
@@ -1451,7 +1452,7 @@ CREATE INDEX ix_eval_session_work_units_evaluator_id ON public.eval_session_work
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON public.eval_session_work_units
     USING btree (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
-    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'SUPERSEDED'::character varying])::text[]));
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'SUPERSEDED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_terminal_watermark ON public.eval_session_work_units
     USING btree (project_session_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON public.eval_session_work_units
@@ -1485,6 +1486,7 @@ CREATE TABLE public.eval_trace_work_units (
             'FAILED'::character varying,
             'EXPIRED'::character varying,
             'SUPERSEDED'::character varying,
+            'CONTENT_LOST'::character varying,
             'FILTERED_OUT'::character varying,
             'SAMPLED_OUT'::character varying
         ])::text[]))),
@@ -1509,7 +1511,7 @@ CREATE INDEX ix_eval_trace_work_units_evaluator_id ON public.eval_trace_work_uni
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON public.eval_trace_work_units
     USING btree (project_evaluator_id);
 CREATE INDEX ix_eval_trace_work_units_terminal ON public.eval_trace_work_units
-    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'SUPERSEDED'::character varying])::text[]));
+    USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'SUPERSEDED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
 CREATE INDEX ix_eval_trace_work_units_terminal_watermark ON public.eval_trace_work_units
     USING btree (trace_rowid, evaluator_id, config_fingerprint);
 CREATE UNIQUE INDEX uq_eval_trace_work_units_live_key ON public.eval_trace_work_units

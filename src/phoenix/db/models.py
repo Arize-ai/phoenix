@@ -208,6 +208,7 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "FAILED",
     "EXPIRED",
     "SUPERSEDED",
+    "CONTENT_LOST",
     "FILTERED_OUT",
     "SAMPLED_OUT",
 ]

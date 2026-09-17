@@ -164,8 +164,8 @@ ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
 ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_expired_work_units",
-    documentation="Current number of online-eval work units retired without an outcome, "
-    "including expired, superseded, and dropped work",
+    documentation="Current number of online-eval work units retired without an outcome: "
+    "expired, superseded, content lost, or dropped",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS = Gauge(

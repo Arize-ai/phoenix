@@ -268,7 +268,9 @@ def _eligible_pairs_relation(
             getattr(terminal_work, target_column) == entity_model.id,
             terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
             terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
-            terminal_work.status.in_(("DONE", "FAILED", "EXPIRED", *SESSION_DECLINED_STATUSES)),
+            terminal_work.status.in_(
+                ("DONE", "FAILED", "EXPIRED", "CONTENT_LOST", *SESSION_DECLINED_STATUSES)
+            ),
         )
         .correlate(entity_model, project_evaluator_relation)
         .scalar_subquery()

@@ -919,6 +919,50 @@ async def test_pending_session_with_deleted_trace_is_claimed_hydrated_and_publis
     assert len(await _session_annotations(db)) == 1
 
 
+async def test_session_whose_traces_were_all_deleted_retires_as_content_lost(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace, span_kind="CHAIN")
+        trace_id = trace.id
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(
+        db,
+        project.id,
+        evaluation_target="SESSION",
+    )
+    unit_id, _ = await _materialize_session_unit(
+        db,
+        project_session.id,
+        evaluator_id,
+        project_evaluator_id,
+    )
+    async with db() as session:
+        await delete_traces(session, models.Trace.id == trace_id)
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluation_target="SESSION",
+    )
+    (unit,) = await consumer._coordinator.claim(
+        claimed_by=consumer._consumer_id,
+        limit=1,
+    )
+
+    assert await consumer._executor.hydrate(unit) == HydrationFailure(
+        HydrationFailureReason.NO_ROOT_TURNS
+    )
+    await consumer._process_unit(unit)
+
+    stored = await _get_session_unit(db, unit_id)
+    assert stored.status == "CONTENT_LOST"
+    assert stored.error == "NO_ROOT_TURNS"
+    assert stored.attempts == 0
+    assert await _session_annotations(db) == []
+
+
 def _session_vocabulary(**overrides: Any) -> dict[str, Any]:
     """A full session vocabulary, the shape `load_session_bound_variables` returns."""
     return (
@@ -2000,7 +2044,7 @@ async def test_session_hydration_excludes_transferred_trace_roots(
     await consumer._process_unit(unit)
 
     stored = await _get_session_unit(db, unit_id)
-    assert stored.status == "EXPIRED"
+    assert stored.status == "CONTENT_LOST"
     assert stored.attempts == 0
     assert stored.error == "NO_ROOT_TURNS"
     assert client.requests == []
