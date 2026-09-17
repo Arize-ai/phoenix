@@ -265,6 +265,8 @@ class Index:
         """The schema type or bare mutation name ``asked`` spells: exactly, else
         case-insensitively when unique. Scalars, wrappers, and hidden types count,
         so a name is never read as a different one merely because that one is indexed."""
+        if asked.startswith("__"):
+            return asked if asked in self.schema.type_map else None
         names = [n for n in self.schema.type_map if not n.startswith("__")]
         return _by_case([*names, *self.aliases], asked)
 
@@ -1361,6 +1363,8 @@ def _hidden_type_note(index: Index, name: str) -> Optional[str]:
     exact = index.type_name(name)
     if exact is None or exact in index.aliases or _is_visible_type(index, exact):
         return None
+    if exact.startswith("__"):
+        return None
     if exact == index.mutation_root or isinstance(index.schema.type_map[exact], GraphQLScalarType):
         return None
     mutation = index.schema.mutation_type
@@ -1379,14 +1383,16 @@ def _implicit_field(index: Index, name: str) -> Optional[str]:
     and ``__schema`` or ``__type`` on the query root."""
     owner, dot, member = name.strip().partition(".")
     member = member.strip()
-    if not dot or not member.startswith("__"):
+    if not dot or not (member.startswith("__") or owner.startswith("__")):
         return None
     exact = index.type_name(owner)
     if exact is None or exact in index.aliases or exact not in index.schema.type_map:
         return None
-    if not (_is_visible_type(index, exact) or exact in index.plumbing):
+    if not (_is_visible_type(index, exact) or exact in index.plumbing or exact.startswith("__")):
         return None
     t = index.schema.type_map[exact]
+    if exact.startswith("__") and isinstance(t, GraphQLObjectType) and member in t.fields:
+        return f"{exact}.{_signature(member, t.fields[member])}"
     if member == "__typename":
         if not isinstance(t, (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)):
             return None
@@ -1462,10 +1468,10 @@ def _search(index: Index, query: str, budget: int) -> str:
     query = _clip(query)
     if _is_exact(index, query):
         return lookup(index, query, budget)
-    if miss := _unknown_type(index, query):
-        return miss
     if implicit := _implicit_field(index, query):
         return implicit
+    if miss := _unknown_type(index, query):
+        return miss
     if "." in query and (wrapper := _wrapper_guidance(index, query)):
         return wrapper
     if unknown := _unknown_member(index, query):
@@ -1891,6 +1897,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     if name in index.plumbing:
         u = None
     if u is None:
+        if name.startswith("__") and name in schema.type_map:
+            return [_print_compact(schema.type_map[name], index)]
         if implicit := _implicit_field(index, name):
             return [implicit]
         if wrapper := _wrapper_guidance(index, name):
