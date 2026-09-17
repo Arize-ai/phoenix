@@ -2724,6 +2724,13 @@ def test_the_implicit_fields_are_known(toy: Index) -> None:
     assert search(toy, "Query.__schema").startswith("Query.__schema: __Schema!")
     assert "has no field" in lookup(toy, "Span.__type")
     assert first_line(lookup(toy, "__Type")).startswith("type __Type {")
+    assert search(toy, "__Type.field").startswith(
+        "-- __Type has no field 'field'. Its fields: kind, name"
+    )
+    assert lookup(toy, "__TypeKind.OBJECT") == "enum __TypeKind.OBJECT"
+    assert search(toy, "__TypeKind.THING").startswith(
+        "-- __TypeKind has no value 'THING'. Its values:"
+    )
     assert lookup(toy, "__Type.name") == "__Type.name: String"
     assert search(toy, "__Type.fields").startswith(
         "__Type.fields(includeDeprecated: Boolean = false)"
