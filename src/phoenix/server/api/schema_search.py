@@ -1375,6 +1375,23 @@ def _unknown_type(index: Index, name: str) -> Optional[str]:
         return None
     if hidden := _hidden_type_note(index, owner):
         return hidden
+    exact = index.type_name(owner)
+    if exact is not None and exact not in index.aliases:
+        leaf = index.schema.type_map[exact]
+        kind = (
+            "scalar"
+            if isinstance(leaf, GraphQLScalarType)
+            else "union"
+            if isinstance(leaf, GraphQLUnionType)
+            else "enum"
+            if isinstance(leaf, GraphQLEnumType)
+            else None
+        )
+        if kind is not None:
+            what = "members" if kind == "union" else "values" if kind == "enum" else "fields"
+            look = f"Look up {exact}." if kind != "scalar" else ""
+            retry = f"Try search('{_echo(member)}')."
+            return f"-- {exact} is a {kind} and has no {what} to select. {look}{retry}"
     types = {u.name.lower(): u.name for u in index.units if u.kind == "type"}
     near = [types[k] for k in difflib.get_close_matches(owner.lower(), types, n=3, cutoff=0.6)]
     hint = f" Did you mean {', '.join(near)}?" if near else ""
