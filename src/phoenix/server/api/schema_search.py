@@ -248,8 +248,10 @@ class Index:
         never taken from a type that merely spells the owner in another case."""
         if (u := self.by_key.get(name)) is not None:
             return u
-        u = self.folded.get(name.lower())
         owner, dot, _ = name.partition(".")
+        if not dot and _by_case(self.plumbing, name) is not None:
+            return None
+        u = self.folded.get(name.lower())
         if u is None or not dot:
             return u
         return u if _by_case({*self.owners, *self.plumbing}, owner) == u.parent else None
@@ -635,6 +637,8 @@ def build_index(
             excluded_mutations[fname.lower()] = frozenset(_ident_terms(fname))
     visible = [t for t in (schema.query_type, mutation) if t is not None and t not in hidden]
     excluded_types = _types_only_serving(schema, hidden, visible)
+    if mutation is not None and not include_mutations:
+        excluded_types.add(mutation.name)
 
     units: list[Unit] = []
     used_by: dict[str, list[str]] = defaultdict(list)
@@ -1012,7 +1016,8 @@ def _wrapper_guidance(index: Index, name: str) -> Optional[str]:
         return None
     t = index.schema.type_map[wrapper]
     assert isinstance(t, GraphQLObjectType)
-    if dot and member.strip() not in t.fields.keys() - set(_wrapper_extras(t, index.schema)):
+    core = t.fields.keys() - set(_wrapper_extras(t, index.schema))
+    if dot and _by_case(core, member.strip()) is None:
         return None if wrapper in index.owners else _plumbing_miss(index, wrapper)
     return _plumbing_miss(index, wrapper)
 
@@ -1518,9 +1523,12 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     if u is None:
         if wrapper := _wrapper_guidance(index, name):
             return [wrapper]
-        if key in index.excluded_mutations:
+        root_key, _, member_key = key.partition(".")
+        if key in index.excluded_mutations or (
+            _is_hidden_mutation_root(index, root_key) and member_key in index.excluded_mutations
+        ):
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
-        if _is_hidden_mutation_root(index, key):
+        if _is_hidden_mutation_root(index, root_key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
