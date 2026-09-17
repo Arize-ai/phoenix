@@ -1483,6 +1483,38 @@ def test_a_missing_member_lookup_keeps_the_exact_owner() -> None:
     assert "Conn is a connection over Node" in lookup(index, "Conn.edges")
 
 
+def test_a_wrapper_with_extras_still_explains_its_relay_fields() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { edge: Edge } type Edge { node: N cursor: String total: Int } type N { id: ID }"
+        )
+    )
+    assert "Edge is a connection edge over N" in lookup(index, "Edge.node")
+    assert first_line(lookup(index, "Edge.total")) == "Edge.total: Int"
+
+
+def test_a_hidden_mutation_does_not_shadow_a_visible_wrapper() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { edge: Edge } type Edge { node: N cursor: String } type N { id: ID } "
+            "type Mutation { Edge: Int }"
+        ),
+        include_mutations=False,
+    )
+    assert "Edge is a connection edge over N" in lookup(index, "Edge")
+
+
+def test_a_subscription_root_the_query_side_reaches_stays_visible() -> None:
+    index = build_index(
+        build_schema(
+            "schema { query: Query subscription: Events } "
+            "type Query { replay: Events } type Events { value: Int }"
+        )
+    )
+    assert first_line(lookup(index, "Events")) == "type Events {"
+    assert first_line(lookup(index, "Events.value")) == "Events.value: Int"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 

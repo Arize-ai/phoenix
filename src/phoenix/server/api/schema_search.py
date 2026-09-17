@@ -369,7 +369,6 @@ def _skip(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
     return (
         is_introspection_type(t)
         or isinstance(t, GraphQLScalarType)
-        or t is schema.subscription_type
         or _is_relay_plumbing(t, schema)
     )
 
@@ -635,7 +634,7 @@ def build_index(
         for fname in mutation.fields:
             excluded_mutations[fname.lower()] = frozenset(_ident_terms(fname))
     visible = [t for t in (schema.query_type, mutation) if t is not None and t not in hidden]
-    excluded_types = _types_only_serving(schema, hidden, visible) | {t.name for t in hidden}
+    excluded_types = _types_only_serving(schema, hidden, visible)
 
     units: list[Unit] = []
     used_by: dict[str, list[str]] = defaultdict(list)
@@ -1004,6 +1003,20 @@ def _is_visible_type(index: Index, name: str) -> bool:
     return (u is not None and u.kind == "type") or name in index.plumbing
 
 
+def _wrapper_guidance(index: Index, name: str) -> Optional[str]:
+    """The wrapper explanation for ``name`` when it is a wrapper, or a wrapper's own
+    Relay field; a member the wrapper adds beyond that shape is looked up as usual."""
+    owner_part, dot, member = name.partition(".")
+    wrapper = index.owner(owner_part) if dot else _plumbing_name(index, name)
+    if wrapper is None or wrapper not in index.plumbing:
+        return None
+    t = index.schema.type_map[wrapper]
+    assert isinstance(t, GraphQLObjectType)
+    if dot and member.strip() not in t.fields.keys() - set(_wrapper_extras(t, index.schema)):
+        return None if wrapper in index.owners else _plumbing_miss(index, wrapper)
+    return _plumbing_miss(index, wrapper)
+
+
 def _plumbing_name(index: Index, name: str) -> Optional[str]:
     return _by_case(index.plumbing, name)
 
@@ -1087,9 +1100,8 @@ def _search(index: Index, query: str, budget: int) -> str:
         return lookup(index, query, budget)
     if miss := _unknown_type(index, query):
         return miss
-    owner_part, dot, _ = query.partition(".")
-    if dot and owner_part in index.plumbing and owner_part not in index.owners:
-        return _plumbing_miss(index, owner_part) or ""
+    if "." in query and (wrapper := _wrapper_guidance(index, query)):
+        return wrapper
     if unknown := _unknown_member(index, query):
         owner, member = unknown
         terms = _query_terms(member)
@@ -1504,14 +1516,12 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     if name in index.plumbing:
         u = None
     if u is None:
+        if wrapper := _wrapper_guidance(index, name):
+            return [wrapper]
         if key in index.excluded_mutations:
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
-        owner_part, dot, _ = name.partition(".")
-        wrapper_name = index.owner(owner_part) if dot else _plumbing_name(index, name)
-        if wrapper_name in index.plumbing and not (dot and wrapper_name in index.owners):
-            return [_plumbing_miss(index, wrapper_name) or ""]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
             shown = _echo(member)
