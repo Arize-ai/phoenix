@@ -254,6 +254,48 @@ async def test_resolver_errors_are_reported(run_bash: RunBash) -> None:
     assert payload["errors"][0]["message"] == "kaboom"
 
 
+async def test_error_lines_carry_their_location_and_path(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql 'query {\n  hello\n  boom\n}'")
+
+    assert result["exitCode"] == 1
+    assert "- [3:3] kaboom (at boom)" in result["stderr"]
+
+
+async def test_a_document_with_several_operations_needs_a_name(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql 'query A { hello } query B { echo(text: \"b\") }'")
+
+    assert result["exitCode"] == 1
+    assert result["stdout"] == ""
+    assert "--operation-name" in result["stderr"]
+
+
+async def test_operation_name_selects_one_operation(run_bash: RunBash) -> None:
+    result = await run_bash(
+        "phoenix-gql 'query A { hello } query B { echo(text: \"b\") }' --operation-name B"
+    )
+
+    assert result["exitCode"] == 0
+    assert json.loads(result["stdout"]) == {"data": {"echo": "b"}}
+    assert result["stderr"] == ""
+
+
+async def test_a_missing_query_file_is_not_sent_as_a_query(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql scorcard.graphql")
+
+    assert result["exitCode"] == 1
+    assert result["stdout"] == ""
+    assert "File not found: scorcard.graphql" in result["stderr"]
+
+
+async def test_malformed_variables_point_at_vars_file(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql '{ hello }' --vars '{\"text\": hi}'")
+
+    assert result["exitCode"] == 1
+    assert result["stdout"] == ""
+    assert "not valid JSON" in result["stderr"]
+    assert "--vars-file" in result["stderr"]
+
+
 async def test_unknown_option_errors(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql --bogus")
 
