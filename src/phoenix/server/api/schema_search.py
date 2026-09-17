@@ -438,8 +438,10 @@ def _delivers(value_def: _ValueDef, literal: str) -> bool:
     the argument or field, as graphql-core coerces each."""
     try:
         node = parse_value(literal)
-        if value_from_ast(node, value_def.type) is Undefined or not _names_known_fields(
-            node, value_def.type
+        if (
+            value_from_ast(node, value_def.type) is Undefined
+            or not _names_known_fields(node, value_def.type)
+            or _repeats_a_field(node)
         ):
             return False  # the literal is not valid input for the current type
         if isinstance(value_def, GraphQLArgument):
@@ -496,12 +498,26 @@ def _same_input(a: object, b: object, *, type_: GraphQLInputType) -> bool:
     if isinstance(type_, GraphQLInputObjectType):
         by_out = {f.out_name or n: f.type for n, f in type_.fields.items()}
         # A custom out_type or colliding out_names leave no field to follow.
-        if not (isinstance(a, dict) and isinstance(b, dict)) or len(by_out) != len(type_.fields):
+        custom = type_.out_type is not GraphQLInputObjectType.out_type
+        if custom or not (isinstance(a, dict) and isinstance(b, dict)):
+            return _equivalent(a, b)
+        if len(by_out) != len(type_.fields):
             return _equivalent(a, b)
         if a.keys() != b.keys():
             return False
         return all(k in by_out and _same_input(a[k], b[k], type_=by_out[k]) for k in a)
     return _equivalent(a, b)
+
+
+def _repeats_a_field(node: ValueNode) -> bool:
+    """Whether any object in the literal names a field twice, which validation
+    rejects even inside a custom scalar."""
+    if isinstance(node, ListValueNode):
+        return any(_repeats_a_field(v) for v in node.values)
+    if isinstance(node, ObjectValueNode):
+        names = [f.name.value for f in node.fields]
+        return len(set(names)) != len(names) or any(_repeats_a_field(f.value) for f in node.fields)
+    return False
 
 
 def _equivalent(a: object, b: object, *, sequences: bool = False) -> bool:
