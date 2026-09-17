@@ -241,21 +241,26 @@ class Index:
     by_member: Mapping[tuple[str, str], Unit]  # (owner, lowercase member) -> unit, when unique
     plumbing: frozenset[str]  # Relay wrapper types left out of the index
     owners: frozenset[str]  # every type that owns an indexed member, wrappers included
+    aliases: frozenset[str]  # bare mutation names that resolve on their own
+
+    def type_name(self, asked: str) -> Optional[str]:
+        """The schema type or bare mutation name ``asked`` spells: exactly, else
+        case-insensitively when unique. Scalars, wrappers, and hidden types count,
+        so a name is never read as a different one merely because that one is indexed."""
+        names = [n for n in self.schema.type_map if not n.startswith("__")]
+        return _by_case([*names, *self.aliases], asked)
 
     def resolve(self, name: str) -> Optional[Unit]:
-        """The unit ``name`` denotes: by exact spelling, else case-insensitively when
-        unique. A dotted name's owner is resolved on its own first, so a member is
-        never taken from a type that merely spells the owner in another case."""
+        """The indexed unit ``name`` denotes, or None. A dotted name's owner is
+        resolved on its own first, then the member within that owner."""
         if (u := self.by_key.get(name)) is not None:
             return u
         owner, dot, member = name.partition(".")
         if not dot:
-            # A schema type spelled exactly, indexed or not, is never read as another unit.
-            if name in self.schema.type_map or _by_case(self.plumbing, name):
-                return None
-            return self.folded.get(name.lower())
-        exact = _by_case({*self.owners, *self.plumbing}, owner)
-        if exact is None:
+            n = self.type_name(name)
+            return self.by_key.get(n) if n is not None else None
+        exact = self.type_name(owner)
+        if exact is None or exact in self.aliases:
             return None
         if (u := self.by_key.get(f"{exact}.{member}")) is not None:
             return u
@@ -270,11 +275,9 @@ class Index:
         return self.by_member.get((exact, member.lower()))
 
     def owner(self, name: str) -> Optional[str]:
-        """The type ``name`` denotes as an owner of members, wrappers included."""
-        if (match := _by_case({*self.owners, *self.plumbing}, name)) is not None:
-            return match
-        u = self.resolve(name)
-        return u.name if u is not None and u.kind == "type" else None
+        """The type ``name`` denotes as an owner of indexed members, wrappers included."""
+        n = self.type_name(name)
+        return n if n is not None and (n in self.owners or n in self.plumbing) else None
 
     def depth(self, type_name: str) -> int:
         return self.nearest.get(type_name, ("", _MAX_DEPTH, ()))[1]
@@ -636,7 +639,9 @@ def build_index(
     query_root = schema.query_type.name if schema.query_type is not None else "Query"
     mutation = schema.mutation_type
     mutation_root = mutation.name if mutation is not None else None
-    hidden = [t for t in (schema.subscription_type,) if t is not None]
+    hidden = [
+        t for t in (schema.subscription_type,) if t is not None and t is not schema.query_type
+    ]
     excluded_mutations: dict[str, frozenset[str]] = {}
     # A query that opens with a verb some mutation opens with wants a write.
     action_verbs = frozenset(
@@ -644,7 +649,7 @@ def build_index(
         for fname in (mutation.fields if mutation is not None else ())
         if (tokens := tokenize(fname))
     )
-    if mutation is not None and not include_mutations:
+    if mutation is not None and not include_mutations and mutation is not schema.query_type:
         hidden.append(mutation)
     visible = [t for t in (schema.query_type, mutation) if t is not None and t not in hidden]
     excluded_types = _types_only_serving(schema, hidden, visible)
@@ -665,7 +670,8 @@ def build_index(
         if _skip(t, schema) and not walk:
             continue
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
-            kind = "mutation" if t is mutation and include_mutations else "field"
+            writes = t is mutation and include_mutations and t is not schema.query_type
+            kind = "mutation" if writes else "field"
             extras = _wrapper_extras(t, schema)
             for fname, f in t.fields.items():
                 if walk and fname not in walk:
@@ -808,6 +814,7 @@ def build_index(
         by_member={k: u for k, u in by_member.items() if u is not None},
         plumbing=plumbing,
         owners=frozenset(u.owner for u in units if u.owner),
+        aliases=frozenset(k for k, u in by_key.items() if u.kind == "mutation" and "." not in k),
     )
 
 
@@ -1016,10 +1023,19 @@ def _is_exact(index: Index, name: str) -> bool:
     key = name.lower()
     return (
         index.resolve(name) is not None
+        or ("." not in name and _names_schema_type(index, name))
         or key in index.excluded_mutations
-        or _plumbing_name(index, name) is not None
         or _is_hidden_mutation_root(index, key)
     )
+
+
+def _names_schema_type(index: Index, name: str) -> bool:
+    """Whether ``name`` spells a schema type: exactly, or case-insensitively for
+    anything but a scalar, since a scalar's name is also an ordinary word."""
+    exact = index.type_name(name)
+    if exact is None or exact in index.aliases:
+        return False
+    return exact == name or not isinstance(index.schema.type_map[exact], GraphQLScalarType)
 
 
 def _is_visible_type(index: Index, name: str) -> bool:
@@ -1031,7 +1047,7 @@ def _wrapper_guidance(index: Index, name: str) -> Optional[str]:
     """The wrapper explanation for ``name`` when it is a wrapper, or a wrapper's own
     Relay field; a member the wrapper adds beyond that shape is looked up as usual."""
     owner_part, dot, member = name.partition(".")
-    wrapper = index.owner(owner_part) if dot else _plumbing_name(index, name)
+    wrapper = index.type_name(owner_part)
     if wrapper is None or wrapper not in index.plumbing:
         return None
     t = index.schema.type_map[wrapper]
@@ -1042,14 +1058,12 @@ def _wrapper_guidance(index: Index, name: str) -> Optional[str]:
     return _plumbing_miss(index, wrapper)
 
 
-def _plumbing_name(index: Index, name: str) -> Optional[str]:
-    return _by_case(index.plumbing, name)
-
-
 def _plumbing_miss(index: Index, asked: str) -> Optional[str]:
     """What a Relay wrapper is and what to look up instead. They are left out of
     the index because a selection passes through them, never stops at them."""
-    name = _plumbing_name(index, asked)
+    name = index.type_name(asked)
+    if name not in index.plumbing:
+        return None
     if name is None:
         return None
     t = index.schema.type_map[name]
@@ -1080,6 +1094,18 @@ def _is_hidden_mutation_root(index: Index, key: str) -> bool:
     )
 
 
+def _hidden_type_note(index: Index, name: str) -> Optional[str]:
+    """Why ``name`` cannot be looked up when it spells a schema type left out of the index."""
+    exact = index.type_name(name)
+    if exact is None or exact in index.aliases or _is_visible_type(index, exact):
+        return None
+    if exact == index.mutation_root or isinstance(index.schema.type_map[exact], GraphQLScalarType):
+        return None
+    if not index.includes_mutations and index.mutation_root is not None:
+        return f"-- {exact} is reachable only through mutations. {_MUTATIONS_DISABLED}"
+    return f"-- {exact} is reachable only through subscriptions, which cannot run here."
+
+
 def _unknown_type(index: Index, name: str) -> Optional[str]:
     """The miss for ``Word.member`` when ``Word`` is no type, with the nearest
     type names. A dotted query is scoped on purpose and is not searched at large."""
@@ -1088,6 +1114,8 @@ def _unknown_type(index: Index, name: str) -> Optional[str]:
         return None
     if " " in owner or " " in member.strip():
         return None
+    if hidden := _hidden_type_note(index, owner):
+        return hidden
     types = {u.name.lower(): u.name for u in index.units if u.kind == "type"}
     near = [types[k] for k in difflib.get_close_matches(owner.lower(), types, n=3, cutoff=0.6)]
     hint = f" Did you mean {', '.join(near)}?" if near else ""
@@ -1547,9 +1575,12 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
     if u is None:
         if wrapper := _wrapper_guidance(index, name):
             return [wrapper]
-        scalars = [t.name for t in schema.type_map.values() if isinstance(t, GraphQLScalarType)]
-        if (scalar := _by_case(scalars, name)) is not None:
+        if (scalar := index.type_name(name)) and isinstance(
+            schema.type_map.get(scalar), GraphQLScalarType
+        ):
             return [_print_compact(schema.type_map[scalar])]
+        if hidden := _hidden_type_note(index, name.partition(".")[0]):
+            return [hidden]
         root_key, _, member_key = key.partition(".")
         if key in index.excluded_mutations or (
             _is_hidden_mutation_root(index, root_key) and member_key in index.excluded_mutations
