@@ -27,7 +27,9 @@ from graphql import (
     GraphQLField,
     GraphQLInputField,
     GraphQLInputObjectType,
+    GraphQLInputType,
     GraphQLInterfaceType,
+    GraphQLList,
     GraphQLNamedType,
     GraphQLObjectType,
     GraphQLScalarType,
@@ -35,6 +37,7 @@ from graphql import (
     GraphQLUnionType,
     get_named_type,
     is_introspection_type,
+    specified_scalar_types,
 )
 from graphql.language import print_ast
 from graphql.pyutils import Undefined
@@ -235,7 +238,7 @@ class Index:
     by_key: Mapping[str, Unit]  # "Type", "Type.field", "mutationName"
     folded: Mapping[str, Unit]  # lowercase key -> its unit, when only one spelling has it
     plumbing: Mapping[str, str]  # lowercase name -> Relay wrapper type left out of the index
-    owners: Mapping[str, str]  # lowercase name -> every type that owns an indexed member
+    owners: Mapping[str, str]  # exact and, when unique, lowercase name -> owner of members
 
     def resolve(self, name: str) -> Optional[Unit]:
         """The unit ``name`` denotes: by exact spelling, else case-insensitively when unique."""
@@ -246,7 +249,7 @@ class Index:
         u = self.resolve(name)
         if u is not None:
             return u.name if u.kind == "type" else None
-        return self.owners.get(name.lower())
+        return self.owners.get(name) or self.owners.get(name.lower())
 
     def depth(self, type_name: str) -> int:
         return self.nearest.get(type_name, ("", _MAX_DEPTH, ()))[1]
@@ -261,31 +264,38 @@ class Index:
 # --- index -----------------------------------------------------------------------
 
 
+def _edge_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
+    """The node type of ``t`` when it is a Relay edge: a composite ``node`` beside a
+    ``String`` ``cursor``."""
+    if not isinstance(t, GraphQLObjectType) or not {"node", "cursor"} <= t.fields.keys():
+        return None
+    node = get_named_type(t.fields["node"].type)
+    composite = (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)
+    if isinstance(node, composite) and str(t.fields["cursor"].type).rstrip("!") == "String":
+        return node
+    return None
+
+
+def _connection_node(t: GraphQLNamedType) -> Optional[GraphQLNamedType]:
+    """The node type of ``t`` when it is a Relay connection: a list of edges beside
+    an object ``pageInfo``."""
+    if not isinstance(t, GraphQLObjectType) or not {"edges", "pageInfo"} <= t.fields.keys():
+        return None
+    if not isinstance(get_named_type(t.fields["pageInfo"].type), GraphQLObjectType):
+        return None
+    return _edge_node(get_named_type(t.fields["edges"].type))
+
+
 def _node_type(named: GraphQLNamedType) -> GraphQLNamedType:
     """Collapse a Relay connection to its node type by structure, not by name."""
-    if isinstance(named, GraphQLObjectType) and "edges" in named.fields:
-        edge = get_named_type(named.fields["edges"].type)
-        if isinstance(edge, GraphQLObjectType) and "node" in edge.fields:
-            node: GraphQLNamedType = get_named_type(edge.fields["node"].type)
-            return node
-    return named
+    return _connection_node(named) or named
 
 
 def _is_relay_plumbing(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
     """Whether ``t`` is a connection, edge, or page-info type. A root never is."""
     if not isinstance(t, GraphQLObjectType) or t in (schema.query_type, schema.mutation_type):
         return False
-    if t.name == "PageInfo":
-        return True
-    fields = t.fields
-    if {"edges", "pageInfo"} <= fields.keys():
-        edge = get_named_type(fields["edges"].type)
-        return isinstance(edge, GraphQLObjectType) and "node" in edge.fields
-    if {"node", "cursor"} <= fields.keys():
-        node = get_named_type(fields["node"].type)
-        composite = (GraphQLObjectType, GraphQLInterfaceType, GraphQLUnionType)
-        return isinstance(node, composite) and str(fields["cursor"].type).rstrip("!") == "String"
-    return False
+    return t.name == "PageInfo" or _connection_node(t) is not None or _edge_node(t) is not None
 
 
 def _wrapper_extras(t: GraphQLNamedType, schema: GraphQLSchema) -> list[str]:
@@ -324,28 +334,65 @@ def _args(field: _FieldLike) -> Mapping[str, GraphQLArgument]:
     return field.args if isinstance(field, GraphQLField) else {}
 
 
+_UNPRINTABLE = "<unprintable>"
+
+
 def _default(value_def: _ValueDef) -> str:
-    if value_def.default_value is Undefined:
+    """The `` = literal`` suffix of a default, from its source text when the schema
+    was built from SDL, else rendered by type. A default no literal can spell
+    is marked rather than misspelled."""
+    value = value_def.default_value
+    if value is Undefined:
         return ""
+    ast = value_def.ast_node
+    if ast is not None and ast.default_value is not None:
+        return f" = {print_ast(ast.default_value)}"
+    literal = _literal(value, value_def.type)
+    return f" = {literal if literal is not None else _UNPRINTABLE}"
+
+
+def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
+    """``value`` written as an input literal of ``type_``, or None when it cannot be."""
     try:
-        node = ast_from_value(value_def.default_value, value_def.type)
+        node = ast_from_value(value, type_)
+        return print_ast(node) if node is not None else None
     except TypeError:
-        # A custom scalar's default has no AST of its own.
-        return f" = {_literal(value_def.default_value)}"
-    return f" = {print_ast(node)}" if node is not None else ""
+        pass
+    named = get_named_type(type_)
+    if isinstance(value, (list, tuple)):
+        inner: GraphQLInputType = type_.of_type if isinstance(type_, GraphQLList) else type_
+        items = [_literal(v, inner) for v in value]
+        return None if None in items else "[" + ", ".join(i for i in items if i) + "]"
+    if isinstance(named, GraphQLInputObjectType) and isinstance(value, dict):
+        if not all(k in named.fields for k in value):
+            return None
+        fields = {k: _literal(v, named.fields[k].type) for k, v in value.items()}
+        if None in fields.values():
+            return None
+        return "{" + ", ".join(f"{k}: {v}" for k, v in fields.items()) + "}"
+    if isinstance(named, GraphQLEnumType):
+        name = named.serialize(value)
+        return name if isinstance(name, str) else None
+    if isinstance(named, GraphQLScalarType) and named.name not in specified_scalar_types:
+        return _json_literal(value)
+    return None
 
 
-def _literal(value: object) -> str:
-    """``value`` as the GraphQL input literal it would be written as."""
+def _json_literal(value: object) -> Optional[str]:
+    """A JSON-like value as an input literal, when every key is a name."""
     if isinstance(value, dict):
         if not all(isinstance(k, str) and _NAME.fullmatch(k) for k in value):
-            return json.dumps(json.dumps(value, default=str))
-        return "{" + ", ".join(f"{k}: {_literal(v)}" for k, v in value.items()) + "}"
+            return None
+        fields = {k: _json_literal(v) for k, v in value.items()}
+        if None in fields.values():
+            return None
+        return "{" + ", ".join(f"{k}: {v}" for k, v in fields.items()) + "}"
     if isinstance(value, (list, tuple)):
-        return "[" + ", ".join(_literal(v) for v in value) + "]"
+        items = [_json_literal(v) for v in value]
+        return None if None in items else "[" + ", ".join(i for i in items if i) + "]"
     if value is None or isinstance(value, (bool, int, float, str)):
         return json.dumps(value)
-    return json.dumps(str(value))
+    return None
 
 
 _PAGINATION = "\u2026"
@@ -674,8 +721,17 @@ def build_index(
         by_key=by_key,
         folded={k: u for k, u in folded.items() if u is not None},
         plumbing=plumbing,
-        owners={u.owner.lower(): u.owner for u in units if u.owner},
+        owners=_folded_names({u.owner for u in units if u.owner}),
     )
+
+
+def _folded_names(names: Iterable[str]) -> dict[str, str]:
+    """Each name under its own spelling and, when no other name shares it, its lowercase."""
+    exact = {n: n for n in names}
+    folded: dict[str, Optional[str]] = {}
+    for n in exact:
+        folded[n.lower()] = n if folded.get(n.lower(), n) == n else None
+    return {**{k: v for k, v in folded.items() if v is not None}, **exact}
 
 
 @functools.lru_cache(maxsize=8)

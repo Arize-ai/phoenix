@@ -220,13 +220,14 @@ def _parse_schema_args(args: Sequence[str]) -> tuple[list[str], list[str]]:
     names: list[str] = []
     it = iter(args[:_MAX_ARGS])
     for arg in it:
+        arg = arg[: _MAX_VALUE_CHARS + len("--search=")]
         flag, has_value, inline = arg.partition("=")
         if flag not in ("--search", "--names"):
             raise ValueError(f"unexpected argument {arg!r}: use --search <text> and --names <A,B>")
         value = inline if has_value else next(it, None)
+        value = value[:_MAX_VALUE_CHARS] if value is not None else None
         if value is None or not value.strip():
             raise ValueError(f"{flag} needs a value")
-        value = value[:_MAX_VALUE_CHARS]
         if flag == "--search":
             searches.append(value.strip())
         else:
