@@ -131,6 +131,7 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     get_evaluators,
 )
+from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
 from phoenix.server.api.helpers.evaluator_calibration import without_expected_outputs
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
@@ -897,22 +898,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         return "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
 
     def _build_context(self) -> dict[str, Any]:
-        """The example revision itself, as the span it may have been converted from.
-
-        Deliberately not EvalWorkItem's context: that item judges a prompt task's run,
-        so its ``output`` is the run's output and ``reference`` is the example's output.
-        An evaluator task judges the example, which the span→example converter built
-        with the same ``input``, ``output`` and ``metadata`` the online evaluator sees on
-        the span, so a mapping drafted here runs unchanged online. The one departure is
-        the task's own expected outputs, removed from ``metadata.annotations`` so the
-        evaluator never reads the answer key it is calibrated against.
-        """
-        revision = self._dataset_example_revision
-        return {
-            "input": revision.input,
-            "output": revision.output,
-            "metadata": without_expected_outputs(revision.metadata_, self.annotation_names),
-        }
+        return dataset_example_eval_context(self._dataset_example_revision)
 
     @override
     async def execute(self) -> None:

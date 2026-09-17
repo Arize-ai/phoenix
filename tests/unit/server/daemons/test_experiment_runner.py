@@ -1664,15 +1664,9 @@ class TestEvaluatorTaskWorkItem:
         )
 
         assert work_item._build_context() == {
-            "input": {"question": "test"},
-            "output": {"answer": "42"},
-            "metadata": {
-                "annotations": {
-                    "length": [{"label": "short", "score": 1.0, "annotator_kind": "LLM"}],
-                    "tone": [{"label": "polite", "annotator_kind": "HUMAN"}],
-                },
-                "source": "unit",
-            },
+            "input": revision.input,
+            "output": revision.output,
+            "metadata": revision.metadata_,
         }
 
     async def test_code_evaluator_persists_run_and_annotation_and_broadcasts(
