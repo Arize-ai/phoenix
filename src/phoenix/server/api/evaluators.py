@@ -201,6 +201,16 @@ class EvaluationResult(TypedDict):
     error_exc: NotRequired[Optional[Exception]]
 
 
+def evaluator_annotation_name(
+    name: str, config: OutputConfigType, output_configs: Sequence[OutputConfigType]
+) -> str:
+    return f"{name}.{config.name}" if len(output_configs) > 1 else name
+
+
+def evaluator_annotation_names(name: str, output_configs: Sequence[OutputConfigType]) -> list[str]:
+    return [evaluator_annotation_name(name, config, output_configs) for config in output_configs]
+
+
 class BaseEvaluator(ABC):
     """
     Base interface for all evaluators that attach annotations to tasks.
@@ -337,7 +347,6 @@ class LLMEvaluator(BaseEvaluator):
                 )
             categorical_configs.append(config)
 
-        multi_output = len(categorical_configs) > 1
         configs_by_name: dict[str, CategoricalOutputConfig] = {
             config.name: config for config in categorical_configs
         }
@@ -508,7 +517,9 @@ class LLMEvaluator(BaseEvaluator):
                         }
                         score = scores_by_label.get(label)
                         explanation = args.get("explanation")
-                        annotation_name = f"{name}.{matched_config.name}" if multi_output else name
+                        annotation_name = evaluator_annotation_name(
+                            name, matched_config, categorical_configs
+                        )
                         end_time = datetime.now(timezone.utc)
                         results.append(
                             EvaluationResult(
@@ -627,10 +638,10 @@ class BuiltInEvaluator(BaseEvaluator):
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
     ) -> list[EvaluationResult]:
-        multi_output = len(output_configs) > 1
         results: list[EvaluationResult] = []
-        for config in output_configs:
-            annotation_name = f"{name}.{config.name}" if multi_output else name
+        for config, annotation_name in zip(
+            output_configs, evaluator_annotation_names(name, output_configs)
+        ):
             result = await self._evaluate(
                 context=context,
                 input_mapping=input_mapping,
@@ -3440,7 +3451,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 set_status_on_exception=False,
             ) as parse_span:
                 for config in output_configs:
-                    annotation_name = f"{name}.{config.name}" if multi_output else name
+                    annotation_name = evaluator_annotation_name(name, config, output_configs)
                     if parse_error is not None:
                         any_coerce_error = True
                         last_coerce_error = parse_error
