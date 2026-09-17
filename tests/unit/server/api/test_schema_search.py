@@ -23,7 +23,6 @@ from graphql import (
     GraphQLUnionType,
     build_schema,
     get_named_type,
-    is_non_null_type,
     parse,
 )
 from graphql.language import print_ast
@@ -865,6 +864,99 @@ def test_concurrent_first_callers_share_one_index() -> None:
     assert all(b is built[0] for b in built)
 
 
+def test_a_scoped_search_matches_the_whole_member_and_quotes_it_short(toy: Index) -> None:
+    text = search(toy, "Project." + "z" * 81 + " recordCount")
+    assert "  recordCount" in text
+    assert "…" in text.splitlines()[0]
+
+
+def test_quoted_text_stays_bounded_once_escaped(toy: Index) -> None:
+    query = "Project." + "\x00" * 80
+    assert len(search(toy, query, 400)) <= 400
+    assert len(describe(toy, search=[query] * 10, budget=4000)) <= 4000
+    assert "\\x00" not in search(toy, query)
+
+
+def test_messages_honour_a_budget_smaller_than_themselves(toy: Index) -> None:
+    assert len(search(toy, "", 1)) <= 1
+    assert len(describe(toy, search=["cost"], budget=1)) <= 1
+
+
+def test_the_term_limit_holds_after_compound_words_expand() -> None:
+    from phoenix.server.api.schema_search import _MAX_QUERY_TERMS, _query_terms
+
+    assert len(_query_terms("a1" * 250)) == _MAX_QUERY_TERMS
+
+
+def test_a_root_shaped_like_relay_plumbing_still_indexes() -> None:
+    index = build_index(build_schema("schema { query: PageInfo } type PageInfo { ok: Int }"))
+    assert first_line(lookup(index, "PageInfo")) == "type PageInfo {"
+
+
+def test_a_forward_only_connection_keeps_its_arguments_visible() -> None:
+    index = build_index(build_schema("type Query { xs(first: Int, after: String): Int }"))
+    text = lookup(index, "Query.xs")
+    assert first_line(text) == "Query.xs(first: Int, after: String): Int"
+    assert PAGINATION_LEGEND not in text
+
+
+def test_visibility_walks_wrapper_fields_and_implemented_interfaces() -> None:
+    wrapped = build_index(
+        build_schema(
+            "type Query { items: Conn } "
+            "type Conn { edges: [Edge!]! pageInfo: PageInfo! stats: Status } "
+            "type Edge { node: Item cursor: String } type PageInfo { hasNextPage: Boolean! } "
+            "type Item { id: ID } enum Status { A } type Mutation { change(x: Status): Int }"
+        ),
+        include_mutations=False,
+    )
+    assert first_line(lookup(wrapped, "Status")) == "enum Status {"
+    implemented = build_index(
+        build_schema(
+            "interface Node { id: ID } type Query { item: Item } "
+            "type Item implements Node { id: ID } type Mutation { get: Node }"
+        ),
+        include_mutations=False,
+    )
+    assert first_line(lookup(implemented, "Node")) == "interface Node {"
+
+
+def test_an_interface_hop_counts_before_path_length() -> None:
+    index = build_index(
+        build_schema(
+            "interface Node { id: ID } type Query { node: Node } "
+            "type A implements Node { id: ID b: B } type B implements Node { id: ID }"
+        )
+    )
+    assert index.nearest["B"] == ("Query", 1, ("Query.node",))
+
+
+def test_a_hidden_read_root_does_not_seed_paths() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { box: Box } type Box { data: Data } type Subscription { secret: Project } "
+            "type Project { data: Data } type Data { value: Int }"
+        )
+    )
+    assert first_line(search(index, "value")) == "Data.value: Int  via Query.box > Box.data"
+
+
+def test_the_filter_word_inside_a_snake_case_identifier_does_not_filter(toy: Index) -> None:
+    assert "# mutations only" not in search(toy, "dataset_mutation_payload fields")
+
+
+def test_a_hidden_mutation_with_no_tokens_is_never_named() -> None:
+    index = build_index(
+        build_schema("type Query { okays: Int } type Mutation { _: Int }"), include_mutations=False
+    )
+    assert "disabled" not in search(index, "okays")
+
+
+def test_a_list_that_fits_is_not_held_back_by_unused_reservations() -> None:
+    index = build_index(build_schema("type Query { hello: Int }"))
+    assert search(index, "hello", 80) == "Query\n  hello: Int"
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
@@ -901,9 +993,9 @@ def test_every_default_renders_as_its_graphql_literal(index: Index) -> None:
         assert f"= {name}" not in lookup(index, index.query_root, budget=100_000)
 
 
-def test_pagination_collapses_exactly_when_every_pagination_argument_is_optional(
-    index: Index,
-) -> None:
+def test_pagination_collapses_exactly_for_the_complete_optional_relay_set(index: Index) -> None:
+    """The marker stands for all four arguments, so it appears only when a field
+    takes all four as optional; a forward-only field keeps its arguments visible."""
     pagination = {"first": "Int", "last": "Int", "after": "String", "before": "String"}
     checked = 0
     for t in index.schema.type_map.values():
@@ -916,13 +1008,12 @@ def test_pagination_collapses_exactly_when_every_pagination_argument_is_optional
             if not {"first", "after"} <= f.args.keys():
                 continue
             line = first_line(lookup(index, f"{t.name}.{fname}"))
-            optional = all(
-                str(get_named_type(arg.type)) == pagination[a] and not is_non_null_type(arg.type)
-                for a, arg in f.args.items()
-                if a in pagination
+            complete = all(
+                a in f.args and str(f.args[a].type) == expected
+                for a, expected in pagination.items()
             )
-            assert (PAGINATION in line) == optional, line
-            assert ("first:" in line) != optional, line
+            assert (PAGINATION in line) == complete, line
+            assert ("first:" in line) != complete, line
             checked += 1
     assert checked > 0
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import difflib
 import functools
+import heapq
 import itertools
 import math
 import re
@@ -143,8 +144,21 @@ _MAX_ECHO = 80
 
 
 def _echo(text: str) -> str:
-    """Caller text as a message quotes it back, cut to a fixed length."""
-    return text if len(text) <= _MAX_ECHO else text[: _MAX_ECHO - 1] + "…"
+    """Caller text as a message quotes it back: printable, and bounded even once
+    ``repr`` has escaped it."""
+    text = "".join(ch if ch.isprintable() else "\ufffd" for ch in text)
+    shown = text[:_MAX_ECHO]
+    while shown and len(repr(shown)) > _MAX_ECHO + 2:
+        shown = shown[:-1]
+    return shown if shown == text else shown + "…"
+
+
+def _fit(text: str, budget: int) -> str:
+    """``text`` within ``budget``, cut at a line end when one fits, else hard."""
+    if len(text) <= budget:
+        return text
+    cut = text.rfind("\n", 0, budget + 1)
+    return text[:cut] if cut > 0 else text[:budget]
 
 
 def _expand(word: str) -> list[str]:
@@ -164,7 +178,7 @@ def _ident_terms(identifier: str) -> list[str]:
 
 def _query_terms(query: str) -> list[str]:
     words = [w for w in _WORD.findall(query[:_MAX_QUERY_CHARS]) if w.lower() not in _STOPWORDS]
-    return [_stem(t) for w in words[:_MAX_QUERY_TERMS] for t in _expand(w)]
+    return [_stem(t) for w in words for t in _expand(w)][:_MAX_QUERY_TERMS]
 
 
 _MUTATION_TERM = _stem("mutation")
@@ -178,7 +192,7 @@ def _asks_mutations_only(query: str) -> bool:
     The word inside an identifier such as ``DatasetMutationPayload`` names a
     type and does not filter.
     """
-    return any(_stem(w.lower()) == _MUTATION_TERM for w in re.findall(r"[A-Za-z]+", query))
+    return any(_stem(w.lower()) == _MUTATION_TERM for w in _WORD.findall(query))
 
 
 @dataclass(frozen=True)
@@ -246,8 +260,9 @@ def _node_type(named: GraphQLNamedType) -> GraphQLNamedType:
     return named
 
 
-def _is_relay_plumbing(t: GraphQLNamedType) -> bool:
-    if not isinstance(t, GraphQLObjectType):
+def _is_relay_plumbing(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
+    """Whether ``t`` is a connection, edge, or page-info type. A root never is."""
+    if not isinstance(t, GraphQLObjectType) or t in (schema.query_type, schema.mutation_type):
         return False
     keys = t.fields.keys()
     return t.name == "PageInfo" or {"edges", "pageInfo"} <= keys or {"node", "cursor"} <= keys
@@ -258,7 +273,7 @@ def _skip(t: GraphQLNamedType, schema: GraphQLSchema) -> bool:
         is_introspection_type(t)
         or isinstance(t, GraphQLScalarType)
         or t is schema.subscription_type
-        or _is_relay_plumbing(t)
+        or _is_relay_plumbing(t, schema)
     )
 
 
@@ -294,10 +309,7 @@ def _is_pagination(name: str, arg: GraphQLArgument) -> bool:
 
 def _signature(name: str, field: _FieldLike) -> str:
     args = _args(field)
-    collapsed = "first" in args and "after" in args
-    collapsed = collapsed and all(
-        _is_pagination(a, arg) for a, arg in args.items() if a in _PAGINATION_ARGS
-    )
+    collapsed = all(a in args and _is_pagination(a, args[a]) for a in _PAGINATION_ARGS)
     rendered: list[str] = []
     for a, arg in args.items():
         if collapsed and a in _PAGINATION_ARGS:
@@ -390,8 +402,9 @@ def _reachable(schema: GraphQLSchema, roots: Iterable[GraphQLNamedType]) -> set[
         nxt: list[GraphQLNamedType] = []
         if isinstance(t, (GraphQLObjectType, GraphQLInterfaceType)):
             for f in t.fields.values():
-                nxt.extend(_returned_types(schema, get_named_type(f.type), implementations=True))
+                nxt.append(get_named_type(f.type))
                 nxt.extend(get_named_type(a.type) for a in f.args.values())
+            nxt.extend(t.interfaces)
             if isinstance(t, GraphQLInterfaceType):
                 nxt.extend(schema.get_possible_types(t))
         elif isinstance(t, GraphQLInputObjectType):
@@ -501,43 +514,40 @@ def build_index(
     df: Counter[str] = Counter()
     for u in units:
         df.update(set().union(*(set(c) for c in u.terms.values())))
-    n = len(units)
+    n = max(len(units), 1)
     idf = {term: math.log(1 + (n - d + 0.5) / (d + 0.5)) for term, d in df.items()}
     avg_len = {f: sum(sum(u.terms[f].values()) for u in units) / n for f in _FIELD_WEIGHTS}
 
-    # Multi-source breadth-first search from the read roots over forward edges,
-    # with connections collapsed to their node type. A field typed as an
-    # interface delivers its implementations too, but only once every type a
-    # concrete field delivers has been reached.
-    present_roots = [query_root, *(r for r in roots if r in schema.type_map and r != query_root)]
+    # Shortest paths from the read roots over forward edges, with connections
+    # collapsed to their node type. A field typed as an interface delivers its
+    # implementations too; a path is shorter first by how many interface hops
+    # it takes, then by its length, so a concrete route wins where one exists.
+    present_roots = [
+        query_root,
+        *(r for r in roots if r in schema.type_map and r != query_root and r not in excluded_types),
+    ]
     nearest: dict[str, tuple[str, int, tuple[str, ...]]] = {r: (r, 0, ()) for r in present_roots}
-    queue = deque(nearest)
-    deferred: deque[tuple[str, str, str]] = deque()  # (implementation, parent, hop)
-    while queue or deferred:
-        if not queue:
-            # Nearest parent first, then by hop name, so the path is deterministic.
-            deferred = deque(sorted(deferred, key=lambda d: (nearest[d[1]][1], d[2])))
-            implementation, parent, hop = deferred.popleft()
-            if implementation in nearest:
-                continue
-            root, depth, hops = nearest[parent]
-            nearest[implementation] = (root, depth + 1, (*hops, hop))
-            queue.append(implementation)
+    cost: dict[str, tuple[int, int]] = {r: (0, 0) for r in present_roots}
+    order = itertools.count()
+    heap = [(0, 0, next(order), r) for r in present_roots]
+    while heap:
+        interfaces, length, _, cur = heapq.heappop(heap)
+        if (interfaces, length) != cost[cur]:
             continue
-        cur = queue.popleft()
-        root, depth, hops = nearest[cur]
+        root, _, hops = nearest[cur]
         for fname, f in _object_fields(schema.type_map[cur]):
             named = get_named_type(f.type)
-            for nxt in _returned_types(schema, named):
-                if nxt.name not in nearest and isinstance(
-                    nxt, (GraphQLObjectType, GraphQLInterfaceType)
-                ):
-                    nearest[nxt.name] = (root, depth + 1, (*hops, f"{cur}.{fname}"))
-                    queue.append(nxt.name)
+            edges = [(nxt, 0) for nxt in _returned_types(schema, named)]
             if isinstance(node := _node_type(named), GraphQLInterfaceType):
-                deferred.extend(
-                    (impl.name, cur, f"{cur}.{fname}") for impl in schema.get_possible_types(node)
-                )
+                edges.extend((impl, 1) for impl in schema.get_possible_types(node))
+            for nxt, extra in edges:
+                if not isinstance(nxt, (GraphQLObjectType, GraphQLInterfaceType)):
+                    continue
+                via = (interfaces + extra, length + 1)
+                if nxt.name not in cost or via < cost[nxt.name]:
+                    cost[nxt.name] = via
+                    nearest[nxt.name] = (root, length + 1, (*hops, f"{cur}.{fname}"))
+                    heapq.heappush(heap, (*via, next(order), nxt.name))
 
     # Entry points first: query-root fields, then fields on read roots, then the
     # rest; sources that deliver a type through an interface come last.
@@ -547,7 +557,9 @@ def build_index(
     for name, sources in through_interface.items():
         returned_by[name].extend(src for src in sources if src not in returned_by[name])
 
-    plumbing = {t.name.lower(): t.name for t in schema.type_map.values() if _is_relay_plumbing(t)}
+    plumbing = {
+        t.name.lower(): t.name for t in schema.type_map.values() if _is_relay_plumbing(t, schema)
+    }
     by_key: dict[str, Unit] = {u.label: u for u in units}
     # A bare mutation name resolves to the mutation unless a type spells it the same.
     for u in units:
@@ -765,7 +777,7 @@ _TOP_HIT_BUDGET = 1500
 def _names_excluded_mutation(index: Index, terms: Sequence[str]) -> bool:
     """Whether the query spells out a mutation that was left out of the index."""
     have = set(terms)
-    return any(tokens <= have for tokens in index.excluded_mutations.values())
+    return any(tokens and tokens <= have for tokens in index.excluded_mutations.values())
 
 
 def _is_exact(index: Index, name: str) -> bool:
@@ -833,7 +845,7 @@ def _unknown_member(index: Index, name: str) -> Optional[tuple[str, str]]:
     owner = index.resolve(owner_key)
     if not dot or not member or owner is None or owner.kind != "type":
         return None
-    return owner.name, _echo(member)
+    return owner.name, member
 
 
 def search(index: Index, query: str, budget: int = 1500) -> str:
@@ -847,6 +859,10 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
     A query containing the word "mutations" on its own is answered with
     mutations only.
     """
+    return _fit(_search(index, query, budget), budget)
+
+
+def _search(index: Index, query: str, budget: int) -> str:
     query = _clip(query)
     if _is_exact(index, query):
         return lookup(index, query, budget)
@@ -856,12 +872,13 @@ def search(index: Index, query: str, budget: int = 1500) -> str:
         owner, member = unknown
         terms = _query_terms(member)
         scored = _rank(index, terms, False, owner=owner) if terms else []
+        shown = _echo(member)
         if not scored:
             return (
-                f"-- {owner} has no field {member!r}, and nothing on {owner} matches it. "
-                f"Try search({member!r})."
+                f"-- {owner} has no field {shown!r}, and nothing on {owner} matches it. "
+                f"Try search({shown!r})."
             )
-        lead = [f"# On {owner}, matching {member!r}:"]
+        lead = [f"# On {owner}, matching {shown!r}:"]
         return _ranked_answer(index, terms, budget, scored=scored, note=[], lead=lead)
     terms = _query_terms(query)
     if not terms:
@@ -951,11 +968,16 @@ def _ranked_answer(
         if body and not body.startswith("# ..."):
             expansions.append(f"{header}\n{body}")
     lines: list[str] = list(lead)
-    used = sum(len(n) + 1 for n in [*note, *lines, *expansions]) + len(_PAGINATION_LEGEND) + 1
+    used = sum(len(n) + 1 for n in [*note, *lines, *expansions])
+    if any(_uses_pagination(text) for _, text, _ in ordered) or any(
+        map(_uses_pagination, expansions)
+    ):
+        used += len(_PAGINATION_LEGEND) + 1
     left: Counter[str] = Counter(owner or _SHARED for owner, _ in entries)
     for i, (is_hit, line, owner) in enumerate(ordered):
-        trailer = _trailer(left)
-        # A header only goes in with the hit that follows it.
+        # A header only goes in with the hit that follows it; the last hit needs no trailer.
+        last = i + (1 if is_hit else 2) >= len(ordered)
+        trailer = "" if last else _trailer(left)
         need = len(line) + 1 if is_hit else len(line) + 1 + len(ordered[i + 1][1]) + 1
         if used + need + len(trailer) > budget:
             if used + len(trailer) + 1 <= budget:
@@ -1157,7 +1179,7 @@ def _section_name(part: str) -> Optional[str]:
 
 def lookup(index: Index, name: str, budget: int = 4000) -> str:
     """One type, ``Type.field``, or mutation rendered in full with the path that reaches it."""
-    return _with_legend(_budgeted(_lookup_parts(index, _clip(name)), budget))
+    return _fit(_with_legend(_budgeted(_lookup_parts(index, _clip(name)), budget)), budget)
 
 
 _MIN_SHARE = 400
@@ -1208,7 +1230,7 @@ def describe(
                 kept.append(line)
         sections.append("\n".join(kept))
         remaining -= len(sections[-1]) + 2
-    return "\n".join(["\n\n".join(sections), *seen])
+    return _fit("\n".join(["\n\n".join(sections), *seen]), budget)
 
 
 def search_many(index: Index, queries: Sequence[str], budget: int = 4000) -> str:
@@ -1241,7 +1263,8 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [wrapper]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
-            return [f"-- {owner} has no field {member!r}. Try search('{owner} {member}')."]
+            shown = _echo(member)
+            return [f"-- {owner} has no field {shown!r}. Try search('{owner} {shown}')."]
         if miss := _unknown_type(index, name):
             return [miss]
         shown = _echo(name)
