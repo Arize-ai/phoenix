@@ -17,8 +17,6 @@ _CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
 
 
 class PhoenixMcpMixin(BaseInstalledAgent):
-    """Add the Phoenix remote MCP server to an installed agent's MCP servers."""
-
     def __init__(
         self,
         logs_dir: Path,
@@ -31,11 +29,9 @@ class PhoenixMcpMixin(BaseInstalledAgent):
 
 
 class PhoenixCliMixin(BaseInstalledAgent):
-    """Install the px CLI built from this checkout after the agent's own install.
+    """Keep px outside the task image so only CLI agents can access it.
 
-    The archive stays out of the task image, so only the CLI agents ever see px. The
-    install runs as root because it links px into /usr/local/bin; the agent user only
-    runs it.
+    Installation requires root access because the script links px into ``/usr/local/bin``.
     """
 
     async def install(self, environment: BaseEnvironment) -> None:
@@ -52,16 +48,12 @@ class PhoenixCliMixin(BaseInstalledAgent):
 
 
 class ClaudeCodeMcpAgent(PhoenixMcpMixin, ClaudeCode):
-    """Claude Code with the Phoenix remote MCP server."""
-
     @staticmethod
     def name() -> str:
         return "claude-code-mcp"
 
 
 class ClaudeCodeCliAgent(PhoenixCliMixin, ClaudeCode):
-    """Claude Code with the px CLI and the public Phoenix skills."""
-
     ENV_VARS = [
         *ClaudeCode.ENV_VARS,
         EnvVar("phoenix_endpoint", env="PHOENIX_ENDPOINT", type="str", default=PHOENIX_URL),
@@ -73,16 +65,12 @@ class ClaudeCodeCliAgent(PhoenixCliMixin, ClaudeCode):
 
 
 class CodexMcpAgent(PhoenixMcpMixin, Codex):
-    """Codex with the Phoenix remote MCP server."""
-
     @staticmethod
     def name() -> str:
         return "codex-mcp"
 
 
 class CodexCliAgent(PhoenixCliMixin, Codex):
-    """Codex with the px CLI and the public Phoenix skills."""
-
     @staticmethod
     def name() -> str:
         return "codex-cli"
@@ -94,6 +82,6 @@ class CodexCliAgent(PhoenixCliMixin, Codex):
         extra_env: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> None:
-        # Codex has no ENV_VARS descriptors; its shells see extra_env on every exec.
+        # Codex has no ENV_VARS descriptors, so pass the endpoint through every shell.
         env = {"PHOENIX_ENDPOINT": PHOENIX_URL, **(extra_env or {})}
         super().__init__(logs_dir, *args, extra_env=env, **kwargs)

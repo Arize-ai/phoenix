@@ -1,9 +1,7 @@
-"""Read a project's data from the local Phoenix, for the reference solutions.
+"""Phoenix query helpers for reference solutions in task images.
 
-Solutions run inside the task image, where this package lives under
-``/opt/verifier`` and Phoenix answers on port 6006. Spans and annotations come
-through the typed Phoenix client; per-span cost is only exposed by GraphQL, so
-:func:`span_costs` is the one query here.
+Use the typed Phoenix client for spans and annotations. Per-span cost requires
+GraphQL, so :func:`span_costs` uses the GraphQL API.
 """
 
 from __future__ import annotations
@@ -18,7 +16,7 @@ from phoenix.client.__generated__ import v1
 
 PHOENIX_URL = "http://127.0.0.1:6006"
 ANSWER_PATH = "/app/answer.txt"
-SPAN_LIMIT = 1_000_000  # the client pages 100 at a time up to this many spans
+SPAN_LIMIT = 1_000_000  # The client fetches 100 spans per page up to this limit.
 
 
 def client() -> Client:
@@ -26,12 +24,10 @@ def client() -> Client:
 
 
 def project_spans(project: str) -> list[v1.Span]:
-    """Every span in the project."""
     return client().spans.get_spans(project_identifier=project, limit=SPAN_LIMIT)
 
 
 def spans_by_trace(spans: list[v1.Span]) -> dict[str, list[v1.Span]]:
-    """Group spans by trace id."""
     traces: dict[str, list[v1.Span]] = defaultdict(list)
     for span in spans:
         traces[span["context"]["trace_id"]].append(span)
@@ -39,7 +35,6 @@ def spans_by_trace(spans: list[v1.Span]) -> dict[str, list[v1.Span]]:
 
 
 def annotation_labels(project: str, name: str) -> list[str]:
-    """The label of every annotation called ``name`` on the project's spans."""
     annotations = client().spans.get_span_annotations(
         spans=project_spans(project), project_identifier=project, include_annotation_names=[name]
     )
@@ -51,7 +46,7 @@ def annotation_labels(project: str, name: str) -> list[str]:
 
 
 def graphql(query: str) -> dict[str, Any]:
-    """Run a GraphQL query against the local Phoenix and return its ``data``."""
+    """Return the ``data`` object from a local Phoenix GraphQL query."""
     request = urllib.request.Request(
         f"{PHOENIX_URL}/graphql",
         data=json.dumps({"query": query}).encode(),
@@ -66,7 +61,7 @@ def graphql(query: str) -> dict[str, Any]:
 
 
 def span_costs(project: str) -> dict[str, float]:
-    """Total cost by span id, for spans Phoenix has a cost for. GraphQL only."""
+    """Return total cost by span ID, omitting spans without cost data."""
     edges = graphql("{ projects(first: 100) { edges { node { id name } } } }")["projects"]["edges"]
     project_id = json.dumps(next(e["node"]["id"] for e in edges if e["node"]["name"] == project))
     costs: dict[str, float] = {}
@@ -88,7 +83,7 @@ def span_costs(project: str) -> dict[str, float]:
 
 
 def write_answer(answer: str) -> None:
-    """Write the answer file the verifier grades and echo it to the log."""
+    """Write the answer for grading and print it to the task log."""
     with open(ANSWER_PATH, "w") as handle:
         handle.write(answer + "\n")
     print(answer)

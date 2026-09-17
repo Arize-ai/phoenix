@@ -2,15 +2,15 @@
 # requires-python = ">=3.10"
 # dependencies = ["pyyaml"]
 # ///
-"""Fail unless every task a Harbor job file runs has its staged build context.
+"""Check that every task in a Harbor job has a staged build context.
 
-Without this, `harbor run` fails deep into the environment build, or builds an
+Without this check, ``harbor run`` can fail during the environment build or build an
 image without its fixture. Usage::
 
     uv run --script evals/harbor/scripts/check_job_staged.py JOB.yaml [--agents-replaced]
 
-``--agents-replaced`` says the run passes ``-a``, which drops the file's agents,
-so the px CLI archive that the CLI agents upload is not required.
+Use ``--agents-replaced`` when the run passes ``-a``. That option replaces the agents in
+the job file, so the run does not require the px archive used by its CLI agents.
 """
 
 from __future__ import annotations

@@ -4,8 +4,8 @@
 # ///
 """Download the TRAIL rows that seed the trail fixture.
 
-TRAIL is gated on Hugging Face, so ``HF_TOKEN`` must carry a token whose account
-has accepted its terms.
+TRAIL is gated on Hugging Face. Set ``HF_TOKEN`` to a token for an account that has
+accepted the dataset terms.
 """
 
 from __future__ import annotations

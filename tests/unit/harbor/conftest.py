@@ -1,5 +1,3 @@
-"""Make the repository-local ``evals`` package importable in unit tests."""
-
 import sys
 from pathlib import Path
 

@@ -1,5 +1,3 @@
-"""The shared verifier reads the reply and the measurements from an ATIF trajectory."""
-
 import json
 from pathlib import Path
 

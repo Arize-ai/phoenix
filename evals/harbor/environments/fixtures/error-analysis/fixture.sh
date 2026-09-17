@@ -1,6 +1,5 @@
 #!/bin/bash
-# The hand-prepared error-analysis fixture, published in the public assets bucket.
-# Writes $1/phoenix.db.
+# Download the published error-analysis fixture to $1/phoenix.db.
 set -euo pipefail
 OUT="$1"
 mkdir -p "$OUT"

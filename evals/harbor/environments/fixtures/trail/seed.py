@@ -1,8 +1,8 @@
-"""Seed a Phoenix database with the TRAIL rows and leave a complete SQLite file behind.
+"""Create a complete Phoenix SQLite fixture from TRAIL rows.
 
-Runs on the host through ``uv run`` from the repository root, so the Phoenix that
-seeds is the checkout's own. The file is complete: the write-ahead log is
-checkpointed before the database is moved to ``--output``.
+Run this script with ``uv run`` from the repository root to use Phoenix from the current
+checkout. The script checkpoints the write-ahead log before moving the database to
+``--output``.
 """
 
 from __future__ import annotations
@@ -100,7 +100,6 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
             )
             try:
                 wait_for(lambda: healthy(base), timeout=120, what="Phoenix did not become healthy")
-                # The loader is a uv inline script with its own Python and dependencies.
                 subprocess.run(
                     [
                         "uv",
@@ -118,8 +117,8 @@ def seed(rows_path: Path, output: Path, project: str) -> dict[str, Any]:
                         "--scores-on-trace",
                     ],
                     check=True,
-                    # The client reads its endpoint from PHOENIX_COLLECTOR_ENDPOINT; drop any
-                    # host-level Phoenix settings so the rows cannot land elsewhere.
+                    # Remove inherited Phoenix settings so the loader sends every row to
+                    # this server.
                     env={
                         **{k: v for k, v in os.environ.items() if not k.startswith("PHOENIX_")},
                         "PHOENIX_COLLECTOR_ENDPOINT": base,

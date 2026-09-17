@@ -1,5 +1,3 @@
-"""Every TRAIL benchmark task keeps the shared layout and a well-formed expected answer."""
-
 import json
 import os
 from pathlib import Path
@@ -18,7 +16,6 @@ def _expected(task: Path) -> dict[str, Any]:
 
 
 def _task_config(task: Path) -> tuple[str, str, str]:
-    """The header, the ``[task]`` table, and everything after it."""
     header, metadata, shared = (task / "task.toml").read_text().split("\n\n", 2)
     return header, metadata, shared
 

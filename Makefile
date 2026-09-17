@@ -498,41 +498,32 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # Harbor Evals
 #=============================================================================
 
-# A Harbor job file defines a run: its tasks, agents, environment, attempts, retries, and
-# network policy. evals/harbor/jobs/benchmark.yaml is the PXI benchmark CI runs, and
-# evals/harbor/jobs/trail-benchmark-dev.yaml is the Phoenix tool benchmark. Point
-# HARBOR_JOB at one (or at a trimmed copy for a subset), and pass anything else
-# `harbor run` accepts through HARBOR_ARGS, e.g. `-e docker`, `-k 1`, or `-a oracle`
-# (which keeps the file's tasks and environment but replaces its agents).
+# HARBOR_JOB selects the benchmark configuration. HARBOR_ARGS passes options to
+# `harbor run`. The `-a` option preserves the tasks and environment but replaces the
+# configured agents.
 HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
 HARBOR_ARGS ?=
-# harbor-stage stages every task whose fixture it can produce: the error-analysis fixture
-# downloads from the public assets bucket, the TRAIL fixture is seeded locally and needs
-# HF_TOKEN (tasks on it are skipped otherwise). It also builds the px CLI archive that the
-# CLI agents install, a pnpm build plus a Docker step; HARBOR_CLI=0 skips that.
+# harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
+# HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
 HARBOR_CLI ?= 1
-# Every run records its tasks, trials, scores, and traces in Phoenix through the
-# arize-phoenix plugin, which reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY from the
-# environment. A job file that lists a task directory (`datasets:`) records to the
-# dataset named after that directory, so every copy of it shares one dataset; a job file
-# that lists tasks directly needs a name, and benchmark.yaml's is pxi-benchmark.
-# HARBOR_DATASET=<name> overrides either; set HARBOR_PLUGIN= to run without recording.
+# The arize-phoenix plugin records tasks, trials, scores, and traces. Jobs that define
+# `datasets:` use the task directory name as the dataset name. Other jobs use
+# pxi-benchmark by default. HARBOR_DATASET overrides the name. Set HARBOR_PLUGIN to an
+# empty value to disable recording.
 HARBOR_DATASET ?= $(if $(shell grep -l '^datasets:' $(HARBOR_JOB) 2>/dev/null),,pxi-benchmark)
 HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
-# Phoenix client that provides the arize-phoenix Harbor plugin.
+# This client package provides the arize-phoenix Harbor plugin.
 HARBOR_CLIENT_VERSION ?= 3.5.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
-# harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
-# repo's .python-version (3.10).
+# Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.10.
 HARBOR_PYTHON ?= 3.13
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
 	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
-# Every task the job runs needs its staged build context; the px CLI archive is only
-# required when the job file's agents are in effect, i.e. `-a` does not replace them.
+# Require the px archive only when HARBOR_ARGS does not replace the configured agents.
 define check-harbor-staged
 	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
 endef

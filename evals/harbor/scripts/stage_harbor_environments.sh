@@ -1,15 +1,10 @@
 #!/bin/bash
-# Build Phoenix and stage every task's build context: the shared image definition from
-# evals/harbor/environments plus the fixture the task names in its task.toml.
+# Build Phoenix and stage the build context for every Harbor task.
 #
-# The shared context (Dockerfile, the wheel, the verifiers, the container assets) is
-# assembled once under evals/harbor/.cache/environment. Each fixture is produced once by
-# evals/harbor/environments/fixtures/<name>/fixture.sh into
-# evals/harbor/.cache/fixtures/<name>/phoenix.db (RESEED=1 rebuilds them). A fixture script
-# that exits 2 cannot run on this machine (the trail fixture without HF_TOKEN), and the
-# tasks that need it are skipped and listed. Every task then gets the context copied into
-# its environment/ with hard links, plus its fixture as environment/data/phoenix.db; the
-# task's .gitignore keeps that directory out of git and out of the task digest.
+# The script builds the shared files once under evals/harbor/.cache/environment and each
+# fixture once under evals/harbor/.cache/fixtures. Set RESEED=1 to rebuild fixtures. Exit
+# code 2 marks a fixture as unavailable, so the script skips its tasks. Each staged task
+# receives hard links to the shared files and its fixture at environment/data/phoenix.db.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 HERE="$ROOT/evals/harbor"
@@ -37,8 +32,8 @@ if [ "${RESEED:-0}" = 1 ]; then
 fi
 
 unavailable=""
-# Produce a fixture once. Returns 0 when it is available, 1 when its script declined
-# (exit 2), and exits on any other failure.
+# Return 0 for an available fixture and 1 when its script reports that it is unavailable.
+# Exit on any other fixture error.
 ensure_fixture() {
   local name=$1 dir="$FIXTURES/$1" script="$ENVIRONMENTS/fixtures/$1/fixture.sh"
   case " $unavailable " in *" $name "*) return 1 ;; esac

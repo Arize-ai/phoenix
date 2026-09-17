@@ -2,13 +2,11 @@
 # requires-python = ">=3.10"
 # dependencies = ["pyyaml"]
 # ///
-"""Write a copy of a Harbor job file that keeps only the named agents and tasks.
+"""Create a Harbor job file that contains only the selected agents and tasks.
 
-A job file defines a run, and a subset is a copy of it. Harbor's ``-a`` flag is
-not a way to pick an agent from the file: it replaces the file's agents with a
-bare entry and drops the MCP servers, environment, and skills that define a
-condition. Selecting by name here keeps the full entries and narrows the file's
-datasets with ``task_names``. Usage::
+Harbor's ``-a`` option replaces the configured agents with a minimal entry. It removes
+the MCP servers, environment, and skills that define a condition. This script preserves
+the complete agent entries and limits the datasets with ``task_names``. Usage::
 
     uv run --script evals/harbor/scripts/subset_job.py evals/harbor/jobs/trail-benchmark-dev.yaml \
         --agents claude-code-mcp codex-cli --tasks count-traces --out evals/harbor/.cache/subset.yaml

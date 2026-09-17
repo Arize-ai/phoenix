@@ -1,21 +1,20 @@
-"""Grade an answer task's reply and write Harbor's ``reward.json``.
+"""Grade a task reply and write Harbor's ``reward.json`` file.
 
 Usage inside a task verifier::
 
     PYTHONPATH=/opt/verifier python -m evals.harbor.verifiers.verify --expected /tests/expected.json
 
-The reply is the last agent message in Harbor's ATIF trajectory at
-``/logs/agent/trajectory.json``. The oracle runs a solution script instead of an
-agent and so has no trajectory; it writes its answer to ``/app/answer.txt``,
-which is read only when no trajectory exists.
+The verifier grades the last agent message in the ATIF trajectory at
+``/logs/agent/trajectory.json``. An oracle run has no trajectory because it runs a
+solution script instead of an agent. In that case, the verifier reads the answer from
+``/app/answer.txt``.
 
-``expected.json`` takes one of two shapes. ``{"exact": "ok"}`` passes when the
-reply, stripped of emphasis, whitespace, and end punctuation, equals the value
-ignoring case. ``{"reference": "117 traces", "notes": "..."}`` asks the LLM
-judge in :mod:`evals.harbor.verifiers.llm_judge` whether the reply commits to
-the same final answer as the reference; ``notes`` is optional guidance for the
-judge. State verifiers that decide their own reward can call
-:func:`write_reward` directly to attach the trajectory measurements.
+Use ``{"exact": "ok"}`` in ``expected.json`` to compare normalized strings. The
+normalization removes emphasis, extra whitespace, and final punctuation and ignores
+letter case. Use ``{"reference": "117 traces", "notes": "..."}`` to ask the LLM judge
+in :mod:`evals.harbor.verifiers.llm_judge` whether the reply gives the reference answer.
+State verifiers can call :func:`write_reward` to record their own reward and include the
+trajectory measurements.
 """
 
 from __future__ import annotations
@@ -46,7 +45,6 @@ def read_trajectory(path: Path) -> dict[str, Any] | None:
 
 
 def agent_steps(trajectory: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """The agent's own steps, without copied continuation context."""
     if not isinstance(trajectory, dict) or not isinstance(trajectory.get("steps"), list):
         return []
     return [
@@ -59,10 +57,6 @@ def agent_steps(trajectory: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 
 def final_reply(trajectory: dict[str, Any] | None) -> str:
-    """The text of the last agent step that said anything.
-
-    An ATIF message is either a string or a list of typed parts.
-    """
     for step in reversed(agent_steps(trajectory)):
         message = step.get("message")
         if isinstance(message, str) and message.strip():
@@ -79,7 +73,7 @@ def final_reply(trajectory: dict[str, Any] | None) -> str:
 
 
 def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
-    """Tool calls and agent turns, from the agent's own steps."""
+    """Count tool calls and agent turns, excluding copied context."""
     steps = agent_steps(trajectory)
     if not steps:
         return {}
@@ -88,7 +82,6 @@ def measurements(trajectory: dict[str, Any] | None) -> dict[str, float]:
 
 
 def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, ReplySource]:
-    """The reply to grade and where it came from."""
     trajectory = read_trajectory(trajectory_path)
     if trajectory is not None:
         return final_reply(trajectory), "trajectory"
@@ -99,12 +92,11 @@ def read_reply(trajectory_path: Path, answer_path: Path) -> tuple[str, ReplySour
 
 
 def normalize(text: str) -> str:
-    """Strip Markdown emphasis, surrounding whitespace, and end punctuation; casefold."""
     return " ".join(_MARKUP.sub("", text).split()).rstrip(".!").casefold()
 
 
 def check(reply: str, expected: dict[str, Any]) -> tuple[float, str]:
-    """The reward for ``reply`` under ``expected`` and the reason for it."""
+    """Return the reward and explanation for a reply."""
     if "exact" in expected:
         scores = exact_match.evaluate(
             {"output": normalize(reply), "expected": normalize(str(expected["exact"]))}
@@ -127,7 +119,7 @@ def write_reward(
     reward_path: Path = REWARD_PATH,
     **extra: float,
 ) -> dict[str, float]:
-    """Write the reward, the trajectory measurements, and any extra scores."""
+    """Write the reward with trajectory measurements and extra scores."""
     scores: dict[str, float] = {"reward": float(reward)}
     scores.update(measurements(read_trajectory(trajectory_path)))
     scores.update({key: float(value) for key, value in extra.items()})

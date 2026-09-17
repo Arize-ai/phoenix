@@ -1,8 +1,7 @@
-"""LLM-as-a-judge evaluators for the Harbor verifiers, built on ``phoenix.evals``.
+"""LLM judges for Harbor verifiers.
 
-The judge model defaults to a cheap one and is overridable with
-``PHOENIX_EVAL_JUDGE_MODEL`` (and ``PHOENIX_EVAL_JUDGE_PROVIDER``). The task's
-``[verifier]`` table must allow the provider's host.
+Set ``PHOENIX_EVAL_JUDGE_MODEL`` and ``PHOENIX_EVAL_JUDGE_PROVIDER`` to override
+the defaults. The task's ``[verifier]`` table must allow the provider host.
 """
 
 from __future__ import annotations
@@ -30,11 +29,7 @@ Does the reply commit to the same final answer as the reference?"""
 
 
 def reply_matches_reference(reply: str, reference: str, notes: str = "") -> Score:
-    """Whether ``reply`` commits to the same final answer as ``reference``.
-
-    ``notes`` is optional guidance for the judge, such as alternative names for
-    the same entity.
-    """
+    """Use ``notes`` for equivalent terms or other grading rules."""
     evaluator = ClassificationEvaluator(
         name="reply_matches_reference",
         llm=LLM(provider=JUDGE_PROVIDER, model=JUDGE_MODEL),

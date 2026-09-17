@@ -1,11 +1,9 @@
 #!/bin/bash
-# The TRAIL fixture: one project of PatronusAI/TRAIL traces and annotations, seeded
-# through this checkout's Phoenix. Writes $1/phoenix.db.
+# Create $1/phoenix.db from one project of PatronusAI/TRAIL traces and annotations.
 #
-# TRAIL is gated on Hugging Face and its terms forbid resharing it outside the hub, so
-# every developer seeds it locally with their own HF_TOKEN. The rows are cached beside
-# the database and nothing TRAIL-derived is committed, uploaded, or pushed. Without a
-# token this exits 2, and staging skips the tasks that need the fixture.
+# TRAIL is gated on Hugging Face and cannot be redistributed outside the hub. Set
+# HF_TOKEN to a token for an account that has accepted the dataset terms. Without a
+# token, this script exits with status 2 so staging can skip the TRAIL tasks.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../../../../.." && pwd)

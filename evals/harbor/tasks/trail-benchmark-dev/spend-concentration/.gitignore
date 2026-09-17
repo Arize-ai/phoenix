@@ -1,5 +1,3 @@
-# environment/ is the build context that scripts/stage_harbor_environments.sh writes
-# from evals/harbor/environments and the task's fixture. The image, the Phoenix wheel,
-# and the database are the conditions under test, not part of the task, so they stay out
-# of git and out of the task digest that versions the Phoenix dataset.
+# Staging writes the image, wheel, and fixture to environment/. Ignore these generated
+# files so they do not change the task digest that versions the Phoenix dataset.
 environment/
