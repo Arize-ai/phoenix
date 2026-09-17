@@ -11,11 +11,13 @@ export type ExampleField =
   | ExampleField[]
   | { [key: string]: ExampleField };
 
-/** A dataset example's revision, as the evaluator context is built from it. */
+/** A dataset example revision with its evaluation context. */
 export type EvaluatorContextExample = {
-  input: ExampleField;
-  output: ExampleField;
-  metadata: ExampleField;
+  evaluationContext: {
+    input: ExampleField;
+    output: ExampleField;
+    metadata: ExampleField;
+  };
 };
 
 /** A field as the mapping editor offers it: an object keyed by path. */
@@ -30,20 +32,8 @@ export type EvaluatorPrediction =
     }
   | { status: "error"; error: string };
 
-/**
- * The context an evaluator task judges: the example revision itself, which
- * the span→example converter built with the same `input`, `output` and
- * `metadata` the online evaluator sees on the span. Nothing is added (a
- * record has no `reference`) and nothing is removed here; the server drops
- * only the task's own expected outputs from `metadata.annotations` at run
- * time so the judge never reads its answer key.
- */
 export function createEvaluatorContext(example: EvaluatorContextExample) {
-  return {
-    input: example.input,
-    output: example.output,
-    metadata: isStringKeyedObject(example.metadata) ? example.metadata : {},
-  };
+  return example.evaluationContext;
 }
 
 /**
@@ -59,7 +49,7 @@ export function createEvaluatorMappingSource(
   return {
     input: asMappingRecord(context.input),
     output: asMappingRecord(context.output),
-    metadata: context.metadata,
+    metadata: isStringKeyedObject(context.metadata) ? context.metadata : {},
   };
 }
 
