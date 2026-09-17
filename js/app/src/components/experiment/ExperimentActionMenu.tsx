@@ -1,5 +1,6 @@
 import copy from "copy-to-clipboard";
 import { useCallback, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 
@@ -9,6 +10,7 @@ import {
   Button,
   Dialog,
   DialogFooter,
+  FieldError,
   Flex,
   Form,
   Icon,
@@ -542,9 +544,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   );
 }
 
-function normalizeDescription(value: string | null | undefined): string {
-  return (value ?? "").trim();
-}
+type EditExperimentFormParams = {
+  name: string;
+  description: string;
+};
 
 function EditExperimentDialog({
   experimentId,
@@ -560,10 +563,6 @@ function EditExperimentDialog({
   onOpenChange: (isOpen: boolean) => void;
 }) {
   const notifySuccess = useNotifySuccess();
-  const [nameValue, setNameValue] = useState(experimentName);
-  const [descriptionValue, setDescriptionValue] = useState(
-    experimentDescription ?? ""
-  );
   const [editError, setEditError] = useState<string | null>(null);
   const [commitEditExperiment, isEditingExperiment] = useMutation(graphql`
     mutation ExperimentActionMenuEditExperimentMutation(
@@ -578,14 +577,19 @@ function EditExperimentDialog({
       }
     }
   `);
-  const trimmedName = nameValue.trim();
-  const trimmedDescription = descriptionValue.trim();
-  const descriptionInput = trimmedDescription || null;
-  const isUnchanged =
-    trimmedName === experimentName &&
-    normalizeDescription(descriptionInput) ===
-      normalizeDescription(experimentDescription);
-  const isSaveDisabled = isEditingExperiment || !trimmedName || isUnchanged;
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isDirty },
+  } = useForm<EditExperimentFormParams>({
+    mode: "onChange",
+    defaultValues: {
+      name: experimentName,
+      description: experimentDescription ?? "",
+    },
+  });
+  const isSaveDisabled = isEditingExperiment || !isDirty;
 
   return (
     <ModalOverlay
@@ -593,8 +597,10 @@ function EditExperimentDialog({
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (open) {
-          setNameValue(experimentName);
-          setDescriptionValue(experimentDescription ?? "");
+          reset({
+            name: experimentName,
+            description: experimentDescription ?? "",
+          });
           setEditError(null);
         }
         onOpenChange(open);
@@ -617,18 +623,14 @@ function EditExperimentDialog({
               </View>
             ) : null}
             <Form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (isSaveDisabled) {
-                  return;
-                }
+              onSubmit={handleSubmit(({ name, description }) => {
                 setEditError(null);
                 commitEditExperiment({
                   variables: {
                     input: {
                       experimentId,
-                      name: trimmedName,
-                      description: descriptionInput,
+                      name: name.trim(),
+                      description: description.trim() || null,
                     },
                   },
                   onCompleted: () => {
@@ -644,29 +646,65 @@ function EditExperimentDialog({
                     );
                   },
                 });
-              }}
+              })}
             >
               <View padding="size-200">
                 <Flex direction="column" gap="size-100">
-                  <TextField
-                    value={nameValue}
-                    onChange={setNameValue}
-                    isDisabled={isEditingExperiment}
-                    isInvalid={!trimmedName}
-                    autoFocus
-                  >
-                    <Label>Name</Label>
-                    <Input />
-                    <Text slot="description">The name cannot be empty.</Text>
-                  </TextField>
-                  <TextField
-                    value={descriptionValue}
-                    onChange={setDescriptionValue}
-                    isDisabled={isEditingExperiment}
-                  >
-                    <Label>Description</Label>
-                    <TextArea />
-                  </TextField>
+                  <Controller
+                    name="name"
+                    control={control}
+                    rules={{
+                      required: "Experiment name is required",
+                      validate: (value) =>
+                        value.trim().length > 0 ||
+                        "Experiment name is required",
+                    }}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <TextField
+                        isInvalid={invalid}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                        value={value.toString()}
+                        isDisabled={isEditingExperiment}
+                        autoFocus
+                      >
+                        <Label>Name</Label>
+                        <Input />
+                        {error?.message ? (
+                          <FieldError>{error.message}</FieldError>
+                        ) : (
+                          <Text slot="description">
+                            The name cannot be empty.
+                          </Text>
+                        )}
+                      </TextField>
+                    )}
+                  />
+                  <Controller
+                    name="description"
+                    control={control}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error },
+                    }) => (
+                      <TextField
+                        isInvalid={invalid}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                        value={value.toString()}
+                        isDisabled={isEditingExperiment}
+                      >
+                        <Label>Description</Label>
+                        <TextArea />
+                        {error?.message ? (
+                          <FieldError>{error.message}</FieldError>
+                        ) : null}
+                      </TextField>
+                    )}
+                  />
                 </Flex>
               </View>
               <DialogFooter>

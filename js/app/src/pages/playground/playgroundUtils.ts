@@ -2256,14 +2256,6 @@ export const getChatCompletionInput = ({
 };
 
 /**
- * Gets chat completion input for running over a dataset.
- *
- * Builds the same hub-and-spoke ChatCompletionOverDatasetInput shape as
- * getChatCompletionInput, but uses the store's templateFormat (MUSTACHE /
- * F_STRING / NONE) rather than hardcoding "NONE", so dataset-level variable
- * substitution still works.
- */
-/**
  * Resolve an experiment name/description for the next dataset-backed run,
  * preferring the scaffold value and falling back to the trimmed store value.
  * An empty result becomes null so the server applies its generated default.
@@ -2275,6 +2267,14 @@ function resolveNextExperimentField(
   return (scaffoldValue ?? storeValue?.trim()) || null;
 }
 
+/**
+ * Gets chat completion input for running over a dataset.
+ *
+ * Builds the same hub-and-spoke ChatCompletionOverDatasetInput shape as
+ * getChatCompletionInput, but uses the store's templateFormat (MUSTACHE /
+ * F_STRING / NONE) rather than hardcoding "NONE", so dataset-level variable
+ * substitution still works.
+ */
 export const getChatCompletionOverDatasetInput = ({
   playgroundStore,
   instanceId,
