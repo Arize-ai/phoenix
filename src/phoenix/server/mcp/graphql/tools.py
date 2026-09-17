@@ -183,8 +183,7 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         """Execute a GraphQL mutation against Phoenix's API. This changes stored data.
 
         Confirm the change with the person you are acting for before calling
-        this. There is no second chance: the mutation runs when called, and
-        Phoenix keeps no undo.
+        this. The mutation runs when called, and Phoenix keeps no undo.
 
         Call `describeGraphqlSchema` with the mutation's name first. It returns
         the input types the mutation requires, which are not guessable from the
