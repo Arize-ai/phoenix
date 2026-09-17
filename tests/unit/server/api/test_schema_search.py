@@ -2792,6 +2792,17 @@ def test_implicit_field_names_fold_case(toy: Index) -> None:
     assert search(toy, "Query.__TYPE").startswith("Query.__type(name: String!): __Type")
 
 
+def test_a_cursor_argument_with_a_default_is_written_out() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { projects(first: Int, last: Int = 25, after: String, before: String): Int }"
+        )
+    )
+    line = first_line(lookup(index, "Query.projects"))
+    assert line == "Query.projects(first: Int, last: Int = 25, after: String, before: String): Int"
+    assert PAGINATION not in line
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
@@ -2847,7 +2858,7 @@ def test_pagination_collapses_exactly_for_the_complete_optional_relay_set(index:
             complete = all(
                 a in f.args and str(f.args[a].type) == expected
                 for a, expected in pagination.items()
-            )
+            ) and all(f.args[a].default_value is Undefined for a in ("last", "after", "before"))
             assert (PAGINATION in line) == complete, line
             assert "first:" in line, line
             checked += 1

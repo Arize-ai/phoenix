@@ -753,7 +753,11 @@ def _is_pagination(name: str, arg: GraphQLArgument) -> bool:
 
 def _signature(name: str, field: _FieldLike) -> str:
     args = _args(field)
-    collapsed = all(a in args and _is_pagination(a, args[a]) for a in _PAGINATION_ARGS)
+    # The marker stands for the three cursor arguments exactly as the legend
+    # spells them, so one with a default of its own is written out.
+    collapsed = all(a in args and _is_pagination(a, args[a]) for a in _PAGINATION_ARGS) and all(
+        args[a].default_value is Undefined for a in ("last", "after", "before")
+    )
     rendered: list[str] = []
     for a, arg in args.items():
         if collapsed and a in _PAGINATION_ARGS and a != "first":
