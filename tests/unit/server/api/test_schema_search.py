@@ -35,6 +35,7 @@ from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.api.schema_search import (
     READ_ROOTS,
     Index,
+    _first_sentence,
     _stem,
     _stem_cached,
     _terms,
@@ -2838,6 +2839,19 @@ def test_deprecated_arguments_and_enum_values_show_their_reasons() -> None:
     assert '  OLD @deprecated(reason: "Use ACTIVE.")' in lookup(index, "S")
     assert first_line(lookup(index, "S.OLD")) == 'S.OLD @deprecated(reason: "Use ACTIVE.")'
     parse(lookup(index, "S"))
+
+
+def test_an_abbreviation_does_not_end_the_first_sentence() -> None:
+    assert _first_sentence("Quantile (e.g. p50, p99) of latency. Second.") == (
+        "Quantile (e.g. p50, p99) of latency."
+    )
+    assert _first_sentence("The last editor, i.e. who saved it. More.") == (
+        "The last editor, i.e. who saved it."
+    )
+    assert _first_sentence("Scores, labels, etc. per document. More.") == (
+        "Scores, labels, etc. per document."
+    )
+    assert _first_sentence("One sentence. Two.") == "One sentence."
 
 
 # --- properties of the real schema -----------------------------------------------
