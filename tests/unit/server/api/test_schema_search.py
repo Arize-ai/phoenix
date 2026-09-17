@@ -1713,6 +1713,36 @@ def test_a_hidden_type_note_names_the_operation_that_reaches_it() -> None:
     assert lookup(index, "Secret").startswith("-- Secret is reachable only through mutations")
 
 
+def test_a_default_whose_comparison_fails_still_indexes() -> None:
+    class Awkward:
+        def __eq__(self, other: object) -> bool:
+            raise ValueError("ambiguous")
+
+        __hash__ = None  # type: ignore[assignment]
+
+    schema = build_schema("scalar V type Query { f(x: V = [1, 2]): Int }")
+    assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default_value = Awkward()
+    assert (
+        first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: V = <unprintable>): Int"
+    )
+
+
+def test_a_stale_literal_is_not_kept_for_a_value_of_another_kind() -> None:
+    schema = build_schema("scalar JSON type Query { f(x: JSON = true): String }")
+    assert schema.query_type is not None
+    schema.query_type.fields["f"].args["x"].default_value = 1
+    assert first_line(lookup(build_index(schema), "Query.f")) == "Query.f(x: JSON = 1): String"
+
+
+def test_a_shared_root_field_resolves_by_bare_name_when_mutations_are_enabled() -> None:
+    index = build_index(
+        build_schema("schema { query: Root mutation: Root } type Root { write: Int }")
+    )
+    assert first_line(lookup(index, "write")) == "Root.write: Int"
+    assert "Root.write: Int" in describe(index, names=["write"])
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
