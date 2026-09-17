@@ -999,6 +999,11 @@ def _is_exact(index: Index, name: str) -> bool:
     )
 
 
+def _is_visible_type(index: Index, name: str) -> bool:
+    u = index.by_key.get(name)
+    return (u is not None and u.kind == "type") or name in index.plumbing
+
+
 def _plumbing_name(index: Index, name: str) -> Optional[str]:
     return _by_case(index.plumbing, name)
 
@@ -1330,7 +1335,9 @@ def _field_dependencies(index: Index, u: Unit) -> list[str]:
 
 
 def _commented(text: str) -> str:
-    return "\n".join(f"# {line}" if line else "#" for line in text.strip().split("\n"))
+    """``text`` as comment lines; a carriage return ends a line like a newline does."""
+    lines = text.strip().replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return "\n".join(f"# {line}" if line else "#" for line in lines)
 
 
 def _path_lines(paths: Iterable[tuple[str, ...]]) -> list[str]:
@@ -1501,8 +1508,10 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
             return [f"-- {name} is a mutation. {_MUTATIONS_DISABLED}"]
         if _is_hidden_mutation_root(index, key):
             return [f"-- {index.mutation_root} is the mutation root. {_MUTATIONS_DISABLED}"]
-        if wrapper := _plumbing_miss(index, name.partition(".")[0]):
-            return [wrapper]
+        owner_part, dot, _ = name.partition(".")
+        wrapper_name = index.owner(owner_part) if dot else _plumbing_name(index, name)
+        if wrapper_name in index.plumbing and not (dot and wrapper_name in index.owners):
+            return [_plumbing_miss(index, wrapper_name) or ""]
         if unknown := _unknown_member(index, name):
             owner, member = unknown
             shown = _echo(member)
@@ -1523,9 +1532,7 @@ def _lookup_parts(index: Index, name: str) -> list[str]:
         else:
             if isinstance(t, GraphQLInterfaceType):
                 possible = ", ".join(
-                    p.name
-                    for p in schema.get_possible_types(t)
-                    if p.name in index.by_key or p.name in index.plumbing
+                    p.name for p in schema.get_possible_types(t) if _is_visible_type(index, p.name)
                 )
                 if possible:
                     parts.append(f"# possible types: {possible}")

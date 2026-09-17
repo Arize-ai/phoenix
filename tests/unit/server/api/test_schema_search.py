@@ -1448,6 +1448,41 @@ def test_unicode_line_separators_inside_a_literal_survive() -> None:
     parse(text)
 
 
+def test_a_mutation_sharing_a_hidden_types_name_does_not_make_it_visible() -> None:
+    index = build_index(
+        build_schema(
+            "interface Shared { id: ID } type Query { visible: Visible } "
+            "type Visible implements Shared { id: ID } type Secret implements Shared { id: ID } "
+            "type Subscription { events: Secret } type Mutation { Secret: Int }"
+        )
+    )
+    assert "# possible types: Visible\n" in lookup(index, "Shared") + "\n"
+
+
+def test_a_carriage_return_in_a_description_stays_commented() -> None:
+    from graphql import GraphQLField, GraphQLInt, GraphQLSchema
+
+    query = GraphQLObjectType(
+        "Query", {"ok": GraphQLField(GraphQLInt, description="metadata\rtype Fake { secret: Int }")}
+    )
+    index = build_index(GraphQLSchema(query=query))
+    assert lookup(index, "Query.ok").startswith(
+        "Query.ok: Int\n# metadata\n# type Fake { secret: Int }"
+    )
+
+
+def test_a_missing_member_lookup_keeps_the_exact_owner() -> None:
+    index = build_index(
+        build_schema(
+            "type Query { a: Conn b: conn } type PageInfo { hasNextPage: Boolean! } "
+            "type Conn { edges: [CE] pageInfo: PageInfo } type CE { node: Node cursor: String } "
+            "type Node { id: ID } type conn { value: String }"
+        )
+    )
+    assert lookup(index, "conn.edges").startswith("-- conn has no field 'edges'")
+    assert "Conn is a connection over Node" in lookup(index, "Conn.edges")
+
+
 # --- properties of the real schema -----------------------------------------------
 
 
