@@ -8,7 +8,7 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Generic, Optional, Sequence
+from typing import Any, Awaitable, Callable, Generic, Mapping, Optional, Sequence
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
@@ -140,9 +140,30 @@ def _resolve_path(cwd: str, path: str) -> str:
     return posixpath.normpath(posixpath.join(cwd, path))
 
 
-def _format_graphql_errors(messages: list[str]) -> str:
-    formatted = "\n".join(f"- {message}" for message in messages)
-    return f"GraphQL errors:\n{formatted}\n"
+def _operation_count(query: str) -> int:
+    """How many operations ``query`` declares; invalid syntax counts as one and is
+    left for ``schema.execute`` to report."""
+    try:
+        document = parse_graphql(query)
+    except GraphQLSyntaxError:
+        return 1
+    return sum(isinstance(d, OperationDefinitionNode) for d in document.definitions)
+
+
+def _format_graphql_errors(errors: Sequence[Mapping[str, Any]]) -> str:
+    """One line per error, led by its ``line:column`` and closed by its path.
+
+    >>> _format_graphql_errors([{"message": "bad", "locations": [{"line": 3, "column": 5}],
+    ...     "path": ["a", 0, "b"]}])
+    'GraphQL errors:\\n- [3:5] bad (at a.0.b)\\n'
+    """
+    lines = []
+    for error in errors:
+        where = "".join(f"[{loc['line']}:{loc['column']}] " for loc in error.get("locations") or [])
+        path = error.get("path")
+        at = f" (at {'.'.join(map(str, path))})" if path else ""
+        lines.append(f"- {where}{error.get('message', '')}{at}")
+    return "GraphQL errors:\n" + "\n".join(lines) + "\n"
 
 
 # Annotated because jinja2's `Template.__new__` returns `t.Any`, which would
@@ -180,6 +201,7 @@ Options:
   --vars <json>         JSON object of GraphQL variables
   --variables <json>    Alias for --vars
   --vars-file <path>    Read GraphQL variables from a file
+  --operation-name <n>  Operation to run when the document declares several
   --output <path>       Write JSON response to a file instead of stdout
   --data-only           Print only the .data payload
   --help                Show this help text
@@ -241,6 +263,7 @@ class _ParsedArgs:
     query_source: Optional[str]
     variables_text: Optional[str]
     variables_file_path: Optional[str]
+    operation_name: Optional[str]
     output_path: Optional[str]
     data_only: bool
     show_help: bool
@@ -257,6 +280,7 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
     query_source: Optional[str] = None
     variables_text: Optional[str] = None
     variables_file_path: Optional[str] = None
+    operation_name: Optional[str] = None
     output_path: Optional[str] = None
     data_only = False
     show_help = False
@@ -274,6 +298,9 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
         elif arg == "--vars-file":
             variables_file_path = args[index + 1] if index + 1 < len(args) else None
             index += 1
+        elif arg == "--operation-name":
+            operation_name = args[index + 1] if index + 1 < len(args) else None
+            index += 1
         elif arg == "--output":
             output_path = args[index + 1] if index + 1 < len(args) else None
             index += 1
@@ -289,6 +316,7 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
         query_source=query_source,
         variables_text=variables_text,
         variables_file_path=variables_file_path,
+        operation_name=operation_name,
         output_path=output_path,
         data_only=data_only,
         show_help=show_help,
@@ -326,12 +354,19 @@ def _resolve_query_text(parsed: _ParsedArgs, ctx: BuiltinContext) -> str:
                 is_file = False
             if is_file:
                 return ctx.fs.read_file(resolved_path).decode("utf-8")
+            if _names_a_file(parsed.query_source):
+                raise ValueError(f"File not found: {parsed.query_source}")
         return parsed.query_source
 
     piped_query = (ctx.stdin or "").strip()
     if not piped_query:
         raise ValueError("Provide a GraphQL query string, file path, or stdin")
     return piped_query
+
+
+def _names_a_file(query_source: str) -> bool:
+    """Whether ``query_source`` is unmistakably a path rather than an inline document."""
+    return query_source.endswith((".graphql", ".gql")) or "/" in query_source
 
 
 def _resolve_variables(parsed: _ParsedArgs, ctx: BuiltinContext) -> Optional[dict[str, Any]]:
@@ -344,7 +379,13 @@ def _resolve_variables(parsed: _ParsedArgs, ctx: BuiltinContext) -> Optional[dic
     if not variables_text:
         return None
 
-    parsed_variables = json.loads(variables_text)
+    try:
+        parsed_variables = json.loads(variables_text)
+    except json.JSONDecodeError as error:
+        raise ValueError(
+            f"GraphQL variables are not valid JSON: {error}. Shell quoting often "
+            "mangles inline JSON; --vars-file <path> avoids it."
+        ) from error
     if not isinstance(parsed_variables, dict):
         raise ValueError("GraphQL variables must be a JSON object")
     return parsed_variables
@@ -405,6 +446,11 @@ def create_phoenix_gql_builtin(
                     "can approve it before the command runs."
                 )
 
+            if parsed.operation_name is None and _operation_count(query) > 1:
+                raise ValueError(
+                    "The document declares several operations; pick one with --operation-name"
+                )
+
             variables = _resolve_variables(parsed, ctx)
 
             allowed_operation_types = (
@@ -416,6 +462,7 @@ def create_phoenix_gql_builtin(
                 query,
                 variable_values=variables,
                 context_value=build_graphql_context(),
+                operation_name=parsed.operation_name,
                 allowed_operation_types=allowed_operation_types,
             )
 
@@ -423,9 +470,7 @@ def create_phoenix_gql_builtin(
             payload: dict[str, Any] = {"data": result.data}
             if errors:
                 payload["errors"] = [error.formatted for error in errors]
-            graphql_error_text = (
-                _format_graphql_errors([error.message for error in errors]) if errors else ""
-            )
+            graphql_error_text = _format_graphql_errors(payload["errors"]) if errors else ""
             has_only_errors = bool(errors) and result.data is None
 
             output_payload: Any = result.data if parsed.data_only else payload
