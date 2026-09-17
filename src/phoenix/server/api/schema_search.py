@@ -42,7 +42,7 @@ from graphql import (
 )
 from graphql.language import parse_value, print_ast
 from graphql.pyutils import Undefined, is_collection
-from graphql.utilities import ast_from_value, value_from_ast
+from graphql.utilities import ast_from_value, coerce_input_value, value_from_ast
 
 __all__ = [
     "READ_ROOTS",
@@ -411,7 +411,11 @@ def _default(value_def: _ValueDef) -> str:
     literal: Optional[str] = None
     if ast is not None and ast.default_value is not None:
         try:
-            current = _equivalent(value_from_ast(ast.default_value, value_def.type), value)
+            # Both sides coerced, so renamed input fields compare at the same stage.
+            current = _equivalent(
+                value_from_ast(ast.default_value, value_def.type),
+                coerce_input_value(value, value_def.type),
+            )
         except Exception:
             current = False
         literal = print_ast(ast.default_value) if current else None
@@ -469,7 +473,7 @@ def _literal(value: object, type_: GraphQLInputType) -> Optional[str]:
 
 def _coerces_back(scalar: GraphQLScalarType, literal: str, value: object) -> bool:
     try:
-        return bool(scalar.parse_literal(parse_value(literal)) == value)
+        return _equivalent(scalar.parse_literal(parse_value(literal)), value)
     except Exception:
         return False
 
