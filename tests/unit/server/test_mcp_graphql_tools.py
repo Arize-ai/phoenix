@@ -260,13 +260,11 @@ def test_admission_classifies_operations(
 
 
 class TestRegistration:
-    """Which consumer carries these tools, and why.
+    """Which consumer carries these tools.
 
-    PXI reaches GraphQL through the `phoenix-gql` shell builtin, which is where
-    the mutation policy and the approval gate live. That builtin ships with the
-    bash capability, so registering these tools for PXI as well would give it a
-    second path to the same API with neither of those gates on it. They are the
-    fallback for exactly the deployments that turn bash off.
+    PXI reaches GraphQL through the `phoenix-gql` shell builtin, which carries
+    the mutation policy and the approval gate. These tools register for PXI
+    only where that builtin is off, so PXI never has an ungated second path.
     """
 
     def test_off_by_default(self) -> None:
