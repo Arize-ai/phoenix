@@ -1115,7 +1115,8 @@ def test_a_code_first_default_renders_by_type() -> None:
     opt = GraphQLInputObjectType(
         "Opt", {"payload": GraphQLInputField(json_scalar), "choice": GraphQLInputField(choice)}
     )
-    default = {"payload": {"a": [1, "b", None]}, "choice": "a"}
+    # Inside an input object graphql-core coerces an omitted default by enum name.
+    default = {"payload": {"a": [1, "b", None]}, "choice": "A"}
     query = GraphQLObjectType(
         "Query", {"ok": GraphQLField(GraphQLString, args={"x": GraphQLArgument(opt, default)})}
     )
@@ -1823,6 +1824,22 @@ def test_a_union_named_in_a_visible_interface_signature_is_visible_with_visible_
     assert "  u: U" in lookup(index, "I")
     assert first_line(lookup(index, "U")) == "union U = A"
     assert index.resolve("B") is None
+
+
+def test_a_default_renders_as_the_literal_that_delivers_it() -> None:
+    from graphql import GraphQLArgument, GraphQLEnumType, GraphQLField, GraphQLSchema, GraphQLString
+    from graphql.language import InputValueDefinitionNode, NamedTypeNode, NameNode
+
+    choice = GraphQLEnumType("Choice", {"A": "B", "B": "A"})
+    arg = GraphQLArgument(choice, "A")
+    arg.ast_node = InputValueDefinitionNode(
+        name=NameNode(value="x"),
+        type=NamedTypeNode(name=NameNode(value="Choice")),
+        default_value=parse_value("A"),
+    )
+    query = GraphQLObjectType("Query", {"f": GraphQLField(GraphQLString, args={"x": arg})})
+    index = build_index(GraphQLSchema(query=query))
+    assert first_line(lookup(index, "Query.f")) == "Query.f(x: Choice = B): String"
 
 
 # --- properties of the real schema -----------------------------------------------
