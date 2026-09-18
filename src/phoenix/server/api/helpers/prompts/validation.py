@@ -2,16 +2,19 @@
 
 from typing import Literal
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db import models
+from phoenix.db.types.model_provider import ModelProvider, is_sdk_compatible_with_model_provider
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
     PromptAwsInvocationParameters,
     PromptGoogleInvocationParameters,
     PromptInvocationParameters,
 )
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 
 InvocationFamily = Literal["openai", "anthropic", "google", "aws"]
 
@@ -63,4 +66,27 @@ def validate_invocation_parameters_match_provider(
         raise BadRequest(
             f"Invocation parameters variant '{actual}' does not match "
             f"model provider '{model_provider.value}' (expected '{expected}')."
+        )
+
+
+async def validate_custom_provider(session: AsyncSession, version: models.PromptVersion) -> None:
+    """Reject a version whose custom provider is missing or cannot serve its model provider.
+
+    Every path that stores a prompt version, whether through the prompt APIs or an LLM
+    evaluator, runs this before the write so a provider that would fail at invocation time
+    is refused up front. Raises NotFound for a missing provider and BadRequest for an SDK
+    that cannot serve the version's model provider.
+    """
+    if (provider_id := version.custom_provider_id) is None:
+        return
+    provider = await session.get(
+        models.GenerativeModelCustomProvider, provider_id, with_for_update={"read": True}
+    )
+    global_id = GlobalID("GenerativeModelCustomProvider", str(provider_id))
+    if provider is None:
+        raise NotFound(f"Custom provider not found: {global_id}")
+    if not is_sdk_compatible_with_model_provider(provider.sdk, version.model_provider):
+        raise BadRequest(
+            f"Custom provider {global_id} uses the {provider.sdk} SDK, which cannot serve "
+            f"model provider {version.model_provider.value}"
         )
