@@ -8,7 +8,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
-import { BindingPreview } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import {
+  BindingPreview,
+  RecordedRunRow,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 
 describe("the binding preview", () => {
@@ -59,5 +62,38 @@ describe("the binding preview", () => {
         (node) => node.textContent
       )
     ).toEqual(["← metadata.name"]);
+  });
+
+  it("shows a collapsed-row error icon when a required path is missing", async () => {
+    await act(async () => {
+      root.render(
+        <EvaluatorInputVariablesContext.Provider value={["input"]}>
+          <ul>
+            <RecordedRunRow
+              row={{
+                key: "span-id",
+                name: "errored span",
+                context: { input: "hello" },
+                isSample: false,
+              }}
+              recordNoun="span"
+              isExpanded={false}
+              onToggleExpanded={() => {}}
+              run={undefined}
+              isRunnable
+              onRun={() => {}}
+              inputMapping={{
+                pathMapping: { input: "missing.key" },
+                literalMapping: {},
+              }}
+              requiredVariables={["input"]}
+            />
+          </ul>
+        </EvaluatorInputVariablesContext.Provider>
+      );
+    });
+
+    expect(container.querySelector('[aria-label="error"]')).not.toBeNull();
+    expect(container.querySelector(".card")?.dataset.collapsed).toBe("true");
   });
 });

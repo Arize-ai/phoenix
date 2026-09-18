@@ -1158,7 +1158,8 @@ const runListCSS = css`
   }
 `;
 
-function RecordedRunRow({
+/** @internal Exported for testing the collapsed-row status. */
+export function RecordedRunRow({
   row,
   recordNoun,
   isExpanded,
@@ -1181,6 +1182,19 @@ function RecordedRunRow({
 }) {
   const isRunning = run?.status === "running";
   const isUnavailable = row.unavailableReason != null;
+  const declaredVariables = useEvaluatorInputVariables();
+  const variables =
+    declaredVariables.length === 0 && isStringKeyedObject(row.context)
+      ? Object.keys(row.context)
+      : declaredVariables;
+  const hasMappingError =
+    !isUnavailable &&
+    getProjectEvaluatorMappingDiagnostics({
+      context: row.context,
+      pathMapping: inputMapping.pathMapping,
+      variables,
+      requiredVariables,
+    }).some(({ status }) => status === "missing");
   return (
     <li>
       <Card
@@ -1189,6 +1203,13 @@ function RecordedRunRow({
         onOpenChange={onToggleExpanded}
         title={
           <>
+            {hasMappingError ? (
+              <Icon
+                svg={<Icons.AlertCircle />}
+                color="danger"
+                aria-label="error"
+              />
+            ) : null}
             {row.spanKind ? (
               <SpanKindToken spanKind={row.spanKind} size="S" />
             ) : null}
