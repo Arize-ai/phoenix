@@ -108,14 +108,13 @@ async def test_names_and_search_answer_in_one_call(graphql_mcp: FastMCP) -> None
         )
     )
     blocks = text.split("\n\n")
-    assert blocks[0].startswith("# Phoenix GraphQL.")
-    assert blocks[1].startswith("type Dataset")
-    assert blocks[2].startswith("Query.datasets")
-    assert "  name: String!" in "\n\n".join(blocks[3:])
+    assert blocks[0].startswith("type Dataset")
+    assert blocks[1].startswith("Query.datasets")
+    assert "  name: String!" in "\n\n".join(blocks[2:])
     # An exact name given as free text is still a lookup.
     assert _text(
         await graphql_mcp.call_tool("describeGraphqlSchema", {"search": "Dataset"})
-    ).startswith("# Phoenix GraphQL.")
+    ).startswith("type Dataset")
 
 
 async def test_search_and_names_take_lists_or_strings(graphql_mcp: FastMCP) -> None:
@@ -126,22 +125,18 @@ async def test_search_and_names_take_lists_or_strings(graphql_mcp: FastMCP) -> N
         )
     )
     blocks = text.split("\n\n")
-    assert blocks[1].startswith("type Dataset")
-    assert blocks[2].startswith("Query.datasets")
-    searched = "\n\n".join(blocks[3:])
+    assert blocks[0].startswith("type Dataset")
+    assert blocks[1].startswith("Query.datasets")
+    searched = "\n\n".join(blocks[2:])
     assert "  name: String!" in searched
     assert "  boom: String" in searched
     assert searched.count("# Query.boom in full:") == 1
 
 
-async def test_preamble_states_the_invariants_the_answers_do_not(graphql_mcp: FastMCP) -> None:
-    """Everything constant is stated once here rather than on every answer."""
-    text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {}))
-    preamble = text.split("\n\n", 1)[0]
-    assert preamble.count("\n") == 0
-    assert "Entry point: Query" in preamble
-    assert "errors at execution, not here" in preamble
-    assert f"{MAX_QUERY_BYTES // 1024} KiB" in preamble
+async def test_query_tool_states_the_size_limit(graphql_mcp: FastMCP) -> None:
+    """The description spells the limit out, so it must match the one enforced."""
+    tools = {tool.name: tool for tool in await graphql_mcp.list_tools()}
+    assert f"{MAX_QUERY_BYTES // 1024} KiB" in (tools["executeGraphqlQuery"].description or "")
 
 
 async def test_query_returns_data(graphql_mcp: FastMCP) -> None:
@@ -192,6 +187,17 @@ async def test_oversized_query_is_refused_unexecuted(graphql_mcp: FastMCP) -> No
     content = result.structured_content
     assert content is not None
     assert content["error"]["code"] == GraphQLRefusalCode.QUERY_TOO_LARGE.value
+
+
+async def test_variable_values_do_not_count_toward_the_size_limit(graphql_mcp: FastMCP) -> None:
+    result = await graphql_mcp.call_tool(
+        "executeGraphqlQuery",
+        {
+            "query": "query Q($id: ID!) { dataset(id: $id) { name } }",
+            "variables": {"id": "x" * (2 * MAX_QUERY_BYTES)},
+        },
+    )
+    assert result.structured_content == {"data": {"dataset": {"name": "rag-eval"}}, "errors": []}
 
 
 async def test_an_invalid_document_reports_errors_without_running(graphql_mcp: FastMCP) -> None:
