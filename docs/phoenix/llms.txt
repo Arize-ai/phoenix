@@ -296,6 +296,7 @@
 - [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals): Use Pydantic AI evaluation framework
 - [Restate Tracing](https://arize.com/docs/phoenix/integrations/python/restate/restate-tracing): Trace durable AI agent executions powered by Restate, unifying workflow and LLM spans in Phoenix
 - [Strands Agents Tracing](https://arize.com/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing): Auto-instrument Strands Agents with openinference-instrumentation-strands-agents
+- [TypeSafe AI (Python)](https://arize.com/docs/phoenix/integrations/python/typesafe): Auto-instrument TypeSafe AI SDK system_one calls with openinference-instrumentation-typesafe
 
 ### TypeScript Frameworks
 

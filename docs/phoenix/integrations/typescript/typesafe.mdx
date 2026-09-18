@@ -4,6 +4,8 @@ sidebarTitle: "TypeSafe AI"
 description: Trace TypeSafe AI SDK applications in TypeScript/Node.js with Phoenix
 ---
 
+<Note>Looking for Python? See the [Python guide](/docs/phoenix/integrations/python/typesafe).</Note>
+
 [![NPM Version](https://img.shields.io/npm/v/@arizeai%2Fopeninference-instrumentation-typesafe.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-typesafe)
 
 This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for the [TypeSafe AI Node.js SDK](https://www.npmjs.com/package/@typesafe-ai/sdk) (`@typesafe-ai/sdk`). Each `TypeSafeClient.systemOne` call is captured as an OpenInference `LLM` span with JSON `input.value` / `output.value`, model, and token usage.

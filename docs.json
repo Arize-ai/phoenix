@@ -826,7 +826,8 @@
                   "docs/phoenix/integrations/python/strands-agents",
                   "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing"
                 ]
-              }
+              },
+              "docs/phoenix/integrations/python/typesafe"
             ]
           },
           {
