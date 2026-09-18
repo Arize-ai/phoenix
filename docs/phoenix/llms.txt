@@ -306,6 +306,7 @@
 - [MCP Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript): Trace MCP interactions in TypeScript
 - [OpenAI Agents SDK (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/openai-agents): Trace @openai/agents runs, handoffs, and guardrails with @arizeai/openinference-instrumentation-openai-agents
 - [TanStack AI Tracing](https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing): Auto-instrument TanStack AI chat, tool calls, and agent loops
+- [TypeSafe AI](https://arize.com/docs/phoenix/integrations/typescript/typesafe): Auto-instrument TypeSafe AI SDK systemOne calls with @arizeai/openinference-instrumentation-typesafe
 - [Vercel AI SDK Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js): Auto-instrument Vercel AI SDK
 - [Vercel Eve Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/eve-tracing): Trace Vercel Eve filesystem-first agents by registering the @arizeai/openinference-vercel span processor
 
