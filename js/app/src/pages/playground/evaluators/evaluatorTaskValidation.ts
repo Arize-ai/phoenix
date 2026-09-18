@@ -2,6 +2,7 @@ import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__
 import { getEvaluatorOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
 import type { PlaygroundEvaluatorTask } from "@phoenix/store/playground";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 /** Validate executable code against the currently available sandbox configurations. */
 export function getCodeEvaluatorValidationError({
@@ -64,22 +65,31 @@ export function getDefaultSandboxConfigId({
 }
 
 /**
- * Why the task cannot run or be saved yet, or null. Output configs are
- * checked for every kind; code needs source and a sandbox; the judge prompt
- * is checked by building its payload, which `buildPreview` does.
+ * Why the task cannot run or be saved yet, or null. A name, when given, must
+ * be an identifier; output configs are checked for every kind; code needs
+ * source and a sandbox; the judge prompt is checked by building its payload,
+ * which `buildPreview` does.
  */
 export function getEvaluatorTaskValidationError({
   evaluator,
   sandboxConfigs,
   buildPreview,
 }: {
-  evaluator: Pick<PlaygroundEvaluatorTask, "kind" | "outputConfigs" | "code">;
+  evaluator: Pick<
+    PlaygroundEvaluatorTask,
+    "name" | "kind" | "outputConfigs" | "code"
+  >;
   sandboxConfigs: ReadonlyArray<{
     id: string;
     language: CodeEvaluatorLanguage;
   }>;
   buildPreview: () => EvaluatorDefinitionInput;
 }): string | null {
+  const name = evaluator.name.trim();
+  const nameError = name ? validateIdentifier(name) : true;
+
+  if (nameError !== true) return `Evaluator name: ${nameError}`;
+
   const outputErrors = getEvaluatorOutputConfigValidationErrors({
     kind: evaluator.kind,
     configs: evaluator.outputConfigs,
