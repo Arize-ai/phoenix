@@ -1,11 +1,14 @@
 ---
 title: "Instrument your agent"
+description: >-
+  Instrument your LLM agent and send traces to Phoenix for full visibility into
+  every request: retrieval, tool calls, LLM calls, and latency.
 ---
 
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
 import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
 
-A trace is a record of a single run of your agent, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows.
+A trace captures one end-to-end run of your agent as a tree of spans. Each span is a single step (an agent, a task, a tool call, or an LLM call) with its input, output, and timing.
 
 <Note>
   **Have an existing agent?** Your coding agent can instrument it for you. See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup). This guide builds and instruments a demo agent by hand.
@@ -255,7 +258,7 @@ The agent uses OpenAI as its LLM provider, and so do the evals later in this ser
     PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
     PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
     ```
-    Both point at the same Phoenix, one variable per concern. `PHOENIX_ENDPOINT` is your Phoenix server's base URL, read by the API clients used later in this series for evals and experiments. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's exporter POSTs to it verbatim, so it carries the OTLP `/v1/traces` path.
+    Both point at the same Phoenix, one variable per concern. `PHOENIX_ENDPOINT` is your Phoenix server's base URL, read by the API clients used later in this series for evals and experiments. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to: Mastra's exporter POSTs to it verbatim, so it carries the OTLP `/v1/traces` path.
 
     <Note>
       If you're pointing at a remote deployment, swap `http://localhost:6006` for that hostname in both (e.g. `https://phoenix.example.com` and `https://phoenix.example.com/v1/traces`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
