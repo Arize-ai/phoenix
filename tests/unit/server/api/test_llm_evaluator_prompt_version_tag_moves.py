@@ -11,7 +11,9 @@ import httpx
 import pytest
 import sqlalchemy as sa
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -469,6 +471,19 @@ class TestGraphQLMutations:
         assert result.errors and "cannot run the target version" in result.errors[0].message
         assert await _version_count(db, pinned.prompt.id) == 3
         assert (await _state(db, pinned.evaluator.id)).tag_target == pinned.pinned_version.id
+
+
+async def test_the_database_refuses_an_orm_delete_of_the_tag(
+    db: DbSessionFactory, pinned: _Fixture
+) -> None:
+    """A delete that skips the routes' check fails on the foreign key instead of unpinning."""
+    with pytest.raises((SQLAlchemyIntegrityError, SQLiteIntegrityError)):
+        async with db() as session:
+            tag = await session.get(models.PromptVersionTag, pinned.tag.id)
+            assert tag is not None
+            await session.delete(tag)
+    assert await _tag_exists(db, pinned.tag.id)
+    assert (await _state(db, pinned.evaluator.id)).tag_id == pinned.tag.id
 
 
 async def _behind(

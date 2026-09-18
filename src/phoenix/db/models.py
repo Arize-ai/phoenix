@@ -251,6 +251,19 @@ JSON_ = (
     )
 )
 
+# Stores Python None as SQL NULL instead of the JSON value null.
+_NullableJSON = (
+    JSON(none_as_null=True)
+    .with_variant(
+        postgresql.JSONB(none_as_null=True),
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(none_as_null=True),
+        "sqlite",
+    )
+)
+
 _Integer = Integer().with_variant(
     sa.BigInteger(),
     "postgresql",
@@ -555,6 +568,12 @@ class _OutputConfigList(TypeDecorator[list[OutputConfigType]]):
         if value is None:
             return None
         return [OutputConfigModel.model_validate(config).root for config in value]
+
+
+class _OutputConfigOverrideList(_OutputConfigList):
+    # SQL NULL marks a dataset evaluator that inherits its evaluator's output configs.
+    cache_ok = True
+    impl = _NullableJSON
 
 
 class _CategoricalOutputConfigList(TypeDecorator[list[CategoricalOutputConfig]]):
@@ -2899,10 +2918,12 @@ class PromptVersionTag(HasId):
         "PromptVersion", back_populates="prompt_version_tags"
     )
 
+    # Deleting a tag an evaluator runs through is refused by the database, not nulled by the ORM.
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt_version_tag",
         uselist=True,
+        passive_deletes="all",
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
@@ -3110,7 +3131,7 @@ class LLMEvaluator(Evaluator):
         index=True,
     )
     prompt_version_tag_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("prompt_version_tags.id", ondelete="SET NULL"),
+        ForeignKey("prompt_version_tags.id", ondelete="RESTRICT"),
         index=True,
     )
     output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(
@@ -3335,7 +3356,7 @@ class DatasetEvaluators(HasId):
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
-        _OutputConfigList, nullable=True
+        _OutputConfigOverrideList, nullable=True
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
