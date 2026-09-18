@@ -1,0 +1,110 @@
+---
+title: "TypeSafe AI"
+sidebarTitle: "TypeSafe AI"
+description: Trace TypeSafe AI SDK applications in Python with Phoenix
+---
+
+<Note>Looking for TypeScript? See the [TypeScript guide](/docs/phoenix/integrations/typescript/typesafe).</Note>
+
+[![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-typesafe.svg)](https://pypi.org/project/openinference-instrumentation-typesafe)
+
+This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for the [TypeSafe AI Python SDK](https://pypi.org/project/typesafe-sdk/) (`typesafe-sdk`). Calls to `TypeSafeClient.system_one` and `AsyncTypeSafeClient.system_one` are captured as OpenInference `LLM` spans.
+
+A System One request sends a `state` plus a map of typed `questions` (Noul, Choice, Score) and returns one typed `answer` per question, so the span records the request `state`/`model`/`questions` as `input.value`, the response `answers`/`usage` as `output.value`, the request and resolved model names, and prompt/completion/total token counts.
+
+Requires `typesafe-sdk >= 0.6.0`.
+
+## Install
+
+```bash
+pip install openinference-instrumentation-typesafe typesafe-sdk arize-phoenix-otel
+```
+
+## Setup
+
+Use the `register` function to connect your application to Phoenix:
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+  project_name="typesafe-app",
+  auto_instrument=True,
+)
+```
+
+## Run TypeSafe AI
+
+A simple TypeSafe AI application that is now instrumented:
+
+```python expandable
+from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
+
+client = TypeSafeClient()
+response = client.system_one(
+    state={"document": "I was charged twice. Please fix this ASAP."},
+    questions={
+        "billing": Noul(instructions="Is this ticket about billing?"),
+        "tone": Choice(
+            instructions="What is the customer's tone?",
+            criteria={"calm": None, "frustrated": None, "angry": None},
+        ),
+        "urgency": Score(
+            instructions="How urgent is this ticket?",
+            criteria=["can wait", "this week", "today"],
+        ),
+    },
+)
+print(response.nouls["billing"].noul)
+print(response.choices["tone"].choice)
+print(response.scores["urgency"].score)
+```
+
+The `AsyncTypeSafeClient` is instrumented the same way, and questions can be passed as SDK objects (as above) or as raw dictionaries.
+
+## Observe
+
+With instrumentation enabled, each `system_one` call shows up in Phoenix as an **LLM span** containing:
+
+- `input.value`: the request body (`state`, `model`, `questions`) as JSON
+- `llm.invocation_parameters`: the call configuration, meaning the `model` and any `extra_body` fields
+- `output.value`: the response body (`model`, `answers`, `usage`) as JSON
+- `llm.request.model_name` and `llm.response.model_name` (the resolved model)
+- `llm.token_count.prompt`, `llm.token_count.completion`, and `llm.token_count.total`
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typesafe.png" alt="TypeSafe AI traces in Phoenix" />
+</Frame>
+
+A System One call is not a chat exchange, so the `state` and the `answers` are recorded only as `input.value` and `output.value`, not as `llm.input_messages` / `llm.output_messages`.
+
+## Configuration
+
+Because the `state` and the `questions` are recorded only in `input.value`, `TraceConfig(hide_inputs=True)` keeps the whole request off the span, and `hide_outputs=True` does the same for the answers. `llm.invocation_parameters` holds no request content, only the model and any `extra_body` fields; mask it with `hide_llm_invocation_parameters` if those are sensitive.
+
+```python
+from openinference.instrumentation import TraceConfig
+from openinference.instrumentation.typesafe import TypeSafeAIInstrumentor
+from phoenix.otel import register
+
+tracer_provider = register(project_name="typesafe-app")
+
+TypeSafeAIInstrumentor().instrument(
+    tracer_provider=tracer_provider,
+    config=TraceConfig(hide_inputs=True, hide_outputs=True),
+)
+```
+
+Tracing can also be suppressed for a block of code with `suppress_tracing()`, and context attributes such as `using_session`, `using_user`, and `using_attributes` propagate session, user, metadata, and tag information onto the spans it produces.
+
+## Resources
+
+* [PyPI Package](https://pypi.org/project/openinference-instrumentation-typesafe)
+
+* [Runnable examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-typesafe/examples)
+
+* [OpenInference package for TypeSafe AI](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-typesafe)
+
+* [TypeSafe AI SDK on PyPI](https://pypi.org/project/typesafe-sdk/)
+
+* [TypeSafe AI Documentation](https://docs.typesafe.ai/)
