@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<948fe3cd4411bc6b2455a991bcbf00ba>>
+ * @generated SignedSource<<b070f5ade5f0f1b162ecb0d3203c0b24>>
  * @lightSyntaxTransform
  */
 
@@ -299,11 +299,11 @@ export type FreeformAnnotationConfigInput = {
   upperBound?: number | null;
 };
 export type EvaluatorTaskInput = {
-  evaluator: EvaluatorPreviewInput;
+  evaluator: EvaluatorDefinitionInput;
   inputMapping: EvaluatorInputMappingInput;
   source?: EvaluatorTaskSourceInput | null;
 };
-export type EvaluatorPreviewInput = {
+export type EvaluatorDefinitionInput = {
   builtInEvaluatorId: string;
   codeEvaluatorId?: never;
   inlineCodeEvaluator?: never;
