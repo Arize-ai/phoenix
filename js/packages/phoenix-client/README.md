@@ -383,8 +383,11 @@ checks an aggregate bar (so CI can allow a mean of 80% while still running
 every case), and `passRate` requires a minimum fraction of runs to satisfy a
 per-run `passFn` predicate.
 
-See the [`docs/`](../../../docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
-`ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
+See the [CI Eval Tests](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals),
+[Vitest](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest),
+[Jest](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest),
+and [Annotations](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations)
+guides for setup, the full
 `describe` / `test` / `test.each` API, acceptance criteria, repetitions,
 dry-run mode, and annotation details.
 
