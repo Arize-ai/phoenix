@@ -40,6 +40,13 @@ class MessageRole(str, Enum):
     USER = "user"
     AI = "assistant"
     SYSTEM = "system"
+    # Kept distinct from SYSTEM (rather than folded into it) so that adapters
+    # which route it differently on the wire — LiteLLM passes "developer"
+    # through verbatim for reasoning models — can still tell the two apart
+    # after a message list has gone through ``MessageTemplate``/``render()``.
+    # Adapters that don't care about the distinction (Anthropic, Google,
+    # LangChain) treat SYSTEM and DEVELOPER identically.
+    DEVELOPER = "developer"
 
 
 # Canonical aliases accepted on every adapter's dict path.  Keeping a single
@@ -52,11 +59,12 @@ _ROLE_ALIASES: Dict[str, "MessageRole"] = {
     "ai": MessageRole.AI,
     "model": MessageRole.AI,
     "system": MessageRole.SYSTEM,
-    # ``developer`` is the OpenAI reasoning-model spelling of ``system``;
-    # downstream adapters already route it through their system-extraction
-    # paths, so we canonicalize to SYSTEM here and let the adapter decide
-    # how to serialize it on the wire (see ``OpenAIAdapter._system_role``).
-    "developer": MessageRole.SYSTEM,
+    # ``developer`` is the OpenAI reasoning-model spelling of ``system``. It
+    # keeps its own MessageRole (rather than canonicalizing to SYSTEM) so the
+    # distinction survives round-tripping through a typed message list; each
+    # adapter then decides how — or whether — to serialize it on the wire
+    # (see ``OpenAIAdapter._system_role`` and ``LiteLLMAdapter._build_messages``).
+    "developer": MessageRole.DEVELOPER,
 }
 
 

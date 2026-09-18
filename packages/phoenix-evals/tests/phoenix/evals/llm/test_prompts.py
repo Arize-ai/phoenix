@@ -413,7 +413,7 @@ class TestPromptTemplate:
         ]
         rendered = PromptTemplate(template=messages).render({})
         assert [m["role"] for m in rendered] == [
-            MessageRole.SYSTEM,
+            MessageRole.DEVELOPER,
             MessageRole.USER,
             MessageRole.AI,
             MessageRole.AI,
@@ -748,8 +748,8 @@ class TestNormalizeRole:
             ("model", MessageRole.AI),
             ("Model", MessageRole.AI),
             ("system", MessageRole.SYSTEM),
-            ("developer", MessageRole.SYSTEM),
-            ("Developer", MessageRole.SYSTEM),
+            ("developer", MessageRole.DEVELOPER),
+            ("Developer", MessageRole.DEVELOPER),
         ],
     )
     def test_string_aliases_map_to_canonical_role(self, alias: str, expected: MessageRole) -> None:

@@ -54,6 +54,21 @@ def test_typed_message_list_converts_to_langchain_messages() -> None:
     assert [m.content for m in result] == ["sys", "q", "a"]
 
 
+def test_typed_developer_role_converts_to_system_message() -> None:
+    """A typed ``MessageRole.DEVELOPER`` message must map to ``SystemMessage``
+    exactly like ``MessageRole.SYSTEM`` — LangChain has no separate message
+    class for it, and this is also the path ``PromptTemplate.render()``
+    produces for a "developer" role in a message-list template. Without an
+    explicit branch, an unhandled enum member falls through to the "unknown
+    role" default of ``HumanMessage``, which is wrong here."""
+    adapter = _make_adapter()
+    prompt = [Message(role=MessageRole.DEVELOPER, content="be strict")]
+    result = adapter._build_prompt(prompt)
+    assert isinstance(result, list)
+    assert isinstance(result[0], SystemMessage)
+    assert result[0].content == "be strict"
+
+
 def test_openai_format_dict_list_converts_to_langchain_messages() -> None:
     adapter = _make_adapter()
     prompt = [
