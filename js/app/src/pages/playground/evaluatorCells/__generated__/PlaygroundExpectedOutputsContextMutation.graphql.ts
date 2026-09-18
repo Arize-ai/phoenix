@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd149bfb935cfe73c5e43726e0432520>>
+ * @generated SignedSource<<4da128c6f172f0e35dd5f420ec3f11a6>>
  * @lightSyntaxTransform
  */
 
@@ -8,11 +8,11 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SetDatasetExampleCalibrationLabelsInput = {
+export type SetDatasetExampleExpectedOutputsInput = {
   datasetId: string;
-  labels: ReadonlyArray<DatasetExampleCalibrationLabelInput>;
+  expectedOutputs: ReadonlyArray<DatasetExampleExpectedOutputInput>;
 };
-export type DatasetExampleCalibrationLabelInput = {
+export type DatasetExampleExpectedOutputInput = {
   annotationName: string;
   exampleId: string;
   expectedRevisionId: string;
@@ -21,14 +21,14 @@ export type DatasetExampleCalibrationLabelInput = {
   score?: number | null;
 };
 export type PlaygroundExpectedOutputsContextMutation$variables = {
-  input: SetDatasetExampleCalibrationLabelsInput;
+  input: SetDatasetExampleExpectedOutputsInput;
 };
 export type PlaygroundExpectedOutputsContextMutation$data = {
-  readonly setDatasetExampleCalibrationLabels: {
+  readonly setDatasetExampleExpectedOutputs: {
     readonly examples: ReadonlyArray<{
       readonly id: string;
       readonly revision: {
-        readonly calibrationLabels: ReadonlyArray<{
+        readonly expectedOutputs: ReadonlyArray<{
           readonly annotationName: string;
           readonly explanation: string | null;
           readonly label: string | null;
@@ -62,9 +62,9 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "DatasetExampleCalibrationLabelsPayload",
+    "concreteType": "DatasetExampleExpectedOutputsPayload",
     "kind": "LinkedField",
-    "name": "setDatasetExampleCalibrationLabels",
+    "name": "setDatasetExampleExpectedOutputs",
     "plural": false,
     "selections": [
       {
@@ -100,9 +100,9 @@ v1 = [
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "DatasetExampleCalibrationLabel",
+                "concreteType": "DatasetExampleExpectedOutput",
                 "kind": "LinkedField",
-                "name": "calibrationLabels",
+                "name": "expectedOutputs",
                 "plural": true,
                 "selections": [
                   {
@@ -164,16 +164,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "256b2f23f1d7e15282f3dba29f5e6ea9",
+    "cacheID": "22356d6ca64989e31853c74be7e27f9e",
     "id": null,
     "metadata": {},
     "name": "PlaygroundExpectedOutputsContextMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundExpectedOutputsContextMutation(\n  $input: SetDatasetExampleCalibrationLabelsInput!\n) {\n  setDatasetExampleCalibrationLabels(input: $input) {\n    examples {\n      id\n      revision {\n        revisionId\n        calibrationLabels {\n          annotationName\n          label\n          score\n          explanation\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundExpectedOutputsContextMutation(\n  $input: SetDatasetExampleExpectedOutputsInput!\n) {\n  setDatasetExampleExpectedOutputs(input: $input) {\n    examples {\n      id\n      revision {\n        revisionId\n        expectedOutputs {\n          annotationName\n          label\n          score\n          explanation\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "96601ebc0645f0a3ae8f71ff2f1d41e6";
+(node as any).hash = "33f9b73377b224de9bbffc8d0fa30b11";
 
 export default node;

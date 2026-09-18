@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1bda2f22d9ea3b795167ca0c51138847>>
+ * @generated SignedSource<<92b308ef28792eb0db918428a56febbb>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,7 @@ export type PlaygroundDatasetExamplesTableFragment$data = {
       readonly example: {
         readonly id: string;
         readonly revision: {
-          readonly calibrationLabels: ReadonlyArray<{
+          readonly expectedOutputs: ReadonlyArray<{
             readonly annotationName: string;
             readonly explanation: string | null;
             readonly label: string | null;
@@ -179,9 +179,9 @@ return {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "DatasetExampleCalibrationLabel",
+                      "concreteType": "DatasetExampleExpectedOutput",
                       "kind": "LinkedField",
-                      "name": "calibrationLabels",
+                      "name": "expectedOutputs",
                       "plural": true,
                       "selections": [
                         {
@@ -284,6 +284,6 @@ return {
 };
 })();
 
-(node as any).hash = "a96d576ee7e01acd7b53597ddbfeae98";
+(node as any).hash = "88627b7c5c8916218582112ca3bf21de";
 
 export default node;
