@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c0fa411b12104fb75fe7d12d8731e159>>
+ * @generated SignedSource<<7ad442e19cd43e7e1bcf3a51f1d89ed7>>
  * @lightSyntaxTransform
  */
 
@@ -14,17 +14,13 @@ export type ProjectEvaluatorCompareTargets_comparison$data = {
   readonly evaluationTarget: EvaluationTarget;
   readonly sideA: {
     readonly annotationName: string;
-    readonly flaggedLabels: ReadonlyArray<string> | null;
     readonly labels: ReadonlyArray<string>;
     readonly threshold: number | null;
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_side">;
   };
   readonly sideB: {
     readonly annotationName: string;
-    readonly flaggedLabels: ReadonlyArray<string> | null;
     readonly labels: ReadonlyArray<string>;
     readonly threshold: number | null;
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareDistributions_side">;
   };
   readonly " $fragmentType": "ProjectEvaluatorCompareTargets_comparison";
 };
@@ -34,28 +30,7 @@ export type ProjectEvaluatorCompareTargets_comparison$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "threshold",
-  "storageKey": null
-},
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "score",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "count",
-  "storageKey": null
-},
-v3 = [
+var v0 = [
   {
     "alias": null,
     "args": null,
@@ -70,83 +45,12 @@ v3 = [
     "name": "labels",
     "storageKey": null
   },
-  (v0/*:: as any*/),
   {
     "alias": null,
     "args": null,
     "kind": "ScalarField",
-    "name": "flaggedLabels",
+    "name": "threshold",
     "storageKey": null
-  },
-  {
-    "kind": "InlineDataFragmentSpread",
-    "name": "ProjectEvaluatorCompareDistributions_side",
-    "selections": [
-      (v0/*:: as any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "allEvaluatedMeanScore",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "scoreBinEdges",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "scoreBinCounts",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "EvaluatorScoreValueCount",
-        "kind": "LinkedField",
-        "name": "scoreValueCounts",
-        "plural": true,
-        "selections": [
-          (v1/*:: as any*/),
-          (v2/*:: as any*/)
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "EvaluatorLabelCount",
-        "kind": "LinkedField",
-        "name": "labelCounts",
-        "plural": true,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "label",
-            "storageKey": null
-          },
-          (v1/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "isOther",
-            "storageKey": null
-          },
-          (v2/*:: as any*/)
-        ],
-        "storageKey": null
-      }
-    ],
-    "args": null,
-    "argumentDefinitions": ([]/*:: as any*/)
   }
 ];
 return {
@@ -169,7 +73,7 @@ return {
       "kind": "LinkedField",
       "name": "sideA",
       "plural": false,
-      "selections": (v3/*:: as any*/),
+      "selections": (v0/*:: as any*/),
       "storageKey": null
     },
     {
@@ -179,7 +83,7 @@ return {
       "kind": "LinkedField",
       "name": "sideB",
       "plural": false,
-      "selections": (v3/*:: as any*/),
+      "selections": (v0/*:: as any*/),
       "storageKey": null
     }
   ],
@@ -188,6 +92,6 @@ return {
 };
 })();
 
-(node as any).hash = "713c59cf0889415942518e200f3a6c27";
+(node as any).hash = "422d32c32152eb85a7aee586fdab4f08";
 
 export default node;

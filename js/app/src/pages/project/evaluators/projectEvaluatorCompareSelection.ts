@@ -3,32 +3,13 @@ import z from "zod";
 
 import { PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM } from "@phoenix/constants/searchParams";
 
-const compareSelectionSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("matrix"), a: z.string(), b: z.string() }),
-  z
-    .object({
-      kind: z.literal("distribution"),
-      side: z.enum(["a", "b"]),
-      view: z.enum(["scores", "labels"]),
-      label: z.string(),
-      lowerBound: z.number().finite().nullish(),
-      upperBound: z.number().finite().nullish(),
-      score: z.number().finite().nullish(),
-    })
-    .refine(
-      (selection) =>
-        selection.view === "labels" ||
-        selection.score != null ||
-        (selection.lowerBound != null &&
-          selection.upperBound != null &&
-          selection.lowerBound < selection.upperBound)
-    ),
-  z.object({
-    kind: z.literal("flag"),
-    side: z.enum(["a", "b"]),
-    flagged: z.boolean(),
-  }),
-]);
+// The matrix is the only selection source today. `kind` stays in the URL
+// payload so other sources can be added later without invalidating links.
+const compareSelectionSchema = z.object({
+  kind: z.literal("matrix"),
+  a: z.string(),
+  b: z.string(),
+});
 
 export type CompareSelection = z.infer<typeof compareSelectionSchema>;
 
@@ -71,19 +52,6 @@ export function useCompareSelection() {
   return { selection, setSelection };
 }
 
-export function formatCompareSelection({
-  selection,
-  evaluatorAName,
-  evaluatorBName,
-}: {
-  selection: CompareSelection;
-  evaluatorAName: string;
-  evaluatorBName: string;
-}): string {
-  if (selection.kind === "matrix")
-    return `matrix: ${selection.a} ∩ ${selection.b}`;
-  const name = selection.side === "a" ? evaluatorAName : evaluatorBName;
-  if (selection.kind === "flag")
-    return `${name}: ${selection.flagged ? "flagged" : "not flagged"}`;
-  return `${name}: ${selection.view === "scores" ? "score " : ""}${selection.label}`;
+export function formatCompareSelection(selection: CompareSelection): string {
+  return `matrix: ${selection.a} ∩ ${selection.b}`;
 }

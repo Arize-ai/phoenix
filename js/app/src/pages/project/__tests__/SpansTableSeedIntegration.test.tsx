@@ -261,7 +261,7 @@ describe("SpansTable seed loading integration", () => {
     expect(probedSearch).not.toContain("spanFilterCondition");
   });
 
-  it("keeps comparison filter edits out of the shared URL parameter", async () => {
+  it("keeps filter edits out of the URL when not persisting to it", async () => {
     fieldMocks.persistToUrl = false;
     await renderTable();
     await act(async () => {

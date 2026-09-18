@@ -139,9 +139,8 @@ export const confusionMatrixCSS = css`
 
   .confusion-matrix__cell--selected,
   button.confusion-matrix__cell:focus-visible {
-    outline: 2px solid var(--global-text-color-900);
-    outline-offset: 2px;
-    box-shadow: inset 0 0 0 2px var(--global-static-color-white-900);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 
   .confusion-matrix__cell--empty {

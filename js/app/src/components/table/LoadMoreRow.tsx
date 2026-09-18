@@ -3,14 +3,20 @@ import { css } from "@emotion/react";
 import type { LoadMoreButtonProps } from "@phoenix/components/core/LoadMoreButton";
 import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 
+/*
+ * The absolute cell centers the button across the full row width, so the row
+ * has to reserve the cell's height itself or the cell hangs below the table
+ * and adds a sliver of scroll to a content-sized container. Important because
+ * table styles give every body row "height: 100%", which resolves to zero for
+ * a row with no in-flow content.
+ */
 const rowCSS = css`
   position: relative;
+  height: var(--global-dimension-size-600) !important;
 `;
 const tdCSS = css`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;

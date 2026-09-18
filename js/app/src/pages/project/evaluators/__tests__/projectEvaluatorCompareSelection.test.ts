@@ -10,18 +10,8 @@ import {
 describe("comparison selection URL", () => {
   it.each<CompareSelection>([
     { kind: "matrix", a: 'quote" and \\ slash', b: "other" },
-    {
-      kind: "distribution",
-      side: "b",
-      view: "scores",
-      label: "0–1",
-      lowerBound: 0,
-      upperBound: 1,
-    },
-    { kind: "distribution", side: "a", view: "scores", label: "0", score: 0 },
-    { kind: "distribution", side: "a", view: "labels", label: "" },
-    { kind: "flag", side: "b", flagged: false },
-  ])("round trips $kind", (selection) => {
+    { kind: "matrix", a: "", b: "" },
+  ])("round trips $a ∩ $b", (selection) => {
     expect(parseCompareSelection(encodeCompareSelection(selection))).toEqual(
       selection
     );
@@ -35,21 +25,14 @@ describe("comparison selection URL", () => {
     "1",
     "{}",
     '{"kind":"matrix","a":1,"b":"x"}',
-    '{"kind":"flag","side":"c","flagged":true}',
-    '{"kind":"flag","side":"a","flagged":"false"}',
-    '{"kind":"distribution","side":"a","view":"scores","label":"bad","score":1e999}',
-    '{"kind":"distribution","side":"a","view":"scores","label":"bad"}',
-    '{"kind":"distribution","side":"a","view":"scores","label":"bad","lowerBound":2,"upperBound":1}',
+    '{"kind":"matrix","a":"x"}',
+    '{"kind":"flag","side":"a","flagged":true}',
   ])("ignores malformed input %s", (input) =>
     expect(parseCompareSelection(input)).toBeNull()
   );
   it("formats labels without exposing the DSL", () => {
     expect(
-      formatCompareSelection({
-        selection: { kind: "matrix", a: "harmful", b: "profane" },
-        evaluatorAName: "A",
-        evaluatorBName: "B",
-      })
+      formatCompareSelection({ kind: "matrix", a: "harmful", b: "profane" })
     ).toBe("matrix: harmful ∩ profane");
   });
 });

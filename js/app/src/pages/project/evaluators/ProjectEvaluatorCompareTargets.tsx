@@ -1,20 +1,16 @@
 import { Suspense, useEffect, useState } from "react";
-import {
-  graphql,
-  readInlineData,
-  useFragment,
-  useLazyLoadQuery,
-} from "react-relay";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
   Alert,
-  Card,
+  Flex,
+  Heading,
   LinkButton,
   Loading,
+  Text,
   Token,
-  View,
 } from "@phoenix/components";
 import { EmptyState } from "@phoenix/components/core/empty";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -29,11 +25,9 @@ import {
 } from "@phoenix/constants/searchParams";
 import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
-import {
-  TracingProvider,
-  useTracingContext,
-} from "@phoenix/contexts/TracingContext";
+import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import type { ProjectTab } from "@phoenix/pages/project/constants";
 import { PendingSpanFilter } from "@phoenix/pages/project/PendingSpanFilter";
 import { SessionFiltersProvider } from "@phoenix/pages/project/SessionFiltersContext";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
@@ -49,10 +43,8 @@ import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 
-import type { ProjectEvaluatorCompareDistributions_side$key } from "./__generated__/ProjectEvaluatorCompareDistributions_side.graphql";
 import type { ProjectEvaluatorCompareTargets_comparison$key } from "./__generated__/ProjectEvaluatorCompareTargets_comparison.graphql";
 import type { ProjectEvaluatorCompareTargetsQuery } from "./__generated__/ProjectEvaluatorCompareTargetsQuery.graphql";
-import { projectEvaluatorDistributionSideFragment } from "./ProjectEvaluatorCompareDistributions";
 import {
   buildCompareFilterCondition,
   type CompareTarget,
@@ -66,15 +58,11 @@ import {
 export function ProjectEvaluatorCompareTargets({
   projectId,
   comparisonRef,
-  evaluatorAName,
-  evaluatorBName,
   evaluatorAOptimizationDirection,
   evaluatorBOptimizationDirection,
 }: {
   projectId: string;
   comparisonRef: ProjectEvaluatorCompareTargets_comparison$key;
-  evaluatorAName: string;
-  evaluatorBName: string;
   evaluatorAOptimizationDirection: EvaluatorOptimizationDirection | null;
   evaluatorBOptimizationDirection: EvaluatorOptimizationDirection | null;
 }) {
@@ -86,15 +74,11 @@ export function ProjectEvaluatorCompareTargets({
           annotationName
           labels
           threshold
-          flaggedLabels
-          ...ProjectEvaluatorCompareDistributions_side
         }
         sideB {
           annotationName
           labels
           threshold
-          flaggedLabels
-          ...ProjectEvaluatorCompareDistributions_side
         }
       }
     `,
@@ -107,18 +91,10 @@ export function ProjectEvaluatorCompareTargets({
   );
   const sideA = {
     ...comparison.sideA,
-    distribution: readInlineData<ProjectEvaluatorCompareDistributions_side$key>(
-      projectEvaluatorDistributionSideFragment,
-      comparison.sideA
-    ),
     optimizationDirection: evaluatorAOptimizationDirection,
   };
   const sideB = {
     ...comparison.sideB,
-    distribution: readInlineData<ProjectEvaluatorCompareDistributions_side$key>(
-      projectEvaluatorDistributionSideFragment,
-      comparison.sideB
-    ),
     optimizationDirection: evaluatorBOptimizationDirection,
   };
   const { selection, setSelection } = useCompareSelection();
@@ -136,6 +112,10 @@ export function ProjectEvaluatorCompareTargets({
     sideB,
   });
   const noun = `${target.toLowerCase()}s`;
+  const compareAnnotationVisibility = {
+    [sideA.annotationName]: true,
+    [sideB.annotationName]: true,
+  };
   const { rootPath } = useProjectRootPath();
   const [searchParams] = useSearchParams();
   const spansSearch = new URLSearchParams();
@@ -149,83 +129,94 @@ export function ProjectEvaluatorCompareTargets({
   }
   spansSearch.set(SPAN_FILTER_CONDITION_PARAM, condition);
   return (
-    <Card
-      title={`Matching ${noun}`}
-      subTitle={
-        activeSelection
-          ? undefined
-          : "Evaluated by both evaluators in the selected time range"
-      }
-      headerContent={
-        activeSelection ? (
-          <Token maxWidth="100%" onRemove={() => setSelection(null)}>
-            {formatCompareSelection({
-              selection: activeSelection,
-              evaluatorAName,
-              evaluatorBName,
-            })}
-          </Token>
-        ) : undefined
-      }
-      extra={
-        target === "SPAN" ? (
+    <Flex direction="column" gap="size-100">
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="size-200"
+      >
+        <Flex direction="row" alignItems="center" gap="size-100" wrap>
+          <Heading level={2}>{`Matching ${noun}`}</Heading>
+          {activeSelection ? (
+            <Token maxWidth="100%" onRemove={() => setSelection(null)}>
+              {formatCompareSelection(activeSelection)}
+            </Token>
+          ) : (
+            <Text color="text-700">
+              Evaluated by both evaluators in the selected time range
+            </Text>
+          )}
+        </Flex>
+        {target === "SPAN" ? (
           <LinkButton to={`${rootPath}/spans?${spansSearch}`}>
             Open in Spans
           </LinkButton>
-        ) : undefined
-      }
-    >
-      <View height="640px" minHeight={0}>
-        <ProjectProvider
-          projectId={projectId}
-          scope="evaluator-compare"
-          showTableAside={false}
-          metricChartKeys={{ spans: [], traces: [], sessions: [] }}
-        >
-          <StreamStateProvider>
-            <TracingProvider
-              key={target}
-              projectId={projectId}
-              tableId="evaluator-compare"
-              columnVisibility={COMPARE_COLUMN_VISIBILITY}
-              columnSizing={{
-                name: 150,
-                traceId: 130,
-                sessionId: 150,
-                output_value: 200,
-                lastOutput_value: 200,
-                startTime: 170,
-                [makeFlatAnnotationColumnId(
-                  sideA.annotationName,
-                  target === "TRACE" ? "trace" : "span"
-                )]: 150,
-                [makeFlatAnnotationColumnId(
-                  sideB.annotationName,
-                  target === "TRACE" ? "trace" : "span"
-                )]: 150,
-              }}
-            >
-              <CompareAnnotationColumns
-                target={target}
-                annotationA={sideA.annotationName}
-                annotationB={sideB.annotationName}
-              />
-              <ErrorBoundary key={condition} fallback={CompareTargetsError}>
-                <Suspense fallback={<Loading />}>
-                  <CompareTargetsFilters
-                    projectId={projectId}
-                    target={target}
-                    condition={condition}
-                  />
-                </Suspense>
-              </ErrorBoundary>
-            </TracingProvider>
-          </StreamStateProvider>
-        </ProjectProvider>
-      </View>
-    </Card>
+        ) : null}
+      </Flex>
+      <ProjectProvider
+        projectId={projectId}
+        scope="evaluator-compare"
+        showTableAside={false}
+        showMetricCharts={false}
+      >
+        <StreamStateProvider>
+          {/*
+            The page remounts this subtree whenever the pair changes, so the
+            compared annotation columns can be enabled as initial state. Column
+            preferences stay in memory: persisting them would leak one pair's
+            annotation columns and sizes into the next.
+          */}
+          <TracingProvider
+            key={target}
+            projectId={projectId}
+            tableId={COMPARE_TABLE_IDS[target]}
+            persistPreferences={false}
+            columnVisibility={COMPARE_COLUMN_VISIBILITY}
+            annotationColumnVisibility={
+              target === "TRACE" ? undefined : compareAnnotationVisibility
+            }
+            traceAnnotationColumnVisibility={
+              target === "TRACE" ? compareAnnotationVisibility : undefined
+            }
+            columnSizing={{
+              name: 150,
+              traceId: 130,
+              sessionId: 150,
+              output_value: 200,
+              lastOutput_value: 200,
+              startTime: 170,
+              [makeFlatAnnotationColumnId(
+                sideA.annotationName,
+                target === "TRACE" ? "trace" : "span"
+              )]: 150,
+              [makeFlatAnnotationColumnId(
+                sideB.annotationName,
+                target === "TRACE" ? "trace" : "span"
+              )]: 150,
+            }}
+          >
+            <ErrorBoundary key={condition} fallback={CompareTargetsError}>
+              <Suspense fallback={<Loading />}>
+                <CompareTargetsFilters
+                  projectId={projectId}
+                  target={target}
+                  condition={condition}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          </TracingProvider>
+        </StreamStateProvider>
+      </ProjectProvider>
+    </Flex>
   );
 }
+
+const COMPARE_TABLE_IDS = {
+  SPAN: "spans",
+  TRACE: "traces",
+  SESSION: "sessions",
+} as const satisfies Record<CompareTarget, ProjectTab>;
 
 const COMPARE_COLUMN_VISIBILITY = {
   name: true,
@@ -257,33 +248,6 @@ const COMPARE_COLUMN_VISIBILITY = {
   traceLatencyMsP99: false,
   numTraces: false,
 };
-
-function CompareAnnotationColumns({
-  target,
-  annotationA,
-  annotationB,
-}: {
-  target: CompareTarget;
-  annotationA: string;
-  annotationB: string;
-}) {
-  const visibility = useTracingContext((state) =>
-    target === "TRACE"
-      ? state.traceAnnotationColumnVisibility
-      : state.annotationColumnVisibility
-  );
-  const setVisibility = useTracingContext((state) =>
-    target === "TRACE"
-      ? state.setTraceAnnotationColumnVisibility
-      : state.setAnnotationColumnVisibility
-  );
-  // Only enable these columns when the pair changes; users can then hide them.
-  useEffect(() => {
-    setVisibility({ ...visibility, [annotationA]: true, [annotationB]: true });
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- the current map is intentionally read only when the pair changes
-  }, [annotationA, annotationB, target, setVisibility]);
-  return null;
-}
 
 type TargetsProps = {
   projectId: string;
@@ -381,7 +345,10 @@ function CompareTargetsTable({
       isSpan: target === "SPAN",
       isTrace: target === "TRACE",
       isSession: target === "SESSION",
-    }
+    },
+    // Re-selecting a cell reuses the same variables; refetch so a running
+    // evaluator's newer results replace the rows cached from the first visit
+    { fetchPolicy: "store-and-network" }
   );
   const emptyState = (
     <TableEmptyWrap>

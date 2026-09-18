@@ -180,7 +180,7 @@ export function ProjectEvaluatorCompareDistributions({
   );
 }
 
-export const projectEvaluatorDistributionSideFragment = graphql`
+const projectEvaluatorDistributionSideFragment = graphql`
   fragment ProjectEvaluatorCompareDistributions_side on EvaluatorComparisonSide
   @inline {
     threshold

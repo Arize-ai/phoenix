@@ -1,4 +1,5 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { DEFAULT_METRIC_CHART_KEYS } from "@phoenix/pages/project/constants";
 
 import { createProjectStore } from "../projectStore";
 
@@ -6,11 +7,12 @@ installTestStorage();
 
 const PROJECT_ID = "UHJvamVjdDox";
 const STORAGE_KEY = `arize-phoenix-project-${PROJECT_ID}`;
+const SCOPE = "secondary";
 
 describe("projectStore metricChartKeys", () => {
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(`${STORAGE_KEY}-evaluator-compare`);
+    localStorage.removeItem(`${STORAGE_KEY}-${SCOPE}`);
   });
 
   it("retains per-annotation chart keys while dropping invalid persisted keys", () => {
@@ -32,31 +34,32 @@ describe("projectStore metricChartKeys", () => {
       "spans_annotation:quality",
     ]);
   });
-  it("isolates comparison display defaults and saved preferences from project tabs", () => {
-    const project = createProjectStore({ projectId: PROJECT_ID });
-    project.state
+  it("keeps a scoped store's defaults and saved preferences separate", () => {
+    const unscoped = createProjectStore({ projectId: PROJECT_ID });
+    unscoped.state
       .getState()
       .setMetricChartKeys("spans", ["spans_annotation:quality"]);
-    const comparison = createProjectStore({
+    const scoped = createProjectStore({
       projectId: PROJECT_ID,
-      scope: "evaluator-compare",
+      scope: SCOPE,
       showTableAside: false,
-      metricChartKeys: { spans: [], traces: [], sessions: [] },
     });
-    expect(comparison.state.getState().showTableAside).toBe(false);
-    expect(comparison.state.getState().metricChartKeys.spans).toEqual([]);
-    comparison.state.getState().setShowTableAside(true);
-    comparison.state
+    expect(scoped.state.getState().showTableAside).toBe(false);
+    expect(scoped.state.getState().metricChartKeys.spans).toEqual(
+      DEFAULT_METRIC_CHART_KEYS.spans
+    );
+    scoped.state.getState().setShowTableAside(true);
+    scoped.state
       .getState()
-      .setMetricChartKeys("spans", ["spans_annotation:comparison"]);
+      .setMetricChartKeys("spans", ["spans_annotation:scoped"]);
     const restored = createProjectStore({
       projectId: PROJECT_ID,
-      scope: "evaluator-compare",
+      scope: SCOPE,
       showTableAside: false,
     });
     expect(restored.state.getState().showTableAside).toBe(true);
     expect(restored.state.getState().metricChartKeys.spans).toEqual([
-      "spans_annotation:comparison",
+      "spans_annotation:scoped",
     ]);
     expect(
       createProjectStore({ projectId: PROJECT_ID }).state.getState()

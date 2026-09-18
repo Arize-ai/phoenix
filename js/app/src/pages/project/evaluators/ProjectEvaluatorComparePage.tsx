@@ -49,6 +49,12 @@ const mainCSS = css`
   overflow: hidden;
 `;
 
+const scrollCSS = css`
+  height: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+`;
+
 const contentCSS = css`
   max-width: 1600px;
   margin-inline: auto;
@@ -162,7 +168,7 @@ function ProjectEvaluatorComparePageLoaded({
           </Flex>
         }
       />
-      <View overflow="auto" height="100%">
+      <div css={scrollCSS}>
         <View padding="size-200">
           <div css={contentCSS}>
             <ErrorBoundary
@@ -190,7 +196,7 @@ function ProjectEvaluatorComparePageLoaded({
             </ErrorBoundary>
           </div>
         </View>
-      </View>
+      </div>
       <Suspense fallback={<Loading />}>
         <Outlet />
       </Suspense>

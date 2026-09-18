@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c26512d444cd03a823e1f97a0ec20a15>>
+ * @generated SignedSource<<d60200c4dbf53e3403de474b9ed855ad>>
  * @lightSyntaxTransform
  */
 
@@ -182,7 +182,21 @@ v11 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
-    "name": "flaggedLabels",
+    "name": "flaggedCount",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "flagRate",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "sharedMeanScore",
     "storageKey": null
   },
   {
@@ -244,27 +258,6 @@ v11 = [
       },
       (v10/*:: as any*/)
     ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "flaggedCount",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "flagRate",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "sharedMeanScore",
     "storageKey": null
   }
 ];
@@ -455,12 +448,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3fda053908232c769830a9ee25c39697",
+    "cacheID": "170fd3bd0fe9a80e8efa8a5731705a6a",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorCompareContentQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          totalInRange\n        }\n        ...ProjectEvaluatorCompareTargets_comparison\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareDistributions_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n  }\n  sideA {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n  sideB {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_side on EvaluatorComparisonSide {\n  threshold\n  allEvaluatedMeanScore\n  scoreBinEdges\n  scoreBinCounts\n  scoreValueCounts {\n    score\n    count\n  }\n  labelCounts {\n    label\n    score\n    isOther\n    count\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n  }\n  sideA {\n    annotationName\n    labels\n    threshold\n  }\n  sideB {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    totalInRange\n  }\n  sideA {\n    annotationName\n    flaggedCount\n    flagRate\n    sharedMeanScore\n  }\n  sideB {\n    annotationName\n    flaggedCount\n    flagRate\n    sharedMeanScore\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n\nfragment ProjectEvaluatorCompareTargets_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  sideA {\n    annotationName\n    labels\n    threshold\n    flaggedLabels\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n  sideB {\n    annotationName\n    labels\n    threshold\n    flaggedLabels\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n}\n"
+    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          totalInRange\n        }\n        ...ProjectEvaluatorCompareTargets_comparison\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareDistributions_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n  }\n  sideA {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n  sideB {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_side on EvaluatorComparisonSide {\n  threshold\n  allEvaluatedMeanScore\n  scoreBinEdges\n  scoreBinCounts\n  scoreValueCounts {\n    score\n    count\n  }\n  labelCounts {\n    label\n    score\n    isOther\n    count\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n  }\n  sideA {\n    annotationName\n    labels\n    threshold\n  }\n  sideB {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    totalInRange\n  }\n  sideA {\n    annotationName\n    flaggedCount\n    flagRate\n    sharedMeanScore\n  }\n  sideB {\n    annotationName\n    flaggedCount\n    flagRate\n    sharedMeanScore\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n\nfragment ProjectEvaluatorCompareTargets_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  sideA {\n    annotationName\n    labels\n    threshold\n  }\n  sideB {\n    annotationName\n    labels\n    threshold\n  }\n}\n"
   }
 };
 })();
