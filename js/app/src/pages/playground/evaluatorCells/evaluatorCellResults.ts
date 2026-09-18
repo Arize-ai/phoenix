@@ -20,7 +20,7 @@ import type {
 /** A dataset example's stored expected outputs, as the table's rows carry them. */
 export type ExpectedOutputExample = {
   id: string;
-  calibrationLabels: ReadonlyArray<{
+  expectedOutputs: ReadonlyArray<{
     annotationName: string;
     label: string | null;
     score: number | null;
@@ -128,19 +128,19 @@ export function getEvaluatorCellResult({
  */
 export function getExpectedOutput({
   pending,
-  calibrationLabels,
+  expectedOutputs,
   annotationName,
 }: {
   pending: PendingExpectedOutputs[string] | undefined;
-  calibrationLabels: ExpectedOutputExample["calibrationLabels"];
+  expectedOutputs: ExpectedOutputExample["expectedOutputs"];
   annotationName: string;
 }): ExpectedOutput | undefined {
   if (pending && annotationName in pending) {
     return pending[annotationName] ?? undefined;
   }
 
-  const stored = calibrationLabels.find(
-    (calibrationLabel) => calibrationLabel.annotationName === annotationName
+  const stored = expectedOutputs.find(
+    (expectedOutput) => expectedOutput.annotationName === annotationName
   );
 
   return stored
@@ -189,7 +189,7 @@ export function summarizeExpectedAgreement({
   for (const example of examples) {
     const expected = getExpectedOutput({
       pending: pendingExpectedOutputs[example.id],
-      calibrationLabels: example.calibrationLabels,
+      expectedOutputs: example.expectedOutputs,
       annotationName,
     });
 

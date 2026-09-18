@@ -1,4 +1,4 @@
-from phoenix.server.api.helpers.evaluator_calibration import without_own_annotations
+from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 
 _HUMAN = {"label": "long", "score": 5.0, "annotator_kind": "HUMAN"}
 _LLM = {"label": "short", "score": 1.0, "annotator_kind": "LLM"}

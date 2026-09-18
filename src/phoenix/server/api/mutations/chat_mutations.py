@@ -20,7 +20,7 @@ from phoenix.server.api.evaluators import (
     EvaluationResult as EvaluationResultDict,
 )
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.evaluator_calibration import without_own_annotations
+from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,

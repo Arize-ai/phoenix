@@ -133,7 +133,7 @@ from phoenix.server.api.evaluators import (
     get_evaluators,
 )
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
-from phoenix.server.api.helpers.evaluator_calibration import without_own_annotations
+from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
     extract_and_convert_example_messages,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ae73e621ca76f3487d1ac9183d6ea16>>
+ * @generated SignedSource<<02071e1ba6e063634ab784597c4c6e93>>
  * @lightSyntaxTransform
  */
 
@@ -217,9 +217,9 @@ return {
                               {
                                 "alias": null,
                                 "args": null,
-                                "concreteType": "DatasetExampleCalibrationLabel",
+                                "concreteType": "DatasetExampleExpectedOutput",
                                 "kind": "LinkedField",
-                                "name": "calibrationLabels",
+                                "name": "expectedOutputs",
                                 "plural": true,
                                 "selections": [
                                   {
@@ -332,16 +332,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6b3dbc8d71f742c10e20e5851294b26b",
+    "cacheID": "ac0b67badc9f84f0067e6e58ad4ec9ee",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableRefetchQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 20\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1eo2vI\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1eo2vI on Dataset {\n  examples(datasetVersionId: $datasetVersionId, splitIds: $splitIds, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          calibrationLabels {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 20\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1eo2vI\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1eo2vI on Dataset {\n  examples(datasetVersionId: $datasetVersionId, splitIds: $splitIds, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a96d576ee7e01acd7b53597ddbfeae98";
+(node as any).hash = "88627b7c5c8916218582112ca3bf21de";
 
 export default node;

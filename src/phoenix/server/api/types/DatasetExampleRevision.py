@@ -8,7 +8,7 @@ from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
-from phoenix.server.api.helpers.evaluator_calibration import get_expected_outputs
+from phoenix.server.api.helpers.expected_outputs import get_expected_outputs
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 
 
@@ -20,17 +20,17 @@ class RevisionKind(Enum):
 
 
 @strawberry.type
-class DatasetExampleCalibrationLabel:
+class DatasetExampleExpectedOutput:
     annotation_name: str
     label: str | None
     score: float | None
     explanation: str | None
 
 
-def get_calibration_labels(metadata: Any) -> list[DatasetExampleCalibrationLabel]:
+def to_gql_expected_outputs(metadata: Any) -> list[DatasetExampleExpectedOutput]:
     """The expected outputs stored on an example's metadata, one per annotation name."""
     return [
-        DatasetExampleCalibrationLabel(
+        DatasetExampleExpectedOutput(
             annotation_name=name,
             label=value.get("label"),
             score=value.get("score"),
@@ -57,8 +57,8 @@ class DatasetExampleRevision(ExampleRevision):
         return JSON(dataset_example_eval_context(self.db_record))
 
     @strawberry.field
-    def calibration_labels(self) -> list[DatasetExampleCalibrationLabel]:
-        return get_calibration_labels(self.metadata)
+    def expected_outputs(self) -> list[DatasetExampleExpectedOutput]:
+        return to_gql_expected_outputs(self.metadata)
 
     @classmethod
     def from_orm_revision(cls, revision: models.DatasetExampleRevision) -> "DatasetExampleRevision":
