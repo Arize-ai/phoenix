@@ -599,11 +599,13 @@ class Evaluators:
             from phoenix.client import Client
             client = Client()
 
-            current = client.evaluators.get(evaluator_id="Q29kZUV2YWx1YXRvcjoy")
+            [current] = client.evaluators.list_code_versions(
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy", limit=1
+            )
             version = client.evaluators.create_code_version(
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
                 source_code=open("evaluator.py").read(),
-                expected_current_version_id=current["current_version_id"],
+                expected_current_version_id=current["id"],
             )
             print(version["id"], version["was_created"])
         """  # noqa: E501

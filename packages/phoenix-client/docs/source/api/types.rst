@@ -1,6 +1,13 @@
 Types
 =====
 
+Evaluators Types
+----------------
+
+.. automodule:: client.types.evaluators
+   :members:
+   :show-inheritance:
+
 Prompts Types
 -------------
 

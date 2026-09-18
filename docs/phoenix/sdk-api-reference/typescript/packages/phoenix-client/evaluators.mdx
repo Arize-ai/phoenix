@@ -1,0 +1,308 @@
+---
+title: "Evaluators"
+description: "Manage evaluator definitions and bind them to datasets and projects with @arizeai/phoenix-client"
+---
+
+The evaluators module manages shared evaluator definitions and the bindings that attach them to datasets and projects. A definition is shared by every binding that references it, so an update applies everywhere the evaluator is used.
+
+Every helper requires a Phoenix server on 21.0.0 or later. Each one checks the server version before its request and throws against an older server.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/evaluators/index.ts</code> for the exported helpers</li>
+    <li><code>src/types/evaluators.ts</code> for the definition, binding, and patch shapes</li>
+  </ul>
+</section>
+
+## Evaluator Kinds
+
+| Kind | How it is created | Dataset bindings | Project bindings | Edit and delete |
+|------|-------------------|------------------|------------------|-----------------|
+| `code` | `createEvaluator`, or inline with a binding | By reference or inline | By reference or inline | `updateEvaluator`, `createCodeEvaluatorVersion`, `deleteEvaluator` |
+| `llm` | Inline with a binding only | Inline only | Inline only | `updateEvaluator`; deleted with its last binding |
+| `builtin` | Ships with Phoenix | By reference | Not accepted | Never edited or deleted |
+
+An LLM evaluator is tied to its own prompt, so it cannot be referenced by another binding. To run the same prompt elsewhere, create another LLM evaluator from the same prompt version.
+
+## List And Read Definitions
+
+```ts
+import {
+  getEvaluator,
+  getEvaluators,
+} from "@arizeai/phoenix-client/evaluators";
+
+for (const evaluator of await getEvaluators({ type: "builtin" })) {
+  console.log(evaluator.id, evaluator.name);
+}
+
+const evaluator = await getEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
+if (evaluator.type === "code") {
+  console.log(evaluator.current_version_id, evaluator.source_code);
+}
+```
+
+`getEvaluators` follows pagination to the end. Every item embeds its current code or prompt version, so pass `name` or `limit` when you are looking for one evaluator.
+
+## Create A Code Evaluator
+
+`createEvaluator` creates a code evaluator and its first version without binding it. Bind it afterwards by its `id`.
+
+```ts
+import { readFile } from "node:fs/promises";
+
+import { createEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+const evaluator = await createEvaluator({
+  evaluator: {
+    type: "code",
+    name: "exact-match",
+    source_code: await readFile("evaluator.py", "utf8"),
+    language: "PYTHON",
+    sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+    input_mapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+    output_configs: [
+      { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
+    ],
+  },
+});
+```
+
+`output_configs` needs at least one entry. The name must be unique among evaluators; a clash is refused with `409`.
+
+## Deploy A Code Version
+
+Code is immutable per version. `createCodeEvaluatorVersion` appends new source and applies any `configuration` (sandbox, input mapping, outputs, or description) in the same transaction, so bindings never run the new code with the old configuration.
+
+```ts
+import { readFile } from "node:fs/promises";
+
+import {
+  createCodeEvaluatorVersion,
+  getEvaluator,
+} from "@arizeai/phoenix-client/evaluators";
+
+const current = await getEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
+if (current.type !== "code") throw new Error("Expected a code evaluator");
+
+const version = await createCodeEvaluatorVersion({
+  evaluatorId: current.id,
+  sourceCode: await readFile("evaluator.py", "utf8"),
+  expectedCurrentVersionId: current.current_version_id ?? undefined,
+  configuration: {
+    output_configs: [
+      { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
+    ],
+  },
+});
+console.log(version.id, version.was_created);
+```
+
+- `expectedCurrentVersionId` is optional. When another version has been appended since, the server refuses the stale deploy with `409` instead of deploying over it.
+- If the source matches the current version, the existing version is returned and `was_created` is `false`. Only the current version is compared, so restoring older source creates a new version.
+- `getCodeEvaluatorVersions` lists the versions, newest first.
+
+## Update A Definition
+
+```ts
+import { updateEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+await updateEvaluator({
+  evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  patch: { type: "code", description: "Exact match against the expected output" },
+});
+
+await updateEvaluator({
+  evaluatorId: "TExNRXZhbHVhdG9yOjE=",
+  patch: { type: "llm", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+});
+```
+
+The `patch` is discriminated by `type`, which must match the evaluator, and needs at least one other field. Omitted fields keep their values.
+
+- Prompt content is edited through the [prompts](./prompts) module: create a version with `createPrompt` and pass its `id` as `prompt_version_id`. A version of another prompt moves the evaluator to that prompt.
+- An LLM evaluator's `description` must equal the description of its prompt's tool function.
+- An LLM change that would invalidate a dataset binding's output overrides is refused with `409`.
+
+## Delete A Definition
+
+```ts
+import { deleteEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+await deleteEvaluator({ evaluatorId: "Q29kZUV2YWx1YXRvcjoy" });
+```
+
+`deleteEvaluator` deletes a code evaluator that nothing binds, with its version history. A definition still bound by a project or dataset is refused with `409`. LLM and built-in ids are refused with `422`. A missing evaluator is ignored.
+
+Deleting the last binding of a code or LLM evaluator deletes the definition with it. Built-in evaluators are never deleted.
+
+## Bind To A Dataset
+
+A dataset binding registers an evaluator to run against the dataset's experiments. It does not run an experiment by itself. Reference an existing code or built-in evaluator, or create an LLM or code evaluator inline.
+
+```ts
+import { createDatasetEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+// Attach an existing code or built-in evaluator by reference
+const binding = await createDatasetEvaluator({
+  dataset: { datasetName: "golden-questions" },
+  name: "exact-match",
+  inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
+});
+
+// Create an LLM evaluator that runs an existing prompt version. Its
+// description must equal the description of the prompt's tool function.
+await createDatasetEvaluator({
+  dataset: { datasetName: "golden-questions" },
+  name: "toxicity",
+  inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
+  evaluator: {
+    type: "llm",
+    description: "toxicity",
+    prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
+    output_configs: [
+      {
+        type: "CATEGORICAL",
+        name: "toxicity",
+        optimization_direction: "MINIMIZE",
+        values: [
+          { label: "toxic", score: 1 },
+          { label: "clean", score: 0 },
+        ],
+      },
+    ],
+  },
+});
+```
+
+- Select the dataset with `datasetName`, `datasetId`, or the shorthand `dataset`, which accepts either.
+- The input mapping lives on the binding and is required.
+- A new LLM evaluator gives either `prompt_version` content for a new prompt or the `prompt_version_id` of an existing version, not both.
+
+## Override A Dataset Binding
+
+`description` and `outputConfigs` on a binding are overrides. Omit them on create, or set `description` or `output_configs` to `null` in an update, and the binding uses the evaluator's values and follows later changes to them.
+
+```ts
+import { updateDatasetEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+await updateDatasetEvaluator({
+  datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox",
+  patch: {
+    output_configs: [
+      { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
+    ],
+  },
+});
+
+// Drop the override and follow the evaluator's outputs again
+await updateDatasetEvaluator({
+  datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox",
+  patch: { output_configs: null },
+});
+```
+
+- An `output_configs` override needs at least one config; `[]` is rejected.
+- On an LLM evaluator, output overrides must be categorical and match the prompt's output tool, and a description override must equal that tool's description.
+- `getDatasetEvaluator` and `getDatasetEvaluators` return the stored overrides; `null` means the binding uses the evaluator's value.
+
+## Delete Dataset Bindings
+
+```ts
+import {
+  deleteDatasetEvaluator,
+  deleteDatasetEvaluators,
+} from "@arizeai/phoenix-client/evaluators";
+
+await deleteDatasetEvaluator({ datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox" });
+
+await deleteDatasetEvaluators({
+  datasetEvaluatorIds: ["RGF0YXNldEV2YWx1YXRvcjoy", "RGF0YXNldEV2YWx1YXRvcjoz"],
+});
+```
+
+`deleteDatasetEvaluators` deletes up to 1000 bindings atomically: either every binding is deleted or none is. Missing bindings are ignored, but an ID that is not a dataset evaluator binding fails the whole request. An LLM evaluator's prompt is kept unless you pass `deleteAssociatedPrompt: true`.
+
+## Run An Evaluator On A Project
+
+A project binding runs an evaluator on the project's incoming traces. Projects accept a reference to an existing code evaluator, or an LLM or code evaluator created inline. Built-in evaluators cannot be bound to a project.
+
+```ts
+import { createProjectEvaluator } from "@arizeai/phoenix-client/evaluators";
+
+// Evaluate a quarter of LLM spans as they arrive
+await createProjectEvaluator({
+  project: { projectName: "support-bot" },
+  name: "exact-match",
+  evaluationTarget: "SPAN",
+  samplingRate: 0.25,
+  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
+  filterCondition: "span_kind == 'LLM'",
+});
+
+// Evaluate each trace once it has been quiet for 10 minutes
+await createProjectEvaluator({
+  project: { projectName: "support-bot" },
+  name: "trace-exact-match",
+  evaluationTarget: "TRACE",
+  samplingRate: 1,
+  evaluator: { type: "reference", evaluator_id: "Q29kZUV2YWx1YXRvcjoy" },
+  evaluationDelaySeconds: 600,
+});
+```
+
+- `evaluationTarget` is `SPAN`, `TRACE`, or `SESSION`, and cannot change after the binding is created. `SPAN` evaluators run on matching sampled spans as they arrive. `TRACE` and `SESSION` evaluators run once per trace or session, after it has been quiet for the evaluation delay.
+- `filterCondition` is written in the filter language of the target: a span filter for `SPAN`, a trace filter for `TRACE`, and a session filter for `SESSION`. A filter that does not compile is rejected with `422`.
+- `samplingRate` is the fraction of matching records to evaluate, between 0 and 1.
+- `evaluationDelaySeconds` applies to `TRACE` and `SESSION` targets only. It must be at least 10 seconds and defaults to 300 seconds. `SPAN` targets reject a delay and report `evaluation_delay_seconds` as `0`.
+- `inputMapping` is required for a new LLM evaluator. A code evaluator may omit it to use the evaluator's own mapping.
+- A binding is enabled unless you pass `enabled: false`.
+
+## Update And Delete Project Bindings
+
+```ts
+import {
+  deleteProjectEvaluators,
+  updateProjectEvaluator,
+} from "@arizeai/phoenix-client/evaluators";
+
+// Pause the binding without deleting it
+await updateProjectEvaluator({
+  projectEvaluatorId: "UHJvamVjdEV2YWx1YXRvcjox",
+  patch: { enabled: false },
+});
+
+await deleteProjectEvaluators({
+  projectEvaluatorIds: ["UHJvamVjdEV2YWx1YXRvcjox"],
+});
+```
+
+- On update, `input_mapping: null` makes a code binding use the evaluator's mapping again; LLM bindings need a mapping. `evaluation_delay_seconds: null` restores the default delay.
+- `deleteProjectEvaluator` deletes one binding. `deleteProjectEvaluators` deletes up to 1000 atomically, with the same rules as the dataset bulk delete. Each binding's evaluator traces are deleted with it.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/evaluators/getEvaluators.ts</code></li>
+    <li><code>src/evaluators/getEvaluator.ts</code></li>
+    <li><code>src/evaluators/createEvaluator.ts</code></li>
+    <li><code>src/evaluators/updateEvaluator.ts</code></li>
+    <li><code>src/evaluators/deleteEvaluator.ts</code></li>
+    <li><code>src/evaluators/getCodeEvaluatorVersions.ts</code></li>
+    <li><code>src/evaluators/createCodeEvaluatorVersion.ts</code></li>
+    <li><code>src/evaluators/createDatasetEvaluator.ts</code></li>
+    <li><code>src/evaluators/getDatasetEvaluators.ts</code></li>
+    <li><code>src/evaluators/getDatasetEvaluator.ts</code></li>
+    <li><code>src/evaluators/updateDatasetEvaluator.ts</code></li>
+    <li><code>src/evaluators/deleteDatasetEvaluators.ts</code></li>
+    <li><code>src/evaluators/createProjectEvaluator.ts</code></li>
+    <li><code>src/evaluators/getProjectEvaluators.ts</code></li>
+    <li><code>src/evaluators/getProjectEvaluator.ts</code></li>
+    <li><code>src/evaluators/updateProjectEvaluator.ts</code></li>
+    <li><code>src/evaluators/deleteProjectEvaluators.ts</code></li>
+    <li><code>src/evaluators/index.ts</code></li>
+    <li><code>src/types/evaluators.ts</code></li>
+  </ul>
+</section>

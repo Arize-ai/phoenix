@@ -491,6 +491,7 @@
 - [Phoenix Client Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/annotations): Attach span, session, and document annotations via @arizeai/phoenix-client
 - [Phoenix Client Datasets (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets): Create and inspect datasets via @arizeai/phoenix-client
 - [Phoenix Client Document Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations): Log document-level annotations for RAG evaluation via @arizeai/phoenix-client
+- [Phoenix Client Evaluators (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/evaluators): Manage evaluator definitions and bind them to datasets and projects via @arizeai/phoenix-client
 - [Phoenix Client Experiments (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments): Run experiments via @arizeai/phoenix-client
 - [Phoenix Client Prompts (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts): Manage prompts via @arizeai/phoenix-client
 - [Phoenix Client Session Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations): Log session-level annotations for conversation evaluation via @arizeai/phoenix-client

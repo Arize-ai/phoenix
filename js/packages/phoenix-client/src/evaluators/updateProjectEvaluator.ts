@@ -20,8 +20,10 @@ export interface UpdateProjectEvaluatorParams extends ClientFn {
   /**
    * The fields to change. At least one must be present; omitted fields keep
    * their current values. The evaluation target cannot change. Set
-   * `input_mapping` to `null` to use the shared definition's mapping again, or
-   * `evaluation_delay_seconds` to `null` to restore the server's default.
+   * `input_mapping` to `null` to use the shared definition's mapping again.
+   * For `TRACE` and `SESSION` targets, `evaluation_delay_seconds` must be at
+   * least 10, `null` restores the default of 300, and omitting it keeps the
+   * current delay. `SPAN` targets reject a number and keep a delay of 0.
    */
   patch: ProjectEvaluatorPatch;
 }

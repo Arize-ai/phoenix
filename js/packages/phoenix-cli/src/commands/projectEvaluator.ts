@@ -97,9 +97,10 @@ interface ProjectEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
   inputMapping?: string;
   /**
    * `--evaluation-delay-seconds <number>`: For TRACE and SESSION targets, how
-   * long the trace or session must be quiet before it is evaluated. Defaults
-   * to the server's setting for the target. Rejected for SPAN targets, which
-   * evaluate spans as they arrive.
+   * many seconds the trace or session must be quiet before it is evaluated;
+   * at least 10. When omitted, `create` uses the default of 300 and `update`
+   * keeps the current delay. Rejected for SPAN targets, which evaluate spans
+   * as they arrive and store a delay of 0.
    *
    * @example 600
    */
@@ -154,7 +155,8 @@ interface ProjectEvaluatorUpdateOptions extends ProjectEvaluatorFieldOptions {
   inheritInputMapping?: boolean;
   /**
    * `--default-evaluation-delay`: Drop the binding's evaluation delay and
-   * restore the server's default for its target.
+   * restore the default for its target: 300 seconds for TRACE and SESSION,
+   * 0 for SPAN.
    *
    * @example true
    */
