@@ -90,8 +90,9 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         the answer's budget.
 
         Name the return types and input types you see rather than repeating the
-        same search terms. Include the word "mutations" in a search to see
-        mutations only, and write `Type.words` to search within one type.
+        same search terms. Where mutations are enabled, include the word
+        "mutations" in a search to see only them. Write `Type.words` to search
+        within one type.
         """
         index = cached_index(_schema()._schema, include_mutations=allow_mutations)
         wanted = [n for item in _listed(names) for n in re.split(r"[,\s]+", item) if n]
