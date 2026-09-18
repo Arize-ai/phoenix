@@ -43,13 +43,13 @@ After completing previous guides, you should have:
     ### **Create a Dataset in the UI**
 
     1. Navigate to your project in Phoenix.
-    2. Filter your traces by the incomplete evaluation label.
+    2. Filter the spans table by the incomplete evaluation label.
 
        `evals['completeness'].label == 'incomplete'`
 
-    3. Select the traces you want to include.
+    3. Select the spans you want to include.
     4. Click Create Dataset and give it a name.
-    5. Add the selected traces to the dataset you just created.
+    5. Add the selected spans to the dataset you just created.
 
     This dataset now represents a concrete failure case for your agent.
 
@@ -274,7 +274,6 @@ After completing previous guides, you should have:
 
     ```typescript
     import "dotenv/config";
-    import { getDataset } from "@arizeai/phoenix-client/datasets";
     import type { Example } from "@arizeai/phoenix-client/types/datasets";
     import { runExperiment } from "@arizeai/phoenix-client/experiments";
     import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
@@ -413,6 +412,8 @@ After completing previous guides, you should have:
     That tests the new version of the agent against the exact inputs that previously failed.
 
     ```python
+    from phoenix.client import Client
+
     client = Client()
     dataset = client.datasets.get_dataset(dataset="python quickstart fails")
     ```
