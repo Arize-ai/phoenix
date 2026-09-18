@@ -341,6 +341,18 @@ export type ProjectEvaluatorMappingDiagnostic = {
   source: "path" | "context";
 };
 
+/**
+ * Reusable message used by collapsible title error counters and inline table rows.
+ */
+export function formatMissingBindingMessage(
+  diagnostic: ProjectEvaluatorMappingDiagnostic,
+  grain: ProjectEvaluatorMappingSourceGrain
+): string {
+  const subject =
+    diagnostic.source === "path" ? diagnostic.path : diagnostic.variable;
+  return `${subject} does not exist on this ${grain}`;
+}
+
 export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,

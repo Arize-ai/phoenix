@@ -18,12 +18,14 @@ import {
   Button,
   Card,
   CardCollapsedPreview,
+  Counter,
   Flex,
   Heading,
   Icon,
   Icons,
   Loading,
   LoadMoreButton,
+  RichTooltip,
   SegmentedControl,
   SegmentedControlItem,
   Tab,
@@ -32,6 +34,9 @@ import {
   Tabs,
   Text,
   Token,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
@@ -79,6 +84,7 @@ import type { ProjectEvaluatorScopePanelTracesQuery } from "@phoenix/pages/proje
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
+  formatMissingBindingMessage,
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorMappingSourceGrain,
@@ -1187,28 +1193,52 @@ export function RecordedRunRow({
     declaredVariables.length === 0 && isStringKeyedObject(row.context)
       ? Object.keys(row.context)
       : declaredVariables;
-  const hasMappingError =
-    !isUnavailable &&
-    getProjectEvaluatorMappingDiagnostics({
-      context: row.context,
-      pathMapping: inputMapping.pathMapping,
-      variables,
-      requiredVariables,
-    }).some(({ status }) => status === "missing");
+  const missingDiagnostics = isUnavailable
+    ? []
+    : getProjectEvaluatorMappingDiagnostics({
+        context: row.context,
+        pathMapping: inputMapping.pathMapping,
+        variables,
+        requiredVariables,
+      }).filter(({ status }) => status === "missing");
   return (
     <li>
       <Card
         collapsible
+        // The error count carries a tooltip trigger, which cannot nest inside
+        // the collapse button.
+        interactiveTitle
         isOpen={isExpanded}
         onOpenChange={onToggleExpanded}
         title={
           <>
-            {hasMappingError ? (
-              <Icon
-                svg={<Icons.AlertCircle />}
-                color="danger"
-                aria-label="error"
-              />
+            {missingDiagnostics.length > 0 ? (
+              <TooltipTrigger delay={750}>
+                {/* Error counter remains clickable to open the header. */}
+                <TriggerWrap onPress={onToggleExpanded}>
+                  <Counter variant="danger">
+                    {missingDiagnostics.length}
+                  </Counter>
+                </TriggerWrap>
+                <RichTooltip placement="bottom">
+                  <TooltipArrow />
+                  <Flex direction="column" gap="size-50">
+                    {missingDiagnostics.map((diagnostic) => (
+                      <Flex
+                        key={diagnostic.variable}
+                        direction="row"
+                        gap="size-100"
+                        alignItems="center"
+                      >
+                        <Icon svg={<Icons.AlertCircle />} color="danger" />
+                        <Text size="S">
+                          {formatMissingBindingMessage(diagnostic, recordNoun)}
+                        </Text>
+                      </Flex>
+                    ))}
+                  </Flex>
+                </RichTooltip>
+              </TooltipTrigger>
             ) : null}
             {row.spanKind ? (
               <SpanKindToken spanKind={row.spanKind} size="S" />
@@ -1392,15 +1422,24 @@ const contextViewerCSS = css`
   }
 `;
 
-type BindingRow = {
+type BindingRowBase = {
   keyword: string;
   path?: string;
   /** One line on the name, shown on hover. */
   description?: string;
-  /** Stands in for the value until a record supplies one. */
-  typeHint?: string;
-  value: unknown;
 };
+
+type BindingRow =
+  | (BindingRowBase & {
+      variant?: "default";
+      /** Stands in for the value until a record supplies one. */
+      typeHint?: string;
+      value: unknown;
+    })
+  | (BindingRowBase & {
+      variant: "error";
+      message: string;
+    });
 
 /**
  * What one record binds, read off the shared materialization.
@@ -1468,6 +1507,21 @@ export function BindingPreview({
         value: resolution.status === "resolved" ? resolution.value : undefined,
       };
     });
+  const missingRows: BindingRow[] = diagnostics
+    .filter(({ status }) => status === "missing")
+    .map((diagnostic) => ({
+      variant: "error",
+      keyword: diagnostic.variable,
+      message: formatMissingBindingMessage(diagnostic, grain),
+    }));
+  const missingVariables = new Set(missingRows.map(({ keyword }) => keyword));
+  const rows = [
+    ...slotRows.filter(({ keyword }) => !missingVariables.has(keyword)),
+    ...mappedRows,
+    ...missingRows,
+  ].sort((leftRow, rightRow) =>
+    leftRow.keyword.localeCompare(rightRow.keyword)
+  );
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
   const toggle = (keyword: string) =>
     setExpandedKeyword((current) => (current === keyword ? null : keyword));
@@ -1478,8 +1532,10 @@ export function BindingPreview({
           No matching {grain} yet; values are empty.
         </Alert>
       ) : null}
-      {[...slotRows, ...mappedRows].map((row) =>
-        row.keyword === EVALUATOR_METADATA_SLOT && evaluationContext ? (
+      {rows.map((row) =>
+        row.variant !== "error" &&
+        row.keyword === EVALUATOR_METADATA_SLOT &&
+        evaluationContext ? (
           <BindingPreviewRow
             key={row.keyword}
             row={row}
@@ -1498,18 +1554,8 @@ export function BindingPreview({
         )
       )}
 
-      {diagnostics.map(({ variable, path, status, source }) =>
-        status === "missing" ? (
-          <Alert
-            key={variable}
-            variant="danger"
-            title={`${variable} would fail on this ${grain}`}
-          >
-            {source === "path"
-              ? `Nothing matches ${path}. No annotation is written.`
-              : `This ${grain} has no ${variable}. No annotation is written.`}
-          </Alert>
-        ) : status === "unverified" ? (
+      {diagnostics.map(({ variable, path, status }) =>
+        status === "unverified" ? (
           <Alert
             key={variable}
             variant="warning"
@@ -1623,6 +1669,19 @@ function BindingPreviewRow({
   /** Rendered in place of the raw value when the row opens onto a tree. */
   children?: ReactNode;
 }) {
+  if (row.variant === "error") {
+    return (
+      <div css={bindingRowCSS} data-variant="error">
+        <div className="binding-row__toggle binding-row__toggle--static">
+          <Icon svg={<Icons.Close />} color="danger" aria-label="error" />
+          <code className="binding-row__keyword">{row.keyword}</code>
+          <span className="binding-row__error-message" title={row.message}>
+            {row.message}
+          </span>
+        </div>
+      </div>
+    );
+  }
   const isTextValue = typeof row.value === "string";
   const isExpandable = children != null || isExpandableBindingValue(row.value);
   const display = toBoundValueDisplay(row.value);
@@ -1744,6 +1803,22 @@ const bindingRowCSS = css`
     font-family: var(--global-font-family-code, monospace);
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-700);
+  }
+  &[data-variant="error"] {
+    .binding-row__keyword {
+      color: var(--global-text-color-300);
+    }
+  }
+  .binding-row__error-message {
+    margin-left: auto;
+    text-align: right;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--global-font-size-xs);
+    color: var(--global-color-danger);
   }
   .binding-row__detail {
     border-top: 1px solid var(--global-border-color-default);
