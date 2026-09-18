@@ -8,6 +8,7 @@ Welcome to the Phoenix Client documentation. This lightweight Python client prov
 - **[Spans](api/spans)** - Access and analyze traces, spans, and annotations
 - **[Sessions](api/sessions)** - Retrieve sessions, list sessions for a project, and annotate multi-turn conversations
 - **[Projects](api/projects)** - Organize your work with project management
+- **[Evaluators](api/evaluators)** - Manage evaluator definitions and bind them to datasets and projects (requires Phoenix server >= 21.0.0)
 
 ## Installation
 
@@ -89,7 +90,7 @@ in a few concise bullet points that are easy for beginners to understand.
 prompt = client.prompts.create(
     name="article-bullet-summarizer",
     version=PromptVersion(
-        messages=[{"role": "user", "content": content}],
+        [{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points",
@@ -673,6 +674,7 @@ api/prompts
 api/spans
 api/sessions
 api/projects
+api/evaluators
 api/helpers
 api/utils
 api/types

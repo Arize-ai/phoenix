@@ -3,7 +3,7 @@ title: "Overview"
 description: "Typed TypeScript client for Phoenix platform APIs"
 ---
 
-`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for projects, prompts, datasets, experiments, spans, sessions, traces, users, and CI-friendly dataset-backed eval tests.
+`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for projects, prompts, datasets, experiments, evaluators, spans, sessions, traces, users, and CI-friendly dataset-backed eval tests.
 
 ## Install
 
@@ -41,6 +41,7 @@ That gives the agent version-matched docs plus the exact implementation and gene
 | `@arizeai/phoenix-client/prompts` | Prompt CRUD plus `toSDK` conversion |
 | `@arizeai/phoenix-client/datasets` | Dataset creation and retrieval |
 | `@arizeai/phoenix-client/experiments` | Experiment execution and lifecycle |
+| `@arizeai/phoenix-client/evaluators` | Evaluator definitions, code versions, and dataset and project bindings |
 | `@arizeai/phoenix-client/spans` | Span search, notes, and span/document annotations |
 | `@arizeai/phoenix-client/sessions` | Session listing, retrieval, and session annotations |
 | `@arizeai/phoenix-client/traces` | Project trace retrieval, transfers, and trace annotations |
@@ -161,6 +162,7 @@ Prefer this layer when:
 ## Where To Start
 
 - [Projects](./projects), [Prompts](./prompts), [Datasets](./datasets), [Experiments](./experiments) — higher-level workflows
+- [Evaluators](./evaluators) — evaluator definitions and the bindings that run them on datasets and projects
 - [Annotations](./annotations) — annotation concepts, then [Span](./span-annotations), [Document](./document-annotations), and [Session](./session-annotations) annotations for detailed usage
 - [CI Eval Tests](./ci-evals) — Vitest/Jest eval suites backed by Phoenix datasets and experiments
 - [Spans](./spans), [Sessions](./sessions), [Traces](./traces), [Users](./users) — retrieval and maintenance
@@ -177,6 +179,7 @@ Prefer this layer when:
     <li><code>src/prompts/</code></li>
     <li><code>src/datasets/</code></li>
     <li><code>src/experiments/</code></li>
+    <li><code>src/evaluators/</code></li>
     <li><code>src/spans/</code></li>
     <li><code>src/sessions/</code></li>
     <li><code>src/traces/</code></li>
