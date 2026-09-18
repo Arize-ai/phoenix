@@ -309,14 +309,24 @@ async def test_help_reflects_permissions(
 ) -> None:
     queries_only = await run_bash("phoenix-gql --help")
     with_mutations = await run_bash_with_mutations("phoenix-gql --help")
+    with_approval = await _build_run_bash_with_context()("phoenix-gql --help", _context())
+    search_advice = 'the word "mutations"'
+    approval_advice = "keep mutations in their own bash call"
 
     assert queries_only["exitCode"] == 0
     assert "Usage: phoenix-gql" in queries_only["stdout"]
     assert "queries only (mutations are disabled)" in queries_only["stdout"]
+    assert search_advice not in queries_only["stdout"]
+    assert approval_advice not in queries_only["stdout"]
     assert queries_only["stderr"] == ""
     assert with_mutations["exitCode"] == 0
     assert "queries and mutations are ENABLED" in with_mutations["stdout"]
+    assert search_advice in with_mutations["stdout"]
+    assert approval_advice not in with_mutations["stdout"]
     assert with_mutations["stderr"] == ""
+    assert "the user approves it before the command runs" in with_approval["stdout"]
+    assert search_advice in with_approval["stdout"]
+    assert approval_advice in with_approval["stdout"]
 
 
 async def test_schema_search_finds_a_field(run_bash: RunBash) -> None:

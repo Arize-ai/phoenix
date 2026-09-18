@@ -187,15 +187,20 @@ Permissions: queries and mutations are ENABLED.
 {% endif %}
 Recommended flow:
   1. `phoenix-gql schema --search <text>` to find the types and fields you
-     need, and `--names <Type,Type.field,mutationName>` to see each in full with
-     how to reach it; both repeat, and both fit in one call, so batch what you
+     need, and `--names <Type,Type.field>` to see each in full with how to
+     reach it; both repeat, and both fit in one call, so batch what you
      already know you need. With no flags it prints the query root. Narrow a
-     noisy search to one type with `--search "Span.cost"`, and add the word
-     "mutations" to see only mutations. Name the return types and input types
-     you see rather than repeating the same terms
+     noisy search to one type with `--search "Span.cost"`. Name the return
+     types and input types you see rather than repeating the same terms
+{%- if mutations_enabled %}. Add
+     the word "mutations" to a search to see only mutations, and pass a
+     mutation's name to `--names` to see the inputs it takes
+{%- endif %}
   2. add filters, sorting, and deeper fields only after the base query works
+{%- if approval_required %}
   3. keep mutations in their own bash call, separate from the queries that
      shaped them, so the user approves one clear change at a time
+{%- endif %}
 
 Options:
   --vars <json>         JSON object of GraphQL variables
