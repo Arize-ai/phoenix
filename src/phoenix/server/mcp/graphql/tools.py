@@ -8,11 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from fastmcp import FastMCP
 from pydantic import TypeAdapter
 
-from phoenix.server.api.graphql_execute import (
-    MAX_QUERY_BYTES,
-    GraphQLRefusal,
-    execute_operation,
-)
+from phoenix.server.api.graphql_execute import GraphQLRefusal, execute_operation
 from phoenix.server.api.schema_search import cached_index, describe
 from phoenix.server.mcp.graphql.output import (
     ExecuteGraphqlErrorEnvelope,
@@ -45,20 +41,6 @@ def _listed(value: Union[str, list[str], None]) -> list[str]:
     """``value`` as the non-empty strings it holds, whether one string or a list."""
     items = [value] if isinstance(value, str) else list(value or [])
     return [item.strip() for item in items if item and item.strip()]
-
-
-def _preamble(query_root: str) -> str:
-    """The properties that hold for every operation, stated once.
-
-    They belong to the surface rather than to any one answer, so a caller reads
-    them here and the answers carry only what varies.
-    """
-    return (
-        f"# Phoenix GraphQL. Entry point: {query_root}. A field your permissions withhold "
-        "errors at execution, not here. Look up an exact `Type`, `Type.field`, or mutation "
-        f"name for its full definition. executeGraphqlQuery runs queries only, at most "
-        f"{MAX_QUERY_BYTES // 1024} KiB each."
-    )
 
 
 def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: bool = False) -> None:
@@ -97,7 +79,8 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
 
         The schema is far too large to read whole, so this returns only the part
         asked for. With no arguments it returns the query root, which is where
-        every read begins.
+        every read begins. It lists every field whatever your permissions; one
+        you may not read fails at execution.
 
         `search` is free text ("cost summary time range", "annotate spans"), one
         string or a list of them. Each returns ranked field signatures grouped
@@ -114,8 +97,7 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         """
         index = cached_index(_schema()._schema, include_mutations=allow_mutations)
         wanted = [n for item in _listed(names) for n in re.split(r"[,\s]+", item) if n]
-        answer = describe(index, search=_listed(search), names=wanted, budget=_SEARCH_BUDGET)
-        return "\n\n".join([_preamble(index.query_root), answer])
+        return describe(index, search=_listed(search), names=wanted, budget=_SEARCH_BUDGET)
 
     @mcp.tool(
         tags={_GRAPHQL_TAG},
@@ -135,7 +117,11 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         that succeeded; an `error` key means nothing executed.
 
         Queries only. A document containing a mutation or a subscription is
-        refused unexecuted, as is one over the size limit the schema tool states.
+        refused unexecuted, as is one over 2 KiB of UTF-8.
+
+        Pass large or dynamic values through `variables`, declared with the
+        argument types the schema shows, nullability included. Variable values
+        do not count toward the size limit and need no GraphQL string escaping.
 
         Fields you may not read fail individually at execution with a
         permission error, leaving the rest of `data` populated -- so check
