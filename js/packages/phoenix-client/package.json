@@ -73,6 +73,10 @@
       "import": "./dist/esm/datasets/index.js",
       "require": "./dist/src/datasets/index.js"
     },
+    "./evaluators": {
+      "import": "./dist/esm/evaluators/index.js",
+      "require": "./dist/src/evaluators/index.js"
+    },
     "./vitest": {
       "types": "./dist/src/vitest/index.d.ts",
       "import": "./dist/esm/vitest/index.js",

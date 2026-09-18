@@ -224,6 +224,55 @@ export const AGENT_SESSION_MESSAGES: RouteRequirement = {
   minServerVersion: [20, 0, 0],
 };
 
+export const LIST_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const CREATE_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/evaluators/{evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const GET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/evaluators/{evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const PATCH_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/evaluators/{evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const LIST_EVALUATOR_VERSIONS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/evaluators/{evaluator_id}/versions",
+  minServerVersion: [21, 0, 0],
+};
+
+export const CREATE_EVALUATOR_VERSION: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/evaluators/{evaluator_id}/versions",
+  minServerVersion: [21, 0, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -259,4 +308,11 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   AGENT_SESSION_TOOL_OUTPUTS,
   AGENT_SESSION_CHAT,
   AGENT_SESSION_MESSAGES,
+  LIST_EVALUATORS,
+  CREATE_EVALUATOR,
+  DELETE_EVALUATOR,
+  GET_EVALUATOR,
+  PATCH_EVALUATOR,
+  LIST_EVALUATOR_VERSIONS,
+  CREATE_EVALUATOR_VERSION,
 ] as const;
