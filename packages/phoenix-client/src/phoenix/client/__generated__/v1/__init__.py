@@ -382,6 +382,11 @@ class ListDatasetLabelsForDatasetResponseBody(TypedDict):
     data: Sequence[DatasetLabel]
 
 
+class ListDatasetSplitsResponseBody(TypedDict):
+    data: Sequence[DatasetSplit]
+    next_cursor: Optional[str]
+
+
 class ListDatasetVersionsResponseBody(TypedDict):
     data: Sequence[DatasetVersion]
     next_cursor: Optional[str]
@@ -450,6 +455,13 @@ class OtlpStatus(TypedDict):
 class PatchPromptRequestBody(TypedDict):
     description: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
+
+
+class PatchUserRequestBody(TypedDict):
+    username: NotRequired[str]
+    password: NotRequired[str]
+    current_password: NotRequired[str]
+    role: NotRequired[Literal["ADMIN", "MEMBER", "VIEWER"]]
 
 
 class PlaygroundBuiltinModelUIContext(TypedDict):
@@ -1694,6 +1706,10 @@ class GetPromptVersionTagsResponseBody(TypedDict):
 class GetPromptsResponseBody(TypedDict):
     data: Sequence[Prompt]
     next_cursor: Optional[str]
+
+
+class GetUserResponseBody(TypedDict):
+    data: Union[LocalUser, OAuth2User, LDAPUser]
 
 
 class GetUsersResponseBody(TypedDict):
