@@ -859,10 +859,12 @@ class ProjectSession(HasId):
         UtcTimeStamp,
         nullable=True,
     )
+    # Deleting a session deletes its traces (ON DELETE CASCADE) rather than detaching them.
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
         uselist=True,
+        passive_deletes="all",
     )
     __table_args__ = (
         Index(
@@ -1111,10 +1113,16 @@ class Span(HasId):
         )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
-    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
-    document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
+    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
+    document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
-    span_cost: Mapped[Optional["SpanCost"]] = relationship(back_populates="span")
+    span_cost: Mapped[Optional["SpanCost"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1549,10 +1557,10 @@ class Dataset(HasId):
     )
     user: Mapped[Optional["User"]] = relationship("User")
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
-        "ExperimentTag", back_populates="dataset"
+        "ExperimentTag", back_populates="dataset", passive_deletes="all"
     )
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
-        "DatasetsDatasetLabel", back_populates="dataset"
+        "DatasetsDatasetLabel", back_populates="dataset", passive_deletes="all"
     )
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
         "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
@@ -1613,7 +1621,7 @@ class DatasetLabel(HasId):
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(_HexColor, nullable=False)
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
-        "DatasetsDatasetLabel", back_populates="dataset_label"
+        "DatasetsDatasetLabel", back_populates="dataset_label", passive_deletes="all"
     )
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -1685,10 +1693,12 @@ class DatasetExample(HasId):
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
         back_populates="dataset_example",
+        passive_deletes="all",
     )
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example",
+        passive_deletes="all",
     )
 
     __table_args__ = (UniqueConstraint("dataset_id", "external_id"),)
@@ -1718,6 +1728,7 @@ class DatasetExampleRevision(HasId):
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example_revision",
+        passive_deletes="all",
     )
 
     __table_args__ = (
@@ -1747,10 +1758,12 @@ class DatasetSplit(HasId):
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
         back_populates="dataset_split",
+        passive_deletes="all",
     )
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="dataset_split",
+        passive_deletes="all",
     )
 
 
@@ -1807,13 +1820,15 @@ class Experiment(HasId):
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="experiment",
+        passive_deletes="all",
     )
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="experiment",
+        passive_deletes="all",
     )
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
-        "ExperimentTag", back_populates="experiment"
+        "ExperimentTag", back_populates="experiment", passive_deletes="all"
     )
     __table_args__ = (
         Index(
@@ -1910,7 +1925,7 @@ class ExperimentRun(HasId):
         back_populates="experiment_runs",
     )
     annotations: Mapped[list["ExperimentRunAnnotation"]] = relationship(
-        back_populates="experiment_run"
+        back_populates="experiment_run", passive_deletes="all"
     )
 
     __table_args__ = (
@@ -1991,6 +2006,7 @@ class ExperimentJob(HasId):
 
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",
+        passive_deletes="all",
     )
 
     # Experiment lifecycle status
@@ -2018,7 +2034,7 @@ class ExperimentJob(HasId):
     experiment: Mapped["Experiment"] = relationship("Experiment")
     logs: WriteOnlyMapped[list["ExperimentLog"]] = relationship(
         back_populates="execution_config",
-        passive_deletes=True,
+        passive_deletes="all",
     )
 
     __mapper_args__ = {
@@ -2269,6 +2285,8 @@ class ExperimentJobLog(ExperimentLog):
 class UserRole(HasId):
     __tablename__ = "user_roles"
     name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
+    # Left at the ORM default on purpose: users.user_role_id is ON DELETE CASCADE, so deferring
+    # to the database would delete every user in a deleted role.
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
@@ -2301,12 +2319,17 @@ class User(HasId):
         "PasswordResetToken",
         back_populates="user",
         uselist=False,
+        passive_deletes="all",
     )
-    access_tokens: Mapped[list["AccessToken"]] = relationship("AccessToken", back_populates="user")
+    access_tokens: Mapped[list["AccessToken"]] = relationship(
+        "AccessToken", back_populates="user", passive_deletes="all"
+    )
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        "RefreshToken", back_populates="user"
+        "RefreshToken", back_populates="user", passive_deletes="all"
     )
-    api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
+    api_keys: Mapped[list["ApiKey"]] = relationship(
+        "ApiKey", back_populates="user", passive_deletes="all"
+    )
 
     __mapper_args__ = {
         "polymorphic_on": "auth_method",
@@ -2563,8 +2586,9 @@ class OAuth2Grant(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     last_used_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    # Deleting a grant deletes its refresh tokens, and through them their access tokens.
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        "RefreshToken", back_populates="oauth2_grant"
+        "RefreshToken", back_populates="oauth2_grant", passive_deletes="all"
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2791,10 +2815,12 @@ class Prompt(HasId):
         uselist=True,
     )
 
+    # Deleting a prompt an evaluator runs is refused by the database, not nulled by the ORM.
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt",
         uselist=True,
+        passive_deletes="all",
     )
 
 
@@ -3526,6 +3552,7 @@ class AgentSession(HasId):
         "AgentSessionSnapshot",
         back_populates="agent_session",
         uselist=False,
+        passive_deletes="all",
     )
     messages: Mapped[list["AgentSessionMessage"]] = relationship(
         "AgentSessionMessage",
