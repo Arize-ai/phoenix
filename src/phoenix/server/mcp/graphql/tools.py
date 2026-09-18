@@ -22,9 +22,7 @@ if TYPE_CHECKING:
 
 _GRAPHQL_TAG = "phoenix-graphql"
 
-# The search budget for one describeGraphqlSchema answer. Larger than the shell
-# builtin's, which shares a terminal with the rest of a command's output; here
-# the answer is the whole response.
+# The character budget for one describeGraphqlSchema answer.
 _SEARCH_BUDGET = 4000
 
 # FastMCP requires the root schema to be an object even when it has multiple
@@ -111,21 +109,23 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         """Execute a read-only GraphQL query against Phoenix's API.
 
         Returns either `{data, errors}` as the GraphQL specification defines
-        them, or `{error: {code, message}}` when the operation was refused and
-        never ran. Those two are different outcomes: an `errors` list means
-        resolvers ran and some failed, and `data` may still carry the fields
-        that succeeded; an `error` key means nothing executed.
+        them, or `{error: {code, message}}` when Phoenix refused the document
+        before GraphQL saw it. `errors` carries syntax, validation, and resolver
+        failures alike, and `data` may still carry the fields that succeeded;
+        an `error` key means nothing executed.
 
-        Queries only. A document containing a mutation or a subscription is
-        refused unexecuted, as is one over 2 KiB of UTF-8.
+        Queries only, one operation per document. A document containing a
+        mutation, a subscription, or several operations is refused unexecuted,
+        as is one over 2 KiB of UTF-8.
 
         Pass large or dynamic values through `variables`, declared with the
         argument types the schema shows, nullability included. Variable values
         do not count toward the size limit and need no GraphQL string escaping.
 
-        Fields you may not read fail individually at execution with a
-        permission error, leaving the rest of `data` populated -- so check
-        `errors` even when `data` is present.
+        A field you may not read fails at execution with a permission error.
+        GraphQL nulls that field, or its nearest nullable ancestor when the
+        field is non-null, and keeps the rest of `data` -- so check `errors`
+        even when `data` is present.
 
         Run documents directly: one that fails validation comes back as
         `errors` with nothing executed.
