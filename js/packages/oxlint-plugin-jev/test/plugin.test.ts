@@ -232,6 +232,17 @@ describe("request shape", () => {
         "guidance",
       ]);
       expect(request.state.code.redaction).toMatch(/placeholders/);
+      // One shared view of target calls; no per-check shapes.
+      expect(Array.isArray(request.state.code.calls)).toBe(true);
+      expect(request.state.code.calls.length).toBeGreaterThan(0);
+      expect(request.state.code).not.toHaveProperty("spans");
+      expect(request.state.code).not.toHaveProperty("span_data");
+      for (const q of Object.values(request.questions) as Array<{
+        instructions: { question: string };
+      }>) {
+        const m = /code\.calls\[(\d+)\]/.exec(q.instructions.question);
+        if (m) expect(request.state.code.calls[Number(m[1])]).toBeDefined();
+      }
       for (const entries of Object.values(request.state.guidance) as Array<
         Array<{ source: string; text: string }>
       >) {

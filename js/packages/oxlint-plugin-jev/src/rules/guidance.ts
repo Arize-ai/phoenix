@@ -16,7 +16,7 @@ import path from "node:path";
 
 import { requestHash, resolveCacheDir, ResponseCache } from "../cache.js";
 import type { Check, CheckOptions, Finding, QuestionSpec } from "../checks.js";
-import { CHECKS, DEFAULT_OPTIONS } from "../checks.js";
+import { CHECKS, DEFAULT_OPTIONS, dynamicAttributes } from "../checks.js";
 import type { CallFact, Facts } from "../extract.js";
 import {
   createFactCollector,
@@ -87,6 +87,45 @@ interface Planned {
   specs: QuestionSpec[];
 }
 
+/**
+ * One shared description of every target-package call in the file. Questions
+ * from any check point into `code.calls[i]` (and `.attributes[j]`) by index,
+ * so the same call is never serialized twice.
+ */
+function describeCall(
+  c: CallFact,
+  index: number,
+  fileInlined: boolean
+): EntryType {
+  const entry: Record<string, EntryType> = {
+    index,
+    name: c.name,
+    source: c.source,
+    line: c.line,
+    call: c.callText,
+  };
+  // The enclosing statement only adds context when the file itself is not in state.
+  if (!fileInlined && c.statementText !== c.callText) {
+    entry.statement = c.statementText;
+  }
+  if (c.declaredKind !== undefined) entry.declared_kind = c.declaredKind;
+  if (c.spanData) {
+    const attrs = dynamicAttributes(c);
+    if (attrs.length > 0) {
+      entry.attributes = attrs.map((a, j) => ({
+        index: j,
+        key: a.key,
+        value: a.valueText,
+      }));
+    }
+    if (c.spanData.processInput !== undefined)
+      entry.processInput = c.spanData.processInput;
+    if (c.spanData.processOutput !== undefined)
+      entry.processOutput = c.spanData.processOutput;
+  }
+  return entry;
+}
+
 function buildRequest(
   context: RuleContext,
   facts: Facts,
@@ -94,19 +133,15 @@ function buildRequest(
   redactor: Redactor
 ): SystemOneRequest {
   const guidance: Record<string, EntryType> = {};
-  const extra: Record<string, EntryType> = {};
   const questions: Record<string, Question> = {};
   for (const { check, specs } of planned) {
     guidance[check.stateKey] = check.guidance.map((ref) => {
       const loaded = loadGuidance(ref);
       return { source: loaded.source, text: loaded.text };
     });
-    Object.assign(
-      extra,
-      check.extraState?.(facts, check.appliesTo(facts)) ?? {}
-    );
     for (const spec of specs) questions[spec.key] = spec.question;
   }
+  const fileInlined = facts.fileText.length <= MAX_INLINE_FILE_CHARS;
   const state: Record<string, EntryType> = {
     file: {
       path: path.relative(context.cwd, context.filename),
@@ -115,11 +150,12 @@ function buildRequest(
     },
     code: {
       redaction: redactor.policy === "off" ? "none" : REDACTION_NOTE,
-      text:
-        facts.fileText.length <= MAX_INLINE_FILE_CHARS
-          ? redactor.text()
-          : `<file too large to inline; ${facts.fileText.length} chars>`,
-      ...extra,
+      text: fileInlined
+        ? redactor.text()
+        : `<file too large to inline; ${facts.fileText.length} chars>`,
+      calls: facts.targetCalls.map((c, index) =>
+        describeCall(c, index, fileInlined)
+      ),
     },
     facts: {
       imports: facts.targetImports.map((i) => ({

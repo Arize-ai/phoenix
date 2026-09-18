@@ -186,6 +186,17 @@ auto-instrumentation — moved them to `CHAIN` (0.86 and 0.80) while leaving the
 - **Guidance in `state` steers the model, measurably.** The same code with more of the
   shipped policy produced a different, better-aligned distribution. That is the argument
   for bundling the skill files rather than relying on the model's priors.
+- **Keep facts in `state`, keep questions minimal.** Appending "(It is declared
+  `CHAIN`.)" to the span-kind question, information already present in
+  `code.calls[i].declared_kind`, dropped two correct CHAIN answers from 0.87 → 0.67 and
+  0.81 → 0.63. Reverting it restored them. Mentioning a candidate answer in the question
+  acts as an anchor, even when redundant.
+- **The request schema is part of the contract.** `state.code` is a fixed
+  `{ redaction, text, calls }`; every check points into `code.calls[i]` by index rather
+  than emitting its own view of the same call. Making this change altered no judgement
+  and left total tokens flat (144k → 144k, redistributed from span-heavy files to
+  `register()`-only files), so it is schema hygiene rather than cost reduction. It exists
+  so that adding a check never changes what jev sees for existing ones.
 - **Question wording is the tuning surface.** Every misfire so far was fixed by adding
   a sentence of _true_ guidance to `state` or by splitting a question, never by changing
   a threshold. That is the right order: thresholds paper over ambiguity, guidance removes it.

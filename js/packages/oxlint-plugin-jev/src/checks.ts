@@ -48,6 +48,23 @@ export interface QuestionSpec {
   key: string;
   question: Question;
   anchor?: CallFact;
+  /** For per-attribute questions: the attribute being asked about. */
+  attribute?: AttributeEntry;
+}
+
+/**
+ * Position of a call in `state.code.calls`, the shared view of every target
+ * call the rule builds once per file. Questions point into it by this index.
+ */
+export function callIndex(facts: Facts, anchor: CallFact): number {
+  return facts.targetCalls.indexOf(anchor);
+}
+
+/** Attributes whose value is computed at runtime; literals are decided in code. */
+export function dynamicAttributes(anchor: CallFact): AttributeEntry[] {
+  return (anchor.spanData?.attributes ?? []).filter(
+    (a) => a.valueKind === "expression"
+  );
 }
 
 export interface Check {
@@ -58,8 +75,6 @@ export interface Check {
   guidance: GuidanceRef[];
   appliesTo(facts: Facts): CallFact[];
   precheck?(facts: Facts, anchors: CallFact[]): Precheck;
-  /** Extra state this check needs beyond the shared file/facts/guidance. */
-  extraState?(facts: Facts, anchors: CallFact[]): Record<string, EntryType>;
   questions(facts: Facts, anchors: CallFact[]): QuestionSpec[];
   decide(
     answer: Answer,
@@ -205,22 +220,14 @@ const spanKindMatchesBody: Check = {
     facts.targetCalls.filter(
       (c) => isSpanWrapperCall(c) && c.declaredKind !== undefined
     ),
-  extraState: (_facts, anchors) => ({
-    spans: anchors.map((a, i) => ({
-      index: i,
-      declared_kind: a.declaredKind ?? null,
-      call: a.callText,
-      statement: a.statementText,
-    })),
-  }),
-  questions: (_facts, anchors) =>
+  questions: (facts, anchors) =>
     anchors.map((anchor, i) => ({
       key: `span_kind_${i}`,
       anchor,
       question: {
         type: "choice",
         instructions: {
-          question: `Which OpenInference span kind best describes what the function wrapped at \`code.spans[${i}].call\` actually does?`,
+          question: `Which OpenInference span kind best describes what the function wrapped at \`code.calls[${callIndex(facts, anchor)}].call\` actually does?`,
           focus:
             "Judge by the wrapped function's behaviour — what it calls and returns — not by the kind the developer declared.",
           reference:
@@ -410,30 +417,19 @@ const noSensitiveSpanAttributes: Check = {
     const dynamic = anchors.filter((a) => hasDynamicSpanData(a));
     return { violations, then: dynamic.length > 0 ? "ask" : "skip" };
   },
-  extraState: (_facts, anchors) => ({
-    span_data: anchors.filter(hasDynamicSpanData).map((a, i) => ({
-      index: i,
-      call: a.callText,
-      attributes: dynamicAttributes(a).map((attr, j) => ({
-        index: j,
-        key: attr.key,
-        value: attr.valueText,
-      })),
-      processInput: a.spanData?.processInput ?? null,
-      processOutput: a.spanData?.processOutput ?? null,
-    })),
-  }),
-  questions: (_facts, anchors) => {
+  questions: (facts, anchors) => {
     const specs: QuestionSpec[] = [];
     anchors.filter(hasDynamicSpanData).forEach((anchor, i) => {
+      const ci = callIndex(facts, anchor);
       dynamicAttributes(anchor).forEach((attr, j) => {
         specs.push({
           key: `sensitive_${i}_attr_${j}`,
           anchor,
+          attribute: attr,
           question: {
             type: "noul",
             instructions: {
-              question: `Does the value flowing at runtime into span attribute \`code.span_data[${i}].attributes[${j}]\` (key \`${attr.key}\`, value \`${attr.valueText}\`) denote personal, health, financial or secret data?`,
+              question: `Does the value flowing at runtime into span attribute \`code.calls[${ci}].attributes[${j}]\` (key \`${attr.key}\`, value \`${attr.valueText}\`) denote personal, health, financial or secret data?`,
               guidance: "`guidance.no_sensitive_span_attributes`",
               note: "Custom attributes are never masked by OpenInference; only input/output values are.",
             },
@@ -449,7 +445,7 @@ const noSensitiveSpanAttributes: Check = {
           question: {
             type: "noul",
             instructions: {
-              question: `Do \`code.span_data[${i}].processInput\` / \`processOutput\` serialize an entire record or object wholesale (JSON.stringify(record), getInputAttributes(object), spreading it), such that any personal or secret fields it holds land in the span?`,
+              question: `Do \`code.calls[${ci}].processInput\` / \`processOutput\` serialize an entire record or object wholesale (JSON.stringify(record), getInputAttributes(object), spreading it), such that any personal or secret fields it holds land in the span?`,
               guidance: "`guidance.no_sensitive_span_attributes`",
             },
             criteria: {
@@ -484,16 +480,7 @@ const noSensitiveSpanAttributes: Check = {
           "processInput/processOutput serialize a whole record into the span, so any personal fields it holds are captured. Pick the fields you need, or enable traceConfig.hideInputs/hideOutputs or the OPENINFERENCE_HIDE_* variables.",
       };
     }
-    const m = /attributes\[(\d+)\]/.exec(
-      String(
-        spec.question.instructions &&
-          (spec.question.instructions as { question: string }).question
-      )
-    );
-    const attrIndex = m ? Number(m[1]) : -1;
-    const attr = spec.anchor
-      ? dynamicAttributes(spec.anchor)[attrIndex]
-      : undefined;
+    const attr = spec.attribute;
     return {
       anchor: spec.anchor,
       score: answer.noul,
@@ -501,12 +488,6 @@ const noSensitiveSpanAttributes: Check = {
     };
   },
 };
-
-function dynamicAttributes(anchor: CallFact): AttributeEntry[] {
-  return (anchor.spanData?.attributes ?? []).filter(
-    (a) => a.valueKind === "expression"
-  );
-}
 
 function hasDynamicSpanData(anchor: CallFact): boolean {
   const d = anchor.spanData;
