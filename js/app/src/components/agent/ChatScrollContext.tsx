@@ -1,10 +1,16 @@
 import { createContext, useContext } from "react";
 
 export type ChatScrollContextValue = {
-  /** Release follow-bottom; nothing scrolls the transcript until re-engaged. */
+  /** Capture an element's viewport position before an expanding reflow. */
+  captureAnchor: (element: HTMLElement | null) => void;
+  /** Restore the element captured before an expanding reflow. */
+  restoreAnchor: (element: HTMLElement | null) => void;
+  /** Resume smoothly following the active response. */
+  resumeFollowing: () => void;
+  /** Place an element near the top of the transcript viewport. */
+  scrollElementToTop: (element: HTMLElement | null) => void;
+  /** Release automatic scrolling until the user sends or resumes a turn. */
   stopScroll: () => void;
-  /** Re-engage follow-bottom and pin the transcript to the bottom now. */
-  scrollToBottom: () => void;
 };
 
 export const ChatScrollContext = createContext<ChatScrollContextValue | null>(
