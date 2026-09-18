@@ -1248,7 +1248,7 @@ function RecordedRunRow({
                 <Tabs defaultSelectedKey="values">
                   <TabList>
                     <Tab id="values">Values</Tab>
-                    <Tab id="context">Context</Tab>
+                    <Tab id="context">Raw</Tab>
                   </TabList>
                   <TabPanel id="values">
                     <Flex direction="column" gap="size-200">
