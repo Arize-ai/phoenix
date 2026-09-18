@@ -1,28 +1,16 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
-import {
-  GenerativeProviderIcon,
-  type GenerativeProviderIconKey,
-} from "@phoenix/components/generative/GenerativeProviderIcon";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { INTEGRATION_ICONS } from "@phoenix/components/project/IntegrationIcons";
-import {
-  CustomProviderBrands,
-  ModelProviders,
-} from "@phoenix/constants/generativeConstants";
+import { ModelProviders } from "@phoenix/constants/generativeConstants";
 
 const meta: Meta = {
   title: "Reference/Provider & Integration Icons",
 };
 export default meta;
 
-const providers = [
-  ...Object.entries(ModelProviders),
-  ...Object.entries(CustomProviderBrands),
-]
-  .map(([key, name]) => ({
-    key: key as GenerativeProviderIconKey,
-    name,
-  }))
+const providers = Object.entries(ModelProviders)
+  .map(([key, name]) => ({ key: key as ModelProvider, name }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
 const listStyle: React.CSSProperties = {

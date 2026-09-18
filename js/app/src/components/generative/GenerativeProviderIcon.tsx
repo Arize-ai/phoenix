@@ -2,14 +2,6 @@
 import { css } from "@emotion/react";
 import React from "react";
 
-import type { CustomProviderBrand } from "@phoenix/constants/generativeConstants";
-
-/**
- * Every brand that has a provider icon: the built-in providers plus the
- * brands that Phoenix only knows as custom providers.
- */
-export type GenerativeProviderIconKey = ModelProvider | CustomProviderBrand;
-
 const iconWrapCSS = css`
   display: inline-flex;
   flex-shrink: 0;
@@ -515,7 +507,7 @@ const TypeSafeSVG = ({ height }: { height: number }) => (
 );
 
 const PROVIDER_ICONS: Record<
-  GenerativeProviderIconKey,
+  ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
 > = {
   AZURE_OPENAI: AzureSVG,
@@ -539,7 +531,7 @@ const PROVIDER_ICONS: Record<
 };
 
 export type GenerativeProviderIconProps = {
-  provider: GenerativeProviderIconKey;
+  provider: ModelProvider;
   height?: number;
 };
 /**
