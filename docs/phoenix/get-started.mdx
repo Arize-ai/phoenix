@@ -26,7 +26,7 @@ Together, these pieces let you move from inspecting individual runs to making ch
 
 Tracing answers a basic question: what is happening under the hood of my agent when it runs?
 
-A trace is a record of a single run of your agent, broken down into spans that show what happened at each step. In this guide, you instrument an agent and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
+A trace is a record of a single run of your agent, broken down into spans that show how agents, tasks, and tools executed at each step. In this guide, you instrument an agent and send trace data to Phoenix, which provides the raw data needed for everything that follows.
 
 This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone.
 
@@ -50,7 +50,7 @@ This lets you evaluate prompt changes using the same data and criteria instead o
 
 Once you have changes you want to test, experiments let you compare versions in a controlled way.
 
-An experiment is a structured comparison between versions of your agent using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your agent using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
+An experiment is a structured comparison between versions of your agent using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions. This makes it possible to test changes and verify whether they actually improve quality.
 
 This lets you compare versions using the exact same inputs, so differences in results come from your changes.
 
