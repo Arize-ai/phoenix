@@ -8,13 +8,27 @@ on:
 
 jobs:
   version:
-    name: Extract version
+    name: Resolve release tag
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract.outputs.version }}
       major: ${{ steps.extract.outputs.major }}
       minor: ${{ steps.extract.outputs.minor }}
+      revision: ${{ steps.release.outputs.revision }}
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      # Any writer can push an arize-phoenix-v* tag at any commit, and this
+      # workflow publishes `latest`. Refuse a tag whose commit never landed on
+      # main, and hand the pinned SHA to every later job so they check out
+      # the verified commit rather than the movable tag.
+      - name: Verify the tag points at a commit on main
+        id: release
+        uses: ./.github/actions/resolve-release-tag
+        with:
+          tag: ${{ github.ref_name }}
       - name: Extract version from tag
         id: extract
         run: |
@@ -29,6 +43,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.platform }}
+    needs: version
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
@@ -50,6 +65,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
 
       - name: Build and push every variant by digest
         uses: ./.github/actions/docker-build-image
@@ -83,6 +99,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
 
       # Applied to every tag below. root publishes unsuffixed names, so a
       # suffix bug would silently point `latest` at the wrong variant — hence
@@ -138,6 +155,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
