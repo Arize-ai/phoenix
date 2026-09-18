@@ -8,7 +8,7 @@ An evaluation produces a score or label for an output, so you can track quality 
 
 In this guide, you’ll set up evaluations in Phoenix and run them on existing trace data so you can measure the quality of model outputs from a real agent.
 
-Since we already have traces, we can take this a step further by scoring them against metrics like correctness, relevance, or custom checks that matter to your use case.
+With traces already in place, you can score them against metrics like correctness, relevance, or custom checks that matter to your use case.
 
 ## **Before We Start**
 
@@ -34,14 +34,14 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
 
 <Steps>
   <Step title={<span className="step-title">Make Sure You Have Data in Phoenix</span>}>
-    Before we can run evaluations, we need something to evaluate.
+    An evaluation needs something to evaluate.
 
     Evaluations in Phoenix run over existing trace data. If you followed the tracing guide, you should already have:
 
     - A project in Phoenix
     - Traces containing LLM inputs and outputs
 
-    It’s best to have multiple traces so we can see how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
+    Multiple traces are better, since they show how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
 
     ```python
     test_queries = [
@@ -64,23 +64,23 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
   </Step>
 
   <Step title={<span className="step-title">Define an Evaluation</span>}>
-    Now that we have trace data, the next question is how we decide whether an output is actually good.
+    With trace data in place, the next question is how to decide whether an output is actually good.
 
-    An evaluation makes that decision explicit. Instead of manually inspecting outputs or relying on intuition, we define a rule that Phoenix can apply consistently across many runs.
+    An evaluation makes that decision explicit. You define a rule, and Phoenix applies it consistently across many runs in place of inspecting outputs by hand.
 
-    In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
+    Phoenix supports several kinds of evaluation. This guide uses LLM-as-a-judge as a starting point: it works well for questions like correctness or relevance, and produces metrics quickly. (For code-based evaluations, see [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
 
     For LLM-as-a-judge evaluations, that means defining three things:
 
     - A prompt that describes the judgment criteria
     - An LLM that performs the evaluation
-    - The data we want to score
+    - The data to score
 
-    In this step, we'll define a basic completeness evaluation that checks whether the agent's output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) you can use or adapt for other metrics like relevance or faithfulness.
+    Define a basic completeness evaluation that checks whether the agent's output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) you can use or adapt for other metrics like relevance or faithfulness.
 
     ### **Define the Evaluation Prompt**
 
-    We’ll start by defining the prompt that tells the evaluator how to judge an answer. We're using `attributes.input.value` & `attributes.output.value` as that is how our span data saves input & output.
+    Start with the prompt that tells the evaluator how to judge an answer. It uses `attributes.input.value` and `attributes.output.value`, which is how span data stores input and output.
 
     ```python
     financial_completeness_template = """
@@ -134,11 +134,11 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
     """
     ```
 
-    This prompt defines what correctness means for our agent.
+    That prompt defines what correctness means for your agent.
 
     ### **Define the LLM Judge**
 
-    Next, we’ll define the model that will act as the judge.
+    Define the model that acts as the judge.
 
     ```python
     from phoenix.evals import LLM
@@ -148,7 +148,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
 
     ### **Create the Evaluator**
 
-    Now we can combine the prompt and model into an evaluator.
+    Combine the prompt and model into an evaluator.
 
     ```python
     from phoenix.evals import ClassificationEvaluator
@@ -161,13 +161,13 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
     )
     ```
 
-    At this point, we’ve defined how Phoenix should evaluate correctness, but we haven’t run it yet.
+    Phoenix now knows how to evaluate correctness, but nothing has run yet.
   </Step>
 
   <Step title={<span className="step-title">Run the Evaluation</span>}>
-    Next, we’ll pull our trace data from Phoenix and run the evaluator on it.
+    Pull your trace data from Phoenix and run the evaluator on it.
 
-    First, fetch the spans we want to evaluate:
+    Fetch the spans to evaluate:
 
     ```python
     from phoenix.client import Client
@@ -177,7 +177,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
     parent_spans = df[df["span_kind"] == "CHAIN"]
     ```
 
-    Then run the evaluator over that data. We are adding in `suppress_tracing()` since auto-instrumentation enabled and we do not want to trace each of these OpenAI evaluation calls in our project.
+    Then run the evaluator over that data. `suppress_tracing()` is there because auto-instrumentation is enabled, and these OpenAI evaluation calls should not be traced into your project.
 
     ```python
     from phoenix.evals import async_evaluate_dataframe
@@ -195,7 +195,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
   </Step>
 
   <Step title={<span className="step-title">Log Evaluation Results to Phoenix</span>}>
-    Finally, we’ll log the evaluation results back to Phoenix so they show up alongside our traces in the UI. This is what makes evaluations useful beyond a single run. Instead of living only in code, results become part of the same view you already use to understand behavior.
+    Log the evaluation results back to Phoenix so they appear alongside your traces in the UI. That is what makes an evaluation useful beyond a single run: the results become part of the same view you already use to understand behavior.
 
     ```python
     from phoenix.evals.utils import to_annotation_dataframe
@@ -237,18 +237,18 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
 
 <Steps>
   <Step title={<span className="step-title">Make Sure You Have Data in Phoenix</span>}>
-    Before we can run evaluations, we need something to evaluate.
+    An evaluation needs something to evaluate.
 
     Evaluations in Phoenix run over existing trace data. If you followed the tracing guide, you should already have:
 
     - A project in Phoenix
     - Traces containing LLM inputs and outputs
 
-    It’s best to have multiple traces so we can see how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
+    Multiple traces are better, since they show how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
 
-    We can create a new folder in `src/mastra` called `evals` to hold the different scripts we will create during this evaluation guide.
+    Create a folder in `src/mastra` called `evals` to hold the scripts in this guide.
 
-    The first script we'll create runs more queries to generate more trace data in our Phoenix project for evaluation. Before running this file, ensure that you have `npm run dev` in the background.
+    The first script runs more queries to generate trace data in your Phoenix project. Before running it, make sure `npm run dev` is running in the background.
 
     Create a file called `add_traces.ts`:
     ```typescript
@@ -280,23 +280,23 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
   </Step>
 
   <Step title={<span className="step-title">Define an Evaluation</span>}>
-    Now that we have trace data, the next question is how we decide whether an output is actually good.
+    With trace data in place, the next question is how to decide whether an output is actually good.
 
-    An evaluation makes that decision explicit. Instead of manually inspecting outputs or relying on intuition, we define a rule that Phoenix can apply consistently across many runs.
+    An evaluation makes that decision explicit. You define a rule, and Phoenix applies it consistently across many runs in place of inspecting outputs by hand.
 
-    In Phoenix, evaluations can be written in different ways. In this guide, we’ll use an LLM-as-a-judge evaluation as a simple starting point. This works well for questions like correctness or relevance, and lets us get metrics quickly. (If you’d rather use code-based evaluations, you can follow [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
+    Phoenix supports several kinds of evaluation. This guide uses LLM-as-a-judge as a starting point: it works well for questions like correctness or relevance, and produces metrics quickly. (For code-based evaluations, see [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
 
     For LLM-as-a-judge evaluations, that means defining three things:
 
     - A prompt that describes the judgment criteria
     - An LLM that performs the evaluation
-    - The data we want to score
+    - The data to score
 
-    In this step, we’ll define a basic completeness evaluation that checks whether the agent’s output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) you can use or adapt for other metrics like relevance or hallucinations.
+    Define a basic completeness evaluation that checks whether the agent’s output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) you can use or adapt for other metrics like relevance or hallucinations.
 
-    First, create a file called `evals.ts` in `src/mastra/evals` to hold our evaluation code.
+    Create a file called `evals.ts` in `src/mastra/evals` to hold the evaluation code.
 
-    Let's start by adding our imports and constants at the top of this file. We'll be using `phoenix-evals` to create our evaluator and `phoenix-client` to fetch our traces in code and push our annotations back to the project.
+    Add the imports and constants at the top of the file. `phoenix-evals` creates the evaluator; `phoenix-client` fetches traces in code and pushes annotations back to the project.
 
     ```typescript
     import "dotenv/config";
@@ -311,7 +311,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
 
     ### **Define the Evaluation Prompt**
 
-    We'll start by defining the prompt that tells the evaluator how to judge an answer.
+    Start with the prompt that tells the evaluator how to judge an answer.
 
     ```typescript
     const financialCompletenessTemplate = `
@@ -341,11 +341,11 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
     Then provide a brief explanation of which parts were completed or missed.
     `;
     ```
-    This prompt defines what completeness means for our agent.
+    That prompt defines what completeness means for your agent.
 
     ### **Create the Evaluator**
 
-    Now we can combine the prompt and model into an evaluator. We'll wrap our evaluation logic in a `main()` function to handle async operations.
+    Combine the prompt and model into an evaluator. Wrap the evaluation logic in a `main()` function to handle async operations.
 
     ```typescript
     async function main() {
@@ -356,11 +356,11 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
         name: EVAL_NAME,
       });
     ```
-    At this point, we've defined how Phoenix should evaluate completeness, but we haven't run it yet.
+    Phoenix now knows how to evaluate completeness, but nothing has run yet.
   </Step>
 
   <Step title={<span className="step-title">Fetch and Filter Trace Data</span>}>
-    Before we run our evaluator, we'll need to pull down our trace data and prepare it to pass into the evaluator. We'll get all the spans from Phoenix, filter for just the orchestrator agent spans, and extract their input and output values.
+    Before running the evaluator, pull down the trace data and prepare it. Get all the spans from Phoenix, filter for the orchestrator agent spans, and extract their input and output values.
 
     ```typescript
       const { spans } = await getSpans({
@@ -404,7 +404,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
   </Step>
 
   <Step title={<span className="step-title">Run the Evaluator</span>}>
-    Now that we have our data and our evaluator, the next step is to run our evaluator on our data.
+    With the data and the evaluator in place, run the evaluator over the data.
 
     ```typescript
       const spanAnnotations = await Promise.all(
@@ -430,7 +430,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
   </Step>
 
   <Step title={<span className="step-title">Log Evaluation Results to Phoenix</span>}>
-    Finally, we'll log the evaluation results back to Phoenix so they show up alongside our traces in the UI. This is what makes evaluations useful beyond a single run. Instead of living only in code, results become part of the same view you already use to understand behavior.
+    Log the evaluation results back to Phoenix so they appear alongside your traces in the UI. That is what makes an evaluation useful beyond a single run: the results become part of the same view you already use to understand behavior.
 
     ```typescript
       await logSpanAnnotations({ spanAnnotations, sync: true });
