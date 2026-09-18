@@ -611,6 +611,14 @@
                 ]
               },
               {
+                "group": "TypeSafe AI",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/typesafe",
+                  "docs/phoenix/integrations/llm-providers/typesafe/typesafe-python",
+                  "docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript"
+                ]
+              },
+              {
                 "group": "VertexAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",
@@ -660,7 +668,6 @@
                   "docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing"
                 ]
               },
-              "docs/phoenix/integrations/typescript/typesafe",
               {
                 "group": "Vercel",
                 "pages": [
@@ -826,8 +833,7 @@
                   "docs/phoenix/integrations/python/strands-agents",
                   "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing"
                 ]
-              },
-              "docs/phoenix/integrations/python/typesafe"
+              }
             ]
           },
           {
@@ -1720,6 +1726,14 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/integrations/typescript/typesafe",
+      "destination": "/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript"
+    },
+    {
+      "source": "/docs/phoenix/integrations/python/typesafe",
+      "destination": "/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python"
+    },
     {
       "source": "/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
       "destination": "/docs/phoenix/release-notes"
