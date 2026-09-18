@@ -4100,6 +4100,473 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/evaluators": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Project Evaluator",
+        "description": "Create an evaluator and binding atomically, or bind an existing code evaluator.\n\nThe project identifier is decoded as a GlobalID first and otherwise treated as a name.\nSPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per\ntrace or session, after the first quiet period following the evaluation delay.",
+        "operationId": "createProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Identifier"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Project Evaluators",
+        "description": "List evaluator bindings in a project. The identifier is decoded as a GlobalID first and\notherwise treated as a name.",
+        "operationId": "getProjectEvaluators",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Identifier"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/project_evaluators/{project_evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Project Evaluator",
+        "description": "Fetch binding settings. Use evaluator_id to retrieve the shared definition.",
+        "operationId": "getProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Project Evaluator",
+        "description": "Update only binding settings. Evaluation target and evaluator kind are immutable.",
+        "operationId": "patchProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchProjectEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectEvaluatorResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Project Evaluator",
+        "description": "Delete a binding and its evaluator traces. Missing bindings are ignored.\n\nA definition no other binding references is deleted with its last binding; built-in\ndefinitions are never deleted.",
+        "operationId": "deleteProjectEvaluator",
+        "parameters": [
+          {
+            "name": "project_evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Evaluator Id"
+            }
+          },
+          {
+            "name": "delete_associated_prompt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also delete the LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default.",
+              "default": false,
+              "title": "Delete Associated Prompt"
+            },
+            "description": "Also delete the LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/project_evaluators/delete": {
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Project Evaluators",
+        "description": "Delete up to 1000 bindings atomically; the whole batch is validated before any change.\n\nAssociated trace projects are deleted. Definitions no remaining binding references are\ndeleted with the batch; built-in definitions are never deleted. Missing bindings are\nignored for idempotency.",
+        "operationId": "deleteProjectEvaluators",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteProjectEvaluatorsRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/datasets/{dataset_identifier}/evaluators": {
       "post": {
         "tags": [
@@ -13744,6 +14211,88 @@
         ],
         "title": "CreateExperimentRunResponseBodyData"
       },
+      "CreateProjectEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "evaluation_target": {
+            "$ref": "#/components/schemas/EvaluationTarget"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition",
+            "default": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when evaluator is a new LLM evaluator. Null lets a code binding inherit the definition's mapping."
+          },
+          "evaluation_delay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Delay Seconds",
+            "description": "Quiet period in seconds before a TRACE or SESSION evaluator runs. Null stores the server default. SPAN evaluators reject a non-null delay and store 0."
+          },
+          "evaluator": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NewLLMEvaluator"
+              },
+              {
+                "$ref": "#/components/schemas/NewCodeEvaluator"
+              },
+              {
+                "$ref": "#/components/schemas/ExistingEvaluator"
+              }
+            ],
+            "title": "Evaluator",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "code": "#/components/schemas/NewCodeEvaluator",
+                "llm": "#/components/schemas/NewLLMEvaluator",
+                "reference": "#/components/schemas/ExistingEvaluator"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "evaluation_target",
+          "sampling_rate",
+          "evaluator"
+        ],
+        "title": "CreateProjectEvaluatorRequest"
+      },
       "CreateProjectRequestBody": {
         "properties": {
           "name": {
@@ -14784,6 +15333,31 @@
         ],
         "title": "DeleteDatasetEvaluatorsRequestBody"
       },
+      "DeleteProjectEvaluatorsRequestBody": {
+        "properties": {
+          "project_evaluator_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Project Evaluator Ids",
+            "description": "GlobalIDs of the bindings to delete. Missing bindings are ignored."
+          },
+          "delete_associated_prompt": {
+            "type": "boolean",
+            "title": "Delete Associated Prompt",
+            "description": "Also delete each LLM evaluator's prompt when no other evaluator references it. This includes prompts adopted through prompt_version_id, so it is off by default.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_evaluator_ids"
+        ],
+        "title": "DeleteProjectEvaluatorsRequestBody"
+      },
       "DeleteSessionsRequestBody": {
         "properties": {
           "session_identifiers": {
@@ -15240,6 +15814,14 @@
         ],
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
+      },
+      "EvaluationTarget": {
+        "type": "string",
+        "enum": [
+          "SPAN",
+          "TRACE",
+          "SESSION"
+        ]
       },
       "EvaluatorDefinitionResponseBody": {
         "properties": {
@@ -18486,6 +19068,56 @@
         ],
         "title": "PatchLLMEvaluatorRequest"
       },
+      "PatchProjectEvaluatorRequest": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit to preserve. Null restores inheritance for code bindings."
+          },
+          "evaluation_delay_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 10.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluation Delay Seconds",
+            "description": "Omit to preserve. Null resets a TRACE or SESSION delay to the server default. SPAN evaluators reject a non-null delay."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 1,
+        "title": "PatchProjectEvaluatorRequest"
+      },
       "PatchPromptRequestBody": {
         "properties": {
           "description": {
@@ -18989,6 +19621,126 @@
           "id"
         ],
         "title": "Project"
+      },
+      "ProjectEvaluator": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "evaluator_type": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "code",
+              "builtin"
+            ],
+            "title": "Evaluator Type"
+          },
+          "trace_project_id": {
+            "type": "string",
+            "title": "Trace Project Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "evaluation_target": {
+            "$ref": "#/components/schemas/EvaluationTarget"
+          },
+          "sampling_rate": {
+            "type": "number",
+            "title": "Sampling Rate"
+          },
+          "filter_condition": {
+            "type": "string",
+            "title": "Filter Condition",
+            "description": "Written in the filter language of the target: span, trace, or session."
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The binding's input mapping; null means a code binding inherits the evaluator's mapping."
+          },
+          "evaluation_delay_seconds": {
+            "type": "integer",
+            "title": "Evaluation Delay Seconds",
+            "description": "Quiet period for TRACE and SESSION evaluators; 0 for SPAN, which evaluates spans as they arrive."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "evaluator_id",
+          "evaluator_type",
+          "trace_project_id",
+          "name",
+          "evaluation_target",
+          "sampling_rate",
+          "filter_condition",
+          "enabled",
+          "input_mapping",
+          "evaluation_delay_seconds"
+        ],
+        "title": "ProjectEvaluator"
+      },
+      "ProjectEvaluatorResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProjectEvaluator"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ProjectEvaluatorResponseBody"
+      },
+      "ProjectEvaluatorsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectEvaluator"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ProjectEvaluatorsResponseBody"
       },
       "ProjectRetentionPolicyData": {
         "properties": {

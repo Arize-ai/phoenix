@@ -213,7 +213,7 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "FILTERED_OUT",
     "SAMPLED_OUT",
 ]
-EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
+EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
 
 # Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
 # and store 0; the check constraint on project_evaluators enforces both rules.
