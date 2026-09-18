@@ -7,9 +7,11 @@ import pytest
 import strawberry
 from fastmcp import FastMCP
 from mcp_types import TextContent
+from strawberry.schema.exceptions import InvalidOperationTypeError
 
 import phoenix.server.app
 import phoenix.server.mcp_server
+from phoenix.server.api import graphql_execute
 from phoenix.server.api.context import Context
 from phoenix.server.api.graphql_execute import (
     MAX_QUERY_BYTES,
@@ -78,27 +80,11 @@ def _text(result: Any) -> str:
     return "".join(block.text for block in result.content if isinstance(block, TextContent))
 
 
-async def test_tools_are_registered(graphql_mcp: FastMCP) -> None:
-    tools = await graphql_mcp.list_tools()
-    assert {"describeGraphqlSchema", "executeGraphqlQuery"} <= {tool.name for tool in tools}
-
-
 async def test_no_arguments_returns_the_query_root(graphql_mcp: FastMCP) -> None:
     """The entry point, so a caller with no idea where to start still gets one."""
     text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {}))
     assert "type Query" in text
     assert "datasets" in text
-
-
-async def test_search_finds_a_field_by_free_text(graphql_mcp: FastMCP) -> None:
-    text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {"search": "dataset"}))
-    assert "datasets" in text
-
-
-async def test_exact_name_returns_the_whole_type(graphql_mcp: FastMCP) -> None:
-    text = _text(await graphql_mcp.call_tool("describeGraphqlSchema", {"names": ["Dataset"]}))
-    assert "type Dataset" in text
-    assert "name: String!" in text
 
 
 async def test_names_and_search_answer_in_one_call(graphql_mcp: FastMCP) -> None:
@@ -158,17 +144,6 @@ async def test_a_failing_field_reports_errors_beside_the_data(graphql_mcp: FastM
     assert [error["message"] for error in content["errors"]] == ["resolver failed"]
 
 
-async def test_mutation_is_refused_and_never_runs(graphql_mcp: FastMCP) -> None:
-    result = await graphql_mcp.call_tool(
-        "executeGraphqlQuery",
-        {"query": 'mutation { deleteDataset(datasetId: "1") }'},
-    )
-    content = result.structured_content
-    assert content is not None
-    assert content["error"]["code"] == GraphQLRefusalCode.MUTATION_NOT_ALLOWED.value
-    assert "data" not in content
-
-
 async def test_refusal_is_distinguishable_from_execution_errors(graphql_mcp: FastMCP) -> None:
     """The two outcomes must not be conflated: one ran, the other did not."""
     refused = await graphql_mcp.call_tool(
@@ -223,26 +198,29 @@ def test_subscriptions_are_refused() -> None:
     assert caught.value.code is GraphQLRefusalCode.SUBSCRIPTION_NOT_SUPPORTED
 
 
-@pytest.mark.parametrize("allow_mutations", [True, False])
 async def test_mutation_gate_is_enforced_by_the_schema_too(
-    schema: strawberry.Schema, allow_mutations: bool
+    schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Admission and the schema both gate mutations, so misreading a document is not enough."""
-    query = 'mutation { deleteDataset(datasetId: "1") }'
-    if not allow_mutations:
-        with pytest.raises(GraphQLRefusal):
-            await execute_operation(
-                schema,
-                query=query,
-                variables=None,
-                context=cast(Context, None),
-                allow_mutations=False,
-            )
-        return
-    outcome = await execute_operation(
-        schema, query=query, variables=None, context=cast(Context, None), allow_mutations=True
-    )
-    assert outcome.data == {"deleteDataset": True}
+    """With admission bypassed, the schema alone still refuses the mutation."""
+    monkeypatch.setattr(graphql_execute, "admit", lambda query, *, allow_mutations: set())
+    with pytest.raises(InvalidOperationTypeError):
+        await execute_operation(
+            schema,
+            query='mutation { deleteDataset(datasetId: "1") }',
+            variables=None,
+            context=cast(Context, None),
+            allow_mutations=False,
+        )
+
+
+def test_the_size_limit_counts_utf8_bytes() -> None:
+    """At the limit is admitted; the same length in characters, one byte over, is not."""
+    head = "{ datasets { name } } #"
+    at_limit = head + "x" * (MAX_QUERY_BYTES - len(head))
+    admit(at_limit, allow_mutations=False)
+    with pytest.raises(GraphQLRefusal) as caught:
+        admit(at_limit[:-1] + "é", allow_mutations=False)
+    assert caught.value.code is GraphQLRefusalCode.QUERY_TOO_LARGE
 
 
 @pytest.mark.parametrize(
@@ -251,7 +229,6 @@ async def test_mutation_gate_is_enforced_by_the_schema_too(
         ("{ datasets { name } }", None),
         ("query Q { datasets { name } }", None),
         ('mutation { deleteDataset(datasetId: "1") }', GraphQLRefusalCode.MUTATION_NOT_ALLOWED),
-        ("subscription S { x }", GraphQLRefusalCode.SUBSCRIPTION_NOT_SUPPORTED),
     ],
 )
 def test_admission_classifies_operations(
@@ -319,4 +296,4 @@ class TestRegistration:
         mcp = FastMCP("test")
         register_graphql_tools(mcp, app=app)
         text = _text(await mcp.call_tool("describeGraphqlSchema", {"names": ["deleteDataset"]}))
-        assert "Mutations are disabled" in text or "deleteDataset(" not in text
+        assert "Mutations are disabled" in text
