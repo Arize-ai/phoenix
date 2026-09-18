@@ -284,8 +284,18 @@ class DatasetWithExampleCount(TypedDict):
     example_count: int
 
 
+class DeleteDatasetEvaluatorsRequestBody(TypedDict):
+    dataset_evaluator_ids: Sequence[str]
+    delete_associated_prompt: NotRequired[bool]
+
+
 class DeleteSessionsRequestBody(TypedDict):
     session_identifiers: Sequence[str]
+
+
+class ExistingEvaluator(TypedDict):
+    type: Literal["reference"]
+    evaluator_id: str
 
 
 class Experiment(TypedDict):
@@ -1753,12 +1763,43 @@ class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
+class NewCodeEvaluator(TypedDict):
+    type: Literal["code"]
+    source_code: str
+    language: Literal["PYTHON", "TYPESCRIPT"]
+    sandbox_config_id: str
+    input_mapping: InputMapping
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+    description: NotRequired[str]
+
+
 class PatchCodeEvaluatorRequest(TypedDict):
     type: Literal["code"]
     name: NotRequired[str]
     description: NotRequired[str]
     sandbox_config_id: NotRequired[str]
     input_mapping: NotRequired[InputMapping]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class PatchDatasetEvaluatorRequest(TypedDict):
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
     output_configs: NotRequired[
         Sequence[
             Union[
@@ -2040,6 +2081,22 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
+class BuiltInEvaluatorDefinition(TypedDict):
+    type: Literal["builtin"]
+    id: str
+    name: str
+    description: Optional[str]
+    key: str
+    input_schema: Mapping[str, Any]
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+
+
 class ChatCompletion(TypedDict):
     id: str
     created: int
@@ -2118,6 +2175,35 @@ class CreateCodeEvaluatorRequest(TypedDict):
 
 class CreateSpansRequestBody(TypedDict):
     data: Sequence[Span]
+
+
+class DatasetEvaluator(TypedDict):
+    id: str
+    dataset_id: str
+    evaluator_id: str
+    evaluator_type: Literal["llm", "code", "builtin"]
+    trace_project_id: str
+    name: str
+    input_mapping: InputMapping
+    description: Optional[str]
+    output_configs: Optional[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class DatasetEvaluatorResponseBody(TypedDict):
+    data: DatasetEvaluator
+
+
+class DatasetEvaluatorsResponseBody(TypedDict):
+    data: Sequence[DatasetEvaluator]
+    next_cursor: Optional[str]
 
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
@@ -2465,12 +2551,38 @@ class LLMEvaluatorDefinition(TypedDict):
     output_configs: Sequence[CategoricalAnnotationConfigData]
 
 
+class NewLLMEvaluator(TypedDict):
+    type: Literal["llm"]
+    output_configs: Sequence[CategoricalAnnotationConfigData]
+    description: NotRequired[str]
+    prompt_version: NotRequired[PromptVersionData]
+    prompt_version_id: NotRequired[str]
+
+
+class CreateDatasetEvaluatorRequest(TypedDict):
+    name: str
+    input_mapping: InputMapping
+    evaluator: Union[NewLLMEvaluator, NewCodeEvaluator, ExistingEvaluator]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class EvaluatorDefinitionResponseBody(TypedDict):
-    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition]
+    data: Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
 
 
 class EvaluatorDefinitionsResponseBody(TypedDict):
-    data: Sequence[Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition]]
+    data: Sequence[
+        Union[CodeEvaluatorDefinition, LLMEvaluatorDefinition, BuiltInEvaluatorDefinition]
+    ]
     next_cursor: Optional[str]
 
 

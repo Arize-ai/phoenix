@@ -27,10 +27,14 @@ logger = logging.getLogger(__name__)
 
 _PAGE_SIZE = 100
 
-EvaluatorDefinition = Union[v1.LLMEvaluatorDefinition, v1.CodeEvaluatorDefinition]
+EvaluatorDefinition = Union[
+    v1.LLMEvaluatorDefinition,
+    v1.CodeEvaluatorDefinition,
+    v1.BuiltInEvaluatorDefinition,
+]
 """A shared evaluator definition. The ``type`` field discriminates the variants."""
 
-EvaluatorType = Literal["llm", "code"]
+EvaluatorType = Literal["llm", "code", "builtin"]
 """A kind of evaluator definition, as accepted by the ``type`` filter of :meth:`Evaluators.list`."""
 
 EvaluatorOutputConfig = Union[
@@ -212,7 +216,7 @@ class Evaluators:
         ``limit`` over listing everything when looking for one evaluator.
 
         Args:
-            type (Optional[Literal["llm", "code"]]): Return only one kind of
+            type (Optional[Literal["llm", "code", "builtin"]]): Return only one kind of
                 definition. All kinds are returned by default.
             name (Optional[str]): Return only the evaluator with this exact name.
             limit (Optional[int]): Stop after this many definitions. By default
@@ -257,8 +261,8 @@ class Evaluators:
             evaluator_id (str): The ID of the evaluator.
 
         Returns:
-            The LLM or code evaluator definition. Inspect ``type`` to tell them
-            apart.
+            The LLM, code, or built-in evaluator definition. Inspect ``type`` to
+            tell them apart.
 
         Raises:
             httpx.HTTPError: If the request fails.
@@ -645,7 +649,7 @@ class AsyncEvaluators:
         ``limit`` over listing everything when looking for one evaluator.
 
         Args:
-            type (Optional[Literal["llm", "code"]]): Return only one kind of
+            type (Optional[Literal["llm", "code", "builtin"]]): Return only one kind of
                 definition. All kinds are returned by default.
             name (Optional[str]): Return only the evaluator with this exact name.
             limit (Optional[int]): Stop after this many definitions. By default
@@ -690,8 +694,8 @@ class AsyncEvaluators:
             evaluator_id (str): The ID of the evaluator.
 
         Returns:
-            The LLM or code evaluator definition. Inspect ``type`` to tell them
-            apart.
+            The LLM, code, or built-in evaluator definition. Inspect ``type`` to
+            tell them apart.
 
         Raises:
             httpx.HTTPError: If the request fails.

@@ -82,7 +82,7 @@ def require_output_configs(configs: list[OutputConfigType]) -> None:
 class CreateProjectLLMEvaluatorInput:
     project_id: GlobalID
     name: Identifier
-    prompt_version: models.PromptVersion
+    prompt_version: Optional[models.PromptVersion] = None
     output_configs: list[OutputConfigType]
     input_mapping: InputMapping
     sampling_rate: float
@@ -228,7 +228,6 @@ async def create_project_llm_evaluator(
     )
     try:
         name = IdentifierModel.model_validate(input.name)
-        prompt_version = input.prompt_version
         require_categorical_output_configs(input.output_configs)
         output_configs = list(
             LLMEvaluatorOutputConfigs.model_validate({"configs": input.output_configs}).configs
@@ -237,7 +236,12 @@ async def create_project_llm_evaluator(
         raise BadRequest(str(error))
 
     user_id = context.user_id
-    prompt_version.user_id = user_id
+    candidate = input.prompt_version
+    selects_existing = input.prompt_version_id is not UNSET and input.prompt_version_id is not None
+    if candidate is None and not selects_existing:
+        raise BadRequest("Either prompt_version content or prompt_version_id is required")
+    if candidate is not None:
+        candidate.user_id = user_id
 
     try:
         async with context.db() as session:
@@ -245,10 +249,12 @@ async def create_project_llm_evaluator(
                 session, project_id, input.project_id
             )
             evaluator_name = await generate_unique_evaluator_name(session, name)
-            await validate_custom_provider(session, prompt_version)
+            if candidate is not None:
+                await validate_custom_provider(session, candidate)
 
             target_prompt_version_id: Optional[int] = None
-            if input.prompt_version_id is not UNSET and input.prompt_version_id is not None:
+            if selects_existing:
+                assert input.prompt_version_id is not None
                 prompt_version_id = from_global_id_with_expected_type(
                     input.prompt_version_id, "PromptVersion"
                 )
@@ -258,14 +264,18 @@ async def create_project_llm_evaluator(
                 prompt = await session.get(models.Prompt, existing_prompt_version.prompt_id)
                 if prompt is None:
                     raise NotFound("Prompt for the selected version was not found")
-                if existing_prompt_version.has_identical_content(prompt_version):
+                if candidate is None or existing_prompt_version.has_identical_content(candidate):
+                    prompt_version = existing_prompt_version
                     target_prompt_version_id = existing_prompt_version.id
                 else:
+                    prompt_version = candidate
                     prompt_version.prompt_id = prompt.id
                     session.add(prompt_version)
                     await session.flush()
                     target_prompt_version_id = prompt_version.id
             else:
+                assert candidate is not None
+                prompt_version = candidate
                 prompt = models.Prompt(
                     name=IdentifierModel.model_validate(f"{input.name}-evaluator-{token_hex(4)}"),
                     description=input.description,
