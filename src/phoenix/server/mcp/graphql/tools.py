@@ -194,13 +194,15 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         variable values do not count toward that limit and need no GraphQL
         string escaping.
 
-        Returns the same two shapes as `executeGraphqlQuery`: `{data, errors}`
-        when the operation ran, `{error: {code, message}}` when it was refused
-        and never ran. A mutation that reports `errors` may still have committed
-        part of its work, so read them rather than retrying blindly.
+        Without `validate_only`, returns the same two shapes as
+        `executeGraphqlQuery`: `{data, errors}` when GraphQL took the document,
+        `{error: {code, message}}` when Phoenix refused it and nothing ran. A
+        mutation that reports `errors` may still have committed part of its
+        work, so read them rather than retrying blindly.
 
-        Only mutations. A document containing only queries is refused; use
-        `executeGraphqlQuery` for those. `validate_only=True` admits and checks
+        Only mutations, one operation per document; that operation may select
+        several fields. A query is refused; use `executeGraphqlQuery` for
+        those. `validate_only=True` admits and checks
         the document against the schema without running it, answering
         `{valid, notes}`; it does not check variable values or permissions.
         """
