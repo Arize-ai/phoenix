@@ -1361,7 +1361,7 @@ CREATE TABLE public.project_evaluators (
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
     sampling_rate DOUBLE PRECISION NOT NULL,
     evaluation_target VARCHAR NOT NULL,
-    evaluation_delay_seconds INTEGER NOT NULL DEFAULT 300,
+    evaluation_delay_seconds INTEGER NOT NULL,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
     swept_through_at TIMESTAMP WITH TIME ZONE,
@@ -1370,7 +1370,7 @@ CREATE TABLE public.project_evaluators (
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_project_evaluators_project_id_name
         UNIQUE (project_id, name),
-    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK ((evaluation_delay_seconds >= 10)),
+    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
         CHECK (((evaluation_target)::text = ANY ((ARRAY[
             'SPAN'::character varying,

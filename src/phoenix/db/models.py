@@ -36,6 +36,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
+from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -213,6 +214,11 @@ EvalSessionWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget: TypeAlias = Literal["SPAN", "TRACE", "SESSION"]
+
+# Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
+# and store 0; the check constraint on project_evaluators enforces both rules.
+DEFAULT_EVALUATION_DELAY_SECONDS = 300
+MINIMUM_EVALUATION_DELAY_SECONDS = 10
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -3617,6 +3623,12 @@ class AgentSessionSnapshot(HasId):
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
+def _default_evaluation_delay_seconds(context: DefaultExecutionContext) -> int:
+    """Spans have no quiet period; every other target starts at the default delay."""
+    target = context.get_current_parameters()["evaluation_target"]  # type: ignore[no-untyped-call]
+    return 0 if target == "SPAN" else DEFAULT_EVALUATION_DELAY_SECONDS
+
+
 class ProjectEvaluator(HasId):
     """Attaches an evaluator to a project for online evaluation: which spans or
     sessions to match, how they are sampled, and the annotation name results are
@@ -3652,11 +3664,13 @@ class ProjectEvaluator(HasId):
     evaluation_delay_seconds: Mapped[int] = mapped_column(
         Integer,
         CheckConstraint(
-            "evaluation_delay_seconds >= 10",
+            "(evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0) OR "
+            "(evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS})",
             name="valid_evaluation_delay_seconds",
         ),
         nullable=False,
-        server_default="300",
+        default=_default_evaluation_delay_seconds,
     )
     input_mapping: Mapped[Optional[InputMapping]] = mapped_column(
         _OptionalInputMapping, nullable=True
