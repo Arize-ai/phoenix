@@ -27,7 +27,7 @@ def download_benchmark_dataset(task: str, dataset_name: str) -> "pd.DataFrame":
     jsonl_file_name = f"{dataset_name}.jsonl"
     url = f"http://storage.googleapis.com/arize-phoenix-assets/evals/{task}/{jsonl_file_name}.zip"
     try:
-        with urlopen(url) as response:
+        with urlopen(url, timeout=60) as response:
             zip_byte_stream = BytesIO(response.read())
             with ZipFile(zip_byte_stream) as zip_file:
                 with zip_file.open(jsonl_file_name) as jsonl_file:
