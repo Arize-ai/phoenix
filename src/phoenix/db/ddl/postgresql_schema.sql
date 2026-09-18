@@ -483,7 +483,7 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
 -- ---------------
 CREATE TABLE public.api_keys (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -1334,7 +1334,7 @@ CREATE INDEX ix_oauth2_grants_user_id ON public.oauth2_grants
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT pk_password_reset_tokens PRIMARY KEY (id),

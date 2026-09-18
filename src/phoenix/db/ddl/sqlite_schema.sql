@@ -470,10 +470,10 @@ CREATE UNIQUE INDEX ix_users_username ON users (username);
 -- ---------------
 CREATE TABLE api_keys (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     expires_at TIMESTAMP,
     scopes JSONB,
     audience JSONB,
@@ -1252,8 +1252,8 @@ CREATE INDEX ix_oauth2_grants_user_id ON oauth2_grants (user_id);
 -- ----------------------------
 CREATE TABLE password_reset_tokens (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    user_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     CONSTRAINT fk_password_reset_tokens_user_id_users
         FOREIGN KEY (user_id)
