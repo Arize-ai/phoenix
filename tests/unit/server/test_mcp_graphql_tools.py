@@ -10,6 +10,7 @@ from mcp_types import TextContent
 from strawberry.schema.exceptions import InvalidOperationTypeError
 
 import phoenix.server.app
+import phoenix.server.mcp.graphql.tools
 import phoenix.server.mcp_server
 from phoenix.server.api import graphql_execute
 from phoenix.server.api.context import Context
@@ -173,6 +174,22 @@ async def test_variable_values_do_not_count_toward_the_size_limit(graphql_mcp: F
         },
     )
     assert result.structured_content == {"data": {"dataset": {"name": "rag-eval"}}, "errors": []}
+
+
+async def test_runs_as_the_authenticated_principal(
+    app: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Resolvers judge permissions against whoever the MCP request authenticated as."""
+    principal = object()
+    seen: list[object] = []
+    app.state.build_graphql_context = seen.append
+    monkeypatch.setattr(
+        phoenix.server.mcp.graphql.tools, "_current_mcp_principal", lambda: principal
+    )
+    mcp = FastMCP("test")
+    register_graphql_tools(mcp, app=app)
+    await mcp.call_tool("executeGraphqlQuery", {"query": "{ datasets { name } }"})
+    assert seen == [principal]
 
 
 async def test_an_invalid_document_reports_errors_without_running(graphql_mcp: FastMCP) -> None:
