@@ -1381,6 +1381,11 @@
           "base_rate": 0.00001,
           "is_prompt": false,
           "token_type": "output"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "audio"
         }
       ]
     },
@@ -1988,6 +1993,70 @@
       ]
     },
     {
+      "name": "gemini-3.8-live",
+      "name_pattern": "gemini-3\\.8-live",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 7.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
+      "name": "gemini-3.8-live-extended-thinking",
+      "name_pattern": "gemini-3\\.8-live-extended-thinking",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 7.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
       "name": "gemini-exp-1206",
       "name_pattern": "gemini-exp-1206",
       "source": "litellm",
@@ -2025,6 +2094,33 @@
       "source": "litellm",
       "token_prices": [
         {
+          "base_rate": 7.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini-flash-lite-latest",
+      "name_pattern": "gemini-flash-lite-latest",
+      "source": "litellm",
+      "token_prices": [
+        {
           "base_rate": 3e-7,
           "is_prompt": true,
           "token_type": "input"
@@ -2040,44 +2136,7 @@
           "token_type": "cache_read"
         },
         {
-          "base_rate": 1e-6,
-          "is_prompt": true,
-          "token_type": "audio"
-        },
-        {
           "base_rate": 2.5e-6,
-          "is_prompt": false,
-          "token_type": "reasoning"
-        }
-      ]
-    },
-    {
-      "name": "gemini-flash-lite-latest",
-      "name_pattern": "gemini-flash-lite-latest",
-      "source": "litellm",
-      "token_prices": [
-        {
-          "base_rate": 1e-7,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 4e-7,
-          "is_prompt": false,
-          "token_type": "output"
-        },
-        {
-          "base_rate": 1e-8,
-          "is_prompt": true,
-          "token_type": "cache_read"
-        },
-        {
-          "base_rate": 3e-7,
-          "is_prompt": true,
-          "token_type": "audio"
-        },
-        {
-          "base_rate": 4e-7,
           "is_prompt": false,
           "token_type": "reasoning"
         }
