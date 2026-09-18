@@ -11,14 +11,6 @@ const sideA: CompareFilterSide = {
   labels: ["flagged", "not flagged"],
   threshold: 0.5,
   optimizationDirection: "MINIMIZE",
-  distribution: {
-    threshold: 0.5,
-    allEvaluatedMeanScore: 0,
-    scoreBinCounts: null,
-    scoreBinEdges: null,
-    labelCounts: null,
-    scoreValueCounts: [{ score: 0, count: 1 }],
-  },
 };
 const sideB: CompareFilterSide = {
   ...sideA,
@@ -34,7 +26,7 @@ const categorical: CompareFilterSide = {
 
 describe("comparison filter populations", () => {
   it.each(["SPAN", "TRACE", "SESSION"] as const)(
-    "uses %s annotation scope",
+    "requires both annotations to exist in %s scope",
     (target) => {
       const field =
         target === "SPAN"
@@ -42,9 +34,7 @@ describe("comparison filter populations", () => {
           : `${target.toLowerCase()}_annotations`;
       expect(
         buildCompareFilterCondition({ target, selection: null, sideA, sideB })
-      ).toBe(
-        `(${field}['A'].score is not None or ${field}['A'].label is not None) and (${field}['B'].score is not None or ${field}['B'].label is not None)`
-      );
+      ).toBe(`(${field}['A']) and (${field}['B'])`);
     }
   );
   it("includes the pivot when flagged and reverses maximize", () => {
@@ -91,123 +81,6 @@ describe("comparison filter populations", () => {
         sideA,
         sideB,
       })
-    );
-  });
-  it("distribution score zero includes evaluator-only targets", () => {
-    expect(
-      buildCompareFilterCondition({
-        target: "SESSION",
-        selection: {
-          kind: "distribution",
-          side: "a",
-          view: "scores",
-          label: "0",
-          score: 0,
-        },
-        sideA,
-        sideB,
-      })
-    ).toBe("session_annotations['A'].score == 0");
-  });
-  it("keeps the other side evaluated for a flag selection", () => {
-    const condition = buildCompareFilterCondition({
-      target: "SPAN",
-      selection: { kind: "flag", side: "a", flagged: true },
-      sideA,
-      sideB,
-    });
-    expect(condition).toContain("annotations['A'].score >= 0.5");
-    expect(condition).toContain("annotations['B'].label is not None");
-  });
-  it("includes the upper edge of the last histogram bin", () => {
-    const side = {
-      ...sideA,
-      distribution: {
-        ...sideA.distribution!,
-        scoreValueCounts: null,
-        scoreBinEdges: [0, 0.5, 1],
-        scoreBinCounts: [1, 1],
-      },
-    };
-    const selection = {
-      kind: "distribution",
-      side: "a",
-      view: "scores",
-      label: "0.50–1.00",
-      lowerBound: 0.5,
-      upperBound: 1,
-    } as const;
-    expect(
-      buildCompareFilterCondition({
-        target: "SPAN",
-        selection,
-        sideA: side,
-        sideB,
-      })
-    ).toBe("annotations['A'].score >= 0.5 and annotations['A'].score <= 1");
-  });
-  it("invalidates removed distribution values", () => {
-    expect(
-      isCompareSelectionValid({
-        selection: {
-          kind: "distribution",
-          side: "a",
-          view: "scores",
-          label: "2",
-          score: 2,
-        },
-        sideA,
-        sideB,
-      })
-    ).toBe(false);
-  });
-  it("uses raw empty labels rather than display text", () => {
-    const side = {
-      ...sideA,
-      distribution: {
-        ...sideA.distribution!,
-        labelCounts: [{ label: "", count: 1, score: null, isOther: false }],
-      },
-    };
-    expect(
-      buildCompareFilterCondition({
-        target: "SPAN",
-        selection: {
-          kind: "distribution",
-          side: "a",
-          view: "labels",
-          label: "(empty label)",
-        },
-        sideA: side,
-        sideB,
-      })
-    ).toBe(`annotations['A'].label == ""`);
-  });
-  it("filters a grouped distribution label against its full-population labels", () => {
-    const side = {
-      ...sideA,
-      distribution: {
-        ...sideA.distribution!,
-        labelCounts: [
-          { label: "only on A", score: null, count: 1, isOther: false },
-          { label: "other", score: null, count: 3, isOther: true },
-        ],
-      },
-    };
-    expect(
-      buildCompareFilterCondition({
-        target: "TRACE",
-        selection: {
-          kind: "distribution",
-          side: "a",
-          view: "labels",
-          label: "Other labels (grouped)",
-        },
-        sideA: side,
-        sideB,
-      })
-    ).toBe(
-      `trace_annotations['A'].label is not None and trace_annotations['A'].label != "only on A"`
     );
   });
 });

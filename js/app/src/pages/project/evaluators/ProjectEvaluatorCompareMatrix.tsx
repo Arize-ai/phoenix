@@ -113,15 +113,13 @@ export function ProjectEvaluatorCompareMatrix({
         ) : (
           <ConfusionMatrix
             selectedCell={
-              selection?.kind === "matrix"
+              selection
                 ? { actual: selection.a, predicted: selection.b }
                 : undefined
             }
             onCellPress={({ actual, predicted }) =>
               setSelection(
-                selection?.kind === "matrix" &&
-                  selection.a === actual &&
-                  selection.b === predicted
+                selection?.a === actual && selection.b === predicted
                   ? null
                   : { kind: "matrix", a: actual, b: predicted }
               )

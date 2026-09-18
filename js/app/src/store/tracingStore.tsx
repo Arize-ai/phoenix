@@ -1,5 +1,5 @@
 import type { ColumnSizingState, Updater } from "@tanstack/react-table";
-import type { StateCreator } from "zustand";
+import type { StateCreator, StoreApi, UseBoundStore } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
@@ -66,15 +66,26 @@ const makeTracingStoreKey = ({
   tableId,
 }: {
   projectId: string;
-  tableId: ProjectTab | "evaluator-compare";
+  tableId: ProjectTab;
 }) => `arize-phoenix-tracing-${projectId}-${tableId}`;
 
 export type CreateTracingStoreProps = {
   projectId: string;
-  tableId: ProjectTab | "evaluator-compare";
+  tableId: ProjectTab;
+  /**
+   * Whether column preferences are persisted to localStorage per project and
+   * table. When false they last only as long as the store.
+   * @default true
+   */
+  persistPreferences?: boolean;
 } & Partial<TracingProps>;
 
-export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
+export type TracingStore = UseBoundStore<StoreApi<TracingState>>;
+
+export const createTracingStore = ({
+  persistPreferences = true,
+  ...initialProps
+}: CreateTracingStoreProps): TracingStore => {
   const tracingStore: StateCreator<
     TracingState,
     [["zustand/devtools", unknown]]
@@ -125,16 +136,11 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       }
     },
   });
+  const store = devtools(tracingStore, { name: "tracingStore" });
+  if (!persistPreferences) {
+    return create<TracingState>()(store);
+  }
   return create<TracingState>()(
-    persist(
-      devtools(tracingStore, {
-        name: "tracingStore",
-      }),
-      {
-        name: makeTracingStoreKey(initialProps),
-      }
-    )
+    persist(store, { name: makeTracingStoreKey(initialProps) })
   );
 };
-
-export type TracingStore = ReturnType<typeof createTracingStore>;

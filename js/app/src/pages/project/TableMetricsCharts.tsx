@@ -28,8 +28,7 @@ import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
 const CHARTS_PANEL_MAX_SIZE = "60%";
 
-const PANEL_IDS_WITH_CHARTS = ["metrics-charts", "table-content"];
-const PANEL_IDS_WITHOUT_CHARTS = ["table-content"];
+const PANEL_IDS = ["metrics-charts", "table-content"];
 
 /**
  * Pull the following panel up by the handle's height so the handle adds no
@@ -98,8 +97,8 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
  * Lays out the metric charts strip above a table in a vertically resizable
  * panel group. A transparent drag handle sits between the charts and the
  * table content (filter bar + table) so the charts can be resized to take up
- * more or less vertical space. When no charts are selected the charts panel
- * and handle are not rendered and the table content fills the space.
+ * more or less vertical space. When no charts are selected the table content
+ * renders on its own, outside any panel group.
  */
 export function TableMetricsChartsPanelGroup({
   view,
@@ -111,16 +110,19 @@ export function TableMetricsChartsPanelGroup({
   // The store guarantees keys are valid catalog keys, so any selection means
   // there are charts to show
   const hasCharts = useProjectContext(
-    (state) => state.metricChartKeys[view].length > 0
+    (state) => state.showMetricCharts && state.metricChartKeys[view].length > 0
   );
   // Persist the layout so the charts strip keeps its height across reloads
   // and remounts (e.g. table refetches) instead of resetting to the default
   const layoutId = `${view}-table-metrics-layout`;
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: layoutId,
-    panelIds: hasCharts ? PANEL_IDS_WITH_CHARTS : PANEL_IDS_WITHOUT_CHARTS,
+    panelIds: PANEL_IDS,
     storage: localStorage,
   });
+  if (!hasCharts) {
+    return children;
+  }
   return (
     <Group
       orientation="vertical"
@@ -128,23 +130,17 @@ export function TableMetricsChartsPanelGroup({
       defaultLayout={defaultLayout}
       onLayoutChanged={onLayoutChanged}
     >
-      {hasCharts && (
-        <>
-          <Panel
-            id="metrics-charts"
-            defaultSize={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
-            minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
-            maxSize={CHARTS_PANEL_MAX_SIZE}
-            groupResizeBehavior="preserve-pixel-size"
-            style={{ overflow: "visible" }}
-          >
-            <TableMetricsCharts view={view} />
-          </Panel>
-          <Separator
-            css={[transparentResizeHandleCSS, chartsResizeHandleCSS]}
-          />
-        </>
-      )}
+      <Panel
+        id="metrics-charts"
+        defaultSize={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
+        minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
+        maxSize={CHARTS_PANEL_MAX_SIZE}
+        groupResizeBehavior="preserve-pixel-size"
+        style={{ overflow: "visible" }}
+      >
+        <TableMetricsCharts view={view} />
+      </Panel>
+      <Separator css={[transparentResizeHandleCSS, chartsResizeHandleCSS]} />
       <Panel id="table-content">{children}</Panel>
     </Group>
   );

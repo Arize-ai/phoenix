@@ -81,6 +81,7 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
@@ -871,22 +872,23 @@ export function SpansTable(props: SpansTableProps) {
     projectEvaluatorId,
     timeRangeISOStrings,
   ]);
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+  // A visibility observer rather than the container's scroll event, so paging
+  // works whether this table owns the scroll or sits in a scrolling page.
+  const { ref: loadMoreSentinelRef, isVisible: isLoadMoreSentinelVisible } =
+    useDeferredVisibility<HTMLDivElement>({
+      rootMargin: "300px",
+      scrollMargin: "300px",
+    });
+  // The observer reports the sentinel leaving a frame after new rows commit,
+  // so re-running on load completion would chain an extra page from stale
+  // visibility. A page that leaves the sentinel in view falls back to the
+  // Load More row.
+  useEffect(() => {
+    if (isLoadMoreSentinelVisible && hasNext && !isLoadingNext) {
+      loadNext(PAGE_SIZE);
+    }
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- see above
+  }, [isLoadMoreSentinelVisible]);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
   const storedColumnOrder = useTracingContext((state) => state.columnOrder);
@@ -1023,9 +1025,6 @@ export function SpansTable(props: SpansTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              onScroll={(e) =>
-                fetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
               ref={tableContainerRef}
             >
               <ColumnOrderingProvider
@@ -1151,6 +1150,7 @@ export function SpansTable(props: SpansTableProps) {
                   )}
                 </table>
               </ColumnOrderingProvider>
+              <div ref={loadMoreSentinelRef} />
             </div>
           </Panel>
           <TableAsidePanel>

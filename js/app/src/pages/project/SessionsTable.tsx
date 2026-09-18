@@ -52,6 +52,7 @@ import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -487,22 +488,23 @@ export function SessionsTable(props: SessionsTableProps) {
     fetchKey,
     timeRangeISOStrings,
   ]);
-  const fetchMoreOnBottomReached = React.useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+  // A visibility observer rather than the container's scroll event, so paging
+  // works whether this table owns the scroll or sits in a scrolling page.
+  const { ref: loadMoreSentinelRef, isVisible: isLoadMoreSentinelVisible } =
+    useDeferredVisibility<HTMLDivElement>({
+      rootMargin: "300px",
+      scrollMargin: "300px",
+    });
+  // The observer reports the sentinel leaving a frame after new rows commit,
+  // so re-running on load completion would chain an extra page from stale
+  // visibility. A page that leaves the sentinel in view falls back to the
+  // Load More row.
+  useEffect(() => {
+    if (isLoadMoreSentinelVisible && hasNext && !isLoadingNext) {
+      loadNext(PAGE_SIZE);
+    }
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- see above
+  }, [isLoadMoreSentinelVisible]);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const columnSizing = useTracingContext((state) => state.columnSizing);
@@ -640,9 +642,6 @@ export function SessionsTable(props: SessionsTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              onScroll={(e) =>
-                fetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
               ref={tableContainerRef}
             >
               <ColumnOrderingProvider
@@ -748,6 +747,7 @@ export function SessionsTable(props: SessionsTableProps) {
                   )}
                 </table>
               </ColumnOrderingProvider>
+              <div ref={loadMoreSentinelRef} />
             </div>
           </Panel>
           <TableAsidePanel>

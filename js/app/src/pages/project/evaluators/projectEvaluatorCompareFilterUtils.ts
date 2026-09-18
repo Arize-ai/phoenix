@@ -6,10 +6,6 @@ import {
 } from "@phoenix/utils/filterConditionUtils";
 
 import type { CompareSelection } from "./projectEvaluatorCompareSelection";
-import {
-  getDistributionRows,
-  type DistributionSide,
-} from "./projectEvaluatorDistributionUtils";
 
 export type CompareTarget = "SPAN" | "TRACE" | "SESSION";
 export type CompareFilterSide = {
@@ -17,8 +13,6 @@ export type CompareFilterSide = {
   labels: readonly string[];
   threshold: number | null;
   optimizationDirection: EvaluatorOptimizationDirection | null;
-  flaggedLabels?: readonly string[] | null;
-  distribution?: DistributionSide;
 };
 
 const TARGET_TYPES = {
@@ -81,25 +75,8 @@ export function isCompareSelectionValid({
   sideA: CompareFilterSide;
   sideB: CompareFilterSide;
 }): boolean {
-  if (selection.kind === "matrix")
-    return (
-      sideA.labels.includes(selection.a) && sideB.labels.includes(selection.b)
-    );
-  const side = selection.side === "a" ? sideA : sideB;
-  if (selection.kind === "flag")
-    return side.threshold != null || side.flaggedLabels != null;
-  if (!side.distribution) return false;
-  return getDistributionRows({
-    side: side.distribution,
-    view: selection.view,
-  }).some(
-    (row) =>
-      row.label === selection.label &&
-      (selection.view === "labels" ||
-        (selection.score != null
-          ? row.score === selection.score
-          : row.lowerBound === selection.lowerBound &&
-            row.upperBound === selection.upperBound))
+  return (
+    sideA.labels.includes(selection.a) && sideB.labels.includes(selection.b)
   );
 }
 
@@ -117,78 +94,23 @@ export function buildCompareFilterCondition({
 }): string {
   const fieldA = getAnnotationField({ target, side: sideA });
   const fieldB = getAnnotationField({ target, side: sideB });
-  const evaluated = (field: string) =>
-    `${field}.score is not None or ${field}.label is not None`;
   if (!selection || !isCompareSelectionValid({ selection, sideA, sideB }))
+    // A bare annotation reference is an existence check, which matches how
+    // the comparison's coverage counts presence by annotation name alone.
     return joinFilterConditions({
-      existingCondition: evaluated(fieldA),
-      nextCondition: evaluated(fieldB),
+      existingCondition: fieldA,
+      nextCondition: fieldB,
     });
-  if (selection.kind === "matrix")
-    return joinFilterConditions({
-      existingCondition: buildBinCondition({
-        field: fieldA,
-        side: sideA,
-        label: selection.a,
-      }),
-      nextCondition: buildBinCondition({
-        field: fieldB,
-        side: sideB,
-        label: selection.b,
-      }),
-    });
-  const side = selection.side === "a" ? sideA : sideB;
-  const field = selection.side === "a" ? fieldA : fieldB;
-  if (selection.kind === "flag") {
-    const labels = side.labels.filter(
-      (label) =>
-        (side.flaggedLabels?.includes(label) ?? label === "flagged") ===
-        selection.flagged
-    );
-    const condition =
-      labels
-        .map((label) => `(${buildBinCondition({ field, side, label })})`)
-        .join(" or ") || "False";
-    return joinFilterConditions({
-      existingCondition: condition,
-      nextCondition: evaluated(selection.side === "a" ? fieldB : fieldA),
-    });
-  }
-  return buildDistributionCondition({ field, side, selection });
-}
-
-function buildDistributionCondition({
-  field,
-  side,
-  selection,
-}: {
-  field: string;
-  side: CompareFilterSide;
-  selection: Extract<CompareSelection, { kind: "distribution" }>;
-}): string {
-  if (selection.view === "labels") {
-    const distribution = side.distribution;
-    const rows = distribution
-      ? getDistributionRows({ side: distribution, view: "labels" })
-      : [];
-    const index = rows.findIndex((row) => row.label === selection.label);
-    const point = distribution?.labelCounts?.[index];
-    if (point?.isOther) {
-      return [
-        `${field}.label is not None`,
-        ...(distribution?.labelCounts ?? [])
-          .filter((label) => !label.isOther)
-          .map(
-            (label) =>
-              `${field}.label != ${getDslStringLiteral({ value: label.label, quote: '"' })}`
-          ),
-      ].join(" and ");
-    }
-    return `${field}.label == ${getDslStringLiteral({ value: point?.label ?? selection.label, quote: '"' })}`;
-  }
-  if (selection.score != null) return `${field}.score == ${selection.score}`;
-  const edges = side.distribution?.scoreBinEdges;
-  const isLastBin =
-    edges != null && selection.upperBound === edges[edges.length - 1];
-  return `${field}.score >= ${selection.lowerBound} and ${field}.score ${isLastBin ? "<=" : "<"} ${selection.upperBound}`;
+  return joinFilterConditions({
+    existingCondition: buildBinCondition({
+      field: fieldA,
+      side: sideA,
+      label: selection.a,
+    }),
+    nextCondition: buildBinCondition({
+      field: fieldB,
+      side: sideB,
+      label: selection.b,
+    }),
+  });
 }

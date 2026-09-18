@@ -130,8 +130,6 @@ export function ProjectEvaluatorCompareContent({
         key={`${evaluatorAId}:${evaluatorBId}`}
         projectId={projectId}
         comparisonRef={comparison}
-        evaluatorAName={evaluatorAName}
-        evaluatorBName={evaluatorBName}
         evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
         evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
       />
