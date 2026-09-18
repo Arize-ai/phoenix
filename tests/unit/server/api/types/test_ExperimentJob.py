@@ -6,10 +6,27 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
-from phoenix.db.types.evaluator_definition import InlineCodeEvaluatorDefinition
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+)
+from phoenix.db.types.evaluator_definition import (
+    EvaluatorSource,
+    InlineCodeEvaluatorDefinition,
+    InlineLLMEvaluatorDefinition,
+    InlineLLMEvaluatorPromptVersion,
+)
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    TextContentPart,
+)
 from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -159,7 +176,55 @@ TASK_CONFIG_QUERY = """
                 upperBound
               }
             }
-            definition
+            definition {
+              __typename
+              ... on InlineCodeEvaluatorDefinition {
+                name
+                language
+                sourceCode
+                sandboxConfigId
+                outputConfigs {
+                  ... on ContinuousAnnotationConfig {
+                    name
+                  }
+                }
+                source {
+                  evaluatorId
+                }
+              }
+              ... on InlineLLMEvaluatorDefinition {
+                name
+                description
+                modelProvider
+                modelName
+                templateFormat
+                template {
+                  ... on PromptChatTemplate {
+                    messages {
+                      role
+                      content {
+                        ... on TextContentPart {
+                          text {
+                            text
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                outputConfigs {
+                  ... on CategoricalAnnotationConfig {
+                    name
+                  }
+                }
+                source {
+                  evaluatorId
+                  promptVersionId
+                  datasetEvaluatorId
+                  projectEvaluatorId
+                }
+              }
+            }
           }
         }
       }
@@ -249,10 +314,112 @@ async def test_evaluator_job_exposes_its_evaluator_task_config(
     }
     assert config["outputConfigs"] == [{"name": "length", "lowerBound": 0.0, "upperBound": None}]
     definition = config["definition"]
-    assert definition["type"] == "inline_code_evaluator"
-    assert definition["source_code"] == _ANSWER_LENGTH_SOURCE
-    assert definition["sandbox_config_id"] == 7
-    assert [output["name"] for output in definition["output_configs"]] == ["length"]
+    assert definition["__typename"] == "InlineCodeEvaluatorDefinition"
+    assert definition["name"] == "answer-length"
+    assert definition["language"] == "PYTHON"
+    assert definition["sourceCode"] == _ANSWER_LENGTH_SOURCE
+    assert definition["sandboxConfigId"] == str(GlobalID("SandboxConfig", "7"))
+    assert [output["name"] for output in definition["outputConfigs"]] == ["length"]
+    assert definition["source"] is None
+
+
+@pytest.fixture
+async def llm_evaluator_experiment_job_id(db: DbSessionFactory) -> int:
+    """An experiment whose task is an inline LLM evaluator opened from a saved evaluator."""
+    tone_config = CategoricalOutputConfig(
+        type="CATEGORICAL",
+        name="tone",
+        optimization_direction=OptimizationDirection.MAXIMIZE,
+        description=None,
+        values=[CategoricalAnnotationValue(label="warm", score=1.0)],
+    )
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset).values(name="tone-ds", metadata_={}).returning(models.Dataset.id)
+        )
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .values(dataset_id=dataset_id, metadata_={})
+            .returning(models.DatasetVersion.id)
+        )
+        experiment_id = await session.scalar(
+            insert(models.Experiment)
+            .values(
+                dataset_id=dataset_id,
+                dataset_version_id=version_id,
+                name="tone",
+                repetitions=1,
+                metadata_={},
+            )
+            .returning(models.Experiment.id)
+        )
+        assert experiment_id is not None
+        session.add(
+            models.ExperimentEvaluatorTask(
+                id=experiment_id,
+                name=Identifier("tone"),
+                evaluator_kind="LLM",
+                definition=InlineLLMEvaluatorDefinition(
+                    type="inline_llm_evaluator",
+                    name="tone",
+                    description="judges tone",
+                    prompt_version=InlineLLMEvaluatorPromptVersion(
+                        template_format="F_STRING",
+                        template=PromptChatTemplate(
+                            type="chat",
+                            messages=[
+                                PromptMessage(
+                                    role="user",
+                                    content=[TextContentPart(type="text", text="Judge {output}")],
+                                )
+                            ],
+                        ),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(temperature=0.0),
+                        ),
+                        model_provider="OPENAI",
+                        model_name="gpt-4o",
+                    ),
+                    output_configs=[tone_config],
+                    source=EvaluatorSource(evaluator_id=3, prompt_version_id=4),
+                ),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[tone_config],
+            )
+        )
+        await session.commit()
+    return experiment_id
+
+
+async def test_llm_evaluator_job_exposes_its_frozen_judge_prompt(
+    gql_client: AsyncGraphQLClient,
+    llm_evaluator_experiment_job_id: int,
+) -> None:
+    job_id = str(
+        GlobalID(type_name=ExperimentJob.__name__, node_id=str(llm_evaluator_experiment_job_id))
+    )
+    response = await gql_client.execute(query=TASK_CONFIG_QUERY, variables={"jobId": job_id})
+    assert not response.errors
+    assert response.data is not None
+
+    definition = response.data["node"]["taskConfig"]["definition"]
+    assert definition["__typename"] == "InlineLLMEvaluatorDefinition"
+    assert definition["name"] == "tone"
+    assert definition["description"] == "judges tone"
+    assert definition["modelProvider"] == "OPENAI"
+    assert definition["modelName"] == "gpt-4o"
+    assert definition["templateFormat"] == "F_STRING"
+    assert definition["template"]["messages"] == [
+        {"role": "USER", "content": [{"text": {"text": "Judge {output}"}}]}
+    ]
+    assert [output["name"] for output in definition["outputConfigs"]] == ["tone"]
+    assert definition["source"] == {
+        "evaluatorId": str(GlobalID("LLMEvaluator", "3")),
+        "promptVersionId": str(GlobalID("PromptVersion", "4")),
+        "datasetEvaluatorId": None,
+        "projectEvaluatorId": None,
+    }
 
 
 async def test_job_without_a_task_has_no_task_config(
