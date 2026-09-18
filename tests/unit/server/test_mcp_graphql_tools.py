@@ -47,15 +47,21 @@ class Query:
         raise ValueError("resolver failed")
 
 
+DELETED_DATASET_IDS: list[str] = []
+
+
 @strawberry.type
 class Mutation:
     @strawberry.mutation
     async def delete_dataset(self, dataset_id: strawberry.ID) -> bool:
+        """Records its argument, so a test can tell whether it ran."""
+        DELETED_DATASET_IDS.append(dataset_id)
         return True
 
 
 @pytest.fixture
 def schema() -> strawberry.Schema:
+    DELETED_DATASET_IDS.clear()
     return strawberry.Schema(query=Query, mutation=Mutation)
 
 
@@ -367,6 +373,20 @@ class TestMutationTool:
             {"mutation": 'mutation { deleteDataset(datasetId: "1") }'},
         )
         assert result.structured_content == {"data": {"deleteDataset": True}, "errors": []}
+        assert DELETED_DATASET_IDS == ["1"]
+
+    async def test_refuses_several_operations_rather_than_running_the_first(
+        self, mutating_mcp: FastMCP
+    ) -> None:
+        both = (
+            'mutation A { deleteDataset(datasetId: "1") } '
+            'mutation B { deleteDataset(datasetId: "2") }'
+        )
+        result = await mutating_mcp.call_tool("executeGraphqlMutation", {"mutation": both})
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.AMBIGUOUS_OPERATION.value
+        assert DELETED_DATASET_IDS == []
 
     async def test_states_the_size_limit(self, mutating_mcp: FastMCP) -> None:
         """The description spells the limit out, so it must match the one enforced."""
@@ -401,6 +421,7 @@ class TestMutationTool:
         assert content is not None
         assert content["valid"] is True
         assert "data" not in content
+        assert DELETED_DATASET_IDS == []
 
     async def test_a_malformed_document_reports_its_syntax_error(
         self, mutating_mcp: FastMCP
@@ -442,9 +463,14 @@ class TestMutationTool:
         assert "graphql_mutations=not read_only," in source
 
     def test_pxi_never_registers_it(self) -> None:
-        """PXI's writes go through `phoenix-gql`, which asks the user first."""
+        """PXI's writes go through `phoenix-gql`, which asks the user first.
+
+        Its call site leaves the flag at its default, so the default must stay off.
+        """
         source = Path(phoenix.server.app.__file__).read_text()
         start = source.index("pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(")
         call_site = source[start : source.index("\n        )", start)]
         assert "graphql_tools=" in call_site
         assert "graphql_mutations=" not in call_site
+        signature = inspect.signature(phoenix.server.mcp_server.build_phoenix_mcp_server)
+        assert signature.parameters["graphql_mutations"].default is False
