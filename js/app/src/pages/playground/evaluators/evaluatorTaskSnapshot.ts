@@ -120,6 +120,7 @@ export function getEvaluatorTaskPreview({
     return {
       inlineCodeEvaluator: {
         name,
+        description: evaluator.description,
         language: code.language,
         sourceCode: code.sourceCode,
         sandboxConfigId: code.sandboxConfigId,
