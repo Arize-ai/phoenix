@@ -18,12 +18,14 @@ import {
   Button,
   Card,
   CardCollapsedPreview,
+  Counter,
   Flex,
   Heading,
   Icon,
   Icons,
   Loading,
   LoadMoreButton,
+  RichTooltip,
   SegmentedControl,
   SegmentedControlItem,
   Tab,
@@ -32,6 +34,9 @@ import {
   Tabs,
   Text,
   Token,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
@@ -79,8 +84,10 @@ import type { ProjectEvaluatorScopePanelTracesQuery } from "@phoenix/pages/proje
 import { getEvaluatorMetadataEntries } from "@phoenix/pages/project/evaluators/evaluatorBoundVariables";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import {
+  formatMissingBindingMessage,
   getProjectEvaluatorMappingDiagnostics,
   toEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorMappingDiagnostic,
   type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
@@ -1158,7 +1165,34 @@ const runListCSS = css`
   }
 `;
 
-function RecordedRunRow({
+/**
+ * What each declared variable resolves to on one record, derived once so the
+ * collapsed row's error count and the expanded rows read the same list.
+ */
+function useEvaluatorMappingDiagnostics({
+  context,
+  inputMapping,
+  requiredVariables,
+}: {
+  context: unknown;
+  inputMapping: EvaluatorInputMapping;
+  requiredVariables?: string[];
+}): ProjectEvaluatorMappingDiagnostic[] {
+  const declaredVariables = useEvaluatorInputVariables();
+  const variables =
+    declaredVariables.length === 0 && isStringKeyedObject(context)
+      ? Object.keys(context)
+      : declaredVariables;
+  return getProjectEvaluatorMappingDiagnostics({
+    context,
+    pathMapping: inputMapping.pathMapping,
+    variables,
+    requiredVariables,
+  });
+}
+
+/** @internal Exported for testing the collapsed-row status. */
+export function RecordedRunRow({
   row,
   recordNoun,
   isExpanded,
@@ -1181,14 +1215,56 @@ function RecordedRunRow({
 }) {
   const isRunning = run?.status === "running";
   const isUnavailable = row.unavailableReason != null;
+  const diagnostics = useEvaluatorMappingDiagnostics({
+    context: row.context,
+    inputMapping,
+    requiredVariables,
+  });
+  const missingDiagnostics = isUnavailable
+    ? []
+    : diagnostics.filter(({ status }) => status === "missing");
   return (
     <li>
       <Card
         collapsible
+        // The error count carries a tooltip trigger, which cannot nest inside
+        // the collapse button.
+        interactiveTitle
+        // Names the bare arrow itself; left unset it would borrow the title,
+        // error count included.
+        collapseButtonLabel={`Toggle ${row.name}`}
         isOpen={isExpanded}
         onOpenChange={onToggleExpanded}
         title={
           <>
+            {missingDiagnostics.length > 0 ? (
+              <TooltipTrigger delay={750}>
+                {/* Error counter remains clickable to open the header. */}
+                <TriggerWrap onPress={onToggleExpanded}>
+                  <Counter variant="danger">
+                    {missingDiagnostics.length}
+                  </Counter>
+                </TriggerWrap>
+                <RichTooltip placement="bottom">
+                  <TooltipArrow />
+                  <Flex direction="column" gap="size-50">
+                    {missingDiagnostics.map((diagnostic) => (
+                      <Flex
+                        key={diagnostic.variable}
+                        direction="row"
+                        gap="size-100"
+                        alignItems="center"
+                      >
+                        <Icon svg={<Icons.CloseCircle />} color="danger" />
+                        <Text size="S">
+                          {formatMissingBindingMessage(diagnostic, recordNoun)}
+                        </Text>
+                      </Flex>
+                    ))}
+                  </Flex>
+                </RichTooltip>
+              </TooltipTrigger>
+            ) : null}
             {row.spanKind ? (
               <SpanKindToken spanKind={row.spanKind} size="S" />
             ) : null}
@@ -1248,7 +1324,7 @@ function RecordedRunRow({
                 <Tabs defaultSelectedKey="values">
                   <TabList>
                     <Tab id="values">Values</Tab>
-                    <Tab id="context">Context</Tab>
+                    <Tab id="context">Raw</Tab>
                   </TabList>
                   <TabPanel id="values">
                     <Flex direction="column" gap="size-200">
@@ -1371,15 +1447,24 @@ const contextViewerCSS = css`
   }
 `;
 
-type BindingRow = {
+type BindingRowBase = {
   keyword: string;
   path?: string;
   /** One line on the name, shown on hover. */
   description?: string;
-  /** Stands in for the value until a record supplies one. */
-  typeHint?: string;
-  value: unknown;
 };
+
+type BindingRow =
+  | (BindingRowBase & {
+      variant?: "default";
+      /** Stands in for the value until a record supplies one. */
+      typeHint?: string;
+      value: unknown;
+    })
+  | (BindingRowBase & {
+      variant: "error";
+      message: string;
+    });
 
 /**
  * What one record binds, read off the shared materialization.
@@ -1400,15 +1485,9 @@ export function BindingPreview({
   requiredVariables?: string[];
   isSampleContext: boolean;
 }) {
-  const declaredVariables = useEvaluatorInputVariables();
-  const variables =
-    declaredVariables.length === 0 && isStringKeyedObject(context)
-      ? Object.keys(context)
-      : declaredVariables;
-  const diagnostics = getProjectEvaluatorMappingDiagnostics({
+  const diagnostics = useEvaluatorMappingDiagnostics({
     context,
-    pathMapping: inputMapping.pathMapping,
-    variables,
+    inputMapping,
     requiredVariables,
   });
   // The preview binds what a live run binds because it is the same
@@ -1429,24 +1508,54 @@ export function BindingPreview({
         : {}),
       value: entry.value,
     })) ?? [];
-  const mappedRows: BindingRow[] = diagnostics
-    .filter(
-      ({ status, source, variable }) =>
-        status === "resolved" &&
-        source === "path" &&
-        !EVALUATOR_SLOT_NAMES.includes(variable as EvaluatorSlotName)
-    )
-    .map((diagnostic) => {
+  const errorRows = new Map(
+    diagnostics
+      .filter(({ status }) => status === "missing")
+      .map((diagnostic): [string, BindingRow] => [
+        diagnostic.variable,
+        {
+          variant: "error",
+          keyword: diagnostic.variable,
+          message: formatMissingBindingMessage(diagnostic, grain),
+        },
+      ])
+  );
+  const slotKeywords = new Set(slotRows.map(({ keyword }) => keyword));
+  // Slots keep the order the mapping form lists them in, each replaced in
+  // place by its error when it fails to bind. Authored variables follow in the
+  // order they are declared, so a missing one sits where its name falls rather
+  // than in a cluster at the end.
+  const rows: BindingRow[] = [
+    ...slotRows.map((row) => errorRows.get(row.keyword) ?? row),
+    ...diagnostics.flatMap((diagnostic): BindingRow[] => {
+      if (slotKeywords.has(diagnostic.variable)) {
+        return [];
+      }
+      const errorRow = errorRows.get(diagnostic.variable);
+      if (errorRow) {
+        return [errorRow];
+      }
+      if (
+        diagnostic.status !== "resolved" ||
+        diagnostic.source !== "path" ||
+        EVALUATOR_SLOT_NAMES.includes(diagnostic.variable as EvaluatorSlotName)
+      ) {
+        return [];
+      }
       const resolution = resolveEvaluatorPath({
         source: isStringKeyedObject(context) ? context : {},
         path: diagnostic.path,
       });
-      return {
-        keyword: diagnostic.variable,
-        path: diagnostic.path,
-        value: resolution.status === "resolved" ? resolution.value : undefined,
-      };
-    });
+      return [
+        {
+          keyword: diagnostic.variable,
+          path: diagnostic.path,
+          value:
+            resolution.status === "resolved" ? resolution.value : undefined,
+        },
+      ];
+    }),
+  ];
   const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
   const toggle = (keyword: string) =>
     setExpandedKeyword((current) => (current === keyword ? null : keyword));
@@ -1457,7 +1566,9 @@ export function BindingPreview({
           No matching {grain} yet; values are empty.
         </Alert>
       ) : null}
-      {[...slotRows, ...mappedRows].map((row) =>
+      {rows.map((row) =>
+        // The tree stays reachable when `metadata` itself fails to bind: it is
+        // where an author browses for the path they meant.
         row.keyword === EVALUATOR_METADATA_SLOT && evaluationContext ? (
           <BindingPreviewRow
             key={row.keyword}
@@ -1477,18 +1588,8 @@ export function BindingPreview({
         )
       )}
 
-      {diagnostics.map(({ variable, path, status, source }) =>
-        status === "missing" ? (
-          <Alert
-            key={variable}
-            variant="danger"
-            title={`${variable} would fail on this ${grain}`}
-          >
-            {source === "path"
-              ? `Nothing matches ${path}. No annotation is written.`
-              : `This ${grain} has no ${variable}. No annotation is written.`}
-          </Alert>
-        ) : status === "unverified" ? (
+      {diagnostics.map(({ variable, path, status }) =>
+        status === "unverified" ? (
           <Alert
             key={variable}
             variant="warning"
@@ -1602,40 +1703,32 @@ function BindingPreviewRow({
   /** Rendered in place of the raw value when the row opens onto a tree. */
   children?: ReactNode;
 }) {
-  const isTextValue = typeof row.value === "string";
-  const isExpandable = children != null || isExpandableBindingValue(row.value);
-  const display = toBoundValueDisplay(row.value);
-  // A row bound to the key it is already labeled with — a slot left on its
-  // default — has no origin to point at, so the value stands alone.
-  const annotation =
-    row.path && row.path !== row.keyword ? (
-      <code className="binding-row__path">← {row.path}</code>
-    ) : null;
+  // An error row has no value to show or open onto; it expands only when a
+  // caller hands it a tree, as the `metadata` slot does.
+  const isExpandable =
+    children != null ||
+    (row.variant !== "error" && isExpandableBindingValue(row.value));
   const head = (
-    <>
-      <code className="binding-row__keyword" title={row.description}>
-        {row.keyword}
-      </code>
-      {annotation}
-      {isExpandable && isExpanded ? null : (
-        <span className="binding-row__value" title={display.exact}>
-          {display.text ?? row.typeHint ?? "—"}
-        </span>
-      )}
-    </>
+    <BindingRowHead row={row} showValue={!(isExpandable && isExpanded)} />
   );
   if (!isExpandable) {
     return (
-      <div css={bindingRowCSS}>
+      <div css={bindingRowCSS} data-variant={row.variant}>
         <div className="binding-row__toggle binding-row__toggle--static">
-          <span className="binding-row__chevron-spacer" />
+          {row.variant === "error" ? null : (
+            <span className="binding-row__chevron-spacer" />
+          )}
           {head}
         </div>
       </div>
     );
   }
   return (
-    <div css={bindingRowCSS} data-expanded={isExpanded}>
+    <div
+      css={bindingRowCSS}
+      data-variant={row.variant}
+      data-expanded={isExpanded}
+    >
       <button
         type="button"
         className="binding-row__toggle"
@@ -1650,17 +1743,66 @@ function BindingPreviewRow({
       {isExpanded ? (
         <div className="binding-row__detail">
           {children ??
-            (isTextValue ? (
-              <pre className="binding-row__text">{String(row.value)}</pre>
-            ) : (
-              <JSONBlock
-                value={JSON.stringify(row.value, null, 2) ?? "undefined"}
-                basicSetup={{ lineNumbers: false }}
-              />
+            (row.variant === "error" ? null : (
+              <BoundValueDetail value={row.value} />
             ))}
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** The row's one-line summary: keyword, origin, and value or error. */
+function BindingRowHead({
+  row,
+  showValue,
+}: {
+  row: BindingRow;
+  /** False while the row is open onto its detail, where the value lives. */
+  showValue: boolean;
+}) {
+  if (row.variant === "error") {
+    return (
+      <>
+        <Icon svg={<Icons.CloseCircle />} color="danger" aria-label="error" />
+        <code className="binding-row__keyword">{row.keyword}</code>
+        <span className="binding-row__error-message" title={row.message}>
+          {row.message}
+        </span>
+      </>
+    );
+  }
+  const display = toBoundValueDisplay(row.value);
+  // A row bound to the key it is already labeled with — a slot left on its
+  // default — has no origin to point at, so the value stands alone.
+  const annotation =
+    row.path && row.path !== row.keyword ? (
+      <code className="binding-row__path">← {row.path}</code>
+    ) : null;
+  return (
+    <>
+      <code className="binding-row__keyword" title={row.description}>
+        {row.keyword}
+      </code>
+      {annotation}
+      {showValue ? (
+        <span className="binding-row__value" title={display.exact}>
+          {display.text ?? row.typeHint ?? "—"}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/** The raw bound value, as text or as a JSON tree. */
+function BoundValueDetail({ value }: { value: unknown }) {
+  return typeof value === "string" ? (
+    <pre className="binding-row__text">{value}</pre>
+  ) : (
+    <JSONBlock
+      value={JSON.stringify(value, null, 2) ?? "undefined"}
+      basicSetup={{ lineNumbers: false }}
+    />
   );
 }
 
@@ -1723,6 +1865,22 @@ const bindingRowCSS = css`
     font-family: var(--global-font-family-code, monospace);
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-700);
+  }
+  &[data-variant="error"] {
+    .binding-row__keyword {
+      color: var(--global-text-color-300);
+    }
+  }
+  .binding-row__error-message {
+    margin-left: auto;
+    text-align: right;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--global-font-size-xs);
+    color: var(--global-color-danger);
   }
   .binding-row__detail {
     border-top: 1px solid var(--global-border-color-default);
