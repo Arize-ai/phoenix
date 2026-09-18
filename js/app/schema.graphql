@@ -85,7 +85,7 @@ input AddProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1018,7 +1018,7 @@ input CreateProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -1044,7 +1044,7 @@ input CreateProjectLLMEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
 }
@@ -3399,7 +3399,7 @@ type ProjectEvaluator implements Node {
   annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. New project evaluators store the default of 300 seconds when no value is provided. A trace or session is evaluated only once, and later activity does not schedule another evaluation. The delay applies to TRACE and SESSION targets and is rejected for SPAN.
+  Seconds a trace or session must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. When no value is provided, TRACE and SESSION evaluators store the default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation. The delay applies to TRACE and SESSION targets; SPAN evaluators store 0 because spans are evaluated as they arrive, and an explicit delay is rejected for them.
   """
   evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!
@@ -5346,7 +5346,7 @@ input UpdateProjectCodeEvaluatorInput {
   inputMapping: EvaluatorInputMappingInput
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
 }
@@ -5367,7 +5367,7 @@ input UpdateProjectLLMEvaluatorInput {
   promptVersionId: ID
 
   """
-  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to store the current default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
 }

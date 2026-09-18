@@ -389,11 +389,11 @@ def upgrade() -> None:
             "evaluation_delay_seconds",
             sa.Integer(),
             sa.CheckConstraint(
-                "evaluation_delay_seconds >= 10",
+                "(evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0) OR "
+                "(evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= 10)",
                 name="valid_evaluation_delay_seconds",
             ),
             nullable=False,
-            server_default="300",
         ),
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),

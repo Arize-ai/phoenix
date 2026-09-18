@@ -243,7 +243,7 @@ async def test_project_code_evaluator_crud_and_connection(
     assert create_result.data and not create_result.errors
     created = create_result.data["createProjectCodeEvaluator"]["evaluator"]
     assert created["evaluationTarget"] == "SPAN"
-    assert created["evaluationDelaySeconds"] == 300
+    assert created["evaluationDelaySeconds"] == 0  # SPAN evaluators store no quiet period
     assert created["inputMapping"] == _mapping(output="value")
     assert created["evaluator"]["kind"] == "CODE"
 
@@ -351,12 +351,12 @@ async def test_project_code_evaluator_crud_and_connection(
     assert inherited_result.data and not inherited_result.errors
     inherited = inherited_result.data["updateProjectCodeEvaluator"]["evaluator"]
     assert inherited["inputMapping"] == _mapping(output="inherited")
-    assert inherited["evaluationDelaySeconds"] == 300
+    assert inherited["evaluationDelaySeconds"] == 0
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
         assert project_evaluator.input_mapping is None
-        assert project_evaluator.evaluation_delay_seconds == 300
+        assert project_evaluator.evaluation_delay_seconds == 0
 
     delete_result = await gql_client.execute(
         _DELETE,
@@ -967,7 +967,7 @@ async def test_evaluation_delay_rejected_before_project_evaluator_writes(
         code_criteria = await session.get(models.ProjectEvaluator, code_criteria_id)
         llm_criteria = await session.get(models.ProjectEvaluator, llm_criteria_id)
         assert code_criteria is not None and llm_criteria is not None
-        assert code_criteria.evaluation_delay_seconds == 300
+        assert code_criteria.evaluation_delay_seconds == 0
         assert llm_criteria.evaluation_delay_seconds == 300
 
 
@@ -1018,7 +1018,7 @@ async def test_evaluation_delay_rejected_for_span_project_evaluators(
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
-        assert project_evaluator.evaluation_delay_seconds == 300
+        assert project_evaluator.evaluation_delay_seconds == 0
 
 
 async def test_evaluation_target_change_rejected_from_creation(
