@@ -189,6 +189,11 @@ def register_graphql_tools(mcp: FastMCP, *, app: "FastAPI", allow_mutations: boo
         the input types the mutation requires, which are not guessable from the
         name, and says what the mutation does.
 
+        Pass input values through `variables`, declared as the input types that
+        lookup names. A document over 2 KiB of UTF-8 is refused unexecuted;
+        variable values do not count toward that limit and need no GraphQL
+        string escaping.
+
         Returns the same two shapes as `executeGraphqlQuery`: `{data, errors}`
         when the operation ran, `{error: {code, message}}` when it was refused
         and never ran. A mutation that reports `errors` may still have committed
