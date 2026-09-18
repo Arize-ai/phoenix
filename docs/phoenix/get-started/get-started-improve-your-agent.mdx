@@ -16,7 +16,11 @@ After completing previous guides, you should have:
 - At least one evaluation defined and logged
 
 <Tabs>
+  <Tab title="In the Prompt Playground">
+
+  <Tabs>
   <Tab title="Python">
+
 
 ---
 <Info>
@@ -28,11 +32,9 @@ After completing previous guides, you should have:
 
 <Steps>
   <Step title={<span className="step-title">Create a Dataset from Failed Traces</span>}>
-    Start by grouping together the traces that didn’t perform well.
-
     A dataset collects a specific set of traces so you can analyze them together and reuse them later for testing. Build one from the traces that received an **incomplete** evaluation label, and you have a fixed set of failures to test every future change against.
 
-    Datasets can be created in code, but this walkthrough uses the Phoenix UI. To do it programmatically, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
+    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
 
     ### **Create a Dataset in the UI**
 
@@ -44,8 +46,6 @@ After completing previous guides, you should have:
     3. Select the spans you want to include.
     4. Click Create Dataset and give it a name.
     5. Add the selected spans to the dataset you just created.
-
-    This dataset now represents a concrete failure case for your agent.
 
     <Frame caption="Create a New Dataset & add Examples">
     <video
@@ -67,11 +67,7 @@ After completing previous guides, you should have:
   </Step>
 
   <Step title={<span className="step-title">Make the Change and Run It</span>}>
-    Two paths from here. The Prompt Playground edits the prompt in the Phoenix UI without code. The code path edits the agent’s own instructions and runs the experiment from the SDK.
-
-    <Tabs>
-    <Tab title="In the Prompt Playground">
-    Start from a real prompt the agent actually used.
+    The Prompt Playground edits the prompt in the Phoenix UI without code. The code path edits the agent’s own instructions and runs the experiment from the SDK.
 
     Traces capture the exact prompts sent to the model, along with their context and outputs. Saving one from a trace gives you a real starting point for iteration.
 
@@ -131,8 +127,6 @@ After completing previous guides, you should have:
     2. Run it to preview how outputs change.
     3. Save the new version as a separate prompt in the Prompt Hub.
 
-    Saving prompt variants makes it easy to track changes and compare different approaches over time.
-
     <Frame caption="Update Prompt & Run a Comparison in Prompt Playground">
     <video
       controls
@@ -142,129 +136,12 @@ After completing previous guides, you should have:
     </Frame>
 
     Every playground run against the dataset is logged as an experiment, so the next step can compare both versions.
-    </Tab>
-    <Tab title="In code">
-    ### **Update the Agent Instructions**
-
-    This example strengthens the agents' backstory instructions, giving the model clearer guidance on what a good response looks like.
-
-    Below is an example of tightening the agent backstory to be more explicit about the expected output.
-
-    ```python
-    researcher = Agent(
-            role="Financial Research Analyst",
-            goal="""Gather up-to-date financial data, trends, and news for the target companies/markets.
-            Make sure to include more than 1 financial ratios (such as P/E or P/B), news from the last 6 months, and current stock price or performance data.""",
-            backstory="""
-                You are a Senior Financial Research Analyst.
-            """,
-            verbose=True,
-            allow_delegation=False,
-            max_iter=2,
-            tools=[search_tool],
-            )
-
-    writer = Agent(
-        role="Financial Report Writer",
-        goal="Compile and summarize financial research into clear, actionable insights. If there are multiple tickers, make sure to include a dedicated comparison section.",
-        backstory="""
-            You are an experienced financial content writer.
-        """,
-        verbose=True,
-        allow_delegation=True,
-        max_iter=1
-    )
-    ```
-
-    Create an updated crew with these new, updated agents.
-
-    ```python
-    updated_crew = Crew(
-    	agents=[researcher, writer],
-        tasks=[task1, task2],
-        verbose=True,
-        process=Process.sequential,
-    )
-    ```
-
-    That is a targeted change, driven by the explanations for why these traces were classified as real failures.
-
-    ### **Define an Experiment**
-
-    With the agent updated, run the new flow to test whether the change improves quality.
-
-    An experiment reruns the same inputs through different versions of your agent and compares the results side by side, so improvements are measured rather than assumed.
-
-    To define an experiment, we need to specify:
-
-    - **The experiment task**
-
-      A task is a function or process that takes each example from a dataset and produces an output, typically by running your agent logic or model on the input.
-
-    - **The experiment evaluation**
-
-      An experiment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
-
-    Here the task reruns the agent with the updated instructions. That produces new outputs for the same inputs, so rerun the same evaluation to compare the two directly.
-
-    ```python
-    def my_task(example):
-        result = updated_crew.kickoff(inputs=example.input)
-        return result
-    ```
-
-    ```python
-    from phoenix.evals import ClassificationEvaluator
-
-    completeness_evaluator = ClassificationEvaluator(
-        name="completeness",
-        prompt_template=financial_completeness_template,
-        llm=llm,
-        choices={"complete": 1.0, "incomplete": 0.0},
-    )
-
-    completeness_evaluator.bind(
-        {
-            "attributes.input.value": "input",
-            "attributes.output.value": "output",
-        }
-    )
-
-    evaluators = [completeness_evaluator]
-    ```
-
-    ### **Run the Experiment on the Dataset**
-
-    Pull down the dataset you created earlier and run the experiment on it.
-
-    That tests the new version of the agent against the exact inputs that previously failed.
-
-    ```python
-    from phoenix.client import Client
-
-    client = Client()
-    dataset = client.datasets.get_dataset(dataset="python quickstart fails")
-    ```
-
-    Then run the experiment:
-
-    ```python
-    experiment = client.experiments.run_experiment(dataset=dataset, task=my_task, evaluators=evaluators)
-    ```
-
-    Once this completes, Phoenix logs the experiment results automatically.
-    </Tab>
-    </Tabs>
   </Step>
 
   <Step title={<span className="step-title">Compare Versions in the Experiments View</span>}>
-    With two versions in hand, compare them in a structured way to see how the results differ.
-
-    <Tabs>
-    <Tab title="In the Prompt Playground">
     Both playground runs are logged as experiments, so you can compare them side by side.
 
-    1. Navigate to the Datasets page and click on the dataset we made earlier in this guide.
+    1. Navigate to the Datasets page and click on the dataset you made earlier.
     2. You should see 3 experiment runs, the first from your baseline run and the two most recent from your new prompt comparison run.
     3. Click on the second one and at the top of the page, under comparison select experiment #3.
 
@@ -275,35 +152,17 @@ After completing previous guides, you should have:
       src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompt%20playground%20experiment%20view.mp4"
     />
     </Frame>
-    </Tab>
-    <Tab title="In code">
-    Head back to Phoenix and open the **Experiments** view.
 
-    Here, you can see:
-
-    - The original runs compared against the new ones under 'reference output'
-    - New agent runs produced by your task
-    - Evaluation results for each version
-
-    <Frame caption="View Experiment Results">
-      <video
-        controls
-        className="w-full aspect-video rounded-xl"
-        src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
-      />
-    </Frame>
-    </Tab>
-    </Tabs>
-
-    In this example, we should see more traces receiving a **complete** label, indicating that the changes improved performance.
+    You should see more traces receiving a **complete** label, indicating the change improved performance.
 
     **Congratulations!** You’ve created your first dataset, changed your agent, and run an experiment to see the effect of that change.
   </Step>
 </Steps>
 
-  </Tab>
 
+  </Tab>
   <Tab title="TypeScript">
+
 
 ---
 <Info>
@@ -313,11 +172,9 @@ After completing previous guides, you should have:
 
 <Steps>
   <Step title={<span className="step-title">Create a Dataset from Failed Traces</span>}>
-    Start by grouping together the traces that didn’t perform well.
-
     A dataset collects a specific set of traces so you can analyze them together and reuse them later for testing. Build one from the traces that received an **incomplete** evaluation label, and you have a fixed set of failures to test every future change against.
 
-    Datasets can be created in code, but this walkthrough uses the Phoenix UI. To do it programmatically, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
+    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
 
     ### **Create a Dataset in the UI**
 
@@ -329,8 +186,6 @@ After completing previous guides, you should have:
     3. Select the spans you want to include.
     4. Click Create Dataset and give it a name.
     5. Add the selected spans to the dataset you just created.
-
-    This dataset now represents a concrete failure case for your agent.
 
     <Frame caption="Create a New Dataset & add Examples">
     <video
@@ -352,11 +207,7 @@ After completing previous guides, you should have:
   </Step>
 
   <Step title={<span className="step-title">Make the Change and Run It</span>}>
-    Two paths from here. The Prompt Playground edits the prompt in the Phoenix UI without code. The code path edits the agent’s own instructions and runs the experiment from the SDK.
-
-    <Tabs>
-    <Tab title="In the Prompt Playground">
-    Start from a real prompt the agent actually used.
+    The Prompt Playground edits the prompt in the Phoenix UI without code. The code path edits the agent’s own instructions and runs the experiment from the SDK.
 
     Traces capture the exact prompts sent to the model, along with their context and outputs. Saving one from a trace gives you a real starting point for iteration.
 
@@ -410,8 +261,6 @@ After completing previous guides, you should have:
     2. Run it to preview how outputs change.
     3. Save the new version as a separate prompt in the Prompt Hub.
 
-    Saving prompt variants makes it easy to track changes and compare different approaches over time.
-
     <Frame caption="Update Prompt & Run a Comparison in Prompt Playground">
     <video
       controls
@@ -421,8 +270,269 @@ After completing previous guides, you should have:
     </Frame>
 
     Every playground run against the dataset is logged as an experiment, so the next step can compare both versions.
-    </Tab>
-    <Tab title="In code">
+  </Step>
+
+  <Step title={<span className="step-title">Compare Versions in the Experiments View</span>}>
+    Both playground runs are logged as experiments, so you can compare them side by side.
+
+    1. Navigate to the Datasets page and click on the dataset you made earlier.
+    2. You should see 3 experiment runs, the first from your baseline run and the two most recent from your new prompt comparison run.
+    3. Click on the second one and at the top of the page, under comparison select experiment #3.
+
+    <Frame caption="View Prompt Playground Runs through Experiment View">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-view-experiment.mp4"
+    />
+    </Frame>
+
+    You should see more traces receiving a **complete** label, indicating the change improved performance.
+
+    **Congratulations!** You’ve created your first dataset, changed your agent, and run an experiment to see the effect of that change.
+  </Step>
+</Steps>
+
+
+  </Tab>
+  </Tabs>
+
+  </Tab>
+  <Tab title="In code">
+
+  <Tabs>
+  <Tab title="Python">
+
+
+---
+<Info>
+  **Follow along with code**: This guide has a companion notebook with runnable
+  code examples. Find it
+  [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/python_quickstart.ipynb).
+</Info>
+---
+
+<Steps>
+  <Step title={<span className="step-title">Create a Dataset from Failed Traces</span>}>
+    A dataset collects a specific set of traces so you can analyze them together and reuse them later for testing. Build one from the traces that received an **incomplete** evaluation label, and you have a fixed set of failures to test every future change against.
+
+    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
+
+    ### **Create a Dataset in the UI**
+
+    1. Navigate to your project in Phoenix.
+    2. Filter the spans table by the incomplete evaluation label.
+
+       `evals['completeness'].label == 'incomplete'`
+
+    3. Select the spans you want to include.
+    4. Click Create Dataset and give it a name.
+    5. Add the selected spans to the dataset you just created.
+
+    <Frame caption="Create a New Dataset & add Examples">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/make%20dataset%20python%20quickstart.mp4"
+    />
+    </Frame>
+  </Step>
+
+  <Step title={<span className="step-title">Use Explanations to Identify Improvements</span>}>
+    The dataset groups the failures. Now decide which issue to fix.
+
+    The explanations your evals produced, read alongside the trace context, tell you why these runs failed. Look through the traces in this dataset for patterns: unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
+
+    Open the trace view for a failed run and click into a trace. The annotations column holds the evaluation’s explanation for labeling that answer "incomplete".
+
+    In this example the explanations point at one cause: the report lacked financial ratios. That is the change to make.
+  </Step>
+
+  <Step title={<span className="step-title">Make the Change and Run It</span>}>
+    The Prompt Playground edits the prompt in the Phoenix UI without code. The code path edits the agent’s own instructions and runs the experiment from the SDK.
+
+    ### **Update the Agent Instructions**
+
+    This example strengthens the agents' backstory instructions, giving the model clearer guidance on what a good response looks like.
+
+    Below is an example of tightening the agent backstory to be more explicit about the expected output.
+
+    ```python
+    researcher = Agent(
+            role="Financial Research Analyst",
+            goal="""Gather up-to-date financial data, trends, and news for the target companies/markets.
+            Make sure to include more than 1 financial ratios (such as P/E or P/B), news from the last 6 months, and current stock price or performance data.""",
+            backstory="""
+                You are a Senior Financial Research Analyst.
+            """,
+            verbose=True,
+            allow_delegation=False,
+            max_iter=2,
+            tools=[search_tool],
+            )
+
+    writer = Agent(
+        role="Financial Report Writer",
+        goal="Compile and summarize financial research into clear, actionable insights. If there are multiple tickers, make sure to include a dedicated comparison section.",
+        backstory="""
+            You are an experienced financial content writer.
+        """,
+        verbose=True,
+        allow_delegation=True,
+        max_iter=1
+    )
+    ```
+
+    Create an updated crew with these new, updated agents.
+
+    ```python
+    updated_crew = Crew(
+    	agents=[researcher, writer],
+        tasks=[task1, task2],
+        verbose=True,
+        process=Process.sequential,
+    )
+    ```
+
+    That is a targeted change, driven by the explanations for why these traces were classified as real failures.
+
+    ### **Define an Experiment**
+
+    With the agent updated, run the new flow to test whether the change improves quality.
+
+    An experiment needs two things:
+
+    - **The experiment task**
+
+      A task takes each example from the dataset and produces an output, usually by running your agent on the input.
+
+    - **The experiment evaluation**
+
+      An experiment evaluation works like any other evaluation, but scores a task's output, often against an expected result or a scoring metric.
+
+    Here the task reruns the agent with the updated instructions. That produces new outputs for the same inputs, so rerun the same evaluation to compare the two directly.
+
+    ```python
+    def my_task(example):
+        result = updated_crew.kickoff(inputs=example.input)
+        return result
+    ```
+
+    ```python
+    from phoenix.evals import ClassificationEvaluator
+
+    completeness_evaluator = ClassificationEvaluator(
+        name="completeness",
+        prompt_template=financial_completeness_template,
+        llm=llm,
+        choices={"complete": 1.0, "incomplete": 0.0},
+    )
+
+    completeness_evaluator.bind(
+        {
+            "attributes.input.value": "input",
+            "attributes.output.value": "output",
+        }
+    )
+
+    evaluators = [completeness_evaluator]
+    ```
+
+    ### **Run the Experiment on the Dataset**
+
+    Pull down the dataset you created earlier.
+
+    That tests the new version of the agent against the exact inputs that previously failed.
+
+    ```python
+    from phoenix.client import Client
+
+    client = Client()
+    dataset = client.datasets.get_dataset(dataset="python quickstart fails")
+    ```
+
+    Then run the experiment:
+
+    ```python
+    experiment = client.experiments.run_experiment(dataset=dataset, task=my_task, evaluators=evaluators)
+    ```
+
+    Once this completes, Phoenix logs the experiment results automatically.
+  </Step>
+
+  <Step title={<span className="step-title">Compare Versions in the Experiments View</span>}>
+    Head back to Phoenix and open the **Experiments** view.
+
+    Here, you can see:
+
+    - The original runs compared against the new ones under 'reference output'
+    - New agent runs produced by your task
+    - Evaluation results for each version
+
+    <Frame caption="View Experiment Results">
+      <video
+        controls
+        className="w-full aspect-video rounded-xl"
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
+      />
+    </Frame>
+
+    You should see more traces receiving a **complete** label, indicating the change improved performance.
+
+    **Congratulations!** You’ve created your first dataset, changed your agent, and run an experiment to see the effect of that change.
+  </Step>
+</Steps>
+
+
+  </Tab>
+  <Tab title="TypeScript">
+
+
+---
+<Info>
+  **Follow along with code**: This guide has a companion codebase with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/mastra-quickstart).
+</Info>
+---
+
+<Steps>
+  <Step title={<span className="step-title">Create a Dataset from Failed Traces</span>}>
+    A dataset collects a specific set of traces so you can analyze them together and reuse them later for testing. Build one from the traces that received an **incomplete** evaluation label, and you have a fixed set of failures to test every future change against.
+
+    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
+
+    ### **Create a Dataset in the UI**
+
+    1. Navigate to your project in Phoenix.
+    2. Filter the spans table by the incomplete evaluation label.
+
+       `evals['completeness'].label == 'incomplete'`
+
+    3. Select the spans you want to include.
+    4. Click Create Dataset and give it a name.
+    5. Add the selected spans to the dataset you just created.
+
+    <Frame caption="Create a New Dataset & add Examples">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-dataset.mp4"
+    />
+    </Frame>
+  </Step>
+
+  <Step title={<span className="step-title">Use Explanations to Identify Improvements</span>}>
+    The dataset groups the failures. Now decide which issue to fix.
+
+    The explanations your evals produced, read alongside the trace context, tell you why these runs failed. Look through the traces in this dataset for patterns: unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
+
+    Open the trace view for a failed run and click into a trace. The annotations column holds the evaluation’s explanation for labeling that answer "incomplete".
+
+    In this example the explanations point at one cause: the report lacked financial ratios. That is the change to make.
+  </Step>
+
+  <Step title={<span className="step-title">Make the Change and Run It</span>}>
+    The Prompt Playground edits the prompt in the Phoenix UI without code. The code path edits the agent’s own instructions and runs the experiment from the SDK.
+
     ### **Update the Agent Instructions**
 
     This example strengthens the agent's instructions, giving the model clearer guidance on what a good response looks like.
@@ -487,17 +597,15 @@ After completing previous guides, you should have:
 
     With the agent updated, run the new flow to test whether the change improves quality.
 
-    An experiment reruns the same inputs through different versions of your agent and compares the results side by side, so improvements are measured rather than assumed.
-
-    To define an experiment, we need to specify:
+    An experiment needs two things:
 
     - **The experiment task**
 
-      A task is a function or process that takes each example from a dataset and produces an output, typically by running your agent logic or model on the input.
+      A task takes each example from the dataset and produces an output, usually by running your agent on the input.
 
     - **The experiment evaluation**
 
-      An experiment evaluation is essentially the same as a regular evaluation, but specifically assesses the quality of a task's output, often by comparing it to an expected result or applying a scoring metric.
+      An experiment evaluation works like any other evaluation, but scores a task's output, often against an expected result or a scoring metric.
 
     Here the task reruns the agent with the updated instructions. That produces new outputs for the same inputs, so rerun the same evaluation to compare the two directly.
 
@@ -529,7 +637,7 @@ After completing previous guides, you should have:
 
     ### **Run the Experiment on the Dataset**
 
-    Specify the dataset you created earlier and run the experiment on it.
+    Specify the dataset you created earlier.
 
     That tests the new version of the agent against the exact inputs that previously failed.
 
@@ -546,30 +654,9 @@ After completing previous guides, you should have:
     ```
 
     Once this completes, Phoenix logs the experiment results automatically.
-    </Tab>
-    </Tabs>
   </Step>
 
   <Step title={<span className="step-title">Compare Versions in the Experiments View</span>}>
-    With two versions in hand, compare them in a structured way to see how the results differ.
-
-    <Tabs>
-    <Tab title="In the Prompt Playground">
-    Both playground runs are logged as experiments, so you can compare them side by side.
-
-    1. Navigate to the Datasets page and click on the dataset we made earlier in this guide.
-    2. You should see 3 experiment runs, the first from your baseline run and the two most recent from your new prompt comparison run.
-    3. Click on the second one and at the top of the page, under comparison select experiment #3.
-
-    <Frame caption="View Prompt Playground Runs through Experiment View">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-view-experiment.mp4"
-    />
-    </Frame>
-    </Tab>
-    <Tab title="In code">
     Head back to Phoenix and open the **Experiments** view.
 
     Here, you can see:
@@ -585,14 +672,16 @@ After completing previous guides, you should have:
       src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-experiment.mp4"
     />
     </Frame>
-    </Tab>
-    </Tabs>
 
-    In this example, we should see more traces receiving a **complete** label, indicating that the changes improved performance.
+    You should see more traces receiving a **complete** label, indicating the change improved performance.
 
     **Congratulations!** You’ve created your first dataset, changed your agent, and run an experiment to see the effect of that change.
   </Step>
 </Steps>
+
+
+  </Tab>
+  </Tabs>
 
   </Tab>
 </Tabs>
