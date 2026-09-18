@@ -26,7 +26,10 @@ import {
 import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
-import { projectEvaluatorCompareLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
+import {
+  projectEvaluatorCompareLoader,
+  shouldRevalidateProjectEvaluatorCompare,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
 import { ProjectEvaluatorComparePage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorComparePage";
 import {
   PROJECT_EVALUATOR_COMPARE_ROUTE_ID,
@@ -678,6 +681,7 @@ export const appRouteObjects = createRoutesFromElements(
                 path="compare"
                 element={<ProjectEvaluatorComparePage />}
                 loader={projectEvaluatorCompareLoader}
+                shouldRevalidate={shouldRevalidateProjectEvaluatorCompare}
                 handle={{
                   crumb: (data: ProjectEvaluatorCompareLoaderData) =>
                     data?.evaluatorAName && data?.evaluatorBName
