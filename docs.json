@@ -61,13 +61,7 @@
               "docs/phoenix/get-started/get-started-tracing",
               "docs/phoenix/get-started/get-started-evaluations",
               "docs/phoenix/get-started/get-started-improve-your-agent",
-              {
-                "group": "Coding agent setup",
-                "pages": [
-                  "docs/phoenix/agent-assisted-setup",
-                  "docs/phoenix/integrations/developer-tools/coding-agents"
-                ]
-              },
+              "docs/phoenix/agent-assisted-setup",
               {
                 "group": "MCP",
                 "pages": [
