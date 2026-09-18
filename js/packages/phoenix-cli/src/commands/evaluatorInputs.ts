@@ -65,6 +65,28 @@ export function parseJsonArrayFlag<T>({
 }
 
 /**
+ * Require a new code evaluator read from `flag` to carry at least one output
+ * config, since the server refuses a code evaluator without one.
+ */
+export function requireCodeEvaluatorOutputConfigs({
+  flag,
+  evaluator,
+}: {
+  flag: string;
+  evaluator: { type?: unknown; output_configs?: unknown };
+}): void {
+  const configs = evaluator.output_configs;
+  if (
+    evaluator.type === "code" &&
+    (!Array.isArray(configs) || configs.length === 0)
+  ) {
+    throw new InvalidArgumentError(
+      `A new code evaluator in ${flag} needs at least one output config, e.g. "output_configs":[{"type":"CONTINUOUS","name":"score","optimization_direction":"MAXIMIZE"}]`
+    );
+  }
+}
+
+/**
  * Resolve text supplied either inline or as a file path. Exactly one of the
  * two must be given.
  */

@@ -17,16 +17,11 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import {
-  ExitCode,
-  exitCodeName,
-  getExitCodeForError,
-  InvalidArgumentError,
-} from "../exitCodes";
+import { ExitCode } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
-import { describeError } from "./evaluatorErrors";
+import { exitWithError, requireValidLimitOrExit } from "./evaluatorErrors";
 import {
   parseJsonArrayFlag,
   parseJsonObjectFlag,
@@ -56,6 +51,8 @@ type VersionConfiguration = Omit<
   "source_code" | "expected_current_version_id"
 >;
 
+const LIST_EVALUATOR_TYPES = ["llm", "code", "builtin"] as const;
+
 const EVALUATOR_TYPES = ["llm", "code"] as const;
 type EvaluatorType = (typeof EVALUATOR_TYPES)[number];
 
@@ -67,7 +64,7 @@ type Language = (typeof LANGUAGES)[number];
  */
 interface EvaluatorListOptions extends CommonOptions<OutputFormat> {
   /**
-   * `--type <llm|code>`: Return only one kind of definition.
+   * `--type <llm|code|builtin>`: Return only one kind of definition.
    *
    * @example "code"
    */
@@ -322,43 +319,6 @@ function exitOnContradiction({
   }
 }
 
-async function exitWithError({
-  verb,
-  error,
-  format,
-}: {
-  verb: string;
-  error: unknown;
-  format?: OutputFormat;
-}): Promise<never> {
-  const exitCode = getExitCodeForError(error);
-  writeStructuredError({
-    format,
-    message: `Error ${verb}: ${await describeError(error)}`,
-    code: exitCodeName(exitCode),
-    hint: error instanceof InvalidArgumentError ? error.hint : undefined,
-  });
-  process.exit(exitCode);
-}
-
-/** Reject a `--limit` that parsed to NaN (zero, negative, fractional, or not a number). */
-function requireValidLimitOrExit({
-  limit,
-  format,
-}: {
-  limit: number | undefined;
-  format?: OutputFormat;
-}): void {
-  if (limit !== undefined && Number.isNaN(limit)) {
-    writeStructuredError({
-      format,
-      message: "--limit must be a positive integer",
-      code: "INVALID_ARGUMENT",
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-}
-
 /**
  * Handler for `evaluator list`
  */
@@ -371,7 +331,7 @@ async function evaluatorListHandler(
       : parseChoiceOrExit({
           flag: "--type",
           value: options.type,
-          allowed: EVALUATOR_TYPES,
+          allowed: LIST_EVALUATOR_TYPES,
           format: options.format,
           normalize: (value) => value.toLowerCase(),
         });
@@ -852,7 +812,10 @@ export function createEvaluatorListCommand(): Command {
       .description(
         "List shared evaluator definitions, newest first. Requires Phoenix server >= 21.0.0."
       )
-      .option("--type <type>", "Only one kind of evaluator: llm or code")
+      .option(
+        "--type <type>",
+        "Only one kind of evaluator: llm, code, or builtin"
+      )
       .option("--name <name>", "Only the evaluator with this exact name")
       .option(
         "--limit <number>",

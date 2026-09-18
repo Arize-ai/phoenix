@@ -1,5 +1,14 @@
 import { formatApiError, HttpError } from "@arizeai/phoenix-client";
 
+import {
+  ExitCode,
+  exitCodeName,
+  getExitCodeForError,
+  InvalidArgumentError,
+} from "../exitCodes";
+import { writeStructuredError } from "../structuredError";
+import type { OutputFormat } from "./formatEvaluator";
+
 const MAX_DETAIL_LENGTH = 500;
 
 /**
@@ -36,4 +45,50 @@ async function readDetail(error: HttpError): Promise<string> {
   return detail.length > MAX_DETAIL_LENGTH
     ? `${detail.slice(0, MAX_DETAIL_LENGTH)}…`
     : detail;
+}
+
+/**
+ * Report a failed command on stderr and exit with the matching code.
+ *
+ * In `json`/`raw` mode the message is a structured `{error, code, hint?}`
+ * envelope so agents can parse it; in pretty mode it is a plain line, followed
+ * by the hint when an `InvalidArgumentError` carries one.
+ *
+ * @param params.verb - What the command was doing, e.g. `"fetching evaluators"`.
+ */
+export async function exitWithError({
+  verb,
+  error,
+  format,
+}: {
+  verb: string;
+  error: unknown;
+  format?: OutputFormat;
+}): Promise<never> {
+  const exitCode = getExitCodeForError(error);
+  writeStructuredError({
+    format,
+    message: `Error ${verb}: ${await describeError(error)}`,
+    code: exitCodeName(exitCode),
+    hint: error instanceof InvalidArgumentError ? error.hint : undefined,
+  });
+  process.exit(exitCode);
+}
+
+/** Reject a `--limit` that parsed to NaN (zero, negative, fractional, or not a number). */
+export function requireValidLimitOrExit({
+  limit,
+  format,
+}: {
+  limit: number | undefined;
+  format?: OutputFormat;
+}): void {
+  if (limit !== undefined && Number.isNaN(limit)) {
+    writeStructuredError({
+      format,
+      message: "--limit must be a positive integer",
+      code: "INVALID_ARGUMENT",
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
 }
