@@ -1915,6 +1915,13 @@ type EvaluatorConnection {
   edges: [EvaluatorEdge!]!
 }
 
+input EvaluatorDefinitionInput @oneOf {
+  builtInEvaluatorId: ID
+  inlineLlmEvaluator: InlineLLMEvaluatorInput
+  codeEvaluatorId: ID
+  inlineCodeEvaluator: InlineCodeEvaluatorInput
+}
+
 """An edge in a connection."""
 type EvaluatorEdge {
   """A cursor for use in pagination"""
@@ -1955,15 +1962,8 @@ enum EvaluatorKind {
   BUILTIN
 }
 
-input EvaluatorPreviewInput @oneOf {
-  builtInEvaluatorId: ID
-  inlineLlmEvaluator: InlineLLMEvaluatorInput
-  codeEvaluatorId: ID
-  inlineCodeEvaluator: InlineCodeEvaluatorInput
-}
-
 input EvaluatorPreviewItemInput {
-  evaluator: EvaluatorPreviewInput!
+  evaluator: EvaluatorDefinitionInput!
   context: JSON!
   inputMapping: EvaluatorInputMappingInput!
 
@@ -2019,8 +2019,7 @@ type EvaluatorTaskConfig implements Node {
 }
 
 input EvaluatorTaskInput {
-  """The evaluator, inline or stored, in the shape the evaluator test uses"""
-  evaluator: EvaluatorPreviewInput!
+  evaluator: EvaluatorDefinitionInput!
   inputMapping: EvaluatorInputMappingInput!
 
   """
