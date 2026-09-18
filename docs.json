@@ -660,6 +660,7 @@
                   "docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing"
                 ]
               },
+              "docs/phoenix/integrations/typescript/typesafe",
               {
                 "group": "Vercel",
                 "pages": [
