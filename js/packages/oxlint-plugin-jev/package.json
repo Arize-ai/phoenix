@@ -1,0 +1,64 @@
+{
+  "name": "@arizeai/oxlint-plugin-jev",
+  "version": "0.0.0",
+  "private": true,
+  "description": "oxlint JS plugin that asks TypeSafe's jev whether Phoenix / OpenInference / OpenTelemetry usage follows the guidance in Phoenix's shipped agent skills",
+  "keywords": [
+    "arize",
+    "jev",
+    "lint",
+    "openinference",
+    "opentelemetry",
+    "oxlint",
+    "phoenix"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/oxlint-plugin-jev",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bin": {
+    "oxlint-jev": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "package.json"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node scripts/copy-skills.mjs && tsc && chmod 755 dist/bin.js",
+    "clean": "rimraf dist skills",
+    "demo": "pnpm run build && cd ../.. && OXLINT_JEV_MODE=${OXLINT_JEV_MODE:-record} oxlint -c packages/oxlint-plugin-jev/demo.oxlintrc.json packages/oxlint-plugin-jev/fixtures examples/apps packages/phoenix-otel/examples",
+    "prebuild": "pnpm run clean",
+    "test": "pnpm run build && vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/estree": "^1.0.9",
+    "@types/node": "^26.5.1",
+    "rimraf": "^6.1.3",
+    "vitest": "^5.0.0"
+  },
+  "peerDependencies": {
+    "oxlint": ">=1.79.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

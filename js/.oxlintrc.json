@@ -19,6 +19,13 @@
       "rules": {
         "no-console": "off"
       }
+    },
+    {
+      // Lint fixtures are deliberately realistic application code.
+      "files": ["packages/oxlint-plugin-jev/fixtures/**"],
+      "rules": {
+        "no-console": "off"
+      }
     }
   ],
 
