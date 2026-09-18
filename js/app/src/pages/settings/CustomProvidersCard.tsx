@@ -23,17 +23,24 @@ import {
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import {
+  GenerativeProviderIcon,
+  type GenerativeProviderIconKey,
+} from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import {
+  CustomProviderBrands,
   type GenerativeModelSDK,
   SDK_TO_PROVIDER_MAP,
   STRING_TO_PROVIDER_MAP,
 } from "@phoenix/constants/generativeConstants";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
-import { getProviderName } from "@phoenix/utils/generativeUtils";
+import {
+  getProviderName,
+  isModelProvider,
+} from "@phoenix/utils/generativeUtils";
 
 import type {
   CustomProvidersCard_data$data,
@@ -59,13 +66,13 @@ type DataRow =
   CustomProvidersCard_data$data["generativeModelCustomProviders"]["edges"][number]["node"];
 
 interface ProviderDisplayInfo {
-  providerKey: ModelProvider;
+  providerKey: GenerativeProviderIconKey;
   displayText: string;
 }
 
 /**
  * Resolves provider information from provider string and SDK.
- * Returns the ModelProvider key and display text.
+ * Returns the icon key and display text.
  *
  * Resolution priority:
  * 1. If provider string matches a known provider (e.g., "openai" → OPENAI), use that
@@ -73,6 +80,7 @@ interface ProviderDisplayInfo {
  *
  * For display text:
  * - Known providers use their formatted name (e.g., "OpenAI")
+ * - Known custom provider brands use their brand name (e.g., "TypeSafe AI")
  * - Unknown providers display the raw provider string as-is
  */
 function resolveProviderDisplay(
@@ -85,10 +93,12 @@ function resolveProviderDisplay(
   const matchedProvider = STRING_TO_PROVIDER_MAP[normalized];
 
   if (matchedProvider) {
-    // Provider string matched a known provider
+    // Provider string matched a known provider or custom provider brand
     return {
       providerKey: matchedProvider,
-      displayText: getProviderName(matchedProvider),
+      displayText: isModelProvider(matchedProvider)
+        ? getProviderName(matchedProvider)
+        : CustomProviderBrands[matchedProvider],
     };
   }
 

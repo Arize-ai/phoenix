@@ -22,6 +22,21 @@ export const ModelProviders: Record<ModelProvider, string> = {
 };
 
 /**
+ * Brands that Phoenix has a logo for but does not support as a built-in
+ * provider — they can only be configured as custom providers. They are
+ * deliberately not part of {@link ModelProvider}, which mirrors the GraphQL
+ * GenerativeProviderKey enum.
+ */
+export type CustomProviderBrand = "TYPESAFE";
+
+/**
+ * A mapping of {@link CustomProviderBrand} to a human-readable string
+ */
+export const CustomProviderBrands: Record<CustomProviderBrand, string> = {
+  TYPESAFE: "TypeSafe AI",
+};
+
+/**
  * The default model provider
  */
 export const DEFAULT_MODEL_PROVIDER: ModelProvider = "OPENAI";
@@ -136,11 +151,14 @@ export const SDK_TO_PROVIDER_MAP: Readonly<
 } as const;
 
 /**
- * Mapping from normalized provider strings to ModelProvider keys.
+ * Mapping from normalized provider strings to ModelProvider keys, or to a
+ * {@link CustomProviderBrand} for brands that only exist as custom providers.
  * Used for resolving provider icons when the provider string is known.
  * Keys should be lowercase, normalized versions of provider names.
  */
-export const STRING_TO_PROVIDER_MAP: Readonly<Record<string, ModelProvider>> = {
+export const STRING_TO_PROVIDER_MAP: Readonly<
+  Record<string, ModelProvider | CustomProviderBrand>
+> = {
   openai: "OPENAI",
   azure: "AZURE_OPENAI",
   anthropic: "ANTHROPIC",
@@ -158,6 +176,8 @@ export const STRING_TO_PROVIDER_MAP: Readonly<Record<string, ModelProvider>> = {
   together: "TOGETHER",
   zai: "ZAI",
   meta: "META",
+  typesafe: "TYPESAFE",
+  typesafeai: "TYPESAFE",
 } as const;
 
 /**
