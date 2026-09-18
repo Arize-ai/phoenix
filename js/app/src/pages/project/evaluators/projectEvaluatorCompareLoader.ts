@@ -1,5 +1,8 @@
 import { fetchQuery, graphql, loadQuery } from "react-relay";
-import type { LoaderFunctionArgs } from "react-router";
+import type {
+  LoaderFunctionArgs,
+  ShouldRevalidateFunction,
+} from "react-router";
 import invariant from "tiny-invariant";
 
 import { PROJECT_EVALUATOR_COMPARE_PARAM } from "@phoenix/constants/searchParams";
@@ -63,6 +66,28 @@ export type ProjectEvaluatorCompareInvalidReason =
   | "not-found"
   | "other-project"
   | "different-target";
+
+/**
+ * The loader depends only on the project and the compared pair, so a
+ * selection or drawer change in the query string must not re-run it: the
+ * page ignores replacement query refs and every re-run would refetch and
+ * leak a retained query. Same-URL requests (useRevalidator) defer to the
+ * router's default so manual revalidation still works.
+ */
+export const shouldRevalidateProjectEvaluatorCompare: ShouldRevalidateFunction =
+  ({
+    currentUrl,
+    nextUrl,
+    currentParams,
+    nextParams,
+    defaultShouldRevalidate,
+  }) => {
+    if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+    if (currentParams.projectId !== nextParams.projectId) return true;
+    const pair = (url: URL) =>
+      JSON.stringify(url.searchParams.getAll(PROJECT_EVALUATOR_COMPARE_PARAM));
+    return pair(currentUrl) !== pair(nextUrl);
+  };
 
 export type ProjectEvaluatorCompareLoaderData = Awaited<
   ReturnType<typeof projectEvaluatorCompareLoader>

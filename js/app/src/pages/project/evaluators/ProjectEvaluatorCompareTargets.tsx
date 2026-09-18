@@ -1,4 +1,5 @@
-import { Suspense, useEffect, useState } from "react";
+import { css } from "@emotion/react";
+import { Suspense, useDeferredValue, useEffect, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
@@ -28,15 +29,11 @@ import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import type { ProjectTab } from "@phoenix/pages/project/constants";
-import { PendingSpanFilter } from "@phoenix/pages/project/PendingSpanFilter";
 import { SessionFiltersProvider } from "@phoenix/pages/project/SessionFiltersContext";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
 import { SpanFilterErrorFallback } from "@phoenix/pages/project/SpanFilterErrorFallback";
 import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
-import {
-  spanFilterSeed,
-  type SettledSpanFilterSeed,
-} from "@phoenix/pages/project/spanFilterSeed";
+import type { SettledSpanFilterSeed } from "@phoenix/pages/project/spanFilterSeed";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { makeFlatAnnotationColumnId } from "@phoenix/pages/project/tableUtils";
 import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
@@ -54,6 +51,13 @@ import {
   formatCompareSelection,
   useCompareSelection,
 } from "./projectEvaluatorCompareSelection";
+
+const targetsTableCSS = css`
+  transition: opacity 150ms ease-in-out;
+  &[aria-busy="true"] {
+    opacity: 0.6;
+  }
+`;
 
 export function ProjectEvaluatorCompareTargets({
   projectId,
@@ -102,7 +106,7 @@ export function ProjectEvaluatorCompareTargets({
     !selection || isCompareSelectionValid({ selection, sideA, sideB });
   // A changed time range may remove a categorical bin from the matrix.
   useEffect(() => {
-    if (!isValid) setSelection(null, { replace: true });
+    if (!isValid) setSelection(null, { replace: true, flushSync: false });
   }, [isValid, setSelection]);
   const activeSelection = isValid ? selection : null;
   const condition = buildCompareFilterCondition({
@@ -111,6 +115,12 @@ export function ProjectEvaluatorCompareTargets({
     sideA,
     sideB,
   });
+  // A new selection remounts the table subtree below. Deferring the condition
+  // keeps the current rows mounted (dimmed) while the next query loads instead
+  // of swapping them for a spinner, which collapses the page's scroll height
+  // and jumps the viewport.
+  const deferredCondition = useDeferredValue(condition);
+  const isStale = deferredCondition !== condition;
   const noun = `${target.toLowerCase()}s`;
   const compareAnnotationVisibility = {
     [sideA.annotationName]: true,
@@ -196,15 +206,26 @@ export function ProjectEvaluatorCompareTargets({
               )]: 150,
             }}
           >
-            <ErrorBoundary key={condition} fallback={CompareTargetsError}>
+            {/*
+              The Suspense boundary sits above the keyed subtree so it is
+              already mounted when the key changes; a boundary mounted along
+              with the new key would show its fallback even during a deferred
+              render.
+            */}
+            <div css={targetsTableCSS} aria-busy={isStale}>
               <Suspense fallback={<Loading />}>
-                <CompareTargetsFilters
-                  projectId={projectId}
-                  target={target}
-                  condition={condition}
-                />
+                <ErrorBoundary
+                  key={deferredCondition}
+                  fallback={CompareTargetsError}
+                >
+                  <CompareTargetsFilters
+                    projectId={projectId}
+                    target={target}
+                    condition={deferredCondition}
+                  />
+                </ErrorBoundary>
               </Suspense>
-            </ErrorBoundary>
+            </div>
           </TracingProvider>
         </StreamStateProvider>
       </ProjectProvider>
@@ -271,14 +292,21 @@ function CompareTargetsFilters(props: TargetsProps) {
 }
 
 function CompareSpanTargets(props: TargetsProps) {
-  const [seed, setSeed] = useState<SettledSpanFilterSeed | null>(() => {
-    const classified = spanFilterSeed(props.condition);
-    return classified.requiresServerValidation ? null : classified;
-  });
+  // The condition comes from buildCompareFilterCondition: escaped literals over
+  // annotation fields, never a root-span predicate. It is settled without the
+  // server round trip that arbitrary text needs, which would otherwise replace
+  // the rows with the pending field on every selection change. A condition the
+  // server still rejects lands in the error fallback, where the field stays
+  // editable.
+  const [seed, setSeed] = useState<SettledSpanFilterSeed>(() => ({
+    condition: props.condition,
+    requiresServerValidation: false,
+    rootSpansOnly: false,
+  }));
   return (
     <SpanFiltersProvider
-      key={seed ? seed.condition : "pending"}
-      fallbackFilterCondition={seed?.condition ?? props.condition}
+      key={seed.condition}
+      fallbackFilterCondition={seed.condition}
       persistToUrl={false}
     >
       <ErrorBoundary
@@ -286,15 +314,11 @@ function CompareSpanTargets(props: TargetsProps) {
           <SpanFilterErrorFallback error={error} onResolved={setSeed} />
         )}
       >
-        {seed ? (
-          <CompareTargetsTable
-            {...props}
-            condition={seed.condition}
-            seed={seed}
-          />
-        ) : (
-          <PendingSpanFilter onResolved={setSeed} />
-        )}
+        <CompareTargetsTable
+          {...props}
+          condition={seed.condition}
+          seed={seed}
+        />
       </ErrorBoundary>
     </SpanFiltersProvider>
   );
