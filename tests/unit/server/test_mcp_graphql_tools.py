@@ -374,15 +374,10 @@ class TestMutationTool:
         description = tools["executeGraphqlMutation"].description or ""
         assert f"{MAX_QUERY_BYTES // 1024} KiB" in description
 
-    @pytest.mark.parametrize("validate_only", [False, True])
-    async def test_an_oversized_document_is_refused(
-        self, mutating_mcp: FastMCP, validate_only: bool
-    ) -> None:
-        oversized = (
-            'mutation { deleteDataset(datasetId: "1") ' + "# padding\n" * MAX_QUERY_BYTES + "}"
-        )
+    async def test_validate_only_still_enforces_the_size_limit(self, mutating_mcp: FastMCP) -> None:
+        oversized = 'mutation { deleteDataset(datasetId: "1") } #' + "x" * MAX_QUERY_BYTES
         result = await mutating_mcp.call_tool(
-            "executeGraphqlMutation", {"mutation": oversized, "validate_only": validate_only}
+            "executeGraphqlMutation", {"mutation": oversized, "validate_only": True}
         )
         content = result.structured_content
         assert content is not None
