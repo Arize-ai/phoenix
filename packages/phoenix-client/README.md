@@ -557,6 +557,52 @@ client.evaluators.update_llm(
 client.evaluators.delete(evaluator_id=definition["id"])
 ```
 
+Bind evaluators to datasets. A binding registers the evaluator to run against the dataset's experiments and carries its own name and input mapping; it does not run an experiment by itself. Existing code and built-in evaluators are bound by ID; LLM evaluators are created with the binding because each one is tied to its own prompt:
+
+```python
+# Bind an existing evaluator to a dataset by name or ID
+binding = client.evaluators.dataset_evaluators.create(
+    dataset="golden-questions",
+    name="exact-match",
+    evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+)
+
+# Or create a new LLM evaluator that runs an existing prompt version and bind it in one step.
+# The version must carry the output tool the evaluator scores with, so build it in the Prompt
+# Hub or with the prompts API first; the evaluator's description must equal that tool's description.
+binding = client.evaluators.dataset_evaluators.create(
+    dataset="golden-questions",
+    name="toxicity",
+    input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
+    evaluator={
+        "type": "llm",
+        "description": "toxicity",
+        "prompt_version_id": "UHJvbXB0VmVyc2lvbjo3",
+        "output_configs": [
+            {
+                "type": "CATEGORICAL",
+                "name": "toxicity",
+                "optimization_direction": "MINIMIZE",
+                "values": [{"label": "toxic", "score": 1}, {"label": "clean", "score": 0}],
+            }
+        ],
+    },
+)
+
+for item in client.evaluators.dataset_evaluators.list(dataset="golden-questions"):
+    print(item["id"], item["name"], item["evaluator_type"])
+
+client.evaluators.dataset_evaluators.update(
+    dataset_evaluator_id=binding["id"],
+    description="Runs against the nightly golden set",
+)
+
+# Deleting the last binding of an evaluator deletes the evaluator too. Its
+# prompt is kept unless delete_associated_prompt=True.
+client.evaluators.dataset_evaluators.delete(dataset_evaluator_id=binding["id"])
+```
+
 ## Documentation
 
 - **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/en/latest/index.html)** - Complete API reference and guides

@@ -152,3 +152,39 @@ DELETE_EVALUATOR = RouteRequirement(
     path="/v1/evaluators/{evaluator_id}",
     min_server_version=Version(21, 0, 0),
 )
+
+CREATE_DATASET_EVALUATOR = RouteRequirement(
+    method="POST",
+    path="/v1/datasets/{dataset_identifier}/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+LIST_DATASET_EVALUATORS = RouteRequirement(
+    method="GET",
+    path="/v1/datasets/{dataset_identifier}/evaluators",
+    min_server_version=Version(21, 0, 0),
+)
+
+GET_DATASET_EVALUATOR = RouteRequirement(
+    method="GET",
+    path="/v1/dataset_evaluators/{dataset_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+PATCH_DATASET_EVALUATOR = RouteRequirement(
+    method="PATCH",
+    path="/v1/dataset_evaluators/{dataset_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_DATASET_EVALUATOR = RouteRequirement(
+    method="DELETE",
+    path="/v1/dataset_evaluators/{dataset_evaluator_id}",
+    min_server_version=Version(21, 0, 0),
+)
+
+DELETE_DATASET_EVALUATORS = RouteRequirement(
+    method="POST",
+    path="/v1/dataset_evaluators/delete",
+    min_server_version=Version(21, 0, 0),
+)
