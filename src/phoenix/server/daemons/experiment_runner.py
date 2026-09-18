@@ -133,7 +133,7 @@ from phoenix.server.api.evaluators import (
     get_evaluators,
 )
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
-from phoenix.server.api.helpers.evaluator_calibration import without_expected_outputs
+from phoenix.server.api.helpers.evaluator_calibration import without_own_annotations
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
     extract_and_convert_example_messages,
@@ -904,7 +904,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         try:
             with anyio.fail_after(self._timeout):
                 context = self._build_context()
-                context["metadata"] = without_expected_outputs(
+                context["metadata"] = without_own_annotations(
                     context["metadata"], self.annotation_names
                 )
                 eval_results = await self._evaluator.evaluate(
@@ -1292,7 +1292,7 @@ class EvalWorkItem(WorkItem):
                     "output": self._experiment_run.output.get("task_output"),
                     "metadata": self._dataset_example_revision.metadata_,
                 }
-                context_dict["metadata"] = without_expected_outputs(
+                context_dict["metadata"] = without_own_annotations(
                     context_dict["metadata"],
                     evaluator_annotation_names(self._output_configs[0].name, self._output_configs),
                 )
