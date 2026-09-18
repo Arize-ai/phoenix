@@ -79,20 +79,20 @@ After completing previous guides, you should have:
 
     ### **Run the Prompt Against a Dataset**
 
-    Bring that saved prompt into the Prompt Playground. The playground runs a prompt against a whole dataset of inputs, so you see how it behaves across many examples.
+    Bring that saved prompt into the Prompt Playground. The playground runs a prompt against a whole dataset of inputs, so you see how it behaves across many examples. It substitutes your dataset's input keys into the prompt, using Mustache format by default, so reference them with double braces.
 
     1. Navigate to the **Prompt Playground**.
     2. Select the prompt you just saved from the Prompt Hub.
     3. Choose the dataset you just created.
 
-    4. Modify the User Prompt to accept the inputs of the dataset.
+    4. Set the User prompt to use your dataset's input keys.
 
-       The Start of the User prompt should look like this:
+       The start of the User prompt should look like this:
 
        ```
        Current Task:
-       Research: {tickers}
-       Focus on: {focus}
+       Research: {{tickers}}
+       Focus on: {{focus}}
        ```
 
     5. Run the prompt across the dataset.
@@ -211,7 +211,7 @@ After completing previous guides, you should have:
 
     ### **Run the Prompt Against a Dataset**
 
-    Bring that saved prompt into the Prompt Playground. The playground runs a prompt against a whole dataset of inputs, so you see how it behaves across many examples.
+    Bring that saved prompt into the Prompt Playground. The playground runs a prompt against a whole dataset of inputs, so you see how it behaves across many examples. It substitutes your dataset's input keys into the prompt, using Mustache format by default, so reference them with double braces.
 
     1. Navigate to the **Prompt Playground**.
     2. Select the prompt you just saved from the Prompt Hub.
