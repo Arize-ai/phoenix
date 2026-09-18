@@ -202,7 +202,7 @@ async def test_mutation_gate_is_enforced_by_the_schema_too(
     schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """With admission bypassed, the schema alone still refuses the mutation."""
-    monkeypatch.setattr(graphql_execute, "admit", lambda query, *, allow_mutations: set())
+    monkeypatch.setattr(graphql_execute, "admit", lambda query, **_: set())
     with pytest.raises(InvalidOperationTypeError):
         await execute_operation(
             schema,
@@ -229,6 +229,7 @@ def test_the_size_limit_counts_utf8_bytes() -> None:
         ("{ datasets { name } }", None),
         ("query Q { datasets { name } }", None),
         ('mutation { deleteDataset(datasetId: "1") }', GraphQLRefusalCode.MUTATION_NOT_ALLOWED),
+        ("query A { datasets { name } } query B { boom }", GraphQLRefusalCode.AMBIGUOUS_OPERATION),
     ],
 )
 def test_admission_classifies_operations(

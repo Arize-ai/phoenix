@@ -32,6 +32,7 @@ class GraphQLRefusalCode(str, Enum):
     SUBSCRIPTION_NOT_SUPPORTED = "subscription_not_supported"
     MUTATION_NOT_ALLOWED = "mutation_not_allowed"
     VALIDATION_FAILED = "validation_failed"
+    AMBIGUOUS_OPERATION = "ambiguous_operation"
 
 
 class GraphQLRefusal(Exception):
@@ -113,19 +114,25 @@ def operation_types(query: str) -> set[GraphQLOperationType]:
     }
 
 
-def admit(query: str, *, allow_mutations: bool) -> set[GraphQLOperationType]:
+def admit(
+    query: str, *, allow_mutations: bool, operation_name: Optional[str] = None
+) -> set[GraphQLOperationType]:
     """Decide whether ``query`` may run, and return the operation types it declares.
 
     Args:
         query: The GraphQL document.
         allow_mutations: Whether mutation operations may execute.
+        operation_name: The operation to run. Without one, a document declaring
+            several operations is refused rather than left to execution, which
+            would run the first and skip the rest.
 
     Returns:
         The operation types declared in the document.
 
     Raises:
-        GraphQLRefusal: The operation is too large, contains a subscription, or
-            contains a mutation the caller may not run.
+        GraphQLRefusal: The operation is too large, contains a subscription,
+            contains a mutation the caller may not run, or is one of several
+            and not named.
     """
     if len(query.encode("utf-8")) > MAX_QUERY_BYTES:
         raise GraphQLRefusal(
@@ -144,6 +151,12 @@ def admit(query: str, *, allow_mutations: bool) -> set[GraphQLOperationType]:
         raise GraphQLRefusal(
             GraphQLRefusalCode.MUTATION_NOT_ALLOWED,
             "Mutations are not permitted.",
+        )
+    if operation_name is None and operation_count(query) > 1:
+        raise GraphQLRefusal(
+            GraphQLRefusalCode.AMBIGUOUS_OPERATION,
+            "The document declares several operations and names none to run. Send one "
+            "operation per request; one operation may select several fields.",
         )
     return declared
 
@@ -202,7 +215,7 @@ async def execute_operation(
     Raises:
         GraphQLRefusal: The operation was not admitted.
     """
-    admit(query, allow_mutations=allow_mutations)
+    admit(query, allow_mutations=allow_mutations, operation_name=operation_name)
     allowed = (
         {OperationType.QUERY, OperationType.MUTATION} if allow_mutations else {OperationType.QUERY}
     )
