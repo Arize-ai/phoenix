@@ -266,8 +266,8 @@
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [Together AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing): Auto-instrument the Together AI Python SDK with openinference-instrumentation-together
-- [TypeSafe AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-tracing): Auto-instrument TypeSafe AI SDK system_one calls in Python with openinference-instrumentation-typesafe
-- [TypeSafe AI SDK TypeScript](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-sdk-typescript): Auto-instrument TypeSafe AI SDK systemOne calls in TypeScript with @arizeai/openinference-instrumentation-typesafe
+- [TypeSafe AI Tracing (Python)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python): Auto-instrument TypeSafe AI SDK system_one calls in Python with openinference-instrumentation-typesafe
+- [TypeSafe AI Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript): Auto-instrument TypeSafe AI SDK systemOne calls in TypeScript with @arizeai/openinference-instrumentation-typesafe
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
 
 ### Python Frameworks

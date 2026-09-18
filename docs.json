@@ -614,8 +614,8 @@
                 "group": "TypeSafe AI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/typesafe",
-                  "docs/phoenix/integrations/llm-providers/typesafe/typesafe-tracing",
-                  "docs/phoenix/integrations/llm-providers/typesafe/typesafe-sdk-typescript"
+                  "docs/phoenix/integrations/llm-providers/typesafe/typesafe-python",
+                  "docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript"
                 ]
               },
               {
@@ -1728,11 +1728,11 @@
   "redirects": [
     {
       "source": "/docs/phoenix/integrations/typescript/typesafe",
-      "destination": "/docs/phoenix/integrations/llm-providers/typesafe/typesafe-sdk-typescript"
+      "destination": "/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript"
     },
     {
       "source": "/docs/phoenix/integrations/python/typesafe",
-      "destination": "/docs/phoenix/integrations/llm-providers/typesafe/typesafe-tracing"
+      "destination": "/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python"
     },
     {
       "source": "/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
