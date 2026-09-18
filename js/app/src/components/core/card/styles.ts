@@ -77,8 +77,10 @@ export const cardCSS = (style?: CSSProperties) => css`
       height: 100%;
       cursor: pointer;
       /* Without this the row floors at its contents' width and pushes the
-         extra slot's controls past the card's edge */
+         extra slot's controls past the card's edge. The title does not shrink,
+         so the header clips it the same way the plain collapse button does */
       min-width: 0;
+      overflow: hidden;
 
       & .card__collapsible-button {
         flex: none;

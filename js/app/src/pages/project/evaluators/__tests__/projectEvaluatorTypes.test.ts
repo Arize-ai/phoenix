@@ -311,7 +311,9 @@ describe("formatMissingBindingMessage", () => {
         },
         "trace"
       )
-    ).toBe("attributes.llm.tool_calls does not exist on this trace");
+    ).toBe(
+      "attributes.llm.tool_calls does not exist on this trace, so evaluation fails"
+    );
   });
 
   it("names the variable when it binds from the top of the context", () => {
@@ -325,6 +327,6 @@ describe("formatMissingBindingMessage", () => {
         },
         "span"
       )
-    ).toBe("tool_call does not exist on this span");
+    ).toBe("tool_call does not exist on this span, so evaluation fails");
   });
 });

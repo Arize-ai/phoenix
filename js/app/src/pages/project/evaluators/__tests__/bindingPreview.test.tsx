@@ -7,6 +7,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 import {
@@ -20,21 +21,10 @@ describe("the binding preview", () => {
   let container: HTMLDivElement;
   let root: Root;
 
+  // `ThemeProvider` reads the system theme on mount; jsdom has no matchMedia.
+  installTestMatchMedia();
+
   beforeEach(() => {
-    // `ThemeProvider` reads the system theme on mount; jsdom has no matchMedia.
-    Object.defineProperty(window, "matchMedia", {
-      writable: true,
-      value: vi.fn().mockImplementation(() => ({
-        matches: false,
-        media: "",
-        onchange: null,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      })),
-    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -67,8 +57,8 @@ describe("the binding preview", () => {
     const keywords = [...container.querySelectorAll(".binding-row__keyword")];
     expect(keywords.slice(0, 3).map((node) => node.textContent)).toEqual([
       "input",
-      "metadata",
       "output",
+      "metadata",
     ]);
     // Only the set path is annotated: the untouched slots fall back to the
     // context key they are already labeled with, and `← output` under a row
@@ -80,35 +70,52 @@ describe("the binding preview", () => {
     ).toEqual(["← metadata.name"]);
   });
 
-  it("sorts missing variables into the rows and describes the error inline", async () => {
+  it("replaces a slot that fails to bind in place and lists other missing variables where declared", async () => {
     await act(async () => {
       root.render(
-        <EvaluatorInputVariablesContext.Provider value={["any_thing", "input"]}>
+        <EvaluatorInputVariablesContext.Provider
+          value={["input", "metadata", "any_thing"]}
+        >
           <BindingPreview
             context={getSampleTraceEvaluationContext().context}
             grain="trace"
-            inputMapping={{ pathMapping: {}, literalMapping: {} }}
-            requiredVariables={["any_thing", "input"]}
+            inputMapping={{
+              pathMapping: { input: "missing.key", metadata: "nope" },
+              literalMapping: {},
+            }}
+            requiredVariables={["input", "metadata", "any_thing"]}
             isSampleContext={false}
           />
         </EvaluatorInputVariablesContext.Provider>
       );
     });
 
+    // Slot order holds and a missing slot appears once, as its error row; the
+    // authored variable follows rather than sorting the whole list.
     const keywords = [...container.querySelectorAll(".binding-row__keyword")];
     expect(keywords.map((node) => node.textContent)).toEqual([
-      "any_thing",
       "input",
-      "metadata",
       "output",
+      "metadata",
+      "any_thing",
     ]);
-    const errorRow = container.querySelector('[data-variant="error"]');
-    expect(errorRow?.querySelector('[aria-label="error"]')).not.toBeNull();
-    expect(errorRow?.textContent).not.toContain("missing");
+    const errorRows = [...container.querySelectorAll('[data-variant="error"]')];
     expect(
-      errorRow?.querySelector(".binding-row__error-message")?.textContent
-    ).toBe("any_thing does not exist on this trace");
-    expect(container.textContent).not.toContain("would fail on this trace");
+      errorRows.map(
+        (row) => row.querySelector(".binding-row__error-message")?.textContent
+      )
+    ).toEqual([
+      "missing.key does not exist on this trace, so evaluation fails",
+      "nope does not exist on this trace, so evaluation fails",
+      "any_thing does not exist on this trace, so evaluation fails",
+    ]);
+    expect(errorRows[0]?.querySelector('[aria-label="error"]')).not.toBeNull();
+    // The metadata tree stays reachable from the errored slot, so the author
+    // can browse for the path they meant.
+    expect(
+      errorRows[1]?.querySelector('button[aria-expanded="false"]')
+    ).not.toBeNull();
+    expect(errorRows[2]?.querySelector("button")).toBeNull();
   });
 
   it("counts mapping errors on the collapsed row and names each on hover", async () => {
@@ -177,8 +184,8 @@ describe("the binding preview", () => {
         .map((node) => node.textContent)
         .filter((text) => text?.includes("does not exist"))
     ).toEqual([
-      "missing.key does not exist on this span",
-      "tool_call does not exist on this span",
+      "missing.key does not exist on this span, so evaluation fails",
+      "tool_call does not exist on this span, so evaluation fails",
     ]);
     // One error icon per line, and only the arrow's own svg besides those.
     expect(tooltip?.querySelectorAll("i.icon-wrap")).toHaveLength(2);

@@ -342,7 +342,9 @@ export type ProjectEvaluatorMappingDiagnostic = {
 };
 
 /**
- * Reusable message used by collapsible title error counters and inline table rows.
+ * One line naming what fails to bind and what that costs: an unresolved
+ * required variable errors the evaluation of that record, so no annotation is
+ * written. Shared by the collapsed-row error count and the inline preview rows.
  */
 export function formatMissingBindingMessage(
   diagnostic: ProjectEvaluatorMappingDiagnostic,
@@ -350,7 +352,7 @@ export function formatMissingBindingMessage(
 ): string {
   const subject =
     diagnostic.source === "path" ? diagnostic.path : diagnostic.variable;
-  return `${subject} does not exist on this ${grain}`;
+  return `${subject} does not exist on this ${grain}, so evaluation fails`;
 }
 
 export function getProjectEvaluatorMappingDiagnostics({
