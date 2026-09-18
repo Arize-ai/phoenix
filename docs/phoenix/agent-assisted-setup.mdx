@@ -1,12 +1,13 @@
 ---
 title: "Agent-Assisted Setup"
+sidebarTitle: "Coding agent setup"
 description: >-
   Start Phoenix, then let your coding agent add tracing to your app with px setup.
 ---
 
 import StartPhoenix from "../snippets/start-phoenix.mdx";
 
-The fastest way to add Phoenix tracing to your application. `px setup` hands the instrumentation to your coding agent and doesn't finish until a real trace arrives.
+`px setup` hands the instrumentation to your coding agent and doesn't finish until a real trace arrives.
 
 <Steps>
   <Step title={<span className="step-title">Start Phoenix</span>}>
@@ -43,7 +44,6 @@ The fastest way to add Phoenix tracing to your application. `px setup` hands the
 If no traces appear, check the [Troubleshooting FAQ](/docs/phoenix/tracing/concepts-tracing/faqs-tracing).
 
 ## Re-run a single step
-
 The connection questions only need answering once. On a repo that's already registered, re-run just the slice you need:
 
 ```bash
@@ -53,7 +53,6 @@ px setup mcp          # Register the Phoenix MCP server with a coding agent
 ```
 
 ## Run non-interactively (CI or agents)
-
 Pass flags instead of answering prompts:
 
 ```bash
@@ -66,9 +65,9 @@ px setup --no-input --instrument --agent claude --yolo --format raw
 
 The documentation that the MCP server offers is interactive by default. Pass `--docs-mcp` to connect the
 Phoenix docs MCP server to the coding agent without prompting, or `--no-docs-mcp`
-to skip it — either keeps a non-interactive run from stalling on a question.
+to skip it. Either keeps a non-interactive run from stalling on a question.
 
-A run that instruments only succeeds if a trace actually arrived — the agent's
+A run that instruments only succeeds if a trace actually arrived. The agent's
 own claim that it finished doesn't count. **Exit code `6` means the wait ran out
 with no trace**, so tracing isn't confirmed working even though the connection,
 `.env.phoenix`, and the agent's edits are all in place. In a pipeline, treat `6`
@@ -79,7 +78,6 @@ as "configured but unverified" rather than a hard failure: re-run
 See the [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#px-setup) for the full list of flags.
 
 ## Use an unsupported agent
-
 `px setup` hands off to Claude Code, Codex, Cursor, and OpenCode. If your agent isn't one of those (Windsurf, Copilot, and others), paste this prompt into it instead:
 
 ```text

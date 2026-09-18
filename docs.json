@@ -58,36 +58,10 @@
             "group": "Get Started",
             "icon": "rocket-launch",
             "pages": [
-              {
-                "group": "Quick Start",
-                "pages": [
-                  "docs/phoenix/agent-assisted-setup",
-                  {
-                    "group": "Python",
-                    "pages": [
-                      "docs/phoenix/get-started/get-started-tracing",
-                      "docs/phoenix/get-started/get-started-evaluations",
-                      "docs/phoenix/get-started/get-started-prompt-playground",
-                      "docs/phoenix/get-started/get-started-datasets-and-experiments"
-                    ]
-                  },
-                  {
-                    "group": "TypeScript",
-                    "pages": [
-                      "docs/phoenix/get-started/ts-get-started-tracing",
-                      "docs/phoenix/get-started/ts-get-started-evaluations",
-                      "docs/phoenix/get-started/ts-get-started-prompt-playground",
-                      "docs/phoenix/get-started/ts-get-started-datasets-and-experiments"
-                    ]
-                  }
-                ]
-              },
-              {
-                "group": "Coding Agents",
-                "pages": [
-                  "docs/phoenix/integrations/developer-tools/coding-agents"
-                ]
-              },
+              "docs/phoenix/get-started/get-started-tracing",
+              "docs/phoenix/get-started/get-started-evaluations",
+              "docs/phoenix/get-started/get-started-improve-your-agent",
+              "docs/phoenix/agent-assisted-setup",
               {
                 "group": "MCP",
                 "pages": [
@@ -97,9 +71,8 @@
                   "docs/phoenix/integrations/phoenix-mcp-server"
                 ]
               },
-              "docs/phoenix/end-to-end-features-notebook",
-              "docs/phoenix/phoenix-demo",
-              "docs/phoenix/pxi"
+              "docs/phoenix/pxi",
+              "docs/phoenix/phoenix-demo"
             ]
           },
           {
@@ -1719,6 +1692,30 @@
   },
   "redirects": [
     {
+      "source": "/docs/phoenix/get-started/get-started-prompt-playground",
+      "destination": "/docs/phoenix/get-started/get-started-improve-your-agent"
+    },
+    {
+      "source": "/docs/phoenix/get-started/get-started-datasets-and-experiments",
+      "destination": "/docs/phoenix/get-started/get-started-improve-your-agent"
+    },
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-tracing",
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-evaluations",
+      "destination": "/docs/phoenix/get-started/get-started-evaluations"
+    },
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-prompt-playground",
+      "destination": "/docs/phoenix/get-started/get-started-improve-your-agent"
+    },
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-datasets-and-experiments",
+      "destination": "/docs/phoenix/get-started/get-started-improve-your-agent"
+    },
+    {
       "source": "/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
       "destination": "/docs/phoenix/release-notes"
     },
@@ -2200,11 +2197,11 @@
     },
     {
       "source": "/docs/phoenix/quickstart",
-      "destination": "/docs/phoenix/get-started"
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
     },
     {
       "source": "/docs/phoenix/datasets-and-experiments/quickstart-datasets",
-      "destination": "/docs/phoenix/get-started/get-started-datasets-and-experiments"
+      "destination": "/docs/phoenix/get-started/get-started-improve-your-agent"
     },
     {
       "source": "/docs/phoenix/evaluation/evals",
@@ -2212,7 +2209,7 @@
     },
     {
       "source": "/docs/phoenix/prompt-engineering/quickstart-prompts",
-      "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
+      "destination": "/docs/phoenix/get-started/get-started-improve-your-agent"
     },
     {
       "source": "/docs/phoenix/tracing/llm-traces-1/quickstart-tracing-python",
@@ -2228,7 +2225,7 @@
     },
     {
       "source": "/docs/phoenix/prompt-engineering/quickstart-prompts/quickstart-prompts-ui",
-      "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
+      "destination": "/docs/phoenix/get-started/get-started-improve-your-agent"
     },
     {
       "source": "/docs/phoenix/deployment",
