@@ -12,11 +12,12 @@ from enum import Enum
 from typing import Any, Mapping, Optional
 
 import strawberry
-from graphql import GraphQLSyntaxError
+from graphql import GraphQLSyntaxError, specified_rules
 from graphql import OperationType as GraphQLOperationType
 from graphql import parse as parse_graphql
-from graphql import validate as validate_graphql
 from graphql.language.ast import OperationDefinitionNode
+from strawberry.extensions import AddValidationRules
+from strawberry.schema.schema import validate_document as validate_with_strawberry
 from strawberry.types.graphql import OperationType
 
 from phoenix.server.api.context import Context
@@ -166,9 +167,10 @@ def validate_document(schema: strawberry.Schema, query: str) -> None:
 
     This answers whether the document typechecks: fields exist on the types
     they are selected from, arguments and fragments are well-formed, variables
-    are declared where used. It does not check the values supplied for those
-    variables, and it does not evaluate permissions -- those live in resolvers
-    and only run during execution.
+    are declared where used. It applies the rules execution applies, including
+    those the schema's extensions add, such as depth and alias limits. It does
+    not check the values supplied for variables, and it does not evaluate
+    permissions -- those live in resolvers and only run during execution.
 
     Raises:
         GraphQLRefusal: The document could not be parsed or did not validate.
@@ -177,9 +179,15 @@ def validate_document(schema: strawberry.Schema, query: str) -> None:
         document = parse_graphql(query)
     except GraphQLSyntaxError as error:
         raise GraphQLRefusal(GraphQLRefusalCode.PARSE_ERROR, str(error)) from error
+    added = tuple(
+        rule
+        for extension in schema.get_extensions()
+        if isinstance(extension, AddValidationRules)
+        for rule in extension.validation_rules
+    )
     # Validation runs against the compiled graphql-core schema, which
     # strawberry exposes only as ``_schema``.
-    if errors := validate_graphql(schema._schema, document):
+    if errors := validate_with_strawberry(schema._schema, document, (*specified_rules, *added)):
         raise GraphQLRefusal(
             GraphQLRefusalCode.VALIDATION_FAILED,
             "; ".join(error.message for error in errors),

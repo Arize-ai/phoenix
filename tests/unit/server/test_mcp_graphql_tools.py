@@ -7,6 +7,7 @@ import pytest
 import strawberry
 from fastmcp import FastMCP
 from mcp_types import TextContent
+from strawberry.extensions import MaxAliasesLimiter
 from strawberry.schema.exceptions import InvalidOperationTypeError
 
 import phoenix.server.app
@@ -207,6 +208,17 @@ def test_validate_does_not_check_variable_values(schema: strawberry.Schema) -> N
     is exactly what validation does not look at.
     """
     validate_document(schema, "query Q($id: ID!) { dataset(id: $id) { name } }")
+
+
+def test_validation_applies_the_rules_schema_extensions_add() -> None:
+    """A document execution would refuse for its aliases is not valid here either."""
+    schema = strawberry.Schema(
+        query=Query, extensions=[lambda: MaxAliasesLimiter(max_alias_count=1)]
+    )
+    with pytest.raises(GraphQLRefusal) as caught:
+        validate_document(schema, "{ a: datasets { name } b: datasets { name } }")
+    assert caught.value.code is GraphQLRefusalCode.VALIDATION_FAILED
+    assert "aliases" in caught.value.message
 
 
 def test_subscriptions_are_refused() -> None:
