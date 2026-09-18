@@ -1,0 +1,8 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "jsPlugins": [{ "name": "jev", "specifier": "./dist/index.js" }],
+  "rules": {
+    "jev/guidance": ["warn", { "threshold": 0.75, "minConfidence": 0.6 }]
+  },
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**"]
+}

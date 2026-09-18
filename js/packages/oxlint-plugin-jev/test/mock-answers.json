@@ -1,0 +1,101 @@
+{
+  "bad-flush-success-only.ts": {
+    "flush_before_exit": {
+      "type": "noul",
+      "noul": 0.08
+    }
+  },
+  "good-flush.ts": {
+    "flush_before_exit": {
+      "type": "noul",
+      "noul": 0.94
+    }
+  },
+  "simple-processor.ts": {
+    "flush_before_exit": {
+      "type": "noul",
+      "noul": 0.9
+    }
+  },
+  "span-kind-mismatch.ts": {
+    "span_kind_0": {
+      "type": "choice",
+      "choice": "RETRIEVER",
+      "confidence": 0.88,
+      "probabilities": {
+        "RETRIEVER": 0.9,
+        "CHAIN": 0.05,
+        "TOOL": 0.05
+      }
+    },
+    "span_kind_1": {
+      "type": "choice",
+      "choice": "CHAIN",
+      "confidence": 0.8,
+      "probabilities": {
+        "CHAIN": 0.85,
+        "AGENT": 0.15
+      }
+    }
+  },
+  "session-wrapper.ts": {
+    "no_session_wrapper": {
+      "type": "noul",
+      "noul": 0.97
+    }
+  },
+  "esm-import-order.ts": {
+    "esm_manual_instrumentation": {
+      "type": "choice",
+      "choice": "relies_on_import_order",
+      "confidence": 0.83,
+      "probabilities": {
+        "relies_on_import_order": 0.86,
+        "explicitly_instrumented": 0.04,
+        "native_telemetry": 0.1
+      }
+    }
+  },
+  "pii-attributes.ts": {
+    "sensitive_0_attr_0": {
+      "type": "noul",
+      "noul": 0.03
+    },
+    "sensitive_0_attr_1": {
+      "type": "noul",
+      "noul": 0.96
+    },
+    "sensitive_0_attr_2": {
+      "type": "noul",
+      "noul": 0.97
+    },
+    "sensitive_0_bulk": {
+      "type": "noul",
+      "noul": 0.9
+    }
+  },
+  "benign-attributes.ts": {
+    "sensitive_0_attr_0": {
+      "type": "noul",
+      "noul": 0.05
+    },
+    "sensitive_0_attr_1": {
+      "type": "noul",
+      "noul": 0.04
+    },
+    "sensitive_0_attr_2": {
+      "type": "noul",
+      "noul": 0.02
+    }
+  },
+  "pii-masked.ts": {
+    "sensitive_0_attr_0": {
+      "type": "noul",
+      "noul": 0.02
+    },
+    "sensitive_0_bulk": {
+      "type": "noul",
+      "noul": 0.9
+    }
+  }
+}
