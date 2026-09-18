@@ -72,6 +72,10 @@ def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
         or provider is ModelProvider.TOGETHER
         or provider is ModelProvider.ZAI
         or provider is ModelProvider.META
+        # TypeSafe AI's API is a typed evaluation endpoint rather than chat
+        # completions, so it has no invocation family of its own; default to
+        # the generic openai family until a client exists.
+        or provider is ModelProvider.TYPESAFE
     ):
         return "openai"
     assert_never(provider)

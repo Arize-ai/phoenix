@@ -24,7 +24,8 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "PERPLEXITY" ||
     provider === "TOGETHER" ||
     provider === "ZAI" ||
-    provider === "META"
+    provider === "META" ||
+    provider === "TYPESAFE"
   );
 }
 
@@ -73,6 +74,8 @@ export function getProviderName(provider: ModelProvider): string {
       return "Z.ai";
     case "META":
       return "Meta";
+    case "TYPESAFE":
+      return "TypeSafe AI";
     default:
       return assertUnreachable(provider);
   }
@@ -119,6 +122,8 @@ export function getSemConvProvider(provider: ModelProvider): string {
       return "zai"; // TODO: Add support for Z.ai to semantic conventions
     case "META":
       return "meta"; // TODO: Add support for Meta to semantic conventions
+    case "TYPESAFE":
+      return "typesafe"; // TODO: Add support for TypeSafe AI to semantic conventions
     default:
       return assertUnreachable(provider);
   }
