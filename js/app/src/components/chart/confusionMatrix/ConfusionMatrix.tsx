@@ -22,6 +22,14 @@ import { confusionMatrixCSS } from "./styles";
 
 export type ConfusionMatrixProps = {
   /**
+   * Makes cells with a count pressable
+   */
+  onCellPress?: (cell: ConfusionMatrixDatum) => void;
+  /**
+   * The cell to render as selected
+   */
+  selectedCell?: { actual: string; predicted: string };
+  /**
    * Flat (actual, predicted, count) records; the matrix is pivoted from these
    */
   data: ConfusionMatrixDatum[];
@@ -133,15 +141,27 @@ function MatrixCell({
   colors,
   percentOf,
   quadrantLabel,
+  onPress,
+  isSelected,
+  label,
 }: {
+  onPress?: () => void;
+  isSelected?: boolean;
+  label?: string;
   count: number;
   colors?: { backgroundColor: string; color: string };
   percentOf?: number;
   quadrantLabel?: string;
 }) {
+  const Element = onPress ? "button" : "div";
   return (
-    <div
+    <Element
+      type={onPress ? "button" : undefined}
+      onClick={onPress}
+      aria-label={onPress ? label : undefined}
+      aria-pressed={onPress ? isSelected : undefined}
       className={classNames("confusion-matrix__cell", {
+        "confusion-matrix__cell--selected": isSelected,
         "confusion-matrix__cell--empty": colors == null,
       })}
       style={colors}
@@ -150,7 +170,7 @@ function MatrixCell({
         <span className="confusion-matrix__quadrant">{quadrantLabel}</span>
       )}
       <CellValue count={count} percentOf={percentOf} />
-    </div>
+    </Element>
   );
 }
 
@@ -198,6 +218,8 @@ export function ConfusionMatrix({
   legendLabel,
   actualAxisLabel = "actual",
   predictedAxisLabel = "predicted",
+  onCellPress,
+  selectedCell,
 }: ConfusionMatrixProps) {
   const interpolator = useSequentialBlueColorInterpolator(colorInterpolator);
   const {
@@ -276,10 +298,27 @@ export function ConfusionMatrix({
               </div>
               {predictedLabels.map((predictedLabel, columnIndex) => {
                 const count = counts[rowIndex][columnIndex];
+                const isSelected =
+                  selectedCell?.actual === actualLabel &&
+                  selectedCell?.predicted === predictedLabel;
                 return (
                   <MatrixCell
                     key={predictedLabel}
                     count={count}
+                    label={`${actualAxisLabel}: ${actualLabel}; ${predictedAxisLabel}: ${predictedLabel}; ${count}`}
+                    isSelected={isSelected}
+                    // A selected cell stays pressable at zero count so it can
+                    // be deselected
+                    onPress={
+                      onCellPress && (count > 0 || isSelected)
+                        ? () =>
+                            onCellPress({
+                              actual: actualLabel,
+                              predicted: predictedLabel,
+                              count,
+                            })
+                        : undefined
+                    }
                     colors={
                       count > 0
                         ? getConfusionMatrixCellColors({

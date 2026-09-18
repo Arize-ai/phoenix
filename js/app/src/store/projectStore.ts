@@ -26,6 +26,11 @@ export interface ProjectState {
    */
   setShowTableAside: (showTableAside: boolean) => void;
   /**
+   * Whether the tables offer metric charts above them.
+   * @default true
+   */
+  showMetricCharts: boolean;
+  /**
    * The metric charts to show above each project table view.
    */
   metricChartKeys: Record<MetricChartTableView, ProjectMetricChartKey[]>;
@@ -47,10 +52,20 @@ const makeProjectStoreKey = (projectId: string) =>
 
 export type CreateProjectStoreProps = {
   projectId: string;
+  /**
+   * Suffixes the persistence key so a second store for the same project keeps
+   * its own preferences.
+   */
+  scope?: string;
+  showTableAside?: boolean;
+  showMetricCharts?: boolean;
 };
 
 export function createProjectStore({
   projectId,
+  scope,
+  showTableAside = true,
+  showMetricCharts = true,
 }: CreateProjectStoreProps): ProjectStore {
   const state = create<ProjectState>()(
     persist(
@@ -59,12 +74,13 @@ export function createProjectStore({
         setDefaultTab: (tab: ProjectTab) => {
           set({ defaultTab: tab }, false, { type: "setDefaultTab" });
         },
-        showTableAside: true,
+        showTableAside,
         setShowTableAside: (showTableAside: boolean) => {
           set({ showTableAside }, false, {
             type: "setShowTableAside",
           });
         },
+        showMetricCharts,
         metricChartKeys: DEFAULT_METRIC_CHART_KEYS,
         setMetricChartKeys: (
           view: MetricChartTableView,
@@ -80,7 +96,14 @@ export function createProjectStore({
         },
       })),
       {
-        name: makeProjectStoreKey(projectId),
+        name: `${makeProjectStoreKey(projectId)}${scope ? `-${scope}` : ""}`,
+        // showMetricCharts is a layout decision made by whoever mounts the
+        // tables, not a user preference, so it is never persisted
+        partialize: ({ defaultTab, showTableAside, metricChartKeys }) => ({
+          defaultTab,
+          showTableAside,
+          metricChartKeys,
+        }),
         merge: (persistedState, currentState) => {
           const merged = {
             ...currentState,

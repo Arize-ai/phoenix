@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 import { Loading } from "@phoenix/components";
 import {
@@ -24,7 +24,8 @@ function SessionsTabContent({
     ProjectPageQueriesSessionsQuery,
     queryReference
   );
-  return <SessionsTable project={data.project} />;
+  const { sessionId } = useParams();
+  return <SessionsTable project={data.project} selectedRowId={sessionId} />;
 }
 
 export const ProjectSessionsPage = () => {

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import { Suspense, useDeferredValue } from "react";
+import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -49,6 +49,12 @@ const mainCSS = css`
   overflow: hidden;
 `;
 
+const scrollCSS = css`
+  height: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+`;
+
 const contentCSS = css`
   max-width: 1600px;
   margin-inline: auto;
@@ -85,6 +91,11 @@ function ProjectEvaluatorComparePageLoaded({
   // child owned this hook, every suspended retry would remount it with a new
   // `now` and issue a different request indefinitely.
   const timeRange = useClosedTimeRange();
+  // A live range's "now" advances every minute or hour. Deferring it keeps the
+  // current comparison on screen while the refreshed queries load. The
+  // Suspense boundary below is keyed on the pair alone, so a new pair still
+  // shows the loading state at once.
+  const deferredTimeRange = useDeferredValue(timeRange);
   const evaluatorA =
     data.evaluatorA?.__typename === "ProjectEvaluator" ? data.evaluatorA : null;
   const evaluatorB =
@@ -111,11 +122,11 @@ function ProjectEvaluatorComparePageLoaded({
   const evaluatorBOptimizationConfig = toAnnotationOptimizationConfig(
     evaluatorB.evaluator.outputConfigs[0] ?? {}
   );
+  const pairKey = `${evaluatorA.id}:${evaluatorB.id}`;
   const comparisonKey = [
-    evaluatorA.id,
-    evaluatorB.id,
-    timeRange.start.toISOString(),
-    timeRange.end.toISOString(),
+    pairKey,
+    deferredTimeRange.start.toISOString(),
+    deferredTimeRange.end.toISOString(),
   ].join(":");
 
   return (
@@ -162,14 +173,14 @@ function ProjectEvaluatorComparePageLoaded({
           </Flex>
         }
       />
-      <View overflow="auto" height="100%">
+      <div css={scrollCSS}>
         <View padding="size-200">
           <div css={contentCSS}>
-            <ErrorBoundary
-              key={comparisonKey}
-              fallback={ProjectEvaluatorCompareErrorFallback}
-            >
-              <Suspense fallback={<Loading />}>
+            <Suspense key={pairKey} fallback={<Loading />}>
+              <ErrorBoundary
+                key={comparisonKey}
+                fallback={ProjectEvaluatorCompareErrorFallback}
+              >
                 <ProjectEvaluatorCompareContent
                   projectId={projectId}
                   evaluatorAId={evaluatorA.id}
@@ -184,13 +195,16 @@ function ProjectEvaluatorComparePageLoaded({
                   }
                   evaluatorAOptimizationConfig={evaluatorAOptimizationConfig}
                   evaluatorBOptimizationConfig={evaluatorBOptimizationConfig}
-                  timeRange={timeRange}
+                  timeRange={deferredTimeRange}
                 />
-              </Suspense>
-            </ErrorBoundary>
+              </ErrorBoundary>
+            </Suspense>
           </div>
         </View>
-      </View>
+      </div>
+      <Suspense fallback={<Loading />}>
+        <Outlet />
+      </Suspense>
     </main>
   );
 }

@@ -1,11 +1,17 @@
 import { fetchQuery, graphql, loadQuery } from "react-relay";
-import type { LoaderFunctionArgs } from "react-router";
+import type {
+  LoaderFunctionArgs,
+  ShouldRevalidateFunction,
+} from "react-router";
 import invariant from "tiny-invariant";
 
 import { PROJECT_EVALUATOR_COMPARE_PARAM } from "@phoenix/constants/searchParams";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { projectEvaluatorCompareLoaderQuery } from "./__generated__/projectEvaluatorCompareLoaderQuery.graphql";
+import type {
+  EvaluationTarget,
+  projectEvaluatorCompareLoaderQuery,
+} from "./__generated__/projectEvaluatorCompareLoaderQuery.graphql";
 
 export const projectEvaluatorCompareLoaderGQL = graphql`
   query projectEvaluatorCompareLoaderQuery(
@@ -111,6 +117,26 @@ export type ProjectEvaluatorCompareInvalidReason =
   | "other-project"
   | "different-target";
 
+/**
+ * The loader depends only on the project and the compared pair. A selection
+ * or drawer change in the query string skips it so the page does not refetch
+ * and re-suspend. Same-URL requests (useRevalidator) keep the router default.
+ */
+export const shouldRevalidateProjectEvaluatorCompare: ShouldRevalidateFunction =
+  ({
+    currentUrl,
+    nextUrl,
+    currentParams,
+    nextParams,
+    defaultShouldRevalidate,
+  }) => {
+    if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+    if (currentParams.projectId !== nextParams.projectId) return true;
+    const pair = (url: URL) =>
+      JSON.stringify(url.searchParams.getAll(PROJECT_EVALUATOR_COMPARE_PARAM));
+    return pair(currentUrl) !== pair(nextUrl);
+  };
+
 export type ProjectEvaluatorCompareLoaderData = Awaited<
   ReturnType<typeof projectEvaluatorCompareLoader>
 >;
@@ -123,6 +149,7 @@ export async function projectEvaluatorCompareLoader({
     typeof loadQuery<projectEvaluatorCompareLoaderQuery>
   > | null;
   invalidReason: ProjectEvaluatorCompareInvalidReason | null;
+  evaluationTarget: EvaluationTarget | null;
   evaluatorAName: string | null;
   evaluatorBName: string | null;
   evaluatorAId: string | null;
@@ -134,6 +161,7 @@ export async function projectEvaluatorCompareLoader({
   const [evaluatorAId, evaluatorBId] = evaluatorIds;
   const invalid = (invalidReason: ProjectEvaluatorCompareInvalidReason) => ({
     queryRef: null,
+    evaluationTarget: null,
     invalidReason,
     evaluatorAName: null,
     evaluatorBName: null,
@@ -190,6 +218,7 @@ export async function projectEvaluatorCompareLoader({
       variables
     ),
     invalidReason: null,
+    evaluationTarget: evaluatorA.evaluationTarget,
     evaluatorAName: evaluatorA.name,
     evaluatorBName: evaluatorB.name,
     evaluatorAId,
