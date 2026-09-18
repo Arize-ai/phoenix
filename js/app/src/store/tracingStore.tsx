@@ -69,6 +69,10 @@ const makeTracingStoreKey = ({
   tableId: ProjectTab;
 }) => `arize-phoenix-tracing-${projectId}-${tableId}`;
 
+/**
+ * The `TracingProps` fields seed the store's initial state. They are read once
+ * when the store is created, so later changes to them have no effect.
+ */
 export type CreateTracingStoreProps = {
   projectId: string;
   tableId: ProjectTab;

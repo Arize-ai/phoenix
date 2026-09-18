@@ -11,6 +11,8 @@ import {
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 
+import { useCompareSelection } from "./ProjectEvaluatorCompareSelectionContext";
+
 const evaluatorFragment = graphql`
   fragment ProjectEvaluatorCompareMatrix_evaluator on ProjectEvaluator {
     name
@@ -30,8 +32,6 @@ const evaluatorFragment = graphql`
   }
 `;
 
-import { useCompareSelection } from "./projectEvaluatorCompareSelection";
-
 export function ProjectEvaluatorCompareMatrix({
   comparisonRef,
   evaluatorARef,
@@ -43,7 +43,10 @@ export function ProjectEvaluatorCompareMatrix({
 }) {
   const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
   const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
-  const { selection, setSelection } = useCompareSelection();
+  // The optimistic selection highlights the pressed cell at once, before the
+  // navigation that carries it commits.
+  const { optimisticSelection: selection, setSelection } =
+    useCompareSelection();
   const comparison = useFragment(
     graphql`
       fragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {

@@ -9,6 +9,7 @@ import { ProjectEvaluatorCompareMatrix } from "@phoenix/pages/project/evaluators
 import { ProjectEvaluatorCompareStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareStats";
 
 import { ProjectEvaluatorCompareDistributions } from "./ProjectEvaluatorCompareDistributions";
+import { CompareSelectionProvider } from "./ProjectEvaluatorCompareSelectionContext";
 import { ProjectEvaluatorCompareTargets } from "./ProjectEvaluatorCompareTargets";
 
 const comparisonPanelsCSS = css`
@@ -26,6 +27,7 @@ const evaluatorFragment = graphql`
     name
     ...ProjectEvaluatorCompareStats_evaluator
     ...ProjectEvaluatorCompareMatrix_evaluator
+    ...ProjectEvaluatorCompareTargets_evaluator
   }
 `;
 
@@ -109,30 +111,32 @@ export function ProjectEvaluatorCompareContent({
   );
   const comparison = data.project.evaluatorComparison;
   return (
-    <Flex direction="column" gap="size-200">
-      <ProjectEvaluatorCompareStats
-        comparisonRef={comparison}
-        evaluatorARef={evaluatorA}
-        evaluatorBRef={evaluatorB}
-      />
-      <div css={comparisonPanelsCSS}>
-        <ProjectEvaluatorCompareMatrix
+    <CompareSelectionProvider>
+      <Flex direction="column" gap="size-200">
+        <ProjectEvaluatorCompareStats
           comparisonRef={comparison}
           evaluatorARef={evaluatorA}
           evaluatorBRef={evaluatorB}
         />
-        <ProjectEvaluatorCompareDistributions
-          evaluatorARef={data.evaluatorA}
-          evaluatorBRef={data.evaluatorB}
+        <div css={comparisonPanelsCSS}>
+          <ProjectEvaluatorCompareMatrix
+            comparisonRef={comparison}
+            evaluatorARef={evaluatorA}
+            evaluatorBRef={evaluatorB}
+          />
+          <ProjectEvaluatorCompareDistributions
+            evaluatorARef={data.evaluatorA}
+            evaluatorBRef={data.evaluatorB}
+          />
+        </div>
+        <ProjectEvaluatorCompareTargets
+          projectId={projectId}
+          comparisonRef={comparison}
+          evaluatorARef={evaluatorA}
+          evaluatorBRef={evaluatorB}
+          timeRange={timeRange}
         />
-      </div>
-      <ProjectEvaluatorCompareTargets
-        key={`${evaluatorAId}:${evaluatorBId}`}
-        projectId={projectId}
-        comparisonRef={comparison}
-        evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
-        evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
-      />
-    </Flex>
+      </Flex>
+    </CompareSelectionProvider>
   );
 }

@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
-import { Suspense, useDeferredValue, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
-import { useSearchParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -14,7 +14,6 @@ import {
   Token,
 } from "@phoenix/components";
 import { EmptyState } from "@phoenix/components/core/empty";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -38,19 +37,17 @@ import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { makeFlatAnnotationColumnId } from "@phoenix/pages/project/tableUtils";
 import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
-import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 
 import type { ProjectEvaluatorCompareTargets_comparison$key } from "./__generated__/ProjectEvaluatorCompareTargets_comparison.graphql";
+import type { ProjectEvaluatorCompareTargets_evaluator$key } from "./__generated__/ProjectEvaluatorCompareTargets_evaluator.graphql";
 import type { ProjectEvaluatorCompareTargetsQuery } from "./__generated__/ProjectEvaluatorCompareTargetsQuery.graphql";
 import {
   buildCompareFilterCondition,
   type CompareTarget,
   isCompareSelectionValid,
 } from "./projectEvaluatorCompareFilterUtils";
-import {
-  formatCompareSelection,
-  useCompareSelection,
-} from "./projectEvaluatorCompareSelection";
+import { formatCompareSelection } from "./projectEvaluatorCompareSelection";
+import { useCompareSelection } from "./ProjectEvaluatorCompareSelectionContext";
 
 const targetsTableCSS = css`
   transition: opacity 150ms ease-in-out;
@@ -59,17 +56,40 @@ const targetsTableCSS = css`
   }
 `;
 
+const evaluatorFragment = graphql`
+  fragment ProjectEvaluatorCompareTargets_evaluator on ProjectEvaluator {
+    evaluator {
+      outputConfigs {
+        ... on CategoricalAnnotationConfig {
+          optimizationDirection
+        }
+        ... on ContinuousAnnotationConfig {
+          optimizationDirection
+        }
+        ... on FreeformAnnotationConfig {
+          optimizationDirection
+        }
+      }
+    }
+  }
+`;
+
 export function ProjectEvaluatorCompareTargets({
   projectId,
   comparisonRef,
-  evaluatorAOptimizationDirection,
-  evaluatorBOptimizationDirection,
+  evaluatorARef,
+  evaluatorBRef,
+  timeRange,
 }: {
   projectId: string;
   comparisonRef: ProjectEvaluatorCompareTargets_comparison$key;
-  evaluatorAOptimizationDirection: EvaluatorOptimizationDirection | null;
-  evaluatorBOptimizationDirection: EvaluatorOptimizationDirection | null;
+  evaluatorARef: ProjectEvaluatorCompareTargets_evaluator$key;
+  evaluatorBRef: ProjectEvaluatorCompareTargets_evaluator$key;
+  /** The closed range the comparison was computed over. */
+  timeRange: TimeRange;
 }) {
+  const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
+  const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
   const comparison = useFragment(
     graphql`
       fragment ProjectEvaluatorCompareTargets_comparison on ProjectEvaluatorComparison {
@@ -95,32 +115,30 @@ export function ProjectEvaluatorCompareTargets({
   );
   const sideA = {
     ...comparison.sideA,
-    optimizationDirection: evaluatorAOptimizationDirection,
+    optimizationDirection:
+      evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
   };
   const sideB = {
     ...comparison.sideB,
-    optimizationDirection: evaluatorBOptimizationDirection,
+    optimizationDirection:
+      evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
   };
-  const { selection, setSelection } = useCompareSelection();
+  const { selection, optimisticSelection, isPending, setSelection } =
+    useCompareSelection();
+  // A changed time range may remove a categorical bin from the matrix; the
+  // selection then stays in the URL but is ignored until the bin returns.
   const isValid =
     !selection || isCompareSelectionValid({ selection, sideA, sideB });
-  // A changed time range may remove a categorical bin from the matrix.
-  useEffect(() => {
-    if (!isValid) setSelection(null, { replace: true, flushSync: false });
-  }, [isValid, setSelection]);
   const activeSelection = isValid ? selection : null;
+  // The heading follows the pressed cell at once; the rows follow once the
+  // selection commits and the targets for it have loaded.
+  const shownSelection = isPending ? optimisticSelection : activeSelection;
   const condition = buildCompareFilterCondition({
     target,
     selection: activeSelection,
     sideA,
     sideB,
   });
-  // A new selection remounts the table subtree below. Deferring the condition
-  // keeps the current rows mounted (dimmed) while the next query loads instead
-  // of swapping them for a spinner, which collapses the page's scroll height
-  // and jumps the viewport.
-  const deferredCondition = useDeferredValue(condition);
-  const isStale = deferredCondition !== condition;
   const noun = `${target.toLowerCase()}s`;
   const compareAnnotationVisibility = {
     [sideA.annotationName]: true,
@@ -148,9 +166,9 @@ export function ProjectEvaluatorCompareTargets({
       >
         <Flex direction="row" alignItems="center" gap="size-100" wrap>
           <Heading level={2}>{`Matching ${noun}`}</Heading>
-          {activeSelection ? (
+          {shownSelection ? (
             <Token maxWidth="100%" onRemove={() => setSelection(null)}>
-              {formatCompareSelection(activeSelection)}
+              {formatCompareSelection(shownSelection)}
             </Token>
           ) : (
             <Text color="text-700">
@@ -172,13 +190,11 @@ export function ProjectEvaluatorCompareTargets({
       >
         <StreamStateProvider>
           {/*
-            The page remounts this subtree whenever the pair changes, so the
-            compared annotation columns can be enabled as initial state. Column
-            preferences stay in memory: persisting them would leak one pair's
-            annotation columns and sizes into the next.
+            The page remounts this subtree when the pair changes, so the compared
+            annotation columns are enabled as initial state and kept in memory
+            only. Persisting them would carry one pair's columns into the next.
           */}
           <TracingProvider
-            key={target}
             projectId={projectId}
             tableId={COMPARE_TABLE_IDS[target]}
             persistPreferences={false}
@@ -207,21 +223,24 @@ export function ProjectEvaluatorCompareTargets({
             }}
           >
             {/*
-              The Suspense boundary sits above the keyed subtree so it is
-              already mounted when the key changes; a boundary mounted along
-              with the new key would show its fallback even during a deferred
-              render.
+              A selection change navigates inside a transition. The Suspense
+              boundary sits above the keyed subtree so it is already mounted when
+              the key changes and the transition keeps the current rows (dimmed)
+              until the next ones load; a boundary mounted with the new key would
+              show its fallback instead.
             */}
-            <div css={targetsTableCSS} aria-busy={isStale}>
+            <div css={targetsTableCSS} aria-busy={isPending}>
               <Suspense fallback={<Loading />}>
-                <ErrorBoundary
-                  key={deferredCondition}
-                  fallback={CompareTargetsError}
-                >
+                {/*
+                  The key resets the error state, the filter providers' initial
+                  condition and the targets query together.
+                */}
+                <ErrorBoundary key={condition} fallback={CompareTargetsError}>
                   <CompareTargetsFilters
                     projectId={projectId}
                     target={target}
-                    condition={deferredCondition}
+                    condition={condition}
+                    timeRange={timeRange}
                   />
                 </ErrorBoundary>
               </Suspense>
@@ -274,30 +293,36 @@ type TargetsProps = {
   projectId: string;
   target: CompareTarget;
   condition: string;
+  timeRange: TimeRange;
 };
+
+/** The span table needs a settled seed; the other tables take the condition. */
+type TargetsTableProps = Omit<TargetsProps, "target"> &
+  (
+    | { target: "SPAN"; seed: SettledSpanFilterSeed }
+    | { target: "TRACE" | "SESSION" }
+  );
 
 function CompareTargetsFilters(props: TargetsProps) {
   if (props.target === "SPAN") return <CompareSpanTargets {...props} />;
   if (props.target === "TRACE")
     return (
       <TraceFiltersProvider initialFilterCondition={props.condition}>
-        <CompareTargetsTable {...props} />
+        <CompareTargetsTable {...props} target="TRACE" />
       </TraceFiltersProvider>
     );
   return (
     <SessionFiltersProvider initialFilterCondition={props.condition}>
-      <CompareTargetsTable {...props} />
+      <CompareTargetsTable {...props} target="SESSION" />
     </SessionFiltersProvider>
   );
 }
 
 function CompareSpanTargets(props: TargetsProps) {
-  // The condition comes from buildCompareFilterCondition: escaped literals over
-  // annotation fields, never a root-span predicate. It is settled without the
-  // server round trip that arbitrary text needs, which would otherwise replace
-  // the rows with the pending field on every selection change. A condition the
-  // server still rejects lands in the error fallback, where the field stays
-  // editable.
+  // The condition is generated (escaped annotation predicates, never root-span
+  // only), so it is used as a settled seed instead of going through the server
+  // validation that arbitrary text needs. If the server still rejects it, the
+  // error fallback shows an editable field.
   const [seed, setSeed] = useState<SettledSpanFilterSeed>(() => ({
     condition: props.condition,
     requiresServerValidation: false,
@@ -316,6 +341,7 @@ function CompareSpanTargets(props: TargetsProps) {
       >
         <CompareTargetsTable
           {...props}
+          target="SPAN"
           condition={seed.condition}
           seed={seed}
         />
@@ -324,14 +350,10 @@ function CompareSpanTargets(props: TargetsProps) {
   );
 }
 
-function CompareTargetsTable({
-  projectId,
-  target,
-  condition,
-  seed,
-}: TargetsProps & { seed?: SettledSpanFilterSeed }) {
-  const { timeRangeISOStrings } = useTimeRange();
-  const [initialTimeRange] = useState(timeRangeISOStrings);
+function CompareTargetsTable(props: TargetsTableProps) {
+  const { projectId, target, condition, timeRange } = props;
+  const seed = props.target === "SPAN" ? props.seed : null;
+  const { targetId } = useParams();
   const data = useLazyLoadQuery<ProjectEvaluatorCompareTargetsQuery>(
     graphql`
       query ProjectEvaluatorCompareTargetsQuery(
@@ -363,7 +385,10 @@ function CompareTargetsTable({
     `,
     {
       id: projectId,
-      timeRange: initialTimeRange,
+      timeRange: {
+        start: timeRange.start.toISOString(),
+        end: timeRange.end.toISOString(),
+      },
       condition,
       rootSpansOnly: seed?.rootSpansOnly ?? false,
       isSpan: target === "SPAN",
@@ -382,15 +407,31 @@ function CompareTargetsTable({
       />
     </TableEmptyWrap>
   );
-  if (target === "SPAN") {
-    invariant(seed, "Validated span filter required");
+  if (props.target === "SPAN") {
     return (
-      <SpansTable project={data.project} seed={seed} emptyState={emptyState} />
+      <SpansTable
+        project={data.project}
+        seed={props.seed}
+        emptyState={emptyState}
+        selectedRowId={targetId}
+      />
     );
   }
   if (target === "TRACE")
-    return <TracesTable project={data.project} emptyState={emptyState} />;
-  return <SessionsTable project={data.project} emptyState={emptyState} />;
+    return (
+      <TracesTable
+        project={data.project}
+        emptyState={emptyState}
+        selectedRowId={targetId}
+      />
+    );
+  return (
+    <SessionsTable
+      project={data.project}
+      emptyState={emptyState}
+      selectedRowId={targetId}
+    />
+  );
 }
 
 function CompareTargetsError({ error }: ErrorBoundaryFallbackProps) {

@@ -4,11 +4,10 @@ import type { LoadMoreButtonProps } from "@phoenix/components/core/LoadMoreButto
 import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 
 /*
- * The absolute cell centers the button across the full row width, so the row
- * has to reserve the cell's height itself or the cell hangs below the table
- * and adds a sliver of scroll to a content-sized container. Important because
- * table styles give every body row "height: 100%", which resolves to zero for
- * a row with no in-flow content.
+ * The cell is absolutely positioned so the button can center across the whole
+ * row, which leaves the row with no in-flow content and a height of zero. The
+ * row reserves the cell's height itself so the cell does not hang below the
+ * table.
  */
 const rowCSS = css`
   position: relative;

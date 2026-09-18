@@ -26,7 +26,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -82,7 +82,7 @@ import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
+import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -122,6 +122,8 @@ import {
 import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
+  /** The trace or session id whose row renders as selected. */
+  selectedRowId?: string;
   emptyState?: ReactNode;
   project: TracesTable_spans$key;
 };
@@ -202,17 +204,18 @@ const TableBody = <
     IAdditionalSpansRow,
 >({
   table,
+  selectedRowId,
 }: {
   table: Table<T>;
+  selectedRowId?: string;
 }) => {
   "use no memo";
   const navigate = useNavigate();
-  const { traceId, targetId } = useParams();
   const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === (traceId ?? targetId);
+        const isSelected = row.original.trace.traceId === selectedRowId;
         return (
           <tr
             key={row.id}
@@ -307,7 +310,6 @@ export function TracesTable(props: TracesTableProps) {
   const { filterCondition: initialFilterCondition } = useTraceFilters();
   const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -963,23 +965,13 @@ export function TracesTable(props: TracesTableProps) {
     timeRangeISOStrings,
   ]);
 
-  // A visibility observer rather than the container's scroll event, so paging
-  // works whether this table owns the scroll or sits in a scrolling page.
-  const { ref: loadMoreSentinelRef, isVisible: isLoadMoreSentinelVisible } =
-    useDeferredVisibility<HTMLDivElement>({
-      rootMargin: "300px",
-      scrollMargin: "300px",
-    });
-  // The observer reports the sentinel leaving a frame after new rows commit,
-  // so re-running on load completion would chain an extra page from stale
-  // visibility. A page that leaves the sentinel in view falls back to the
-  // Load More row.
-  useEffect(() => {
-    if (isLoadMoreSentinelVisible && hasNext && !isLoadingNext) {
-      loadNext(PAGE_SIZE);
-    }
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- see above
-  }, [isLoadMoreSentinelVisible]);
+  const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    pageSize: PAGE_SIZE,
+    rows: data.rootSpans.edges,
+  });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -1147,7 +1139,6 @@ export function TracesTable(props: TracesTableProps) {
             flex: 1 1 auto;
             overflow: auto;
           `}
-          ref={tableContainerRef}
         >
           <ColumnOrderingProvider
             columnOrder={visibleColumnOrder}
@@ -1256,6 +1247,7 @@ export function TracesTable(props: TracesTableProps) {
                 />
               ) : (
                 <TableBody
+                  selectedRowId={props.selectedRowId}
                   table={
                     // We can't access the internal TableRowType in the TableBody component
                     // so we cast to unknown and then to the correct type
