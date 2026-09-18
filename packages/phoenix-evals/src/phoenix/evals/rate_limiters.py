@@ -39,12 +39,15 @@ class AdaptiveTokenBucket:
     if no further errors occur.
 
     Args:
-    initial_per_second_request_rate (float): The allowed request rate.
+    initial_per_second_request_rate (float): The allowed request rate. Must be finite and positive.
     maximum_per_second_request_rate (float): The maximum allowed request rate.
     enforcement_window_minutes (float): The time window over which the rate limit is enforced.
     rate_reduction_factor (float): Multiplier used to reduce the rate limit after an error.
     rate_increase_factor (float): Exponential factor increasing the rate limit over time.
     cooldown_seconds (float): The minimum time before allowing the rate limit to decrease again.
+
+    Raises:
+        ValueError: If the initial request rate is non-positive or non-finite.
     """
 
     def __init__(

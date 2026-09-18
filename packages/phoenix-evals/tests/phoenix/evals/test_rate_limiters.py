@@ -76,10 +76,13 @@ def async_warp_time(start: Optional[float]):
             yield
 
 
-@pytest.mark.parametrize("rate", [0.0, -1.0, float("nan"), float("inf")])
-def test_token_bucket_rejects_invalid_initial_rate(rate: float) -> None:
+@pytest.mark.parametrize("rate", [0.0, -1.0, float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("limiter_class", [AdaptiveTokenBucket, RateLimiter])
+def test_rate_limiter_rejects_invalid_initial_rate(
+    limiter_class: type[AdaptiveTokenBucket] | type[RateLimiter], rate: float
+) -> None:
     with pytest.raises(ValueError, match="initial_per_second_request_rate must be finite and > 0"):
-        AdaptiveTokenBucket(rate)
+        limiter_class(initial_per_second_request_rate=rate)
 
 
 def test_token_bucket_gains_tokens_over_time():
