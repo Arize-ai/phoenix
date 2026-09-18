@@ -171,9 +171,14 @@ TASK_CONFIG_QUERY = """
             }
             outputConfigs {
               ... on ContinuousAnnotationConfig {
+                id
                 name
                 lowerBound
                 upperBound
+              }
+              ... on CategoricalAnnotationConfig {
+                id
+                name
               }
             }
             definition {
@@ -185,6 +190,7 @@ TASK_CONFIG_QUERY = """
                 sandboxConfigId
                 outputConfigs {
                   ... on ContinuousAnnotationConfig {
+                    id
                     name
                   }
                 }
@@ -214,6 +220,7 @@ TASK_CONFIG_QUERY = """
                 }
                 outputConfigs {
                   ... on CategoricalAnnotationConfig {
+                    id
                     name
                   }
                 }
@@ -312,7 +319,12 @@ async def test_evaluator_job_exposes_its_evaluator_task_config(
         "literalMapping": {"case_sensitive": True},
         "pathMapping": {"output": "$.output"},
     }
-    assert config["outputConfigs"] == [{"name": "length", "lowerBound": 0.0, "upperBound": None}]
+    (config_output,) = config["outputConfigs"]
+    assert {key: value for key, value in config_output.items() if key != "id"} == {
+        "name": "length",
+        "lowerBound": 0.0,
+        "upperBound": None,
+    }
     definition = config["definition"]
     assert definition["__typename"] == "InlineCodeEvaluatorDefinition"
     assert definition["name"] == "answer-length"
@@ -320,6 +332,7 @@ async def test_evaluator_job_exposes_its_evaluator_task_config(
     assert definition["sourceCode"] == _ANSWER_LENGTH_SOURCE
     assert definition["sandboxConfigId"] == str(GlobalID("SandboxConfig", "7"))
     assert [output["name"] for output in definition["outputConfigs"]] == ["length"]
+    assert config_output["id"] != definition["outputConfigs"][0]["id"]
     assert definition["source"] is None
 
 
@@ -414,6 +427,9 @@ async def test_llm_evaluator_job_exposes_its_frozen_judge_prompt(
         {"role": "USER", "content": [{"text": {"text": "Judge {output}"}}]}
     ]
     assert [output["name"] for output in definition["outputConfigs"]] == ["tone"]
+    task_config = response.data["node"]["taskConfig"]
+    assert [output["name"] for output in task_config["outputConfigs"]] == ["tone"]
+    assert task_config["outputConfigs"][0]["id"] != definition["outputConfigs"][0]["id"]
     assert definition["source"] == {
         "evaluatorId": str(GlobalID("LLMEvaluator", "3")),
         "promptVersionId": str(GlobalID("PromptVersion", "4")),

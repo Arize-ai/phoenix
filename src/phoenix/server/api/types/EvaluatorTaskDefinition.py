@@ -39,7 +39,7 @@ if TYPE_CHECKING:
         GenerativeModelCustomProvider,
     )
 
-_OUTPUT_CONFIG_ID_PREFIX = "EvaluatorTaskConfig"
+_OUTPUT_CONFIG_ID_PREFIX = "EvaluatorTaskDefinition"
 
 
 def _global_id(type_name: str, rowid: Optional[int]) -> Optional[GlobalID]:
