@@ -23,6 +23,7 @@ from typing_extensions import TypedDict
 
 from phoenix.server.api.context import Context
 from phoenix.server.api.graphql_execute import (
+    MAX_QUERY_BYTES,
     GraphQLRefusal,
     execute_operation,
     operation_count,
@@ -141,6 +142,8 @@ executes for real, exactly once.
 {% else -%}
 Permissions: queries and mutations are ENABLED.
 {% endif %}
+Size: a document may be at most {{ max_query_kib }} KiB of UTF-8. Values passed with --vars or --vars-file do not count toward it, so put large inputs there.
+
 Recommended flow:
   1. `phoenix-gql schema --search <text>` to find the types and fields you
      need, and `--names <Type,Type.field>` to see each in full with how to
@@ -182,6 +185,7 @@ def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> 
     return _HELP_TEXT_TEMPLATE.render(
         mutations_enabled=mutations_enabled,
         approval_required=approval_required,
+        max_query_kib=MAX_QUERY_BYTES // 1024,
     )
 
 
