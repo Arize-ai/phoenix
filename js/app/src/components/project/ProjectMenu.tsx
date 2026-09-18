@@ -37,6 +37,11 @@ import { ProjectItemContent } from "./ProjectItemContent";
 
 const PAGE_SIZE = 50;
 
+type SelectedProject = {
+  id: string;
+  name: string;
+};
+
 export type ProjectMenuProps = StylableProps & {
   query: ProjectMenu_projects$key;
   selectedProjectId?: string | null;
@@ -150,6 +155,14 @@ export function ProjectMenu({
   css: propCSS,
 }: ProjectMenuProps) {
   const [search, setSearch] = useState("");
+  // The last name seen for a project the user picked or had selected while the
+  // connection was refetched. Bridges the gap when the selected project drops
+  // out of the loaded pages (e.g. it was picked from a search and the
+  // unfiltered first page does not contain it): the store-or-network lookup
+  // below cannot resolve node(id:) from the store without a missing-field
+  // handler, so without this the button would flash its placeholder.
+  const [optimisticProject, setOptimisticProject] =
+    useState<SelectedProject | null>(null);
   // Bumped to retry the selected-project lookup after a transient failure;
   // failedProjectId records which project's lookup failed so a retry only
   // happens while that project is still the selection.
@@ -203,13 +216,23 @@ export function ProjectMenu({
   );
   const projectFilter = search ? { col: "name" as const, value: search } : null;
   // When the selected project is not in the loaded pages of the connection
-  // (e.g. the connection is filtered by search), SelectedProjectMenuButton
-  // resolves the name — synchronously from the Relay store when the record
-  // was fetched before.
-  const displayProjectName = selectedProject?.name ?? null;
+  // (e.g. the connection is filtered by search) and no optimistic name is
+  // known for it, SelectedProjectMenuButton fetches the name by id.
+  const displayProjectName = selectedProjectId
+    ? (selectedProject?.name ??
+      (optimisticProject?.id === selectedProjectId
+        ? optimisticProject.name
+        : null))
+    : null;
 
   const onSearchChange = (value: string) => {
     setSearch(value);
+    if (selectedProject) {
+      setOptimisticProject({
+        id: selectedProject.id,
+        name: selectedProject.name,
+      });
+    }
     startTransition(() => {
       refetch(
         {
@@ -332,6 +355,10 @@ export function ProjectMenu({
             selectionMode="single"
             onAction={(key) => {
               if (typeof key === "string") {
+                const project = projects.find((project) => project.id === key);
+                if (project) {
+                  setOptimisticProject({ id: project.id, name: project.name });
+                }
                 onProjectChange(key);
               }
             }}
