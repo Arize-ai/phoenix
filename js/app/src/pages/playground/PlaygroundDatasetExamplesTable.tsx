@@ -1342,7 +1342,7 @@ export function PlaygroundDatasetExamplesTable({
                   output
                   metadata
                   revisionId
-                  calibrationLabels {
+                  expectedOutputs {
                     annotationName
                     label
                     score
@@ -1369,7 +1369,7 @@ export function PlaygroundDatasetExamplesTable({
           output: revision.output,
           metadata: revision.metadata,
           revisionId: revision.revisionId,
-          calibrationLabels: revision.calibrationLabels,
+          expectedOutputs: revision.expectedOutputs,
         };
       }),
     [data]
@@ -1491,7 +1491,7 @@ export function PlaygroundDatasetExamplesTable({
               output={annotation.output}
               exampleId={row.original.id}
               position={row.index + 1}
-              calibrationLabels={row.original.calibrationLabels}
+              expectedOutputs={row.original.expectedOutputs}
               isRunning={isRunning}
               onViewTracePress={(traceId, projectId, name) => {
                 setSelectedTraceInfo({

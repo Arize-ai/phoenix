@@ -37,7 +37,7 @@ export const PlaygroundEvaluatorExampleCell = memo(
     output,
     exampleId,
     position,
-    calibrationLabels,
+    expectedOutputs,
     isRunning,
     onViewTracePress,
   }: {
@@ -49,7 +49,7 @@ export const PlaygroundEvaluatorExampleCell = memo(
     output: EvaluatorOutput | undefined;
     exampleId: string;
     position: number;
-    calibrationLabels: ExpectedOutputExample["calibrationLabels"];
+    expectedOutputs: ExpectedOutputExample["expectedOutputs"];
     isRunning: boolean;
     onViewTracePress: (
       traceId: string,
@@ -73,7 +73,7 @@ export const PlaygroundEvaluatorExampleCell = memo(
 
     const expected = getExpectedOutput({
       pending: overlay[exampleId],
-      calibrationLabels,
+      expectedOutputs,
       annotationName,
     });
 

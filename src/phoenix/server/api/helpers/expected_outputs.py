@@ -1,4 +1,4 @@
-"""Human expected outputs for evaluator calibration.
+"""Human expected outputs stored on a dataset example.
 
 An expected output is stored the way the span→example converter stores span
 annotations: under ``metadata["annotations"][<annotation name>]`` as a list of

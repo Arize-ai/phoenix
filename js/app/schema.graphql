@@ -1293,28 +1293,6 @@ type DatasetExample implements Node {
   datasetSplits: [DatasetSplit!]!
 }
 
-type DatasetExampleCalibrationLabel {
-  annotationName: String!
-  label: String
-  score: Float
-  explanation: String
-}
-
-input DatasetExampleCalibrationLabelInput {
-  exampleId: ID!
-  expectedRevisionId: ID!
-  annotationName: String!
-  label: String
-  score: Float = null
-  explanation: String = null
-}
-
-type DatasetExampleCalibrationLabelsPayload {
-  dataset: Dataset!
-  version: DatasetVersion!
-  examples: [DatasetExample!]!
-}
-
 """A connection to a list of items."""
 type DatasetExampleConnection {
   """Pagination data for this connection"""
@@ -1331,6 +1309,28 @@ type DatasetExampleEdge {
 
   """The item at the end of the edge"""
   node: DatasetExample!
+}
+
+type DatasetExampleExpectedOutput {
+  annotationName: String!
+  label: String
+  score: Float
+  explanation: String
+}
+
+input DatasetExampleExpectedOutputInput {
+  exampleId: ID!
+  expectedRevisionId: ID!
+  annotationName: String!
+  label: String
+  score: Float = null
+  explanation: String = null
+}
+
+type DatasetExampleExpectedOutputsPayload {
+  dataset: Dataset!
+  version: DatasetVersion!
+  examples: [DatasetExample!]!
 }
 
 input DatasetExampleInput {
@@ -1356,7 +1356,7 @@ type DatasetExampleRevision implements ExampleRevision {
   revisionKind: RevisionKind!
   createdAt: DateTime!
   evaluationContext: JSON!
-  calibrationLabels: [DatasetExampleCalibrationLabel!]!
+  expectedOutputs: [DatasetExampleExpectedOutput!]!
 }
 
 type DatasetExperimentAnnotationSummary {
@@ -2849,7 +2849,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
-  setDatasetExampleCalibrationLabels(input: SetDatasetExampleCalibrationLabelsInput!): DatasetExampleCalibrationLabelsPayload!
+  setDatasetExampleExpectedOutputs(input: SetDatasetExampleExpectedOutputsInput!): DatasetExampleExpectedOutputsPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
@@ -4591,9 +4591,9 @@ input SetAgentTraceRecordingInput {
   allowRemoteExport: Boolean!
 }
 
-input SetDatasetExampleCalibrationLabelsInput {
+input SetDatasetExampleExpectedOutputsInput {
   datasetId: ID!
-  labels: [DatasetExampleCalibrationLabelInput!]!
+  expectedOutputs: [DatasetExampleExpectedOutputInput!]!
 }
 
 input SetDatasetExampleSplitsInput {

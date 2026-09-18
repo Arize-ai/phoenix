@@ -8,17 +8,17 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.types.DatasetExampleRevision import (
     DatasetExampleRevision,
-    get_calibration_labels,
+    to_gql_expected_outputs,
 )
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 
 @pytest.fixture
-async def calibration_dataset(db: DbSessionFactory) -> tuple[int, list[tuple[int, int]]]:
+async def expected_outputs_dataset(db: DbSessionFactory) -> tuple[int, list[tuple[int, int]]]:
     """A dataset with two examples; returns (dataset_id, [(example_id, revision_id)])."""
     async with db() as session:
-        dataset = models.Dataset(name="calibration", metadata_={})
+        dataset = models.Dataset(name="expected-outputs", metadata_={})
         session.add(dataset)
         await session.flush()
         version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
@@ -44,15 +44,15 @@ async def calibration_dataset(db: DbSessionFactory) -> tuple[int, list[tuple[int
 
 
 _MUTATION = """
-  mutation SetLabels($input: SetDatasetExampleCalibrationLabelsInput!) {
-    setDatasetExampleCalibrationLabels(input: $input) {
+  mutation SetExpectedOutputs($input: SetDatasetExampleExpectedOutputsInput!) {
+    setDatasetExampleExpectedOutputs(input: $input) {
       dataset { id }
       version { id description }
       examples {
         id
         revision {
           revisionId input output metadata evaluationContext
-          calibrationLabels { annotationName label score explanation }
+          expectedOutputs { annotationName label score explanation }
         }
       }
     }
@@ -71,8 +71,8 @@ def _label(example: tuple[int, int], **overrides: Any) -> dict[str, Any]:
     }
 
 
-def _input(dataset_id: int, *labels: dict[str, Any]) -> dict[str, Any]:
-    return {"input": {"datasetId": str(GlobalID("Dataset", str(dataset_id))), "labels": labels}}
+def _input(dataset_id: int, *expected_outputs: dict[str, Any]) -> dict[str, Any]:
+    return {"input": {"datasetId": str(GlobalID("Dataset", str(dataset_id))), "expectedOutputs": expected_outputs}}
 
 
 async def _count_versions(db: DbSessionFactory, dataset_id: int) -> int:
@@ -87,14 +87,14 @@ async def _count_versions(db: DbSessionFactory, dataset_id: int) -> int:
         )
 
 
-class TestCalibrationLabels:
+class TestSetDatasetExampleExpectedOutputs:
     async def test_batch_writes_one_version_for_many_examples_and_names(
         self,
-        calibration_dataset: tuple[int, list[tuple[int, int]]],
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
     ) -> None:
-        dataset_id, (first, second) = calibration_dataset
+        dataset_id, (first, second) = expected_outputs_dataset
         response = await gql_client.execute(
             _MUTATION,
             variables=_input(
@@ -105,18 +105,18 @@ class TestCalibrationLabels:
             ),
         )
         assert response.data and not response.errors
-        payload = response.data["setDatasetExampleCalibrationLabels"]
+        payload = response.data["setDatasetExampleExpectedOutputs"]
         assert payload["version"]["description"] == "Update expected outputs for 2 examples"
         assert await _count_versions(db, dataset_id) == 2  # the seed version plus this batch
         by_id = {example["id"]: example["revision"] for example in payload["examples"]}
         first_revision = by_id[str(GlobalID("DatasetExample", str(first[0])))]
         second_revision = by_id[str(GlobalID("DatasetExample", str(second[0])))]
         # Two names on one example land in one revision.
-        assert first_revision["calibrationLabels"] == [
+        assert first_revision["expectedOutputs"] == [
             {"annotationName": "quality", "label": "good", "score": None, "explanation": None},
             {"annotationName": "refusal", "label": None, "score": 0.5, "explanation": None},
         ]
-        assert second_revision["calibrationLabels"] == [
+        assert second_revision["expectedOutputs"] == [
             {
                 "annotationName": "quality",
                 "label": "bad",
@@ -135,11 +135,11 @@ class TestCalibrationLabels:
 
     async def test_set_merge_clear_and_annotation_shape(
         self,
-        calibration_dataset: tuple[int, list[tuple[int, int]]],
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
     ) -> None:
-        dataset_id, (example, _) = calibration_dataset
+        dataset_id, (example, _) = expected_outputs_dataset
         expected_revision = _label(example)["expectedRevisionId"]
         for annotation_name, label, expected_labels in [
             ("quality", "good", ["quality:good"]),
@@ -157,11 +157,11 @@ class TestCalibrationLabels:
                 ),
             )
             assert response.data and not response.errors
-            payload = response.data["setDatasetExampleCalibrationLabels"]
+            payload = response.data["setDatasetExampleExpectedOutputs"]
             (revision,) = [item["revision"] for item in payload["examples"]]
             assert [
                 f"{item['annotationName']}:{item['label']}"
-                for item in revision["calibrationLabels"]
+                for item in revision["expectedOutputs"]
             ] == expected_labels
             assert revision["revisionId"] != expected_revision
             expected_revision = revision["revisionId"]
@@ -192,11 +192,11 @@ class TestCalibrationLabels:
 
     async def test_keeps_other_annotators_and_reads_only_human_records(
         self,
-        calibration_dataset: tuple[int, list[tuple[int, int]]],
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
     ) -> None:
-        dataset_id, (example, _) = calibration_dataset
+        dataset_id, (example, _) = expected_outputs_dataset
         llm_record = {
             "label": "bad",
             "score": 0.0,
@@ -215,10 +215,10 @@ class TestCalibrationLabels:
             _MUTATION, variables=_input(dataset_id, _label(example))
         )
         assert response.data and not response.errors
-        (saved,) = response.data["setDatasetExampleCalibrationLabels"]["examples"]
+        (saved,) = response.data["setDatasetExampleExpectedOutputs"]["examples"]
         assert [
             (item["annotationName"], item["label"])
-            for item in saved["revision"]["calibrationLabels"]
+            for item in saved["revision"]["expectedOutputs"]
         ] == [("quality", "good")]
         records = saved["revision"]["metadata"]["annotations"]["quality"]
         assert records[0] == llm_record
@@ -235,17 +235,17 @@ class TestCalibrationLabels:
             ),
         )
         assert response.data and not response.errors
-        (cleared,) = response.data["setDatasetExampleCalibrationLabels"]["examples"]
-        assert cleared["revision"]["calibrationLabels"] == []
+        (cleared,) = response.data["setDatasetExampleExpectedOutputs"]["examples"]
+        assert cleared["revision"]["expectedOutputs"] == []
         assert cleared["revision"]["metadata"]["annotations"] == {"quality": [llm_record]}
 
     async def test_stale_revision_rejects_the_whole_batch(
         self,
-        calibration_dataset: tuple[int, list[tuple[int, int]]],
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
     ) -> None:
-        dataset_id, (first, second) = calibration_dataset
+        dataset_id, (first, second) = expected_outputs_dataset
         response = await gql_client.execute(_MUTATION, variables=_input(dataset_id, _label(first)))
         assert response.data and not response.errors
         versions = await _count_versions(db, dataset_id)
@@ -275,12 +275,12 @@ class TestCalibrationLabels:
     )
     async def test_rejects_invalid_labels(
         self,
-        calibration_dataset: tuple[int, list[tuple[int, int]]],
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
         gql_client: AsyncGraphQLClient,
         overrides: dict[str, Any],
         message: str,
     ) -> None:
-        dataset_id, (example, _) = calibration_dataset
+        dataset_id, (example, _) = expected_outputs_dataset
         response = await gql_client.execute(
             _MUTATION, variables=_input(dataset_id, _label(example, **overrides))
         )
@@ -289,10 +289,10 @@ class TestCalibrationLabels:
 
     async def test_rejects_wrong_dataset_empty_and_duplicate_batches(
         self,
-        calibration_dataset: tuple[int, list[tuple[int, int]]],
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
         gql_client: AsyncGraphQLClient,
     ) -> None:
-        dataset_id, (example, _) = calibration_dataset
+        dataset_id, (example, _) = expected_outputs_dataset
         response = await gql_client.execute(_MUTATION, variables=_input(999999, _label(example)))
         assert response.errors and "selected dataset" in response.errors[0].message
         response = await gql_client.execute(_MUTATION, variables=_input(dataset_id))
@@ -305,12 +305,12 @@ class TestCalibrationLabels:
     @pytest.mark.parametrize("deleted", [False, True])
     async def test_rejects_deleted_or_malformed_examples(
         self,
-        calibration_dataset: tuple[int, list[tuple[int, int]]],
+        expected_outputs_dataset: tuple[int, list[tuple[int, int]]],
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         deleted: bool,
     ) -> None:
-        dataset_id, (example, _) = calibration_dataset
+        dataset_id, (example, _) = expected_outputs_dataset
         async with db() as session:
             revision = await session.get(models.DatasetExampleRevision, example[1])
             assert revision is not None
@@ -335,11 +335,11 @@ class TestCalibrationLabels:
             assert len(revisions) == 1
 
 
-async def test_calibration_labels_are_computed_only_when_requested(
-    calibration_dataset: tuple[int, list[tuple[int, int]]], db: DbSessionFactory
+async def test_expected_outputs_are_computed_only_when_requested(
+    expected_outputs_dataset: tuple[int, list[tuple[int, int]]], db: DbSessionFactory
 ) -> None:
     async with db() as session:
-        stored = await session.get(models.DatasetExampleRevision, calibration_dataset[1][0][1])
+        stored = await session.get(models.DatasetExampleRevision, expected_outputs_dataset[1][0][1])
         assert stored is not None
         with patch(
             "phoenix.server.api.types.DatasetExampleRevision.get_expected_outputs",
@@ -347,5 +347,5 @@ async def test_calibration_labels_are_computed_only_when_requested(
         ) as read_expected:
             revision = DatasetExampleRevision.from_orm_revision(stored)
             read_expected.assert_not_called()
-            assert get_calibration_labels(revision.metadata)[0].label == "good"
+            assert to_gql_expected_outputs(revision.metadata)[0].label == "good"
             read_expected.assert_called_once_with(stored.metadata_)

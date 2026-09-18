@@ -21,7 +21,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
-from phoenix.server.api.helpers.evaluator_calibration import set_expected_output
+from phoenix.server.api.helpers.expected_outputs import set_expected_output
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
@@ -32,9 +32,9 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
-from phoenix.server.api.input_types.SetDatasetExampleCalibrationLabelsInput import (
-    DatasetExampleCalibrationLabelInput,
-    SetDatasetExampleCalibrationLabelsInput,
+from phoenix.server.api.input_types.SetDatasetExampleExpectedOutputsInput import (
+    DatasetExampleExpectedOutputInput,
+    SetDatasetExampleExpectedOutputsInput,
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -54,7 +54,7 @@ class DatasetMutationPayload:
 
 
 @strawberry.type
-class DatasetExampleCalibrationLabelsPayload:
+class DatasetExampleExpectedOutputsPayload:
     dataset: Dataset
     version: DatasetVersion
     # The touched examples, each resolving its revision as of the new version.
@@ -516,11 +516,11 @@ class DatasetMutationMixin:
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def set_dataset_example_calibration_labels(
+    async def set_dataset_example_expected_outputs(
         self,
         info: Info[Context, None],
-        input: SetDatasetExampleCalibrationLabelsInput,
-    ) -> DatasetExampleCalibrationLabelsPayload:
+        input: SetDatasetExampleExpectedOutputsInput,
+    ) -> DatasetExampleExpectedOutputsPayload:
         """Write a batch of human expected outputs as one dataset version.
 
         Annotating is bursty — a person works down a column of results — so the
@@ -528,9 +528,9 @@ class DatasetMutationMixin:
         keeps the dataset's history proportional to sittings, not clicks.
         """
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
-        labels_by_example: dict[int, list[DatasetExampleCalibrationLabelInput]] = {}
+        expected_outputs_by_example: dict[int, list[DatasetExampleExpectedOutputInput]] = {}
         expected_revision_ids: dict[int, int] = {}
-        for item in input.labels:
+        for item in input.expected_outputs:
             example_id = from_global_id_with_expected_type(item.example_id, DatasetExample.__name__)
             revision_id = from_global_id_with_expected_type(
                 item.expected_revision_id, DatasetExampleRevision.__name__
@@ -539,10 +539,10 @@ class DatasetMutationMixin:
                 raise BadRequest(
                     "An example's annotations must all name the same expected revision."
                 )
-            labels_by_example.setdefault(example_id, []).append(item)
+            expected_outputs_by_example.setdefault(example_id, []).append(item)
         async with info.context.db() as session:
             # Lock the examples for the rest of the transaction so concurrent
-            # calibration writes serialize and the stale-revision check below is
+            # expected-output writes serialize and the stale-revision check below is
             # reliable. SQLAlchemy drops FOR UPDATE on SQLite, whose single writer
             # lock serializes the transactions instead.
             examples = {
@@ -550,17 +550,17 @@ class DatasetMutationMixin:
                 for example in await session.scalars(
                     select(models.DatasetExample)
                     .where(
-                        models.DatasetExample.id.in_(labels_by_example),
+                        models.DatasetExample.id.in_(expected_outputs_by_example),
                         models.DatasetExample.dataset_id == dataset_id,
                     )
                     .with_for_update()
                 )
             }
-            if len(examples) != len(labels_by_example):
+            if len(examples) != len(expected_outputs_by_example):
                 raise NotFound("Example not found in the selected dataset.")
             latest_revision_id = (
                 select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id.in_(labels_by_example))
+                .where(models.DatasetExampleRevision.dataset_example_id.in_(expected_outputs_by_example))
                 .group_by(models.DatasetExampleRevision.dataset_example_id)
                 .scalar_subquery()
             )
@@ -578,7 +578,7 @@ class DatasetMutationMixin:
                 str(GlobalID(models.User.__name__, str(user_id))) if user_id is not None else None
             )
             next_metadata: dict[int, dict[str, Any]] = {}
-            for example_id, items in labels_by_example.items():
+            for example_id, items in expected_outputs_by_example.items():
                 revision = revisions.get(example_id)
                 if revision is None or revision.revision_kind == "DELETE":
                     raise NotFound("Example not found.")
@@ -626,7 +626,7 @@ class DatasetMutationMixin:
             )
             await session.flush()
         info.context.event_queue.put(DatasetInsertEvent((dataset_id,)))
-        return DatasetExampleCalibrationLabelsPayload(
+        return DatasetExampleExpectedOutputsPayload(
             dataset=Dataset(id=dataset_id),
             version=DatasetVersion(id=version.id, db_record=version),
             examples=[
