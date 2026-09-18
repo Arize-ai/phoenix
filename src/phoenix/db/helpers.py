@@ -1386,3 +1386,21 @@ def pg_total_table_size_stmt() -> TextClause:
     return text(
         f"SELECT coalesce(sum(pg_total_relation_size(c.oid)), 0)\n{_PG_TABLES_IN_PHOENIX_SCHEMA}"
     ).bindparams(nspname=get_env_database_schema())
+
+
+async def llm_evaluators_pinned_by_prompt_version_tag(
+    session: AsyncSession, prompt_version_tag_id: int, *, for_update: bool = False
+) -> Sequence[models.LLMEvaluator]:
+    """Return the LLM evaluators that record the prompt version they run through this tag.
+
+    With for_update, the rows are locked in id order until the transaction ends and reloaded,
+    so the caller sees whatever a transaction it waited on committed.
+    """
+    stmt = (
+        select(models.LLMEvaluator)
+        .where(models.LLMEvaluator.prompt_version_tag_id == prompt_version_tag_id)
+        .order_by(models.LLMEvaluator.id)
+    )
+    if for_update:
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+    return (await session.scalars(stmt)).all()
