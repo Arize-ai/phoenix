@@ -18,8 +18,6 @@ After completing previous guides, you should have:
 <Tabs>
   <Tab title="In the Prompt Playground">
 
-  <Tabs>
-  <Tab title="Python">
 
 <Steps>
   <Step title={<span className="step-title">Create a Dataset from Failed Traces</span>}>
@@ -85,9 +83,9 @@ After completing previous guides, you should have:
     2. Select the prompt you just saved from the Prompt Hub.
     3. Choose the dataset you just created.
 
-    4. Set the User prompt to use your dataset's input keys.
+    4. Set the User prompt to reference your dataset's input keys. Which keys you have depends on the agent you traced: `{{tickers}}` and `{{focus}}` if you followed the Python guide, `{{input}}` if you followed TypeScript.
 
-       The start of the User prompt should look like this:
+       Following the Python guide, the start of the User prompt should look like this:
 
        ```
        Current Task:
@@ -150,134 +148,6 @@ After completing previous guides, you should have:
   </Step>
 </Steps>
 
-  </Tab>
-  <Tab title="TypeScript">
-
-<Steps>
-  <Step title={<span className="step-title">Create a Dataset from Failed Traces</span>}>
-    A dataset collects a specific set of traces so you can analyze them together and reuse them later for testing. Build one from the traces that received an **incomplete** evaluation label, and you have a fixed set of failures to test every future change against.
-
-    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
-
-    ### **Create a Dataset in the UI**
-
-    1. Navigate to your project in Phoenix.
-    2. Filter the spans table by the incomplete evaluation label.
-
-       `evals['completeness'].label == 'incomplete'`
-
-    3. Select the spans you want to include.
-    4. Click Create Dataset and give it a name.
-    5. Add the selected spans to the dataset you just created.
-
-    <Frame caption="Create a New Dataset & add Examples">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-dataset.mp4"
-    />
-    </Frame>
-  </Step>
-
-  <Step title={<span className="step-title">Use Explanations to Identify Improvements</span>}>
-    The dataset groups the failures. Now decide which issue to fix.
-
-    The explanations your evals produced, read alongside the trace context, tell you why these runs failed. Look through the traces in this dataset for patterns: unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
-
-    Open the trace view for a failed run and click into a trace. The annotations column holds the evaluation’s explanation for labeling that answer "incomplete".
-
-    In this example the explanations point at one cause: the report lacked financial ratios. That is the change to make.
-  </Step>
-
-  <Step title={<span className="step-title">Make the Change and Run It</span>}>
-    The Prompt Playground edits the prompt in the Phoenix UI without code. The code path edits the agent’s own instructions and runs the experiment from the SDK.
-
-    Traces capture the exact prompts sent to the model, along with their context and outputs. Saving one from a trace gives you a real starting point for iteration.
-
-    ### **Save a Prompt from the Trace View**
-
-    1. Navigate to your project in Phoenix.
-    2. Open the Traces view and click into a trace.
-    3. Find a span that contains a prompt.
-    4. Save the prompt to the Prompt Hub.
-
-    <Frame caption="Save the Financial Research Agent Prompt">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-prompt.mp4"
-    />
-    </Frame>
-
-    ### **Run the Prompt Against a Dataset**
-
-    Bring that saved prompt into the Prompt Playground. The playground runs a prompt against a whole dataset of inputs, so you see how it behaves across many examples. It substitutes your dataset's input keys into the prompt, using Mustache format by default, so reference them with double braces.
-
-    1. Navigate to the **Prompt Playground**.
-    2. Select the prompt you just saved from the Prompt Hub.
-    3. Choose the dataset you just created.
-
-    4. Set the User prompt to `{{input}}` so it uses the dataset inputs.
-
-        The User prompt should be: `{{input}}`
-
-    5. Run the prompt across the dataset.
-
-    That run is your baseline.
-
-    <Frame caption="Run the Saved Prompt on your Dataset of Failed Traces">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-playground-experiment.mp4"
-    />
-    </Frame>
-
-    ### **Add a New Prompt Variant**
-
-    With a baseline in place, edit the prompt in the playground to address what the explanations pointed at: unclear instructions or missing constraints.
-
-    1. Update the prompt directly in the playground. Add this line:
-
-       >  Make sure to include financial metrics for each ticker and use them in the analysis of the input focus.
-
-    2. Run it to preview how outputs change.
-    3. Save the new version as a separate prompt in the Prompt Hub.
-
-    <Frame caption="Update Prompt & Run a Comparison in Prompt Playground">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-compare-prompts.mp4"
-    />
-    </Frame>
-
-    Every playground run against the dataset is logged as an experiment, so the next step can compare both versions.
-  </Step>
-
-  <Step title={<span className="step-title">Compare Versions in the Experiments View</span>}>
-    Both playground runs are logged as experiments, so you can compare them side by side.
-
-    1. Navigate to the Datasets page and click on the dataset you made earlier.
-    2. You should see 3 experiment runs, the first from your baseline run and the two most recent from your new prompt comparison run.
-    3. Click on the second one and at the top of the page, under comparison select experiment #3.
-
-    <Frame caption="View Prompt Playground Runs through Experiment View">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-view-experiment.mp4"
-    />
-    </Frame>
-
-    You should see more traces receiving a **complete** label, indicating the change improved performance.
-
-    **Congratulations!** You’ve created your first dataset, changed your agent, and run an experiment to see the effect of that change.
-  </Step>
-</Steps>
-
-  </Tab>
-  </Tabs>
 
   </Tab>
   <Tab title="In code">
