@@ -130,8 +130,9 @@ def admit(query: str, *, allow_mutations: bool) -> set[GraphQLOperationType]:
     if len(query.encode("utf-8")) > MAX_QUERY_BYTES:
         raise GraphQLRefusal(
             GraphQLRefusalCode.QUERY_TOO_LARGE,
-            f"The operation exceeds {MAX_QUERY_BYTES // 1024} KiB and was not executed. "
-            "Request fewer fields, or split the work across several operations.",
+            f"The GraphQL document exceeds {MAX_QUERY_BYTES // 1024} KiB and was not "
+            "executed. Variable values do not count toward the limit: move large literals "
+            "into variables, request fewer fields, or split the work across separate requests.",
         )
     declared = operation_types(query)
     if GraphQLOperationType.SUBSCRIPTION in declared:
