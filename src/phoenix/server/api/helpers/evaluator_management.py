@@ -71,7 +71,7 @@ async def validate_code_evaluator_sandbox_config(
             )
         ).one_or_none()
         if config_and_provider is None:
-            raise BadRequest(f"Sandbox config not found: {sandbox_config_global_id}")
+            raise NotFound(f"Sandbox config not found: {sandbox_config_global_id}")
         target_cfg, provider = config_and_provider
         if not target_cfg.enabled:
             raise BadRequest(

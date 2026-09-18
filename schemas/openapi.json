@@ -3457,6 +3457,648 @@
         }
       }
     },
+    "/v1/evaluators": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Evaluators",
+        "description": "List evaluator definitions, newest first, whether or not anything binds them.\n\nItems are identified by their own typed ids, and the cursor is a separate value:\npass `next_cursor` back as is.",
+        "operationId": "getEvaluators",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "llm",
+                    "code"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return one kind only.",
+              "title": "Type"
+            },
+            "description": "Return one kind only."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return the evaluator with this name.",
+              "title": "Name"
+            },
+            "description": "Return the evaluator with this name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Evaluator",
+        "description": "Create a code evaluator that nothing binds yet, with its first version.\n\nLLM evaluators are created through the binding routes because each one is tied to its\nown prompt. The name must be unique among evaluators; a clash is refused with 409.",
+        "operationId": "createEvaluator",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCodeEvaluatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      }
+    },
+    "/v1/evaluators/{evaluator_id}": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Get Evaluator",
+        "description": "Read a definition, including its current code or the prompt version it runs.",
+        "operationId": "getEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Patch Evaluator",
+        "description": "Edit a definition; the change applies to every binding that references it.\n\nOmitted fields keep their values. Code is appended through the versions endpoint and\nprompt content through the prompts API; this route only moves pointers to them. An LLM\nchange that would invalidate a dataset binding's overrides is refused with 409.",
+        "operationId": "patchEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PatchLLMEvaluatorRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "llm": "#/components/schemas/PatchLLMEvaluatorRequest",
+                    "code": "#/components/schemas/PatchCodeEvaluatorRequest"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorDefinitionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Delete Evaluator",
+        "description": "Delete a code evaluator that nothing binds, with its version history.\n\nA definition still bound by a project or dataset is refused with 409; delete those\nbindings first, or delete the last binding, which removes the definition with it. LLM\nevaluators are owned by their bindings and are deleted with the last one; built-in\nevaluators are never deleted. A missing evaluator is ignored.",
+        "operationId": "deleteEvaluator",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evaluators/{evaluator_id}/versions": {
+      "get": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "List Code Evaluator Versions",
+        "description": "List a code evaluator's versions, newest first. Only code evaluators have versions.",
+        "operationId": "listCodeEvaluatorVersions",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeEvaluatorVersionsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "evaluators"
+        ],
+        "summary": "Create Code Evaluator Version",
+        "description": "Append immutable code, returning 200 when it matches the current version.\n\nConfiguration sent alongside (sandbox, input mapping, outputs, description) is applied in\nthe same transaction, so bindings never see new code with the old configuration. Pass\n`expected_current_version_id` to be refused with 409 if another deployment landed first.\nDeduplication compares against the current version only, so restoring older source\ncreates another version.",
+        "operationId": "createCodeEvaluatorVersion",
+        "parameters": [
+          {
+            "name": "evaluator_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evaluator Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeEvaluatorVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCodeEvaluatorVersionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Request bodies that fail schema validation return FastAPI's JSON error detail; domain validation failures return a plain-text message.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          },
+          "200": {
+            "description": "Source matches the current version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedCodeEvaluatorVersionResponseBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/datasets/{dataset_id}/experiments": {
       "post": {
         "tags": [
@@ -11383,6 +12025,118 @@
         "title": "ChatRequestCredential",
         "description": "One client-held credential riding the request for the duration of a turn.\n\nThe value is ephemeral: it is injected server-side as transport auth for\nthe matching integration and is never persisted, traced, or echoed. It is\ntop-level on the request body \u2014 never part of the message \u2014 so it cannot\nreach the session transcript."
       },
+      "CodeEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageName"
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InputMapping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Output Configs"
+          },
+          "current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version Id"
+          },
+          "source_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "language",
+          "sandbox_config_id",
+          "input_mapping",
+          "output_configs",
+          "current_version_id",
+          "source_code"
+        ],
+        "title": "CodeEvaluatorDefinition"
+      },
       "CodeEvaluatorUIContext": {
         "properties": {
           "type": {
@@ -11408,6 +12162,144 @@
           "type"
         ],
         "title": "CodeEvaluatorUIContext"
+      },
+      "CodeEvaluatorVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "evaluator_id",
+          "source_code",
+          "created_at"
+        ],
+        "title": "CodeEvaluatorVersion"
+      },
+      "CodeEvaluatorVersionRequest": {
+        "properties": {
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "expected_current_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Current Version Id",
+            "description": "GlobalID of the version the caller believes is current. When another version has been appended since, the request is refused with 409 instead of deploying over it."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Configuration applied together with the new code. Omit to keep."
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id",
+            "description": "Sandbox to run the new code in. Omit to keep; null clears it."
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping",
+            "description": "Default input mapping for the new code's arguments. Omit to keep."
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs",
+            "description": "Outputs the new code produces. Omit to keep."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_code"
+        ],
+        "title": "CodeEvaluatorVersionRequest"
+      },
+      "CodeEvaluatorVersionsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CodeEvaluatorVersion"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "CodeEvaluatorVersionsResponseBody"
       },
       "CompactAgentSessionRequestBody": {
         "properties": {
@@ -11858,6 +12750,84 @@
             "model": "openai:gpt-4o"
           }
         ]
+      },
+      "CreateCodeEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "Unique among evaluators."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "language": {
+            "$ref": "#/components/schemas/LanguageName"
+          },
+          "sandbox_config_id": {
+            "type": "string",
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping",
+            "description": "Default mapping from record fields to the function's arguments."
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs",
+            "description": "Outputs the code produces."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "source_code",
+          "language",
+          "sandbox_config_id",
+          "input_mapping",
+          "output_configs"
+        ],
+        "title": "CreateCodeEvaluatorRequest"
       },
       "CreateDatasetLabelRequestBody": {
         "properties": {
@@ -12492,6 +13462,53 @@
           "key"
         ],
         "title": "CreatedApiKey"
+      },
+      "CreatedCodeEvaluatorVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "evaluator_id": {
+            "type": "string",
+            "title": "Evaluator Id"
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "was_created": {
+            "type": "boolean",
+            "title": "Was Created",
+            "description": "False when the source matched the current version, which is returned instead."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "evaluator_id",
+          "source_code",
+          "created_at",
+          "was_created"
+        ],
+        "title": "CreatedCodeEvaluatorVersion"
+      },
+      "CreatedCodeEvaluatorVersionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreatedCodeEvaluatorVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatedCodeEvaluatorVersionResponseBody"
       },
       "CustomModelProvider": {
         "properties": {
@@ -13438,6 +14455,75 @@
         ],
         "title": "DynamicToolOutputDeniedPart",
         "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
+      },
+      "EvaluatorDefinitionResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CodeEvaluatorDefinition"
+              },
+              {
+                "$ref": "#/components/schemas/LLMEvaluatorDefinition"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "code": "#/components/schemas/CodeEvaluatorDefinition",
+                "llm": "#/components/schemas/LLMEvaluatorDefinition"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "EvaluatorDefinitionResponseBody"
+      },
+      "EvaluatorDefinitionsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CodeEvaluatorDefinition"
+                },
+                {
+                  "$ref": "#/components/schemas/LLMEvaluatorDefinition"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "code": "#/components/schemas/CodeEvaluatorDefinition",
+                  "llm": "#/components/schemas/LLMEvaluatorDefinition"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "EvaluatorDefinitionsResponseBody"
       },
       "Experiment": {
         "properties": {
@@ -14622,6 +15708,29 @@
         "title": "IncompleteExperimentRun",
         "description": "Information about incomplete runs for a dataset example"
       },
+      "InputMapping": {
+        "properties": {
+          "literal_mapping": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Literal Mapping"
+          },
+          "path_mapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Path Mapping"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "literal_mapping",
+          "path_mapping"
+        ],
+        "title": "InputMapping"
+      },
       "InsertedSessionAnnotation": {
         "properties": {
           "id": {
@@ -14764,6 +15873,75 @@
           "auth_method"
         ],
         "title": "LDAPUserData"
+      },
+      "LLMEvaluatorDefinition": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Equals the description of the prompt's tool function."
+          },
+          "prompt_id": {
+            "type": "string",
+            "title": "Prompt Id",
+            "description": "GlobalID of the prompt whose versions this evaluator runs."
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptVersion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The version the evaluator currently runs; its id is what patch accepts."
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "title": "Output Configs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "name",
+          "description",
+          "prompt_id",
+          "prompt_version",
+          "output_configs"
+        ],
+        "title": "LLMEvaluatorDefinition"
+      },
+      "LanguageName": {
+        "type": "string",
+        "enum": [
+          "PYTHON",
+          "TYPESCRIPT"
+        ]
       },
       "LegacyAssistantMessageMetadata": {
         "properties": {
@@ -16187,6 +17365,120 @@
           "data"
         ],
         "title": "PatchAgentSessionResponseBody"
+      },
+      "PatchCodeEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sandbox_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sandbox Config Id"
+          },
+          "input_mapping": {
+            "$ref": "#/components/schemas/InputMapping"
+          },
+          "output_configs": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 2,
+        "required": [
+          "type"
+        ],
+        "title": "PatchCodeEvaluatorRequest"
+      },
+      "PatchLLMEvaluatorRequest": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm",
+            "title": "Type"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries."
+          },
+          "prompt_version_id": {
+            "type": "string",
+            "title": "Prompt Version Id",
+            "description": "GlobalID of the prompt version to run. New prompt content is created through the prompts API; a version from another prompt moves the evaluator to that prompt."
+          },
+          "output_configs": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Output Configs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "minProperties": 2,
+        "required": [
+          "type"
+        ],
+        "title": "PatchLLMEvaluatorRequest"
       },
       "PatchPromptRequestBody": {
         "properties": {

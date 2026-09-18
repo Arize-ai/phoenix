@@ -1542,6 +1542,7 @@ class EvaluatorMutationMixin:
             if input.output_configs
             else []
         )
+        evaluator_service.require_output_configs(output_configs)
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
         input_mapping_orm = input.input_mapping.to_orm()

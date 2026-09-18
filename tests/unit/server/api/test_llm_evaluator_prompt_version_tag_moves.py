@@ -761,3 +761,29 @@ class TestConcurrentWrites:
             assert runs.id not in (started_from_id, moved_to_id)
         else:
             assert runs.id == started_from_id
+
+    async def test_evaluator_patch_behind_a_tag_move_checks_the_moved_version(
+        self,
+        gql_client: AsyncGraphQLClient,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """A patch that keeps the prompt validates against the version the tag names once the
+        move it waited on commits."""
+        evaluator_id, _, _ = await _undescribed_evaluator(gql_client, db, "project")
+        tag_id, _, moved_to_id = await _add_grading_version(db, evaluator_id)
+        evaluator_gid = quote_plus(str(GlobalID("LLMEvaluator", str(evaluator_id))))
+        response = await _behind(
+            db,
+            _move_tag(tag_id, moved_to_id),
+            lambda: httpx_client.patch(
+                f"v1/evaluators/{evaluator_gid}",
+                json={"type": "llm", "description": "correctness"},
+            ),
+        )
+        assert response.status_code == 422, response.text
+        state = await _state(db, evaluator_id)
+        assert state.tag_target == moved_to_id
+        async with db() as session:
+            evaluator = await session.get(models.LLMEvaluator, evaluator_id)
+            assert evaluator is not None and evaluator.description is None

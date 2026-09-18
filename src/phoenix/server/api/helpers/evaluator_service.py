@@ -6,7 +6,7 @@ from secrets import token_hex
 from typing import Any, Optional, cast
 
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -43,6 +43,7 @@ from phoenix.server.api.helpers.evaluator_management import (
 )
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
+    incompatible_dataset_override_ids,
     require_categorical_output_configs,
     validate_consistent_llm_evaluator_and_prompt_version,
 )
@@ -64,6 +65,17 @@ def validate_output_config_names(configs: list[OutputConfigType]) -> None:
     names = [config.name for config in configs]
     if len(names) != len(set(names)):
         raise BadRequest("Output config names must be unique")
+
+
+def require_output_configs(configs: list[OutputConfigType]) -> None:
+    """Reject an empty or name-repeating list of output configs.
+
+    A run records its results under its output configs, so a definition needs at least one,
+    and a binding that uses its evaluator's configs stores NULL rather than an empty override.
+    """
+    if not configs:
+        raise BadRequest("At least one output config is required.")
+    validate_output_config_names(configs)
 
 
 @dataclass(kw_only=True)
@@ -169,9 +181,36 @@ class PatchCodeEvaluatorInput:
 
 
 @dataclass(kw_only=True)
+class CreateCodeEvaluatorInput:
+    name: Identifier
+    source_code: str
+    language: models.LanguageName
+    sandbox_config_id: GlobalID
+    input_mapping: InputMapping
+    output_configs: list[OutputConfigType]
+    description: Optional[str] = None
+
+
+@dataclass(kw_only=True)
 class CreateCodeEvaluatorVersionInput:
     code_evaluator_id: GlobalID
     source_code: str
+    expected_current_version_id: Optional[GlobalID] = None
+    description: Optional[str] = UNSET
+    sandbox_config_id: Optional[GlobalID] = UNSET
+    input_mapping: Optional[InputMapping] = UNSET
+    output_configs: Optional[list[OutputConfigType]] = UNSET
+
+    def changes_configuration(self) -> bool:
+        return any(
+            value is not UNSET
+            for value in (
+                self.description,
+                self.sandbox_config_id,
+                self.input_mapping,
+                self.output_configs,
+            )
+        )
 
 
 async def create_project_llm_evaluator(
@@ -446,15 +485,8 @@ async def create_project_code_evaluator(
         input.evaluation_delay_seconds, input.evaluation_target
     )
     raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-    if input.output_configs is not None:
-        try:
-            validate_output_config_names(input.output_configs)
-        except ValueError as error:
-            raise BadRequest(str(error))
-    output_configs = cast(
-        list[AnnotationConfigType],
-        (input.output_configs or []),
-    )
+    require_output_configs(input.output_configs or [])
+    output_configs = cast(list[AnnotationConfigType], input.output_configs)
 
     user_id = context.user_id
 
@@ -541,10 +573,7 @@ async def update_project_code_evaluator(
     if input.output_configs is None:
         raise BadRequest("output_configs cannot be set to null")
     if input.output_configs is not UNSET:
-        try:
-            validate_output_config_names(input.output_configs)
-        except ValueError as error:
-            raise BadRequest(str(error))
+        require_output_configs(input.output_configs)
 
     user_id = context.user_id
 
@@ -817,6 +846,8 @@ async def patch_code_evaluator(
         raise BadRequest("input_mapping cannot be set to null")
     if input.output_configs is not UNSET and input.output_configs is None:
         raise BadRequest("output_configs cannot be set to null")
+    if input.output_configs is not UNSET:
+        require_output_configs(input.output_configs)
 
     validated_sandbox_config_id: Optional[int] = None
     validated_source_code: Optional[str] = None
@@ -874,10 +905,6 @@ async def patch_code_evaluator(
                 row.input_mapping = input.input_mapping
 
             if input.output_configs is not UNSET and input.output_configs is not None:
-                try:
-                    validate_output_config_names(input.output_configs)
-                except ValueError as e:
-                    raise BadRequest(str(e))
                 row.output_configs = cast(
                     list[AnnotationConfigType],
                     input.output_configs,
@@ -896,16 +923,119 @@ async def patch_code_evaluator(
     return row
 
 
+async def create_code_evaluator(
+    context: EvaluatorServiceContext, input: CreateCodeEvaluatorInput
+) -> models.CodeEvaluator:
+    """Create a standalone code definition with its first version; nothing binds it yet."""
+    try:
+        validated_name = IdentifierModel.model_validate(input.name)
+    except ValidationError as error:
+        raise BadRequest(f"Invalid evaluator name: {error}")
+    output_configs = list(input.output_configs)
+    require_output_configs(output_configs)
+    raise_on_uninferable_evaluate_signature(input.source_code, input.language)
+    sandbox_config_id = await validate_code_evaluator_sandbox_config(
+        context.db,
+        sandbox_config_global_id=input.sandbox_config_id,
+        language=input.language,
+        action="creating this evaluator",
+        source_code=input.source_code,
+        sandbox_runtime=context.sandbox_runtime,
+    )
+    try:
+        async with context.db() as session:
+            row = models.CodeEvaluator(
+                name=validated_name,
+                description=input.description,
+                language=input.language,
+                user_id=context.user_id,
+                sandbox_config_id=sandbox_config_id,
+                input_mapping=input.input_mapping,
+                output_configs=cast(list[AnnotationConfigType], output_configs),
+            )
+            session.add(row)
+            await session.flush()
+            session.add(
+                models.CodeEvaluatorVersion(
+                    code_evaluator_id=row.id,
+                    source_code=input.source_code,
+                    user_id=context.user_id,
+                )
+            )
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        raise Conflict(f"An evaluator named '{input.name}' already exists") from error
+    return row
+
+
+async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: GlobalID) -> None:
+    """Delete a code definition nothing binds; a bound definition is refused with Conflict."""
+    row_id = from_global_id_with_expected_type(evaluator_id, "CodeEvaluator")
+    async with context.db() as session:
+        row = await session.get(models.CodeEvaluator, row_id, with_for_update=True)
+        if row is None:
+            return
+        project_bindings = await session.scalar(
+            select(func.count(models.ProjectEvaluator.id)).where(
+                models.ProjectEvaluator.evaluator_id == row_id
+            )
+        )
+        dataset_bindings = await session.scalar(
+            select(func.count(models.DatasetEvaluators.id)).where(
+                models.DatasetEvaluators.evaluator_id == row_id
+            )
+        )
+        if project_bindings or dataset_bindings:
+            raise Conflict(
+                f"Evaluator {evaluator_id} is still bound by {project_bindings} project and "
+                f"{dataset_bindings} dataset bindings; delete those bindings first"
+            )
+        await session.delete(row)
+
+
+def _version_id_or_none(version: Optional[models.CodeEvaluatorVersion]) -> Optional[int]:
+    return version.id if version is not None else None
+
+
+def _check_expected_version(
+    input: CreateCodeEvaluatorVersionInput, current_version: Optional[models.CodeEvaluatorVersion]
+) -> None:
+    if input.expected_current_version_id is None:
+        return
+    expected = from_global_id_with_expected_type(
+        input.expected_current_version_id, "CodeEvaluatorVersion"
+    )
+    actual = _version_id_or_none(current_version)
+    if actual != expected:
+        actual_id = (
+            str(GlobalID("CodeEvaluatorVersion", str(actual))) if actual is not None else "none"
+        )
+        raise Conflict(
+            f"The evaluator's current version is {actual_id}, not the expected "
+            f"{input.expected_current_version_id}; re-read the evaluator and retry"
+        )
+
+
 async def create_code_evaluator_version(
     context: EvaluatorServiceContext, input: CreateCodeEvaluatorVersionInput
 ) -> tuple[models.CodeEvaluator, models.CodeEvaluatorVersion, bool]:
-    """Return the evaluator, exact persisted version, and whether a version was appended."""
+    """Append code and, in the same transaction, any configuration the new code needs.
+
+    Returns the evaluator, the persisted version, and whether a version was appended.
+    Configuration fields left UNSET keep their values. A caller that passes
+    expected_current_version_id is refused with Conflict when another deployment landed
+    in between, so deployments do not silently reactivate older source.
+    """
     evaluator_id = from_global_id_with_expected_type(
         global_id=input.code_evaluator_id, expected_type_name="CodeEvaluator"
     )
+    if input.input_mapping is not UNSET and input.input_mapping is None:
+        raise BadRequest("input_mapping cannot be set to null")
+    if input.output_configs is not UNSET and input.output_configs is None:
+        raise BadRequest("output_configs cannot be set to null")
+    if input.output_configs is not UNSET:
+        require_output_configs(input.output_configs)
 
     user_id = context.user_id
-
     candidate = models.CodeEvaluatorVersion(
         code_evaluator_id=evaluator_id,
         source_code=input.source_code,
@@ -918,17 +1048,29 @@ async def create_code_evaluator_version(
         if code_evaluator_with_version is None:
             raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
         current, current_version = code_evaluator_with_version
+        _check_expected_version(input, current_version)
         validated_language = current.language
-        validated_sandbox_config_id = current.sandbox_config_id
-        if current_version is not None and current_version.has_identical_content(candidate):
+        source_unchanged = current_version is not None and current_version.has_identical_content(
+            candidate
+        )
+        if source_unchanged and not input.changes_configuration():
+            assert current_version is not None
             return current, current_version, False
-        validated_current_version_id = current_version.id if current_version is not None else None
+        validated_current_version_id = _version_id_or_none(current_version)
+        if input.sandbox_config_id is UNSET:
+            target_sandbox_config_id = current.sandbox_config_id
+        elif input.sandbox_config_id is None:
+            target_sandbox_config_id = None
+        else:
+            target_sandbox_config_id = from_global_id_with_expected_type(
+                input.sandbox_config_id, "SandboxConfig"
+            )
 
     raise_on_uninferable_evaluate_signature(input.source_code, validated_language)
-    if validated_sandbox_config_id is not None:
+    if target_sandbox_config_id is not None:
         await validate_code_evaluator_sandbox_config(
             context.db,
-            sandbox_config_global_id=GlobalID("SandboxConfig", str(validated_sandbox_config_id)),
+            sandbox_config_global_id=GlobalID("SandboxConfig", str(target_sandbox_config_id)),
             language=validated_language,
             action="creating this evaluator version",
             source_code=input.source_code,
@@ -937,21 +1079,31 @@ async def create_code_evaluator_version(
 
     try:
         async with context.db() as session:
+            # Deploys of one evaluator serialize on its row, so the expected version is
+            # compared with the committed tip rather than one a concurrent deploy replaces.
+            await session.get(models.CodeEvaluator, evaluator_id, with_for_update=True)
             code_evaluator_with_version = await code_evaluator_with_latest_version(
                 session, evaluator_id
             )
             if code_evaluator_with_version is None:
                 raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
             row, current_version = code_evaluator_with_version
-            if (
-                row.language != validated_language
-                or row.sandbox_config_id != validated_sandbox_config_id
-            ):
-                raise Conflict("The evaluator sandbox changed during source validation; retry.")
-            current_version_id = current_version.id if current_version is not None else None
-            if current_version_id != validated_current_version_id:
+            _check_expected_version(input, current_version)
+            if row.language != validated_language:
+                raise Conflict("The evaluator language changed during source validation; retry.")
+            if _version_id_or_none(current_version) != validated_current_version_id:
                 if current_version is None or not current_version.has_identical_content(candidate):
                     raise Conflict("The evaluator version changed during source validation; retry.")
+            if input.description is not UNSET:
+                row.description = input.description
+            if input.sandbox_config_id is not UNSET:
+                row.sandbox_config_id = target_sandbox_config_id
+            elif row.sandbox_config_id != target_sandbox_config_id:
+                raise Conflict("The evaluator sandbox changed during source validation; retry.")
+            if input.input_mapping is not UNSET and input.input_mapping is not None:
+                row.input_mapping = input.input_mapping
+            if input.output_configs is not UNSET and input.output_configs is not None:
+                row.output_configs = cast(list[AnnotationConfigType], input.output_configs)
             was_created = current_version is None or not current_version.has_identical_content(
                 candidate
             )
@@ -962,7 +1114,9 @@ async def create_code_evaluator_version(
             version = candidate if was_created else current_version
             assert version is not None
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-        raise BadRequest(f"Could not create code evaluator version: {e}")
+        raise Conflict(
+            "Could not create the code evaluator version because of a conflicting resource"
+        ) from e
 
     return row, version, was_created
 
@@ -1046,3 +1200,81 @@ async def _update_llm_definition(
     if shared_evaluator_changed:
         evaluator.user_id = user_id
         evaluator.updated_at = datetime.now(timezone.utc)
+
+
+@dataclass(kw_only=True)
+class LLMEvaluatorPatch:
+    name: Optional[Identifier] = UNSET
+    description: Optional[str] = UNSET
+    prompt_version: Optional[models.PromptVersion] = UNSET
+    prompt_version_id: Optional[GlobalID] = UNSET
+    output_configs: Optional[list[OutputConfigType]] = UNSET
+
+
+async def patch_llm_evaluator(
+    context: EvaluatorServiceContext,
+    evaluator_id: GlobalID,
+    patch: LLMEvaluatorPatch,
+) -> models.LLMEvaluator:
+    """Update a shared LLM definition and its pinned prompt version atomically."""
+    row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
+    try:
+        async with context.db() as session:
+            # Tag moves and evaluator edits lock the evaluator row first, so each validates
+            # against the other's committed state.
+            row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
+            if row is None:
+                raise NotFound(f"LLM evaluator not found: {evaluator_id}")
+            if patch.name is not UNSET:
+                row.name = IdentifierModel.model_validate(patch.name)
+            prompt_version = patch.prompt_version
+            if prompt_version is UNSET:
+                if patch.prompt_version_id is not UNSET and patch.prompt_version_id is not None:
+                    version_id = from_global_id_with_expected_type(
+                        patch.prompt_version_id, "PromptVersion"
+                    )
+                    prompt_version = await session.get(models.PromptVersion, version_id)
+                else:
+                    prompt_version = await session.scalar(
+                        select(models.PromptVersion)
+                        .join(
+                            models.PromptVersionTag,
+                            models.PromptVersionTag.prompt_version_id == models.PromptVersion.id,
+                        )
+                        .where(models.PromptVersionTag.id == row.prompt_version_tag_id)
+                    )
+            if prompt_version is None:
+                raise NotFound("Prompt version not found")
+            configs = row.output_configs if patch.output_configs is UNSET else patch.output_configs
+            output_configs = LLMEvaluatorOutputConfigs.model_validate({"configs": configs}).configs
+            if patch.prompt_version is not UNSET:
+                prompt_version.user_id = context.user_id
+            await _update_llm_definition(
+                session,
+                row,
+                prompt_version=prompt_version,
+                output_configs=output_configs,
+                description=patch.description,
+                prompt_version_id=patch.prompt_version_id,
+                name=row.name,
+                user_id=context.user_id,
+                shared_evaluator_changed=True,
+            )
+            await _reject_incompatible_dataset_overrides(session, row, prompt_version)
+            await session.flush()
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+        raise Conflict("An evaluator with this name already exists")
+    return row
+
+
+async def _reject_incompatible_dataset_overrides(
+    session: AsyncSession,
+    evaluator: models.LLMEvaluator,
+    prompt_version: models.PromptVersion,
+) -> None:
+    """Every dataset binding override must stay valid against the prompt the evaluator runs."""
+    if incompatible := await incompatible_dataset_override_ids(session, evaluator, prompt_version):
+        raise Conflict(
+            "Dataset evaluator bindings override outputs that the updated prompt no longer "
+            f"supports: {', '.join(incompatible)}"
+        )
