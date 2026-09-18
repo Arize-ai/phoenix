@@ -461,7 +461,7 @@ class PatchUserRequestBody(TypedDict):
     username: NotRequired[str]
     password: NotRequired[str]
     current_password: NotRequired[str]
-    role: NotRequired[Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]]
+    role: NotRequired[Literal["ADMIN", "MEMBER", "VIEWER"]]
 
 
 class PlaygroundBuiltinModelUIContext(TypedDict):

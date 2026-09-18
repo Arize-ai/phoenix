@@ -2272,7 +2272,6 @@ _ADMIN_ONLY_ENDPOINTS = (
 # Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
-    (422, "PATCH", "v1/users/fake-id-{}"),
     # POST routes
     (422, "POST", "v1/annotation_configs"),
     (422, "POST", "v1/dataset_labels"),
@@ -2333,6 +2332,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
 
 # Self-service credential writes are intentionally available to viewers.
 _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
+    (422, "PATCH", "v1/users/fake-id-{}"),
     (422, "POST", "v1/user/api_keys"),
     (422, "DELETE", "v1/user/api_keys/fake-id-{}"),
 )
@@ -2343,10 +2343,11 @@ _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
 _VIEWER_ALLOWED_WRITE_OPERATIONS = ((422, "POST", "v1/chat/completions"),)
 
 
-# Credential issuance requires a human session (or, where supported, the admin secret).
+# Credential changes require a human session (or, where supported, the admin secret).
 # A user API key cannot issue another credential, even when its owner has the required role.
 _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS = frozenset(
     {
+        ("PATCH", "v1/users/fake-id-{}"),
         ("POST", "v1/user/api_keys"),
         ("POST", "v1/system/api_keys"),
     }
@@ -2355,13 +2356,14 @@ _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS = frozenset(
 
 # Endpoints that refuse to act when authentication is disabled, returning 403.
 #
-# These issue credentials. Without authentication Phoenix has no notion of identity, so
-# minting an API key would hand a durable bearer token to an anonymous caller. They still
+# These manage credentials. Without authentication Phoenix has no notion of identity, so
+# issuing keys or changing passwords would give anonymous callers durable access. They still
 # appear in the registries above, so that the role matrix covers them when authentication
 # IS enabled, but a no-auth app must reject them regardless of the status code recorded
 # there.
 _AUTH_REQUIRED_ENDPOINTS = frozenset(
     {
+        ("PATCH", "v1/users/fake-id-{}"),
         ("GET", "v1/user/api_keys"),
         ("GET", "v1/users/api_keys"),
         ("POST", "v1/user/api_keys"),

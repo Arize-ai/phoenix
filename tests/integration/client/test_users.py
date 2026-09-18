@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Iterator, Literal, Optional, Union, cast
+from typing import Any, Iterator, Literal, Optional, Union, cast
 
 import httpx
 import pytest
 import smtpdfix
 from phoenix.client.__generated__ import v1
+from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.auth import (
@@ -16,9 +17,22 @@ from phoenix.auth import (
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
 )
+from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
 
-from .._helpers import _AppInfo, _httpx_client, _log_in, _log_out
+from .._helpers import (
+    _ADMIN,
+    _DEFAULT_ADMIN,
+    _MEMBER,
+    _VIEWER,
+    _AppInfo,
+    _GetUser,
+    _httpx_client,
+    _initiate_password_reset,
+    _log_in,
+    _log_out,
+    _server,
+)
 
 
 class _UsersApi:
@@ -823,3 +837,296 @@ class TestPatchUser:
         response = client.patch(f"v1/users/{created['id']}", json={})
         assert response.status_code == 422
         admin_client.delete(user_id=created["id"])
+
+    @pytest.mark.parametrize("role", [_ADMIN, _MEMBER, _VIEWER])
+    @pytest.mark.parametrize("use_api_key", [False, True], ids=["session", "api-key"])
+    @pytest.mark.parametrize("self_update", [False, True], ids=["other", "self"])
+    @pytest.mark.parametrize("field", ["username", "password", "role"])
+    def test_role_and_credential_matrix(
+        self,
+        role: UserRoleInput,
+        use_api_key: bool,
+        self_update: bool,
+        field: str,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        caller = _get_user(_app, role).log_in(_app)
+        target = caller if self_update else _get_user(_app, _MEMBER)
+        auth = caller.create_api_key(_app) if use_api_key else caller.tokens
+        body = {
+            "username": {"username": token_hex(12)},
+            "password": {"password": token_hex(16), "current_password": caller.password},
+            "role": {"role": "VIEWER"},
+        }[field]
+        allowed = (
+            not use_api_key
+            and (self_update or role == _ADMIN)
+            and not (self_update and field == "role")
+        )
+        response = _httpx_client(_app, auth).patch(f"v1/users/{target.gid}", json=body)
+        assert response.status_code == (200 if allowed else 403), response.text
+        users = _UsersApi(_httpx_client(_app, _app.admin_secret)).list()
+        stored = next(user for user in users if user["id"] == target.gid)
+        assert stored["username"] == (
+            body["username"] if allowed and field == "username" else target.username
+        )
+        assert stored["role"] == ("VIEWER" if allowed and field == "role" else target.role.value)
+        if allowed:
+            assert response.json()["data"] == stored
+            assert "password" not in stored
+            assert "password_hash" not in stored
+        if field == "password":
+            expected_password = body["password"] if allowed else target.password
+            tokens = _log_in(_app, expected_password, email=target.email)
+            _log_out(_app, tokens)
+
+    @pytest.mark.parametrize("field", ["username", "password", "role"])
+    def test_system_api_key_cannot_modify_accounts(
+        self,
+        field: str,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        admin = _get_user(_app, _ADMIN).log_in(_app)
+        key = admin.create_api_key(_app, "System")
+        try:
+            body = {field: "MEMBER" if field == "role" else token_hex(16)}
+            response = _httpx_client(_app, key).patch(f"v1/users/{admin.gid}", json=body)
+            assert response.status_code == 403
+        finally:
+            admin.delete_api_key(_app, key)
+
+    @pytest.mark.parametrize("field", ["username", "password", "role"])
+    def test_admin_secret_cannot_modify_system_user(
+        self,
+        field: str,
+        _app: _AppInfo,
+    ) -> None:
+        client = _httpx_client(_app, _app.admin_secret)
+        system = next(user for user in _UsersApi(client).list() if user["role"] == "SYSTEM")
+        response = client.patch(
+            f"v1/users/{system['id']}",
+            json={field: "MEMBER" if field == "role" else token_hex(16)},
+        )
+        assert response.status_code == 403
+        assert (
+            next(user for user in _UsersApi(client).list() if user["id"] == system["id"]) == system
+        )
+
+    def test_default_admin_role_is_protected(self, _app: _AppInfo) -> None:
+        response = _httpx_client(_app, _app.admin_secret).patch(
+            f"v1/users/{_DEFAULT_ADMIN.gid}", json={"role": "MEMBER"}
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {},
+            {"username": ""},
+            {"username": "  "},
+            {"username": None},
+            {"password": None},
+            {"current_password": None},
+            {"role": None},
+            {"role": "SYSTEM"},
+            {"role": "INVALID"},
+            {"current_password": "unused"},
+            {"username": "valid", "current_password": "unused"},
+            {"username": "valid", "email": "other@example.com"},
+            {"password": ""},
+            {"password": "invalid password"},
+        ],
+    )
+    def test_invalid_body_does_not_change_user(
+        self,
+        body: dict[str, Any],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        target = _get_user(_app, _MEMBER)
+        client = _httpx_client(_app, _app.admin_secret)
+        response = client.patch(f"v1/users/{target.gid}", json=body)
+        assert response.status_code == 422, response.text
+        stored = next(user for user in _UsersApi(client).list() if user["id"] == target.gid)
+        assert stored["username"] == target.username
+        assert stored["role"] == "MEMBER"
+
+    @pytest.mark.parametrize("current_password", [None, "incorrect-password"])
+    def test_self_password_requires_current_password(
+        self,
+        current_password: Optional[str],
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        caller = _get_user(_app, _ADMIN).log_in(_app)
+        body = {"password": token_hex(16), "username": token_hex(12)}
+        if current_password is not None:
+            body["current_password"] = current_password
+        client = _httpx_client(_app, caller.tokens)
+        response = client.patch(f"v1/users/{caller.gid}", json=body)
+        assert response.status_code == (422 if current_password is None else 403)
+        assert client.get("v1/user").json()["data"]["username"] == caller.username
+        _log_out(_app, _log_in(_app, caller.password, email=caller.email))
+
+    @pytest.mark.parametrize("field", ["password", "role"])
+    def test_sensitive_update_revokes_sessions_and_api_keys(
+        self,
+        field: str,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+        _smtpd: smtpdfix.AuthController,
+    ) -> None:
+        target = _get_user(_app, _ADMIN).log_in(_app)
+        key = target.create_api_key(_app)
+        reset_token = _initiate_password_reset(_app, target.email, _smtpd)
+        assert reset_token is not None
+        session_client = _httpx_client(_app, target.tokens)
+        key_client = _httpx_client(_app, key)
+        # Prime both authentication caches before changing the account.
+        assert session_client.get("v1/users").status_code == 200
+        assert key_client.get("v1/users").status_code == 200
+        new_password = token_hex(16)
+        body = {"password": new_password} if field == "password" else {"role": "MEMBER"}
+        response = _httpx_client(_app, _app.admin_secret).patch(f"v1/users/{target.gid}", json=body)
+        assert response.status_code == 200, response.text
+        assert session_client.get("v1/user").status_code == 401
+        assert key_client.get("v1/user").status_code == 401
+        assert session_client.post("auth/refresh").status_code == 401
+        reset_response = _httpx_client(_app).post(
+            "auth/password-reset", json={"token": reset_token, "password": token_hex(16)}
+        )
+        assert reset_response.status_code == 401
+        if field == "password":
+            assert response.json()["data"]["password_needs_reset"] is True
+            old_login = _httpx_client(_app).post(
+                "auth/login", json={"email": target.email, "password": target.password}
+            )
+            assert old_login.status_code == 401
+        tokens = _log_in(
+            _app, new_password if field == "password" else target.password, email=target.email
+        )
+        fresh = _httpx_client(_app, tokens)
+        assert fresh.get("v1/users").status_code == (200 if field == "password" else 403)
+        _log_out(_app, tokens)
+
+    def test_self_password_change_clears_cookies_and_reset_flag(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        caller = _get_user(_app, _VIEWER).log_in(_app)
+        client = _httpx_client(_app, caller.tokens)
+        response = client.patch(
+            f"v1/users/{caller.gid}",
+            json={"password": token_hex(16), "current_password": caller.password},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["password_needs_reset"] is False
+        cookies = response.headers.get_list("set-cookie")
+        assert len(cookies) == 2
+        assert all("Max-Age=0" in cookie for cookie in cookies)
+        assert _httpx_client(_app, caller.tokens).get("v1/user").status_code == 401
+
+    def test_username_change_preserves_credentials(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        caller = _get_user(_app, _MEMBER).log_in(_app)
+        key = caller.create_api_key(_app)
+        client = _httpx_client(_app, caller.tokens)
+        response = client.patch(f"v1/users/{caller.gid}", json={"username": f"  {token_hex(12)}  "})
+        assert response.status_code == 200
+        assert response.json()["data"]["username"] == response.json()["data"]["username"].strip()
+        assert client.get("v1/user").status_code == 200
+        assert _httpx_client(_app, key).get("v1/user").status_code == 200
+
+    def test_conflicting_username_rolls_back_role_and_password(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        target = _get_user(_app, _MEMBER).log_in(_app)
+        other = _get_user(_app, _MEMBER)
+        client = _httpx_client(_app, _app.admin_secret)
+        response = client.patch(
+            f"v1/users/{target.gid}",
+            json={"username": other.username, "role": "ADMIN", "password": token_hex(16)},
+        )
+        assert response.status_code == 409, response.text
+        stored = _httpx_client(_app, target.tokens).get("v1/user").json()["data"]
+        assert stored["username"] == target.username
+        assert stored["role"] == "MEMBER"
+        _log_out(_app, _log_in(_app, target.password, email=target.email))
+
+    @pytest.mark.parametrize("auth_method", ["OAUTH2", "LDAP"])
+    def test_external_users_cannot_receive_local_passwords(
+        self,
+        auth_method: Literal["OAUTH2", "LDAP"],
+        _app: _AppInfo,
+    ) -> None:
+        client = _httpx_client(_app, _app.admin_secret)
+        users_api = _UsersApi(client)
+        user_data: Union[v1.OAuth2UserData, v1.LDAPUserData]
+        if auth_method == "OAUTH2":
+            user_data = v1.OAuth2UserData(
+                auth_method="OAUTH2",
+                email=f"{token_hex(8)}@example.com",
+                username=token_hex(12),
+                role="MEMBER",
+            )
+        else:
+            user_data = v1.LDAPUserData(
+                auth_method="LDAP",
+                email=f"{token_hex(8)}@example.com",
+                username=token_hex(12),
+                role="MEMBER",
+            )
+        created = users_api.create(user=user_data)
+        try:
+            response = client.patch(
+                f"v1/users/{created['id']}", json={"password": token_hex(16), "role": "ADMIN"}
+            )
+            assert response.status_code == 409
+            stored = next(user for user in users_api.list() if user["id"] == created["id"])
+            assert stored["role"] == "MEMBER"
+            response = client.patch(
+                f"v1/users/{created['id']}", json={"username": token_hex(12), "role": "ADMIN"}
+            )
+            assert response.status_code == 200
+            assert response.json()["data"]["auth_method"] == auth_method
+        finally:
+            users_api.delete(user_id=created["id"])
+
+    @pytest.mark.parametrize(
+        "user_id", ["bad-id", str(GlobalID("Project", "1")), str(GlobalID("User", "not-an-int"))]
+    )
+    def test_invalid_global_id(self, user_id: str, _app: _AppInfo) -> None:
+        response = _httpx_client(_app, _app.admin_secret).patch(
+            f"v1/users/{user_id}", json={"username": "valid"}
+        )
+        assert response.status_code == 422
+
+    def test_missing_user(self, _app: _AppInfo) -> None:
+        response = _httpx_client(_app, _app.admin_secret).patch(
+            f"v1/users/{GlobalID('User', '999999999')}", json={"username": "valid"}
+        )
+        assert response.status_code == 404
+
+    def test_no_auth_cannot_change_credentials(
+        self,
+        _ports: Iterator[int],
+        _env_database: dict[str, str],
+    ) -> None:
+        env = {
+            **_env_database,
+            "PHOENIX_PORT": str(next(_ports)),
+            "PHOENIX_GRPC_PORT": str(next(_ports)),
+        }
+        with _server(_AppInfo(env)) as app:
+            client = _httpx_client(app)
+            for body in ({"username": "changed"}, {"password": token_hex(16)}, {"role": "ADMIN"}):
+                response = client.patch(f"v1/users/{GlobalID('User', '1')}", json=body)
+                assert response.status_code == 403

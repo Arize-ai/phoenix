@@ -8226,109 +8226,6 @@
       }
     },
     "/v1/users/{user_id}": {
-      "patch": {
-        "tags": [
-          "users"
-        ],
-        "summary": "Update a user by ID",
-        "description": "Partially update a user. Admins may update another user's role, username, and password. Any authenticated user may update their own username and password; changing your own password requires the current password.",
-        "operationId": "patchUser",
-        "parameters": [
-          {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The GlobalID of the user.",
-              "title": "User Id"
-            },
-            "description": "The GlobalID of the user."
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PatchUserRequestBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The updated user.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetUserResponseBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden (e.g. not admin, or invalid self-update)."
-          },
-          "400": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Invalid request (e.g. role not found)."
-          },
-          "401": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not authenticated."
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "User not found."
-          },
-          "409": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Conflict (e.g. username exists, invalid password)."
-          },
-          "422": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      },
       "delete": {
         "tags": [
           "users"
@@ -8382,6 +8279,119 @@
               }
             },
             "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update a user by ID",
+        "description": "Partially update a user by GlobalID. Requires authentication and a login session or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. Admins may update other users. Members and viewers may update only their own username and password. Changing your own password requires current_password. Passwords can be changed only for local users while basic authentication is enabled. Users cannot change their own role or the default admin's role, and system users cannot be modified. Password and role changes revoke existing sessions, API keys, and password-reset tokens. An admin password reset marks the password as needing reset. Omit unchanged fields; null values and unknown fields are rejected.",
+        "operationId": "patchUser",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
+              "title": "User Id"
+            },
+            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchUserRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated user. Passwords are never returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The caller cannot perform this update."
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Basic authentication is disabled."
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "User not found."
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Username conflict or non-local password update."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
           }
         }
       }
@@ -16495,59 +16505,39 @@
       "PatchUserRequestBody": {
         "properties": {
           "username": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Username"
+            "type": "string",
+            "title": "Username",
+            "description": "The user's new display name."
           },
           "password": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Password"
+            "type": "string",
+            "format": "password",
+            "title": "Password",
+            "description": "The new local password.",
+            "writeOnly": true
           },
           "current_password": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Current Password"
+            "type": "string",
+            "format": "password",
+            "title": "Current Password",
+            "description": "Required when changing your own password.",
+            "writeOnly": true
           },
           "role": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "SYSTEM",
-                  "ADMIN",
-                  "MEMBER",
-                  "VIEWER"
-                ]
-              },
-              {
-                "type": "null"
-              }
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER",
+              "VIEWER"
             ],
-            "title": "Role"
+            "title": "Role",
+            "description": "The new role. Only admins may change another user's role."
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "PatchUserRequestBody",
-        "description": "Fields to update. At least one must be provided."
+        "description": "Omit fields to leave them unchanged. Null values are not accepted."
       },
       "PhoenixAssistantMessageMetadata": {
         "properties": {

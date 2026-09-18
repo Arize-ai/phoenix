@@ -1433,7 +1433,7 @@ export interface paths {
         head?: never;
         /**
          * Update a user by ID
-         * @description Partially update a user. Admins may update another user's role, username, and password. Any authenticated user may update their own username and password; changing your own password requires the current password.
+         * @description Partially update a user by GlobalID. Requires authentication and a login session or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. Admins may update other users. Members and viewers may update only their own username and password. Changing your own password requires current_password. Passwords can be changed only for local users while basic authentication is enabled. Users cannot change their own role or the default admin's role, and system users cannot be modified. Password and role changes revoke existing sessions, API keys, and password-reset tokens. An admin password reset marks the password as needing reset. Omit unchanged fields; null values and unknown fields are rejected.
          */
         patch: operations["patchUser"];
         trace?: never;
@@ -4411,17 +4411,32 @@ export interface components {
         };
         /**
          * PatchUserRequestBody
-         * @description Fields to update. At least one must be provided.
+         * @description Omit fields to leave them unchanged. Null values are not accepted.
          */
         PatchUserRequestBody: {
-            /** Username */
-            username?: string | null;
-            /** Password */
-            password?: string | null;
-            /** Current Password */
-            current_password?: string | null;
-            /** Role */
-            role?: ("SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER") | null;
+            /**
+             * Username
+             * @description The user's new display name.
+             */
+            username?: string;
+            /**
+             * Password
+             * Format: password
+             * @description The new local password.
+             */
+            password?: string;
+            /**
+             * Current Password
+             * Format: password
+             * @description Required when changing your own password.
+             */
+            current_password?: string;
+            /**
+             * Role
+             * @description The new role. Only admins may change another user's role.
+             * @enum {string}
+             */
+            role?: "ADMIN" | "MEMBER" | "VIEWER";
         };
         /**
          * PhoenixAssistantMessageMetadata
@@ -12422,7 +12437,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The GlobalID of the user. */
+                /** @description The GlobalID of the user (e.g. 'VXNlcjox'). */
                 user_id: string;
             };
             cookie?: never;
@@ -12433,7 +12448,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The updated user. */
+            /** @description The updated user. Passwords are never returned. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12442,7 +12457,7 @@ export interface operations {
                     "application/json": components["schemas"]["GetUserResponseBody"];
                 };
             };
-            /** @description Invalid request (e.g. role not found). */
+            /** @description Basic authentication is disabled. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -12460,7 +12475,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Forbidden (e.g. not admin, or invalid self-update). */
+            /** @description The caller cannot perform this update. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -12478,7 +12493,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Conflict (e.g. username exists, invalid password). */
+            /** @description Username conflict or non-local password update. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12489,6 +12504,15 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
                 headers: {
                     [name: string]: unknown;
                 };
