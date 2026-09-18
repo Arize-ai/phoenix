@@ -1175,6 +1175,7 @@ class TestPromptVersion:
             "tools": None,
             "response_format": None,
             "model_provider": ModelProvider.OPENAI,
+            "custom_provider_id": None,
             "model_name": "gpt-4",
             "metadata_": {"key": "value"},
         }
@@ -1221,6 +1222,10 @@ class TestPromptVersion:
                 id="model-provider-differs",
             ),
             pytest.param(
+                {"custom_provider_id": 7},
+                id="custom-provider-differs",
+            ),
+            pytest.param(
                 {"model_name": "gpt-3.5-turbo"},
                 id="model-name-differs",
             ),
@@ -1251,6 +1256,7 @@ class TestPromptVersion:
             "tools": None,
             "response_format": None,
             "model_provider": ModelProvider.OPENAI,
+            "custom_provider_id": None,
             "model_name": "gpt-4",
             "metadata_": {"key": "value"},
         }
