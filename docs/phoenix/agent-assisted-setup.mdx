@@ -43,8 +43,7 @@ import StartPhoenix from "../snippets/start-phoenix.mdx";
 
 If no traces appear, check the [Troubleshooting FAQ](/docs/phoenix/tracing/concepts-tracing/faqs-tracing).
 
-<AccordionGroup>
-  <Accordion title="Re-run a single step">
+## Re-run a single step
 The connection questions only need answering once. On a repo that's already registered, re-run just the slice you need:
 
 ```bash
@@ -52,9 +51,8 @@ px setup instrument   # Instrument and verify traces again
 px setup skills       # Install the coding-agent skills alone
 px setup mcp          # Register the Phoenix MCP server with a coding agent
 ```
-  </Accordion>
 
-  <Accordion title="Run non-interactively (CI or agents)">
+## Run non-interactively (CI or agents)
 Pass flags instead of answering prompts:
 
 ```bash
@@ -78,15 +76,12 @@ as "configured but unverified" rather than a hard failure: re-run
 `verification` field carries the same verdict.
 
 See the [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#px-setup) for the full list of flags.
-  </Accordion>
 
-  <Accordion title="Use an unsupported agent">
+## Use an unsupported agent
 `px setup` hands off to Claude Code, Codex, Cursor, and OpenCode. If your agent isn't one of those (Windsurf, Copilot, and others), paste this prompt into it instead:
 
 ```text
 Follow the instructions from https://raw.githubusercontent.com/Arize-ai/phoenix/main/docs/PROMPT.md and ask me questions as needed.
 ```
-  </Accordion>
-</AccordionGroup>
 
 For ongoing agent workflows beyond initial setup (CLI, MCP, and skills), see the [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) guide.
