@@ -1,5 +1,29 @@
 # Changelog
 
+## [20.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.13.0...arize-phoenix-v20.14.0) (2026-09-18)
+
+
+### Features
+
+* **evals:** Harbor benchmark for Phoenix MCP and CLI tools ([#16192](https://github.com/Arize-ai/phoenix/issues/16192)) ([7f7d382](https://github.com/Arize-ai/phoenix/commit/7f7d3826a7a40985fd9a0933310d0abe8d347bba))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#16199](https://github.com/Arize-ai/phoenix/issues/16199)) ([f4c3bae](https://github.com/Arize-ai/phoenix/commit/f4c3bae197687b2597cd8e2034aa902c5a79aa4e))
+* **pxi:** link references from their owning skill ([#16142](https://github.com/Arize-ai/phoenix/issues/16142)) ([4de212c](https://github.com/Arize-ai/phoenix/commit/4de212c10e4da220739db1bfca73b5cb6322e9e9))
+
+
+### Documentation
+
+* **server:** align create_graphql_router's docstring with its signature ([#16269](https://github.com/Arize-ai/phoenix/issues/16269)) ([81c8e25](https://github.com/Arize-ai/phoenix/commit/81c8e2549400e63ec6be707ae9df4ea3a2ae7799))
+
+
+### Miscellaneous Chores
+
+* release arize-phoenix 20.14.0 ([#16258](https://github.com/Arize-ai/phoenix/issues/16258)) ([829f116](https://github.com/Arize-ai/phoenix/commit/829f1163fd898d6711fd97d7cc6b5c78fafca87c))
+* release arize-phoenix-client 3.6.0 and repair the manifest ([#16255](https://github.com/Arize-ai/phoenix/issues/16255)) ([a6834ea](https://github.com/Arize-ai/phoenix/commit/a6834ea260517a40e3bb23ba7350d31d74878673))
+
 ## [20.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.12.0...arize-phoenix-v20.13.0) (2026-09-16)
 
 
