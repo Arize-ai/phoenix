@@ -560,7 +560,11 @@ class DatasetMutationMixin:
                 raise NotFound("Example not found in the selected dataset.")
             latest_revision_id = (
                 select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id.in_(expected_outputs_by_example))
+                .where(
+                    models.DatasetExampleRevision.dataset_example_id.in_(
+                        expected_outputs_by_example
+                    )
+                )
                 .group_by(models.DatasetExampleRevision.dataset_example_id)
                 .scalar_subquery()
             )

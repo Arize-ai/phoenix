@@ -72,7 +72,12 @@ def _label(example: tuple[int, int], **overrides: Any) -> dict[str, Any]:
 
 
 def _input(dataset_id: int, *expected_outputs: dict[str, Any]) -> dict[str, Any]:
-    return {"input": {"datasetId": str(GlobalID("Dataset", str(dataset_id))), "expectedOutputs": expected_outputs}}
+    return {
+        "input": {
+            "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+            "expectedOutputs": expected_outputs,
+        }
+    }
 
 
 async def _count_versions(db: DbSessionFactory, dataset_id: int) -> int:
@@ -160,8 +165,7 @@ class TestSetDatasetExampleExpectedOutputs:
             payload = response.data["setDatasetExampleExpectedOutputs"]
             (revision,) = [item["revision"] for item in payload["examples"]]
             assert [
-                f"{item['annotationName']}:{item['label']}"
-                for item in revision["expectedOutputs"]
+                f"{item['annotationName']}:{item['label']}" for item in revision["expectedOutputs"]
             ] == expected_labels
             assert revision["revisionId"] != expected_revision
             expected_revision = revision["revisionId"]
@@ -217,8 +221,7 @@ class TestSetDatasetExampleExpectedOutputs:
         assert response.data and not response.errors
         (saved,) = response.data["setDatasetExampleExpectedOutputs"]["examples"]
         assert [
-            (item["annotationName"], item["label"])
-            for item in saved["revision"]["expectedOutputs"]
+            (item["annotationName"], item["label"]) for item in saved["revision"]["expectedOutputs"]
         ] == [("quality", "good")]
         records = saved["revision"]["metadata"]["annotations"]["quality"]
         assert records[0] == llm_record
