@@ -11,6 +11,7 @@ export * from "./spanAnnotations";
 export * from "./traceAnnotations";
 export * from "./sessionAnnotations";
 export * from "./prompt";
+export * from "./evaluator";
 export * from "./api";
 export * from "./docs";
 export * from "./self";

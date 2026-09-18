@@ -1,5 +1,6 @@
 import { DEFAULT_MOCK_BASE_URL } from "@arizeai/phoenix-testing";
-import { vi } from "vitest";
+import type { Server } from "@arizeai/phoenix-testing/node";
+import { onTestFinished, vi } from "vitest";
 
 /**
  * Connection args pointing a command under test at the mock Phoenix server,
@@ -33,4 +34,21 @@ export function captureCliOutput() {
     stdout: vi.spyOn(console, "log").mockImplementation(() => {}),
     stderr: vi.spyOn(console, "error").mockImplementation(() => {}),
   };
+}
+
+/**
+ * Record `METHOD /path` for every request the mock server receives during the
+ * current test, so a test can assert that a command failed before contacting
+ * the server at all.
+ */
+export function recordRequests(server: Server): string[] {
+  const requests: string[] = [];
+  const listener = ({ request }: { request: Request }) => {
+    requests.push(`${request.method} ${new URL(request.url).pathname}`);
+  };
+  server.events.on("request:start", listener);
+  onTestFinished(() => {
+    server.events.removeListener("request:start", listener);
+  });
+  return requests;
 }

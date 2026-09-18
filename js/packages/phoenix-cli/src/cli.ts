@@ -9,6 +9,7 @@ import {
   createAuthCommand,
   createDatasetCommand,
   createDocsCommand,
+  createEvaluatorCommand,
   createExperimentCommand,
   createProfileCommand,
   createProjectCommand,
@@ -52,6 +53,7 @@ export function createProgram(): Command {
   program.addCommand(createSessionAnnotationsCommand());
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptCommand());
+  program.addCommand(createEvaluatorCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
   program.addCommand(createSelfCommand());

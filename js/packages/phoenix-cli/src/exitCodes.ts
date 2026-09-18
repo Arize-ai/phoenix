@@ -15,6 +15,8 @@
  * |  5   | Network error    | Failed to connect to server or network request      |
  * |  6   | Not verified     | The command ran, but could not confirm its effect   |
  */
+import { HttpError } from "@arizeai/phoenix-client";
+
 export const ExitCode = {
   /** Command completed successfully */
   SUCCESS: 0,
@@ -40,9 +42,13 @@ export const ExitCode = {
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 
 export class InvalidArgumentError extends Error {
-  constructor(message: string) {
+  /** A copy-pasteable command that helps resolve the problem. */
+  readonly hint?: string;
+
+  constructor(message: string, { hint }: { hint?: string } = {}) {
     super(message);
     this.name = "InvalidArgumentError";
+    this.hint = hint;
   }
 }
 
@@ -82,10 +88,32 @@ export function getExitCodeForError(error: unknown): ExitCode {
     return ExitCode.NETWORK_ERROR;
   }
 
+  // The server refused the credentials; the client surfaces that as an HttpError.
+  if (
+    error instanceof HttpError &&
+    (error.status === 401 || error.status === 403)
+  ) {
+    return ExitCode.AUTH_REQUIRED;
+  }
+
   // TypeError is thrown by the Fetch API for network-level failures
   // (e.g. ECONNREFUSED, ETIMEDOUT, DNS errors).
   if (error instanceof TypeError) {
     return ExitCode.NETWORK_ERROR;
   }
   return ExitCode.FAILURE;
+}
+
+/** The ExitCode constant *name* for a code, used as the structured error envelope's `code`. */
+export function exitCodeName(code: ExitCode): string {
+  switch (code) {
+    case ExitCode.INVALID_ARGUMENT:
+      return "INVALID_ARGUMENT";
+    case ExitCode.AUTH_REQUIRED:
+      return "AUTH_REQUIRED";
+    case ExitCode.NETWORK_ERROR:
+      return "NETWORK_ERROR";
+    default:
+      return "FAILURE";
+  }
 }
