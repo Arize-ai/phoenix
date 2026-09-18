@@ -1,4 +1,3 @@
-import ast
 import asyncio
 import json
 import logging
@@ -48,6 +47,10 @@ from phoenix.db.types.prompts import (
     TextContentPart,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.code_evaluator_schema import (
+    infer_python_evaluate_input_schema,
+    infer_typescript_evaluate_input_schema,
+)
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     PlaygroundClient,
@@ -2498,120 +2501,6 @@ def _get_template_variables_attributes(*, variables: dict[str, Any]) -> dict[str
     return {TEMPLATE_VARIABLES: json.dumps(variables)}
 
 
-def _make_object_input_schema(
-    parameter_names: Sequence[str],
-    required_names: Sequence[str],
-) -> dict[str, Any]:
-    return {
-        "type": "object",
-        "properties": {name: {} for name in parameter_names},
-        "required": list(required_names),
-    }
-
-
-def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any], Optional[str]]:
-    try:
-        module = ast.parse(source_code)
-    except SyntaxError as exc:
-        return (
-            {},
-            (
-                "Could not parse the Python evaluator signature. "
-                "Define a top-level function like "
-                "`def evaluate(output, reference=None, input=None, metadata=None):`. "
-                f"Parser error: {exc.msg}"
-            ),
-        )
-
-    evaluate_function = next(
-        (
-            node
-            for node in module.body
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "evaluate"
-        ),
-        None,
-    )
-    if evaluate_function is None:
-        return (
-            {},
-            (
-                "Could not infer the Python evaluator inputs because no top-level "
-                "`evaluate(...)` function was found. Define a function like "
-                "`def evaluate(output, reference=None, input=None, metadata=None):`."
-            ),
-        )
-
-    args = evaluate_function.args
-    positional_args = [*args.posonlyargs, *args.args]
-    positional_required_count = len(positional_args) - len(args.defaults)
-    required_names = [arg.arg for arg in positional_args[:positional_required_count]]
-    required_names.extend(
-        arg.arg for arg, default in zip(args.kwonlyargs, args.kw_defaults) if default is None
-    )
-
-    parameter_names = [arg.arg for arg in positional_args]
-    parameter_names.extend(arg.arg for arg in args.kwonlyargs)
-
-    return (_make_object_input_schema(parameter_names, required_names), None)
-
-
-_TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
-_TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
-
-
-def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], list[str]]:
-    destructured = re.match(r"^\{([^}]*)\}", params.strip())
-    if destructured is None:
-        return ([], [])
-
-    parameter_names: list[str] = []
-    for raw_part in destructured.group(1).split(","):
-        part = raw_part.strip()
-        if not part:
-            continue
-        part = part.split(":", 1)[0].strip()
-        if not part:
-            continue
-        name = part.split("=", 1)[0].rstrip("?").strip()
-        if not name:
-            continue
-        parameter_names.append(name)
-    return (parameter_names, [])
-
-
-def _infer_typescript_evaluate_input_schema(
-    source_code: str,
-) -> tuple[dict[str, Any], Optional[str]]:
-    signature = _TYPESCRIPT_FUNCTION_SIGNATURE_RE.search(
-        source_code
-    ) or _TYPESCRIPT_ARROW_SIGNATURE_RE.search(source_code)
-    if signature is None:
-        return (
-            {},
-            (
-                "Could not infer the TypeScript evaluator inputs because no supported "
-                "`evaluate(...)` signature was found. Define `evaluate` as either "
-                "`function evaluate({ output, reference, input, metadata }: "
-                "EvaluatorParams) { ... }` or `const evaluate = ({ output, "
-                "reference, input, metadata }: EvaluatorParams) => { ... }`."
-            ),
-        )
-
-    parameter_names, required_names = _extract_typescript_object_parameter_keys(signature.group(1))
-    if not parameter_names:
-        return (
-            {},
-            (
-                "Could not infer the TypeScript evaluator inputs from the `evaluate(...)` "
-                "signature. Use a destructured object parameter like "
-                "`function evaluate({ output, reference, input, metadata }: "
-                "EvaluatorParams) { ... }`."
-            ),
-        )
-
-    return (_make_object_input_schema(parameter_names, required_names), None)
-
-
 class CodeEvaluatorRunner(BaseEvaluator):
     """Evaluator that executes user-provided source code in a sandbox."""
 
@@ -2673,9 +2562,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
     def _infer_input_schema(self) -> tuple[dict[str, Any], Optional[str]]:
         if self._language == "PYTHON":
-            return _infer_python_evaluate_input_schema(self._source_code)
+            return infer_python_evaluate_input_schema(self._source_code)
         if self._language == "TYPESCRIPT":
-            return _infer_typescript_evaluate_input_schema(self._source_code)
+            return infer_typescript_evaluate_input_schema(self._source_code)
         return ({}, None)
 
     def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:

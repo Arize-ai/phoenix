@@ -1067,6 +1067,53 @@ class TestDatasetLLMEvaluatorMutations:
         assert result.errors
         assert "at least 1 item" in result.errors[0].message.lower()
 
+    async def test_create_dataset_llm_evaluator_rejects_empty_label(
+        self,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+    ) -> None:
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        result = await self._create(
+            gql_client,
+            datasetId=dataset_id,
+            name="empty-label",
+            description="test",
+            promptVersion=dict(
+                templateFormat="MUSTACHE",
+                template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
+                invocationParameters=dict(openai=dict(temperature=0.5)),
+                tools=_canonical_tools(
+                    name="test",
+                    description="test",
+                    parameters=dict(
+                        type="object",
+                        properties=dict(
+                            label=dict(
+                                type="string",
+                                enum=["correct", "incorrect"],
+                                description="correctness",
+                            )
+                        ),
+                        required=["label"],
+                    ),
+                    tool_choice_name="test",
+                ),
+                modelProvider="OPENAI",
+                modelName="gpt-4",
+            ),
+            outputConfigs=[
+                dict(
+                    categorical=dict(
+                        name="test",
+                        optimizationDirection="MAXIMIZE",
+                        values=[dict(label="", score=1), dict(label="incorrect", score=0)],
+                    )
+                )
+            ],
+        )
+        assert result.errors
+        assert "Label must be non-empty" in result.errors[0].message
+
 
 class TestUpdateDatasetLLMEvaluatorMutation:
     _UPDATE_MUTATION = """
