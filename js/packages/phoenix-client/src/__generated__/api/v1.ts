@@ -1433,7 +1433,7 @@ export interface paths {
         head?: never;
         /**
          * Update a user by ID
-         * @description Partially update a user by GlobalID. Requires authentication and a login session or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. Admins may update other users. Members and viewers may update only their own username and password. Changing your own password requires current_password. Passwords can be changed only for local users while basic authentication is enabled. Users cannot change their own role or the default admin's role, and system users cannot be modified. Password and role changes revoke existing sessions, API keys, and password-reset tokens. An admin password reset marks the password as needing reset. Omit unchanged fields; null values and unknown fields are rejected.
+         * @description Partially update a user by GlobalID. Requires authentication and an admin login session or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. Only admins may use this endpoint, including for updates to their own account. Changing your own password requires current_password. Passwords can be changed only for local users while basic authentication is enabled. Users cannot change their own role or the default admin's role, and system users cannot be modified. Password and role changes revoke existing sessions, API keys, and password-reset tokens. An admin password reset marks the password as needing reset. Omit unchanged fields; null values and unknown fields are rejected.
          */
         patch: operations["patchUser"];
         trace?: never;

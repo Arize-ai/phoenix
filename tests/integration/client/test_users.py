@@ -859,11 +859,7 @@ class TestPatchUser:
             "password": {"password": token_hex(16), "current_password": caller.password},
             "role": {"role": "VIEWER"},
         }[field]
-        allowed = (
-            not use_api_key
-            and (self_update or role == _ADMIN)
-            and not (self_update and field == "role")
-        )
+        allowed = not use_api_key and role == _ADMIN and not (self_update and field == "role")
         response = _httpx_client(_app, auth).patch(f"v1/users/{target.gid}", json=body)
         assert response.status_code == (200 if allowed else 403), response.text
         users = _UsersApi(_httpx_client(_app, _app.admin_secret)).list()
@@ -1016,7 +1012,7 @@ class TestPatchUser:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        caller = _get_user(_app, _VIEWER).log_in(_app)
+        caller = _get_user(_app, _ADMIN).log_in(_app)
         client = _httpx_client(_app, caller.tokens)
         response = client.patch(
             f"v1/users/{caller.gid}",
@@ -1034,7 +1030,7 @@ class TestPatchUser:
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        caller = _get_user(_app, _MEMBER).log_in(_app)
+        caller = _get_user(_app, _ADMIN).log_in(_app)
         key = caller.create_api_key(_app)
         client = _httpx_client(_app, caller.tokens)
         response = client.patch(f"v1/users/{caller.gid}", json={"username": f"  {token_hex(12)}  "})

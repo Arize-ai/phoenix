@@ -2259,6 +2259,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (200, "GET", "v1/users"),
     (200, "GET", "v1/users/api_keys"),
     (422, "POST", "v1/users"),
+    (422, "PATCH", "v1/users/fake-id-{}"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
     (422, "PATCH", "v1/projects/fake-id-{}/retention"),
@@ -2332,7 +2333,6 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
 
 # Self-service credential writes are intentionally available to viewers.
 _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
-    (422, "PATCH", "v1/users/fake-id-{}"),
     (422, "POST", "v1/user/api_keys"),
     (422, "DELETE", "v1/user/api_keys/fake-id-{}"),
 )

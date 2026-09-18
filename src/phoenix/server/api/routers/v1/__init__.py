@@ -26,7 +26,6 @@ from .secrets import router as secrets_router
 from .sessions import router as sessions_router
 from .spans import router as spans_router
 from .traces import router as traces_router
-from .users import profile_router as user_profile_router
 from .users import router as users_router
 from .utils import add_errors_to_responses
 
@@ -85,8 +84,6 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     # API-key routes define their own viewer policy: viewers can manage their own user keys,
     # while system and organization-wide operations remain admin-gated.
     router.include_router(api_keys_router)
-    # Viewers can update their own profile; the endpoint enforces ownership and session type.
-    router.include_router(user_profile_router)
     # The chat completions proxy writes nothing and powers read features like
     # AI search, so — like the agents chat endpoints — it stays available to
     # every authenticated role, viewers included.

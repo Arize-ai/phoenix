@@ -27,9 +27,9 @@ from phoenix.server.types import (
 @pytest.fixture
 async def user(db: DbSessionFactory) -> models.LocalUser:
     async with db() as session:
-        role = await session.scalar(select(models.UserRole).where(models.UserRole.name == "MEMBER"))
+        role = await session.scalar(select(models.UserRole).where(models.UserRole.name == "ADMIN"))
         if role is None:
-            role = models.UserRole(name="MEMBER")
+            role = models.UserRole(name="ADMIN")
             session.add(role)
             await session.flush()
         salt = b"test-password-salt"
@@ -115,15 +115,38 @@ async def test_delegated_oauth_access_token_cannot_modify_users(
     patch_app.state.token_store.log_out.assert_not_called()
 
 
+@pytest.mark.parametrize("self_update", [False, True])
+@pytest.mark.parametrize("role_name", ["MEMBER", "VIEWER", "SYSTEM"])
 async def test_cached_admin_claims_cannot_override_current_database_role(
+    self_update: bool,
+    role_name: str,
     patch_client: httpx.AsyncClient,
+    patch_app: FastAPI,
+    user: models.LocalUser,
+    db: DbSessionFactory,
 ) -> None:
-    # The fixture has ADMIN claims but a MEMBER database role. Authorization must happen
-    # before resolving another account, including an account that does not exist.
+    async with db() as session:
+        role = await session.scalar(
+            select(models.UserRole).where(models.UserRole.name == role_name)
+        )
+        if role is None:
+            role = models.UserRole(name=role_name)
+            session.add(role)
+            await session.flush()
+        stored = await session.get(models.User, user.id)
+        assert stored is not None
+        stored.user_role_id = role.id
+    # Cached ADMIN claims must not permit either self-service or account enumeration
+    # after the caller's database role changes.
+    target_id = user.id if self_update else 999999999
     response = await patch_client.patch(
-        f"v1/users/{GlobalID('User', '999999999')}", json={"username": "forbidden"}
+        f"v1/users/{GlobalID('User', str(target_id))}", json={"username": "forbidden"}
     )
     assert response.status_code == 403
+    patch_app.state.token_store.log_out.assert_not_called()
+    async with db() as session:
+        stored = await session.get(models.User, user.id)
+        assert stored is not None and stored.username == user.username
 
 
 async def test_basic_auth_disabled_rejects_password_without_mutating_profile(

@@ -8226,68 +8226,12 @@
       }
     },
     "/v1/users/{user_id}": {
-      "delete": {
-        "tags": [
-          "users"
-        ],
-        "summary": "Delete a user by ID",
-        "description": "Delete an existing user by their unique GlobalID.",
-        "operationId": "deleteUser",
-        "parameters": [
-          {
-            "name": "user_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
-              "title": "User Id"
-            },
-            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No content returned on successful deletion."
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Cannot delete the default admin or system user"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "User not found."
-          },
-          "422": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        }
-      },
       "patch": {
         "tags": [
           "users"
         ],
         "summary": "Update a user by ID",
-        "description": "Partially update a user by GlobalID. Requires authentication and a login session or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. Admins may update other users. Members and viewers may update only their own username and password. Changing your own password requires current_password. Passwords can be changed only for local users while basic authentication is enabled. Users cannot change their own role or the default admin's role, and system users cannot be modified. Password and role changes revoke existing sessions, API keys, and password-reset tokens. An admin password reset marks the password as needing reset. Omit unchanged fields; null values and unknown fields are rejected.",
+        "description": "Partially update a user by GlobalID. Requires authentication and an admin login session or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. Only admins may use this endpoint, including for updates to their own account. Changing your own password requires current_password. Passwords can be changed only for local users while basic authentication is enabled. Users cannot change their own role or the default admin's role, and system users cannot be modified. Password and role changes revoke existing sessions, API keys, and password-reset tokens. An admin password reset marks the password as needing reset. Omit unchanged fields; null values and unknown fields are rejected.",
         "operationId": "patchUser",
         "parameters": [
           {
@@ -8392,6 +8336,62 @@
               }
             },
             "description": "Insufficient Storage"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete a user by ID",
+        "description": "Delete an existing user by their unique GlobalID.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
+              "title": "User Id"
+            },
+            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion."
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Cannot delete the default admin or system user"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "User not found."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }

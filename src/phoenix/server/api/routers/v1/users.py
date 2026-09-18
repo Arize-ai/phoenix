@@ -51,7 +51,6 @@ from phoenix.server.types import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["users"])
-profile_router = APIRouter(tags=["users"])
 
 
 class UserData(V1RoutesBaseModel):
@@ -408,15 +407,15 @@ async def create_user(
     return CreateUserResponseBody(data=data)
 
 
-@profile_router.patch(
+@router.patch(
     "/users/{user_id}",
     operation_id="patchUser",
     summary="Update a user by ID",
     description=(
-        "Partially update a user by GlobalID. Requires authentication and a login session "
+        "Partially update a user by GlobalID. Requires authentication and an admin login session "
         "or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. "
-        "Admins may update other users. Members and viewers may update only their own "
-        "username and password. Changing your own password requires current_password. "
+        "Only admins may use this endpoint, including for updates to their own account. "
+        "Changing your own password requires current_password. "
         "Passwords can be changed only for local users while basic authentication is enabled. "
         "Users cannot change their own role or the default admin's role, and system users "
         "cannot be modified. Password and role changes revoke existing sessions, API keys, "
@@ -435,7 +434,7 @@ async def create_user(
             507,
         ]
     ),
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[Depends(require_admin), Depends(is_not_locked)],
     response_model_by_alias=True,
     response_model_exclude_unset=True,
     response_model_exclude_defaults=True,
@@ -469,8 +468,8 @@ async def patch_user(
             )
             if requester_role is None:
                 raise HTTPException(status_code=401, detail="User not found")
-            if requester_role == "SYSTEM" or (not is_self and requester_role != "ADMIN"):
-                raise HTTPException(status_code=403, detail="Only admins can modify other users")
+            if requester_role != "ADMIN":
+                raise HTTPException(status_code=403, detail="Only admins can modify users")
         if "role" in fields and is_self:
             raise HTTPException(status_code=403, detail="Cannot modify own role")
 
