@@ -368,6 +368,26 @@ class TestMutationTool:
         )
         assert result.structured_content == {"data": {"deleteDataset": True}, "errors": []}
 
+    async def test_states_the_size_limit(self, mutating_mcp: FastMCP) -> None:
+        """The description spells the limit out, so it must match the one enforced."""
+        tools = {tool.name: tool for tool in await mutating_mcp.list_tools()}
+        description = tools["executeGraphqlMutation"].description or ""
+        assert f"{MAX_QUERY_BYTES // 1024} KiB" in description
+
+    @pytest.mark.parametrize("validate_only", [False, True])
+    async def test_an_oversized_document_is_refused(
+        self, mutating_mcp: FastMCP, validate_only: bool
+    ) -> None:
+        oversized = (
+            'mutation { deleteDataset(datasetId: "1") ' + "# padding\n" * MAX_QUERY_BYTES + "}"
+        )
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": oversized, "validate_only": validate_only}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.QUERY_TOO_LARGE.value
+
     async def test_refuses_a_read_only_document(self, mutating_mcp: FastMCP) -> None:
         """A query sent here is a mistake worth naming, not something to silently run."""
         result = await mutating_mcp.call_tool(
