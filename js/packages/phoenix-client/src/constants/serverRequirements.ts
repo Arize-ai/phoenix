@@ -315,6 +315,48 @@ export const DELETE_DATASET_EVALUATORS: RouteRequirement = {
   minServerVersion: [21, 0, 0],
 };
 
+export const CREATE_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/projects/{project_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const LIST_PROJECT_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/projects/{project_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const GET_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/project_evaluators/{project_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const PATCH_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/project_evaluators/{project_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/project_evaluators/{project_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_PROJECT_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/project_evaluators/delete",
+  minServerVersion: [21, 0, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -363,4 +405,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   PATCH_DATASET_EVALUATOR,
   DELETE_DATASET_EVALUATOR,
   DELETE_DATASET_EVALUATORS,
+  CREATE_PROJECT_EVALUATOR,
+  LIST_PROJECT_EVALUATORS,
+  GET_PROJECT_EVALUATOR,
+  PATCH_PROJECT_EVALUATOR,
+  DELETE_PROJECT_EVALUATOR,
+  DELETE_PROJECT_EVALUATORS,
 ] as const;

@@ -131,3 +131,31 @@ export function resolveDatasetIdentifier(
   if ("datasetId" in identifier) return identifier.datasetId;
   return identifier.datasetName;
 }
+
+/**
+ * A binding that runs an evaluator on a project's incoming traces, as
+ * returned by the Phoenix REST API.
+ */
+export type ProjectEvaluator = components["schemas"]["ProjectEvaluator"];
+
+/**
+ * What a project evaluator runs on. `SPAN` evaluators run on matching sampled
+ * spans. `TRACE` and `SESSION` evaluators run once per trace or session, after
+ * the first quiet period following the evaluation delay.
+ */
+export type EvaluationTarget = components["schemas"]["EvaluationTarget"];
+
+/**
+ * The evaluator a project binding creates or references: a new LLM or code
+ * evaluator, or `{ type: "reference", evaluator_id }` for an existing code
+ * evaluator.
+ */
+export type ProjectEvaluatorInput =
+  components["schemas"]["CreateProjectEvaluatorRequest"]["evaluator"];
+
+/**
+ * Fields that can change on a project binding. Omitted fields keep their
+ * current values.
+ */
+export type ProjectEvaluatorPatch =
+  components["schemas"]["PatchProjectEvaluatorRequest"];

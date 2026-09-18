@@ -20,6 +20,10 @@ from phoenix.client.resources.evaluators.dataset_evaluators import (
     AsyncDatasetEvaluators,
     DatasetEvaluators,
 )
+from phoenix.client.resources.evaluators.project_evaluators import (
+    AsyncProjectEvaluators,
+    ProjectEvaluators,
+)
 from phoenix.client.types.evaluators import (
     EvaluatorDefinition,
     EvaluatorOutputConfig,
@@ -184,6 +188,15 @@ class Evaluators:
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
+
+            # Run an evaluator on a project's incoming spans
+            client.evaluators.project_evaluators.create(
+                project="support-bot",
+                name="exact-match",
+                evaluation_target="SPAN",
+                sampling_rate=0.25,
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+            )
     """
 
     def __init__(
@@ -200,6 +213,7 @@ class Evaluators:
         self._client = client
         self._guard = _guard or ServerVersionGuard(client)
         self._dataset_evaluators = DatasetEvaluators(client, _guard=self._guard)
+        self._project_evaluators = ProjectEvaluators(client, _guard=self._guard)
 
     @property
     def dataset_evaluators(self) -> DatasetEvaluators:
@@ -209,6 +223,15 @@ class Evaluators:
             DatasetEvaluators: The dataset evaluator bindings client.
         """
         return self._dataset_evaluators
+
+    @property
+    def project_evaluators(self) -> ProjectEvaluators:
+        """Bindings that run evaluators on a project's incoming traces.
+
+        Returns:
+            ProjectEvaluators: The project evaluator bindings client.
+        """
+        return self._project_evaluators
 
     def list(
         self,
@@ -635,6 +658,15 @@ class AsyncEvaluators:
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
+
+            # Run an evaluator on a project's incoming spans
+            await client.evaluators.project_evaluators.create(
+                project="support-bot",
+                name="exact-match",
+                evaluation_target="SPAN",
+                sampling_rate=0.25,
+                evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+            )
     """
 
     def __init__(
@@ -651,6 +683,7 @@ class AsyncEvaluators:
         self._client = client
         self._guard = _guard or AsyncServerVersionGuard(client)
         self._dataset_evaluators = AsyncDatasetEvaluators(client, _guard=self._guard)
+        self._project_evaluators = AsyncProjectEvaluators(client, _guard=self._guard)
 
     @property
     def dataset_evaluators(self) -> AsyncDatasetEvaluators:
@@ -660,6 +693,15 @@ class AsyncEvaluators:
             AsyncDatasetEvaluators: The dataset evaluator bindings client.
         """
         return self._dataset_evaluators
+
+    @property
+    def project_evaluators(self) -> AsyncProjectEvaluators:
+        """Bindings that run evaluators on a project's incoming traces.
+
+        Returns:
+            AsyncProjectEvaluators: The project evaluator bindings client.
+        """
+        return self._project_evaluators
 
     async def list(
         self,
