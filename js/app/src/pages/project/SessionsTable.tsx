@@ -18,12 +18,11 @@ import React, {
   Suspense,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   ContextualHelp,
@@ -52,7 +51,7 @@ import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
+import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
@@ -93,6 +92,8 @@ import {
   normalizeAnnotationColumnOrder,
 } from "./tableUtils";
 type SessionsTableProps = {
+  /** The trace or session id whose row renders as selected. */
+  selectedRowId?: string;
   emptyState?: ReactNode;
   project: SessionsTable_sessions$key;
 };
@@ -131,17 +132,18 @@ function SessionFilterConditionFieldWithVocabulary({
 
 const TableBody = <T extends { id: string }>({
   table,
+  selectedRowId,
 }: {
   table: Table<T>;
+  selectedRowId?: string;
 }) => {
   "use no memo";
   const navigate = useNavigate();
-  const { sessionId, targetId } = useParams();
   const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.id === (sessionId ?? targetId);
+        const isSelected = row.original.id === selectedRowId;
         return (
           <tr
             key={row.id}
@@ -185,7 +187,6 @@ export const MemoizedTableBody = React.memo(
 export function SessionsTable(props: SessionsTableProps) {
   const { filterCondition: initialFilterCondition } = useSessionFilters();
   // we need a reference to the scrolling element for pagination logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =
     useState<string>(initialFilterCondition);
@@ -488,23 +489,13 @@ export function SessionsTable(props: SessionsTableProps) {
     fetchKey,
     timeRangeISOStrings,
   ]);
-  // A visibility observer rather than the container's scroll event, so paging
-  // works whether this table owns the scroll or sits in a scrolling page.
-  const { ref: loadMoreSentinelRef, isVisible: isLoadMoreSentinelVisible } =
-    useDeferredVisibility<HTMLDivElement>({
-      rootMargin: "300px",
-      scrollMargin: "300px",
-    });
-  // The observer reports the sentinel leaving a frame after new rows commit,
-  // so re-running on load completion would chain an extra page from stale
-  // visibility. A page that leaves the sentinel in view falls back to the
-  // Load More row.
-  useEffect(() => {
-    if (isLoadMoreSentinelVisible && hasNext && !isLoadingNext) {
-      loadNext(PAGE_SIZE);
-    }
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- see above
-  }, [isLoadMoreSentinelVisible]);
+  const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    pageSize: PAGE_SIZE,
+    rows: data.sessions.edges,
+  });
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const columnSizing = useTracingContext((state) => state.columnSizing);
@@ -642,7 +633,6 @@ export function SessionsTable(props: SessionsTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              ref={tableContainerRef}
             >
               <ColumnOrderingProvider
                 columnOrder={visibleColumnOrder}
@@ -743,7 +733,10 @@ export function SessionsTable(props: SessionsTableProps) {
                   ) : columnSizingInfo.isResizingColumn ? (
                     <MemoizedTableBody table={table} />
                   ) : (
-                    <TableBody table={table} />
+                    <TableBody
+                      table={table}
+                      selectedRowId={props.selectedRowId}
+                    />
                   )}
                 </table>
               </ColumnOrderingProvider>

@@ -11,7 +11,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 
-import { useCompareSelection } from "./projectEvaluatorCompareSelection";
+import { useCompareSelection } from "./ProjectEvaluatorCompareSelectionContext";
 
 export function ProjectEvaluatorCompareMatrix({
   comparisonRef,
@@ -26,7 +26,10 @@ export function ProjectEvaluatorCompareMatrix({
   evaluatorAOptimizationDirection: EvaluatorOptimizationDirection | null;
   evaluatorBOptimizationDirection: EvaluatorOptimizationDirection | null;
 }) {
-  const { selection, setSelection } = useCompareSelection();
+  // The optimistic selection highlights the pressed cell at once, before the
+  // navigation that carries it commits.
+  const { optimisticSelection: selection, setSelection } =
+    useCompareSelection();
   const comparison = useFragment(
     graphql`
       fragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {

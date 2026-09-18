@@ -10,6 +10,7 @@ import { ProjectEvaluatorCompareStats } from "@phoenix/pages/project/evaluators/
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 
 import { ProjectEvaluatorCompareDistributions } from "./ProjectEvaluatorCompareDistributions";
+import { CompareSelectionProvider } from "./ProjectEvaluatorCompareSelectionContext";
 import { ProjectEvaluatorCompareTargets } from "./ProjectEvaluatorCompareTargets";
 
 const comparisonPanelsCSS = css`
@@ -90,39 +91,41 @@ export function ProjectEvaluatorCompareContent({
   invariant(data.project?.__typename === "Project", "project is required");
   const comparison = data.project.evaluatorComparison;
   return (
-    <Flex direction="column" gap="size-200">
-      <ProjectEvaluatorCompareStats
-        comparisonRef={comparison}
-        evaluatorAName={evaluatorAName}
-        evaluatorBName={evaluatorBName}
-        evaluatorAOptimizationConfig={evaluatorAOptimizationConfig}
-        evaluatorBOptimizationConfig={evaluatorBOptimizationConfig}
-      />
-      <div css={comparisonPanelsCSS}>
-        <ProjectEvaluatorCompareMatrix
+    <CompareSelectionProvider>
+      <Flex direction="column" gap="size-200">
+        <ProjectEvaluatorCompareStats
           comparisonRef={comparison}
           evaluatorAName={evaluatorAName}
           evaluatorBName={evaluatorBName}
-          evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
-          evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
+          evaluatorAOptimizationConfig={evaluatorAOptimizationConfig}
+          evaluatorBOptimizationConfig={evaluatorBOptimizationConfig}
         />
-        <ProjectEvaluatorCompareDistributions
+        <div css={comparisonPanelsCSS}>
+          <ProjectEvaluatorCompareMatrix
+            comparisonRef={comparison}
+            evaluatorAName={evaluatorAName}
+            evaluatorBName={evaluatorBName}
+            evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
+            evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
+          />
+          <ProjectEvaluatorCompareDistributions
+            comparisonRef={comparison}
+            evaluatorAId={evaluatorAId}
+            evaluatorBId={evaluatorBId}
+            evaluatorAName={evaluatorAName}
+            evaluatorBName={evaluatorBName}
+            evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
+            evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
+          />
+        </div>
+        <ProjectEvaluatorCompareTargets
+          projectId={projectId}
           comparisonRef={comparison}
-          evaluatorAId={evaluatorAId}
-          evaluatorBId={evaluatorBId}
-          evaluatorAName={evaluatorAName}
-          evaluatorBName={evaluatorBName}
           evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
           evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
+          timeRange={timeRange}
         />
-      </div>
-      <ProjectEvaluatorCompareTargets
-        key={`${evaluatorAId}:${evaluatorBId}`}
-        projectId={projectId}
-        comparisonRef={comparison}
-        evaluatorAOptimizationDirection={evaluatorAOptimizationDirection}
-        evaluatorBOptimizationDirection={evaluatorBOptimizationDirection}
-      />
-    </Flex>
+      </Flex>
+    </CompareSelectionProvider>
   );
 }

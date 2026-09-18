@@ -22,7 +22,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -81,7 +81,7 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { useDeferredVisibility } from "@phoenix/hooks/useDeferredVisibility";
+import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
@@ -125,6 +125,8 @@ import {
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
 
 type SpansTableProps = {
+  /** The trace or session id whose row renders as selected. */
+  selectedRowId?: string;
   project: SpansTable_spans$key;
   /**
    * The condition the preload carried; always settled, so the rows on hand
@@ -159,24 +161,24 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   hasNext,
   onLoadNext,
   isLoadingNext,
+  selectedRowId,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
+  selectedRowId?: string;
 }) => {
   "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { traceId, targetId } = useParams();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
         const isSelected =
           selectedSpanNodeId === row.original.id ||
-          (!selectedSpanNodeId &&
-            row.original.trace.traceId === (traceId ?? targetId));
+          (!selectedSpanNodeId && row.original.trace.traceId === selectedRowId);
         return (
           <tr
             key={row.id}
@@ -249,7 +251,6 @@ export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -281,11 +282,9 @@ export function SpansTable(props: SpansTableProps) {
       setSearchParamsRef.current(
         (prev) => {
           const next = new URLSearchParams(prev);
-          // Written even when empty. An absent param means "no filter was
-          // applied here", which seeds the default; an empty one means the
-          // filter was deliberately cleared. Deleting it instead would make
-          // those two indistinguishable, so clearing the filter would not
-          // survive a reload -- the default would come back.
+          // Written even when empty: an absent param seeds the default, an
+          // empty one means the filter was cleared on purpose. Deleting it
+          // would bring the default back on reload.
           next.set(SPAN_FILTER_CONDITION_PARAM, condition);
           return next;
         },
@@ -872,23 +871,13 @@ export function SpansTable(props: SpansTableProps) {
     projectEvaluatorId,
     timeRangeISOStrings,
   ]);
-  // A visibility observer rather than the container's scroll event, so paging
-  // works whether this table owns the scroll or sits in a scrolling page.
-  const { ref: loadMoreSentinelRef, isVisible: isLoadMoreSentinelVisible } =
-    useDeferredVisibility<HTMLDivElement>({
-      rootMargin: "300px",
-      scrollMargin: "300px",
-    });
-  // The observer reports the sentinel leaving a frame after new rows commit,
-  // so re-running on load completion would chain an extra page from stale
-  // visibility. A page that leaves the sentinel in view falls back to the
-  // Load More row.
-  useEffect(() => {
-    if (isLoadMoreSentinelVisible && hasNext && !isLoadingNext) {
-      loadNext(PAGE_SIZE);
-    }
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- see above
-  }, [isLoadMoreSentinelVisible]);
+  const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    pageSize: PAGE_SIZE,
+    rows: data.spans.edges,
+  });
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
   const storedColumnOrder = useTracingContext((state) => state.columnOrder);
@@ -1025,7 +1014,6 @@ export function SpansTable(props: SpansTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              ref={tableContainerRef}
             >
               <ColumnOrderingProvider
                 columnOrder={visibleColumnOrder}
@@ -1143,6 +1131,7 @@ export function SpansTable(props: SpansTableProps) {
                   ) : (
                     <TableBody
                       table={table}
+                      selectedRowId={props.selectedRowId}
                       hasNext={hasNext}
                       onLoadNext={() => loadNext(PAGE_SIZE)}
                       isLoadingNext={isLoadingNext}
