@@ -2276,14 +2276,9 @@ type ExperimentJob implements Node {
   maxConcurrency: Int!
 
   """
-  Task configuration snapshot. Use to rehydrate the playground with the exact settings used for this experiment.
+  Snapshot of the task this experiment ran, a prompt or an evaluator. Use to rehydrate the playground with the exact settings used for this experiment. Null for eval-only experiments.
   """
-  taskConfig: PromptTaskConfig
-
-  """
-  Evaluator task configuration snapshot of an experiment whose task is an evaluator. Null for prompt and eval-only experiments.
-  """
-  evaluatorTaskConfig: EvaluatorTaskConfig
+  taskConfig: ExperimentTaskConfig
 
   """Dataset evaluators attached to this experiment job."""
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
@@ -2534,6 +2529,8 @@ type ExperimentTag implements Node {
   name: Identifier!
   description: String
 }
+
+union ExperimentTaskConfig = PromptTaskConfig | EvaluatorTaskConfig
 
 input ExperimentTaskInput @oneOf {
   prompt: PromptTaskInput

@@ -444,40 +444,43 @@ function ExperimentDetailsDialogContent({
               maxConcurrency
               ...ExperimentDetailsDialog_jobErrors
               taskConfig {
-                id
-                streamModelOutput
-                prompt {
-                  modelProvider
-                  modelName
-                  templateType
-                  templateFormat
-                  invocationParameters {
-                    ...PromptInvocationParametersReadableFragment
+                __typename
+                ... on PromptTaskConfig {
+                  id
+                  streamModelOutput
+                  prompt {
+                    modelProvider
+                    modelName
+                    templateType
+                    templateFormat
+                    invocationParameters {
+                      ...PromptInvocationParametersReadableFragment
+                    }
                   }
-                }
-                connection {
-                  ... on OpenAIConnectionConfig {
-                    __typename
-                    baseUrl
-                    openaiApiType
-                  }
-                  ... on AzureOpenAIConnectionConfig {
-                    __typename
-                    azureEndpoint
-                    openaiApiType
-                  }
-                  ... on AnthropicConnectionConfig {
-                    __typename
-                    baseUrl
-                  }
-                  ... on AWSBedrockConnectionConfig {
-                    __typename
-                    regionName
-                    endpointUrl
-                  }
-                  ... on GoogleGenAIConnectionConfig {
-                    __typename
-                    baseUrl
+                  connection {
+                    ... on OpenAIConnectionConfig {
+                      __typename
+                      baseUrl
+                      openaiApiType
+                    }
+                    ... on AzureOpenAIConnectionConfig {
+                      __typename
+                      azureEndpoint
+                      openaiApiType
+                    }
+                    ... on AnthropicConnectionConfig {
+                      __typename
+                      baseUrl
+                    }
+                    ... on AWSBedrockConnectionConfig {
+                      __typename
+                      regionName
+                      endpointUrl
+                    }
+                    ... on GoogleGenAIConnectionConfig {
+                      __typename
+                      baseUrl
+                    }
                   }
                 }
               }
@@ -507,7 +510,8 @@ function ExperimentDetailsDialogContent({
   }
 
   const job = experiment.job;
-  const taskConfig = job?.taskConfig;
+  const taskConfig =
+    job?.taskConfig?.__typename === "PromptTaskConfig" ? job.taskConfig : null;
 
   return (
     <>
