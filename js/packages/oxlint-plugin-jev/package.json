@@ -41,7 +41,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node scripts/copy-skills.mjs && tsc && chmod 755 dist/bin.js",
+    "build": "node scripts/copy-skills.mjs && tsc && node dist/verifyGuidance.js && chmod 755 dist/bin.js",
     "clean": "rimraf dist skills",
     "demo": "pnpm run build && cd ../.. && OXLINT_JEV_MODE=${OXLINT_JEV_MODE:-record} oxlint -c packages/oxlint-plugin-jev/demo.oxlintrc.json packages/oxlint-plugin-jev/fixtures examples/apps packages/phoenix-otel/examples",
     "prebuild": "pnpm run clean",

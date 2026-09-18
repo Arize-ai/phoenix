@@ -3,6 +3,10 @@
  * at build time (see `scripts/copy-skills.mjs`). Guidance goes into jev's
  * `state` verbatim, so the model judges against what Phoenix actually ships
  * rather than against whatever it learned in training.
+ *
+ * Whole files only. The single coupling to the skills is the file path,
+ * which `verifyGuidance` checks at build time; nothing inside the markdown
+ * is parsed or interpreted by code.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -13,8 +17,6 @@ export interface GuidanceRef {
   skill: string;
   /** Path inside the skill, e.g. `references/setup-typescript.md`. */
   file: string;
-  /** `##` heading to slice out. Omit for the whole file. */
-  section?: string;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -31,7 +33,7 @@ function candidateSkillRoots(): string[] {
 }
 
 let resolvedRoot: string | undefined;
-function skillsRoot(): string {
+export function skillsRoot(): string {
   if (resolvedRoot) return resolvedRoot;
   for (const root of candidateSkillRoots()) {
     if (existsSync(root)) {
@@ -44,61 +46,28 @@ function skillsRoot(): string {
   );
 }
 
-const fileCache = new Map<string, string>();
-
-function readSkillFile(ref: GuidanceRef): string {
-  const file = path.join(skillsRoot(), ref.skill, ref.file);
-  let text = fileCache.get(file);
-  if (text === undefined) {
-    text = readFileSync(file, "utf8");
-    fileCache.set(file, text);
-  }
-  return text;
+export function guidancePath(ref: GuidanceRef): string {
+  return path.join(skillsRoot(), ref.skill, ref.file);
 }
 
-/** Slice a `## Heading` section (inclusive of heading, up to the next `## `). */
-export function sliceSection(
-  markdown: string,
-  heading: string
-): string | undefined {
-  const lines = markdown.split("\n");
-  const start = lines.findIndex(
-    (l) => /^##\s+/.test(l) && l.replace(/^##\s+/, "").trim() === heading
-  );
-  if (start === -1) return undefined;
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    if (/^##\s+/.test(lines[i] ?? "")) {
-      end = i;
-      break;
-    }
-  }
-  return lines.slice(start, end).join("\n").trim();
+/** Stable citation shown in lint messages, e.g. `phoenix-tracing/references/setup-typescript.md`. */
+export function guidanceSource(ref: GuidanceRef): string {
+  return `${ref.skill}/${ref.file}`;
 }
 
 export interface LoadedGuidance {
-  /** Stable citation shown in lint messages, e.g. `phoenix-tracing/references/setup-typescript.md#Flushing Spans Before Exit`. */
   source: string;
   text: string;
 }
 
-export function loadGuidance(ref: GuidanceRef): LoadedGuidance {
-  const markdown = readSkillFile(ref);
-  const source = `${ref.skill}/${ref.file}${ref.section ? `#${ref.section}` : ""}`;
-  if (!ref.section) return { source, text: markdown.trim() };
-  const text = sliceSection(markdown, ref.section);
-  if (text === undefined) {
-    throw new Error(
-      `oxlint-plugin-jev: section "${ref.section}" not found in ${source}`
-    );
-  }
-  return { source, text };
-}
+const fileCache = new Map<string, string>();
 
-/** First paragraph after the H1 — used to build compact Choice criteria. */
-export function loadSummary(ref: GuidanceRef): LoadedGuidance {
-  const markdown = readSkillFile(ref);
-  const body = markdown.replace(/^#\s[^\n]*\n/, "").trim();
-  const firstParagraph = body.split(/\n\s*\n/)[0] ?? body;
-  return { source: `${ref.skill}/${ref.file}`, text: firstParagraph.trim() };
+export function loadGuidance(ref: GuidanceRef): LoadedGuidance {
+  const file = guidancePath(ref);
+  let text = fileCache.get(file);
+  if (text === undefined) {
+    text = readFileSync(file, "utf8").trim();
+    fileCache.set(file, text);
+  }
+  return { source: guidanceSource(ref), text };
 }

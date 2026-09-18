@@ -23,7 +23,7 @@ import {
   registerResultIsExported,
   usesTargetPackages,
 } from "../extract.js";
-import { loadGuidance } from "../guidance.js";
+import { guidanceSource, loadGuidance } from "../guidance.js";
 import { mockAnswers } from "../jev/mock.js";
 import { callJevSync } from "../jev/sync.js";
 import type {
@@ -152,9 +152,7 @@ function report(
   anchorFallback?: CallFact
 ): void {
   const anchor = finding.anchor ?? anchorFallback;
-  const sources = check.guidance
-    .map((g) => `${g.skill}/${g.file}${g.section ? `#${g.section}` : ""}`)
-    .join(", ");
+  const sources = check.guidance.map(guidanceSource).join(", ");
   const diagnostic = {
     messageId: "finding",
     data: {

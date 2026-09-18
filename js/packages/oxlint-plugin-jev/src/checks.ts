@@ -15,7 +15,7 @@
 import type { AttributeEntry, CallFact, Facts } from "./extract.js";
 import { registerResultIsExported } from "./extract.js";
 import type { GuidanceRef } from "./guidance.js";
-import { loadSummary } from "./guidance.js";
+import { loadGuidance } from "./guidance.js";
 import type { Answer, EntryType, Question } from "./jev/types.js";
 
 export interface CheckOptions {
@@ -98,16 +98,8 @@ const flushBeforeExit: Check = {
   stateKey: "flush_before_exit",
   title: "Flush spans before the process exits",
   guidance: [
-    {
-      skill: "phoenix-tracing",
-      file: "references/setup-typescript.md",
-      section: "Flushing Spans Before Exit",
-    },
-    {
-      skill: "phoenix-tracing",
-      file: "references/production-typescript.md",
-      section: "Batch Processing",
-    },
+    { skill: "phoenix-tracing", file: "references/setup-typescript.md" },
+    { skill: "phoenix-tracing", file: "references/production-typescript.md" },
   ],
   appliesTo: (facts) => facts.targetCalls.filter(isRegisterCall),
   precheck(facts, anchors) {
@@ -186,7 +178,7 @@ function getSpanKindCriteria(): Record<string, EntryType> {
   if (spanKindCriteria) return spanKindCriteria;
   spanKindCriteria = {};
   for (const [kind, file] of Object.entries(SPAN_KIND_FILES)) {
-    spanKindCriteria[kind] = loadSummary({
+    spanKindCriteria[kind] = loadGuidance({
       skill: "phoenix-tracing",
       file: `references/${file}`,
     }).text;
@@ -205,14 +197,9 @@ const spanKindMatchesBody: Check = {
     {
       skill: "phoenix-tracing",
       file: "references/instrumentation-manual-typescript.md",
-      section: "Quick Reference",
     },
     { skill: "phoenix-tracing", file: "references/span-chain.md" },
-    {
-      skill: "phoenix-tracing",
-      file: "references/sessions-typescript.md",
-      section: "Key Points",
-    },
+    { skill: "phoenix-tracing", file: "references/sessions-typescript.md" },
   ],
   appliesTo: (facts) =>
     facts.targetCalls.filter(
@@ -263,16 +250,7 @@ const noSessionWrapper: Check = {
   stateKey: "no_session_wrapper",
   title: "Set session.id via withSpan directly, not through a custom wrapper",
   guidance: [
-    {
-      skill: "phoenix-tracing",
-      file: "references/sessions-typescript.md",
-      section: "Anti-Pattern: Don't Create Wrappers",
-    },
-    {
-      skill: "phoenix-tracing",
-      file: "references/sessions-typescript.md",
-      section: "Implementation (Best Practice)",
-    },
+    { skill: "phoenix-tracing", file: "references/sessions-typescript.md" },
   ],
   appliesTo: (facts) =>
     facts.targetCalls.filter(
@@ -317,11 +295,7 @@ const esmManualInstrumentation: Check = {
   stateKey: "esm_manual_instrumentation",
   title: "ESM modules instrument LLM libraries explicitly",
   guidance: [
-    {
-      skill: "phoenix-tracing",
-      file: "references/setup-typescript.md",
-      section: "ESM vs CommonJS",
-    },
+    { skill: "phoenix-tracing", file: "references/setup-typescript.md" },
     {
       skill: "phoenix-tracing",
       file: "references/instrumentation-auto-typescript.md",
@@ -405,11 +379,7 @@ const noSensitiveSpanAttributes: Check = {
   stateKey: "no_sensitive_span_attributes",
   title: "Personal or secret data does not flow into span attributes unmasked",
   guidance: [
-    {
-      skill: "phoenix-tracing",
-      file: "references/production-typescript.md",
-      section: "Data Masking (PII Protection)",
-    },
+    { skill: "phoenix-tracing", file: "references/production-typescript.md" },
     {
       skill: "phoenix-tracing",
       file: "references/fundamentals-universal-attributes.md",

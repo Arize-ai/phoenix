@@ -41,8 +41,9 @@ Three design rules, all borrowed from TypeSafe's own
 1. **Code decides everything it can.** The import gate, the fact extraction and the
    prechecks are plain AST work. jev is only asked the judgement calls that remain.
 2. **The policy goes in `state`, not in the model's memory.** Each check names the
-   skill file and `##` section it enforces. That text is copied into the request, so
-   the model judges against what Phoenix ships today, and every finding cites it.
+   skill files it enforces. Those files are copied whole into the request, so the model
+   judges against what Phoenix ships today, and every finding cites them. Nothing inside
+   the markdown is parsed by code; the only coupling is the file path, verified at build.
 3. **Questions are atomic and reviewable.** All questions and thresholds live in
    [`src/checks.ts`](src/checks.ts). That is the file to review when a check misfires.
 
@@ -60,10 +61,19 @@ Three design rules, all borrowed from TypeSafe's own
 
 `pnpm build` runs [`scripts/copy-skills.mjs`](scripts/copy-skills.mjs), which copies
 the cited skill files from `.agents/skills/phoenix-tracing` into `skills/` (git-ignored,
-shipped in the tarball) and writes `skills/manifest.json` with the source commit.
-Copying rather than symlinking is deliberate: symlinks do not survive `npm pack`, and
-the manifest makes every finding traceable to the exact guidance text it was judged
-against. The loader falls back to the repo's `.agents/skills` when running unbuilt.
+shipped in the tarball), writes `skills/manifest.json` with the source commit, and then
+runs `verifyGuidance` so a renamed or removed skill file fails the build rather than a
+user's lint. Copying rather than symlinking is deliberate: symlinks do not survive
+`npm pack`, and the manifest makes every finding traceable to the exact guidance text it
+was judged against. The loader falls back to the repo's `.agents/skills` when running
+unbuilt.
+
+Guidance is cited **by file, never by heading**. An earlier version sliced `##` sections
+out of the markdown and took "the first paragraph after the H1" as a span-kind summary.
+That worked but derived structure from prose, so a heading rename in a docs PR would have
+been an invisible breaking change. Whole-file citation costs tokens (the suite went from
+51k to 144k input tokens, about $0.006) and changed no judgement; the largest request is
+16.5k tokens against jev's 32k limit for state plus the longest question.
 
 ### What leaves the machine
 
@@ -135,9 +145,11 @@ the second run was all cache hits and made no requests. A downed server produces
 "guidance checks skipped" diagnostic rather than a crash.
 
 **Payloads are small and cheap.** The final live run (15 requests: all fixtures plus every
-app in `js/examples/apps`, five checks) used 51,510 input tokens in total (1.5k–8.6k each,
-against a 32k state budget) and cost about **$0.0022** at $0.042 per million tokens. The
-content-hash cache makes unchanged files free.
+app in `js/examples/apps`, five checks, whole-file guidance) used 144,415 input tokens in
+total and cost about **$0.006** at $0.042 per million tokens. State ranged 3.1k–10.7k
+tokens; the span-kind Choice question, which carries all nine `span-*.md` files as
+criteria, is 5.8k. Worst case is 16.5k of the 32k "state plus longest question" budget.
+The content-hash cache makes unchanged files free.
 
 **jev agrees with the human answer key on every fixture, with wide margins.**
 
@@ -190,6 +202,10 @@ is that code should only short-circuit the unambiguous cases and let jev own the
 - **Per-check thresholds.** `threshold` / `minConfidence` are rule-wide today; the ESM
   answers sit at 0.97–1.00 while flush answers for correct code sit at 0.70–0.85, so the
   checks want different gates.
+- **Who owns the checks.** Today `checks.ts` cites skill files; the questions live in the
+  plugin. The sounder end state is probably the inverse: a small machine-readable manifest
+  next to the skill that lists its checks, cited files and question text, with the plugin
+  as a generic engine. Then a docs edit and its question edit land in the same PR.
 - **Comments.** Kept today because they carry intent; a `// patient John Doe` comment would
   leave the machine. Stripping them via `sourceCode.getAllComments()` is a small follow-up.
 - **Cross-file facts.** `instrumentation.ts` exporting `provider` for `agent.ts` to shut down

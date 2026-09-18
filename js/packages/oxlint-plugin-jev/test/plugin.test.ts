@@ -217,7 +217,7 @@ describe("redaction", () => {
 });
 
 describe("request shape", () => {
-  it("puts code, facts and the cited guidance into state and stays well under jev's 32k-token state budget", () => {
+  it("puts code, facts and the cited guidance files into state and stays inside jev's limits", () => {
     const files = readdirSync(path.join(cacheDir, "requests"));
     expect(files.length).toBeGreaterThanOrEqual(6);
     for (const file of files) {
@@ -231,16 +231,27 @@ describe("request shape", () => {
         "facts",
         "guidance",
       ]);
+      expect(request.state.code.redaction).toMatch(/placeholders/);
       for (const entries of Object.values(request.state.guidance) as Array<
         Array<{ source: string; text: string }>
       >) {
         for (const g of entries) {
-          expect(g.source).toMatch(/^phoenix-tracing\//);
-          expect(g.text.length).toBeGreaterThan(50);
+          // Whole files, cited by path; no section lookup.
+          expect(g.source).toMatch(
+            /^phoenix-tracing\/(SKILL\.md|references\/[\w-]+\.md)$/
+          );
+          expect(g.text.startsWith("# ")).toBe(true);
         }
       }
-      const approxTokens = JSON.stringify(request.state).length / 4;
-      expect(approxTokens).toBeLessThan(8_000);
+      // jev: 32k tokens for state plus the longest single question. ~4 chars/token.
+      const stateTokens = JSON.stringify(request.state).length / 4;
+      const longestQuestion = Math.max(
+        ...Object.values(request.questions).map(
+          (q) => JSON.stringify(q).length / 4
+        )
+      );
+      expect(stateTokens).toBeLessThan(24_000);
+      expect(stateTokens + longestQuestion).toBeLessThan(32_000);
     }
   });
 });
