@@ -59,7 +59,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
-from phoenix.server.api.helpers.evaluator_calibration import without_expected_outputs
+from phoenix.server.api.helpers.evaluator_calibration import without_own_annotations
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
     DmlEvent,
@@ -1115,7 +1115,7 @@ class OnlineEvalExecutor:
         try:
             context = {
                 **hydrated.context,
-                "metadata": without_expected_outputs(
+                "metadata": without_own_annotations(
                     hydrated.context.get("metadata", {}),
                     evaluator_annotation_names(hydrated.annotation_name, hydrated.output_configs),
                 ),
