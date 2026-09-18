@@ -58,33 +58,19 @@
             "group": "Get Started",
             "icon": "rocket-launch",
             "pages": [
+              "docs/phoenix/get-started/get-started-tracing",
+              "docs/phoenix/get-started/get-started-evaluations",
               {
-                "group": "Quick Start",
+                "group": "Improve your agent",
                 "pages": [
-                  "docs/phoenix/agent-assisted-setup",
-                  {
-                    "group": "Python",
-                    "pages": [
-                      "docs/phoenix/get-started/get-started-tracing",
-                      "docs/phoenix/get-started/get-started-evaluations",
-                      "docs/phoenix/get-started/get-started-prompt-playground",
-                      "docs/phoenix/get-started/get-started-datasets-and-experiments"
-                    ]
-                  },
-                  {
-                    "group": "TypeScript",
-                    "pages": [
-                      "docs/phoenix/get-started/ts-get-started-tracing",
-                      "docs/phoenix/get-started/ts-get-started-evaluations",
-                      "docs/phoenix/get-started/ts-get-started-prompt-playground",
-                      "docs/phoenix/get-started/ts-get-started-datasets-and-experiments"
-                    ]
-                  }
+                  "docs/phoenix/get-started/get-started-prompt-playground",
+                  "docs/phoenix/get-started/get-started-datasets-and-experiments"
                 ]
               },
               {
-                "group": "Coding Agents",
+                "group": "Coding agent setup",
                 "pages": [
+                  "docs/phoenix/agent-assisted-setup",
                   "docs/phoenix/integrations/developer-tools/coding-agents"
                 ]
               },
@@ -97,9 +83,8 @@
                   "docs/phoenix/integrations/phoenix-mcp-server"
                 ]
               },
-              "docs/phoenix/end-to-end-features-notebook",
-              "docs/phoenix/phoenix-demo",
-              "docs/phoenix/pxi"
+              "docs/phoenix/pxi",
+              "docs/phoenix/phoenix-demo"
             ]
           },
           {
@@ -1718,6 +1703,22 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-tracing",
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
+    },
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-evaluations",
+      "destination": "/docs/phoenix/get-started/get-started-evaluations"
+    },
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-prompt-playground",
+      "destination": "/docs/phoenix/get-started/get-started-prompt-playground"
+    },
+    {
+      "source": "/docs/phoenix/get-started/ts-get-started-datasets-and-experiments",
+      "destination": "/docs/phoenix/get-started/get-started-datasets-and-experiments"
+    },
     {
       "source": "/docs/phoenix/release-notes/06-2025/06-25-2025-new-phoenix-cloud",
       "destination": "/docs/phoenix/release-notes"
