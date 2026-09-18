@@ -5,16 +5,16 @@ title: "Instrument your agent"
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
 import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
 
-A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows.
+A trace is a record of a single run of your agent, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows.
 
 <Note>
-  **Have an existing app?** Your coding agent can instrument it for you. See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup). This guide builds and instruments a demo agent by hand.
+  **Have an existing agent?** Your coding agent can instrument it for you. See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup). This guide builds and instruments a demo agent by hand.
 </Note>
 
 <Tabs>
   <Tab title="Python">
 
-In this guide, you'll set up tracing and instrument an application: we'll start a local Phoenix instance, build a simple agent, and send a single trace so you can see the full flow end to end.
+In this guide, you'll set up tracing and instrument an agent: we'll start a local Phoenix instance, build a simple agent, and send a single trace so you can see the full flow end to end.
 
 We’ll use the CrewAI framework in Python, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations page](/docs/phoenix/integrations).
 
@@ -42,9 +42,9 @@ We’ll be using OpenAI as our LLM provider & Serper as our Web Search Tool for 
   </Step>
 
   <Step title={<span className="step-title">Configure your Environment</span>}>
-    Now that Phoenix is running, we need to connect our application to it so we can start sending traces.
+    Now that Phoenix is running, we need to connect our agent to it so we can start sending traces.
 
-    In this step, we’ll install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our application. Once it’s in place, running the application will automatically create a project in the Phoenix UI and record each traced run there.
+    In this step, we’ll install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our agent. Once it’s in place, running the agent will automatically create a project in the Phoenix UI and record each traced run there.
 
     We’ll now install both the CrewAI package and the OpenInference CrewAI auto-instrumentation package, which handles tracing for us without requiring manual instrumentation.
 
@@ -76,11 +76,11 @@ We’ll be using OpenAI as our LLM provider & Serper as our Web Search Tool for 
     tracer_provider = register(project_name="crewai-tracing-quickstart", auto_instrument=True)
     ```
 
-    At this point, your application is configured to send traces to Phoenix!
+    At this point, your agent is configured to send traces to Phoenix!
   </Step>
 
   <Step title={<span className="step-title">Create your Agent</span>}>
-    Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
+    Now that Phoenix is running and our environment is configured, we can start building the agent so we can generate real execution and send traces to Phoenix.
 
     In this step, we’ll create a simple Financial Analysis and Research chatbot.
 
@@ -185,7 +185,7 @@ We’ll be using OpenAI as our LLM provider & Serper as our Web Search Tool for 
 
     At this point, you can follow the full execution of the chatbot as a single trace in Phoenix.
 
-    More importantly, you can now see how your application actually ran:
+    More importantly, you can now see how your agent actually ran:
 
     - Which agents were invoked and in what order
     - How tasks flowed from one step to the next
@@ -199,9 +199,9 @@ We’ll be using OpenAI as our LLM provider & Serper as our Web Search Tool for 
 
 You’ve now sent a trace to Phoenix and seen how an agent runs shows up from start to finish.
 
-The next step you can take is to run evaluations on your application to start measuring where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations) to add even more value to setting up tracing.
+The next step you can take is to run evaluations on your agent to start measuring where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations) to add even more value to setting up tracing.
 
-If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial ](https://arize.com/docs/phoenix/tracing/tutorial)walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your application.
+If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial ](https://arize.com/docs/phoenix/tracing/tutorial)walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your agent.
 
   </Tab>
 
@@ -224,13 +224,13 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
 ---
 <Steps>
   <Step title={<span className="step-title">Start Phoenix</span>}>
-    Before we can send traces anywhere, we need Phoenix running. Phoenix ships as a Python package, so `uvx` is the quickest local option even for a TypeScript app.
+    Before we can send traces anywhere, we need Phoenix running. Phoenix ships as a Python package, so `uvx` is the quickest local option even for a TypeScript agent.
 
     <StartPhoenix />
   </Step>
 
   <Step title={<span className="step-title">Configure your Environment</span>}>
-    Now that Phoenix is running, we need to connect our application to it so we can start sending traces.
+    Now that Phoenix is running, we need to connect our agent to it so we can start sending traces.
 
     We'll start with an empty Mastra directory. Run this command in your terminal where you want your agent project to live. 
 
@@ -238,7 +238,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     npm create mastra@latest -- --no-example
     ```
 
-    In this step, we’ll also install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our application. Once it’s in place, running the application will automatically create a project in the Phoenix UI and record each traced run there.
+    In this step, we’ll also install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our agent. Once it’s in place, running the agent will automatically create a project in the Phoenix UI and record each traced run there.
 
     ### **Install Required Dependencies**
 
@@ -263,7 +263,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
 
     ### **Connect Your Project in Phoenix** 
 
-    Next, we’ll register the observability layer of our application to connect to Phoenix. We can modify our `index.ts` like this: 
+    Next, we’ll register the observability layer of our agent to connect to Phoenix. We can modify our `index.ts` like this: 
 
     ```typescript
     import { Mastra } from "@mastra/core/mastra";
@@ -290,15 +290,15 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     });
     ```
 
-    At this point, your application is configured to send traces to Phoenix! We'll fill out the agent section in this next step. 
+    At this point, your agent is configured to send traces to Phoenix! We'll fill out the agent section in this next step. 
   </Step>
 
   <Step title={<span className="step-title">Create your Tools</span>}>
-    Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
+    Now that Phoenix is running and our environment is configured, we can start building the agent so we can generate real execution and send traces to Phoenix.
 
     Typically we would start with creating our agents but let's start with building our tools so that we can connect them into our agent while defining them.
 
-    Our application will be made up of: 
+    Our agent will be made up of: 
 
     - One orchestrator agent: Financial Analysis Orchestrator (coordinates the workflow)
     - Two sub-agents: Financial Research Analyst & Financial Report Writer 
@@ -424,7 +424,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
   <Step title={<span className="step-title">Create your Agent</span>}>
     In this step, we’ll create a simple Financial Analysis and Research chatbot.
 
-    We’ll now define the agents that make up our application. Within the `agent` directory of our project (in `src/mastra`), let's make 3 files to create each of our agents: `financial-orchestrator-agent.ts` , `financial-researcher-agent.ts`, `financial-writer-agent.ts`.
+    We’ll now define the agents that make up our agent system. Within the `agent` directory of our project (in `src/mastra`), let's make 3 files to create each of our agents: `financial-orchestrator-agent.ts` , `financial-researcher-agent.ts`, `financial-writer-agent.ts`.
 
     ### Financial Orchestrator Agent
 
@@ -573,7 +573,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
 
     At this point, you can follow the full execution of the chatbot as a single trace in Phoenix.
 
-    More importantly, you can now see how your application actually ran:
+    More importantly, you can now see how your agent actually ran:
 
     - Which agents were invoked and in what order
     - How tasks flowed from one step to the next
@@ -587,9 +587,9 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
 
 You’ve now sent a trace to Phoenix and seen how an agent run appears from start to finish.
 
-The next step you can take is to run evaluations on your application to measure where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations) to add even more value beyond tracing.
+The next step you can take is to run evaluations on your agent to measure where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations) to add even more value beyond tracing.
 
-If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial](https://arize.com/docs/phoenix/tracing/tutorial) walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your application.
+If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial](https://arize.com/docs/phoenix/tracing/tutorial) walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your agent.
 
   </Tab>
 </Tabs>

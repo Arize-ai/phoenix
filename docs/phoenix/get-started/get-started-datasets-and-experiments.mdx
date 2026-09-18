@@ -1,10 +1,10 @@
 ---
-title: "Optimize Your App with Experiments"
+title: "Optimize Your Agent with Experiments"
 ---
 
-An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria.
+An experiment is a structured comparison between versions of your agent using the same inputs and evaluation criteria.
 
-In this guide, you'll pull down an existing dataset and run experiments in code to compare different versions and verify whether changes actually improve quality. At this point, you should already have a dataset from previous runs and at least one evaluation attached to those runs; experiments let you rerun that dataset through an updated version of your application and compare results side by side.
+In this guide, you'll pull down an existing dataset and run experiments in code to compare different versions and verify whether changes actually improve quality. At this point, you should already have a dataset from previous runs and at least one evaluation attached to those runs; experiments let you rerun that dataset through an updated version of your agent and compare results side by side.
 
 ## **Before We Start**
 
@@ -32,7 +32,7 @@ To follow along, you should already have:
 
 <Steps>
   <Step title={<span className="step-title">Use Explanations to Identify Improvements</span>}>
-    We'll use our dataset to group application failures together. The next step is deciding which issues to fix.
+    We'll use our dataset to group agent failures together. The next step is deciding which issues to fix.
 
     Using the explanations from the evals we ran previously and the trace context, we can understand why these runs failed. Looking at the traces in this dataset, you might notice patterns such as unclear instructions, missing constraints, or outputs that don’t follow the expected structure.
 
@@ -153,13 +153,13 @@ To follow along, you should already have:
   <Step title={<span className="step-title">Define an Experiment</span>}>
     Now that we've updated the agent, we'll run this new agent flow to test whether the changes actually improve quality.
 
-    Experiments in Phoenix let you rerun the same inputs through different versions of your application and compare the results side by side. This helps ensure that improvements are measured.
+    Experiments in Phoenix let you rerun the same inputs through different versions of your agent and compare the results side by side. This helps ensure that improvements are measured.
 
     To define an experiment, we need to specify:
 
     - **The experiment task**
 
-      A task is a function or process that takes each example from a dataset and produces an output, typically by running your application logic or model on the input.
+      A task is a function or process that takes each example from a dataset and produces an output, typically by running your agent logic or model on the input.
 
     - **The experiment evaluation**
 
@@ -271,7 +271,7 @@ To follow along, you should already have:
     Here, you can see:
 
     - The original runs compared against the new ones under 'reference output'
-    - New application runs as a result of our task
+    - New agent runs as a result of our task
     - Evaluation results for each version
 
     In this example, we should see more traces receiving a **complete** label, indicating that the changes improved performance.
@@ -305,6 +305,6 @@ To follow along, you should already have:
 
 This was a simple example, but datasets and experiments support much more advanced workflows.
 
-If you want to test prompt changes to a specific part of your application and keep track of different prompt versions, the [Prompt Playground](/docs/phoenix/get-started/get-started-prompt-playground) guide walks through how to do that.
+If you want to test prompt changes to a specific part of your agent and keep track of different prompt versions, the [Prompt Playground](/docs/phoenix/get-started/get-started-prompt-playground) guide walks through how to do that.
 
-To go deeper with datasets and experiments, you can build datasets for specific user segments or edge cases, compare multiple prompt or model variants, and track quality improvements over time as your application evolves. The [Datasets and Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) section covers these patterns in more detail.
+To go deeper with datasets and experiments, you can build datasets for specific user segments or edge cases, compare multiple prompt or model variants, and track quality improvements over time as your agent evolves. The [Datasets and Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) section covers these patterns in more detail.
