@@ -251,7 +251,7 @@ export interface PreferencesState extends PreferencesProps {
   /**
    * Setter for the last project selected on the dashboards page.
    */
-  setLastSelectedDashboardProjectId: (projectId: string) => void;
+  setLastSelectedDashboardProjectId: (projectId: string | undefined) => void;
   /**
    * Setter for the user's preferred side nav open state
    */

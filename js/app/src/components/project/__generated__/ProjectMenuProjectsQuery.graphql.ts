@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f49ad99a4d41d61ba90a467654dd77ee>>
+ * @generated SignedSource<<6b373bb65bcc8442db12863cd9b8462f>>
  * @lightSyntaxTransform
  */
 
@@ -18,8 +18,6 @@ export type ProjectMenuProjectsQuery$variables = {
   after?: string | null;
   filter?: ProjectFilter | null;
   first?: number | null;
-  hasSelectedProject: boolean;
-  selectedProjectId: string;
 };
 export type ProjectMenuProjectsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectMenu_projects">;
@@ -45,59 +43,32 @@ var v0 = [
     "defaultValue": 50,
     "kind": "LocalArgument",
     "name": "first"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "hasSelectedProject"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "selectedProjectId"
   }
 ],
-v1 = {
-  "kind": "Variable",
-  "name": "after",
-  "variableName": "after"
-},
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  }
+],
 v2 = {
-  "kind": "Variable",
-  "name": "filter",
-  "variableName": "filter"
-},
-v3 = {
-  "kind": "Variable",
-  "name": "first",
-  "variableName": "first"
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v7 = [
-  (v1/*:: as any*/),
-  (v2/*:: as any*/),
-  (v3/*:: as any*/)
-];
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -106,21 +77,7 @@ return {
     "name": "ProjectMenuProjectsQuery",
     "selections": [
       {
-        "args": [
-          (v1/*:: as any*/),
-          (v2/*:: as any*/),
-          (v3/*:: as any*/),
-          {
-            "kind": "Variable",
-            "name": "hasSelectedProject",
-            "variableName": "hasSelectedProject"
-          },
-          {
-            "kind": "Variable",
-            "name": "selectedProjectId",
-            "variableName": "selectedProjectId"
-          }
-        ],
+        "args": (v1/*:: as any*/),
         "kind": "FragmentSpread",
         "name": "ProjectMenu_projects"
       }
@@ -135,42 +92,8 @@ return {
     "name": "ProjectMenuProjectsQuery",
     "selections": [
       {
-        "condition": "hasSelectedProject",
-        "kind": "Condition",
-        "passingValue": true,
-        "selections": [
-          {
-            "alias": "selectedProject",
-            "args": [
-              {
-                "kind": "Variable",
-                "name": "id",
-                "variableName": "selectedProjectId"
-              }
-            ],
-            "concreteType": null,
-            "kind": "LinkedField",
-            "name": "node",
-            "plural": false,
-            "selections": [
-              (v4/*:: as any*/),
-              (v5/*:: as any*/),
-              {
-                "kind": "InlineFragment",
-                "selections": [
-                  (v6/*:: as any*/)
-                ],
-                "type": "Project",
-                "abstractKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ]
-      },
-      {
         "alias": null,
-        "args": (v7/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -192,8 +115,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v5/*:: as any*/),
-                  (v6/*:: as any*/),
+                  (v2/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -226,8 +155,14 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v4/*:: as any*/),
-                  (v5/*:: as any*/)
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
+                  },
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -264,7 +199,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v7/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "filters": [
           "filter"
         ],
@@ -276,16 +211,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "08e2f2fe1f9ce2b75562419084fe3ceb",
+    "cacheID": "fd51befd29e493fba43cf04140b96804",
     "id": null,
     "metadata": {},
     "name": "ProjectMenuProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectMenuProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $hasSelectedProject: Boolean!\n  $selectedProjectId: ID!\n) {\n  ...ProjectMenu_projects_27hoVN\n}\n\nfragment ProjectMenu_projects_27hoVN on Query {\n  selectedProject: node(id: $selectedProjectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: $first, after: $after, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectMenuProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n) {\n  ...ProjectMenu_projects_G9cLv\n}\n\nfragment ProjectMenu_projects_G9cLv on Query {\n  projects(first: $first, after: $after, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "acf5af224c355e76f53d918b469f477c";
+(node as any).hash = "b352f700c90c5801783845b12c62096f";
 
 export default node;
