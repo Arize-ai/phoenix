@@ -2,7 +2,7 @@
 title: "Iterate on Your Prompts"
 ---
 
-A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you’ll start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants while measuring how those changes affect application quality. Prompt Hub is used to save and reuse prompts across runs.
+A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you’ll start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants while measuring how those changes affect agent quality. Prompt Hub is used to save and reuse prompts across runs.
 
 ## **Before We Start**
 
@@ -36,7 +36,7 @@ After completing previous guides, you should have:
     4. Click Create Dataset and give it a name.
     5. Add the selected traces to the dataset you just created.
 
-    This dataset now represents a concrete failure case for your application.
+    This dataset now represents a concrete failure case for your agent.
 
     <Tabs>
     <Tab title="Python">
@@ -61,7 +61,7 @@ After completing previous guides, you should have:
   </Step>
 
   <Step title={<span className="step-title">Save a Prompt from a Trace</span>}>
-    We’ll start from a real prompt that was actually used by the application.
+    We’ll start from a real prompt that was actually used by the agent.
 
     Traces capture the exact prompts sent to the model, along with their context and outputs. Saving a prompt from a trace lets us iterate on something real, rather than starting from a blank page.
 
@@ -248,4 +248,4 @@ To learn more about testing different changes to your system at once and seeing 
 
 You can use the Prompt Playground to test prompt changes across different datasets, compare prompt variants, and see how small changes affect outputs at scale. Saving prompts to the Prompt Hub helps keep track of versions and reuse prompts across experiments.
 
-The [Prompt Playground and Prompt Hub guides](https://arize.com/docs/phoenix/prompt-engineering/tutorial) go deeper into these workflows and show how to apply them as your application evolves.
+The [Prompt Playground and Prompt Hub guides](https://arize.com/docs/phoenix/prompt-engineering/tutorial) go deeper into these workflows and show how to apply them as your agent evolves.

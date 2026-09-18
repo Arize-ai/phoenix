@@ -6,7 +6,7 @@ import AgentAssistedOnboardingPrereq from "../../snippets/agent-assisted-onboard
 
 An evaluation produces a score or label for an output, so you can track quality across runs. Traces tell us what happened during a run, but they don’t tell us whether the output was good; evaluations fill that gap by letting us score outputs in a consistent, repeatable way.
 
-In this guide, you’ll set up evaluations in Phoenix and run them on existing trace data so you can measure the quality of model outputs from a real application.
+In this guide, you’ll set up evaluations in Phoenix and run them on existing trace data so you can measure the quality of model outputs from a real agent.
 
 Since we already have traces, we can take this a step further by scoring them against metrics like correctness, relevance, or custom checks that matter to your use case.
 
@@ -134,7 +134,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
     """
     ```
 
-    This prompt defines what correctness means for our application.
+    This prompt defines what correctness means for our agent.
 
     ### **Define the LLM Judge**
 
@@ -341,7 +341,7 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
     Then provide a brief explanation of which parts were completed or missed.
     `;
     ```
-    This prompt defines what completeness means for our application.
+    This prompt defines what completeness means for our agent.
 
     ### **Create the Evaluator**
 
@@ -463,8 +463,8 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
 
 Now that you have evaluation results in Phoenix, you can start using them to guide iteration.
 
-You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The easiest and fastest way to iterate on your application without writing code is through prompt playground. The [Iterate on Your Prompts guide](/docs/phoenix/get-started/get-started-prompt-playground) walks through this workflow in more detail.
+You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The easiest and fastest way to iterate on your agent without writing code is through prompt playground. The [Iterate on Your Prompts guide](/docs/phoenix/get-started/get-started-prompt-playground) walks through this workflow in more detail.
 
-To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluation/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your application evolves.
+To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluation/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your agent evolves.
 
 This was a simple example, but evaluations in Phoenix support much more advanced workflows over time.
