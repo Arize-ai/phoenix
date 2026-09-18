@@ -156,6 +156,21 @@ describe("Phoenix CLI", () => {
     ).toBeUndefined();
   });
 
+  it("should register evaluator under project", () => {
+    const program = createProgram();
+    const projectCommand = program.commands.find(
+      (command) => command.name() === "project"
+    );
+    const evaluatorCommand = projectCommand?.commands.find(
+      (command) => command.name() === "evaluator"
+    );
+
+    expect(evaluatorCommand).toBeDefined();
+    expect(evaluatorCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["list", "get", "create", "update", "delete"])
+    );
+  });
+
   it("should register evaluator under dataset", () => {
     const program = createProgram();
     const datasetCommand = program.commands.find(

@@ -66,6 +66,11 @@ px dataset evaluator get <dataset-evaluator-id>
 px dataset evaluator create <dataset-identifier>
 px dataset evaluator update <dataset-evaluator-id>
 px dataset evaluator delete <dataset-evaluator-id...>
+px project evaluator list <project-identifier>
+px project evaluator get <project-evaluator-id>
+px project evaluator create <project-identifier>
+px project evaluator update <project-evaluator-id>
+px project evaluator delete <project-evaluator-id...>
 px auth login
 px auth logout
 px auth status
@@ -486,6 +491,27 @@ px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Exact match 
 
 # detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; the definition goes when nothing else uses it
 px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
+```
+
+### Project bindings (online evaluators)
+
+Attach evaluators to a project so incoming spans, traces, or sessions are scored as they arrive. Ids are `ProjectEvaluator:…` GlobalIDs. `--evaluation-target span|trace|session` is fixed at creation; `--sampling-rate` is a fraction in 0..1; `--filter-condition` is written in the target's filter language; `--evaluation-delay-seconds` (trace and session only, at least 10) is how long the record must be quiet first. Invalid numbers exit `3` before any request.
+
+```bash
+px project evaluator list support-bot --format raw --no-progress | jq '.[] | {id, name, evaluation_target, enabled}'
+px project evaluator get UHJvamVjdEV2YWx1YXRvcjox --format raw --no-progress
+
+# attach an existing code evaluator to score LLM spans, sampling a quarter of them
+px project evaluator create support-bot --name toxicity --evaluation-target span --sampling-rate 0.25 --evaluator-id Q29kZUV2YWx1YXRvcjox --filter-condition "span_kind == 'LLM'"
+
+# pause, resume, or retune a binding; --default-evaluation-delay sends null to restore the server default
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --enabled --sampling-rate 1
+# the quiet period applies to trace and session bindings; a span binding rejects it
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjoy --evaluation-delay-seconds 120
+
+# detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; removes the binding's hidden trace project too
+px project evaluator delete UHJvamVjdEV2YWx1YXRvcjox --yes
 ```
 
 ## GraphQL
