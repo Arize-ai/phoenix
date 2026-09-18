@@ -6,7 +6,7 @@ from typing import Annotated, Literal, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from pydantic import Field, SecretStr
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -35,6 +35,14 @@ from phoenix.server.api.routers.v1.utils import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.types import (
+    AccessTokenId,
+    ApiKeyId,
+    PasswordResetTokenId,
+    RefreshTokenId,
+    TokenId,
+    TokenStore,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -390,5 +398,36 @@ async def delete_user(
             raise HTTPException(
                 status_code=403, detail="Cannot delete the default admin or system user"
             )
-        await session.delete(user)
+        # The delete cascades to the user's tokens, so their ids are collected first; the
+        # token store would otherwise keep serving cached ones until its next reload.
+        token_ids: list[TokenId] = [
+            *map(
+                PasswordResetTokenId,
+                await session.scalars(
+                    select(models.PasswordResetToken.id).where(
+                        models.PasswordResetToken.user_id == id_
+                    )
+                ),
+            ),
+            *map(
+                AccessTokenId,
+                await session.scalars(
+                    select(models.AccessToken.id).where(models.AccessToken.user_id == id_)
+                ),
+            ),
+            *map(
+                RefreshTokenId,
+                await session.scalars(
+                    select(models.RefreshToken.id).where(models.RefreshToken.user_id == id_)
+                ),
+            ),
+            *map(
+                ApiKeyId,
+                await session.scalars(select(models.ApiKey.id).where(models.ApiKey.user_id == id_)),
+            ),
+        ]
+        await session.execute(delete(models.User).where(models.User.id == id_))
+    if token_ids and request.app.state.authentication_enabled:
+        token_store: TokenStore = request.app.state.get_token_store()
+        await token_store.revoke(*token_ids)
     return None
