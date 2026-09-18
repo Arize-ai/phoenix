@@ -30,6 +30,7 @@ export const BUILT_IN_PROVIDERS = [
   "XAI",
   "ZAI",
   "META",
+  "TYPESAFE",
 ] as const satisfies readonly BuiltInProvider[];
 
 /**
