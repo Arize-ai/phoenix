@@ -13,6 +13,7 @@ from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.models import DEFAULT_EVALUATION_DELAY_SECONDS, MINIMUM_EVALUATION_DELAY_SECONDS
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
@@ -56,10 +57,6 @@ from phoenix.server.online_eval.queue_health import (
     EVALUATION_LOAD_WINDOW,
     QueuedWork,
     project_evaluator_run_status,
-)
-from phoenix.server.online_eval.session_policy import (
-    DEFAULT_EVALUATION_DELAY_SECONDS,
-    MINIMUM_EVALUATION_DELAY_SECONDS,
 )
 
 if TYPE_CHECKING:
@@ -1574,11 +1571,13 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Seconds a trace or session must stay quiet before evaluation is scheduled. Values "
-            f"must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. New project "
-            f"evaluators store the default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds when "
-            "no value is provided. A trace or session is evaluated only once, and later "
+            f"must be at least {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. When no value is "
+            "provided, TRACE and SESSION evaluators store the default of "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated only "
+            "once, and later "
             "activity does not schedule another evaluation. The delay applies to TRACE and "
-            "SESSION targets and is rejected for SPAN."
+            "SESSION targets; SPAN evaluators store 0 because spans are evaluated as they "
+            "arrive, and an explicit delay is rejected for them."
         )
     )
     async def evaluation_delay_seconds(self, info: Info[Context, None]) -> int:
