@@ -2201,7 +2201,7 @@
     },
     {
       "source": "/docs/phoenix/quickstart",
-      "destination": "/docs/phoenix/get-started"
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
     },
     {
       "source": "/docs/phoenix/datasets-and-experiments/quickstart-datasets",
