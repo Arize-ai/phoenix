@@ -131,6 +131,34 @@ export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
   minServerVersion: [15, 0, 0],
 };
 
+export const LIST_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
+export const ADD_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REMOVE_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REPLACE_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
 export const ADD_TRACE_NOTE_IDENTIFIER: ParameterRequirement = {
   kind: "parameter",
   parameterName: "identifier",
@@ -247,6 +275,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_TRACES_FILTERS,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
+  LIST_DATASET_LABELS,
+  ADD_DATASET_LABEL,
+  REMOVE_DATASET_LABEL,
+  REPLACE_DATASET_LABELS,
   ADD_TRACE_NOTE_IDENTIFIER,
   ADD_SPAN_NOTE_IDENTIFIER,
   ADD_SESSION_NOTE_IDENTIFIER,
