@@ -1,4 +1,4 @@
-import type { UIDataTypes, UIMessagePart, UITools } from "ai";
+import type { ProviderMetadata, UIDataTypes, UIMessagePart, UITools } from "ai";
 
 import { getToolPresentation, type ToolPresentation } from "./toolPresentation";
 import type { PxiMessage } from "./types";
@@ -26,9 +26,44 @@ export type ToolProgress = {
   toolCallId: string;
   toolName: string;
   state: ToolProgressState;
+  /** The call was cut off by an interruption; `state` is a neutral `output-available`. */
+  isInterrupted: boolean;
   statusText: string;
   errorText?: string;
 } & ToolPresentation;
+
+const INTERRUPTED_TOOL_OUTCOME = "interrupted";
+
+/**
+ * Whether the call's provider metadata records the `interrupted` outcome the
+ * server (and the CLI's own interrupt handling) stamps on tool calls that were
+ * cut off. The AI SDK part states cannot express this, so it rides on metadata.
+ */
+export function hasInterruptedToolOutcome(
+  metadata: ProviderMetadata | undefined
+): boolean {
+  return (
+    metadata?.pydantic_ai?.outcome === INTERRUPTED_TOOL_OUTCOME ||
+    metadata?.phoenix?.outcome === INTERRUPTED_TOOL_OUTCOME
+  );
+}
+
+/** Stamp the `interrupted` outcome the way the server persists it. */
+export function withInterruptedToolOutcome(
+  metadata: ProviderMetadata | undefined
+): ProviderMetadata {
+  const result: ProviderMetadata = {
+    ...metadata,
+    pydantic_ai: {
+      ...metadata?.pydantic_ai,
+      outcome: INTERRUPTED_TOOL_OUTCOME,
+    },
+  };
+  if (metadata?.phoenix) {
+    result.phoenix = { ...metadata.phoenix, outcome: INTERRUPTED_TOOL_OUTCOME };
+  }
+  return result;
+}
 
 type PxiToolPart = UIMessagePart<UIDataTypes, UITools> & {
   toolCallId: string;
@@ -37,6 +72,7 @@ type PxiToolPart = UIMessagePart<UIDataTypes, UITools> & {
   input?: unknown;
   output?: unknown;
   errorText?: string;
+  callProviderMetadata?: ProviderMetadata;
 };
 
 /**
@@ -117,11 +153,13 @@ export function getToolProgressFromPart({
   const toolName = getToolName(part);
   const state = part.state;
   const errorText = "errorText" in part ? part.errorText : undefined;
+  const isInterrupted = hasInterruptedToolOutcome(part.callProviderMetadata);
   return {
     toolCallId: part.toolCallId,
     toolName,
     state,
-    statusText: getStatusText(state),
+    isInterrupted,
+    statusText: isInterrupted ? "Interrupted" : getStatusText(state),
     errorText,
     ...getToolPresentation({
       toolName,
