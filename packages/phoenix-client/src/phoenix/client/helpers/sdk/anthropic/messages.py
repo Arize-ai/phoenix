@@ -181,7 +181,9 @@ def to_chat_messages_and_kwargs(
         for message in template["messages"]:
             if message["role"] == "system":
                 if isinstance(message["content"], str):
-                    system_messages.append(message["content"])
+                    system_messages.append(
+                        formatter.format(message["content"], variables=variables)
+                    )
                     continue
                 for block in _ContentConversion.to_anthropic(
                     message["content"], variables, formatter
