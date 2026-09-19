@@ -108,6 +108,22 @@ export const GET_TRACES_FILTERS: ParameterRequirement = {
     "The 'error', 'min_latency_ms', and 'max_latency_ms' query parameters on GET /v1/projects/{id}/traces",
 };
 
+export const GET_TRACES_FILTER_EXPRESSION: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "filter",
+  parameterLocation: "query",
+  route: "GET /v1/projects/{id}/traces",
+  minServerVersion: [20, 12, 0],
+};
+
+export const LIST_SESSIONS_FILTER_EXPRESSION: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "filter",
+  parameterLocation: "query",
+  route: "GET /v1/projects/{id}/sessions",
+  minServerVersion: [20, 12, 0],
+};
+
 export const TRANSFER_TRACES: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -245,6 +261,8 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
   GET_TRACES_FILTERS,
+  GET_TRACES_FILTER_EXPRESSION,
+  LIST_SESSIONS_FILTER_EXPRESSION,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
   ADD_TRACE_NOTE_IDENTIFIER,

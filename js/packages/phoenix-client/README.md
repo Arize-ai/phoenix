@@ -425,11 +425,10 @@ const sessionTraces = await getTraces({
   sessionId: "my-session-id",
 });
 
-// Filter by error status and latency (requires Phoenix server >= 20.8.0)
+// Filter by error status and latency (requires Phoenix server >= 20.12.0)
 const slowFailures = await getTraces({
   project: { projectName: "my-project" },
-  error: true,
-  minLatencyMs: 1000,
+  filter: "error_count > 0 and latency_ms >= 1000",
 });
 ```
 
@@ -444,9 +443,15 @@ const slowFailures = await getTraces({
 | `cursor`       | `string \| null`               | Pagination cursor                                            |
 | `includeSpans` | `boolean`                      | Include full span details for each trace                     |
 | `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)                       |
+| `filter`       | `string \| null`               | Trace filter expression                                      |
 | `error`        | `boolean \| null`              | Only traces with (`true`) or without (`false`) errored spans |
 | `minLatencyMs` | `number \| null`               | Inclusive lower bound on trace latency (ms)                  |
 | `maxLatencyMs` | `number \| null`               | Inclusive upper bound on trace latency (ms)                  |
+
+`error`, `minLatencyMs`, and `maxLatencyMs` are deprecated but remain supported on
+server >= 20.8.0. Use `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and
+`latency_ms <= N` in `filter` instead. Empty expressions do not filter; invalid
+expressions return HTTP 400. Keep the same expression when requesting the next page.
 
 ### Pagination
 
