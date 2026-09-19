@@ -29,10 +29,16 @@ export const getPromptVersionSchema = z.object({
 });
 
 /**
- * Name transformation applied to prompt names:
+ * Name transformation applied to prompt names, producing a value that
+ * satisfies the server-side prompt name identifier
+ * (`^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$`, see `phoenix.db.types.identifier`):
  * - lowercase
- * - spaces → underscores
- * - strip non-alphanumeric / non-underscore characters
+ * - whitespace runs → underscores
+ * - strip characters outside `[a-z0-9_-]`
+ * - trim leading and trailing separators
+ *
+ * Dashes survive because the identifier pattern accepts them, matching
+ * `getIdentifier` in the Phoenix UI.
  */
 const promptNameSchema = z
   .string()
@@ -40,7 +46,8 @@ const promptNameSchema = z
     val
       .toLowerCase()
       .replace(/\s+/g, "_")
-      .replace(/[^\w_]/g, "")
+      .replace(/[^a-z0-9_-]/g, "")
+      .replace(/^[_-]+|[_-]+$/g, "")
   )
   .refine((val) => val.length > 0, {
     message: "Name cannot be empty after transformation",
