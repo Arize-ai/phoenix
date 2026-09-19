@@ -1,6 +1,6 @@
 ---
 name: phoenix-pr-screenshot
-description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, starts Phoenix with env vars, captures browser screenshots, uploads to GCS, and updates the PR body.
+description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, captures browser screenshots, uploads to GCS, and updates the PR body.
 user-invocable: true
 metadata:
   internal: true
@@ -8,7 +8,7 @@ metadata:
 
 # Phoenix PR Screenshot
 
-Capture screenshots of the Phoenix UI to visually document a feature in a pull request. This skill handles the end-to-end workflow: build, launch, screenshot, upload, and attach to PR.
+Capture screenshots of the Phoenix UI to visually document a feature in a pull request. This skill handles the end-to-end workflow: launch, screenshot, upload, and attach to PR.
 
 ## Prerequisites
 
@@ -19,35 +19,42 @@ Capture screenshots of the Phoenix UI to visually document a feature in a pull r
 
 ## Workflow
 
-### Step 1: Build the frontend
+### Step 1: Start Phoenix
 
-The Phoenix backend serves the built frontend from `src/phoenix/server/static/`. Build it from the `js/app/` directory:
+Use a development instance that matches the current checkout. `make dev-session`
+works in any checkout, including the primary one, and gives the instance its own
+database and ports so it never collides with `~/.phoenix/phoenix.db`:
 
 ```bash
-cd <repo-root>/app
-pnpm install   # only if node_modules is missing
+# First start only: skip cloning the primary database unless the feature needs real data
+PHOENIX_DEV_SEED_DATABASE=false make dev-session   # attached; run as a background task without a TTY
+
+# In another shell (or after backgrounding): wait until api and frontend are both ready
+make dev-sessions ARGS="status"
+PHOENIX_URL="$(make --silent dev-sessions ARGS=url)"
+```
+
+Add any feature-specific environment variables to the worktree's `js/app/.env`
+before starting. `status` prints the log directory when something fails. See the
+`phoenix-worktree-dev` skill for restarts and handoff, and
+[DEVELOPMENT.md](../../../DEVELOPMENT.md#optional-worktree-development-sessions)
+for the full command reference. Do not start a second server when a suitable
+instance already exists.
+
+### Step 2: Build the frontend (only when not serving from Vite)
+
+Development instances serve the UI from Vite, so no build is needed. Only if you
+serve a production-style build (`phoenix serve` without `--dev`) does the backend
+need `src/phoenix/server/static/` populated:
+
+```bash
+cd <repo-root>/js/app
 pnpm run build
 ```
 
-This compiles the React app and copies static assets into the Python server's static directory. Without this step, page routes like `/playground` return 404.
-
-### Step 2: Start Phoenix
-
-Start the Phoenix backend with any env vars the feature requires. Always use a fresh working directory to avoid DB migration conflicts in worktrees:
-
-```bash
-PHOENIX_PORT=6007 PHOENIX_WORKING_DIR=/tmp/phoenix-screenshot-demo <OTHER_ENV_VARS> uv run phoenix serve &
-```
-
-Key points:
-- Use `PHOENIX_PORT` (not `--port`) to set the port — the CLI doesn't accept a port flag
-- Use a temp `PHOENIX_WORKING_DIR` so you don't collide with an existing DB that may have newer migrations
-- Wait for the server to be ready: `sleep 10 && curl -s -o /dev/null -w "%{http_code}" http://localhost:6007/playground` should return 200
-- Check `/tmp/phoenix-*.log` if it fails — common issues are migration errors (use a fresh working dir) or port conflicts
-
 ### Step 3: Capture screenshots
 
-Use the available browser tooling to open `http://localhost:6007/playground` (or the relevant feature page), interact with the UI to show the feature, and save screenshots locally.
+Use the available browser tooling to open `${PHOENIX_URL}/playground` (or the relevant feature page), interact with the UI to show the feature, and save screenshots locally.
 
 - Wait for the target UI elements to be visible and ready before interacting or capturing screenshots.
 - Inspect the page again after navigation or DOM changes before choosing the next element to interact with.
@@ -88,9 +95,10 @@ Always preserve the existing PR body content — read it first with `gh pr view 
 
 ### Step 6: Cleanup
 
+Stop only the development instance you started for this screenshot workflow:
+
 ```bash
-# Kill the Phoenix server
-kill <PID>
+make dev-sessions ARGS="stop"
 ```
 
 Close the browser session created for the screenshots.
