@@ -1,17 +1,37 @@
 ---
-title: "Setup OTEL"
-description: "Configure OpenTelemetry tracing with Phoenix-aware defaults"
+title: "Set up tracing"
+sidebarTitle: "Connect your app"
+description: "Connect your application to Phoenix and choose an instrumentation method."
 ---
 
 import AgentAssistedOnboarding from "../../../../snippets/agent-assisted-onboarding.mdx";
 
-The Phoenix OTEL SDK provides a lightweight wrapper around OpenTelemetry with sensible defaults for Phoenix.
+Start sending traces to Phoenix by configuring OpenTelemetry and choosing an instrumentation method. The Phoenix OTEL SDK provides a lightweight wrapper around OpenTelemetry with Phoenix defaults.
 
 <Note>
-**Go users:** Phoenix does not ship a branded `phoenix-otel` SDK wrapper for Go. Configure the standard [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/) directly and point an OTLP/HTTP exporter at Phoenix. End-to-end examples live in the Go integration pages — [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk), [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go), and [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
+**Go users:** Phoenix does not ship a branded `phoenix-otel` SDK wrapper for Go. Configure the standard [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/) directly and point an OTLP/HTTP exporter at Phoenix. End-to-end examples live in the Go integration pages: [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk), [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go), and [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
 </Note>
 
 <AgentAssistedOnboarding />
+
+## Choose an approach
+
+Choose the approach that fits your codebase.
+
+<CardGroup cols={2}>
+  <Card title="Auto-instrument a framework" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
+    Capture traces from supported frameworks and LLM providers without manual span code
+  </Card>
+  <Card title="Manual instrumentation" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Use decorators and helpers to trace specific methods or code blocks in Python
+  </Card>
+  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
+    Group traces by application or environment
+  </Card>
+  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
+    Group related traces into multi-turn conversations
+  </Card>
+</CardGroup>
 
 ## Install
 
@@ -33,7 +53,7 @@ The Phoenix OTEL SDK provides a lightweight wrapper around OpenTelemetry with se
 </Tabs>
 
 <Note>
-**Do I need to match the SDK version to my Phoenix server version?** No. `arize-phoenix-otel` (and `@arizeai/phoenix-otel`) are versioned independently of the Phoenix server. Any recent SDK version works with any Phoenix server version — you don't need to upgrade the server when you upgrade the SDK, or vice versa. The SDK sends traces over OTLP using [OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference), both of which are backward compatible, so there is no version pairing to track. See [The phoenix.otel helpers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers#version-compatibility) for why.
+**Do I need to match the SDK version to my Phoenix server version?** No. `arize-phoenix-otel` (and `@arizeai/phoenix-otel`) are versioned independently of the Phoenix server. Any recent SDK version works with any Phoenix server version, so you don't need to upgrade the server when you upgrade the SDK, or vice versa. The SDK sends traces over OTLP using [OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference), both of which are backward compatible, so there is no version pairing to track. See [The phoenix.otel helpers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers#version-compatibility) for why.
 </Note>
 
 ## Configure
@@ -101,13 +121,13 @@ For manual instrumentation, `arize-phoenix-otel` (>=0.16.0) and `@arizeai/phoeni
       |-----------|------|---------|-------------|
       | `projectName` | `string` | `"default"` | Project name in Phoenix |
       | `url` | `string` | `"http://localhost:6006"` | Phoenix server URL |
-      | `apiKey` | `string` | — | API key for authentication |
+      | `apiKey` | `string` | None | API key for authentication |
       | `batch` | `boolean` | `true` | Use batch span processing |
       | `headers` | `Record<string, string>` | `{}` | Custom headers for OTLP requests |
-      | `instrumentations` | `Instrumentation[]` | — | Instrumentations to register |
+      | `instrumentations` | `Instrumentation[]` | None | Instrumentations to register |
       | `global` | `boolean` | `true` | Register as the global tracer provider |
-      | `spanProcessors` | `SpanProcessor[]` | — | Custom span processors (overrides default exporter) |
-      | `diagLogLevel` | `DiagLogLevel` | — | Enable diagnostic logging |
+      | `spanProcessors` | `SpanProcessor[]` | None | Custom span processors (overrides default exporter) |
+      | `diagLogLevel` | `DiagLogLevel` | None | Enable diagnostic logging |
     </Accordion>
   </Tab>
 </Tabs>
@@ -118,7 +138,7 @@ Add instrumentation to capture traces from your LLM calls:
 
 <Tabs>
   <Tab title="Python" icon="python">
-    With `auto_instrument=True`, Phoenix automatically discovers and activates **all** OpenInference instrumentor packages installed in your Python environment—no additional code required.
+    With `auto_instrument=True`, Phoenix automatically discovers and activates **all** OpenInference instrumentor packages installed in your Python environment, so no additional code is required.
 
     ```bash
     # Install instrumentors for your frameworks
@@ -176,7 +196,7 @@ Spans may not be exported if still queued in the processor when your process exi
 
 ---
 
-## Advanced Configuration
+## Advanced configuration
 
 For more control over tracing behavior, see the SDK reference documentation:
 
@@ -191,7 +211,7 @@ For more control over tracing behavior, see the SDK reference documentation:
 
 ---
 
-## Next Steps
+## Next steps
 
 <CardGroup cols={2}>
   <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">

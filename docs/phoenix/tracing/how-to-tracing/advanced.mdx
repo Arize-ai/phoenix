@@ -1,24 +1,87 @@
 ---
-title: "Advanced"
-sidebarTitle: "Overview"
+title: "Advanced tracing"
+sidebarTitle: "Control tracing"
+description: "Suppress tracing, filter spans before export, and configure advanced trace behavior."
 ---
 
-<Columns cols={2}>
-<Card title="Mask Span Attributes" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="eye-slash" horizontal>
-Learn how to block PII from logging to Phoenix
-</Card>
-<Card title="Suppress Tracing" href="/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing" icon="ban" horizontal>
-Learn how to selectively block or turn off tracing
-</Card>
-<Card title="Filter Spans to Export" href="/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans" icon="filter" horizontal>
-Learn how to send only certain spans to Phoenix
-</Card>
-<Card title="Capture Multimodal Traces" href="/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing" icon="images" horizontal>
-Learn how to trace images
-</Card>
-<Card title="Construct Shareable URLs" href="/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls" icon="link" horizontal>
-Link to projects, traces, spans, and sessions by name or ID
-</Card>
+Use these options when you need tighter control over which spans Phoenix receives.
 
-</Columns>
+<CardGroup cols={2}>
+  <Card title="Mask span attributes" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="eye-slash">
+    Hide sensitive span attributes before they are logged to Phoenix
+  </Card>
+  <Card title="Capture multimodal traces" href="/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing" icon="images">
+    Trace images, audio, and other multimodal data
+  </Card>
+</CardGroup>
 
+## Suppress tracing
+
+Tracing can be paused for one block of code or disabled for an instrumentor.
+
+### Pause tracing for a block of code
+
+Use `suppress_tracing` when a section of code should not generate traces. For example, you may want to skip document chunking or internal evaluation calls.
+
+```python
+from phoenix.otel import suppress_tracing
+
+with suppress_tracing():
+    # Code running inside this block does not generate traces.
+    ...
+# Tracing resumes outside the block.
+...
+```
+
+### Disable an auto-instrumentor
+
+Call `.uninstrument()` on an auto-instrumentor to remove tracing for that library.
+
+```python
+LangChainInstrumentor().uninstrument()
+LlamaIndexInstrumentor().uninstrument()
+OpenAIInstrumentor().uninstrument()
+```
+
+## Filter spans before export
+
+Use a custom `SpanProcessor` when you need to filter or modify spans before Phoenix receives them. For example, you can skip spans that include redundant data or sensitive values.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+
+    ```python
+    from phoenix.otel import BatchSpanProcessor, register
+    from opentelemetry.context import Context
+    from opentelemetry.sdk.trace import ReadableSpan, Span
+
+
+    class FilteringSpanProcessor(BatchSpanProcessor):
+        def _filter_condition(self, span: Span) -> bool:
+            # Return True if the span should be filtered out.
+            return span.name == "secret_span"
+
+        def on_start(self, span: Span, parent_context: Context) -> None:
+            if self._filter_condition(span):
+                return
+            super().on_start(span, parent_context)
+
+        def on_end(self, span: ReadableSpan) -> None:
+            if self._filter_condition(span):
+                return
+            super().on_end(span)
+
+
+    tracer_provider = register()
+    tracer_provider.add_span_processor(
+        FilteringSpanProcessor(
+            endpoint="http://localhost:6006/v1/traces",
+            protocol="http/protobuf",
+        )
+    )
+    ```
+
+    This example filters out spans named `secret_span` by skipping the `on_start` and `on_end` hooks on the inherited `BatchSpanProcessor`. You can extend the same pattern to redact sensitive values when you want to keep the span.
+
+  </Tab>
+</Tabs>

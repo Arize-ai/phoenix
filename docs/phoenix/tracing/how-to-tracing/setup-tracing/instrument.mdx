@@ -1,15 +1,16 @@
 ---
-title: "Using Tracing Helpers"
-description: OpenInference packages provide helpful abstractions to make manual instrumentation of agents simpler.
+title: "Manual instrumentation"
+description: Use OpenInference helpers to add spans to agents, tools, chains, and custom code.
+sidebarTitle: "Instrument manually"
 ---
 
 import AgentAssistedOnboarding from "../../../../snippets/agent-assisted-onboarding.mdx";
 
-# OpenInference OTEL Tracing
+# Manual instrumentation with OpenInference helpers
 
-This documentation provides a guide on using OpenInference OTEL tracing decorators and methods for instrumenting functions, chains, agents, and tools using OpenTelemetry.
+Use OpenInference tracing decorators and methods to instrument functions, chains, agents, and tools with OpenTelemetry.
 
-These tools can be combined with, or used in place of, OpenTelemetry instrumentation code. They are designed to simplify the instrumentation process.
+You can combine these helpers with OpenTelemetry instrumentation code, or use them instead of lower-level span code.
 
 <AgentAssistedOnboarding />
 
@@ -24,7 +25,7 @@ pip install "arize-phoenix-otel>=0.16.0"
 ```
 
 <Note>
-**Version `arize-phoenix-otel>=0.16.0` is required for the examples on this page.** Starting in 0.16.0, `phoenix.otel` re-exports the OpenInference context managers (`using_session`, `using_user`, `using_metadata`, `using_tags`, `using_attributes`, `using_prompt_template`, `suppress_tracing`) and semantic conventions (`SpanAttributes`, `OpenInferenceSpanKindValues`, `OpenInferenceMimeTypeValues`) directly — no need to also install `openinference-instrumentation` or `openinference-semantic-conventions`.
+**Version `arize-phoenix-otel>=0.16.0` is required for the examples on this page.** Starting in 0.16.0, `phoenix.otel` re-exports the OpenInference context managers (`using_session`, `using_user`, `using_metadata`, `using_tags`, `using_attributes`, `using_prompt_template`, `suppress_tracing`) and semantic conventions (`SpanAttributes`, `OpenInferenceSpanKindValues`, `OpenInferenceMimeTypeValues`) directly. You do not need to also install `openinference-instrumentation` or `openinference-semantic-conventions`.
 
 On older versions, import the same symbols from `openinference.instrumentation` and `openinference.semconv.trace` instead.
 </Note>
@@ -58,7 +59,7 @@ The `semconv` package provides typed constants for the wire-format-stable attrib
 </Tab>
 </Tabs>
 
-## Setting Up Tracing
+## Set up tracing
 
 <Tabs>
 <Tab title="Python" icon="python">
@@ -771,7 +772,7 @@ openai_client.chat.completions.create(
 )
 ```
 
-The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can define their own functions to wrangle the input and output of their LLM calls into OpenInference format. These richer LLM attribute helpers are not re-exported from `phoenix.otel` — install `openinference-instrumentation` to access them:
+The snippets above produce LLM spans with input and output values, but they do not add rich UI support for messages, tools, invocation parameters, and related fields. To manually instrument LLM spans with these features, define functions that convert the input and output of your LLM calls into OpenInference format. These richer LLM attribute helpers are not re-exported from `phoenix.otel`. Install `openinference-instrumentation` to access them:
 
 * `get_llm_attributes`
 * `get_input_attributes`
@@ -1203,7 +1204,7 @@ const invokeLLM = withSpan(
 await invokeLLM([{ role: "user", content: "Hello, world!" }]);
 ```
 
-The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can use helper functions from `@arizeai/phoenix-otel` that produce valid OpenInference attributes for LLM spans:
+The snippets above produce LLM spans with input and output values, but they do not add rich UI support for messages, tools, invocation parameters, and related fields. To manually instrument LLM spans with these features, use helper functions from `@arizeai/phoenix-otel` that produce valid OpenInference attributes for LLM spans:
 
 * `getLLMAttributes`
 * `defaultProcessInput`
@@ -1324,7 +1325,7 @@ await invokeLLM([{ role: "user", content: "Hello, world!" }], "gpt-4", 0.5);
 </Tab>
 
 <Tab title="Go" icon="golang">
-For SDKs with OpenInference Go auto-instrumentation, see [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go) — no manual span code required. For SDKs without auto-instrumentation, attach model and token attributes directly using `semconv`:
+For SDKs with OpenInference Go auto-instrumentation, see [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go). For SDKs without auto-instrumentation, attach model and token attributes directly using `semconv`:
 
 ```go
 import (
@@ -1362,7 +1363,7 @@ span.SetAttributes(
 
 ## Additional Features
 
-The OpenInference Tracer shown above respects context Managers for [Suppressing Tracing](/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing) & [Adding Metadata](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans)
+The OpenInference tracer respects context managers for [suppressing tracing](/docs/phoenix/tracing/how-to-tracing/advanced#suppress-tracing) and [customizing spans](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans).
 
 ### Suppress Tracing
 
@@ -1609,8 +1610,8 @@ await withSpan(
 </Tab>
 
 <Tab title="Go" icon="golang">
-For SDKs with OpenInference Go auto-instrumentation (OpenAI Go, Anthropic Go), multimodal content is captured automatically when you call the SDK with image-containing messages — no per-span code required.
+For SDKs with OpenInference Go auto-instrumentation, such as OpenAI Go and Anthropic Go, multimodal content is captured automatically when you call the SDK with image-containing messages.
 
-For manual spans, attach image content using the indexed `llm.input_messages.{i}.message.contents.{j}.*` attributes from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions`. The Python `openinference.instrumentation` message-builder helpers do not yet have a Go equivalent — refer to the [OpenInference spec](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) for the full multimodal attribute taxonomy.
+For manual spans, attach image content using the indexed `llm.input_messages.{i}.message.contents.{j}.*` attributes from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions`. The Python `openinference.instrumentation` message-builder helpers do not yet have a Go equivalent. Refer to the [OpenInference spec](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) for the full multimodal attribute taxonomy.
 </Tab>
 </Tabs>

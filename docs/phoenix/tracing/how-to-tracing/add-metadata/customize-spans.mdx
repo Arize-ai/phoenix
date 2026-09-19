@@ -1,30 +1,32 @@
 ---
-title: "Add Attributes, Metadata, Users"
+title: "Customize spans"
+description: "Add sessions, users, metadata, tags, prompt templates, and custom attributes to spans."
+sidebarTitle: "Customize your traces"
 ---
 
-### Using context to customize spans
+## Use context to customize spans
 
-In order to customize spans that are created via auto-instrumentation, The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. Phoenix re-exports those helpers directly from `arize-phoenix-otel` (Python, >=0.16.0) and `@arizeai/phoenix-otel` (TypeScript), so you can register tracing and manage context attributes from the same package. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
+Use OpenTelemetry context to customize spans created by auto-instrumentation. Phoenix re-exports OpenInference helpers from `arize-phoenix-otel` (Python, >=0.16.0) and `@arizeai/phoenix-otel` (TypeScript), so you can register tracing and manage context attributes from the same package. OpenInference auto-instrumentors pass these attributes to spans created under the active context.
 
-Supported Context Attributes include:
+Supported context attributes include:
 
-* **Session ID\*** Unique identifier for a session
+* **Session ID\***: Unique identifier for a session
 
-* **User ID\*** Unique identifier for a user.
+* **User ID\***: Unique identifier for a user
 
-* **Metadata** Metadata associated with a span.
+* **Metadata**: Metadata associated with a span
 
-* **Tags\*** List of tags to give the span a category.
+* **Tags\***: List of tags to give the span a category
 
-* **Prompt Template**
+* **Prompt template**:
 
-  * **Template** Used to generate prompts as Python f-strings.
+  * **Template**: The template used to generate prompts
 
-  * **Version** The version of the prompt template.
+  * **Version**: The version of the prompt template
 
-  * **Variables** key-value pairs applied to the prompt template.
+  * **Variables**: Key-value pairs applied to the prompt template
 
-### Install Phoenix OTEL
+## Install Phoenix OTEL
 
 <Tabs>
 
@@ -62,7 +64,7 @@ Supported Context Attributes include:
 
 </Tabs>
 
-### Specifying a session
+## Specify a session
 
 <Tabs>
 
@@ -125,7 +127,7 @@ Supported Context Attributes include:
 
 </Tabs>
 
-### Specifying users
+## Specify users
 
 <Tabs>
 
@@ -187,7 +189,7 @@ Supported Context Attributes include:
 
 </Tabs>
 
-### Specifying Metadata
+## Specify metadata
 
 <Tabs>
 
@@ -261,7 +263,7 @@ Supported Context Attributes include:
 
 </Tabs>
 
-### Specifying Tags
+## Specify tags
 
 <Tabs>
 
@@ -324,7 +326,116 @@ Supported Context Attributes include:
 
 </Tabs>
 
-### Customizing Attributes
+## Instrument prompt templates and prompt variables
+
+Prompt-template attributes let you track which prompt template, version, and variables produced an LLM call. You can also combine these attributes with [Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) to measure how prompt changes affect results.
+
+<Tabs>
+
+  <Tab title="Python" icon="python">
+
+    Use `using_prompt_template` to add a prompt template, version, and variables to the current OpenTelemetry context. OpenInference auto-instrumentors read the context and pass the fields as span attributes.
+
+    Inputs must use these types:
+
+    * `template`: Non-empty string
+    * `version`: Non-empty string
+    * `variables`: Dictionary with string keys. The dictionary is serialized to JSON before it is saved to the OpenTelemetry context.
+
+    ```python
+    from phoenix.otel import using_prompt_template
+
+    prompt_template = "Please describe the weather forecast for {city} on {date}"
+    prompt_template_variables = {"city": "Johannesburg", "date": "July 11"}
+
+    with using_prompt_template(
+        template=prompt_template,
+        variables=prompt_template_variables,
+        version="v1.0",
+    ):
+        # Calls within this block will generate spans with the attributes:
+        # "llm.prompt_template.template" = "Please describe the weather forecast for {city} on {date}"
+        # "llm.prompt_template.version" = "v1.0"
+        # "llm.prompt_template.variables" = "{\"city\": \"Johannesburg\", \"date\": \"July 11\"}"
+        ...
+    ```
+
+    You can also use it as a decorator:
+
+    ```python
+    @using_prompt_template(
+        template=prompt_template,
+        variables=prompt_template_variables,
+        version="v1.0",
+    )
+    def call_fn(*args, **kwargs):
+        # Calls within this function will generate spans with prompt-template attributes.
+        ...
+    ```
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+    Use `setPromptTemplate` with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto-instrumentations read the context and add the prompt-template fields to spans created inside the callback.
+
+    The prompt-template fields are:
+
+    * `template`: A string with templated variables, for example `"hello {{name}}"`
+    * `variables`: An object with variable names and values, for example `{ name: "world" }`
+    * `version`: A string version, for example `"v1.0"`
+
+    ```typescript
+    import { context, setPromptTemplate } from "@arizeai/phoenix-otel"
+
+    context.with(
+      setPromptTemplate(
+        context.active(),
+        {
+          template: "hello {{name}}",
+          variables: { name: "world" },
+          version: "v1.0"
+        }
+      ),
+      () => {
+        // Calls within this block will generate spans with the attributes:
+        // "llm.prompt_template.template" = "hello {{name}}"
+        // "llm.prompt_template.version" = "v1.0"
+        // "llm.prompt_template.variables" = '{ "name": "world" }'
+      }
+    )
+    ```
+
+  </Tab>
+
+  <Tab title="Go" icon="golang">
+
+    Go has no prompt-template context helper today. Set the prompt-template attributes directly on the LLM span using the typed constants in [`github.com/Arize-ai/openinference/go/openinference-semantic-conventions`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-semantic-conventions).
+
+    ```go
+    import (
+        "encoding/json"
+
+        "go.opentelemetry.io/otel/attribute"
+
+        "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+    )
+
+    variables := map[string]string{"city": "Johannesburg", "date": "July 11"}
+    varsJSON, _ := json.Marshal(variables)
+
+    span.SetAttributes(
+        attribute.String(semconv.LLMPromptTemplate, "Please describe the weather forecast for {city} on {date}"),
+        attribute.String(semconv.LLMPromptTemplateVersion, "v1.0"),
+        attribute.String(semconv.LLMPromptTemplateVariables, string(varsJSON)),
+    )
+    ```
+
+  </Tab>
+
+</Tabs>
+
+## Customize attributes
 
 <Tabs>
 
@@ -468,7 +579,7 @@ Supported Context Attributes include:
 
   <Tab title="Go" icon="golang">
 
-    Go has no single-shot equivalent of `using_attributes` — compose the `With*` helpers instead. Each returns a new context; chain them to attach session, user, metadata, and tags together. Auto-instrumentors pick up all four from `context.Context`.
+    Go has no single-shot equivalent of `using_attributes`. Compose the `With*` helpers instead. Each helper returns a new context. Chain them to attach session, user, metadata, and tags together. Auto-instrumentors pick up all four from `context.Context`.
 
     ```go
     import (
@@ -491,21 +602,21 @@ Supported Context Attributes include:
     // "tag.tags"    = '["tag_1","tag_2"]'
     ```
 
-    For prompt-template attributes (`llm.prompt_template.*`), set them directly on the LLM span using `semconv.LLMPromptTemplate` / `LLMPromptTemplateVersion` / `LLMPromptTemplateVariables` from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions` — see [Prompt Templates](/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables).
+    For prompt-template attributes (`llm.prompt_template.*`), set them directly on the LLM span using `semconv.LLMPromptTemplate`, `LLMPromptTemplateVersion`, and `LLMPromptTemplateVariables` from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions`. See [Instrument prompt templates and prompt variables](#instrument-prompt-templates-and-prompt-variables).
 
   </Tab>
 
 </Tabs>
 
-### Span Processing
+## Span processing
 
-The tutorials and code snippets in these docs default to the `SimpleSpanProcessor.` A `SimpleSpanProcessor` processes and exports spans as they are created. This means that if you create 5 spans, each will be processed and exported before the next span is created in code. This can be helpful in scenarios where you do not want to risk losing a batch, or if you’re experimenting with OpenTelemetry in development. However, it also comes with potentially significant overhead, especially if spans are being exported over a network - each time a call to create a span is made, it would be processed and sent over a network before your app’s execution could continue.
+The tutorials and code snippets in these docs default to the `SimpleSpanProcessor`. A `SimpleSpanProcessor` processes and exports spans as they are created. If you create five spans, each span is processed and exported before the next span is created. This can help in development, where you may not want to risk losing a batch. It can add overhead in production, especially if spans are exported over a network.
 
 The `BatchSpanProcessor` processes spans in batches before they are exported. This is usually the right processor to use for an application in production but it does mean spans may take some time to show up in Phoenix.
 
-In production we recommend the `BatchSpanProcessor` over `SimpleSpanProcessor` when deployed and the `SimpleSpanProcessor` when developing.
+Use the `BatchSpanProcessor` in production. Use the `SimpleSpanProcessor` while developing.
 
-#### BatchSpanProcessor Example - Using arize-phoenix-otel library
+### BatchSpanProcessor example with arize-phoenix-otel
 
 ```python
 from phoenix.otel import register
@@ -517,7 +628,7 @@ tracer_provider = register(
 )
 ```
 
-#### BatchSpanProcessor Example - Using OTel library
+### BatchSpanProcessor example with OpenTelemetry
 
 ```python
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor

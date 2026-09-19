@@ -1,0 +1,34 @@
+---
+title: "Project dashboards"
+sidebarTitle: "View dashboards"
+description: Use project dashboards to review Phoenix trace metrics over time.
+---
+
+Project dashboards give each Phoenix project a metrics view for the traces it has received. Use them for quick checks before you drill into individual spans, traces, or sessions.
+
+## Open a dashboard
+
+In the Phoenix app, select **Dashboards** from the sidebar. Choose a project from the project dropdown, then set the time range for the charts.
+
+Phoenix remembers your last selected dashboard project and opens it the next time you return to Dashboards.
+
+## What the dashboard shows
+
+The dashboard renders predefined project metric charts. These charts include trace volume, trace latency, estimated cost, model usage, token usage, LLM span counts and errors, tool span counts and errors, and annotation score trends.
+
+<Card title="Metrics" icon="chart-line" href="/docs/phoenix/tracing/llm-traces/metrics">
+  See the full list of charts included in each project dashboard
+</Card>
+
+## When to use dashboards
+
+Use dashboards to spot changes in project health, such as latency spikes, cost changes, tool failures, or falling annotation scores. Use the project tables and filters when you need to find the traces behind those changes.
+
+<CardGroup cols={2}>
+  <Card title="Explore traces" icon="magnifying-glass-chart" href="/docs/phoenix/observe/explore-traces">
+    Inspect spans, traces, sessions, filters, and shared links
+  </Card>
+  <Card title="Filter expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Find the spans, traces, and sessions behind a dashboard change
+  </Card>
+</CardGroup>

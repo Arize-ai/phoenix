@@ -2115,23 +2115,8 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing</loc>
-    <lastmod>2025-12-12T23:50:46.729Z</lastmod>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata</loc>
-    <lastmod>2025-12-04T18:28:27.593Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans</loc>
     <lastmod>2025-12-12T06:01:51.342Z</lastmod>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables</loc>
-    <lastmod>2025-12-12T02:42:45.819Z</lastmod>
   </url>
 
   <url>
@@ -2145,18 +2130,8 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans</loc>
-    <lastmod>2025-12-12T02:42:45.822Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing</loc>
     <lastmod>2025-12-04T18:28:27.593Z</lastmod>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing</loc>
-    
   </url>
 
   <url>
@@ -2215,11 +2190,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing</loc>
-    <lastmod>2025-12-12T08:23:12.872Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument</loc>
     <lastmod>2025-12-12T08:23:12.875Z</lastmod>
   </url>
@@ -2262,6 +2232,16 @@
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/llm-traces/sessions</loc>
     <lastmod>2025-12-12T23:50:46.730Z</lastmod>
+  </url>
+
+  <url>
+    <loc>https://arize.com/docs/phoenix/observe/explore-traces</loc>
+    <lastmod>2026-09-19T00:00:00.000Z</lastmod>
+  </url>
+
+  <url>
+    <loc>https://arize.com/docs/phoenix/observe/dashboards</loc>
+    <lastmod>2026-09-19T00:00:00.000Z</lastmod>
   </url>
 
   <url>

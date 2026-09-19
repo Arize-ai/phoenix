@@ -1,0 +1,65 @@
+---
+title: "Explore traces"
+description: Inspect traces, spans, sessions, metrics, and dashboards after Phoenix receives trace data.
+sidebarTitle: "Explore your traces"
+---
+
+Use Observe after your application sends traces to Phoenix. This section covers the UI surfaces you use to inspect stored trace data, find failures, review sessions, and share links with your team.
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/llm-traces/projects">
+    Organize traces and annotations by application, environment, or workflow
+  </Card>
+  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/llm-traces/sessions">
+    Review multi-turn conversations and user journeys
+  </Card>
+  <Card title="Filters" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Narrow spans, traces, and sessions with filter expressions
+  </Card>
+  <Card title="Dashboards" icon="chart-line" href="/docs/phoenix/observe/dashboards">
+    Select a project and review its metric charts
+  </Card>
+  <Card title="Metrics" icon="chart-line" href="/docs/phoenix/tracing/llm-traces/metrics">
+    Check latency, token usage, costs, errors, and annotation scores
+  </Card>
+  <Card title="Share links" icon="link" href="/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls">
+    Link to projects, traces, spans, sessions, and prompt tags by name or ID
+  </Card>
+</CardGroup>
+
+## Start from a project
+
+Projects are the main container for trace data. Open a project to review the spans, traces, and sessions collected from one application or environment.
+
+Use the table views to move between different levels of detail:
+
+- **Spans** show individual operations, such as LLM calls, retrieval steps, tool calls, and custom spans.
+- **Traces** show full request paths from the root span through child spans.
+- **Sessions** group related traces from the same conversation or user journey.
+
+Open a row to inspect details such as inputs, outputs, attributes, timing, errors, annotations, and tool call data.
+
+## Narrow what you see
+
+Use the project time range and table filter bars to focus the view. Filter expressions can target span fields, trace rollups, session aggregates, attributes, metadata, and annotations.
+
+<Card title="Filter expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+  See supported fields, operators, and examples for spans, traces, and sessions
+</Card>
+
+## Review health over time
+
+Use dashboards and metrics when you need a project-level view before reading individual traces. The dashboard includes charts for trace volume, latency, estimated cost, token usage, LLM and tool span errors, and annotation scores.
+
+<CardGroup cols={2}>
+  <Card title="Project dashboards" icon="chart-line" href="/docs/phoenix/observe/dashboards">
+    Open the Dashboards page and select a project
+  </Card>
+  <Card title="Metrics" icon="chart-line" href="/docs/phoenix/tracing/llm-traces/metrics">
+    Review the default charts included in each project dashboard
+  </Card>
+</CardGroup>
+
+<Info>
+If you need custom monitoring, alerting, or stakeholder dashboards on top of trace data, see [Arize AX](https://arize.com/docs/ax/observe).
+</Info>

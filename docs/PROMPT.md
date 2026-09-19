@@ -138,7 +138,8 @@ These are UI-based platforms, not code libraries. They cannot be auto-detected f
 
 If no integration matches, or for advanced use cases:
 
-- **Setup tracing manually:** https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing
+- **Set up tracing:** https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel
+- **Manual instrumentation:** https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument
 - **All integrations:** https://arize.com/docs/phoenix/integrations
 
 ---

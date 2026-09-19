@@ -1,6 +1,7 @@
 ---
-title: "Annotations and Evaluation"
-description: "Is your agent actually good? Use annotations and LLM-as-Judge to find out."
+title: "Annotations and evaluation"
+sidebarTitle: "Annotations & evals"
+description: "Use annotations and LLM-as-a-judge evaluators to measure agent quality."
 ---
 
 Our support agent is running, and traces are flowing into Phoenix. We can see every LLM call, tool execution, and retrieval.
@@ -29,9 +30,9 @@ Throughout the tutorial we will include key code snippets, but to see the full i
 
 # 2.1 Human Annotations in the UI
 
-Before automating anything, we need to know what "good" actually looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? These depend on our users, our brand, and our use case.
+Before automating anything, we need to know what a good answer looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? These depend on our users, our brand, and our use case.
 
-Human annotation is how we build that understanding. By manually reviewing traces and marking them as good, bad, or somewhere in between, we create **ground truth** - the gold standard that everything else gets measured against. We'll also start noticing patterns: maybe the agent struggles with multi-part questions, or gets confused when users reference previous messages.
+Human annotation is how we build that understanding. By manually reviewing traces and marking them as good, bad, or somewhere in between, we create **ground truth**, the reference data that everything else gets measured against. We'll also start noticing patterns: maybe the agent struggles with multi-part questions, or gets confused when users reference previous messages.
 
 ## Create Annotation Config
 
@@ -297,7 +298,7 @@ Did the tool call succeed or return an error? This is a simple code-based check:
 
 ## Retrieval Relevance Evaluator
 
-Was the retrieved context actually relevant to the question?
+Was the retrieved context relevant to the question?
 
 <Tabs>
   <Tab title="TypeScript" icon="js">
@@ -505,7 +506,7 @@ Congratulations! You now have a complete quality feedback loop:
 | **3. Analysis**         | Click into unhelpful traces              | Root cause (missing order, FAQ not in KB)      |
 | **4. Fix**              | Update prompts, knowledge base, or tools | Improve the agent                              |
 
-This is the debugging workflow that actually scales! Instead of manually reviewing every trace, you:
+This workflow scales because you do not have to manually review every trace. Instead, you:
 
 - Use feedback to identify failures
 - Use automated evaluation to diagnose them
