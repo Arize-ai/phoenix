@@ -6,6 +6,7 @@ the mount receives the shared root alone; the in-process agent adds its own.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,9 @@ from phoenix.server.mcp.skills import (
     PXI_SKILLS_ROOTS,
     SHARED_SKILLS_ROOT,
     Skill,
+    load_external_skills,
     load_skills,
+    merge_skills,
 )
 from phoenix.server.mcp_server import build_phoenix_mcp_server
 from phoenix.server.monty_runtime import MontyRuntime
@@ -310,3 +313,89 @@ def _write_skill(directory: Path) -> None:
     (directory / "SKILL.md").write_text(
         f"---\nname: {directory.name}\ndescription: d\nsummary: s\n---\n\nbody\n"
     )
+
+
+@pytest.mark.parametrize("mode", [None, "all", "explicit"])
+async def test_configured_visibility_controls_instructions_and_tools(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str | None
+) -> None:
+    for name, visibility in [("opted-in", "visible"), ("opted-out", "hidden"), ("unmarked", None)]:
+        directory = tmp_path / name
+        _write_skill(directory)
+        if visibility:
+            skill_file = directory / "SKILL.md"
+            skill_file.write_text(
+                skill_file.read_text().replace(
+                    "summary: s", f"metadata:\n  arize-phoenix-visibility: {visibility}"
+                )
+            )
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+    monkeypatch.delenv("PHOENIX_SKILLS_VISIBILITY", raising=False)
+    if mode:
+        monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", mode)
+    skills = load_external_skills()
+    expected = {"opted-in"} if mode == "explicit" else {"opted-in", "opted-out", "unmarked"}
+    assert {skill.name for skill in skills} == expected
+    async with Client(_server(SHARED_SKILLS_ROOT, external_skills=skills)) as client:
+        for name in expected:
+            assert f"<name>{name}</name>" in (client.instructions or "")
+            assert f"name: {name}" in await _text(client, "load_skill", skill_name=name)
+        if mode == "explicit":
+            assert "<name>unmarked</name>" not in (client.instructions or "")
+            with pytest.raises(ToolError):
+                await client.call_tool("load_skill", {"skill_name": "unmarked"})
+        for skill in load_skills((SHARED_SKILLS_ROOT,)):
+            assert f"<name>{skill.name}</name>" in (client.instructions or "")
+
+
+def test_invalid_visibility(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", "true")
+    with pytest.raises(ValueError, match="PHOENIX_SKILLS_VISIBILITY"):
+        load_external_skills()
+
+
+def test_individual_skill_symlink_and_relative_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_skill(tmp_path / "installed" / "a-skill")
+    (tmp_path / "a-skill").symlink_to(tmp_path / "installed" / "a-skill", target_is_directory=True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", "./a-skill")
+    assert [skill.name for skill in load_external_skills()] == ["a-skill"]
+
+
+def test_visibility_is_part_of_the_cache_key(tmp_path: Path) -> None:
+    _write_skill(tmp_path / "a-skill")
+    assert len(load_skills((tmp_path,))) == 1
+    assert load_skills((tmp_path,), explicit=True) == ()
+
+
+def test_external_skill_cannot_override_builtin_skill(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_skill(tmp_path / "datasets")
+    _write_skill(tmp_path / "a-skill")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.name for skill in skills] == ["a-skill"]
+    assert "Ignoring external skill 'datasets'" in caplog.text
+    assert "taken by a built-in skill" in caplog.text
+    merge_skills(load_skills(PXI_SKILLS_ROOTS), skills)
+
+
+def test_external_skill_duplicates_keep_the_first_and_log(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_skill(tmp_path / "one" / "a-skill")
+    _write_skill(tmp_path / "two" / "a-skill")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", f"{tmp_path / 'one'},{tmp_path / 'two'}")
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.path for skill in skills] == [tmp_path / "one" / "a-skill"]
+    assert "Ignoring external skill 'a-skill'" in caplog.text
+    assert str(tmp_path / "two" / "a-skill") in caplog.text
