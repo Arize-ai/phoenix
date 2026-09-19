@@ -10,7 +10,8 @@ def is_node_id(s: str, node_type: str) -> bool:
         node_type (str): The type of node.
     """
     try:
-        decoded = base64.b64decode(s, validate=True)
-        return bool(decoded.startswith(f"{node_type}:".encode("utf-8")))
+        decoded = base64.b64decode(s, validate=True).decode("utf-8")
+        prefix, _, node_id = decoded.partition(":")
+        return prefix == node_type and node_id.isdigit()
     except Exception:
         return False
