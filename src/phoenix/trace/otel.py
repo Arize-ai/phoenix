@@ -79,7 +79,24 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     # Synthesize OpenInference attrs from any OTel gen_ai.* semconv attributes.
     # ``setdefault`` means existing OI attributes win — relevant for spans that
     # were dual-emitted by an instrumentation that already set OI keys directly.
+    #
+    # The message namespaces (``llm.input_messages.*``, ``llm.output_messages.*``)
+    # are positional, not scalar, so a per-key ``setdefault`` is unsafe there: if
+    # the client's mapping is already present but incomplete -- e.g. it dropped
+    # a message the synthesized mapping has -- gap-filling per key mixes two
+    # mappings with different index bases into messages that never existed
+    # (a system prompt spliced in under a client-authored ``role: user``, and a
+    # user message duplicated). The client's mapping, even incomplete, is at
+    # least internally consistent, so treat each namespace atomically: skip all
+    # synthesized keys under it once the client has written anything there.
+    occupied_message_namespaces = tuple(
+        f"{prefix}."
+        for prefix in (SpanAttributes.LLM_INPUT_MESSAGES, SpanAttributes.LLM_OUTPUT_MESSAGES)
+        if any(key.startswith(f"{prefix}.") for key in raw_attributes)
+    )
     for key, value in get_openinference_attributes(raw_attributes).items():
+        if key.startswith(occupied_message_namespaces):
+            continue
         raw_attributes.setdefault(key, value)
     attributes = unflatten(load_json_strings(coerce_otlp_span_attributes(raw_attributes.items())))
     span_kind = SpanKind(get_attribute_value(attributes, OPENINFERENCE_SPAN_KIND))
