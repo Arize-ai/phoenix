@@ -27,6 +27,49 @@ function normalizeOptimizationDirection(
 }
 
 /**
+ * Orders categorical options for presentation.
+ *
+ * MAXIMIZE shows the best (highest) score first and MINIMIZE shows the best
+ * (lowest) score first. Configurations without an optimization direction or
+ * without numeric scores retain their authored order. Unscored options follow
+ * scored ones, with label order as the deterministic tie-breaker.
+ */
+export function sortCategoricalAnnotationValues({
+  values,
+  optimizationDirection,
+}: {
+  values?: AnnotationOptimizationConfig["values"];
+  optimizationDirection?: string | null;
+}): AnnotationOptimizationConfig["values"] {
+  if (!values || values.length < 2) {
+    return values;
+  }
+
+  const direction = normalizeOptimizationDirection(optimizationDirection);
+  const hasScoredValue = values.some(({ score }) => score != null);
+  if (direction == null || !hasScoredValue) {
+    return values;
+  }
+
+  return [...values].sort((left, right) => {
+    if (left.score == null || right.score == null) {
+      if (left.score == null && right.score == null) {
+        return (left.label ?? "").localeCompare(right.label ?? "");
+      }
+      return left.score == null ? 1 : -1;
+    }
+
+    const scoreComparison =
+      direction === "MAXIMIZE"
+        ? right.score - left.score
+        : left.score - right.score;
+    return (
+      scoreComparison || (left.label ?? "").localeCompare(right.label ?? "")
+    );
+  });
+}
+
+/**
  * Gets the optimization bounds from an annotation config.
  * For continuous configs, uses the lower/upper bounds directly.
  * For categorical configs, calculates bounds from the min/max scores of the values.

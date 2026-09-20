@@ -2,6 +2,7 @@ import {
   getOptimizationBounds,
   getPositiveOptimization,
   getPositiveOptimizationFromConfig,
+  sortCategoricalAnnotationValues,
 } from "../optimizationUtils";
 import type {
   AnnotationConfig,
@@ -33,6 +34,84 @@ const freeformConfig: AnnotationConfigFreeform = {
   annotationType: "FREEFORM",
   name: "notes",
 };
+
+describe("sortCategoricalAnnotationValues", () => {
+  const values = [
+    { label: "negative", score: 0 },
+    { label: "positive", score: 1 },
+    { label: "neutral", score: 0.5 },
+  ];
+
+  it("sorts maximizing values from highest to lowest score", () => {
+    expect(
+      sortCategoricalAnnotationValues({
+        values,
+        optimizationDirection: "MAXIMIZE",
+      })
+    ).toEqual([
+      { label: "positive", score: 1 },
+      { label: "neutral", score: 0.5 },
+      { label: "negative", score: 0 },
+    ]);
+  });
+
+  it("sorts minimizing values from lowest to highest score", () => {
+    expect(
+      sortCategoricalAnnotationValues({
+        values,
+        optimizationDirection: "MINIMIZE",
+      })
+    ).toEqual([
+      { label: "negative", score: 0 },
+      { label: "neutral", score: 0.5 },
+      { label: "positive", score: 1 },
+    ]);
+  });
+
+  it.each([undefined, null, "NONE"])(
+    "preserves authored order when the optimization direction is %s",
+    (optimizationDirection) => {
+      expect(
+        sortCategoricalAnnotationValues({
+          values,
+          optimizationDirection,
+        })
+      ).toEqual(values);
+    }
+  );
+
+  it("preserves authored order when no value has a score", () => {
+    const unscoredValues = [
+      { label: "zebra", score: null },
+      { label: "alpha", score: null },
+    ];
+    expect(
+      sortCategoricalAnnotationValues({
+        values: unscoredValues,
+        optimizationDirection: "MAXIMIZE",
+      })
+    ).toEqual(unscoredValues);
+  });
+
+  it("puts unscored values last and orders ties deterministically", () => {
+    expect(
+      sortCategoricalAnnotationValues({
+        values: [
+          { label: "unknown-a", score: null },
+          { label: "beta", score: 1 },
+          { label: "unknown-b", score: null },
+          { label: "alpha", score: 1 },
+        ],
+        optimizationDirection: "MAXIMIZE",
+      })
+    ).toEqual([
+      { label: "alpha", score: 1 },
+      { label: "beta", score: 1 },
+      { label: "unknown-a", score: null },
+      { label: "unknown-b", score: null },
+    ]);
+  });
+});
 
 describe("getOptimizationBounds", () => {
   it("returns undefined for all fields when config is undefined", () => {
