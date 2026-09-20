@@ -183,14 +183,12 @@ export function SessionsTable(props: SessionsTableProps) {
       if (isInitialSettlement) {
         return;
       }
-      setSearchParamsRef.current(
-        (prev) =>
-          withFilterConditionParam(
-            prev,
-            SESSION_FILTER_CONDITION_PARAM,
-            condition
-          ),
-        { replace: true }
+      setSearchParamsRef.current((prev) =>
+        withFilterConditionParam(
+          prev,
+          SESSION_FILTER_CONDITION_PARAM,
+          condition
+        )
       );
     },
     []

@@ -13,19 +13,28 @@ export function PendingSpanFilter({
    * Receives the settled seed. `persistToUrl` is false for a fallback, so the
    * URL keeps the text that was rejected rather than the one being loaded.
    */
-  onResolved: (seed: SettledSpanFilterSeed, persistToUrl?: boolean) => void;
+  onResolved: (
+    seed: SettledSpanFilterSeed,
+    persistToUrl?: boolean,
+    history?: "push" | "replace"
+  ) => void;
 }) {
   return (
     <PendingDSLFilter
       onValidCondition={({
         condition,
         selectsRootSpansOnly,
+        isInitialSettlement,
       }: SpanFilterValidConditionArgs) =>
-        onResolved({
-          condition,
-          requiresServerValidation: false,
-          rootSpansOnly: selectsRootSpansOnly ?? false,
-        })
+        onResolved(
+          {
+            condition,
+            requiresServerValidation: false,
+            rootSpansOnly: selectsRootSpansOnly ?? false,
+          },
+          true,
+          isInitialSettlement ? "replace" : "push"
+        )
       }
       // Fall back to what a link with no filter shows: root spans, not every span.
       onRejected={() =>

@@ -287,14 +287,8 @@ export function TracesTable(props: TracesTableProps) {
       if (isInitialSettlement) {
         return;
       }
-      setSearchParamsRef.current(
-        (prev) =>
-          withFilterConditionParam(
-            prev,
-            TRACE_FILTER_CONDITION_PARAM,
-            condition
-          ),
-        { replace: true }
+      setSearchParamsRef.current((prev) =>
+        withFilterConditionParam(prev, TRACE_FILTER_CONDITION_PARAM, condition)
       );
     },
     []
