@@ -93,7 +93,7 @@ describe("sortCategoricalAnnotationValues", () => {
     ).toEqual(unscoredValues);
   });
 
-  it("puts unscored values last and orders ties deterministically", () => {
+  it("puts unscored values last while preserving authored order within each group", () => {
     expect(
       sortCategoricalAnnotationValues({
         values: [
@@ -105,8 +105,8 @@ describe("sortCategoricalAnnotationValues", () => {
         optimizationDirection: "MAXIMIZE",
       })
     ).toEqual([
-      { label: "alpha", score: 1 },
       { label: "beta", score: 1 },
+      { label: "alpha", score: 1 },
       { label: "unknown-a", score: null },
       { label: "unknown-b", score: null },
     ]);

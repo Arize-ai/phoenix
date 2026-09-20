@@ -32,7 +32,7 @@ function normalizeOptimizationDirection(
  * MAXIMIZE shows the best (highest) score first and MINIMIZE shows the best
  * (lowest) score first. Configurations without an optimization direction or
  * without numeric scores retain their authored order. Unscored options follow
- * scored ones, with label order as the deterministic tie-breaker.
+ * scored ones, and ties retain their authored order.
  */
 export function sortCategoricalAnnotationValues({
   values,
@@ -54,7 +54,7 @@ export function sortCategoricalAnnotationValues({
   return [...values].sort((left, right) => {
     if (left.score == null || right.score == null) {
       if (left.score == null && right.score == null) {
-        return (left.label ?? "").localeCompare(right.label ?? "");
+        return 0;
       }
       return left.score == null ? 1 : -1;
     }
@@ -63,9 +63,7 @@ export function sortCategoricalAnnotationValues({
       direction === "MAXIMIZE"
         ? right.score - left.score
         : left.score - right.score;
-    return (
-      scoreComparison || (left.label ?? "").localeCompare(right.label ?? "")
-    );
+    return scoreComparison;
   });
 }
 
