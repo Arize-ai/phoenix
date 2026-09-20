@@ -264,6 +264,7 @@ function SearchProbe() {
 let navigate: ReturnType<typeof useNavigate> | null = null;
 /** Exposes navigation so tests can exercise browser Back. */
 function NavigationProbe() {
+  // eslint-disable-next-line react/globals
   navigate = useNavigate();
   return null;
 }
