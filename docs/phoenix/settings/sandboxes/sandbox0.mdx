@@ -1,0 +1,49 @@
+---
+title: "Sandbox0"
+description: "Run Python and TypeScript code evaluators in isolated Sandbox0 runtimes."
+---
+
+[Sandbox0](https://sandbox0.ai) runs evaluator code in isolated gVisor sandboxes. Phoenix supports Python and TypeScript, optional package installation, secret-backed environment variables, and an internet access toggle.
+
+## Setup
+
+1. Install this checkout with the Sandbox0 extra: `pip install '.[sandbox0]'`.
+2. Create a Sandbox0 team API key with permission to create, inspect, execute in, and delete sandboxes.
+3. Open **Settings → Sandboxes**, configure **Sandbox0**, and save the key as `SANDBOX0_API_KEY`. Alternatively, set this variable on the Phoenix server.
+4. Create a Sandbox0 configuration, select Python or TypeScript, and set its execution timeout, environment variables, and dependencies.
+
+This integration currently pins the official Python SDK to commit `0db72763d4391fe3c65dbfd4ec4a6d226d6d06b0`. The PyPI `0.1.8` release targets the previous Sandbox0 API and cannot parse the current runtime responses. The source archive is pinned to this commit and requires access to GitHub. Replace this pin with a compatible published SDK before publishing a Phoenix distribution to PyPI.
+
+The default endpoint is `https://api.sandbox0.ai`. Set `SANDBOX0_API_URL` to select a regional or self-hosted HTTPS endpoint. Administrators can also set the provider's deployment configuration through GraphQL; persisted settings take precedence over the environment:
+
+```graphql
+mutation ConfigureSandbox0($providerId: GlobalID!) {
+    updateSandboxProvider(input: {
+        id: $providerId
+        deployment: {
+            sandbox0: {
+                apiUrl: "https://your-region.example.com"
+                template: "default"
+            }
+        }
+    }) {
+        sandboxProvider { id }
+    }
+}
+```
+
+Get `providerId` from `sandboxProviders { id backendType }`. When no template is configured, Python uses `default` and TypeScript uses `coding-agent` (the default template ships Node.js 20 without native TypeScript execution). The template must provide `/workspace`, Python 3 with pip for Python evaluators, or Node.js with `--input-type=module-typescript` support and npm for TypeScript evaluators. Dependencies install into the sandbox before execution. Python dependencies use a private target directory on `PYTHONPATH`, leaving the system Python installation intact. Installing dependencies requires internet access; use a prebuilt template for packages needed in an offline configuration.
+
+To restrict the deployment to this provider, set `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=SANDBOX0`.
+
+## Execution and lifecycle
+
+Each evaluation runs in a fresh process with independent globals. Concurrent calls share the sandbox filesystem and installed packages, so user code should use unique temporary filenames. Phoenix injects configured user environment variables into each evaluator process; provider credentials are used only by the Phoenix server.
+
+Experiments reuse sessions through Phoenix's session manager. Editor tests create and delete a temporary sandbox. The adapter tracks only the sandboxes it creates; it does not list or delete other team resources. Session bindings are process-local, and sandbox hard lifetime is one hour to bound orphan resources after a Phoenix crash. The session manager also reclaims idle sandboxes.
+
+The provider executes code evaluators. PXI's virtual bash shell uses its own runtime and is unaffected by this configuration.
+
+## Verify an installation
+
+Set `SANDBOX0_TEST_API_KEY` and optionally `SANDBOX0_TEST_API_URL` / `SANDBOX0_TEST_TEMPLATE`, then run `make test-sandbox0-live`. The suite creates temporary resources and checks both languages, evaluator result framing, dependencies, environment variables, parallel process isolation, cancellation, session recovery, and network access. It does not require an LLM API key.

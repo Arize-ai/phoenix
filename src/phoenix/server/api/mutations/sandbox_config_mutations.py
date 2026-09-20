@@ -38,6 +38,8 @@ from phoenix.server.sandbox.types import (
     InternetAccessConfig,
     ModalConfig,
     MontyConfig,
+    Sandbox0Config,
+    Sandbox0Deployment,
     SandboxConfigModel,
     SandboxDeploymentModel,
     UnsupportedOperation,
@@ -124,6 +126,27 @@ class DaytonaConfigInput:
 
 
 @strawberry.input
+class Sandbox0ConfigInput:
+    language: Language
+    env_vars: list[EnvVarInput] = strawberry.field(default_factory=list)
+    internet_access: Optional[InternetAccessInput] = None
+    dependencies: Optional[DependenciesInput] = None
+
+    def __post_init__(self) -> None:
+        _names_are_unique(self.env_vars)
+
+    def to_orm(self) -> Sandbox0Config:
+        fields: dict[str, Any] = {"language": self.language.to_orm()}
+        if self.env_vars:
+            fields["env_vars"] = {ev.name: ev.to_orm() for ev in self.env_vars}
+        if self.internet_access is not None:
+            fields["internet_access"] = self.internet_access.to_orm()
+        if self.dependencies is not None:
+            fields["dependencies"] = self.dependencies.to_orm()
+        return Sandbox0Config.model_validate(fields)
+
+
+@strawberry.input
 class DenoConfigInput:
     # Deno intentionally has no env-var passthrough or network policy hook.
     language: Language
@@ -198,6 +221,7 @@ class SandboxConfigVariantInput:
 
     e2b: Optional[E2BConfigInput] = strawberry.UNSET
     daytona: Optional[DaytonaConfigInput] = strawberry.UNSET
+    sandbox0: Optional[Sandbox0ConfigInput] = strawberry.UNSET
     deno: Optional[DenoConfigInput] = strawberry.UNSET
     vercel: Optional[VercelConfigInput] = strawberry.UNSET
     wasm: Optional[WASMConfigInput] = strawberry.UNSET
@@ -205,6 +229,8 @@ class SandboxConfigVariantInput:
     monty: Optional[MontyConfigInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxConfigModel:
+        if self.sandbox0 is not None and self.sandbox0 is not strawberry.UNSET:
+            return self.sandbox0.to_orm()
         if self.e2b is not None and self.e2b is not strawberry.UNSET:
             return self.e2b.to_orm()
         if self.daytona is not None and self.daytona is not strawberry.UNSET:
@@ -240,6 +266,17 @@ class E2BDeploymentInput:
         return E2BDeployment.model_validate({"domain": self.domain, "api_url": self.api_url})
 
 
+@strawberry.input
+class Sandbox0DeploymentInput:
+    api_url: Optional[str] = None
+    template: Optional[str] = None
+
+    def to_orm(self) -> Sandbox0Deployment:
+        return Sandbox0Deployment.model_validate(
+            {"api_url": self.api_url, "template": self.template}
+        )
+
+
 @strawberry.input(one_of=True)
 class SandboxDeploymentVariantInput:
     """Deployment payload, discriminated by provider kind. Exactly one variant must be set.
@@ -250,8 +287,11 @@ class SandboxDeploymentVariantInput:
 
     daytona: Optional[DaytonaDeploymentInput] = strawberry.UNSET
     e2b: Optional[E2BDeploymentInput] = strawberry.UNSET
+    sandbox0: Optional[Sandbox0DeploymentInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxDeploymentModel:
+        if self.sandbox0 is not None and self.sandbox0 is not strawberry.UNSET:
+            return self.sandbox0.to_orm()
         if self.daytona is not None and self.daytona is not strawberry.UNSET:
             return self.daytona.to_orm()
         if self.e2b is not None and self.e2b is not strawberry.UNSET:

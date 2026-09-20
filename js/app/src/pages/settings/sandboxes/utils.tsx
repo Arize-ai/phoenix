@@ -230,6 +230,8 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Local WebAssembly runtime";
     case "E2B":
       return "Cloud Python sandbox";
+    case "SANDBOX0":
+      return "Sandbox0 isolated Python and TypeScript runtimes";
     case "DAYTONA":
       return "Daytona workspace-backed Python and TypeScript runtimes";
     case "VERCEL":
@@ -362,6 +364,7 @@ const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
   {
     E2B: "e2b",
     DAYTONA: "daytona",
+    SANDBOX0: "sandbox0",
     DENO: "deno",
     VERCEL: "vercel",
     WASM: "wasm",

@@ -37,6 +37,7 @@ process.env["PHOENIX_ENABLE_PROMETHEUS"] ??= "True";
 // is sufficient. Tests that exercise live execution stub the runtime
 // separately.
 process.env["E2B_API_KEY"] = "phoenix-e2e-fake-e2b-key";
+process.env["SANDBOX0_API_KEY"] = "phoenix-e2e-fake-sandbox0-key";
 
 // Pre-warm the CPython WASM binary cache so ``WASMAdapter.probe_binary()``
 // returns AVAILABLE and the WASM provider surfaces in the New Sandbox

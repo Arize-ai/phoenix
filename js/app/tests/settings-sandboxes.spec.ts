@@ -203,3 +203,43 @@ test.describe("Settings Sandboxes", () => {
     });
   });
 });
+
+test("Sandbox0 provider supports creating and reloading a configuration", async ({
+  page,
+}) => {
+  const configName = `e2e-sandbox0-${randomUUID().slice(0, 8)}`;
+  await page.goto("/settings/sandboxes");
+  await page.getByRole("button", { name: "New Sandbox" }).click();
+  const dialog = page.getByTestId("dialog");
+  await selectProvider(dialog, /Sandbox0/i);
+  await dialog.getByRole("button", { name: /\bLanguage\s*$/ }).click();
+  await page.getByRole("option", { name: /Python/ }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Add Variable" })
+  ).toBeVisible();
+  await dialog.getByLabel("Name").first().fill(configName);
+  await Promise.all([
+    page.waitForResponse((resp) =>
+      isGraphQLMutationResponse(
+        resp,
+        "SandboxConfigDialogCreateSandboxConfigMutation"
+      )
+    ),
+    dialog.getByRole("button", { name: "Create Config" }).click(),
+  ]);
+  await expect(dialog).not.toBeVisible();
+  await page.reload();
+  const row = page
+    .getByRole("row")
+    .filter({ has: page.getByRole("cell", { name: configName }) });
+  await expect(row).toBeVisible();
+  await row
+    .getByRole("button", { name: new RegExp(`Edit ${configName}`) })
+    .click();
+  await expect(
+    dialog.getByRole("button", { name: /Sandbox0.*Sandbox Provider/ })
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "Add Variable" })
+  ).toBeVisible();
+});

@@ -27,3 +27,6 @@ pytest-smtpd
 freezegun
 aiosqlite>=0.22.1
 azure-identity>1.18.0
+
+# Current Nomad API contract; replace with a released SDK when available.
+sandbox0 @ https://github.com/sandbox0-ai/sdk-py/archive/0db72763d4391fe3c65dbfd4ec4a6d226d6d06b0.tar.gz
