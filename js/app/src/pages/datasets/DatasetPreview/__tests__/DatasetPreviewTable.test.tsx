@@ -86,4 +86,32 @@ describe("DatasetPreviewTable", () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     expect(Object.hasOwn(Object.prototype, "polluted")).toBe(false);
   });
+
+  it("truncates long split values and keeps the full text available as a title", () => {
+    const splitText = JSON.stringify([
+      "train",
+      "validation",
+      "test",
+      "holdout",
+      "experiment",
+    ]);
+    act(() => {
+      root.render(
+        <DatasetPreviewTable
+          columns={["splits", "input.value"]}
+          rows={[[splitText, "sample"]]}
+          inputColumns={["input.value"]}
+          outputColumns={[]}
+          metadataColumns={[]}
+          splitColumn="splits"
+        />
+      );
+    });
+
+    const splitCell = Array.from(container.querySelectorAll("td")).at(-1);
+    const truncated = splitCell?.querySelector<HTMLElement>("[title]");
+    expect(splitCell?.textContent).toBe(splitText);
+    expect(truncated?.getAttribute("title")).toBe(splitText);
+    expect(truncated?.style.maxWidth).toBe("100%");
+  });
 });

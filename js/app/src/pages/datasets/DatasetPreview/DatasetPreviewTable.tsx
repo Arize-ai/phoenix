@@ -10,6 +10,7 @@ import { useMemo } from "react";
 
 import { Text } from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { safelyParseJSONObjectString } from "@phoenix/utils/jsonUtils";
@@ -364,9 +365,12 @@ export function DatasetPreviewTable({
                     </div>
                   );
                 }
+                const splitText = JSON.stringify(splits);
                 return (
                   <div css={contentCSS}>
-                    <Text>{JSON.stringify(splits)}</Text>
+                    <Truncate maxWidth="100%" title={splitText}>
+                      {splitText}
+                    </Truncate>
                   </div>
                 );
               },
