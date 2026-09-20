@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
-import { useCallback, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Controller, useForm, type UseFormSetValue } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -21,6 +21,7 @@ import {
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
+import { formatPromptVersionMetadataForEditor } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
@@ -39,6 +40,8 @@ export type SavePromptFormParams = {
 };
 
 type SavePromptFormValues = SavePromptFormParams;
+type SavePromptPrompt =
+  SavePromptFormQuery["response"]["prompts"]["edges"][number]["prompt"];
 
 export function SavePromptForm({
   onCreate,
@@ -63,6 +66,9 @@ export function SavePromptForm({
               name
               versionTags {
                 name
+              }
+              version {
+                metadata
               }
             }
           }
@@ -123,6 +129,8 @@ export function SavePromptForm({
       keepDefaultValues: true,
     },
   });
+
+  usePromptVersionMetadataDefault(setValue, selectedPrompt?.prompt);
 
   const onSubmit = useCallback(
     (params: SavePromptFormValues) => {
@@ -315,6 +323,18 @@ export function SavePromptForm({
       </Form>
     </Flex>
   );
+}
+
+function usePromptVersionMetadataDefault(
+  setValue: UseFormSetValue<SavePromptFormValues>,
+  prompt: SavePromptPrompt | undefined
+) {
+  const metadata = prompt?.version.metadata;
+  useEffect(() => {
+    setValue("metadata", formatPromptVersionMetadataForEditor(metadata), {
+      shouldDirty: false,
+    });
+  }, [metadata, setValue]);
 }
 
 function NewTagInlineForm({
