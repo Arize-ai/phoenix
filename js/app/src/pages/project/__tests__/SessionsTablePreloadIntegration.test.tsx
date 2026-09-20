@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelayModule from "react-relay";
-import { MemoryRouter, useLocation } from "react-router";
+import { MemoryRouter, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -152,6 +152,7 @@ describe("SessionsTable preload integration", () => {
     root = createRoot(container);
     fieldMocks.props = null;
     probedSearch = "";
+    navigate = null;
     relayMocks.refetch.mockReset();
     relayMocks.usePaginationFragment.mockReturnValue({
       data: {
@@ -187,6 +188,7 @@ describe("SessionsTable preload integration", () => {
               />
             </SessionFiltersProvider>
             <SearchProbe />
+            <NavigationProbe />
           </MemoryRouter>
         </ThemeProvider>
       );
@@ -230,6 +232,26 @@ describe("SessionsTable preload integration", () => {
     expect(probedSearch).toContain("sessionFilterCondition=num_traces");
   });
 
+  it("pushes user-applied conditions so Back restores the prior URL", async () => {
+    await renderTable();
+
+    await act(async () => {
+      fieldMocks.props?.onValidCondition({
+        condition: "num_traces >= 10",
+        isInitialSettlement: false,
+      });
+    });
+    expect(probedSearch).toContain("sessionFilterCondition=num_traces");
+
+    act(() => {
+      navigate?.(-1);
+    });
+
+    expect(probedSearch).toBe(
+      `?sessionFilterCondition=${encodeURIComponent(seed)}`
+    );
+  });
+
   it("deletes the URL param when the user clears the condition", async () => {
     await renderTable();
 
@@ -252,5 +274,12 @@ let probedSearch = "";
 function SearchProbe() {
   // eslint-disable-next-line react/globals
   probedSearch = useLocation().search;
+  return null;
+}
+
+let navigate: ReturnType<typeof useNavigate> | null = null;
+/** Exposes navigation so tests can exercise browser Back. */
+function NavigationProbe() {
+  navigate = useNavigate();
   return null;
 }
