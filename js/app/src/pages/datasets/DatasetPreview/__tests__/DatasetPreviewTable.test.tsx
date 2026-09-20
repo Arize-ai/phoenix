@@ -87,7 +87,7 @@ describe("DatasetPreviewTable", () => {
     expect(Object.hasOwn(Object.prototype, "polluted")).toBe(false);
   });
 
-  it("truncates long split values and keeps the full text available as a title", () => {
+  it("caps long split values and keeps the full text available as a title", () => {
     const splitText = JSON.stringify([
       "train",
       "validation",
@@ -112,6 +112,6 @@ describe("DatasetPreviewTable", () => {
     const truncated = splitCell?.querySelector<HTMLElement>("[title]");
     expect(splitCell?.textContent).toBe(splitText);
     expect(truncated?.getAttribute("title")).toBe(splitText);
-    expect(truncated?.style.maxWidth).toBe("100%");
+    expect(truncated?.style.maxWidth).toBe("12rem");
   });
 });

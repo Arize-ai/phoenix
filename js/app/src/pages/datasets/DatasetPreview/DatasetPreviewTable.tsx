@@ -368,7 +368,8 @@ export function DatasetPreviewTable({
                 const splitText = JSON.stringify(splits);
                 return (
                   <div css={contentCSS}>
-                    <Truncate maxWidth="100%" title={splitText}>
+                    {/* Percentage max-widths do not constrain auto table layout. */}
+                    <Truncate maxWidth="12rem" title={splitText}>
                       {splitText}
                     </Truncate>
                   </div>
