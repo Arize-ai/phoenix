@@ -147,10 +147,11 @@ The `navigation` property in `docs.json` controls site structure. Choose one pri
 
 **What to customize where:**
 - **Brand colors, fonts, logo** → `docs.json`. See [global settings](https://mintlify.com/docs/settings/global)
-- **Component styling, layout tweaks** → `custom.css` at project root
+- **One-off component or layout tweaks** → `className` with Tailwind CSS classes on the component. See [style components](https://mintlify.com/docs/customize/custom-scripts#style-components-with-classname)
+- **Site-wide styling** → `custom.css` at project root
 - **Dark mode** → Enabled by default. Only disable with `"appearance": "light"` in `docs.json` if brand requires it
 
-Start with `docs.json`. Only add `custom.css` when you need styling that config doesn't support.
+Start with `docs.json`. Use `className` for individual elements, and add `custom.css` only for site-wide styling that config and utility classes don't cover.
 
 ## Write content
 
