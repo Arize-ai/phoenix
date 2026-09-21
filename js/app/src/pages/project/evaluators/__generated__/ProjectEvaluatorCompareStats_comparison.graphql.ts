@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d5188c9285156ddc4a29c8a30442dfb3>>
+ * @generated SignedSource<<1003743e0e46d609c3d3745782463efa>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,18 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorCompareStats_comparison$data = {
+  readonly a: {
+    readonly annotationName: string;
+    readonly flagRate: number | null;
+    readonly flaggedCount: number | null;
+    readonly meanScore: number | null;
+  };
+  readonly b: {
+    readonly annotationName: string;
+    readonly flagRate: number | null;
+    readonly flaggedCount: number | null;
+    readonly meanScore: number | null;
+  };
   readonly coverage: {
     readonly evaluatedByBoth: number;
     readonly onlyA: number;
@@ -18,18 +30,7 @@ export type ProjectEvaluatorCompareStats_comparison$data = {
     readonly totalInRange: number;
   };
   readonly evaluationTarget: EvaluationTarget;
-  readonly sideA: {
-    readonly annotationName: string;
-    readonly flagRate: number | null;
-    readonly flaggedCount: number | null;
-    readonly meanScore: number | null;
-  };
-  readonly sideB: {
-    readonly annotationName: string;
-    readonly flagRate: number | null;
-    readonly flaggedCount: number | null;
-    readonly meanScore: number | null;
-  };
+  readonly populationSize: number;
   readonly statistics: {
     readonly agreement: number | null;
     readonly cohensKappa: number | null;
@@ -129,9 +130,16 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "EvaluatorComparisonSide",
+      "kind": "ScalarField",
+      "name": "populationSize",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "EvaluatorComparisonSummary",
       "kind": "LinkedField",
-      "name": "sideA",
+      "name": "a",
       "plural": false,
       "selections": (v0/*:: as any*/),
       "storageKey": null
@@ -139,9 +147,9 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "EvaluatorComparisonSide",
+      "concreteType": "EvaluatorComparisonSummary",
       "kind": "LinkedField",
-      "name": "sideB",
+      "name": "b",
       "plural": false,
       "selections": (v0/*:: as any*/),
       "storageKey": null
@@ -191,6 +199,6 @@ return {
 };
 })();
 
-(node as any).hash = "a973f5fc5ff48b774e75a26eafdcd602";
+(node as any).hash = "e87e43201b6d8648271cb86e2f5ab36c";
 
 export default node;

@@ -73,20 +73,20 @@ const getFlaggedThresholdOperator = (
 
 export function formatMatrixSubtitle({
   target,
-  evaluatedByBoth,
+  populationSize,
   thresholdA,
   thresholdB,
   optimizationDirectionA,
   optimizationDirectionB,
 }: {
   target: ProjectEvaluatorTarget;
-  evaluatedByBoth: number;
+  populationSize: number;
   thresholdA: number | null;
   thresholdB: number | null;
   optimizationDirectionA: EvaluatorOptimizationDirection | null;
   optimizationDirectionB: EvaluatorOptimizationDirection | null;
 }): string {
-  const scope = `${formatInt(evaluatedByBoth)} ${formatEvaluationTargetPlural(
+  const scope = `${formatInt(populationSize)} ${formatEvaluationTargetPlural(
     target
   )} evaluated by both`;
   if (thresholdA == null && thresholdB == null) {

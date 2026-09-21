@@ -76,7 +76,7 @@ describe("project evaluator compare utils", () => {
     expect(
       formatMatrixSubtitle({
         target: "SPAN",
-        evaluatedByBoth: 12847,
+        populationSize: 12847,
         thresholdA: 0.5,
         thresholdB: 0.5,
         optimizationDirectionA: "MINIMIZE",
@@ -86,7 +86,7 @@ describe("project evaluator compare utils", () => {
     expect(
       formatMatrixSubtitle({
         target: "SPAN",
-        evaluatedByBoth: 40,
+        populationSize: 40,
         thresholdA: 0.5,
         thresholdB: 0.5,
         optimizationDirectionA: "MAXIMIZE",
@@ -98,7 +98,7 @@ describe("project evaluator compare utils", () => {
     expect(
       formatMatrixSubtitle({
         target: "SESSION",
-        evaluatedByBoth: 5,
+        populationSize: 5,
         thresholdA: 0.5,
         thresholdB: 0.75,
         optimizationDirectionA: "MAXIMIZE",

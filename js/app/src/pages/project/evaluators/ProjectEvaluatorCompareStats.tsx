@@ -147,18 +147,18 @@ function StatValueWithDetail({
 
 function FlagRateDonut({
   color,
-  evaluatedByBoth,
+  populationSize,
   evaluationTargetsPlural,
   flaggedCount,
   flagRate,
 }: {
   color: string;
-  evaluatedByBoth: number;
+  populationSize: number;
   evaluationTargetsPlural: string;
   flaggedCount: number | null;
   flagRate: number | null;
 }) {
-  const notFlaggedCount = Math.max(evaluatedByBoth - (flaggedCount ?? 0), 0);
+  const notFlaggedCount = Math.max(populationSize - (flaggedCount ?? 0), 0);
   const chartData = [
     { name: "flagged", value: flaggedCount ?? 0, color },
     {
@@ -255,7 +255,7 @@ function FlagRateDonut({
                 color="var(--global-color-gray-300)"
                 name={`shared ${evaluationTargetsPlural}`}
                 shape="square"
-                value={formatInt(evaluatedByBoth)}
+                value={formatInt(populationSize)}
               />
               <Text color="text-700" size="S">
                 No optimization direction
@@ -290,7 +290,7 @@ function EvaluatorSummary({
   name,
   annotationName,
   color,
-  evaluatedByBoth,
+  populationSize,
   evaluationTargetsPlural,
   flaggedCount,
   flagRate,
@@ -300,7 +300,7 @@ function EvaluatorSummary({
   name: string;
   annotationName: string;
   color: string;
-  evaluatedByBoth: number;
+  populationSize: number;
   evaluationTargetsPlural: string;
   flaggedCount: number | null;
   flagRate: number | null;
@@ -322,7 +322,7 @@ function EvaluatorSummary({
       </div>
       <FlagRateDonut
         color={color}
-        evaluatedByBoth={evaluatedByBoth}
+        populationSize={populationSize}
         evaluationTargetsPlural={evaluationTargetsPlural}
         flaggedCount={flaggedCount}
         flagRate={flagRate}
@@ -401,13 +401,14 @@ export function ProjectEvaluatorCompareStats({
           onlyB
           totalInRange
         }
-        sideA {
+        populationSize
+        a {
           annotationName
           flaggedCount
           flagRate
           meanScore
         }
-        sideB {
+        b {
           annotationName
           flaggedCount
           flagRate
@@ -437,9 +438,9 @@ export function ProjectEvaluatorCompareStats({
   const onlyBShareOfRange =
     coverage.totalInRange === 0 ? null : coverage.onlyB / coverage.totalInRange;
   const disagreementShare =
-    statistics.disagreementCount == null || coverage.evaluatedByBoth === 0
+    statistics.disagreementCount == null || comparison.populationSize === 0
       ? null
-      : statistics.disagreementCount / coverage.evaluatedByBoth;
+      : statistics.disagreementCount / comparison.populationSize;
 
   return (
     <div css={stripCSS}>
@@ -535,7 +536,7 @@ export function ProjectEvaluatorCompareStats({
           title="Side by side"
           actions={
             <Text size="S" color="text-700">
-              {formatInt(coverage.evaluatedByBoth)} shared{" "}
+              {formatInt(comparison.populationSize)} shared{" "}
               {evaluationTargetsPlural}
             </Text>
           }
@@ -545,24 +546,24 @@ export function ProjectEvaluatorCompareStats({
           <div css={sideBySideGridCSS}>
             <EvaluatorSummary
               name={evaluatorA.name}
-              annotationName={comparison.sideA.annotationName}
+              annotationName={comparison.a.annotationName}
               color={EVALUATOR_COMPARE_COLORS.a}
-              evaluatedByBoth={coverage.evaluatedByBoth}
+              populationSize={comparison.populationSize}
               evaluationTargetsPlural={evaluationTargetsPlural}
-              flaggedCount={comparison.sideA.flaggedCount}
-              flagRate={comparison.sideA.flagRate}
-              meanScore={comparison.sideA.meanScore}
+              flaggedCount={comparison.a.flaggedCount}
+              flagRate={comparison.a.flagRate}
+              meanScore={comparison.a.meanScore}
               optimizationConfig={evaluatorAOptimizationConfig}
             />
             <EvaluatorSummary
               name={evaluatorB.name}
-              annotationName={comparison.sideB.annotationName}
+              annotationName={comparison.b.annotationName}
               color={EVALUATOR_COMPARE_COLORS.b}
-              evaluatedByBoth={coverage.evaluatedByBoth}
+              populationSize={comparison.populationSize}
               evaluationTargetsPlural={evaluationTargetsPlural}
-              flaggedCount={comparison.sideB.flaggedCount}
-              flagRate={comparison.sideB.flagRate}
-              meanScore={comparison.sideB.meanScore}
+              flaggedCount={comparison.b.flaggedCount}
+              flagRate={comparison.b.flagRate}
+              meanScore={comparison.b.meanScore}
               optimizationConfig={evaluatorBOptimizationConfig}
             />
           </div>

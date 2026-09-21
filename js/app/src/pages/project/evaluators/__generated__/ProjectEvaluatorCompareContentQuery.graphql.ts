@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<336a47d9dbe783590469d0d4e017ceff>>
+ * @generated SignedSource<<6616893eba129f334f78fb92ac7e2c84>>
  * @lightSyntaxTransform
  */
 
@@ -280,9 +280,16 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "EvaluatorComparisonSide",
+                    "kind": "ScalarField",
+                    "name": "populationSize",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "EvaluatorComparisonSummary",
                     "kind": "LinkedField",
-                    "name": "sideA",
+                    "name": "a",
                     "plural": false,
                     "selections": (v9/*:: as any*/),
                     "storageKey": null
@@ -290,9 +297,9 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "EvaluatorComparisonSide",
+                    "concreteType": "EvaluatorComparisonSummary",
                     "kind": "LinkedField",
-                    "name": "sideB",
+                    "name": "b",
                     "plural": false,
                     "selections": (v9/*:: as any*/),
                     "storageKey": null
@@ -363,12 +370,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fc21c0f7f6ceb9b2e9cb04e32e3ed26b",
+    "cacheID": "38606e5cea583ff9ac1b015d47779912",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorCompareContentQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          totalInRange\n        }\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n  }\n  sideA {\n    annotationName\n    labels\n    threshold\n  }\n  sideB {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    totalInRange\n  }\n  sideA {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  sideB {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n"
+    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          totalInRange\n        }\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  populationSize\n  a {\n    annotationName\n    labels\n    threshold\n  }\n  b {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    totalInRange\n  }\n  populationSize\n  a {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  b {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n"
   }
 };
 })();

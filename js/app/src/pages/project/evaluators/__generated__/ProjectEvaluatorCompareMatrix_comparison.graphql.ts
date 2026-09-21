@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<209955a15baa40b0fc28e2dece2cdaa7>>
+ * @generated SignedSource<<1cb50d8be15bdb8023a4e44c6703d532>>
  * @lightSyntaxTransform
  */
 
@@ -11,21 +11,19 @@ import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorCompareMatrix_comparison$data = {
+  readonly a: {
+    readonly annotationName: string;
+    readonly labels: ReadonlyArray<string>;
+    readonly threshold: number | null;
+  };
+  readonly b: {
+    readonly annotationName: string;
+    readonly labels: ReadonlyArray<string>;
+    readonly threshold: number | null;
+  };
   readonly confusionMatrix: ReadonlyArray<ReadonlyArray<number>>;
-  readonly coverage: {
-    readonly evaluatedByBoth: number;
-  };
   readonly evaluationTarget: EvaluationTarget;
-  readonly sideA: {
-    readonly annotationName: string;
-    readonly labels: ReadonlyArray<string>;
-    readonly threshold: number | null;
-  };
-  readonly sideB: {
-    readonly annotationName: string;
-    readonly labels: ReadonlyArray<string>;
-    readonly threshold: number | null;
-  };
+  readonly populationSize: number;
   readonly " $fragmentType": "ProjectEvaluatorCompareMatrix_comparison";
 };
 export type ProjectEvaluatorCompareMatrix_comparison$key = {
@@ -73,27 +71,16 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "EvaluatorComparisonCoverage",
-      "kind": "LinkedField",
-      "name": "coverage",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "evaluatedByBoth",
-          "storageKey": null
-        }
-      ],
+      "kind": "ScalarField",
+      "name": "populationSize",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "concreteType": "EvaluatorComparisonSide",
+      "concreteType": "EvaluatorComparisonSummary",
       "kind": "LinkedField",
-      "name": "sideA",
+      "name": "a",
       "plural": false,
       "selections": (v0/*:: as any*/),
       "storageKey": null
@@ -101,9 +88,9 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "EvaluatorComparisonSide",
+      "concreteType": "EvaluatorComparisonSummary",
       "kind": "LinkedField",
-      "name": "sideB",
+      "name": "b",
       "plural": false,
       "selections": (v0/*:: as any*/),
       "storageKey": null
@@ -121,6 +108,6 @@ return {
 };
 })();
 
-(node as any).hash = "676b02af29aac8ff237d4501090d966f";
+(node as any).hash = "0cd08d8b766764428e00656f4d613abf";
 
 export default node;

@@ -44,15 +44,13 @@ export function ProjectEvaluatorCompareMatrix({
     graphql`
       fragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {
         evaluationTarget
-        coverage {
-          evaluatedByBoth
-        }
-        sideA {
+        populationSize
+        a {
           annotationName
           labels
           threshold
         }
-        sideB {
+        b {
           annotationName
           labels
           threshold
@@ -62,15 +60,15 @@ export function ProjectEvaluatorCompareMatrix({
     `,
     comparisonRef
   );
-  const labelsA = Array.from(comparison.sideA.labels);
-  const labelsB = Array.from(comparison.sideB.labels);
+  const labelsA = Array.from(comparison.a.labels);
+  const labelsB = Array.from(comparison.b.labels);
   const outputAName = getComparedOutputName({
     evaluatorName: evaluatorA.name,
-    annotationName: comparison.sideA.annotationName,
+    annotationName: comparison.a.annotationName,
   });
   const outputBName = getComparedOutputName({
     evaluatorName: evaluatorB.name,
-    annotationName: comparison.sideB.annotationName,
+    annotationName: comparison.b.annotationName,
   });
   const axisLabelA = outputAName
     ? `${evaluatorA.name} · ${outputAName}`
@@ -85,9 +83,9 @@ export function ProjectEvaluatorCompareMatrix({
       titleSeparator={false}
       subTitle={formatMatrixSubtitle({
         target: comparison.evaluationTarget,
-        evaluatedByBoth: comparison.coverage.evaluatedByBoth,
-        thresholdA: comparison.sideA.threshold,
-        thresholdB: comparison.sideB.threshold,
+        populationSize: comparison.populationSize,
+        thresholdA: comparison.a.threshold,
+        thresholdB: comparison.b.threshold,
         optimizationDirectionA:
           evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
         optimizationDirectionB:
