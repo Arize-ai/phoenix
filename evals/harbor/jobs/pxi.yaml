@@ -3,17 +3,15 @@ datasets:
 agents:
   - name: pxi-eval-agent
     import_path: evals.harbor.agents.pxi_eval_agent:PxiEvalAgent
-    # The pytest harness defaulted to this model; keep it so pass rates compare.
     model_name: openai/gpt-5.4
     extra_allowed_hosts: [api.openai.com, api.anthropic.com]
 environment:
   type: daytona
   extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
-  # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
   kwargs:
     auto_stop_interval_mins: 30
     auto_delete_interval_mins: 30
 n_attempts: 1
-# Retry infrastructure errors, but do not retry trials that produce a reward.
+n_concurrent_trials: 12
 retry:
   max_retries: 1

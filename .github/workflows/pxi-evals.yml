@@ -1,14 +1,7 @@
 name: PXI Evals
-
 permissions:
   contents: read
 
-# Runs the PXI eval datasets under Harbor on Daytona: one task per dataset, one step per
-# regression example. See evals/harbor/README.md, "The PXI eval datasets".
-#
-# The workflow runs on every pull request so that "PXI Regression Evals CI Required"
-# always reports and can be a required status check. The `changes` job decides whether
-# the Daytona run itself happens.
 on:
   pull_request:
   workflow_dispatch:
