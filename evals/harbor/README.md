@@ -258,11 +258,19 @@ The job records to a dataset per task directory name, such as `set_spans_filter`
 `HARBOR_PLUGIN=` to run without a Phoenix instance to record to.
 
 `.github/workflows/pxi-evals.yml` runs the regression split of every dataset on Daytona
-for pull requests that touch the datasets, the evaluators, the Harbor PXI code, or the
-agent, and gates on the mean step reward with `scripts/check_job_reward.py`. Its
-`PXI Regression Evals CI Required` job reports on every pull request so it can be a
-required status check. The pytest harness under `evals/pxi` no longer runs
-in CI; `pytest evals/pxi -c evals/pxi/pytest.ini` still runs it locally.
+for pull requests that touch `evals/harbor` or the agent, and gates on the mean step
+reward with `scripts/check_job_reward.py`. Its `PXI Regression Evals CI Required` job
+reports on every pull request so it can be a required status check.
+
+A newer commit cancels the running job, which kills `harbor run` before it deletes its
+Daytona sandboxes. The workflow therefore labels every sandbox with the GitHub run id and
+always finishes with `scripts/delete_daytona_sandboxes.py --label ci_run=<run id>`. Run
+the same script by hand to clean up after an interrupted local Daytona run:
+
+```bash
+make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml HARBOR_ARGS="--ek labels='{\"ci_run\": \"me\"}'"
+uv run --script evals/harbor/scripts/delete_daytona_sandboxes.py --label ci_run=me
+```
 
 ## Test an unreleased client plugin
 

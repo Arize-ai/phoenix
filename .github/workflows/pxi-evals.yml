@@ -92,12 +92,25 @@ jobs:
           HARBOR_PXI_ARGS="$args" HARBOR_CLI=0 make harbor-stage
 
       # The agent is nondeterministic and the regression split tolerates about one miss
-      # per dataset (see the pytest gate's thresholds). The bar is the mean step reward
-      # across tasks; tighten it once there is a pass-rate history for this runner.
+      # per dataset. The bar is the mean step reward across tasks; tighten it once there
+      # is a pass-rate history for this runner. The label lets the cleanup step below find
+      # this run's sandboxes.
       - name: Run the PXI datasets
+        env:
+          CI_RUN: ${{ github.run_id }}
         run: |
-          make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml
+          make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml \
+            HARBOR_ARGS="--ek labels='{\"ci_run\": \"$CI_RUN\"}'"
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.9
+
+      # A cancelled run, for example when a newer commit arrives, kills `harbor run`
+      # before it deletes its sandboxes. Delete whatever this run left on Daytona.
+      - name: Delete the run's Daytona sandboxes
+        if: always()
+        env:
+          CI_RUN: ${{ github.run_id }}
+        run: |
+          uv run --script evals/harbor/scripts/delete_daytona_sandboxes.py --label "ci_run=$CI_RUN"
 
       - name: Upload job results
         if: always()
