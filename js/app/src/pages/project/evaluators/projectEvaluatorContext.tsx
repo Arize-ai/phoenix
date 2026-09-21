@@ -3,6 +3,11 @@ import invariant from "tiny-invariant";
 
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 
+/**
+ * The initial gallery target. Every target is validated against the loaded
+ * gallery, so an unavailable category, template, or evaluator falls back to
+ * the first available card.
+ */
 export type ProjectEvaluatorGallerySelection =
   | { kind: "default" }
   | { kind: "category"; category: EvaluatorCategory }
@@ -18,17 +23,12 @@ const ProjectEvaluatorContext =
 
 export const ProjectEvaluatorProvider = ProjectEvaluatorContext.Provider;
 
-/**
- * Opens the evaluator gallery over the evaluator list, optionally at a card.
- *
- * The gallery is modal state on the list page rather than a destination, so
- * opening it performs no navigation.
- */
-export function useOpenProjectEvaluatorGallery() {
+/** Returns the actions owned by the project evaluators page. */
+export function useProjectEvaluatorContext() {
   const context = useContext(ProjectEvaluatorContext);
   invariant(
     context,
-    "useOpenProjectEvaluatorGallery must be used within the evaluators page"
+    "useProjectEvaluatorContext must be used within the evaluators page"
   );
   return context;
 }

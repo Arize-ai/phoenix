@@ -18,7 +18,7 @@ import type {
   projectEvaluatorCategoryCardsQuery$data,
 } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorCategoryCardsQuery.graphql";
 import { BuildProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
-import { useOpenProjectEvaluatorGallery } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
+import { useProjectEvaluatorContext } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { PROJECT_EVALUATOR_CATEGORIES } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
@@ -41,7 +41,7 @@ type ProjectEvaluatorCategoryCardTemplate =
 
 export function ProjectEvaluatorsEmptyState() {
   const paths = useProjectEvaluatorPaths();
-  const { openGallery } = useOpenProjectEvaluatorGallery();
+  const { openGallery } = useProjectEvaluatorContext();
   return (
     <Flex
       direction="column"
@@ -82,7 +82,7 @@ function CategoryCards({
   templates: readonly ProjectEvaluatorCategoryCardTemplate[];
 }) {
   const paths = useProjectEvaluatorPaths();
-  const { openGallery } = useOpenProjectEvaluatorGallery();
+  const { openGallery } = useProjectEvaluatorContext();
   // Keep the full track mounted so native scrolling can animate continuously
   // between neighboring groups of cards.
   const categoryCardListRef = useRef<HTMLUListElement>(null);

@@ -45,7 +45,7 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { useTheme } from "@phoenix/contexts";
 import type { projectEvaluatorDetailsQuery as ProjectEvaluatorDetailsQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
-import type { projectEvaluatorGalleryPageQuery as ProjectEvaluatorGalleryPageQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryPageQuery.graphql";
+import type { projectEvaluatorGalleryModalQuery as ProjectEvaluatorGalleryModalQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryModalQuery.graphql";
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
@@ -135,8 +135,8 @@ type GalleryItem =
   | { kind: "custom"; evaluator: CustomEvaluator }
   | { kind: "template"; template: ProjectEvaluatorTemplate };
 
-const projectEvaluatorGalleryPageQuery = graphql`
-  query projectEvaluatorGalleryPageQuery($projectId: ID!) {
+const projectEvaluatorGalleryModalQuery = graphql`
+  query projectEvaluatorGalleryModalQuery($projectId: ID!) {
     evaluatorGalleryConfigs {
       name
       description
@@ -317,8 +317,8 @@ function EvaluatorGallery({
   if (!projectId) {
     throw new Error("projectId is required");
   }
-  const data = useLazyLoadQuery<ProjectEvaluatorGalleryPageQueryType>(
-    projectEvaluatorGalleryPageQuery,
+  const data = useLazyLoadQuery<ProjectEvaluatorGalleryModalQueryType>(
+    projectEvaluatorGalleryModalQuery,
     { projectId },
     { fetchPolicy: "store-and-network" }
   );
