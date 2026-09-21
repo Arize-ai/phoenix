@@ -10,6 +10,7 @@ compare the conditions in the Phoenix UI.
 | --- | --- | --- | --- |
 | `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis? CI runs this. | `tasks/error-analysis` | `pxi-benchmark` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
+| `jobs/pxi.yaml` | Does PXI take the right next action on the `evals/pxi` datasets? CI runs the regression split. | `tasks/pxi/*` (generated) | one per dataset |
 
 | Path | Contents |
 | --- | --- |
@@ -255,6 +256,11 @@ HARBOR_CLI=0 make harbor-stage
 
 The job records to a dataset per task directory name, such as `set_spans_filter`. Set
 `HARBOR_PLUGIN=` to run without a Phoenix instance to record to.
+
+`.github/workflows/pxi-evals.yml` runs the regression split of every dataset on Daytona
+for pull requests that touch the evals or the agent, and gates on the mean step reward
+with `scripts/check_job_reward.py`. The pytest harness under `evals/pxi` no longer runs
+in CI; `pytest evals/pxi -c evals/pxi/pytest.ini` still runs it locally.
 
 ## Test an unreleased client plugin
 

@@ -3,6 +3,10 @@
 This tree is the canonical home for PXI-specific eval work. The harness runs
 live-model PXI server-side evals as Phoenix experiments.
 
+CI runs the datasets under Harbor instead of this harness; see
+`evals/harbor/README.md`, "The PXI eval datasets". The pytest harness and gate
+below still run locally.
+
 ## Layout
 
 - `harness/` runs live PXI agent experiments against Phoenix datasets.
@@ -260,8 +264,9 @@ longer drives `run_experiment.py`; it runs the pytest suite and gate (see
 way: GitHub Actions interprets any line starting with `::` as a workflow
 command (e.g. `::endgroup::` closes a log group, `::error::` creates an
 annotation), so the workflow writes the report to a file and `cat`s it inside a
-`::stop-commands::` block to suspend command processing while it logs. See
-`.github/workflows/pxi-evals.yml` for the full pattern.
+`::stop-commands::` block to suspend command processing while it logs. The
+retired pytest workflow (removed from `.github/workflows/pxi-evals.yml` when CI
+moved to Harbor) is the reference for the full pattern in git history.
 
 If a report would exceed GitHub's embedding limits (~1 MiB for step
 summaries, ~64 KiB per log line), the Markdown tier falls back to its digest

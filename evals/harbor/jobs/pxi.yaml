@@ -1,17 +1,23 @@
 # The PXI eval datasets under Harbor: one task per dataset, one step per example.
-# Generate and stage the tasks first with `make harbor-stage HARBOR_CLI=0`, then run
+# Generate and stage the tasks first with `make harbor-stage HARBOR_CLI=0`. CI runs this
+# on Daytona; pass `-e docker` through HARBOR_ARGS to run with local Docker:
 # `make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml HARBOR_ARGS='-e docker -k 1'`.
 datasets:
   - path: evals/harbor/tasks/pxi
 agents:
   - name: pxi-eval-agent
     import_path: evals.harbor.agents.pxi_eval_agent:PxiEvalAgent
-    # The pytest harness defaults to this model; keep it so pass rates compare.
+    # The pytest harness defaulted to this model; keep it so pass rates compare.
     model_name: openai/gpt-5.4
     extra_allowed_hosts: [api.openai.com, api.anthropic.com]
 environment:
-  type: docker
+  type: daytona
   extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
+  # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
 n_attempts: 1
+# Retry infrastructure errors, but do not retry trials that produce a reward.
 retry:
   max_retries: 1
