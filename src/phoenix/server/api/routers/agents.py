@@ -3712,8 +3712,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     raise
                 finally:
                     heartbeat_task.cancel()
-                    # Disconnect cancellation re-fires at every await; shield so cleanup completes.
-                    with anyio.CancelScope(shield=turn_interrupted):
+                    # A disconnect can cancel any await here, including one arriving
+                    # after the last chunk was sent; shield so cleanup completes.
+                    with anyio.CancelScope(shield=True):
                         if turn_interrupted and not turn_persisted:
                             await _persist_interrupted_turn()
                         await _release_agent_session_turn_lock(
