@@ -45,10 +45,7 @@ function TestProjectEvaluatorPaths() {
         "Evaluator:code/source"
       )}
       data-response-quality-gallery={paths.galleryCategory("RESPONSE_QUALITY")}
-      data-template-gallery={paths.galleryTemplate({
-        category: "RESPONSE_QUALITY",
-        templateName: "Correctness",
-      })}
+      data-template={paths.newLlmFromTemplate("Correctness")}
     />
   );
 }
@@ -109,8 +106,8 @@ describe("useProjectEvaluatorPaths", () => {
     expect(output?.getAttribute("data-response-quality-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&proof=preserved"
     );
-    expect(output?.getAttribute("data-template-gallery")).toBe(
-      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&template=Correctness&proof=preserved"
+    expect(output?.getAttribute("data-template")).toBe(
+      "/projects/project-1/evaluators/new/template/Correctness?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
     );
   });
 });

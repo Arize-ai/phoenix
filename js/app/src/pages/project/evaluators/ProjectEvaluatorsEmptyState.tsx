@@ -184,10 +184,7 @@ function CategoryCards({
                       {categoryTemplates.map((template) => (
                         <li key={template.name}>
                           <Link
-                            to={paths.galleryTemplate({
-                              category: value,
-                              templateName: template.name,
-                            })}
+                            to={paths.newLlmFromTemplate(template.name)}
                             css={templateLinkCSS}
                           >
                             <Text size="XS" color="inherit">

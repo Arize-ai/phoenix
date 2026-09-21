@@ -650,7 +650,7 @@ function EvaluatorGallery() {
               return;
             }
             if (item?.kind === "template") {
-              navigate(paths.galleryNewLlmFromTemplate(item.template.name));
+              navigate(paths.newLlmFromTemplate(item.template.name));
             }
           }}
         >
@@ -816,9 +816,7 @@ function EvaluatorGallery() {
           <EvaluatorTemplateDetails
             template={selectedItem.template}
             onUseTemplate={() =>
-              navigate(
-                paths.galleryNewLlmFromTemplate(selectedItem.template.name)
-              )
+              navigate(paths.newLlmFromTemplate(selectedItem.template.name))
             }
           />
         ) : (
