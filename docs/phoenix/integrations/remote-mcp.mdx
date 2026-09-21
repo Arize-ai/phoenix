@@ -292,7 +292,7 @@ Point `PHOENIX_SKILLS_PATHS` at one or more skill directories, or at directories
 PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
 ```
 
-Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the MCP server's instructions and in the Phoenix Assistant's skill picker for every authenticated user. A skill that fails to parse, or whose name clashes with a built-in skill, is logged and skipped at startup.
+Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the MCP server's instructions and in the Phoenix Assistant's skill picker.
 
 The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls — a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
 
