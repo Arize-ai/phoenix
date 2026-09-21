@@ -3,6 +3,7 @@ import { useLocation } from "react-router";
 
 import {
   PROJECT_EVALUATOR_CATEGORY_PARAM,
+  PROJECT_EVALUATOR_COMPARE_PARAM,
   PROJECT_EVALUATOR_PARAM,
   PROJECT_EVALUATOR_TEMPLATE_PARAM,
 } from "@phoenix/constants/searchParams";
@@ -53,7 +54,11 @@ export function useProjectEvaluatorPaths() {
   return useMemo(() => {
     const list = projectEvaluatorsPath(rootPath);
     const gallery = projectEvaluatorGalleryPath(rootPath);
-    const withCurrentSearch = (path: string) => `${path}${search}`;
+    const searchWithoutComparison = withSearchParams(search, (searchParams) => {
+      searchParams.delete(PROJECT_EVALUATOR_COMPARE_PARAM);
+    });
+    const withCurrentSearch = (path: string) =>
+      `${path}${searchWithoutComparison}`;
     const buildCreationPaths = (
       parentPath: string
     ): ProjectEvaluatorCreationPaths => ({
@@ -81,6 +86,15 @@ export function useProjectEvaluatorPaths() {
     });
     return {
       list: withCurrentSearch(list),
+      compare: ({ a, b }: { a: string; b: string }) =>
+        `${list}/compare${withSearchParams(
+          searchWithoutComparison,
+          (searchParams) => {
+            searchParams.delete(PROJECT_EVALUATOR_PARAM);
+            searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, a);
+            searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, b);
+          }
+        )}`,
       gallery: `${gallery}${defaultGallerySearch}`,
       galleryCategory: (category: EvaluatorCategory) =>
         `${gallery}${withSearchParams(search, (searchParams) => {
