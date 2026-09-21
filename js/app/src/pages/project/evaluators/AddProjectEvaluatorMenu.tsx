@@ -23,7 +23,7 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { View } from "@phoenix/components/core/view";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
-import { useOpenProjectEvaluatorGallery } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryContext";
+import { useOpenProjectEvaluatorGallery } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
@@ -124,7 +124,7 @@ function ProjectEvaluatorMenuItems({
   creationPaths: ProjectEvaluatorCreationPaths;
 }) {
   const navigate = useNavigate();
-  const openGallery = useOpenProjectEvaluatorGallery();
+  const { openGallery } = useOpenProjectEvaluatorGallery();
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},

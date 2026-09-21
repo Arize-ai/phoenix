@@ -49,7 +49,7 @@ import type { projectEvaluatorGalleryPageQuery as ProjectEvaluatorGalleryPageQue
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
-import type { ProjectEvaluatorGallerySelection } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryContext";
+import type { ProjectEvaluatorGallerySelection } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import {
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
@@ -261,7 +261,7 @@ export function ProjectEvaluatorGalleryModal({
 }: {
   creationPaths: ProjectEvaluatorCreationPaths;
   newLlmFromTemplatePath: (templateName: string) => string;
-  initialSelection?: ProjectEvaluatorGallerySelection;
+  initialSelection: ProjectEvaluatorGallerySelection;
   onClose: () => void;
 }) {
   return (
@@ -310,7 +310,7 @@ function EvaluatorGallery({
 }: {
   creationPaths: ProjectEvaluatorCreationPaths;
   newLlmFromTemplatePath: (templateName: string) => string;
-  initialSelection?: ProjectEvaluatorGallerySelection;
+  initialSelection: ProjectEvaluatorGallerySelection;
 }) {
   const navigate = useNavigate();
   const { projectId } = useParams();
@@ -385,13 +385,13 @@ function EvaluatorGallery({
     ),
     count: templatesByCategory.get(category)?.length ?? 0,
   }));
-  const [selection, setSelection] = useState<
-    ProjectEvaluatorGallerySelection | undefined
-  >(initialSelection);
-  const requestedTemplateName = selection?.templateName;
-  const requestedEvaluatorId = selection?.evaluatorId;
-  const requestedCategoryParam = (selection?.category ??
-    null) as TemplateCategory | null;
+  const [selection, setSelection] = useState(initialSelection);
+  const requestedTemplateName =
+    selection.kind === "template" ? selection.templateName : undefined;
+  const requestedEvaluatorId =
+    selection.kind === "evaluator" ? selection.evaluatorId : undefined;
+  const requestedCategoryParam =
+    selection.kind === "category" ? selection.category : undefined;
   const requestedCategory =
     requestedCategoryParam && categories.includes(requestedCategoryParam)
       ? requestedCategoryParam
@@ -532,9 +532,9 @@ function EvaluatorGallery({
   const setSelectedItem = (item: GalleryItem) => {
     setSelection(
       item.kind === "custom"
-        ? { evaluatorId: item.evaluator.id }
+        ? { kind: "evaluator", evaluatorId: item.evaluator.id }
         : {
-            category: getGalleryCategory(item.template.category),
+            kind: "template",
             templateName: item.template.name,
           }
     );

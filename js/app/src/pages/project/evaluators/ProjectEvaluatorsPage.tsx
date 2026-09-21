@@ -11,10 +11,10 @@ import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import {
-  OpenProjectEvaluatorGalleryProvider,
+  ProjectEvaluatorProvider,
   type ProjectEvaluatorGallerySelection,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryContext";
-import { ProjectEvaluatorGalleryModal } from "@phoenix/pages/project/evaluators/ProjectEvaluatorGalleryPage";
+} from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
+import { ProjectEvaluatorGalleryModal } from "@phoenix/pages/project/evaluators/ProjectEvaluatorGalleryModal";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
@@ -39,17 +39,18 @@ export function ProjectEvaluatorsPage() {
     },
     [setUrlFilter]
   );
-  const [gallery, setGallery] = useState<{
-    selection?: ProjectEvaluatorGallerySelection;
-  } | null>(null);
-  const openGallery = (selection?: ProjectEvaluatorGallerySelection) => {
-    setGallery({ selection });
+  const [gallerySelection, setGallerySelection] =
+    useState<ProjectEvaluatorGallerySelection | null>(null);
+  const openGallery = (
+    selection: ProjectEvaluatorGallerySelection = { kind: "default" }
+  ) => {
+    setGallerySelection(selection);
   };
   const paths = useProjectEvaluatorPaths();
   return (
     // Wraps the gallery too: the gallery's own add-evaluator menu shares the
     // menu component that reads this context.
-    <OpenProjectEvaluatorGalleryProvider value={openGallery}>
+    <ProjectEvaluatorProvider value={{ openGallery }}>
       <main
         css={css`
           flex: 1 1 auto;
@@ -69,12 +70,12 @@ export function ProjectEvaluatorsPage() {
         </Suspense>
         {/* Mounted before the nested editor outlet so an editor opened from
             the gallery occupies the top overlay layer. */}
-        {gallery ? (
+        {gallerySelection ? (
           <ProjectEvaluatorGalleryModal
             creationPaths={paths.creation}
             newLlmFromTemplatePath={paths.newLlmFromTemplate}
-            initialSelection={gallery.selection}
-            onClose={() => setGallery(null)}
+            initialSelection={gallerySelection}
+            onClose={() => setGallerySelection(null)}
           />
         ) : null}
         {/* The create and edit slideovers, each on its own nested route. The
@@ -85,7 +86,7 @@ export function ProjectEvaluatorsPage() {
           <Outlet />
         </Suspense>
       </main>
-    </OpenProjectEvaluatorGalleryProvider>
+    </ProjectEvaluatorProvider>
   );
 }
 
