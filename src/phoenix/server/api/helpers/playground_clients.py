@@ -1154,6 +1154,8 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                     pass
                 elif event.type == "response.shell_call_output_content.done":
                     pass
+                elif event.type == "response.compaction.compacting":
+                    pass
                 elif TYPE_CHECKING:
                     assert_never(event.type)
 
