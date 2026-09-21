@@ -183,8 +183,15 @@ async def test_variable_values_do_not_count_toward_the_size_limit(graphql_mcp: F
     assert result.structured_content == {"data": {"dataset": {"name": "rag-eval"}}, "errors": []}
 
 
+@pytest.mark.parametrize(
+    "tool,arguments",
+    [
+        ("executeGraphqlQuery", {"query": "{ datasets { name } }"}),
+        ("executeGraphqlMutation", {"mutation": 'mutation { deleteDataset(datasetId: "1") }'}),
+    ],
+)
 async def test_runs_as_the_authenticated_principal(
-    app: Any, monkeypatch: pytest.MonkeyPatch
+    app: Any, monkeypatch: pytest.MonkeyPatch, tool: str, arguments: dict[str, Any]
 ) -> None:
     """Resolvers judge permissions against whoever the MCP request authenticated as."""
     principal = object()
@@ -194,8 +201,8 @@ async def test_runs_as_the_authenticated_principal(
         phoenix.server.mcp.graphql.tools, "_current_mcp_principal", lambda: principal
     )
     mcp = FastMCP("test")
-    register_graphql_tools(mcp, app=app)
-    await mcp.call_tool("executeGraphqlQuery", {"query": "{ datasets { name } }"})
+    register_graphql_tools(mcp, app=app, allow_mutations=True)
+    await mcp.call_tool(tool, arguments)
     assert seen == [principal]
 
 
