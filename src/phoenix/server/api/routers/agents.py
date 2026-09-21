@@ -3627,7 +3627,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             async with aclosing(raw_stream) as stream:
                                 async for agent_message_chunk in stream:
                                     if isinstance(agent_message_chunk, ErrorChunk):
-                                        # The adapter never raises; a failed run ends here.
                                         turn_error_text = (
                                             agent_message_chunk.error_text.strip()
                                             or "Agent run failed"
