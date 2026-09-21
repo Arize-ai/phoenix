@@ -8,7 +8,7 @@ compare the conditions in the Phoenix UI.
 
 | Job file | Question it answers | Tasks | Phoenix dataset |
 | --- | --- | --- | --- |
-| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis? CI runs this. | `tasks/error-analysis` | `pxi-benchmark` |
+| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis? CI runs this daily. | `tasks/error-analysis` | `pxi-benchmark` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
@@ -206,9 +206,8 @@ open-codes a project's traces into notes, then axial-codes them into per-dimensi
 annotation configurations. Its verifier lives with the task under `tests/` and reads the
 database and the agent's sidecars directly. `jobs/benchmark.yaml` runs it with two
 attempts on Daytona. In CI, `.github/workflows/harbor-evals.yml` checks the reward with
-`scripts/check_job_reward.py`. `.github/workflows/harbor-skill-daily.yml` runs only the
-`claude-code-cli` condition every day and posts the reward to Slack through
-`SLACK_WEBHOOK_URL`.
+`scripts/check_job_reward.py` and posts the rewards to Slack through `SLACK_WEBHOOK_URL`. It
+runs every day and on manual dispatch.
 
 To replace its fixture, upload the new database and restage:
 

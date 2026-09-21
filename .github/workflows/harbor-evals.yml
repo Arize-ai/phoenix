@@ -3,15 +3,20 @@ name: Harbor Evals
 permissions:
   contents: read
 
-# Manual only for now. Running this on every PR would spend agent tokens on a
-# regression dataset that is still too small to trust; switch it on once there's
-# a pass-rate history worth gating against.
+# Daily and manual only. Running this on every PR would spend agent tokens on a
+# regression dataset that is still too small to trust; the daily run builds the
+# pass-rate history and posts each result to Slack.
 on:
+  schedule:
+    - cron: "23 9 * * *"
   workflow_dispatch:
 
 concurrency:
   group: harbor-evals-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+env:
+  SLACK_PAYLOAD: evals/harbor/.cache/slack-payload.json
 
 jobs:
   harbor-eval:
@@ -66,9 +71,23 @@ jobs:
       # The agents are nondeterministic; require 3 of 4 steps rather than
       # perfection. Tighten once there's a pass-rate history.
       - name: Run the benchmark
+        run: make harbor-run HARBOR_ARGS="--job-name error-analysis-$(date -u +%F)"
+
+      - name: Check the reward and build the Slack message
+        if: always()
         run: |
-          make harbor-run
-          python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75
+          python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75 \
+            --slack-payload "${SLACK_PAYLOAD}" \
+            --title "Harbor error-analysis job" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Post the results to Slack
+        if: always() && hashFiles(env.SLACK_PAYLOAD) != ''
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload-file-path: ${{ env.SLACK_PAYLOAD }}
 
       - name: Upload job results
         if: always()
