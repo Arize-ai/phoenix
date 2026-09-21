@@ -13,53 +13,43 @@ from phoenix.server.agents.skill_requests import inject_requested_skills
 from tests.unit.graphql import AsyncGraphQLClient
 
 
-@pytest.fixture(params=["all", "explicit"])
-def mounted_skills(
-    request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> str:
-    for name, metadata in [
-        ("team-visible", "metadata:\n  arize-phoenix-visibility: visible\n"),
-        ("team-unmarked", ""),
-    ]:
+@pytest.fixture
+def mounted_skills(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ["team-alpha", "team-beta"]:
         directory = tmp_path / name
         directory.mkdir()
         (directory / "SKILL.md").write_text(
-            f"---\nname: {name}\ndescription: Team instructions\n{metadata}---\nTeam workflow\n"
+            f"---\nname: {name}\ndescription: Team instructions\n---\nTeam workflow\n"
         )
     monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
-    monkeypatch.setenv("PHOENIX_SKILLS_VISIBILITY", request.param)
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
-    return str(request.param)
 
 
 @pytest.mark.real_agent_mcp_server
 async def test_mounted_skills_reach_mcp_pxi_picker_and_requested_loads(
-    mounted_skills: str, gql_client: AsyncGraphQLClient, app: FastAPI
+    mounted_skills: None, gql_client: AsyncGraphQLClient, app: FastAPI
 ) -> None:
     response = await gql_client.execute(query="{ availableAgentSkills { name } }")
     assert not response.errors
     assert response.data is not None
     names = {skill["name"] for skill in response.data["availableAgentSkills"]}
-    assert "team-visible" in names
-    assert ("team-unmarked" in names) == (mounted_skills == "all")
+    assert {"team-alpha", "team-beta"} <= names
     assert "datasets" in names
 
     async with Client(app.state.pxi_mcp_server) as client:
-        assert "<name>team-visible</name>" in (client.instructions or "")
-        assert ("<name>team-unmarked</name>" in (client.instructions or "")) == (
-            mounted_skills == "all"
-        )
-        result = await client.call_tool("load_skill", {"skill_name": "team-visible"})
+        assert "<name>team-alpha</name>" in (client.instructions or "")
+        assert "<name>team-beta</name>" in (client.instructions or "")
+        result = await client.call_tool("load_skill", {"skill_name": "team-alpha"})
         assert "Team workflow" in str(result.content)
 
     messages = inject_requested_skills(
         messages=[],
-        requested_skill_names=["team-visible", "team-unmarked"],
+        requested_skill_names=["team-alpha", "team-beta"],
         available_skills=app.state.agent_skills,
         message_factory=UIMessage,
     )
-    assert len(messages) == (2 if mounted_skills == "all" else 1)
+    assert len(messages) == 2
 
     def factory(
         headers: dict[str, str] | None = None,
@@ -76,12 +66,10 @@ async def test_mounted_skills_reach_mcp_pxi_picker_and_requested_loads(
 
     transport = StreamableHttpTransport(url="http://testserver/", httpx_client_factory=factory)
     async with Client(transport) as client:
-        assert "<name>team-visible</name>" in (client.instructions or "")
-        assert ("<name>team-unmarked</name>" in (client.instructions or "")) == (
-            mounted_skills == "all"
-        )
+        assert "<name>team-alpha</name>" in (client.instructions or "")
+        assert "<name>team-beta</name>" in (client.instructions or "")
         assert "<name>datasets</name>" not in (client.instructions or "")
-        result = await client.call_tool("load_skill", {"skill_name": "team-visible"})
+        result = await client.call_tool("load_skill", {"skill_name": "team-alpha"})
         assert "Team workflow" in str(result.content)
 
     app.state.agent_skills = ()

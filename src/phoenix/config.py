@@ -29,7 +29,7 @@ from ldap3.core.exceptions import LDAPInvalidDnError
 from ldap3.utils.dn import parse_dn
 from pydantic import SecretStr
 from starlette.datastructures import URL
-from typing_extensions import TypeAlias, TypeGuard, get_args
+from typing_extensions import TypeAlias, get_args
 
 from phoenix.utilities.logging import log_a_list
 
@@ -57,12 +57,6 @@ ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
 Comma-separated skill directories or directories containing skills, loaded at startup.
 For example: "./.agents/skills,/opt/skills/team-analysis". Paths are on the Phoenix
 server, relative to its working directory. Unset means no external skills.
-"""
-ENV_PHOENIX_SKILLS_VISIBILITY = "PHOENIX_SKILLS_VISIBILITY"
-"""
-External skill visibility: "all" (default) ignores visibility metadata; "explicit"
-requires metadata.arize-phoenix-visibility: visible in `SKILL.md` frontmatter.
-Missing metadata or hidden excludes a skill in explicit mode.
 """
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
@@ -3893,17 +3887,3 @@ def get_env_skills_paths() -> tuple[Path, ...]:
     return tuple(
         Path(path.strip()).expanduser().resolve() for path in value.split(",") if path.strip()
     )
-
-
-SkillsVisibilityMode = Literal["all", "explicit"]
-
-
-def _is_skills_visibility_mode(value: str) -> TypeGuard[SkillsVisibilityMode]:
-    return value in get_args(SkillsVisibilityMode)
-
-
-def get_env_skills_visibility() -> SkillsVisibilityMode:
-    value = getenv(ENV_PHOENIX_SKILLS_VISIBILITY, "all")
-    if not _is_skills_visibility_mode(value):
-        raise ValueError(f"{ENV_PHOENIX_SKILLS_VISIBILITY} must be 'all' or 'explicit'")
-    return value
