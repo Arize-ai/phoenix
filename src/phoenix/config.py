@@ -56,7 +56,9 @@ ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
 """
 Comma-separated skill directories or directories containing skills, loaded at startup.
 For example: "./.agents/skills,/opt/skills/team-analysis". Paths are on the Phoenix
-server, relative to its working directory. Unset means no external skills.
+server. A relative path resolves against the directory the server was started from,
+not PHOENIX_WORKING_DIR, so deployments should use absolute paths. Unset means no
+external skills.
 """
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"

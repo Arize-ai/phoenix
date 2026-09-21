@@ -365,3 +365,36 @@ def test_external_skill_duplicates_keep_the_first_and_log(
     assert [skill.path for skill in skills] == [tmp_path / "one" / "a-skill"]
     assert "Ignoring external skill 'a-skill'" in caplog.text
     assert str(tmp_path / "two" / "a-skill") in caplog.text
+
+
+def test_unparseable_external_skill_is_skipped_and_logged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_skill(tmp_path / "a-skill")
+    (tmp_path / "broken").mkdir()
+    (tmp_path / "broken" / "SKILL.md").write_text("---\nname: broken\n---\nno description\n")
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.mcp.skills"):
+        skills = load_external_skills()
+
+    assert [skill.name for skill in skills] == ["a-skill"]
+    assert f"Ignoring external skill at {tmp_path / 'broken'}" in caplog.text
+    assert "non-empty 'description'" in caplog.text
+
+
+def test_external_root_without_skills_warns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path))
+
+    with caplog.at_level(logging.WARNING, logger="phoenix.server.mcp.skills"):
+        assert load_external_skills() == ()
+
+    assert f"Skills root {tmp_path} contains no skill directories" in caplog.text
+
+
+def test_missing_external_root_still_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PHOENIX_SKILLS_PATHS", str(tmp_path / "nowhere"))
+    with pytest.raises(ValueError, match="not a directory"):
+        load_external_skills()

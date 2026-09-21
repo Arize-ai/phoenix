@@ -62,7 +62,6 @@ from phoenix.server.mcp.skills import (
     SKILL_TOOLS_TAG,
     Skill,
     get_skill_instructions,
-    load_external_skills,
     load_skills,
     merge_skills,
     register_skill_tools,
@@ -557,7 +556,7 @@ def create_phoenix_mcp_app(
     *,
     monty_runtime: Optional["MontyRuntime"] = None,
     db: "DbSessionFactory",
-    external_skills: Optional[Sequence[Skill]] = None,
+    external_skills: Sequence[Skill] = (),
 ) -> tuple["StarletteWithLifespan", Optional[MontyPoolSandboxProvider]]:
     """Build the MCP server mounted at :data:`MCP_MOUNT_PATH` and return its ASGI app.
 
@@ -570,7 +569,7 @@ def create_phoenix_mcp_app(
         code_mode=get_env_mcp_code_mode(),
         db=db,
         skills_roots=(SHARED_SKILLS_ROOT,),
-        external_skills=(load_external_skills() if external_skills is None else external_skills),
+        external_skills=external_skills,
     )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then
     # resolves to MCP_MOUNT_PATH itself rather than MCP_MOUNT_PATH + "/mcp".

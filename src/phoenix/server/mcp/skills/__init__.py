@@ -196,11 +196,24 @@ def load_skills(roots: tuple[Path, ...]) -> tuple[Skill, ...]:
     return tuple(skills.values())
 
 
+def _load_external_root(root: Path) -> Iterator[Skill]:
+    if not root.is_dir():
+        raise ValueError(f"Skills root {root} is not a directory")
+    directories = _skill_directories(root)
+    if not directories:
+        logger.warning("Skills root %s contains no skill directories", root)
+    for directory in directories:
+        try:
+            yield Skill.from_directory(directory)
+        except ValueError as error:
+            logger.error("Ignoring external skill at %s: %s", directory, error)
+
+
 def load_external_skills() -> tuple[Skill, ...]:
     builtin_skills = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
     skills: dict[str, Skill] = {}
     for root in get_env_skills_paths():
-        for skill in _load_root(root):
+        for skill in _load_external_root(root):
             if skill.name in builtin_skills:
                 logger.error(
                     "Ignoring external skill %r at %s: the name is taken by a built-in skill",
@@ -324,6 +337,8 @@ __all__ = [
     "Skill",
     "SkillReference",
     "load_skills",
+    "load_external_skills",
+    "merge_skills",
     "register_skill_tools",
     "get_skill_instructions",
 ]

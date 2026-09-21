@@ -282,6 +282,17 @@ These variables are set on the Phoenix server before startup:
 | --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `PHOENIX_ENABLE_MCP_SERVER` | `true`  | Master switch. Set to `false` to remove the `/mcp` endpoint entirely.                                                               |
 | `PHOENIX_ENABLE_MCP_CODE_MODE`     | `true`  | Set to `false` to disable the MCP `execute` tool and expose plain, group-gated tools instead.                                      |
+| `PHOENIX_SKILLS_PATHS`      | unset   | Comma-separated paths to your own [Agent Skills](https://agentskills.io/specification), served alongside Phoenix's built-in skills. See below. |
+
+### Mounting your own skills
+
+Point `PHOENIX_SKILLS_PATHS` at one or more skill directories, or at directories containing skills, on the Phoenix server. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
+
+```bash
+PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
+```
+
+Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the MCP server's instructions and in the Phoenix Assistant's skill picker for every authenticated user. A skill that fails to parse, or whose name clashes with a built-in skill, is logged and skipped at startup.
 
 The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls — a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
 
