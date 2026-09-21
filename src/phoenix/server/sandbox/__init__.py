@@ -31,6 +31,7 @@ from phoenix.server.sandbox.deno_backend import DenoAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.modal_backend import ModalAdapter
 from phoenix.server.sandbox.monty_backend import MontyAdapter
+from phoenix.server.sandbox.sandbox0_backend import Sandbox0Adapter
 from phoenix.server.sandbox.types import (
     EnvVarValue,
     SandboxAdapter,
@@ -108,6 +109,7 @@ def _build_sandbox_adapter_metadata() -> Mapping[SandboxBackendType, AdapterMeta
             WASMAdapter,
             E2BAdapter,
             DaytonaAdapter,
+            Sandbox0Adapter,
             VercelAdapter,
             DenoAdapter,
             ModalAdapter,
@@ -389,3 +391,4 @@ _try_register_adapter(VercelAdapter)
 _try_register_adapter(DenoAdapter)
 _try_register_adapter(ModalAdapter)
 _try_register_adapter(MontyAdapter)
+_try_register_adapter(Sandbox0Adapter)

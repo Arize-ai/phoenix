@@ -85,13 +85,17 @@ pip install 'arize-phoenix[vercel]'   # Vercel Sandbox (Python and TypeScript)
 
 Add the credentials each hosted provider needs — for example, `E2B_API_KEY`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, or the Vercel token / project / team triple. You can either set them as environment variables on the Phoenix server or paste them directly into the provider's row in **Settings → Sandboxes**. The full list of credential variables for each provider is in the [compatibility matrix](#compatibility-matrix) below.
 
+### Sandbox0
+
+The [Sandbox0 integration](/docs/phoenix/settings/sandboxes/sandbox0) runs Python and TypeScript code evaluators. Install this checkout with `pip install '.[sandbox0]'` and configure `SANDBOX0_API_KEY`. Use `SANDBOX0_API_URL` for a regional or self-hosted endpoint. This integration currently requires a pinned SDK commit; see the provider page for installation and runtime requirements.
+
 ## Restricting which providers are allowed
 
 To restrict which sandbox providers your deployment can use, set the `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` environment variable to a comma-separated list of the providers you want to allow. The variable is case-insensitive.
 
 - **Leave it unset** to allow every supported provider (the default).
 - **Set it to `NONE`** to disable every sandbox provider.
-- **Set it to one or more provider names** to allow only those. Valid names are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, and `MODAL` (lowercase works too — the variable is case-insensitive). An unknown name will stop Phoenix from starting so a typo can't silently disable a provider.
+- **Set it to one or more provider names** to allow only those. Valid names are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, `MONTY`, and `SANDBOX0` (lowercase works too — the variable is case-insensitive). An unknown name will stop Phoenix from starting so a typo can't silently disable a provider.
 
 ```bash
 export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO   # allow local sandboxes only

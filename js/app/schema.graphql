@@ -4042,6 +4042,23 @@ type RevokeOAuth2GrantMutationPayload {
   query: Query!
 }
 
+input Sandbox0ConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type Sandbox0DeploymentData {
+  apiUrl: String
+  template: String
+}
+
+input Sandbox0DeploymentInput {
+  apiUrl: String = null
+  template: String = null
+}
+
 type SandboxBackendInfo {
   backendType: SandboxBackendType!
   displayName: String!
@@ -4074,6 +4091,7 @@ enum SandboxBackendType {
   DENO
   MODAL
   MONTY
+  SANDBOX0
 }
 
 type SandboxConfig implements Node {
@@ -4117,6 +4135,7 @@ type SandboxConfigInternetAccess {
 input SandboxConfigVariantInput @oneOf {
   e2b: E2BConfigInput
   daytona: DaytonaConfigInput
+  sandbox0: Sandbox0ConfigInput
   deno: DenoConfigInput
   vercel: VercelConfigInput
   wasm: WASMConfigInput
@@ -4127,11 +4146,12 @@ input SandboxConfigVariantInput @oneOf {
 """
 Admin-scoped deployment routing for a sandbox provider. Only providers that expose routing kwargs on their SDK ``create()`` appear in this union; others (WASM, Deno, Vercel, Modal) expose ``deployment: null``.
 """
-union SandboxDeployment = DaytonaDeploymentData | E2BDeploymentData
+union SandboxDeployment = DaytonaDeploymentData | E2BDeploymentData | Sandbox0DeploymentData
 
 input SandboxDeploymentVariantInput @oneOf {
   daytona: DaytonaDeploymentInput
   e2b: E2BDeploymentInput
+  sandbox0: Sandbox0DeploymentInput
 }
 
 enum SandboxHostingType {

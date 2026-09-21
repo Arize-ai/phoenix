@@ -521,6 +521,7 @@ mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
                 __typename
                 ... on DaytonaDeploymentData { apiUrl target }
                 ... on E2BDeploymentData { domain apiUrl }
+                ... on Sandbox0DeploymentData { apiUrl template }
             }
         }
     }
@@ -554,6 +555,29 @@ class TestUpdateSandboxProviderDeployment:
             "__typename": "DaytonaDeploymentData",
             "apiUrl": "https://daytona.example.com",
             "target": "us-east",
+        }
+
+    async def test_sandbox0_deployment_round_trips(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+    ) -> None:
+        result = await gql_client.execute(
+            _UPDATE_PROVIDER,
+            variables={
+                "input": {
+                    "id": _provider_global_id("SANDBOX0"),
+                    "deployment": {
+                        "sandbox0": {"apiUrl": "https://sandbox0.example.com", "template": "custom"}
+                    },
+                }
+            },
+        )
+        assert result.data and not result.errors, result.errors
+        assert result.data["updateSandboxProvider"]["sandboxProvider"]["deployment"] == {
+            "__typename": "Sandbox0DeploymentData",
+            "apiUrl": "https://sandbox0.example.com",
+            "template": "custom",
         }
 
     async def test_e2b_deployment_round_trips(
@@ -721,3 +745,31 @@ class TestUpdateSandboxProviderDeployment:
         )
         assert result.data and not result.errors, result.errors
         assert result.data["node"]["deployment"] is None
+
+
+@pytest.mark.parametrize("language", ["PYTHON", "TYPESCRIPT"])
+async def test_sandbox0_config_round_trips(
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+    language: str,
+) -> None:
+    result = await gql_client.execute(
+        _CREATE.replace(
+            "            id", "            id language config { internetAccess { mode } }"
+        ),
+        variables={
+            "input": {
+                "name": "sandbox0-test-config",
+                "config": {
+                    "sandbox0": {
+                        "language": language,
+                        "internetAccess": {"mode": "DENY"},
+                    }
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    config = result.data["createSandboxConfig"]["sandboxConfig"]
+    assert config["language"] == language
+    assert config["config"]["internetAccess"] == {"mode": "DENY"}

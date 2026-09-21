@@ -196,6 +196,21 @@ const WasmSVG = ({ height }: IconProps) => (
   </svg>
 );
 
+const Sandbox0SVG = ({ height }: IconProps) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Sandbox0</title>
+    <path d="m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 10 9-5M12 12 3 7m9 5v10" />
+  </svg>
+);
+
 const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   WASM: WasmSVG,
   E2B: E2BSVG,
@@ -204,6 +219,7 @@ const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   DENO: DenoSVG,
   MODAL: ModalSVG,
   MONTY: MontySVG,
+  SANDBOX0: Sandbox0SVG,
 };
 
 export type SandboxProviderIconProps = {

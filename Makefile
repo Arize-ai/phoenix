@@ -570,3 +570,7 @@ clean-all: clean ## Clean everything including node_modules
 	@find $(JS_DIR) -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
 	@rm -rf .venv
 	@echo -e "$(GREEN)✓ Done$(NC)"
+
+.PHONY: test-sandbox0-live
+test-sandbox0-live: ## Run opt-in Sandbox0 provider tests against a real region
+	@$(UV) run --extra sandbox0 pytest tests/live/test_sandbox0_backend.py -q --no-showlocals -r fE

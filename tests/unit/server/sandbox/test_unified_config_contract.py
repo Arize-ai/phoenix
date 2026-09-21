@@ -12,6 +12,7 @@ from phoenix.server.sandbox.types import _RuntimePackageInstallation
 _ADAPTER_MODULES: dict[SandboxBackendType, tuple[str, str]] = {
     "WASM": ("phoenix.server.sandbox.wasm_backend", "WASMAdapter"),
     "E2B": ("phoenix.server.sandbox.e2b_backend", "E2BAdapter"),
+    "SANDBOX0": ("phoenix.server.sandbox.sandbox0_backend", "Sandbox0Adapter"),
     "DAYTONA": ("phoenix.server.sandbox.daytona_backend", "DaytonaAdapter"),
     "VERCEL": ("phoenix.server.sandbox.vercel_backend", "VercelAdapter"),
     "DENO": ("phoenix.server.sandbox.deno_backend", "DenoAdapter"),

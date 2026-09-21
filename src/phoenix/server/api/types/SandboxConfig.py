@@ -27,6 +27,7 @@ from phoenix.server.sandbox.types import (
     SANDBOX_DEPLOYMENT_ADAPTER,
     DaytonaDeployment,
     E2BDeployment,
+    Sandbox0Deployment,
     SandboxRuntimeContext,
     SupportsDependencies,
     SupportsEnvVars,
@@ -66,6 +67,7 @@ class SandboxBackendType(Enum):
     DENO = "DENO"
     MODAL = "MODAL"
     MONTY = "MONTY"
+    SANDBOX0 = "SANDBOX0"
 
 
 @strawberry.enum
@@ -208,8 +210,14 @@ class E2BDeploymentData:
     api_url: Optional[str]
 
 
+@strawberry.type
+class Sandbox0DeploymentData:
+    api_url: Optional[str]
+    template: Optional[str]
+
+
 SandboxDeployment = Annotated[
-    Union[DaytonaDeploymentData, E2BDeploymentData],
+    Union[DaytonaDeploymentData, E2BDeploymentData, Sandbox0DeploymentData],
     strawberry.union(
         "SandboxDeployment",
         description=(
@@ -297,6 +305,8 @@ def _deployment_from_stored(stored: Any) -> Optional[SandboxDeployment]:
     except Exception as exc:
         logger.warning("Failed to parse stored sandbox deployment: %s", exc)
         return None
+    if isinstance(dep, Sandbox0Deployment):
+        return Sandbox0DeploymentData(api_url=dep.api_url, template=dep.template)
     if isinstance(dep, DaytonaDeployment):
         return DaytonaDeploymentData(api_url=dep.api_url, target=dep.target)
     if isinstance(dep, E2BDeployment):

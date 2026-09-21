@@ -227,6 +227,17 @@ class DaytonaConfig(
     language: Literal["PYTHON", "TYPESCRIPT"]
 
 
+class Sandbox0Config(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+    _RuntimePackageInstallation,
+):
+    backend_type: Literal["SANDBOX0"] = "SANDBOX0"
+    language: Literal["PYTHON", "TYPESCRIPT"]
+
+
 class DenoConfig(_Config):
     # Does NOT compose SupportsEnvVars: no user env vars ever reach the subprocess.
     backend_type: Literal["DENO"] = "DENO"
@@ -269,6 +280,7 @@ SandboxConfigModel: TypeAlias = Annotated[
     Union[
         E2BConfig,
         DaytonaConfig,
+        Sandbox0Config,
         DenoConfig,
         VercelConfig,
         WASMConfig,
@@ -375,6 +387,19 @@ class E2BDeployment(_BaseModel):
         return self
 
 
+class Sandbox0Deployment(_BaseModel):
+    """Admin-selected regional endpoint and runtime template."""
+
+    backend_type: Literal["SANDBOX0"] = "SANDBOX0"
+    api_url: Optional[str] = None
+    template: Optional[str] = Field(default=None, min_length=1)
+
+    @field_validator("api_url", mode="after")
+    @classmethod
+    def _check_api_url(cls, value: Optional[str]) -> Optional[str]:
+        return _validate_url_scheme(value)
+
+
 class VercelDeployment(NoDeployment):
     """Vercel has no public routing kwargs on AsyncSandbox.create today."""
 
@@ -408,6 +433,7 @@ class MontyDeployment(NoDeployment):
 SandboxDeploymentModel: TypeAlias = Annotated[
     Union[
         DaytonaDeployment,
+        Sandbox0Deployment,
         E2BDeployment,
         VercelDeployment,
         ModalDeployment,
@@ -431,6 +457,13 @@ class E2BCredentials(_BaseModel):
     E2B_API_KEY: SecretStr = Field(
         title="E2B API Key",
         description="API key for the E2B sandbox service.",
+    )
+
+
+class Sandbox0Credentials(_BaseModel):
+    SANDBOX0_API_KEY: SecretStr = Field(
+        title="Sandbox0 API Key",
+        description="Team API key for the Sandbox0 sandbox service.",
     )
 
 

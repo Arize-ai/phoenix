@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7625b26f4eb16f58a3fbede111b0d758>>
+ * @generated SignedSource<<4db5bf349106f631eb91161c91f1fda0>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type SandboxConfigVariantInput = {
   e2b: E2BConfigInput;
   modal?: never;
   monty?: never;
+  sandbox0?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -32,6 +33,16 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  sandbox0?: never;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
+  sandbox0: Sandbox0ConfigInput;
   vercel?: never;
   wasm?: never;
 } | {
@@ -40,6 +51,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  sandbox0?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -48,6 +60,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  sandbox0?: never;
   vercel: VercelConfigInput;
   wasm?: never;
 } | {
@@ -56,6 +69,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty?: never;
+  sandbox0?: never;
   vercel?: never;
   wasm: WASMConfigInput;
 } | {
@@ -64,6 +78,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal: ModalConfigInput;
   monty?: never;
+  sandbox0?: never;
   vercel?: never;
   wasm?: never;
 } | {
@@ -72,6 +87,7 @@ export type SandboxConfigVariantInput = {
   e2b?: never;
   modal?: never;
   monty: MontyConfigInput;
+  sandbox0?: never;
   vercel?: never;
   wasm?: never;
 };
@@ -92,6 +108,12 @@ export type DependenciesInput = {
   packages?: ReadonlyArray<string>;
 };
 export type DaytonaConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language: Language;
+};
+export type Sandbox0ConfigInput = {
   dependencies?: DependenciesInput | null;
   envVars?: ReadonlyArray<EnvVarInput>;
   internetAccess?: InternetAccessInput | null;
