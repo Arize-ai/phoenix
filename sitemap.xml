@@ -945,6 +945,18 @@
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vertexai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
