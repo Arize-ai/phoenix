@@ -1,5 +1,3 @@
-"""Test-only import path setup for the PXI online evals."""
-
 from __future__ import annotations
 
 import sys
