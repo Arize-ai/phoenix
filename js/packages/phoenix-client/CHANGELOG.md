@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.12.0
+
+### Minor Changes
+
+- dab09f1: Add `filter` expressions to `getTraces` and `listSessions` (requires Phoenix server >= 20.12.0). Deprecate the individual trace error and latency parameters while retaining their behavior and support for server >= 20.8.0.
+
 ## 7.11.0
 
 ### Minor Changes
