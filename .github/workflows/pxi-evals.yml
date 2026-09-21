@@ -8,8 +8,17 @@ permissions:
 on:
   pull_request:
     paths:
+      - ".github/workflows/pxi-evals.yml"
       - "evals/pxi/**"
-      - "evals/harbor/**"
+      - "evals/harbor/pxi/**"
+      - "evals/harbor/agents/chat_client.py"
+      - "evals/harbor/agents/phoenix_chat_agent.py"
+      - "evals/harbor/agents/pxi_eval_agent.py"
+      - "evals/harbor/agents/atif.py"
+      - "evals/harbor/environments/**"
+      - "evals/harbor/jobs/pxi.yaml"
+      - "evals/harbor/scripts/**"
+      - "evals/harbor/verifiers/**"
       - "src/phoenix/server/agents/**"
   workflow_dispatch:
     inputs:
