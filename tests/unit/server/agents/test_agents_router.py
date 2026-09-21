@@ -5309,10 +5309,8 @@ async def test_failed_server_tool_call_records_an_error_tool_span(
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A server tool that raises fails the run: the adapter reports it as an
-    error chunk instead of raising, so the turn must still be closed out with
-    its ``pxi.turn`` root span. Otherwise the failed TOOL span is persisted
-    under a root that never arrives and the trace never surfaces."""
+    """A server tool that raises ends the turn, so the trace still gets its
+    ``pxi.turn`` root and the failed TOOL span is not left orphaned."""
     from phoenix.server.agents.capabilities.tools.internal import current_datetime
 
     async def broken_tool(ctx: RunContext[Any]) -> Any:
@@ -5340,8 +5338,6 @@ async def test_failed_server_tool_call_records_an_error_tool_span(
     async with db() as session:
         spans = (await session.scalars(select(models.Span))).all()
 
-    # The failed run ends the turn: its root span is emitted so the trace is
-    # not left as orphaned children awaiting a root that never arrives.
     root = next(span for span in spans if span.parent_id is None)
     assert root.name == "pxi.turn"
     assert root.status_code == "ERROR"

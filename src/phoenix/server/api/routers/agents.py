@@ -3434,9 +3434,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
             turn_final_output_text: str | None = None
             turn_is_terminal = False
-            # The adapter reports an agent run that fails (for example a server
-            # tool raising) as an error chunk rather than by raising, so the
-            # turn is over even though no final output ever arrives.
             turn_error_text: str | None = None
 
             async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
@@ -3630,6 +3627,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             async with aclosing(raw_stream) as stream:
                                 async for agent_message_chunk in stream:
                                     if isinstance(agent_message_chunk, ErrorChunk):
+                                        # The adapter never raises; a failed run ends here.
                                         turn_error_text = (
                                             agent_message_chunk.error_text.strip()
                                             or "Agent run failed"
