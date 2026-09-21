@@ -46,16 +46,15 @@ import type { projectEvaluatorGalleryPageQuery as ProjectEvaluatorGalleryPageQue
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
+import type { ProjectEvaluatorGallerySelection } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import {
   projectEvaluatorDetailsQueryNode,
   readProjectEvaluatorDetails,
   type CodeProjectEvaluatorDetails,
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import {
-  type ProjectEvaluatorCreationPaths,
-  useProjectEvaluatorPaths,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
@@ -247,11 +246,32 @@ function getGalleryItemSection(item: GalleryItem): GallerySection {
 }
 
 export function ProjectEvaluatorGalleryPage() {
+  const paths = useProjectEvaluatorPaths();
+  const [searchParams] = useSearchParams();
+  // The gallery owns its selection as component state now, so this route
+  // reads the deep link once and hands it over as the initial target.
+  const evaluatorId = searchParams.get(PROJECT_EVALUATOR_PARAM);
+  const templateName = searchParams.get(PROJECT_EVALUATOR_TEMPLATE_PARAM);
+  const category = searchParams.get(
+    PROJECT_EVALUATOR_CATEGORY_PARAM
+  ) as EvaluatorCategory | null;
+  let initialSelection: ProjectEvaluatorGallerySelection = { kind: "default" };
+  if (evaluatorId) {
+    initialSelection = { kind: "evaluator", evaluatorId };
+  } else if (templateName) {
+    initialSelection = { kind: "template", templateName };
+  } else if (category) {
+    initialSelection = { kind: "category", category };
+  }
   return (
     <main css={galleryContainerCSS}>
       <ErrorBoundary fallback={EvaluatorGalleryError}>
         <Suspense fallback={<EvaluatorGallerySkeleton />}>
-          <EvaluatorGallery />
+          <EvaluatorGallery
+            creationPaths={paths.galleryCreation}
+            newLlmFromTemplatePath={paths.newLlmFromTemplate}
+            initialSelection={initialSelection}
+          />
         </Suspense>
       </ErrorBoundary>
       <Suspense fallback={null}>
@@ -262,14 +282,20 @@ export function ProjectEvaluatorGalleryPage() {
 }
 
 // oxlint-disable-next-line complexity
-function EvaluatorGallery() {
+function EvaluatorGallery({
+  creationPaths,
+  newLlmFromTemplatePath,
+  initialSelection,
+}: {
+  creationPaths: ProjectEvaluatorCreationPaths;
+  newLlmFromTemplatePath: (templateName: string) => string;
+  initialSelection: ProjectEvaluatorGallerySelection;
+}) {
   const navigate = useNavigate();
-  const paths = useProjectEvaluatorPaths();
   const { projectId } = useParams();
   if (!projectId) {
     throw new Error("projectId is required");
   }
-  const [searchParams, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<ProjectEvaluatorGalleryPageQueryType>(
     projectEvaluatorGalleryPageQuery,
     { projectId },
@@ -338,20 +364,20 @@ function EvaluatorGallery() {
     ),
     count: templatesByCategory.get(category)?.length ?? 0,
   }));
-  const requestedTemplateName = searchParams.get(
-    PROJECT_EVALUATOR_TEMPLATE_PARAM
-  );
-  const requestedEvaluatorId = searchParams.get(PROJECT_EVALUATOR_PARAM);
-  const requestedCategoryParam = searchParams.get(
-    PROJECT_EVALUATOR_CATEGORY_PARAM
-  ) as TemplateCategory | null;
+  const [selection, setSelection] = useState(initialSelection);
+  const requestedTemplateName =
+    selection.kind === "template" ? selection.templateName : undefined;
+  const requestedEvaluatorId =
+    selection.kind === "evaluator" ? selection.evaluatorId : undefined;
+  const requestedCategoryParam =
+    selection.kind === "category" ? selection.category : undefined;
   const requestedCategory =
     requestedCategoryParam && categories.includes(requestedCategoryParam)
       ? requestedCategoryParam
       : undefined;
 
-  // URL selections are optional deep links. Resolve them through the same item
-  // index that backs card selection so invalid or stale values are harmless.
+  // Resolve the requested selection through the same item index that backs
+  // card selection so an invalid or stale value is harmless.
   let requestedItem: GalleryItem | undefined;
   if (requestedEvaluatorId) {
     requestedItem = galleryItemsByKey.get(
@@ -378,7 +404,7 @@ function EvaluatorGallery() {
       ? { kind: "template", template: requestedCategoryTemplate }
       : undefined;
 
-  // Prefer deep-linked content, then fall back to the first available card.
+  // Prefer requested content, then fall back to the first available card.
   const selectedItem =
     requestedItem ?? requestedCategoryItem ?? galleryItems[0];
   const selectedItemKey = selectedItem
@@ -403,11 +429,11 @@ function EvaluatorGallery() {
     setActiveSection(section);
   };
 
-  // Keep the scroll position synchronized with gallery deep links. Prefer the
-  // requested card and fall back to its section when no card is available.
+  // Keep the scroll position synchronized with the requested card. Prefer the
+  // card and fall back to its section when no card is available.
   useEffect(() => {
-    // Wait for the route commit and React Aria collection layout before moving
-    // the scroll port; otherwise router scroll restoration can win this race.
+    // Wait for React Aria to finish laying out its collection before moving
+    // the scroll port.
     const animationFrameId = requestAnimationFrame(() => {
       const requestedCard = requestedItemKeyToScroll
         ? cardRefs.current.get(requestedItemKeyToScroll)
@@ -483,25 +509,14 @@ function EvaluatorGallery() {
   }, [sections]);
 
   const setSelectedItem = (item: GalleryItem) => {
-    setSearchParams((currentSearchParams) => {
-      const nextSearchParams = new URLSearchParams(currentSearchParams);
-      if (item.kind === "custom") {
-        nextSearchParams.set(PROJECT_EVALUATOR_PARAM, item.evaluator.id);
-        nextSearchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
-        nextSearchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
-      } else {
-        nextSearchParams.set(
-          PROJECT_EVALUATOR_CATEGORY_PARAM,
-          getGalleryCategory(item.template.category)
-        );
-        nextSearchParams.set(
-          PROJECT_EVALUATOR_TEMPLATE_PARAM,
-          item.template.name
-        );
-        nextSearchParams.delete(PROJECT_EVALUATOR_PARAM);
-      }
-      return nextSearchParams;
-    });
+    setSelection(
+      item.kind === "custom"
+        ? { kind: "evaluator", evaluatorId: item.evaluator.id }
+        : {
+            kind: "template",
+            templateName: item.template.name,
+          }
+    );
   };
   const renderSectionItem = ({
     id,
@@ -527,7 +542,7 @@ function EvaluatorGallery() {
         className="project-evaluator-gallery__categories"
         aria-label="Evaluator gallery navigation"
       >
-        <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
+        <EvaluatorGalleryAddMenu creationPaths={creationPaths} />
         <div className="project-evaluator-gallery__category-scroll-region">
           <ListBox
             aria-label="Evaluator gallery sections"
@@ -576,7 +591,7 @@ function EvaluatorGallery() {
       >
         <div className="project-evaluator-gallery__template-controls">
           <div className="project-evaluator-gallery__compact-add-evaluator-menu">
-            <EvaluatorGalleryAddMenu creationPaths={paths.galleryCreation} />
+            <EvaluatorGalleryAddMenu creationPaths={creationPaths} />
           </div>
           <Select
             aria-label="Evaluator gallery section"
@@ -644,13 +659,13 @@ function EvaluatorGallery() {
             if (item?.kind === "custom") {
               navigate(
                 getCustomEvaluatorKind(item.evaluator) === "LLM"
-                  ? paths.galleryCreation.copyLlm(item.evaluator.id)
-                  : paths.galleryCreation.attachCode(item.evaluator.id)
+                  ? creationPaths.copyLlm(item.evaluator.id)
+                  : creationPaths.attachCode(item.evaluator.id)
               );
               return;
             }
             if (item?.kind === "template") {
-              navigate(paths.newLlmFromTemplate(item.template.name));
+              navigate(newLlmFromTemplatePath(item.template.name));
             }
           }}
         >
@@ -796,17 +811,13 @@ function EvaluatorGallery() {
               <CustomEvaluatorDetails
                 evaluator={selectedItem.evaluator}
                 onAttachCodeEvaluator={() =>
-                  navigate(
-                    paths.galleryCreation.attachCode(selectedItem.evaluator.id)
-                  )
+                  navigate(creationPaths.attachCode(selectedItem.evaluator.id))
                 }
                 onDuplicateEvaluator={() =>
                   navigate(
                     getCustomEvaluatorKind(selectedItem.evaluator) === "LLM"
-                      ? paths.galleryCreation.copyLlm(selectedItem.evaluator.id)
-                      : paths.galleryCreation.copyCode(
-                          selectedItem.evaluator.id
-                        )
+                      ? creationPaths.copyLlm(selectedItem.evaluator.id)
+                      : creationPaths.copyCode(selectedItem.evaluator.id)
                   )
                 }
               />
@@ -816,7 +827,7 @@ function EvaluatorGallery() {
           <EvaluatorTemplateDetails
             template={selectedItem.template}
             onUseTemplate={() =>
-              navigate(paths.newLlmFromTemplate(selectedItem.template.name))
+              navigate(newLlmFromTemplatePath(selectedItem.template.name))
             }
           />
         ) : (
