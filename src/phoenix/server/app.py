@@ -131,7 +131,12 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS
+from phoenix.server.mcp.skills import (
+    PXI_SKILLS_ROOTS,
+    load_external_skills,
+    load_skills,
+    merge_skills,
+)
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     BearerAuthGuard,
@@ -1209,6 +1214,8 @@ def create_app(
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
+    external_skills = load_external_skills()
+    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), external_skills)
     mcp_http_app = None
     mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
@@ -1220,6 +1227,7 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
+            external_skills=external_skills,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
@@ -1253,6 +1261,7 @@ def create_app(
             read_only=True,
             db=db,
             skills_roots=PXI_SKILLS_ROOTS,
+            external_skills=external_skills,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
