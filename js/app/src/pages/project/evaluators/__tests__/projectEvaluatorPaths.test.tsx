@@ -45,10 +45,7 @@ function TestProjectEvaluatorPaths() {
         "Evaluator:code/source"
       )}
       data-response-quality-gallery={paths.galleryCategory("RESPONSE_QUALITY")}
-      data-template-gallery={paths.galleryTemplate({
-        category: "RESPONSE_QUALITY",
-        templateName: "Correctness",
-      })}
+      data-template={paths.newLlmFromTemplate("Correctness")}
       data-compare={paths.compare({
         a: "ProjectEvaluator:a/source",
         b: "ProjectEvaluator:b/source",
@@ -113,8 +110,8 @@ describe("useProjectEvaluatorPaths", () => {
     expect(output?.getAttribute("data-response-quality-gallery")).toBe(
       "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&proof=preserved"
     );
-    expect(output?.getAttribute("data-template-gallery")).toBe(
-      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&template=Correctness&proof=preserved"
+    expect(output?.getAttribute("data-template")).toBe(
+      "/projects/project-1/evaluators/new/template/Correctness?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
     );
     expect(output?.getAttribute("data-compare")).toBe(
       "/projects/project-1/evaluators/compare?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"

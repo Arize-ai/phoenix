@@ -102,7 +102,7 @@ import {
   LoggedOutPage,
   LoginPage,
   NewCodeProjectEvaluatorPage,
-  NewGalleryLlmFromTemplateProjectEvaluatorPage,
+  NewLlmFromTemplateProjectEvaluatorPage,
   NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
   PlaygroundPage,
@@ -523,6 +523,17 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               >
                 <Route
+                  path="new/template/:templateName"
+                  element={<NewLlmFromTemplateProjectEvaluatorPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "New Project Evaluator From Template",
+                      description:
+                        "Create a project LLM evaluator directly from the selected evaluator template.",
+                    },
+                  }}
+                />
+                <Route
                   path="new/llm"
                   element={<NewLlmProjectEvaluatorPage />}
                   handle={{
@@ -595,17 +606,6 @@ export const appRouteObjects = createRoutesFromElements(
                 },
               }}
             >
-              <Route
-                path="new/template/:templateName"
-                element={<NewGalleryLlmFromTemplateProjectEvaluatorPage />}
-                handle={{
-                  agentRoute: {
-                    label: "New Project Evaluator From Gallery Template",
-                    description:
-                      "Create a project LLM evaluator seeded from the selected evaluator gallery template.",
-                  },
-                }}
-              />
               <Route
                 path="new/llm"
                 element={<NewLlmProjectEvaluatorPage />}

@@ -104,23 +104,11 @@ export function useProjectEvaluatorPaths() {
           searchParams.delete(PROJECT_EVALUATOR_PARAM);
           searchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
         })}`,
-      galleryTemplate: ({
-        category,
-        templateName,
-      }: {
-        category: EvaluatorCategory;
-        templateName: string;
-      }) =>
-        `${gallery}${withSearchParams(search, (searchParams) => {
-          searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
-          searchParams.delete(PROJECT_EVALUATOR_PARAM);
-          searchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
-        })}`,
       listCreation: buildCreationPaths(list),
       galleryCreation: buildCreationPaths(gallery),
-      galleryNewLlmFromTemplate: (templateName: string) =>
+      newLlmFromTemplate: (templateName: string) =>
         withCurrentSearch(
-          `${gallery}/new/template/${encodeURIComponent(templateName)}`
+          `${list}/new/template/${encodeURIComponent(templateName)}`
         ),
       details: (projectEvaluatorId: string) =>
         withCurrentSearch(`${list}/${encodeURIComponent(projectEvaluatorId)}`),
