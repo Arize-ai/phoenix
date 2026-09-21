@@ -127,13 +127,15 @@ class SessionConflict(Exception):
 class Turn:
     """Everything one user instruction produced, across approval continuations."""
 
-    user_message: Message
+    user_message: Message | None
     assistant_messages: list[Message] = field(default_factory=list)
     stream_errors: list[str] = field(default_factory=list)
 
     @property
     def messages(self) -> list[Message]:
-        return [self.user_message, *self.assistant_messages]
+        """A turn resumed from seeded tool outputs has no user message of its own."""
+        prefix = [self.user_message] if self.user_message is not None else []
+        return [*prefix, *self.assistant_messages]
 
     @property
     def final_message(self) -> Message:
@@ -310,6 +312,34 @@ class AgentSessionChatClient:
             turn.stream_errors.extend(errors)
         return turn
 
+    async def run_seeded_turn(self, seed: dict[str, Any]) -> Turn:
+        """Continue a session seeded by ``evals.harbor.pxi.seed`` as the browser would.
+
+        The turn runs non-headless so the browser tools are available. It ends when the
+        server stops streaming: the model finished, or it called a client-executed tool
+        or asked for approval, which the PXI evals score without answering.
+        """
+        client = seed["client"]
+        body: dict[str, Any] = {
+            "id": seed["session_id"],
+            "trigger": "submit-message",
+            "headless": False,
+            "model": self._model,
+            "editPermission": client["edit_permission"],
+            "contexts": client["contexts"],
+            "recordLocalTraces": True,
+            "lastMessageId": client["last_message_id"],
+        }
+        if client.get("message") is not None:
+            body["message"] = client["message"]
+        else:
+            body["toolOutputs"] = client["tool_outputs"]
+        turn = Turn(user_message=client.get("message"))
+        message, errors = await self._chat(seed["session_id"], body)
+        turn.assistant_messages.append(message)
+        turn.stream_errors.extend(errors)
+        return turn
+
     async def _chat(self, session_id: str, body: dict[str, Any]) -> tuple[Message, list[str]]:
         for attempt in range(_BUSY_RETRY_ATTEMPTS):
             try:
@@ -400,15 +430,22 @@ async def run(args: argparse.Namespace) -> None:
         turn_timeout_seconds=args.turn_timeout_seconds,
     )
     try:
-        session_id = args.session_id or await client.create_session()
-        turn = await client.run_turn(
-            session_id,
-            args.instruction_file.read_text(),
-            edit_permission=edit_permission,
-            mutations_enabled=args.allow_mutations,
-            approve=lambda _part: args.approve_tool_calls,
-            record_local_traces=True,
-        )
+        if args.seed_file is not None:
+            seed = json.loads(args.seed_file.read_text())
+            session_id = str(seed["session_id"])
+            turn = await client.run_seeded_turn(seed)
+        else:
+            if args.instruction_file is None:
+                raise ValueError("--instruction-file is required without --seed-file")
+            session_id = args.session_id or await client.create_session()
+            turn = await client.run_turn(
+                session_id,
+                args.instruction_file.read_text(),
+                edit_permission=edit_permission,
+                mutations_enabled=args.allow_mutations,
+                approve=lambda _part: args.approve_tool_calls,
+                record_local_traces=True,
+            )
         transcript = await client.list_messages(session_id)
         turn_spans = await client.fetch_turn_spans(turn.trace_contexts)
     finally:
@@ -429,7 +466,13 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:6006")
     parser.add_argument("--model", required=True, help="Harbor provider/model name")
-    parser.add_argument("--instruction-file", type=Path, required=True)
+    parser.add_argument("--instruction-file", type=Path, default=None)
+    parser.add_argument(
+        "--seed-file",
+        type=Path,
+        default=None,
+        help="Continue the session seeded by evals.harbor.pxi.seed instead of a new one",
+    )
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument(
         "--session-id", default=None, help="Continue this session; omit to create one"

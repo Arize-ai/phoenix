@@ -216,6 +216,46 @@ gcloud storage cp --cache-control=no-store phoenix.db \
 RESEED=1 make harbor-stage HARBOR_CLI=0
 ```
 
+## The PXI eval datasets
+
+`jobs/pxi.yaml` runs the datasets under `evals/pxi/datasets/` through the agent session
+chat route. Each dataset becomes one multi-step task under `tasks/pxi/`, and each example
+becomes a step. `harbor-stage` generates the tasks with `evals.harbor.pxi.generate_tasks`;
+they are not committed because the YAML files are the source of truth.
+
+Every step seeds a fresh session with the example's primed transcript, runs one turn, and
+verifies it:
+
+1. `PxiEvalAgent` runs `evals.harbor.pxi.seed` as root. The seeder compiles the example
+   with the harness's fixture compiler, gives the active user turn the metadata the
+   browser would attach, and writes the session and its messages to the database. A
+   transcript that ends with a completed tool result is stored with that call pending.
+2. The chat client continues the session with `headless: false`, so the browser tools
+   are available, and either posts the final user message or submits the stored call's
+   output as `toolOutputs`, the way the browser answers a client-executed tool. The turn
+   ends when the server stops streaming: the model replied, called a client-executed
+   tool, or asked for approval. Nothing answers those calls, so each step scores the
+   next action like the pytest harness does.
+3. `evals.harbor.pxi.verify` reads the transcript back, drops the seeded prefix, and runs
+   the evaluators the dataset declares over the new tool calls and text. The reward is 1
+   when every evaluator passes, and each evaluator's score is written beside it.
+
+Two differences from the pytest harness: the server and database are real, so `bash` and
+`execute` calls run against the empty fixture instead of ending the turn, and
+per-`(dataset, evaluator, split)` thresholds from `evals/pxi/thresholds.yaml` are not
+applied. Harbor reports the mean step reward per task.
+
+```bash
+# Stage a subset while iterating: two datasets, three examples each.
+HARBOR_PXI_ARGS="--datasets set_spans_filter in_app_links --limit 3" HARBOR_CLI=0 make harbor-stage
+make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml HARBOR_ARGS='-e docker -k 1'
+# Stage every dataset.
+HARBOR_CLI=0 make harbor-stage
+```
+
+The job records to a dataset per task directory name, such as `set_spans_filter`. Set
+`HARBOR_PLUGIN=` to run without a Phoenix instance to record to.
+
 ## Test an unreleased client plugin
 
 Build the client wheel and use it in the Harbor environment instead of the pinned release:
