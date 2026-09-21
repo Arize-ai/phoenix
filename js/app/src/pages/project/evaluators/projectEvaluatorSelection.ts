@@ -2,15 +2,8 @@ import type { RowSelectionState } from "@tanstack/react-table";
 
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
-export type SelectedProjectEvaluator = {
-  id: string;
-  name: string;
-  evaluationTarget: ProjectEvaluatorTarget;
-};
-
-export type ProjectEvaluatorSelection = Record<
-  string,
-  SelectedProjectEvaluator
+export type ProjectEvaluatorSelection = Partial<
+  Record<string, ProjectEvaluatorTarget>
 >;
 
 export function toRowSelectionState(
@@ -20,27 +13,27 @@ export function toRowSelectionState(
 }
 
 /**
- * Reconciles TanStack's id-only selection with the metadata the compare
- * toolbar needs. Selections on unloaded pages remain intact; unchecked ids
- * are removed and newly checked rows receive metadata from the current page.
+ * Reconciles TanStack's id-only selection with the evaluation targets the
+ * compare toolbar needs. Selections on unloaded pages remain intact; unchecked
+ * ids are removed and newly checked rows receive targets from the current page.
  */
 export function reconcileProjectEvaluatorSelection({
   nextRowSelection,
   previousSelection,
-  rowsById,
+  targetsById,
 }: {
   nextRowSelection: RowSelectionState;
   previousSelection: ProjectEvaluatorSelection;
-  rowsById: Record<string, SelectedProjectEvaluator>;
+  targetsById: Partial<Record<string, ProjectEvaluatorTarget>>;
 }): ProjectEvaluatorSelection {
   const nextSelection: ProjectEvaluatorSelection = {};
   for (const [id, isSelected] of Object.entries(nextRowSelection)) {
     if (!isSelected) {
       continue;
     }
-    const evaluator = previousSelection[id] ?? rowsById[id];
-    if (evaluator) {
-      nextSelection[id] = evaluator;
+    const evaluationTarget = previousSelection[id] ?? targetsById[id];
+    if (evaluationTarget) {
+      nextSelection[id] = evaluationTarget;
     }
   }
   return nextSelection;
@@ -49,14 +42,14 @@ export function reconcileProjectEvaluatorSelection({
 export function getCompareEvaluatorsDisabledReason(
   selection: ProjectEvaluatorSelection
 ): string | null {
-  const selected = Object.values(selection);
-  if (selected.length < 2) {
+  const selectedTargets = Object.values(selection);
+  if (selectedTargets.length < 2) {
     return "Select two evaluators to compare";
   }
-  if (selected.length > 2) {
+  if (selectedTargets.length > 2) {
     return "Select exactly two evaluators to compare";
   }
-  if (selected[0]?.evaluationTarget !== selected[1]?.evaluationTarget) {
+  if (selectedTargets[0] !== selectedTargets[1]) {
     return "Both evaluators must evaluate the same target (span, trace, or session)";
   }
   return null;

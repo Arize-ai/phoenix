@@ -408,13 +408,10 @@ export function ProjectEvaluatorsTable({
     () => data.evaluators.edges.map(({ node }) => readRow(node)),
     [data.evaluators.edges]
   );
-  const rowsById = useMemo(
+  const targetsById = useMemo(
     () =>
       Object.fromEntries(
-        tableData.map(({ id, name, evaluationTarget }) => [
-          id,
-          { id, name, evaluationTarget },
-        ])
+        tableData.map(({ id, evaluationTarget }) => [id, evaluationTarget])
       ),
     [tableData]
   );
@@ -429,11 +426,11 @@ export function ProjectEvaluatorsTable({
         reconcileProjectEvaluatorSelection({
           nextRowSelection,
           previousSelection: selection,
-          rowsById,
+          targetsById,
         })
       );
     },
-    [onSelectionChange, rowSelection, rowsById, selection]
+    [onSelectionChange, rowSelection, selection, targetsById]
   );
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();

@@ -25,7 +25,7 @@ export function CompareProjectEvaluatorsButton({
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
   const disabledReason = getCompareEvaluatorsDisabledReason(selection);
-  const selected = Object.values(selection);
+  const selectedEvaluatorIds = Object.keys(selection);
   const button = (
     <Button
       size="M"
@@ -33,9 +33,9 @@ export function CompareProjectEvaluatorsButton({
       isDisabled={disabledReason != null}
       leadingVisual={<Icon svg={<Icons.ArrowCompare />} />}
       onPress={() => {
-        const [a, b] = selected;
-        if (a && b) {
-          navigate(paths.compare({ a: a.id, b: b.id }));
+        const [evaluatorAId, evaluatorBId] = selectedEvaluatorIds;
+        if (evaluatorAId && evaluatorBId) {
+          navigate(paths.compare({ a: evaluatorAId, b: evaluatorBId }));
         }
       }}
     >

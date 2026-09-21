@@ -1,69 +1,57 @@
 import {
   getCompareEvaluatorsDisabledReason,
   reconcileProjectEvaluatorSelection,
-  type SelectedProjectEvaluator,
+  type ProjectEvaluatorSelection,
   toRowSelectionState,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
-
-const evaluator = (
-  id: string,
-  evaluationTarget: SelectedProjectEvaluator["evaluationTarget"] = "SPAN"
-): SelectedProjectEvaluator => ({
-  id,
-  name: `Evaluator ${id}`,
-  evaluationTarget,
-});
 
 describe("project evaluator selection", () => {
   it("requires exactly two evaluators with the same target", () => {
     expect(getCompareEvaluatorsDisabledReason({})).toBe(
       "Select two evaluators to compare"
     );
-    expect(getCompareEvaluatorsDisabledReason({ a: evaluator("a") })).toBe(
+    expect(getCompareEvaluatorsDisabledReason({ a: "SPAN" })).toBe(
       "Select two evaluators to compare"
     );
     expect(
       getCompareEvaluatorsDisabledReason({
-        a: evaluator("a"),
-        b: evaluator("b"),
-        c: evaluator("c"),
+        a: "SPAN",
+        b: "SPAN",
+        c: "SPAN",
       })
     ).toBe("Select exactly two evaluators to compare");
     expect(
       getCompareEvaluatorsDisabledReason({
-        a: evaluator("a"),
-        b: evaluator("b", "SESSION"),
+        a: "SPAN",
+        b: "SESSION",
       })
     ).toBe(
       "Both evaluators must evaluate the same target (span, trace, or session)"
     );
     expect(
       getCompareEvaluatorsDisabledReason({
-        a: evaluator("a"),
-        b: evaluator("b"),
+        a: "SPAN",
+        b: "SPAN",
       })
     ).toBeNull();
   });
 
   it("preserves unloaded rows, removes unchecked rows, and adds loaded rows", () => {
-    const previousSelection = {
-      unloaded: evaluator("unloaded"),
-      removed: evaluator("removed"),
+    const previousSelection: ProjectEvaluatorSelection = {
+      unloaded: "SPAN",
+      removed: "SPAN",
     };
-    const added = evaluator("added", "SESSION");
     expect(
       reconcileProjectEvaluatorSelection({
         nextRowSelection: { unloaded: true, added: true },
         previousSelection,
-        rowsById: { added },
+        targetsById: { added: "SESSION" },
       })
-    ).toEqual({ unloaded: previousSelection.unloaded, added });
+    ).toEqual({ unloaded: "SPAN", added: "SESSION" });
   });
 
-  it("converts rich selection to TanStack row selection state", () => {
-    expect(
-      toRowSelectionState({ a: evaluator("a"), b: evaluator("b") })
-    ).toEqual({
+  it("converts target selection to TanStack row selection state", () => {
+    expect(toRowSelectionState({ a: "SPAN", b: "SPAN" })).toEqual({
       a: true,
       b: true,
     });

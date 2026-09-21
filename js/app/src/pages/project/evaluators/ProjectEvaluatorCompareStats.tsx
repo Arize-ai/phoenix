@@ -19,7 +19,6 @@ import {
   ChartPanel,
   ChartPanelStrip,
   ChartTooltipItem,
-  CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
 } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareStats_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_comparison.graphql";
 import {
@@ -38,8 +37,10 @@ import {
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
 
+const COMPARE_STATS_HEIGHT_PIXELS = 208;
+
 const stripCSS = css`
-  height: ${CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}px;
+  height: ${COMPARE_STATS_HEIGHT_PIXELS}px;
 
   .chart-panel .chart-panel__title.heading {
     font-size: var(--global-font-size-m);
