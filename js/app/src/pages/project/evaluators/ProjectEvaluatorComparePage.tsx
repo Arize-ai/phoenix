@@ -91,9 +91,10 @@ function ProjectEvaluatorComparePageLoaded({
   // `now` and issue a different request indefinitely.
   const timeRange = useClosedTimeRange();
   // A live range's "now" advances every minute or hour. Deferring it keeps the
-  // current comparison on screen while the refreshed queries load. The
-  // Suspense boundary below is keyed on the pair alone, so a new pair still
-  // shows the loading state at once.
+  // current comparison on screen while the refreshed queries load, and nothing
+  // below is keyed on the range, so the comparison subtree refetches in place
+  // and keeps its table state. The Suspense boundary is keyed on the pair
+  // alone, so a new pair still shows the loading state at once.
   const deferredTimeRange = useDeferredValue(timeRange);
   const evaluatorA =
     data.evaluatorA?.__typename === "ProjectEvaluator" ? data.evaluatorA : null;
@@ -167,7 +168,7 @@ function ProjectEvaluatorComparePageLoaded({
           <div css={contentCSS}>
             <Suspense key={pairKey} fallback={<Loading />}>
               <ErrorBoundary
-                key={comparisonKey}
+                resetKey={comparisonKey}
                 fallback={ProjectEvaluatorCompareErrorFallback}
               >
                 <ProjectEvaluatorCompareContent

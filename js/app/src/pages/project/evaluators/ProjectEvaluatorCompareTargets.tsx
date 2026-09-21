@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
-import { useParams, useSearchParams } from "react-router";
+import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -14,15 +14,11 @@ import {
   Token,
 } from "@phoenix/components";
 import { EmptyState } from "@phoenix/components/core/empty";
+import { useTimeRangeSearch } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
-import {
-  SPAN_FILTER_CONDITION_PARAM,
-  TIME_RANGE_KEY_PARAM,
-  TIME_RANGE_START_PARAM,
-  TIME_RANGE_END_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
@@ -37,6 +33,7 @@ import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { makeFlatAnnotationColumnId } from "@phoenix/pages/project/tableUtils";
 import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
 import { TracesTable } from "@phoenix/pages/project/TracesTable";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectEvaluatorCompareTargets_comparison$key } from "./__generated__/ProjectEvaluatorCompareTargets_comparison.graphql";
 import type { ProjectEvaluatorCompareTargets_evaluator$key } from "./__generated__/ProjectEvaluatorCompareTargets_evaluator.graphql";
@@ -145,17 +142,9 @@ export function ProjectEvaluatorCompareTargets({
     [sideB.annotationName]: true,
   };
   const { rootPath } = useProjectRootPath();
-  const [searchParams] = useSearchParams();
-  const spansSearch = new URLSearchParams();
-  for (const [key, value] of searchParams) {
-    if (
-      key === TIME_RANGE_KEY_PARAM ||
-      key === TIME_RANGE_START_PARAM ||
-      key === TIME_RANGE_END_PARAM
-    )
-      spansSearch.set(key, value);
-  }
-  spansSearch.set(SPAN_FILTER_CONDITION_PARAM, condition);
+  const spansSearch = withSearchParams(useTimeRangeSearch(), (params) =>
+    params.set(SPAN_FILTER_CONDITION_PARAM, condition)
+  );
   return (
     <Flex direction="column" gap="size-100">
       <Flex
@@ -177,7 +166,7 @@ export function ProjectEvaluatorCompareTargets({
           )}
         </Flex>
         {target === "SPAN" ? (
-          <LinkButton to={`${rootPath}/spans?${spansSearch}`}>
+          <LinkButton to={`${rootPath}/spans${spansSearch}`}>
             Open in Spans
           </LinkButton>
         ) : null}

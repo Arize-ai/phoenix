@@ -65,11 +65,28 @@ export function getComparedOutputName({
 
 const formatThreshold = (threshold: number) => `${threshold}`;
 
-// Flagged is the non-positive side of getPositiveOptimization: MAXIMIZE uses
-// > for positive, so scores at or below the threshold are flagged (and vice versa).
+/**
+ * The comparison operators that split scores at the flag threshold, as filter
+ * DSL. Flagged is the non-positive side of getPositiveOptimization: MAXIMIZE
+ * uses > for positive, so scores at or below the threshold are flagged (and
+ * vice versa); an unknown direction flags at or above, like the server.
+ */
+export function getFlagThresholdOperators(
+  optimizationDirection: EvaluatorOptimizationDirection | null
+): { flagged: "<=" | ">="; unflagged: ">" | "<" } {
+  return optimizationDirection === "MAXIMIZE"
+    ? { flagged: "<=", unflagged: ">" }
+    : { flagged: ">=", unflagged: "<" };
+}
+
+const THRESHOLD_OPERATOR_SYMBOLS = { "<=": "≤", ">=": "≥" } as const;
+
 const getFlaggedThresholdOperator = (
   optimizationDirection: EvaluatorOptimizationDirection | null
-) => (optimizationDirection === "MAXIMIZE" ? "≤" : "≥");
+) =>
+  THRESHOLD_OPERATOR_SYMBOLS[
+    getFlagThresholdOperators(optimizationDirection).flagged
+  ];
 
 export function formatMatrixSubtitle({
   target,

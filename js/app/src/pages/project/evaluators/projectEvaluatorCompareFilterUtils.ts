@@ -6,6 +6,7 @@ import {
 } from "@phoenix/utils/filterConditionUtils";
 
 import type { CompareSelection } from "./projectEvaluatorCompareSelection";
+import { getFlagThresholdOperators } from "./projectEvaluatorCompareUtils";
 
 export type CompareTarget = "SPAN" | "TRACE" | "SESSION";
 export type CompareFilterSide = {
@@ -41,15 +42,9 @@ function buildBinCondition({
   label: string;
 }): string {
   if (side.threshold != null) {
-    const isFlagged = label === "flagged";
-    const isMaximize = side.optimizationDirection === "MAXIMIZE";
-    const operator = isFlagged
-      ? isMaximize
-        ? "<="
-        : ">="
-      : isMaximize
-        ? ">"
-        : "<";
+    const operators = getFlagThresholdOperators(side.optimizationDirection);
+    const operator =
+      label === "flagged" ? operators.flagged : operators.unflagged;
     return `${field}.score ${operator} ${side.threshold}`;
   }
   if (label === "other") {

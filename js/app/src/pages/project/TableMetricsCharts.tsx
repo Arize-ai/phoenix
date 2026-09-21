@@ -28,8 +28,6 @@ import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
 const CHARTS_PANEL_MAX_SIZE = "60%";
 
-const PANEL_IDS = ["metrics-charts", "table-content"];
-
 /**
  * Pull the following panel up by the handle's height so the handle adds no
  * layout height of its own — it overlays the top of the table content's
@@ -97,8 +95,9 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
  * Lays out the metric charts strip above a table in a vertically resizable
  * panel group. A transparent drag handle sits between the charts and the
  * table content (filter bar + table) so the charts can be resized to take up
- * more or less vertical space. When no charts are selected the table content
- * renders on its own, outside any panel group.
+ * more or less vertical space. Where the project store offers no metric
+ * charts at all, the table content renders on its own, outside any panel
+ * group.
  */
 export function TableMetricsChartsPanelGroup({
   view,
@@ -107,22 +106,29 @@ export function TableMetricsChartsPanelGroup({
   view: MetricChartTableView;
   children: ReactNode;
 }) {
+  // Fixed for the store's lifetime, so this never flips under a mounted table
+  const showMetricCharts = useProjectContext((state) => state.showMetricCharts);
   // The store guarantees keys are valid catalog keys, so any selection means
   // there are charts to show
   const hasCharts = useProjectContext(
-    (state) => state.showMetricCharts && state.metricChartKeys[view].length > 0
+    (state) => state.metricChartKeys[view].length > 0
   );
   // Persist the layout so the charts strip keeps its height across reloads
   // and remounts (e.g. table refetches) instead of resetting to the default
   const layoutId = `${view}-table-metrics-layout`;
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: layoutId,
-    panelIds: PANEL_IDS,
+    panelIds: hasCharts
+      ? ["metrics-charts", "table-content"]
+      : ["table-content"],
     storage: localStorage,
   });
-  if (!hasCharts) {
+  if (!showMetricCharts) {
     return children;
   }
+  // The table content always sits in the same panel of the same group whether
+  // or not charts are selected, so selecting the first chart or clearing the
+  // last one shows or hides the strip without remounting the table beneath it
   return (
     <Group
       orientation="vertical"
@@ -130,17 +136,23 @@ export function TableMetricsChartsPanelGroup({
       defaultLayout={defaultLayout}
       onLayoutChanged={onLayoutChanged}
     >
-      <Panel
-        id="metrics-charts"
-        defaultSize={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
-        minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
-        maxSize={CHARTS_PANEL_MAX_SIZE}
-        groupResizeBehavior="preserve-pixel-size"
-        style={{ overflow: "visible" }}
-      >
-        <TableMetricsCharts view={view} />
-      </Panel>
-      <Separator css={[transparentResizeHandleCSS, chartsResizeHandleCSS]} />
+      {hasCharts && (
+        <>
+          <Panel
+            id="metrics-charts"
+            defaultSize={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
+            minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
+            maxSize={CHARTS_PANEL_MAX_SIZE}
+            groupResizeBehavior="preserve-pixel-size"
+            style={{ overflow: "visible" }}
+          >
+            <TableMetricsCharts view={view} />
+          </Panel>
+          <Separator
+            css={[transparentResizeHandleCSS, chartsResizeHandleCSS]}
+          />
+        </>
+      )}
       <Panel id="table-content">{children}</Panel>
     </Group>
   );
