@@ -36,6 +36,18 @@ jobs:
       - name: Update skills from skills-lock.json
         run: npx --yes skills update --project -y
 
+      - name: Remove skills the update added that are not in the committed lockfile
+        run: |
+          comm -13 \
+            <(git show HEAD:skills-lock.json | jq -r '.skills | keys[]' | sort) \
+            <(jq -r '.skills | keys[]' skills-lock.json | sort) |
+          while read -r skill; do
+            echo "Removing untracked skill: $skill"
+            rm -rf ".agents/skills/$skill"
+            jq --arg s "$skill" 'del(.skills[$s])' skills-lock.json > skills-lock.json.tmp
+            mv skills-lock.json.tmp skills-lock.json
+          done
+
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date -u +%Y-%m-%d-%H-%M-%S)" >> "$GITHUB_OUTPUT"
@@ -57,5 +69,4 @@ jobs:
           labels: documentation
           add-paths: |
             .agents/skills/**
-            .claude/skills/**
             skills-lock.json
