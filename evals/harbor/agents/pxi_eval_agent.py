@@ -1,8 +1,12 @@
-"""PXI driven from a seeded session: one step per PXI eval example."""
+"""PXI driven from a seeded session: one Harbor task per PXI eval example."""
 
 from __future__ import annotations
 
+import json
 import shlex
+import tempfile
+from pathlib import Path
+from typing import Any
 
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
@@ -13,6 +17,7 @@ from evals.harbor.agents.phoenix_chat_agent import (
     _STEPS_DIR,
     PhoenixChatAgent,
 )
+from evals.harbor.pxi.examples import parse_instruction
 
 _EXAMPLE_PATH = "/app/example.json"
 _SEED_PATH = "/app/seed.json"
@@ -20,11 +25,12 @@ _VERIFIER_PYTHONPATH = "/opt/verifier"
 
 
 class PxiEvalAgent(PhoenixChatAgent):
-    """Seed the step's example into a fresh session, then run the continuation turn.
+    """Seed the task's example into a fresh session, then run the continuation turn.
 
-    Harbor uploads each step's ``workdir/example.json`` to the working directory. The
-    seeder runs as root because the database is root-only; the chat client then runs as
-    the agent user and reaches Phoenix over HTTP like the browser does.
+    The example arrives as the JSON block of the task instruction, the only file Harbor
+    hands an agent at run time. The seeder runs as root because the database is
+    root-only; the chat client then runs as the agent user and reaches Phoenix over HTTP
+    like the browser does.
     """
 
     @staticmethod
@@ -40,6 +46,7 @@ class PxiEvalAgent(PhoenixChatAgent):
             )
         self._step += 1
         out_dir = f"{_STEPS_DIR}/{self._step}"
+        await self._upload_example(environment, parse_instruction(instruction))
         seed_command = (
             f"PYTHONPATH={_VERIFIER_PYTHONPATH} python -m evals.harbor.pxi.seed {_EXAMPLE_PATH}"
             f" --model {shlex.quote(self.model_name)} --out {_SEED_PATH}"
@@ -57,3 +64,12 @@ class PxiEvalAgent(PhoenixChatAgent):
         ]
         await self._exec(environment, " ".join(command))
         self._session_id = (await self._exec(environment, f"cat {out_dir}/session_id")).strip()
+
+    async def _upload_example(self, environment: BaseEnvironment, example: dict[str, Any]) -> None:
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as file:
+            json.dump(example, file)
+            example_file = Path(file.name)
+        try:
+            await self._upload_for_agent(environment, example_file, _EXAMPLE_PATH)
+        finally:
+            example_file.unlink()

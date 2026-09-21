@@ -2,11 +2,12 @@
 # requires-python = ">=3.10"
 # dependencies = ["pyyaml", "pydantic"]
 # ///
-"""Generate one multi-step Harbor task per PXI dataset.
+"""Generate one Harbor task per PXI eval example.
 
-Each example becomes a step whose ``workdir/example.json`` holds the example and whose
-``instruction.md`` shows the user's request. ``harbor-stage`` runs this before staging;
-the generated tasks are not committed because the YAML datasets are the source of truth.
+Each task's ``instruction.md`` holds the user's request followed by the example as JSON,
+which is how the example reaches the agent at run time. Every task shares the same build
+context so Harbor builds one image. ``harbor-stage`` runs this before staging; the
+generated tasks are not committed because the YAML datasets are the source of truth.
 
     uv run python -m evals.harbor.pxi.generate_tasks --out evals/harbor/tasks/pxi
     uv run python -m evals.harbor.pxi.generate_tasks --datasets set_spans_filter --splits regression
@@ -22,21 +23,22 @@ from pathlib import Path
 from typing import Any
 
 from evals.harbor.pxi.dataset import DATASETS_DIR, load_dataset
-from evals.harbor.pxi.examples import example_records, step_name, user_instruction
+from evals.harbor.pxi.examples import example_records, render_instruction, step_name
 
-TASK_TOML_HEADER = """\
+TASK_TOML = """\
 schema_version = "1.3"
-multi_step_reward_strategy = "mean"
 artifacts = ["/var/lib/phoenix-eval/server.log"]
 
 [task]
-name = "arize/pxi-{dataset}"
+name = "arize/pxi-{dataset}-{example}"
 description = {description}
 keywords = ["pxi", "agent_session_chat", "{dataset}"]
 
 [metadata]
 fixture = "pxi"
 pxi_dataset = "{dataset}"
+pxi_example = {example_id}
+pxi_splits = {splits}
 
 [environment]
 os = "linux"
@@ -57,17 +59,12 @@ command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
 timeout_sec = 180.0
 retries = 2
 
-# The chat client only talks to Phoenix over HTTP; the agent class seeds sessions as root.
+# The chat client only talks to Phoenix over HTTP; the agent class seeds the session as root.
 [agent]
 user = "agent"
-"""
-
-STEP_TOML = """
-[[steps]]
-name = "{step}"
-[steps.agent]
 timeout_sec = {agent_timeout}
-[steps.verifier]
+
+[verifier]
 timeout_sec = 120.0
 """
 
@@ -89,15 +86,18 @@ def _toml_string(value: str) -> str:
     return json.dumps(" ".join(value.split()))
 
 
+def task_dir_name(example: dict[str, Any]) -> str:
+    return f"{example['dataset']}__{step_name(example['id'])}"
+
+
 def write_task(
-    dataset: str,
-    examples: list[dict[str, Any]],
+    example: dict[str, Any],
     *,
     out_dir: Path,
     description: str,
     agent_timeout_sec: float,
 ) -> Path:
-    task_dir = out_dir / dataset
+    task_dir = out_dir / task_dir_name(example)
     if task_dir.exists():
         environment = task_dir / "environment"
         for child in task_dir.iterdir():
@@ -108,18 +108,17 @@ def write_task(
     test_sh = task_dir / "tests" / "test.sh"
     test_sh.write_text(TEST_SH)
     test_sh.chmod(test_sh.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-
-    toml = [TASK_TOML_HEADER.format(dataset=dataset, description=_toml_string(description))]
-    for example in examples:
-        step = step_name(example["id"])
-        step_dir = task_dir / "steps" / step
-        (step_dir / "workdir").mkdir(parents=True)
-        (step_dir / "instruction.md").write_text(user_instruction(example).rstrip() + "\n")
-        (step_dir / "workdir" / "example.json").write_text(
-            json.dumps(example, indent=2, ensure_ascii=False) + "\n"
+    (task_dir / "instruction.md").write_text(render_instruction(example))
+    (task_dir / "task.toml").write_text(
+        TASK_TOML.format(
+            dataset=example["dataset"],
+            example=step_name(example["id"]),
+            example_id=json.dumps(example["id"]),
+            splits=json.dumps(example["splits"]),
+            description=_toml_string(description),
+            agent_timeout=agent_timeout_sec,
         )
-        toml.append(STEP_TOML.format(step=step, agent_timeout=agent_timeout_sec))
-    (task_dir / "task.toml").write_text("".join(toml))
+    )
     return task_dir
 
 
@@ -131,7 +130,7 @@ def generate(
     limit: int | None,
     agent_timeout_sec: float,
 ) -> list[Path]:
-    """Write the selected datasets and remove task directories for any others."""
+    """Write one task per selected example and remove task directories for any others."""
     names = datasets or sorted(path.stem for path in DATASETS_DIR.glob("*.yaml"))
     written: list[Path] = []
     for name in names:
@@ -141,17 +140,16 @@ def generate(
             examples = [e for e in examples if any(s in splits for s in e["splits"])]
         if limit is not None:
             examples = examples[:limit]
-        if not examples:
-            continue
-        written.append(
-            write_task(
-                name,
-                examples,
-                out_dir=out_dir,
-                description=dataset.description or f"PXI eval dataset {name}",
-                agent_timeout_sec=agent_timeout_sec,
+        description = dataset.description or f"PXI eval dataset {name}"
+        for example in examples:
+            written.append(
+                write_task(
+                    example,
+                    out_dir=out_dir,
+                    description=f"{example['id']}: {description}",
+                    agent_timeout_sec=agent_timeout_sec,
+                )
             )
-        )
     if out_dir.exists():
         for child in out_dir.iterdir():
             if child.is_dir() and child not in written:
@@ -174,8 +172,7 @@ def main(argv: list[str] | None = None) -> None:
         limit=args.limit,
         agent_timeout_sec=args.agent_timeout_sec,
     )
-    steps = sum(len(list((task / "steps").iterdir())) for task in written)
-    print(f"Generated {len(written)} task(s) with {steps} step(s) under {args.out}")
+    print(f"Generated {len(written)} task(s) under {args.out}")
 
 
 if __name__ == "__main__":

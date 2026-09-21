@@ -317,7 +317,9 @@ class AgentSessionChatClient:
 
         The turn runs non-headless so the browser tools are available. It ends when the
         server stops streaming: the model finished, or it called a client-executed tool
-        or asked for approval, which the PXI evals score without answering.
+        or asked for approval, which the PXI evals score without answering. The turn's
+        own traces are not recorded, so the trajectory carries token counts from the
+        message metadata but no per-call latencies.
         """
         client = seed["client"]
         body: dict[str, Any] = {
@@ -327,7 +329,7 @@ class AgentSessionChatClient:
             "model": self._model,
             "editPermission": client["edit_permission"],
             "contexts": client["contexts"],
-            "recordLocalTraces": True,
+            "recordLocalTraces": False,
             "lastMessageId": client["last_message_id"],
         }
         if client.get("message") is not None:

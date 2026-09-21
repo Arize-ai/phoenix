@@ -7,7 +7,13 @@ from typing import Any
 import pytest
 
 from evals.harbor.pxi.dataset import DATASETS_DIR
-from evals.harbor.pxi.examples import load_example_records, step_name, user_instruction
+from evals.harbor.pxi.examples import (
+    load_example_records,
+    parse_instruction,
+    render_instruction,
+    step_name,
+    user_instruction,
+)
 from evals.harbor.pxi.generate_tasks import generate
 from evals.harbor.pxi.seed import plan_seed
 from evals.harbor.pxi.verify import (
@@ -210,7 +216,7 @@ def test_evaluator_output_reads_dynamic_tool_parts() -> None:
     ]
 
 
-def test_generate_writes_one_step_per_example(tmp_path: Path) -> None:
+def test_generate_writes_one_task_per_example(tmp_path: Path) -> None:
     written = generate(
         out_dir=tmp_path,
         datasets=["in_app_links"],
@@ -218,19 +224,29 @@ def test_generate_writes_one_step_per_example(tmp_path: Path) -> None:
         limit=2,
         agent_timeout_sec=600.0,
     )
-    assert [task.name for task in written] == ["in_app_links"]
+    assert [task.name for task in written] == [
+        "in_app_links__route-info-agent-settings-link",
+        "in_app_links__route-info-ai-provider-settings-link",
+    ]
     task = written[0]
-    steps = sorted(p.name for p in (task / "steps").iterdir())
-    assert len(steps) == 2
     toml = (task / "task.toml").read_text()
-    assert toml.count("[[steps]]") == 2
+    assert "[[steps]]" not in toml
     assert 'fixture = "pxi"' in toml
-    for step in steps:
-        assert (task / "steps" / step / "workdir" / "example.json").exists()
-        assert (task / "steps" / step / "instruction.md").read_text().strip()
+    assert 'pxi_example = "route-info-agent-settings-link"' in toml
+    instruction = (task / "instruction.md").read_text()
+    assert instruction.startswith("Link me to the Phoenix agent settings page.\n")
+    example = parse_instruction(instruction)
+    assert example["id"] == "route-info-agent-settings-link"
+    assert example["evaluators"] == ["in_app_links_valid", "correct_tools_called"]
     assert (task / "tests" / "test.sh").stat().st_mode & 0o111
-    # A second run for another dataset removes the first task directory.
+    # A second run for another dataset removes the first tasks.
     generate(
         out_dir=tmp_path, datasets=["set_time_range"], splits=None, limit=1, agent_timeout_sec=1.0
     )
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["set_time_range"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["set_time_range__preset-15m"]
+
+
+def test_instruction_round_trips_every_example() -> None:
+    for dataset in DATASETS:
+        for example in load_example_records(dataset):
+            assert parse_instruction(render_instruction(example)) == example
