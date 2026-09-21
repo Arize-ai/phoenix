@@ -1,7 +1,3 @@
-# The PXI eval datasets under Harbor: one task per dataset, one step per example.
-# Generate and stage the tasks first with `make harbor-stage HARBOR_CLI=0`. CI runs this
-# on Daytona; pass `-e docker` through HARBOR_ARGS to run with local Docker:
-# `make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml HARBOR_ARGS='-e docker -k 1'`.
 datasets:
   - path: evals/harbor/tasks/pxi
 agents:
