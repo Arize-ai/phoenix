@@ -11,6 +11,7 @@ import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
 import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
@@ -27,6 +28,9 @@ export function ProjectEvaluatorsPage() {
   // shared or reloaded link restores the search; the route loader preloads
   // the first page with the same param.
   const [filter, setFilter] = useState(urlFilter);
+  // Page-owned so selected rows survive table filtering and refetches while
+  // the floating selection toolbar is active.
+  const [selection, setSelection] = useState<ProjectEvaluatorSelection>({});
   const handleFilterChange = useCallback(
     (nextFilter: string) => {
       setFilter(nextFilter);
@@ -49,6 +53,8 @@ export function ProjectEvaluatorsPage() {
             projectId={projectId}
             filter={filter}
             onFilterChange={handleFilterChange}
+            selection={selection}
+            onSelectionChange={setSelection}
           />
         </ProjectEvaluatorsTableProvider>
       </Suspense>
@@ -66,10 +72,14 @@ function ProjectEvaluatorsPageContent({
   projectId,
   filter,
   onFilterChange,
+  selection,
+  onSelectionChange,
 }: {
   projectId: string;
   filter: string;
   onFilterChange: (filter: string) => void;
+  selection: ProjectEvaluatorSelection;
+  onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
   // The route loader preloads the owner query (with the filter and time
@@ -129,6 +139,8 @@ function ProjectEvaluatorsPageContent({
         initialTimeRange={initialTimeRange}
         initialScoreWindow={loaderData.scoreWindow}
         initialIncludeMeanScore={loaderData.includeMeanScore}
+        selection={selection}
+        onSelectionChange={onSelectionChange}
       />
     </>
   );
