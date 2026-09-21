@@ -6,16 +6,14 @@ from typing import Any
 
 import pytest
 
-from evals.harbor.pxi.dataset import DATASETS_DIR
+from evals.harbor.pxi.compile_tasks import DATASETS_DIR, generate, load_example_records
 from evals.harbor.pxi.examples import (
-    load_example_records,
     parse_instruction,
     render_instruction,
     step_name,
     user_instruction,
 )
-from evals.harbor.pxi.generate_tasks import generate
-from evals.harbor.pxi.seed import plan_seed
+from evals.harbor.pxi.insert_session_into_db import plan_seed
 from evals.harbor.pxi.verify import (
     evaluator_output,
     reward_from_results,

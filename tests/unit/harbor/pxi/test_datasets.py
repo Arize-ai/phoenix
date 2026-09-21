@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from evals.harbor.pxi.dataset import (
+from evals.harbor.pxi.compile_tasks import (
     DatasetValidationError,
     EvalDataset,
     dataset_path,

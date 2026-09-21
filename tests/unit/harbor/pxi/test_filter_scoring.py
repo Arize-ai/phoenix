@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from evals.harbor.pxi.dataset import load_dataset
+from evals.harbor.pxi.compile_tasks import load_dataset
 from evals.harbor.pxi.evaluators.tools import evaluate_tool_call_args
 
 

@@ -8,31 +8,9 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
-from evals.harbor.pxi.dataset import EvalDataset, load_dataset
-
 _STEP_NAME_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
-
-
-def example_records(dataset: EvalDataset) -> list[dict[str, Any]]:
-    return [
-        {
-            "dataset": dataset.dataset_name,
-            "id": example["id"],
-            "splits": example["splits"],
-            "evaluators": list(dataset.evaluators),
-            "input": example["input"],
-            "expected": example["expected"],
-            "metadata": example.get("metadata", {}),
-        }
-        for example in dataset.examples
-    ]
-
-
-def load_example_records(dataset: str | Path) -> list[dict[str, Any]]:
-    return example_records(load_dataset(dataset))
 
 
 def step_name(example_id: str) -> str:

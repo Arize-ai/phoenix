@@ -488,7 +488,7 @@ Save to `evals/harbor/pxi/datasets/<name>.yaml`. Then:
 
 ```bash
 # Parse + validate schema:
-uv run python -c "from evals.harbor.pxi.dataset import load_dataset; load_dataset('<name>')"
+uv run python -c "from evals.harbor.pxi.compile_tasks import load_dataset; load_dataset('<name>')"
 
 # Stage just this dataset and run it end-to-end against the real PXI agent:
 HARBOR_PXI_ARGS="--datasets <name>" HARBOR_CLI=0 make harbor-stage
@@ -572,7 +572,7 @@ from this skill into prompts. Instead, derive the expected-block schema
 from the selected evaluators and include that schema in each
 annotation and orchestration prompt.
 
-Validator is in `evals/harbor/pxi/dataset.py`. Matching semantics in
+Validator is in `evals/harbor/pxi/compile_tasks.py`. Matching semantics in
 `evals/harbor/pxi/evaluators/tools.py`:
 
 - **Subset match** on `tool_call_args`: an observed call passes if it

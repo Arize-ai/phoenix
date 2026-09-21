@@ -60,7 +60,7 @@ ensure_fixture() {
 # Generate the PXI tasks from the datasets in evals/harbor/pxi/datasets before staging them.
 # HARBOR_PXI_ARGS narrows the generation, e.g. "--datasets set_spans_filter --limit 4".
 # shellcheck disable=SC2086
-(cd "$ROOT" && uv run python -m evals.harbor.pxi.generate_tasks --out "$TASKS_DIR/pxi" ${HARBOR_PXI_ARGS:-})
+(cd "$ROOT" && uv run python -m evals.harbor.pxi.compile_tasks --out "$TASKS_DIR/pxi" ${HARBOR_PXI_ARGS:-})
 
 staged=0
 skipped=""

@@ -313,7 +313,7 @@ class AgentSessionChatClient:
         return turn
 
     async def run_seeded_turn(self, seed: dict[str, Any]) -> Turn:
-        """Continue a session seeded by ``evals.harbor.pxi.seed`` as the browser would.
+        """Continue a session seeded by ``evals.harbor.pxi.insert_session_into_db`` as the browser would.
 
         The turn runs non-headless so the browser tools are available. It ends when the
         server stops streaming: the model finished, or it called a client-executed tool
@@ -473,7 +473,7 @@ def main() -> None:
         "--seed-file",
         type=Path,
         default=None,
-        help="Continue the session seeded by evals.harbor.pxi.seed instead of a new one",
+        help="Continue the session seeded by evals.harbor.pxi.insert_session_into_db instead of a new one",
     )
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument(

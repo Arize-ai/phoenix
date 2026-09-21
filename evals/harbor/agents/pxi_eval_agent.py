@@ -48,7 +48,7 @@ class PxiEvalAgent(PhoenixChatAgent):
         out_dir = f"{_STEPS_DIR}/{self._step}"
         await self._upload_example(environment, parse_instruction(instruction))
         seed_command = (
-            f"PYTHONPATH={_VERIFIER_PYTHONPATH} python -m evals.harbor.pxi.seed {_EXAMPLE_PATH}"
+            f"PYTHONPATH={_VERIFIER_PYTHONPATH} python -m evals.harbor.pxi.insert_session_into_db {_EXAMPLE_PATH}"
             f" --model {shlex.quote(self.model_name)} --out {_SEED_PATH}"
         )
         result = await environment.exec(seed_command, user="root")
