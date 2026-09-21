@@ -13,6 +13,12 @@ _AGENT_DIR = "/installed-agent/phoenix-chat"
 _CHAT_CLIENT = Path(__file__).with_name("chat_client.py")
 _STEPS_DIR = "/logs/agent/steps"
 _INSTRUCTION_PATH = "/tmp/instruction.md"
+# Uploaded files must be readable by the agent user without a chown, because the Daytona
+# uploader cannot overwrite a file it no longer owns on the next step.
+_WORLD_READABLE = 0o644
+# PXI runs with mutations enabled and every tool call approved. The turn timeout matches
+# the step agent timeout in task.toml.
+_TURN_TIMEOUT_SECONDS = 1800.0
 
 
 class PhoenixChatAgent(BaseAgent):
@@ -29,7 +35,7 @@ class PhoenixChatAgent(BaseAgent):
 
     async def setup(self, environment: BaseEnvironment) -> None:
         await environment.exec(f"mkdir -p {_AGENT_DIR}", user="root")
-        await self._upload_for_agent(environment, _CHAT_CLIENT, f"{_AGENT_DIR}/{_CHAT_CLIENT.name}")
+        await environment.upload_file(_CHAT_CLIENT, f"{_AGENT_DIR}/{_CHAT_CLIENT.name}")
         version = await self._exec(
             environment, "python -c 'import phoenix; print(phoenix.__version__)'"
         )
@@ -49,7 +55,9 @@ class PhoenixChatAgent(BaseAgent):
             f"python {_AGENT_DIR}/{_CHAT_CLIENT.name}",
             f"--model {shlex.quote(self.model_name)}",
             f"--instruction-file {_INSTRUCTION_PATH}",
-            "--step-config step-config.json",
+            "--allow-mutations",
+            "--approve-tool-calls",
+            f"--turn-timeout-seconds {_TURN_TIMEOUT_SECONDS}",
             f"--out-dir {out_dir}",
         ]
         if self._session_id is not None:
@@ -90,18 +98,10 @@ class PhoenixChatAgent(BaseAgent):
             file.write(instruction)
             instruction_file = Path(file.name)
         try:
-            await PhoenixChatAgent._upload_for_agent(
-                environment, instruction_file, _INSTRUCTION_PATH
-            )
+            instruction_file.chmod(_WORLD_READABLE)
+            await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
         finally:
             instruction_file.unlink()
-
-    @staticmethod
-    async def _upload_for_agent(environment: BaseEnvironment, source: Path, target: str) -> None:
-        """Upload a file the agent user must be able to read; ``upload_file`` copies as root."""
-        await environment.upload_file(source, target)
-        if (user := environment.default_user) is not None:
-            await environment.exec(f"chown {shlex.quote(str(user))} {target}", user="root")
 
     @staticmethod
     async def _exec(environment: BaseEnvironment, command: str) -> str:
