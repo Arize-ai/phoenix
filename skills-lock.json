@@ -11,8 +11,8 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "2ac12755defaeb583afdc27b678f1a9eef7da655d2491e0991c0dd4b56d8fb3d",
-      "wellKnownDigest": "sha256:f2f4d54e3fd6f7fabf0833074158ff708ae31576d0d84ab7738a88acec672909"
+      "computedHash": "fd66ce16114ebf655f72111e1724bccca11465e055cdfe40de9ab1cb1022c97d",
+      "wellKnownDigest": "sha256:51af84f1929d3260e762912d1ea7e1552f92cadaa49403510ff653d1e90e804a"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
