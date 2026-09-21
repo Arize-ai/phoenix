@@ -30,26 +30,48 @@ class EvaluatorComparisonCoverage:
     )
 
 
-@strawberry.type(description=_SHARED_POPULATION)
+_STATISTICS_EXAMPLE = (
+    "Worked example, populationSize 100: A flags 40 entities and B flags 30; they agree "
+    "on 25 flagged and 55 not flagged. agreement = (25 + 55) / 100 = 0.80 and "
+    "disagreementCount = 20. Agreement expected by chance is "
+    "0.4 × 0.3 + 0.6 × 0.7 = 0.54, so cohensKappa = (0.80 − 0.54) / (1 − 0.54) ≈ 0.57."
+)
+
+
+@strawberry.type(description=f"{_SHARED_POPULATION} {_STATISTICS_EXAMPLE}")
 class EvaluatorComparisonStatistics:
     agreement: Optional[float] = strawberry.field(
         description=(
             "Share of the population where the two evaluators agree, reduced to "
             "flagged/not-flagged when both evaluators have determinable flag semantics, "
-            "else to label equality when the label sets are identical; null otherwise."
+            "else to label equality when the label sets are identical; null otherwise. "
+            "1.0 means the evaluators never disagree; 0.5 means they disagree on half "
+            "the population."
         )
     )
     cohens_kappa: Optional[float] = strawberry.field(
-        description="Chance-corrected agreement over the same reduction as `agreement`."
+        description=(
+            "Chance-corrected agreement over the same reduction as `agreement`: "
+            "1.0 is perfect agreement, 0.0 is what two independent evaluators with these "
+            "flag rates would reach by chance, and negative values are worse than chance. "
+            "Null when chance agreement is already 1.0 (e.g. both evaluators flag "
+            "everything), where kappa is undefined."
+        )
     )
     spearman_rho: Optional[float] = strawberry.field(
         description=(
             "Spearman rank correlation over the raw score pairs; null unless both "
-            "evaluators emit continuous scores."
+            "evaluators emit continuous scores. 1.0 when B ranks every entity in the same "
+            "order as A, −1.0 when the order is reversed, near 0.0 when the rankings are "
+            "unrelated. Uses the scores, not the flag thresholds, so it is unaffected by "
+            "thresholdA / thresholdB."
         )
     )
     disagreement_count: Optional[int] = strawberry.field(
-        description="Population count minus agreements; null when `agreement` is null."
+        description=(
+            "Population count minus agreements, i.e. populationSize × (1 − agreement); "
+            "null when `agreement` is null."
+        )
     )
 
 
