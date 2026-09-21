@@ -1,10 +1,9 @@
 import { css } from "@emotion/react";
-import { useNavigate } from "react-router";
 
 import {
-  Button,
   Icon,
   Icons,
+  LinkButton,
   Text,
   Tooltip,
   TooltipArrow,
@@ -17,45 +16,48 @@ import {
   type ProjectEvaluatorSelection,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
 
+/**
+ * Links to the comparison of the two selected evaluators. Rendered as a real
+ * link so it can be opened in a new tab; when the selection cannot be
+ * compared the link is disabled and a tooltip explains why.
+ */
 export function CompareProjectEvaluatorsButton({
   selection,
 }: {
   selection: ProjectEvaluatorSelection;
 }) {
-  const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
   const disabledReason = getCompareEvaluatorsDisabledReason(selection);
-  const selectedEvaluatorIds = Object.keys(selection);
-  const button = (
-    <Button
+  const [evaluatorAId, evaluatorBId] = Object.keys(selection);
+  const isComparable =
+    disabledReason == null && evaluatorAId != null && evaluatorBId != null;
+  const link = (
+    <LinkButton
       size="M"
       variant="primary"
-      isDisabled={disabledReason != null}
+      isDisabled={!isComparable}
       leadingVisual={<Icon svg={<Icons.ArrowCompare />} />}
-      onPress={() => {
-        const [evaluatorAId, evaluatorBId] = selectedEvaluatorIds;
-        if (evaluatorAId && evaluatorBId) {
-          navigate(paths.compare({ a: evaluatorAId, b: evaluatorBId }));
-        }
-      }}
+      to={
+        isComparable ? paths.compare({ a: evaluatorAId, b: evaluatorBId }) : "."
+      }
     >
       Compare
-    </Button>
+    </LinkButton>
   );
 
-  if (disabledReason == null) {
-    return button;
+  if (isComparable) {
+    return link;
   }
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap
         css={css`
-          .react-aria-Button {
+          a {
             pointer-events: none;
           }
         `}
       >
-        {button}
+        {link}
       </TriggerWrap>
       <Tooltip>
         <TooltipArrow />
