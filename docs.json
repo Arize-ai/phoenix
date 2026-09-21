@@ -1805,7 +1805,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-tracing-python/using-otel-python-directly",
-      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/custom-spans"
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel"
     },
     {
       "source": "/docs/phoenix/self-hosting/local-instance",
@@ -2374,6 +2374,370 @@
     {
       "source": "/docs/phoenix/evaluation/server-evals/builtin-evaluators",
       "destination": "/docs/phoenix/evaluation/server-evals/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/google-gen-ai",
+      "destination": "/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing"
+    },
+    {
+      "source": "/docs/phoenix/integrations/llm-providers/openai/openai-node.js-sdk",
+      "destination": "/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/guardrails",
+      "destination": "/docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing"
+    },
+    {
+      "source": "/docs/phoenix/integrations/portkey",
+      "destination": "/docs/phoenix/integrations/python/portkey/portkey-tracing"
+    },
+    {
+      "source": "/docs/phoenix/integrations/frameworks/autogen/autogen-tracing",
+      "destination": "/docs/phoenix/integrations/python/autogen/autogen-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+      "destination": "/docs/phoenix/integrations/mcp"
+    },
+    {
+      "source": "/docs/phoenix/integrations/python/openrouter",
+      "destination": "/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing"
+    },
+    {
+      "source": "/docs/phoenix/quickstart/llm-traces",
+      "destination": "/docs/phoenix/tracing/llm-traces"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/agentspec",
+      "destination": "/docs/phoenix/integrations/python/agentspec/agentspec-tracing"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/tool-selection"
+    },
+    {
+      "source": "/docs/phoenix/integrations/pydantic",
+      "destination": "/docs/phoenix/integrations/python/pydantic/pydantic-tracing"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/agent-reflection",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/agent-planning",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/concepts/llm-evals",
+      "destination": "/docs/phoenix/evaluation/llm-evals"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/agent-path-convergence",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/llm-evals/running-pre-tested-evals",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance"
+    },
+    {
+      "source": "/docs/phoenix/integrations/mastra",
+      "destination": "/docs/phoenix/integrations/typescript/mastra"
+    },
+    {
+      "source": "/docs/phoenix/deployment/environments",
+      "destination": "/docs/phoenix/environments"
+    },
+    {
+      "source": "/docs/phoenix/deployment/configuration",
+      "destination": "/docs/phoenix/self-hosting/configuration"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/hallucinations",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/hallucination"
+    },
+    {
+      "source": "/docs/phoenix/reference/open-inference",
+      "destination": "/docs/phoenix/resources/openinference"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/customize-spans",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans"
+    },
+    {
+      "source": "/docs/phoenix/integrations/frameworks/dify/dify-tracing",
+      "destination": "/docs/phoenix/integrations/platforms/dify/dify-tracing"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator",
+      "destination": "/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators"
+    },
+    {
+      "source": "/docs/phoenix/api/evals",
+      "destination": "/docs/phoenix/evaluation/llm-evals"
+    },
+    {
+      "source": "/docs/phoenix/setup/environments",
+      "destination": "/docs/phoenix/environments"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/legacy/archived-evals/code-generation-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/toxicity",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/toxicity"
+    },
+    {
+      "source": "/docs/phoenix/retrieval/overview-retrieval",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/retrieval/quickstart-retrieval",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/concepts-evals/drift",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/learn/agents/agent-workflow-patterns/autogen",
+      "destination": "/docs/phoenix/cookbook/agent-workflow-patterns/autogen"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/legacy/archived-evals/agent-path-convergence",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex",
+      "destination": "/docs/phoenix/integrations/python/llamaindex/llamaindex-tracing"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/summarization-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/capture-feedback",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback"
+    },
+    {
+      "source": "/docs/phoenix/integrations/langflow/langflow-tracing",
+      "destination": "/docs/phoenix/integrations/platforms/langflow/langflow-tracing"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/evaluation",
+      "destination": "/docs/phoenix/evaluation/llm-evals"
+    },
+    {
+      "source": "/docs/phoenix/learn/retrieval-and-infrences/benchmarking-retrieval",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/docs/phoenix/inferences/phoenix-inferences",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/concepts-evals/evals-with-explanations",
+      "destination": "/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge"
+    },
+    {
+      "source": "/docs/phoenix/tracing/concepts-tracing/how-does-tracing-work",
+      "destination": "/docs/phoenix/tracing/concepts-tracing/how-tracing-works"
+    },
+    {
+      "source": "/docs/phoenix/tracing/use-cases-tracing/rag-evaluation",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/dspy",
+      "destination": "/docs/phoenix/integrations/python/dspy/dspy-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/instrumentation/dspy",
+      "destination": "/docs/phoenix/integrations/python/dspy/dspy-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/vertexai",
+      "destination": "/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/openai",
+      "destination": "/docs/phoenix/integrations/llm-providers/openai/openai-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/mistralai",
+      "destination": "/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/llamaindex",
+      "destination": "/docs/phoenix/integrations/python/llamaindex/llamaindex-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/litellm",
+      "destination": "/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/haystack",
+      "destination": "/docs/phoenix/integrations/python/haystack/haystack-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/bedrock",
+      "destination": "/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/integrations-tracing/langchain",
+      "destination": "/docs/phoenix/integrations/python/langchain/langchain-tracing"
+    },
+    {
+      "source": "/docs/phoenix/cookbook/retrieval-and-inferences/embeddings-analysis",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/deploying-phoenix",
+      "destination": "/docs/phoenix/self-hosting"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/code-generation-eval",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics"
+    },
+    {
+      "source": "/docs/phoenix/integrations/frameworks/langchain",
+      "destination": "/docs/phoenix/integrations/python/langchain/langchain-tracing"
+    },
+    {
+      "source": "/docs/phoenix/integrations/llamaindex",
+      "destination": "/docs/phoenix/integrations/python/llamaindex/llamaindex-tracing"
+    },
+    {
+      "source": "/docs/phoenix/quickstart/llm-traces/autogen-support",
+      "destination": "/docs/phoenix/integrations/python/autogen/autogen-tracing"
+    },
+    {
+      "source": "/docs/phoenix/sdk-api-reference/python-pacakges/arize-phoenix-otel",
+      "destination": "/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel"
+    },
+    {
+      "source": "/docs/phoenix/tracing/features-tracing/how-to-annotate-traces",
+      "destination": "/docs/phoenix/tracing/llm-traces/how-to-annotate-traces"
+    },
+    {
+      "source": "/docs/phoenix/tracing/integrations-tracing/llm-traces",
+      "destination": "/docs/phoenix/tracing/llm-traces"
+    },
+    {
+      "source": "/docs/phoenix/integrations/vercel/vercel-ai-sdk-tracing-js",
+      "destination": "/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js"
+    },
+    {
+      "source": "/docs/phoenix/cookbook/ai-engineering-workflows/aligning-llm-evals-with-human-annotations-typescript",
+      "destination": "/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript"
+    },
+    {
+      "source": "/docs/phoenix/experiments",
+      "destination": "/docs/phoenix/datasets-and-experiments/overview-datasets"
+    },
+    {
+      "source": "/docs/phoenix/how-to/extract-data-from-spans",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans"
+    },
+    {
+      "source": "/docs/phoenix/integrations/cleanlab",
+      "destination": "/docs/phoenix/integrations/evaluation-integrations/cleanlab"
+    },
+    {
+      "source": "/docs/phoenix/integrations/frameworks/llamaindex/llamaindex-workflows-tracing",
+      "destination": "/docs/phoenix/integrations/python/llamaindex/llamaindex-workflows-tracing"
+    },
+    {
+      "source": "/docs/phoenix/learn/openinference",
+      "destination": "/docs/phoenix/resources/openinference"
+    },
+    {
+      "source": "/docs/phoenix/llm-evals/llm-evals",
+      "destination": "/docs/phoenix/evaluation/llm-evals"
+    },
+    {
+      "source": "/docs/phoenix/tracing/quckstart-tracing",
+      "destination": "/docs/phoenix/tracing/llm-traces"
+    },
+    {
+      "source": "/docs/phoenix/umap-visualizations",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument-python",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument"
+    },
+    {
+      "source": "/docs/phoenix/release-notes/12-2025/12-10-2025-ldap-authentication-support",
+      "destination": "/docs/phoenix/release-notes/12-2025/12-06-2025-ldap-authentication-support"
+    },
+    {
+      "source": "/docs/phoenix/release-notes/12-2025/12-10-2025-evaluator-message-formats",
+      "destination": "/docs/phoenix/release-notes/12-2025/12-04-2025-evaluator-message-formats"
+    },
+    {
+      "source": "/docs/phoenix/concepts/llm-observability",
+      "destination": "/docs/phoenix/tracing/llm-traces"
+    },
+    {
+      "source": "/docs/phoenix/datasets-and-experiments/concepts-datasets-and-experiments",
+      "destination": "/docs/phoenix/datasets-and-experiments/concepts-datasets"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/building-your-own-evals",
+      "destination": "/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/concepts-evals/evaluation",
+      "destination": "/docs/phoenix/evaluation/llm-evals"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/evaluating-rag",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/online-evals",
+      "destination": "/docs/phoenix/evaluation/how-to-evals/code-evaluators"
+    },
+    {
+      "source": "/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals/relevance",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance"
+    },
+    {
+      "source": "/docs/phoenix/inferences/how-to-inferences",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/learn/retrieval-and-infrences/retrieval-with-embeddings",
+      "destination": "/docs/phoenix/cookbook"
+    },
+    {
+      "source": "/docs/phoenix/learn/tracing",
+      "destination": "/docs/phoenix/tracing/llm-traces"
+    },
+    {
+      "source": "/docs/phoenix/llm-evals/benchmarking-retrieval-rag",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
+      "source": "/docs/phoenix/llm-evals/building-your-own-evals",
+      "destination": "/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators"
     }
   ]
 }
