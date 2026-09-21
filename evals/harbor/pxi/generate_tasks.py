@@ -21,8 +21,8 @@ import stat
 from pathlib import Path
 from typing import Any
 
+from evals.harbor.pxi.dataset import DATASETS_DIR, load_dataset
 from evals.harbor.pxi.examples import example_records, step_name, user_instruction
-from evals.pxi.harness.datasets import DATASETS_DIR, load_dataset
 
 TASK_TOML_HEADER = """\
 schema_version = "1.3"

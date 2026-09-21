@@ -2,7 +2,7 @@
 
 import pytest
 
-from evals.pxi.evaluators.links import evaluate_in_app_links
+from evals.harbor.pxi.evaluators.links import evaluate_in_app_links
 
 
 @pytest.mark.parametrize("padding", [" ", "\t", "\n", " \n\t"])

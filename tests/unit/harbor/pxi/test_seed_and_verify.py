@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from evals.harbor.pxi.dataset import DATASETS_DIR
 from evals.harbor.pxi.examples import load_example_records, step_name, user_instruction
 from evals.harbor.pxi.generate_tasks import generate
 from evals.harbor.pxi.seed import plan_seed
@@ -15,7 +16,6 @@ from evals.harbor.pxi.verify import (
     run_evaluators,
     scored_messages,
 )
-from evals.pxi.harness.datasets import DATASETS_DIR
 
 DATASETS = sorted(path.stem for path in DATASETS_DIR.glob("*.yaml"))
 NOW = datetime(2026, 9, 21, tzinfo=timezone.utc)

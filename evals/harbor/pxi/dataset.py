@@ -1,3 +1,5 @@
+"""Load and validate the PXI dataset YAML files."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,7 +8,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-DATASETS_DIR = Path(__file__).resolve().parents[1] / "datasets"
+DATASETS_DIR = Path(__file__).resolve().parent / "datasets"
 ALLOWED_SPLITS: frozenset[str] = frozenset({"dev", "holdout", "regression", "val"})
 
 
@@ -31,7 +33,7 @@ class EvalDataset(BaseModel):
         if not value:
             raise ValueError(
                 "evaluators must be a non-empty list of evaluator names "
-                "(see evals/pxi/evaluators/__init__.py for valid names)"
+                "(see evals/harbor/pxi/evaluators/__init__.py for valid names)"
             )
         for name in value:
             if not isinstance(name, str) or not name.strip():

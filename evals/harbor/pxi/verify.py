@@ -20,8 +20,8 @@ from typing import Any
 
 import httpx
 
+from evals.harbor.pxi.evaluators import EVALUATORS_BY_NAME
 from evals.harbor.verifiers.verify import write_reward
-from evals.pxi.evaluators import EVALUATORS_BY_NAME
 
 _TOOL_PREFIX = "tool-"
 

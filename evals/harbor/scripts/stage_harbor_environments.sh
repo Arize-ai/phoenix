@@ -25,12 +25,8 @@ cp "$ROOT"/dist/arize_phoenix-*.whl "$CONTEXT/wheels/"
 cp "$ROOT/evals/__init__.py" "$CONTEXT/verifier/evals/"
 cp "$HERE/__init__.py" "$CONTEXT/verifier/evals/harbor/"
 rsync -a --exclude __pycache__ "$HERE/verifiers/" "$CONTEXT/verifier/evals/harbor/verifiers/"
-# The PXI tasks seed and verify with the harness compiler and evaluators from evals/pxi.
-rsync -a --exclude __pycache__ "$HERE/pxi/" "$CONTEXT/verifier/evals/harbor/pxi/"
-mkdir -p "$CONTEXT/verifier/evals/pxi"
-cp "$ROOT/evals/pxi/__init__.py" "$CONTEXT/verifier/evals/pxi/"
-rsync -a --exclude __pycache__ "$ROOT/evals/pxi/harness/" "$CONTEXT/verifier/evals/pxi/harness/"
-rsync -a --exclude __pycache__ "$ROOT/evals/pxi/evaluators/" "$CONTEXT/verifier/evals/pxi/evaluators/"
+# The PXI tasks seed and verify with the compiler and evaluators in evals/harbor/pxi.
+rsync -a --exclude __pycache__ --exclude datasets "$HERE/pxi/" "$CONTEXT/verifier/evals/harbor/pxi/"
 rsync -a --exclude __pycache__ "$ENVIRONMENTS/container_assets/" "$CONTEXT/container_assets/"
 
 if [ "${RESEED:-0}" = 1 ]; then
@@ -61,7 +57,7 @@ ensure_fixture() {
   exit "$status"
 }
 
-# Generate the PXI tasks from the datasets in evals/pxi/datasets before staging them.
+# Generate the PXI tasks from the datasets in evals/harbor/pxi/datasets before staging them.
 # HARBOR_PXI_ARGS narrows the generation, e.g. "--datasets set_spans_filter --limit 4".
 # shellcheck disable=SC2086
 (cd "$ROOT" && uv run python -m evals.harbor.pxi.generate_tasks --out "$TASKS_DIR/pxi" ${HARBOR_PXI_ARGS:-})

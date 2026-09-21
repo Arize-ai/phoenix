@@ -2,9 +2,9 @@
 
 from typing import Any
 
-from evals.pxi.evaluators.links import in_app_links_valid
-from evals.pxi.evaluators.text import assistant_text_substrings_match
-from evals.pxi.evaluators.tools import (
+from evals.harbor.pxi.evaluators.links import in_app_links_valid
+from evals.harbor.pxi.evaluators.text import assistant_text_substrings_match
+from evals.harbor.pxi.evaluators.tools import (
     bash_command_substrings_match,
     correct_tools_called,
     forbidden_tool_call_args_match,

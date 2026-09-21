@@ -1,6 +1,6 @@
 """Per-example records derived from the PXI dataset YAML files.
 
-The YAML under ``evals/pxi/datasets`` stays the source of truth. Each example becomes one
+The YAML under ``evals/harbor/pxi/datasets`` stays the source of truth. Each example becomes one
 Harbor step whose ``workdir/example.json`` holds this record.
 """
 
@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from evals.pxi.harness.datasets import EvalDataset, load_dataset
+from evals.harbor.pxi.dataset import EvalDataset, load_dataset
 
 _STEP_NAME_CHARS = re.compile(r"[^A-Za-z0-9_-]+")
 

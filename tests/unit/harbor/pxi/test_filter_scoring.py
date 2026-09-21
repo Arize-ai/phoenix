@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from evals.pxi.evaluators.tools import evaluate_tool_call_args
-from evals.pxi.harness.datasets import load_dataset
+from evals.harbor.pxi.dataset import load_dataset
+from evals.harbor.pxi.evaluators.tools import evaluate_tool_call_args
 
 
 def _score(example_id: str, script: str) -> float:

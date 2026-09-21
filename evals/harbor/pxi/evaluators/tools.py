@@ -6,7 +6,7 @@ from typing import Any
 
 from phoenix.evals import create_evaluator
 
-from evals.pxi.evaluators.filters import filter_matches
+from evals.harbor.pxi.evaluators.filters import filter_matches
 
 
 def _as_dict(value: Any) -> dict[str, Any]:

@@ -11,9 +11,9 @@ from typing import Any
 
 import pytest
 
-from evals.pxi.evaluators.links import evaluate_in_app_links
-from evals.pxi.evaluators.text import evaluate_assistant_text_substrings
-from evals.pxi.evaluators.tools import (
+from evals.harbor.pxi.evaluators.links import evaluate_in_app_links
+from evals.harbor.pxi.evaluators.text import evaluate_assistant_text_substrings
+from evals.harbor.pxi.evaluators.tools import (
     evaluate_forbidden_tool_call_args,
     evaluate_tool_call_args,
     evaluate_tools_called,

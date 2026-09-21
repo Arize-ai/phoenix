@@ -2,12 +2,12 @@
 name: pxi-eval-dataset
 description: >-
   Generate synthetic evaluation datasets for the PXI eval harness
-  (evals/pxi/). Use whenever the user asks to create, author, draft,
+  (evals/harbor/pxi/). Use whenever the user asks to create, author, draft,
   expand, or audit an eval dataset for a PXI tool, skill, or behavior —
   including phrases like "write evals for <tool>", "test PXI behavior",
   "synthetic dataset for PXI", "cover this tool with eval examples",
   or "find gaps in our PXI eval coverage". Inspects whichever evaluators
-  currently live under evals/pxi/evaluators/ at use time and pauses
+  currently live under evals/harbor/pxi/evaluators/ at use time and pauses
   to recommend a new evaluator if the behavior under test can't be
   scored by what already exists.
 license: Apache-2.0
@@ -20,9 +20,9 @@ metadata:
 # pxi-eval-dataset
 
 Produce a small, well-targeted YAML dataset that drops into
-`evals/pxi/datasets/<name>.yaml`, runs through
-`evals/pxi/harness/run_experiment.py`, and is scored by deterministic
-code evaluators under `evals/pxi/evaluators/`.
+`evals/harbor/pxi/datasets/<name>.yaml`, runs through Harbor
+(`evals/harbor/jobs/pxi.yaml`), and is scored by deterministic
+code evaluators under `evals/harbor/pxi/evaluators/`.
 
 The aim is a **minimal but representative** set of synthetic examples —
 think unit tests, not a benchmark. 10–50 examples, each covering a
@@ -59,7 +59,7 @@ Confirm with the user what's under test: a specific PXI tool name (e.g.
 
 ### 2. Survey the evaluators that currently exist
 
-List `evals/pxi/evaluators/` and read each module. For every
+List `evals/harbor/pxi/evaluators/` and read each module. For every
 evaluator, note:
 
 - the evaluator name and `@create_evaluator(...)` decorator,
@@ -69,7 +69,7 @@ evaluator, note:
 - the class of assertion it supports (tool selection, tool arguments,
   assistant text, multi-call sequencing, ...).
 
-Also peek at `evals/pxi/tests/test_evaluators.py` for canonical input
+Also peek at `tests/unit/harbor/pxi/test_evaluators.py` for canonical input
 shapes.
 
 **Do NOT hard-code knowledge of which evaluators exist** — re-read the
@@ -85,7 +85,7 @@ today.
   listed evaluators; unrelated ones are not invoked, so the dashboard
   stays free of vacuous passes from evaluators that don't apply to
   this dataset. Available names live in
-  `evals/pxi/evaluators/__init__.py` (`EVALUATORS_BY_NAME`).
+  `evals/harbor/pxi/evaluators/__init__.py` (`EVALUATORS_BY_NAME`).
 - **No** → stop and summarize the gap to the user. Propose the shape
   of a new evaluator:
   - name (snake_case),
@@ -95,9 +95,9 @@ today.
 
   Then ask: "Should I add this evaluator before we generate examples?"
   If yes:
-  - implement it under `evals/pxi/evaluators/<file>.py`,
-  - add unit-test coverage to `evals/pxi/tests/test_evaluators.py`,
-  - export it from `evals/pxi/evaluators/__init__.py`,
+  - implement it under `evals/harbor/pxi/evaluators/<file>.py`,
+  - add unit-test coverage to `tests/unit/harbor/pxi/test_evaluators.py`,
+  - export it from `evals/harbor/pxi/evaluators/__init__.py`,
   - then continue.
 
   If no, scope the dataset down to assertions the existing evaluators
@@ -185,8 +185,8 @@ per-example.
    Source the toolset from `build_toolset` and `build_external_toolset`
    in `src/phoenix/server/agents/toolsets/` (and
    `src/phoenix/server/agents/toolsets/external/`). The eval harness
-   configures `ChatContext` such that all external tools are available
-   — see `evals/pxi/harness/agent_task.py`. List every tool that survives
+   runs the turn non-headless so all external tools are available
+   — see `evals/harbor/agents/chat_client.py`. List every tool that survives
    that filtering, not just the focal one.
 
    **Mark the focal tool explicitly** at the top of this section
@@ -402,7 +402,7 @@ metadata:
 - **`high`** — all three opinions produced equivalent `expected:` blocks
   (equal `tools.{required,forbidden}` lists after sorting, and per-tool
   `tool_call_args` dicts equal after applying `_normalize_arg_value`
-  from `evals/pxi/evaluators/tools.py` to each value).
+  from `evals/harbor/pxi/evaluators/tools.py` to each value).
 - **`medium`** — majority agreed; minority differed but the
   orchestrator was able to merge (as variants) or drop (as spec-invalid).
 - **`low`** — no majority; the orchestrator either fell back to
@@ -484,14 +484,15 @@ need to reconstruct them.
 
 ### 7. Save and validate
 
-Save to `evals/pxi/datasets/<name>.yaml`. Then:
+Save to `evals/harbor/pxi/datasets/<name>.yaml`. Then:
 
 ```bash
 # Parse + validate schema:
-uv run python -c "from evals.pxi.harness.datasets import load_dataset; load_dataset('<name>')"
+uv run python -c "from evals.harbor.pxi.dataset import load_dataset; load_dataset('<name>')"
 
-# Run the experiment end-to-end against the real PXI agent:
-uv run python -m evals.pxi.harness.run_experiment --dataset <name>
+# Stage just this dataset and run it end-to-end against the real PXI agent:
+HARBOR_PXI_ARGS="--datasets <name>" HARBOR_CLI=0 make harbor-stage
+make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml HARBOR_ARGS='-e docker -k 1'
 ```
 
 Run the experiment end-to-end and **triage every failure** before
@@ -541,9 +542,9 @@ For each failed example, classify the failure into one bucket:
 - Examples flagged `annotation.agreement: low` in metadata — these
   are exactly the candidates for human review even if they passed.
 
-For local-only experimentation use the harness env vars (see
-`evals/pxi/harness/README.md`). There is no `--limit` flag — keep the
-dataset small while iterating, or commit a temporary copy.
+For local-only experimentation stage a subset with
+`HARBOR_PXI_ARGS="--datasets <name> --limit <n>"` (see
+`evals/harbor/README.md`).
 
 **YAML gotchas that cost an iteration if you miss them:**
 
@@ -565,14 +566,14 @@ dataset small while iterating, or commit a temporary copy.
 
 ## Dataset schema reference
 
-Reference the live datasets in `evals/pxi/datasets/` for current
+Reference the live datasets in `evals/harbor/pxi/datasets/` for current
 dataset shapes, examples, and naming conventions. Do not copy a schema
 from this skill into prompts. Instead, derive the expected-block schema
 from the selected evaluators and include that schema in each
 annotation and orchestration prompt.
 
-Validator is in `evals/pxi/harness/datasets.py`. Matching semantics in
-`evals/pxi/evaluators/tools.py`:
+Validator is in `evals/harbor/pxi/dataset.py`. Matching semantics in
+`evals/harbor/pxi/evaluators/tools.py`:
 
 - **Subset match** on `tool_call_args`: an observed call passes if it
   has every expected key with a matching value; extra keys are ignored.

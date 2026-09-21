@@ -10,7 +10,7 @@ compare the conditions in the Phoenix UI.
 | --- | --- | --- | --- |
 | `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis? CI runs this. | `tasks/error-analysis` | `pxi-benchmark` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
-| `jobs/pxi.yaml` | Does PXI take the right next action on the `evals/pxi` datasets? CI runs the regression split. | `tasks/pxi/*` (generated) | one per dataset |
+| `jobs/pxi.yaml` | Does PXI take the right next action on the `pxi/datasets` examples? CI runs the regression split. | `tasks/pxi/*` (generated) | one per dataset |
 
 | Path | Contents |
 | --- | --- |
@@ -219,8 +219,9 @@ RESEED=1 make harbor-stage HARBOR_CLI=0
 
 ## The PXI eval datasets
 
-`jobs/pxi.yaml` runs the datasets under `evals/pxi/datasets/` through the agent session
-chat route. Each dataset becomes one multi-step task under `tasks/pxi/`, and each example
+`jobs/pxi.yaml` runs the datasets under `pxi/datasets/` through the agent session chat
+route. `pxi/README.md` documents the dataset format, the inputs, and the matcher
+vocabulary. Each dataset becomes one multi-step task under `tasks/pxi/`, and each example
 becomes a step. `harbor-stage` generates the tasks with `evals.harbor.pxi.generate_tasks`;
 they are not committed because the YAML files are the source of truth.
 
@@ -228,7 +229,7 @@ Every step seeds a fresh session with the example's primed transcript, runs one 
 verifies it:
 
 1. `PxiEvalAgent` runs `evals.harbor.pxi.seed` as root. The seeder compiles the example
-   with the harness's fixture compiler, gives the active user turn the metadata the
+   with the fixture compiler, gives the active user turn the metadata the
    browser would attach, and writes the session and its messages to the database. A
    transcript that ends with a completed tool result is stored with that call pending.
 2. The chat client continues the session with `headless: false`, so the browser tools
@@ -242,9 +243,8 @@ verifies it:
    when every evaluator passes, and each evaluator's score is written beside it.
 
 Two differences from the pytest harness: the server and database are real, so `bash` and
-`execute` calls run against the empty fixture instead of ending the turn, and
-per-`(dataset, evaluator, split)` thresholds from `evals/pxi/thresholds.yaml` are not
-applied. Harbor reports the mean step reward per task.
+`execute` calls run against the empty fixture instead of ending the turn, and the
+per-`(dataset, evaluator, split)` thresholds of the pytest gate are not applied. Harbor reports the mean step reward per task.
 
 ```bash
 # Stage a subset while iterating: two datasets, three examples each.
@@ -258,8 +258,10 @@ The job records to a dataset per task directory name, such as `set_spans_filter`
 `HARBOR_PLUGIN=` to run without a Phoenix instance to record to.
 
 `.github/workflows/pxi-evals.yml` runs the regression split of every dataset on Daytona
-for pull requests that touch the evals or the agent, and gates on the mean step reward
-with `scripts/check_job_reward.py`. The pytest harness under `evals/pxi` no longer runs
+for pull requests that touch the datasets, the evaluators, the Harbor PXI code, or the
+agent, and gates on the mean step reward with `scripts/check_job_reward.py`. Its
+`PXI Regression Evals CI Required` job reports on every pull request so it can be a
+required status check. The pytest harness under `evals/pxi` no longer runs
 in CI; `pytest evals/pxi -c evals/pxi/pytest.ini` still runs it locally.
 
 ## Test an unreleased client plugin

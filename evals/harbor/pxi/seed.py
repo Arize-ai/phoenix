@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from evals.pxi.harness.datastream_protocol_messages import (
+from evals.harbor.pxi.transcripts import (
     convert_fixture_data_to_datastream_protocol_messages,
 )
 from phoenix.config import get_env_phoenix_agents_assistant_project_name

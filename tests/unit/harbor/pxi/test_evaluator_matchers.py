@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from evals.pxi.evaluators.tools import evaluate_tool_call_args
+from evals.harbor.pxi.evaluators.tools import evaluate_tool_call_args
 
 
 def _output_with_tool_call(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
