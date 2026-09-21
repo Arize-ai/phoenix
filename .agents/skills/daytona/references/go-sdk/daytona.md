@@ -1,0 +1,6186 @@
+
+
+# daytona
+
+
+## Contents
+
+- Index
+- Constants
+- Variables
+- type AccessibilityFindOptions
+- type AccessibilityService
+- type AccessibilityTreeOptions
+- type Client
+- type CodeInterpreterService
+- type ComputerUseService
+- type DisplayService
+- type DockerImage
+- type DockerImageContext
+- type DownloadProgress
+- type DownloadStreamOption
+- type FileSystemService
+- type GitService
+- type KeyboardService
+- type ListSandboxesQuery
+- type ListSnapshotsQuery
+- type LspServerService
+- type MouseService
+- type OutputChannels
+- type ProcessService
+- type PtyHandle
+- type PushAccessCredentials
+- type RecordingService
+- type Sandbox
+- type SandboxIterator
+- type SandboxListSortDirection
+- type SandboxListSortField
+- type SandboxMetrics
+- type SandboxState
+- type ScreenshotService
+- type SecretService
+- type SnapshotService
+- type UploadProgress
+- type UploadStreamOption
+- type VolumeService
+- type WarmPoolService
+- See Also
+
+```go
+import "github.com/daytona/clients/sdk-go/pkg/daytona"
+```
+
+Package daytona provides a Go SDK for interacting with the Daytona platform.
+
+The Daytona SDK enables developers to programmatically create, manage, and interact with sandboxes \- isolated development environments that can run code, execute commands, and manage files.
+
+### Getting Started
+
+Create a client using your API key or JWT token:
+
+```
+client, err := daytona.NewClient()
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+The client reads configuration from environment variables:
+
+- DAYTONA\_API\_KEY: API key for authentication
+- DAYTONA\_JWT\_TOKEN: JWT token for authentication \(alternative to API key\)
+- DAYTONA\_ORGANIZATION\_ID: Organization ID \(required when using JWT token\)
+- DAYTONA\_API\_URL: API URL \(defaults to https://app.daytona.io/api\)
+- DAYTONA\_TARGET: Target environment
+
+Or provide configuration explicitly:
+
+```
+client, err := daytona.NewClientWithConfig(&types.DaytonaConfig{
+    APIKey: "your-api-key",
+    APIUrl: "https://your-instance.daytona.io/api",
+})
+```
+
+### Creating Sandboxes
+
+Create a sandbox from a snapshot:
+
+```
+sandbox, err := client.Create(ctx, types.SnapshotParams{
+    Snapshot: "my-snapshot",
+})
+```
+
+Create a sandbox from a Docker image:
+
+```
+sandbox, err := client.Create(ctx, types.ImageParams{
+    Image: "python:3.11",
+})
+```
+
+### Working with Sandboxes
+
+Execute code in a sandbox:
+
+```
+result, err := sandbox.Process.CodeRun(ctx, "print('Hello, World!')")
+```
+
+Run shell commands:
+
+```
+result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
+```
+
+## Index
+
+- [Constants](https://www.daytona.io/docs/en<#constants>)
+- [Variables](https://www.daytona.io/docs/en<#variables>)
+- [type AccessibilityFindOptions](https://www.daytona.io/docs/en<#AccessibilityFindOptions>)
+- [type AccessibilityService](https://www.daytona.io/docs/en<#AccessibilityService>)
+  - [func NewAccessibilityService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*AccessibilityService](https://www.daytona.io/docs/en<#NewAccessibilityService>)
+  - [func \(a \*AccessibilityService\) FindNodes\(ctx context.Context, opts \*AccessibilityFindOptions\) \(\*toolbox.AccessibilityNodesResponse, error\)](https://www.daytona.io/docs/en<#AccessibilityService.FindNodes>)
+  - [func \(a \*AccessibilityService\) FocusNode\(ctx context.Context, id string\) error](https://www.daytona.io/docs/en<#AccessibilityService.FocusNode>)
+  - [func \(a \*AccessibilityService\) GetTree\(ctx context.Context, opts \*AccessibilityTreeOptions\) \(\*toolbox.AccessibilityTreeResponse, error\)](https://www.daytona.io/docs/en<#AccessibilityService.GetTree>)
+  - [func \(a \*AccessibilityService\) InvokeNode\(ctx context.Context, id string, action \*string\) error](https://www.daytona.io/docs/en<#AccessibilityService.InvokeNode>)
+  - [func \(a \*AccessibilityService\) SetNodeValue\(ctx context.Context, id string, value string\) error](https://www.daytona.io/docs/en<#AccessibilityService.SetNodeValue>)
+- [type AccessibilityTreeOptions](https://www.daytona.io/docs/en<#AccessibilityTreeOptions>)
+- [type Client](https://www.daytona.io/docs/en<#Client>)
+  - [func NewClient\(\) \(\*Client, error\)](https://www.daytona.io/docs/en<#NewClient>)
+  - [func NewClientWithConfig\(config \*types.DaytonaConfig\) \(\*Client, error\)](https://www.daytona.io/docs/en<#NewClientWithConfig>)
+  - [func \(c \*Client\) Close\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Client.Close>)
+  - [func \(c \*Client\) Create\(ctx context.Context, params any, opts ...func\(\*options.CreateSandbox\)\) \(\*Sandbox, error\)](https://www.daytona.io/docs/en<#Client.Create>)
+  - [func \(c \*Client\) Get\(ctx context.Context, sandboxIDOrName string\) \(\*Sandbox, error\)](https://www.daytona.io/docs/en<#Client.Get>)
+  - [func \(c \*Client\) List\(ctx context.Context, query \*ListSandboxesQuery\) \*SandboxIterator](https://www.daytona.io/docs/en<#Client.List>)
+  - [func \(c \*Client\) ListSeq\(ctx context.Context, query \*ListSandboxesQuery\) iter.Seq2\[\*Sandbox, error\]](<#Client.ListSeq>)
+- [type CodeInterpreterService](https://www.daytona.io/docs/en<#CodeInterpreterService>)
+  - [func NewCodeInterpreterService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*CodeInterpreterService](https://www.daytona.io/docs/en<#NewCodeInterpreterService>)
+  - [func \(c \*CodeInterpreterService\) CreateContext\(ctx context.Context, cwd \*string\) \(map\[string\]any, error\)](<#CodeInterpreterService.CreateContext>)
+  - [func \(c \*CodeInterpreterService\) DeleteContext\(ctx context.Context, contextID string\) error](https://www.daytona.io/docs/en<#CodeInterpreterService.DeleteContext>)
+  - [func \(c \*CodeInterpreterService\) ListContexts\(ctx context.Context\) \(\[\]map\[string\]any, error\)](<#CodeInterpreterService.ListContexts>)
+  - [func \(c \*CodeInterpreterService\) RunCode\(ctx context.Context, code string, opts ...func\(\*options.RunCode\)\) \(\*OutputChannels, error\)](https://www.daytona.io/docs/en<#CodeInterpreterService.RunCode>)
+- [type ComputerUseService](https://www.daytona.io/docs/en<#ComputerUseService>)
+  - [func NewComputerUseService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*ComputerUseService](https://www.daytona.io/docs/en<#NewComputerUseService>)
+  - [func \(c \*ComputerUseService\) Accessibility\(\) \*AccessibilityService](https://www.daytona.io/docs/en<#ComputerUseService.Accessibility>)
+  - [func \(c \*ComputerUseService\) Display\(\) \*DisplayService](https://www.daytona.io/docs/en<#ComputerUseService.Display>)
+  - [func \(c \*ComputerUseService\) GetStatus\(ctx context.Context\) \(map\[string\]any, error\)](<#ComputerUseService.GetStatus>)
+  - [func \(c \*ComputerUseService\) Keyboard\(\) \*KeyboardService](https://www.daytona.io/docs/en<#ComputerUseService.Keyboard>)
+  - [func \(c \*ComputerUseService\) Mouse\(\) \*MouseService](https://www.daytona.io/docs/en<#ComputerUseService.Mouse>)
+  - [func \(c \*ComputerUseService\) Recording\(\) \*RecordingService](https://www.daytona.io/docs/en<#ComputerUseService.Recording>)
+  - [func \(c \*ComputerUseService\) Screenshot\(\) \*ScreenshotService](https://www.daytona.io/docs/en<#ComputerUseService.Screenshot>)
+  - [func \(c \*ComputerUseService\) Start\(ctx context.Context\) error](https://www.daytona.io/docs/en<#ComputerUseService.Start>)
+  - [func \(c \*ComputerUseService\) Stop\(ctx context.Context\) error](https://www.daytona.io/docs/en<#ComputerUseService.Stop>)
+- [type DisplayService](https://www.daytona.io/docs/en<#DisplayService>)
+  - [func NewDisplayService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*DisplayService](https://www.daytona.io/docs/en<#NewDisplayService>)
+  - [func \(d \*DisplayService\) GetInfo\(ctx context.Context\) \(map\[string\]any, error\)](<#DisplayService.GetInfo>)
+  - [func \(d \*DisplayService\) GetWindows\(ctx context.Context\) \(map\[string\]any, error\)](<#DisplayService.GetWindows>)
+- [type DockerImage](https://www.daytona.io/docs/en<#DockerImage>)
+  - [func Base\(baseImage string\) \*DockerImage](https://www.daytona.io/docs/en<#Base>)
+  - [func DebianSlim\(pythonVersion \*string\) \*DockerImage](https://www.daytona.io/docs/en<#DebianSlim>)
+  - [func FromDockerfile\(dockerfile string\) \*DockerImage](https://www.daytona.io/docs/en<#FromDockerfile>)
+  - [func \(img \*DockerImage\) Add\(source, destination string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.Add>)
+  - [func \(img \*DockerImage\) AddLocalDir\(localPath, remotePath string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.AddLocalDir>)
+  - [func \(img \*DockerImage\) AddLocalFile\(localPath, remotePath string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.AddLocalFile>)
+  - [func \(img \*DockerImage\) AptGet\(packages \[\]string\) \*DockerImage](<#DockerImage.AptGet>)
+  - [func \(img \*DockerImage\) Cmd\(cmd \[\]string\) \*DockerImage](<#DockerImage.Cmd>)
+  - [func \(img \*DockerImage\) Contexts\(\) \[\]DockerImageContext](<#DockerImage.Contexts>)
+  - [func \(img \*DockerImage\) Copy\(source, destination string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.Copy>)
+  - [func \(img \*DockerImage\) Dockerfile\(\) string](https://www.daytona.io/docs/en<#DockerImage.Dockerfile>)
+  - [func \(img \*DockerImage\) Entrypoint\(cmd \[\]string\) \*DockerImage](<#DockerImage.Entrypoint>)
+  - [func \(img \*DockerImage\) Env\(key, value string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.Env>)
+  - [func \(img \*DockerImage\) Expose\(ports \[\]int\) \*DockerImage](<#DockerImage.Expose>)
+  - [func \(img \*DockerImage\) Label\(key, value string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.Label>)
+  - [func \(img \*DockerImage\) PipInstall\(packages \[\]string, opts ...func\(\*options.PipInstall\)\) \*DockerImage](<#DockerImage.PipInstall>)
+  - [func \(img \*DockerImage\) Run\(command string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.Run>)
+  - [func \(img \*DockerImage\) User\(username string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.User>)
+  - [func \(img \*DockerImage\) Volume\(paths \[\]string\) \*DockerImage](<#DockerImage.Volume>)
+  - [func \(img \*DockerImage\) Workdir\(path string\) \*DockerImage](https://www.daytona.io/docs/en<#DockerImage.Workdir>)
+- [type DockerImageContext](https://www.daytona.io/docs/en<#DockerImageContext>)
+- [type DownloadProgress](https://www.daytona.io/docs/en<#DownloadProgress>)
+- [type DownloadStreamOption](https://www.daytona.io/docs/en<#DownloadStreamOption>)
+  - [func WithDownloadProgress\(fn func\(DownloadProgress\)\) DownloadStreamOption](https://www.daytona.io/docs/en<#WithDownloadProgress>)
+- [type FileSystemService](https://www.daytona.io/docs/en<#FileSystemService>)
+  - [func NewFileSystemService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*FileSystemService](https://www.daytona.io/docs/en<#NewFileSystemService>)
+  - [func \(f \*FileSystemService\) CreateFolder\(ctx context.Context, path string, opts ...func\(\*options.CreateFolder\)\) error](https://www.daytona.io/docs/en<#FileSystemService.CreateFolder>)
+  - [func \(f \*FileSystemService\) DeleteFile\(ctx context.Context, path string, recursive bool\) error](https://www.daytona.io/docs/en<#FileSystemService.DeleteFile>)
+  - [func \(f \*FileSystemService\) DownloadFile\(ctx context.Context, remotePath string, localPath \*string\) \(\[\]byte, error\)](<#FileSystemService.DownloadFile>)
+  - [func \(f \*FileSystemService\) DownloadFileStream\(ctx context.Context, remotePath string, opts ...DownloadStreamOption\) \(io.ReadCloser, error\)](https://www.daytona.io/docs/en<#FileSystemService.DownloadFileStream>)
+  - [func \(f \*FileSystemService\) FindFiles\(ctx context.Context, path, pattern string\) \(any, error\)](https://www.daytona.io/docs/en<#FileSystemService.FindFiles>)
+  - [func \(f \*FileSystemService\) GetFileInfo\(ctx context.Context, path string\) \(\*types.FileInfo, error\)](https://www.daytona.io/docs/en<#FileSystemService.GetFileInfo>)
+  - [func \(f \*FileSystemService\) ListFiles\(ctx context.Context, path string, opts ...func\(\*options.ListFiles\)\) \(\[\]\*types.FileInfo, error\)](<#FileSystemService.ListFiles>)
+  - [func \(f \*FileSystemService\) MoveFiles\(ctx context.Context, source, destination string\) error](https://www.daytona.io/docs/en<#FileSystemService.MoveFiles>)
+  - [func \(f \*FileSystemService\) ReplaceInFiles\(ctx context.Context, files \[\]string, pattern, newValue string\) \(any, error\)](<#FileSystemService.ReplaceInFiles>)
+  - [func \(f \*FileSystemService\) SearchFiles\(ctx context.Context, path, pattern string\) \(any, error\)](https://www.daytona.io/docs/en<#FileSystemService.SearchFiles>)
+  - [func \(f \*FileSystemService\) SetFilePermissions\(ctx context.Context, path string, opts ...func\(\*options.SetFilePermissions\)\) error](https://www.daytona.io/docs/en<#FileSystemService.SetFilePermissions>)
+  - [func \(f \*FileSystemService\) UploadFile\(ctx context.Context, source any, destination string\) error](https://www.daytona.io/docs/en<#FileSystemService.UploadFile>)
+  - [func \(f \*FileSystemService\) UploadFileStream\(ctx context.Context, source io.Reader, remotePath string, opts ...UploadStreamOption\) error](https://www.daytona.io/docs/en<#FileSystemService.UploadFileStream>)
+- [type GitService](https://www.daytona.io/docs/en<#GitService>)
+  - [func NewGitService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*GitService](https://www.daytona.io/docs/en<#NewGitService>)
+  - [func \(g \*GitService\) Add\(ctx context.Context, path string, files \[\]string\) error](<#GitService.Add>)
+  - [func \(g \*GitService\) Branches\(ctx context.Context, path string\) \(\[\]string, error\)](<#GitService.Branches>)
+  - [func \(g \*GitService\) Checkout\(ctx context.Context, path, name string\) error](https://www.daytona.io/docs/en<#GitService.Checkout>)
+  - [func \(g \*GitService\) Clone\(ctx context.Context, url, path string, opts ...func\(\*options.GitClone\)\) error](https://www.daytona.io/docs/en<#GitService.Clone>)
+  - [func \(g \*GitService\) Commit\(ctx context.Context, path, message, author, email string, opts ...func\(\*options.GitCommit\)\) \(\*types.GitCommitResponse, error\)](https://www.daytona.io/docs/en<#GitService.Commit>)
+  - [func \(g \*GitService\) ConfigureUser\(ctx context.Context, name, email string, opts ...func\(\*options.GitConfig\)\) error](https://www.daytona.io/docs/en<#GitService.ConfigureUser>)
+  - [func \(g \*GitService\) CreateBranch\(ctx context.Context, path, name string\) error](https://www.daytona.io/docs/en<#GitService.CreateBranch>)
+  - [func \(g \*GitService\) DangerouslyAuthenticate\(ctx context.Context, username, password string, opts ...func\(\*options.GitAuthenticate\)\) error](https://www.daytona.io/docs/en<#GitService.DangerouslyAuthenticate>)
+  - [func \(g \*GitService\) DeleteBranch\(ctx context.Context, path, name string, opts ...func\(\*options.GitDeleteBranch\)\) error](https://www.daytona.io/docs/en<#GitService.DeleteBranch>)
+  - [func \(g \*GitService\) GetConfig\(ctx context.Context, key string, opts ...func\(\*options.GitConfig\)\) \(string, error\)](https://www.daytona.io/docs/en<#GitService.GetConfig>)
+  - [func \(g \*GitService\) Init\(ctx context.Context, path string, opts ...func\(\*options.GitInit\)\) error](https://www.daytona.io/docs/en<#GitService.Init>)
+  - [func \(g \*GitService\) Pull\(ctx context.Context, path string, opts ...func\(\*options.GitPull\)\) error](https://www.daytona.io/docs/en<#GitService.Pull>)
+  - [func \(g \*GitService\) Push\(ctx context.Context, path string, opts ...func\(\*options.GitPush\)\) error](https://www.daytona.io/docs/en<#GitService.Push>)
+  - [func \(g \*GitService\) RemoteAdd\(ctx context.Context, path, name, url string, opts ...func\(\*options.GitRemoteAdd\)\) error](https://www.daytona.io/docs/en<#GitService.RemoteAdd>)
+  - [func \(g \*GitService\) RemoteGet\(ctx context.Context, path, name string\) \(string, error\)](https://www.daytona.io/docs/en<#GitService.RemoteGet>)
+  - [func \(g \*GitService\) Remotes\(ctx context.Context, path string\) \(\[\]types.GitRemote, error\)](<#GitService.Remotes>)
+  - [func \(g \*GitService\) Reset\(ctx context.Context, path string, opts ...func\(\*options.GitReset\)\) error](https://www.daytona.io/docs/en<#GitService.Reset>)
+  - [func \(g \*GitService\) Restore\(ctx context.Context, path string, files \[\]string, opts ...func\(\*options.GitRestore\)\) error](<#GitService.Restore>)
+  - [func \(g \*GitService\) SetConfig\(ctx context.Context, key, value string, opts ...func\(\*options.GitConfig\)\) error](https://www.daytona.io/docs/en<#GitService.SetConfig>)
+  - [func \(g \*GitService\) Status\(ctx context.Context, path string\) \(\*types.GitStatus, error\)](https://www.daytona.io/docs/en<#GitService.Status>)
+- [type KeyboardService](https://www.daytona.io/docs/en<#KeyboardService>)
+  - [func NewKeyboardService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*KeyboardService](https://www.daytona.io/docs/en<#NewKeyboardService>)
+  - [func \(k \*KeyboardService\) Hotkey\(ctx context.Context, keys string\) error](https://www.daytona.io/docs/en<#KeyboardService.Hotkey>)
+  - [func \(k \*KeyboardService\) Press\(ctx context.Context, key string, modifiers \[\]string\) error](<#KeyboardService.Press>)
+  - [func \(k \*KeyboardService\) Type\(ctx context.Context, text string, delay \*int\) error](https://www.daytona.io/docs/en<#KeyboardService.Type>)
+- [type ListSandboxesQuery](https://www.daytona.io/docs/en<#ListSandboxesQuery>)
+- [type ListSnapshotsQuery](https://www.daytona.io/docs/en<#ListSnapshotsQuery>)
+- [type LspServerService](https://www.daytona.io/docs/en<#LspServerService>)
+  - [func NewLspServerService\(toolboxClient \*toolbox.APIClient, languageID types.LspLanguageID, projectPath string, otel \*otelState\) \*LspServerService](https://www.daytona.io/docs/en<#NewLspServerService>)
+  - [func \(l \*LspServerService\) Completions\(ctx context.Context, path string, position types.Position\) \(any, error\)](https://www.daytona.io/docs/en<#LspServerService.Completions>)
+  - [func \(l \*LspServerService\) DidClose\(ctx context.Context, path string\) error](https://www.daytona.io/docs/en<#LspServerService.DidClose>)
+  - [func \(l \*LspServerService\) DidOpen\(ctx context.Context, path string\) error](https://www.daytona.io/docs/en<#LspServerService.DidOpen>)
+  - [func \(l \*LspServerService\) DocumentSymbols\(ctx context.Context, path string\) \(\[\]any, error\)](<#LspServerService.DocumentSymbols>)
+  - [func \(l \*LspServerService\) SandboxSymbols\(ctx context.Context, query string\) \(\[\]any, error\)](<#LspServerService.SandboxSymbols>)
+  - [func \(l \*LspServerService\) Start\(ctx context.Context\) error](https://www.daytona.io/docs/en<#LspServerService.Start>)
+  - [func \(l \*LspServerService\) Stop\(ctx context.Context\) error](https://www.daytona.io/docs/en<#LspServerService.Stop>)
+- [type MouseService](https://www.daytona.io/docs/en<#MouseService>)
+  - [func NewMouseService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*MouseService](https://www.daytona.io/docs/en<#NewMouseService>)
+  - [func \(m \*MouseService\) Click\(ctx context.Context, x, y int, button \*string, double \*bool\) \(map\[string\]any, error\)](<#MouseService.Click>)
+  - [func \(m \*MouseService\) Drag\(ctx context.Context, startX, startY, endX, endY int, button \*string\) \(map\[string\]any, error\)](<#MouseService.Drag>)
+  - [func \(m \*MouseService\) GetPosition\(ctx context.Context\) \(map\[string\]any, error\)](<#MouseService.GetPosition>)
+  - [func \(m \*MouseService\) Move\(ctx context.Context, x, y int\) \(map\[string\]any, error\)](<#MouseService.Move>)
+  - [func \(m \*MouseService\) Scroll\(ctx context.Context, x, y int, direction string, amount \*int\) \(bool, error\)](https://www.daytona.io/docs/en<#MouseService.Scroll>)
+- [type OutputChannels](https://www.daytona.io/docs/en<#OutputChannels>)
+- [type ProcessService](https://www.daytona.io/docs/en<#ProcessService>)
+  - [func NewProcessService\(toolboxClient \*toolbox.APIClient, otel \*otelState, language types.CodeLanguage\) \*ProcessService](https://www.daytona.io/docs/en<#NewProcessService>)
+  - [func \(p \*ProcessService\) CodeRun\(ctx context.Context, code string, opts ...func\(\*options.CodeRun\)\) \(\*types.ExecuteResponse, error\)](https://www.daytona.io/docs/en<#ProcessService.CodeRun>)
+  - [func \(p \*ProcessService\) ConnectPty\(ctx context.Context, sessionID string\) \(\*PtyHandle, error\)](https://www.daytona.io/docs/en<#ProcessService.ConnectPty>)
+  - [func \(p \*ProcessService\) CreatePty\(ctx context.Context, id string, opts ...func\(\*options.CreatePty\)\) \(\*PtyHandle, error\)](https://www.daytona.io/docs/en<#ProcessService.CreatePty>)
+  - [func \(p \*ProcessService\) CreatePtySession\(ctx context.Context, id string, opts ...func\(\*options.PtySession\)\) \(\*types.PtySessionInfo, error\)](https://www.daytona.io/docs/en<#ProcessService.CreatePtySession>)
+  - [func \(p \*ProcessService\) CreateSession\(ctx context.Context, sessionID string\) error](https://www.daytona.io/docs/en<#ProcessService.CreateSession>)
+  - [func \(p \*ProcessService\) DeleteSession\(ctx context.Context, sessionID string\) error](https://www.daytona.io/docs/en<#ProcessService.DeleteSession>)
+  - [func \(p \*ProcessService\) ExecuteCommand\(ctx context.Context, command string, opts ...func\(\*options.ExecuteCommand\)\) \(\*types.ExecuteResponse, error\)](https://www.daytona.io/docs/en<#ProcessService.ExecuteCommand>)
+  - [func \(p \*ProcessService\) ExecuteSessionCommand\(ctx context.Context, sessionID, command string, runAsync bool, suppressInputEcho bool\) \(map\[string\]any, error\)](<#ProcessService.ExecuteSessionCommand>)
+  - [func \(p \*ProcessService\) GetEntrypointLogs\(ctx context.Context\) \(\*toolbox.SessionCommandLogsResponse, error\)](https://www.daytona.io/docs/en<#ProcessService.GetEntrypointLogs>)
+  - [func \(p \*ProcessService\) GetEntrypointLogsStream\(ctx context.Context, stdout, stderr chan\<\- string\) error](https://www.daytona.io/docs/en<#ProcessService.GetEntrypointLogsStream>)
+  - [func \(p \*ProcessService\) GetEntrypointSession\(ctx context.Context\) \(\*toolbox.Session, error\)](https://www.daytona.io/docs/en<#ProcessService.GetEntrypointSession>)
+  - [func \(p \*ProcessService\) GetPtySessionInfo\(ctx context.Context, sessionID string\) \(\*types.PtySessionInfo, error\)](https://www.daytona.io/docs/en<#ProcessService.GetPtySessionInfo>)
+  - [func \(p \*ProcessService\) GetSession\(ctx context.Context, sessionID string\) \(map\[string\]any, error\)](<#ProcessService.GetSession>)
+  - [func \(p \*ProcessService\) GetSessionCommand\(ctx context.Context, sessionID, commandID string\) \(map\[string\]any, error\)](<#ProcessService.GetSessionCommand>)
+  - [func \(p \*ProcessService\) GetSessionCommandLogs\(ctx context.Context, sessionID, commandID string\) \(\*toolbox.SessionCommandLogsResponse, error\)](https://www.daytona.io/docs/en<#ProcessService.GetSessionCommandLogs>)
+  - [func \(p \*ProcessService\) GetSessionCommandLogsStream\(ctx context.Context, sessionID, commandID string, stdout, stderr chan\<\- string\) error](https://www.daytona.io/docs/en<#ProcessService.GetSessionCommandLogsStream>)
+  - [func \(p \*ProcessService\) KillPtySession\(ctx context.Context, sessionID string\) error](https://www.daytona.io/docs/en<#ProcessService.KillPtySession>)
+  - [func \(p \*ProcessService\) ListPtySessions\(ctx context.Context\) \(\[\]\*types.PtySessionInfo, error\)](<#ProcessService.ListPtySessions>)
+  - [func \(p \*ProcessService\) ListSessions\(ctx context.Context\) \(\[\]map\[string\]any, error\)](<#ProcessService.ListSessions>)
+  - [func \(p \*ProcessService\) ResizePtySession\(ctx context.Context, sessionID string, ptySize types.PtySize\) \(\*types.PtySessionInfo, error\)](https://www.daytona.io/docs/en<#ProcessService.ResizePtySession>)
+- [type PtyHandle](https://www.daytona.io/docs/en<#PtyHandle>)
+  - [func \(h \*PtyHandle\) DataChan\(\) \<\-chan \[\]byte](<#PtyHandle.DataChan>)
+  - [func \(h \*PtyHandle\) Disconnect\(\) error](https://www.daytona.io/docs/en<#PtyHandle.Disconnect>)
+  - [func \(h \*PtyHandle\) Error\(\) \*string](https://www.daytona.io/docs/en<#PtyHandle.Error>)
+  - [func \(h \*PtyHandle\) ExitCode\(\) \*int](https://www.daytona.io/docs/en<#PtyHandle.ExitCode>)
+  - [func \(h \*PtyHandle\) IsConnected\(\) bool](https://www.daytona.io/docs/en<#PtyHandle.IsConnected>)
+  - [func \(h \*PtyHandle\) Kill\(ctx context.Context\) error](https://www.daytona.io/docs/en<#PtyHandle.Kill>)
+  - [func \(h \*PtyHandle\) Read\(p \[\]byte\) \(n int, err error\)](<#PtyHandle.Read>)
+  - [func \(h \*PtyHandle\) Resize\(ctx context.Context, cols, rows int\) \(\*types.PtySessionInfo, error\)](https://www.daytona.io/docs/en<#PtyHandle.Resize>)
+  - [func \(h \*PtyHandle\) SendInput\(data \[\]byte\) error](<#PtyHandle.SendInput>)
+  - [func \(h \*PtyHandle\) SessionID\(\) string](https://www.daytona.io/docs/en<#PtyHandle.SessionID>)
+  - [func \(h \*PtyHandle\) Wait\(ctx context.Context\) \(\*types.PtyResult, error\)](https://www.daytona.io/docs/en<#PtyHandle.Wait>)
+  - [func \(h \*PtyHandle\) WaitForConnection\(ctx context.Context\) error](https://www.daytona.io/docs/en<#PtyHandle.WaitForConnection>)
+  - [func \(h \*PtyHandle\) Write\(p \[\]byte\) \(n int, err error\)](<#PtyHandle.Write>)
+- [type PushAccessCredentials](https://www.daytona.io/docs/en<#PushAccessCredentials>)
+- [type RecordingService](https://www.daytona.io/docs/en<#RecordingService>)
+  - [func NewRecordingService\(toolboxClient \*toolbox.APIClient\) \*RecordingService](https://www.daytona.io/docs/en<#NewRecordingService>)
+  - [func \(r \*RecordingService\) Delete\(ctx context.Context, id string\) error](https://www.daytona.io/docs/en<#RecordingService.Delete>)
+  - [func \(r \*RecordingService\) Download\(ctx context.Context, id string, localPath string\) error](https://www.daytona.io/docs/en<#RecordingService.Download>)
+  - [func \(r \*RecordingService\) Get\(ctx context.Context, id string\) \(\*toolbox.Recording, error\)](https://www.daytona.io/docs/en<#RecordingService.Get>)
+  - [func \(r \*RecordingService\) List\(ctx context.Context\) \(\*toolbox.ListRecordingsResponse, error\)](https://www.daytona.io/docs/en<#RecordingService.List>)
+  - [func \(r \*RecordingService\) Start\(ctx context.Context, label \*string\) \(\*toolbox.Recording, error\)](https://www.daytona.io/docs/en<#RecordingService.Start>)
+  - [func \(r \*RecordingService\) Stop\(ctx context.Context, id string\) \(\*toolbox.Recording, error\)](https://www.daytona.io/docs/en<#RecordingService.Stop>)
+- [type Sandbox](https://www.daytona.io/docs/en<#Sandbox>)
+  - [func NewSandbox\(client \*Client, toolboxClient \*toolbox.APIClient, dto sandboxDTO, language types.CodeLanguage, subscriptionManager \*common.EventSubscriptionManager\) \*Sandbox](https://www.daytona.io/docs/en<#NewSandbox>)
+  - [func \(s \*Sandbox\) Archive\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Archive>)
+  - [func \(s \*Sandbox\) CreateLspServer\(languageID types.LspLanguageID, pathToProject string\) \*LspServerService](https://www.daytona.io/docs/en<#Sandbox.CreateLspServer>)
+  - [func \(s \*Sandbox\) CreateSnapshot\(ctx context.Context, name string\) error](https://www.daytona.io/docs/en<#Sandbox.CreateSnapshot>)
+  - [func \(s \*Sandbox\) CreateSnapshotWithTimeout\(ctx context.Context, name string, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.CreateSnapshotWithTimeout>)
+  - [func \(s \*Sandbox\) Delete\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Delete>)
+  - [func \(s \*Sandbox\) DeleteAndWait\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.DeleteAndWait>)
+  - [func \(s \*Sandbox\) DeleteWithTimeout\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.DeleteWithTimeout>)
+  - [func \(s \*Sandbox\) DownloadURL\(ctx context.Context, path string, ttlSeconds \*int\) \(string, error\)](https://www.daytona.io/docs/en<#Sandbox.DownloadURL>)
+  - [func \(s \*Sandbox\) ExperimentalCreateSnapshot\(ctx context.Context, name string\) error](https://www.daytona.io/docs/en<#Sandbox.ExperimentalCreateSnapshot>)
+  - [func \(s \*Sandbox\) ExperimentalCreateSnapshotWithTimeout\(ctx context.Context, name string, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.ExperimentalCreateSnapshotWithTimeout>)
+  - [func \(s \*Sandbox\) ExperimentalFork\(ctx context.Context, name \*string\) \(\*Sandbox, error\)](https://www.daytona.io/docs/en<#Sandbox.ExperimentalFork>)
+  - [func \(s \*Sandbox\) ExperimentalForkWithTimeout\(ctx context.Context, name \*string, timeout time.Duration\) \(\*Sandbox, error\)](https://www.daytona.io/docs/en<#Sandbox.ExperimentalForkWithTimeout>)
+  - [func \(s \*Sandbox\) ExpireSignedPreviewLink\(ctx context.Context, port int, token string\) error](https://www.daytona.io/docs/en<#Sandbox.ExpireSignedPreviewLink>)
+  - [func \(s \*Sandbox\) Fork\(ctx context.Context, name \*string\) \(\*Sandbox, error\)](https://www.daytona.io/docs/en<#Sandbox.Fork>)
+  - [func \(s \*Sandbox\) ForkWithTimeout\(ctx context.Context, name \*string, timeout time.Duration\) \(\*Sandbox, error\)](https://www.daytona.io/docs/en<#Sandbox.ForkWithTimeout>)
+  - [func \(s \*Sandbox\) GetMetrics\(ctx context.Context, start, end \*time.Time\) \(\[\]SandboxMetrics, error\)](<#Sandbox.GetMetrics>)
+  - [func \(s \*Sandbox\) GetMetricsLatest\(ctx context.Context\) \(SandboxMetrics, error\)](https://www.daytona.io/docs/en<#Sandbox.GetMetricsLatest>)
+  - [func \(s \*Sandbox\) GetPreviewLink\(ctx context.Context, port int\) \(\*types.PreviewLink, error\)](https://www.daytona.io/docs/en<#Sandbox.GetPreviewLink>)
+  - [func \(s \*Sandbox\) GetSignedPreviewLink\(ctx context.Context, port int, expiresInSeconds int\) \(\*types.SignedPreviewLink, error\)](https://www.daytona.io/docs/en<#Sandbox.GetSignedPreviewLink>)
+  - [func \(s \*Sandbox\) GetUserHomeDir\(ctx context.Context\) \(string, error\)](https://www.daytona.io/docs/en<#Sandbox.GetUserHomeDir>)
+  - [func \(s \*Sandbox\) GetWorkingDir\(ctx context.Context\) \(string, error\)](https://www.daytona.io/docs/en<#Sandbox.GetWorkingDir>)
+  - [func \(s \*Sandbox\) Pause\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Pause>)
+  - [func \(s \*Sandbox\) PauseWithTimeout\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.PauseWithTimeout>)
+  - [func \(s \*Sandbox\) RefreshData\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.RefreshData>)
+  - [func \(s \*Sandbox\) Resize\(ctx context.Context, resources \*types.Resources\) error](https://www.daytona.io/docs/en<#Sandbox.Resize>)
+  - [func \(s \*Sandbox\) ResizeWithTimeout\(ctx context.Context, resources \*types.Resources, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.ResizeWithTimeout>)
+  - [func \(s \*Sandbox\) RotateSigningKey\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.RotateSigningKey>)
+  - [func \(s \*Sandbox\) SetAutoArchiveInterval\(ctx context.Context, intervalMinutes \*int\) error](https://www.daytona.io/docs/en<#Sandbox.SetAutoArchiveInterval>)
+  - [func \(s \*Sandbox\) SetAutoDeleteInterval\(ctx context.Context, intervalMinutes \*int\) error](https://www.daytona.io/docs/en<#Sandbox.SetAutoDeleteInterval>)
+  - [func \(s \*Sandbox\) SetLabels\(ctx context.Context, labels map\[string\]string\) error](<#Sandbox.SetLabels>)
+  - [func \(s \*Sandbox\) Start\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Start>)
+  - [func \(s \*Sandbox\) StartWithTimeout\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.StartWithTimeout>)
+  - [func \(s \*Sandbox\) Stop\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Stop>)
+  - [func \(s \*Sandbox\) StopWithTimeout\(ctx context.Context, timeout time.Duration, force bool\) error](https://www.daytona.io/docs/en<#Sandbox.StopWithTimeout>)
+  - [func \(s \*Sandbox\) UpdateEnv\(ctx context.Context, env map\[string\]string, unset \[\]string\) error](<#Sandbox.UpdateEnv>)
+  - [func \(s \*Sandbox\) UpdateNetworkSettings\(ctx context.Context, settings apiclient.UpdateSandboxNetworkSettings\) error](https://www.daytona.io/docs/en<#Sandbox.UpdateNetworkSettings>)
+  - [func \(s \*Sandbox\) UpdateSecrets\(ctx context.Context, secrets map\[string\]string\) error](<#Sandbox.UpdateSecrets>)
+  - [func \(s \*Sandbox\) UploadURL\(ctx context.Context, path string, ttlSeconds \*int\) \(string, error\)](https://www.daytona.io/docs/en<#Sandbox.UploadURL>)
+  - [func \(s \*Sandbox\) WaitForResize\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.WaitForResize>)
+  - [func \(s \*Sandbox\) WaitForStart\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.WaitForStart>)
+  - [func \(s \*Sandbox\) WaitForStop\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.WaitForStop>)
+- [type SandboxIterator](https://www.daytona.io/docs/en<#SandboxIterator>)
+  - [func \(it \*SandboxIterator\) Err\(\) error](https://www.daytona.io/docs/en<#SandboxIterator.Err>)
+  - [func \(it \*SandboxIterator\) Next\(\) bool](https://www.daytona.io/docs/en<#SandboxIterator.Next>)
+  - [func \(it \*SandboxIterator\) Value\(\) \*Sandbox](https://www.daytona.io/docs/en<#SandboxIterator.Value>)
+- [type SandboxListSortDirection](https://www.daytona.io/docs/en<#SandboxListSortDirection>)
+- [type SandboxListSortField](https://www.daytona.io/docs/en<#SandboxListSortField>)
+- [type SandboxMetrics](https://www.daytona.io/docs/en<#SandboxMetrics>)
+- [type SandboxState](https://www.daytona.io/docs/en<#SandboxState>)
+- [type ScreenshotService](https://www.daytona.io/docs/en<#ScreenshotService>)
+  - [func NewScreenshotService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*ScreenshotService](https://www.daytona.io/docs/en<#NewScreenshotService>)
+  - [func \(s \*ScreenshotService\) TakeFullScreen\(ctx context.Context, showCursor \*bool\) \(\*types.ScreenshotResponse, error\)](https://www.daytona.io/docs/en<#ScreenshotService.TakeFullScreen>)
+  - [func \(s \*ScreenshotService\) TakeRegion\(ctx context.Context, region types.ScreenshotRegion, showCursor \*bool\) \(\*types.ScreenshotResponse, error\)](https://www.daytona.io/docs/en<#ScreenshotService.TakeRegion>)
+- [type SecretService](https://www.daytona.io/docs/en<#SecretService>)
+  - [func NewSecretService\(client \*Client\) \*SecretService](https://www.daytona.io/docs/en<#NewSecretService>)
+  - [func \(s \*SecretService\) Create\(ctx context.Context, params \*types.CreateSecretParams\) \(\*types.Secret, error\)](https://www.daytona.io/docs/en<#SecretService.Create>)
+  - [func \(s \*SecretService\) Delete\(ctx context.Context, secretID string\) error](https://www.daytona.io/docs/en<#SecretService.Delete>)
+  - [func \(s \*SecretService\) Get\(ctx context.Context, secretID string\) \(\*types.Secret, error\)](https://www.daytona.io/docs/en<#SecretService.Get>)
+  - [func \(s \*SecretService\) List\(ctx context.Context, query \*types.ListSecretsQuery\) \(\*types.ListSecretsResponse, error\)](https://www.daytona.io/docs/en<#SecretService.List>)
+  - [func \(s \*SecretService\) Update\(ctx context.Context, secretID string, params \*types.UpdateSecretParams\) \(\*types.Secret, error\)](https://www.daytona.io/docs/en<#SecretService.Update>)
+- [type SnapshotService](https://www.daytona.io/docs/en<#SnapshotService>)
+  - [func NewSnapshotService\(client \*Client\) \*SnapshotService](https://www.daytona.io/docs/en<#NewSnapshotService>)
+  - [func \(s \*SnapshotService\) Activate\(ctx context.Context, nameOrID string\) \(\*types.Snapshot, error\)](https://www.daytona.io/docs/en<#SnapshotService.Activate>)
+  - [func \(s \*SnapshotService\) Create\(ctx context.Context, params \*types.CreateSnapshotParams\) \(\*types.Snapshot, \<\-chan string, error\)](https://www.daytona.io/docs/en<#SnapshotService.Create>)
+  - [func \(s \*SnapshotService\) Delete\(ctx context.Context, snapshot \*types.Snapshot\) error](https://www.daytona.io/docs/en<#SnapshotService.Delete>)
+  - [func \(s \*SnapshotService\) DeleteByNameOrID\(ctx context.Context, nameOrID string\) error](https://www.daytona.io/docs/en<#SnapshotService.DeleteByNameOrID>)
+  - [func \(s \*SnapshotService\) Get\(ctx context.Context, nameOrID string\) \(\*types.Snapshot, error\)](https://www.daytona.io/docs/en<#SnapshotService.Get>)
+  - [func \(s \*SnapshotService\) List\(ctx context.Context, page \*int, limit \*int\) \(\*types.PaginatedSnapshots, error\)](https://www.daytona.io/docs/en<#SnapshotService.List>)
+  - [func \(s \*SnapshotService\) ListWithQuery\(ctx context.Context, query \*ListSnapshotsQuery\) \(\*types.PaginatedSnapshots, error\)](https://www.daytona.io/docs/en<#SnapshotService.ListWithQuery>)
+- [type UploadProgress](https://www.daytona.io/docs/en<#UploadProgress>)
+- [type UploadStreamOption](https://www.daytona.io/docs/en<#UploadStreamOption>)
+  - [func WithUploadProgress\(fn func\(UploadProgress\)\) UploadStreamOption](https://www.daytona.io/docs/en<#WithUploadProgress>)
+- [type VolumeService](https://www.daytona.io/docs/en<#VolumeService>)
+  - [func NewVolumeService\(client \*Client\) \*VolumeService](https://www.daytona.io/docs/en<#NewVolumeService>)
+  - [func \(v \*VolumeService\) Create\(ctx context.Context, name string\) \(\*types.Volume, error\)](https://www.daytona.io/docs/en<#VolumeService.Create>)
+  - [func \(v \*VolumeService\) Delete\(ctx context.Context, volume \*types.Volume\) error](https://www.daytona.io/docs/en<#VolumeService.Delete>)
+  - [func \(v \*VolumeService\) Get\(ctx context.Context, name string\) \(\*types.Volume, error\)](https://www.daytona.io/docs/en<#VolumeService.Get>)
+  - [func \(v \*VolumeService\) List\(ctx context.Context\) \(\[\]\*types.Volume, error\)](<#VolumeService.List>)
+  - [func \(v \*VolumeService\) WaitForReady\(ctx context.Context, volume \*types.Volume, timeout time.Duration\) \(\*types.Volume, error\)](https://www.daytona.io/docs/en<#VolumeService.WaitForReady>)
+- [type WarmPoolService](https://www.daytona.io/docs/en<#WarmPoolService>)
+  - [func NewWarmPoolService\(client \*Client\) \*WarmPoolService](https://www.daytona.io/docs/en<#NewWarmPoolService>)
+  - [func \(w \*WarmPoolService\) Create\(ctx context.Context, params \*types.CreateWarmPoolParams\) \(\*types.WarmPool, error\)](https://www.daytona.io/docs/en<#WarmPoolService.Create>)
+  - [func \(w \*WarmPoolService\) Delete\(ctx context.Context, warmPoolID string\) error](https://www.daytona.io/docs/en<#WarmPoolService.Delete>)
+  - [func \(w \*WarmPoolService\) List\(ctx context.Context\) \(\[\]\*types.WarmPool, error\)](<#WarmPoolService.List>)
+  - [func \(w \*WarmPoolService\) Update\(ctx context.Context, warmPoolID string, pool int\) \(\*types.WarmPool, error\)](https://www.daytona.io/docs/en<#WarmPoolService.Update>)
+
+
+## Constants
+
+<a name="SandboxStateCreating"></a>CamelCase enum constants, matching idiomatic Go naming \(the underlying api\-client uses SCREAMING\_SNAKE\_CASE which is non\-idiomatic in Go\).
+
+```go
+const (
+    SandboxStateCreating         = apiclient.SANDBOXSTATE_CREATING
+    SandboxStateRestoring        = apiclient.SANDBOXSTATE_RESTORING
+    SandboxStateDestroyed        = apiclient.SANDBOXSTATE_DESTROYED
+    SandboxStateDestroying       = apiclient.SANDBOXSTATE_DESTROYING
+    SandboxStateStarted          = apiclient.SANDBOXSTATE_STARTED
+    SandboxStateStopped          = apiclient.SANDBOXSTATE_STOPPED
+    SandboxStateStarting         = apiclient.SANDBOXSTATE_STARTING
+    SandboxStateStopping         = apiclient.SANDBOXSTATE_STOPPING
+    SandboxStateError            = apiclient.SANDBOXSTATE_ERROR
+    SandboxStateBuildFailed      = apiclient.SANDBOXSTATE_BUILD_FAILED
+    SandboxStatePendingBuild     = apiclient.SANDBOXSTATE_PENDING_BUILD
+    SandboxStateBuildingSnapshot = apiclient.SANDBOXSTATE_BUILDING_SNAPSHOT
+    SandboxStateUnknown          = apiclient.SANDBOXSTATE_UNKNOWN
+    SandboxStatePullingSnapshot  = apiclient.SANDBOXSTATE_PULLING_SNAPSHOT
+    SandboxStateArchived         = apiclient.SANDBOXSTATE_ARCHIVED
+    SandboxStateArchiving        = apiclient.SANDBOXSTATE_ARCHIVING
+    SandboxStateResizing         = apiclient.SANDBOXSTATE_RESIZING
+    SandboxStateSnapshotting     = apiclient.SANDBOXSTATE_SNAPSHOTTING
+    SandboxStateForking          = apiclient.SANDBOXSTATE_FORKING
+    SandboxStatePausing          = apiclient.SANDBOXSTATE_PAUSING
+    SandboxStatePaused           = apiclient.SANDBOXSTATE_PAUSED
+    SandboxStateResuming         = apiclient.SANDBOXSTATE_RESUMING
+)
+```
+
+<a name="SandboxListSortFieldName"></a>
+
+```go
+const (
+    SandboxListSortFieldName           = apiclient.SANDBOXLISTSORTFIELD_NAME
+    SandboxListSortFieldCpu            = apiclient.SANDBOXLISTSORTFIELD_CPU
+    SandboxListSortFieldMemoryGib      = apiclient.SANDBOXLISTSORTFIELD_MEMORY_GIB
+    SandboxListSortFieldDiskGib        = apiclient.SANDBOXLISTSORTFIELD_DISK_GIB
+    SandboxListSortFieldLastActivityAt = apiclient.SANDBOXLISTSORTFIELD_LAST_ACTIVITY_AT
+    SandboxListSortFieldCreatedAt      = apiclient.SANDBOXLISTSORTFIELD_CREATED_AT
+)
+```
+
+<a name="SandboxListSortDirectionAsc"></a>
+
+```go
+const (
+    SandboxListSortDirectionAsc  = apiclient.SANDBOXLISTSORTDIRECTION_ASC
+    SandboxListSortDirectionDesc = apiclient.SANDBOXLISTSORTDIRECTION_DESC
+)
+```
+
+## Variables
+
+<a name="Version"></a>Version is the semantic version of the Daytona SDK.
+
+This value is embedded at build time from the VERSION file.
+
+Example:
+
+```
+fmt.Printf("Daytona SDK version: %s\n", daytona.Version)
+```
+
+```go
+var Version = strings.TrimSpace(version)
+```
+
+<a name="AccessibilityFindOptions"></a>
+## type AccessibilityFindOptions
+
+AccessibilityFindOptions configures an accessibility node search.
+
+```go
+type AccessibilityFindOptions struct {
+    Scope     *string
+    PID       *int
+    Role      *string
+    Name      *string
+    NameMatch *string
+    States    []string
+    Limit     *int
+}
+```
+
+<a name="AccessibilityService"></a>
+## type AccessibilityService
+
+AccessibilityService provides AT\-SPI accessibility operations.
+
+AccessibilityService exposes thin SDK wrappers over the toolbox accessibility endpoints. Access through [ComputerUseService.Accessibility](https://www.daytona.io/docs/en<#ComputerUseService.Accessibility>).
+
+```go
+type AccessibilityService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewAccessibilityService"></a>
+### func NewAccessibilityService
+
+```go
+func NewAccessibilityService(toolboxClient *toolbox.APIClient, otel *otelState) *AccessibilityService
+```
+
+NewAccessibilityService creates a new AccessibilityService.
+
+<a name="AccessibilityService.FindNodes"></a>
+### func \(\*AccessibilityService\) FindNodes
+
+```go
+func (a *AccessibilityService) FindNodes(ctx context.Context, opts *AccessibilityFindOptions) (*toolbox.AccessibilityNodesResponse, error)
+```
+
+FindNodes finds AT\-SPI accessibility nodes matching the provided filters.
+
+<a name="AccessibilityService.FocusNode"></a>
+### func \(\*AccessibilityService\) FocusNode
+
+```go
+func (a *AccessibilityService) FocusNode(ctx context.Context, id string) error
+```
+
+FocusNode focuses an AT\-SPI accessibility node.
+
+<a name="AccessibilityService.GetTree"></a>
+### func \(\*AccessibilityService\) GetTree
+
+```go
+func (a *AccessibilityService) GetTree(ctx context.Context, opts *AccessibilityTreeOptions) (*toolbox.AccessibilityTreeResponse, error)
+```
+
+GetTree fetches the AT\-SPI accessibility tree.
+
+<a name="AccessibilityService.InvokeNode"></a>
+### func \(\*AccessibilityService\) InvokeNode
+
+```go
+func (a *AccessibilityService) InvokeNode(ctx context.Context, id string, action *string) error
+```
+
+InvokeNode invokes an AT\-SPI accessibility node action.
+
+<a name="AccessibilityService.SetNodeValue"></a>
+### func \(\*AccessibilityService\) SetNodeValue
+
+```go
+func (a *AccessibilityService) SetNodeValue(ctx context.Context, id string, value string) error
+```
+
+SetNodeValue sets an AT\-SPI accessibility node value.
+
+<a name="AccessibilityTreeOptions"></a>
+## type AccessibilityTreeOptions
+
+AccessibilityTreeOptions configures an accessibility tree request.
+
+```go
+type AccessibilityTreeOptions struct {
+    Scope    *string
+    PID      *int
+    MaxDepth *int
+}
+```
+
+<a name="Client"></a>
+## type Client
+
+Client is the main entry point for interacting with the Daytona platform.
+
+Client provides methods to create, retrieve, list, and manage sandboxes. It handles authentication, API communication, and provides access to services like Volume and Snapshot management.
+
+Create a Client using [NewClient](https://www.daytona.io/docs/en<#NewClient>) or [NewClientWithConfig](https://www.daytona.io/docs/en<#NewClientWithConfig>):
+
+```
+client, err := daytona.NewClient()
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+The Client is safe for concurrent use by multiple goroutines.
+
+```go
+type Client struct {
+
+    // Otel holds OpenTelemetry state; nil when OTel is disabled.
+    Otel *otelState
+
+    // Volume provides methods for managing persistent volumes.
+    Volume *VolumeService
+
+    // Snapshot provides methods for managing sandbox snapshots.
+    Snapshot *SnapshotService
+
+    // Secret provides methods for managing organization secrets.
+    Secret *SecretService
+
+    // WarmPool provides methods for managing warm pools of ready sandboxes.
+    WarmPool *WarmPoolService
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewClient"></a>
+### func NewClient
+
+```go
+func NewClient() (*Client, error)
+```
+
+NewClient creates a new Daytona client with default configuration.
+
+NewClient reads configuration from environment variables:
+
+- DAYTONA\_API\_KEY or DAYTONA\_JWT\_TOKEN for authentication \(one is required\)
+- DAYTONA\_ORGANIZATION\_ID \(required when using JWT token\)
+- DAYTONA\_API\_URL for custom API endpoint
+- DAYTONA\_TARGET for target environment
+
+For explicit configuration, use [NewClientWithConfig](https://www.daytona.io/docs/en<#NewClientWithConfig>) instead.
+
+<a name="NewClientWithConfig"></a>
+### func NewClientWithConfig
+
+```go
+func NewClientWithConfig(config *types.DaytonaConfig) (*Client, error)
+```
+
+NewClientWithConfig creates a new Daytona client with a custom configuration.
+
+Configuration values provided in config take precedence over environment variables. Any configuration field left empty will fall back to the corresponding environment variable \(see [NewClient](https://www.daytona.io/docs/en<#NewClient>) for the list of supported variables\).
+
+Example:
+
+```
+client, err := daytona.NewClientWithConfig(&types.DaytonaConfig{
+    APIKey:         "your-api-key",
+    APIUrl:         "https://custom.daytona.io/api",
+    OrganizationID: "org-123",
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+Returns an error if neither API key nor JWT token is provided, or if JWT token is provided without an organization ID.
+
+<a name="Client.Close"></a>
+### func \(\*Client\) Close
+
+```go
+func (c *Client) Close(ctx context.Context) error
+```
+
+Close shuts down the client and releases resources. When OpenTelemetry is enabled, Close flushes and shuts down the OTel providers. It is safe to call Close even when OTel is not enabled.
+
+<a name="Client.Create"></a>
+### func \(\*Client\) Create
+
+```go
+func (c *Client) Create(ctx context.Context, params any, opts ...func(*options.CreateSandbox)) (*Sandbox, error)
+```
+
+Create creates a new sandbox with the specified parameters.
+
+The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image:
+
+```
+// Create from a snapshot
+sandbox, err := client.Create(ctx, types.SnapshotParams{
+    Snapshot: "my-snapshot",
+    SandboxBaseParams: types.SandboxBaseParams{
+        Name: "my-sandbox",
+    },
+})
+
+// Create from a Docker image
+sandbox, err := client.Create(ctx, types.ImageParams{
+    Image: "python:3.11",
+    Resources: &types.Resources{
+        CPU:    2,
+        Memory: 4096,
+    },
+})
+```
+
+By default, Create waits for the sandbox to reach the started state before returning. Use \[options.WithWaitForStart\]\(false\) to return immediately after creation.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithTimeout\]: Set maximum wait time for creation
+- \[options.WithWaitForStart\]: Control whether to wait for started state
+- \[options.WithLogChannel\]: Receive build logs during image builds
+
+Returns the created [Sandbox](https://www.daytona.io/docs/en<#Sandbox>) or an error if creation fails.
+
+<a name="Client.Get"></a>
+### func \(\*Client\) Get
+
+```go
+func (c *Client) Get(ctx context.Context, sandboxIDOrName string) (*Sandbox, error)
+```
+
+Get retrieves an existing sandbox by its ID or name.
+
+The sandboxIDOrName parameter accepts either the sandbox's unique ID or its human\-readable name. If a sandbox with the given identifier is not found, a [\\\*errors.DaytonaError](https://www.daytona.io/docs/en<https://pkg.go.dev/errors#DaytonaError>) matching [errors.ErrNotFound](https://www.daytona.io/docs/en<https://pkg.go.dev/errors#ErrNotFound>) is returned.
+
+Example:
+
+```
+sandbox, err := client.Get(ctx, "my-sandbox")
+if err != nil {
+    if errors.Is(err, sdkerrors.ErrNotFound) {
+        log.Println("Sandbox not found")
+    }
+    return err
+}
+```
+
+<a name="Client.List"></a>
+### func \(\*Client\) List
+
+```go
+func (c *Client) List(ctx context.Context, query *ListSandboxesQuery) *SandboxIterator
+```
+
+List returns an iterator over Sandboxes matching the given query, following the [database/sql.Rows](https://www.daytona.io/docs/en<https://pkg.go.dev/database/sql#Rows>) / [bufio.Scanner](https://www.daytona.io/docs/en<https://pkg.go.dev/bufio#Scanner>) iterator pattern.
+
+For Go 1.23\+ range\-over\-func consumers, see [Client.ListSeq](https://www.daytona.io/docs/en<#Client.ListSeq>).
+
+Example:
+
+```
+iter := client.List(ctx, &ListSandboxesQuery{Labels: map[string]string{"env": "dev"}})
+for iter.Next() {
+    fmt.Println(iter.Value().ID)
+}
+if err := iter.Err(); err != nil {
+    log.Fatal(err)
+}
+```
+
+<a name="Client.ListSeq"></a>
+### func \(\*Client\) ListSeq
+
+```go
+func (c *Client) ListSeq(ctx context.Context, query *ListSandboxesQuery) iter.Seq2[*Sandbox, error]
+```
+
+ListSeq returns a Go 1.23\+ range\-over\-func iterator over Sandboxes matching the given query. Each yielded pair is \(sandbox, error\); a non\-nil error terminates iteration and the consumer should break out of the range.
+
+Example:
+
+```
+for sandbox, err := range client.ListSeq(ctx, &ListSandboxesQuery{...}) {
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(sandbox.ID)
+}
+```
+
+<a name="CodeInterpreterService"></a>
+## type CodeInterpreterService
+
+CodeInterpreterService provides Python code execution capabilities for a sandbox.
+
+CodeInterpreterService enables running Python code in isolated execution contexts with support for streaming output, persistent state, and environment variables. It uses WebSockets for real\-time output streaming. Access through \[Sandbox.CodeInterpreter\].
+
+Example:
+
+```
+// Simple code execution
+channels, err := sandbox.CodeInterpreter.RunCode(ctx, "print('Hello, World!')")
+if err != nil {
+    return err
+}
+
+// Wait for completion and get result
+result := <-channels.Done
+fmt.Println(result.Stdout)
+
+// With persistent context
+ctxInfo, _ := sandbox.CodeInterpreter.CreateContext(ctx, nil)
+contextID := ctxInfo["id"].(string)
+channels, _ = sandbox.CodeInterpreter.RunCode(ctx, "x = 42",
+    options.WithCustomContext(contextID),
+)
+<-channels.Done
+channels, _ = sandbox.CodeInterpreter.RunCode(ctx, "print(x)",
+    options.WithCustomContext(contextID),
+)
+```
+
+```go
+type CodeInterpreterService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewCodeInterpreterService"></a>
+### func NewCodeInterpreterService
+
+```go
+func NewCodeInterpreterService(toolboxClient *toolbox.APIClient, otel *otelState) *CodeInterpreterService
+```
+
+NewCodeInterpreterService creates a new CodeInterpreterService.
+
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access CodeInterpreterService through \[Sandbox.CodeInterpreter\] rather than creating it directly.
+
+<a name="CodeInterpreterService.CreateContext"></a>
+### func \(\*CodeInterpreterService\) CreateContext
+
+```go
+func (c *CodeInterpreterService) CreateContext(ctx context.Context, cwd *string) (map[string]any, error)
+```
+
+CreateContext creates an isolated execution context for persistent state.
+
+Contexts allow you to maintain state \(variables, imports, etc.\) across multiple code executions. Without a context, each RunCode call starts fresh.
+
+Parameters:
+
+- cwd: Optional working directory for the context
+
+Example:
+
+```
+// Create a context
+ctxInfo, err := sandbox.CodeInterpreter.CreateContext(ctx, nil)
+if err != nil {
+    return err
+}
+contextID := ctxInfo["id"].(string)
+
+// Use the context to maintain state
+sandbox.CodeInterpreter.RunCode(ctx, "x = 42", options.WithCustomContext(contextID))
+sandbox.CodeInterpreter.RunCode(ctx, "print(x)", options.WithCustomContext(contextID)) // prints 42
+
+// Clean up when done
+sandbox.CodeInterpreter.DeleteContext(ctx, contextID)
+```
+
+Returns context information including "id", "cwd", "language", "active", and "createdAt".
+
+<a name="CodeInterpreterService.DeleteContext"></a>
+### func \(\*CodeInterpreterService\) DeleteContext
+
+```go
+func (c *CodeInterpreterService) DeleteContext(ctx context.Context, contextID string) error
+```
+
+DeleteContext removes an execution context and releases its resources.
+
+Parameters:
+
+- contextID: The context identifier to delete
+
+Example:
+
+```
+err := sandbox.CodeInterpreter.DeleteContext(ctx, contextID)
+```
+
+Returns an error if the context doesn't exist or deletion fails.
+
+<a name="CodeInterpreterService.ListContexts"></a>
+### func \(\*CodeInterpreterService\) ListContexts
+
+```go
+func (c *CodeInterpreterService) ListContexts(ctx context.Context) ([]map[string]any, error)
+```
+
+ListContexts returns all active execution contexts.
+
+Example:
+
+```
+contexts, err := sandbox.CodeInterpreter.ListContexts(ctx)
+if err != nil {
+    return err
+}
+for _, ctx := range contexts {
+    fmt.Printf("Context %s (language: %s)\n", ctx["id"], ctx["language"])
+}
+```
+
+Returns a slice of context information maps.
+
+<a name="CodeInterpreterService.RunCode"></a>
+### func \(\*CodeInterpreterService\) RunCode
+
+```go
+func (c *CodeInterpreterService) RunCode(ctx context.Context, code string, opts ...func(*options.RunCode)) (*OutputChannels, error)
+```
+
+RunCode executes Python code and returns channels for streaming output.
+
+This method establishes a WebSocket connection to execute code asynchronously, streaming stdout and stderr as they become available.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithCustomContext\]: Use a persistent context for state
+- \[options.WithEnv\]: Set environment variables
+- \[options.WithInterpreterTimeout\]: Set execution timeout
+
+Example:
+
+```
+// Basic execution
+channels, err := sandbox.CodeInterpreter.RunCode(ctx, `
+    for i in range(5):
+        print(f"Count: {i}")
+`)
+if err != nil {
+    return err
+}
+
+// Stream output
+for msg := range channels.Stdout {
+    fmt.Print(msg.Text)
+}
+
+// Get final result
+result := <-channels.Done
+if result.Error != nil {
+    fmt.Printf("Error: %s\n", result.Error.Value)
+}
+
+// With options
+channels, err := sandbox.CodeInterpreter.RunCode(ctx, "import os; print(os.environ['API_KEY'])",
+    options.WithEnv(map[string]string{"API_KEY": "secret"}),
+    options.WithInterpreterTimeout(30*time.Second),
+)
+```
+
+Returns [OutputChannels](https://www.daytona.io/docs/en<#OutputChannels>) for receiving streamed output, or an error if connection fails.
+
+<a name="ComputerUseService"></a>
+## type ComputerUseService
+
+ComputerUseService provides desktop automation operations for a sandbox.
+
+ComputerUseService enables GUI automation including mouse control, keyboard input, screenshots, display management, and screen recording. The desktop environment must be started before using these features. Access through \[Sandbox.ComputerUse\].
+
+Example:
+
+```
+cu := sandbox.ComputerUse
+
+// Start the desktop environment
+if err := cu.Start(ctx); err != nil {
+    return err
+}
+defer cu.Stop(ctx)
+
+// Take a screenshot
+screenshot, err := cu.Screenshot().TakeFullScreen(ctx, nil)
+if err != nil {
+    return err
+}
+
+// Click at coordinates
+cu.Mouse().Click(ctx, 100, 200, nil, nil)
+
+// Type text
+cu.Keyboard().Type(ctx, "Hello, World!", nil)
+```
+
+```go
+type ComputerUseService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewComputerUseService"></a>
+### func NewComputerUseService
+
+```go
+func NewComputerUseService(toolboxClient *toolbox.APIClient, otel *otelState) *ComputerUseService
+```
+
+NewComputerUseService creates a new ComputerUseService.
+
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access ComputerUseService through \[Sandbox.ComputerUse\] rather than creating it directly.
+
+<a name="ComputerUseService.Accessibility"></a>
+### func \(\*ComputerUseService\) Accessibility
+
+```go
+func (c *ComputerUseService) Accessibility() *AccessibilityService
+```
+
+Accessibility returns the [AccessibilityService](https://www.daytona.io/docs/en<#AccessibilityService>) for AT\-SPI accessibility operations.
+
+The service is lazily initialized on first access.
+
+<a name="ComputerUseService.Display"></a>
+### func \(\*ComputerUseService\) Display
+
+```go
+func (c *ComputerUseService) Display() *DisplayService
+```
+
+Display returns the [DisplayService](https://www.daytona.io/docs/en<#DisplayService>) for display information.
+
+The service is lazily initialized on first access.
+
+<a name="ComputerUseService.GetStatus"></a>
+### func \(\*ComputerUseService\) GetStatus
+
+```go
+func (c *ComputerUseService) GetStatus(ctx context.Context) (map[string]any, error)
+```
+
+GetStatus returns the current status of the desktop environment.
+
+Example:
+
+```
+status, err := cu.GetStatus(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("Desktop status: %v\n", status["status"])
+```
+
+Returns a map containing status information.
+
+<a name="ComputerUseService.Keyboard"></a>
+### func \(\*ComputerUseService\) Keyboard
+
+```go
+func (c *ComputerUseService) Keyboard() *KeyboardService
+```
+
+Keyboard returns the [KeyboardService](https://www.daytona.io/docs/en<#KeyboardService>) for keyboard operations.
+
+The service is lazily initialized on first access.
+
+<a name="ComputerUseService.Mouse"></a>
+### func \(\*ComputerUseService\) Mouse
+
+```go
+func (c *ComputerUseService) Mouse() *MouseService
+```
+
+Mouse returns the [MouseService](https://www.daytona.io/docs/en<#MouseService>) for mouse operations.
+
+The service is lazily initialized on first access.
+
+<a name="ComputerUseService.Recording"></a>
+### func \(\*ComputerUseService\) Recording
+
+```go
+func (c *ComputerUseService) Recording() *RecordingService
+```
+
+Recording returns the [RecordingService](https://www.daytona.io/docs/en<#RecordingService>) for screen recording operations.
+
+The service is lazily initialized on first access.
+
+<a name="ComputerUseService.Screenshot"></a>
+### func \(\*ComputerUseService\) Screenshot
+
+```go
+func (c *ComputerUseService) Screenshot() *ScreenshotService
+```
+
+Screenshot returns the [ScreenshotService](https://www.daytona.io/docs/en<#ScreenshotService>) for capturing screen images.
+
+The service is lazily initialized on first access.
+
+<a name="ComputerUseService.Start"></a>
+### func \(\*ComputerUseService\) Start
+
+```go
+func (c *ComputerUseService) Start(ctx context.Context) error
+```
+
+Start initializes and starts the desktop environment.
+
+The desktop environment must be started before using mouse, keyboard, or screenshot operations. Call [ComputerUseService.Stop](https://www.daytona.io/docs/en<#ComputerUseService.Stop>) when finished.
+
+Example:
+
+```
+if err := cu.Start(ctx); err != nil {
+    return err
+}
+defer cu.Stop(ctx)
+```
+
+Returns an error if the desktop fails to start.
+
+<a name="ComputerUseService.Stop"></a>
+### func \(\*ComputerUseService\) Stop
+
+```go
+func (c *ComputerUseService) Stop(ctx context.Context) error
+```
+
+Stop shuts down the desktop environment and releases resources.
+
+Example:
+
+```
+err := cu.Stop(ctx)
+```
+
+Returns an error if the desktop fails to stop gracefully.
+
+<a name="DisplayService"></a>
+## type DisplayService
+
+DisplayService provides display information and window management operations.
+
+DisplayService enables querying display configuration and window information. Access through [ComputerUseService.Display](https://www.daytona.io/docs/en<#ComputerUseService.Display>).
+
+```go
+type DisplayService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewDisplayService"></a>
+### func NewDisplayService
+
+```go
+func NewDisplayService(toolboxClient *toolbox.APIClient, otel *otelState) *DisplayService
+```
+
+NewDisplayService creates a new DisplayService.
+
+<a name="DisplayService.GetInfo"></a>
+### func \(\*DisplayService\) GetInfo
+
+```go
+func (d *DisplayService) GetInfo(ctx context.Context) (map[string]any, error)
+```
+
+GetInfo returns information about connected displays.
+
+Example:
+
+```
+info, err := display.GetInfo(ctx)
+if err != nil {
+    return err
+}
+displays := info["displays"]
+fmt.Printf("Connected displays: %v\n", displays)
+```
+
+Returns a map containing display information.
+
+<a name="DisplayService.GetWindows"></a>
+### func \(\*DisplayService\) GetWindows
+
+```go
+func (d *DisplayService) GetWindows(ctx context.Context) (map[string]any, error)
+```
+
+GetWindows returns information about open windows.
+
+Example:
+
+```
+result, err := display.GetWindows(ctx)
+if err != nil {
+    return err
+}
+windows := result["windows"]
+fmt.Printf("Open windows: %v\n", windows)
+```
+
+Returns a map containing window information.
+
+<a name="DockerImage"></a>
+## type DockerImage
+
+DockerImage provides a fluent interface for building Docker images declaratively.
+
+DockerImage allows you to define Docker images using Go code instead of Dockerfiles. Methods can be chained to build up the image definition, which is then converted to a Dockerfile when used with [SnapshotService.Create](https://www.daytona.io/docs/en<#SnapshotService.Create>).
+
+Example:
+
+```
+// Create a Python image with dependencies
+image := daytona.Base("python:3.11-slim").
+    AptGet([]string{"git", "curl"}).
+    PipInstall([]string{"numpy", "pandas"}).
+    Workdir("/app").
+    Env("PYTHONUNBUFFERED", "1")
+
+// Use with snapshot creation
+snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+    Name:  "my-python-env",
+    DockerImage: image,
+})
+```
+
+```go
+type DockerImage struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="Base"></a>
+### func Base
+
+```go
+func Base(baseImage string) *DockerImage
+```
+
+Base creates a new Image from a base Docker image.
+
+This is typically the starting point for building an image definition. The baseImage parameter is any valid Docker image reference.
+
+Example:
+
+```
+image := daytona.Base("ubuntu:22.04")
+image := daytona.Base("python:3.11-slim")
+image := daytona.Base("node:18-alpine")
+```
+
+<a name="DebianSlim"></a>
+### func DebianSlim
+
+```go
+func DebianSlim(pythonVersion *string) *DockerImage
+```
+
+DebianSlim creates a Python image based on Debian slim.
+
+This is a convenience function for creating Python environments. If pythonVersion is nil, defaults to Python 3.12.
+
+Example:
+
+```
+// Use default Python 3.12
+image := daytona.DebianSlim(nil)
+
+// Use specific version
+version := "3.10"
+image := daytona.DebianSlim(&version)
+```
+
+<a name="FromDockerfile"></a>
+### func FromDockerfile
+
+```go
+func FromDockerfile(dockerfile string) *DockerImage
+```
+
+FromDockerfile creates an Image from an existing Dockerfile string.
+
+Use this when you have an existing Dockerfile you want to use.
+
+Example:
+
+```
+dockerfile := `FROM python:3.11
+RUN pip install numpy
+WORKDIR /app`
+image := daytona.FromDockerfile(dockerfile)
+```
+
+<a name="DockerImage.Add"></a>
+### func \(\*DockerImage\) Add
+
+```go
+func (img *DockerImage) Add(source, destination string) *DockerImage
+```
+
+Add adds an ADD instruction to the image.
+
+ADD supports URLs and automatic tar extraction. For simple file copying, prefer [DockerImage.Copy](https://www.daytona.io/docs/en<#DockerImage.Copy>).
+
+Example:
+
+```
+image := daytona.Base("ubuntu:22.04").
+    Add("https://example.com/app.tar.gz", "/app/")
+```
+
+<a name="DockerImage.AddLocalDir"></a>
+### func \(\*DockerImage\) AddLocalDir
+
+```go
+func (img *DockerImage) AddLocalDir(localPath, remotePath string) *DockerImage
+```
+
+AddLocalDir adds a local directory to the build context and copies it to the image.
+
+The directory is uploaded to object storage and included in the Docker build context.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    AddLocalDir("./src", "/app/src")
+```
+
+<a name="DockerImage.AddLocalFile"></a>
+### func \(\*DockerImage\) AddLocalFile
+
+```go
+func (img *DockerImage) AddLocalFile(localPath, remotePath string) *DockerImage
+```
+
+AddLocalFile adds a local file to the build context and copies it to the image.
+
+The file is uploaded to object storage and included in the Docker build context.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    AddLocalFile("./requirements.txt", "/app/requirements.txt").
+    Run("pip install -r /app/requirements.txt")
+```
+
+<a name="DockerImage.AptGet"></a>
+### func \(\*DockerImage\) AptGet
+
+```go
+func (img *DockerImage) AptGet(packages []string) *DockerImage
+```
+
+AptGet adds an apt\-get install instruction for system packages.
+
+This automatically handles updating the package list and cleaning up afterward to minimize image size.
+
+Example:
+
+```
+image := daytona.Base("ubuntu:22.04").AptGet([]string{"git", "curl", "build-essential"})
+```
+
+<a name="DockerImage.Cmd"></a>
+### func \(\*DockerImage\) Cmd
+
+```go
+func (img *DockerImage) Cmd(cmd []string) *DockerImage
+```
+
+Cmd sets the default command for the image.
+
+If an entrypoint is set, the cmd provides default arguments to it.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Cmd([]string{"python", "app.py"})
+```
+
+<a name="DockerImage.Contexts"></a>
+### func \(\*DockerImage\) Contexts
+
+```go
+func (img *DockerImage) Contexts() []DockerImageContext
+```
+
+Contexts returns the build contexts for local files/directories.
+
+This is called internally when creating snapshots to upload local files.
+
+<a name="DockerImage.Copy"></a>
+### func \(\*DockerImage\) Copy
+
+```go
+func (img *DockerImage) Copy(source, destination string) *DockerImage
+```
+
+Copy adds a COPY instruction to copy files into the image.
+
+For local files, use [DockerImage.AddLocalFile](https://www.daytona.io/docs/en<#DockerImage.AddLocalFile>) instead, which handles uploading to the build context.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Copy("requirements.txt", "/app/requirements.txt")
+```
+
+<a name="DockerImage.Dockerfile"></a>
+### func \(\*DockerImage\) Dockerfile
+
+```go
+func (img *DockerImage) Dockerfile() string
+```
+
+Dockerfile returns the generated Dockerfile content.
+
+This is called internally when creating snapshots.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").PipInstall([]string{"numpy"})
+fmt.Println(image.Dockerfile())
+// Output:
+// FROM python:3.11
+// RUN pip install numpy
+```
+
+<a name="DockerImage.Entrypoint"></a>
+### func \(\*DockerImage\) Entrypoint
+
+```go
+func (img *DockerImage) Entrypoint(cmd []string) *DockerImage
+```
+
+Entrypoint sets the entrypoint for the image.
+
+The cmd parameter is the command and arguments as a slice.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Entrypoint([]string{"python", "-m", "myapp"})
+```
+
+<a name="DockerImage.Env"></a>
+### func \(\*DockerImage\) Env
+
+```go
+func (img *DockerImage) Env(key, value string) *DockerImage
+```
+
+Env sets an environment variable in the image.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Env("PYTHONUNBUFFERED", "1").
+    Env("APP_ENV", "production")
+```
+
+<a name="DockerImage.Expose"></a>
+### func \(\*DockerImage\) Expose
+
+```go
+func (img *DockerImage) Expose(ports []int) *DockerImage
+```
+
+Expose declares ports that the container listens on.
+
+This is documentation for users and tools; it doesn't actually publish ports.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Expose([]int{8080, 8443})
+```
+
+<a name="DockerImage.Label"></a>
+### func \(\*DockerImage\) Label
+
+```go
+func (img *DockerImage) Label(key, value string) *DockerImage
+```
+
+Label adds metadata to the image.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Label("maintainer", "team@example.com").
+    Label("version", "1.0.0")
+```
+
+<a name="DockerImage.PipInstall"></a>
+### func \(\*DockerImage\) PipInstall
+
+```go
+func (img *DockerImage) PipInstall(packages []string, opts ...func(*options.PipInstall)) *DockerImage
+```
+
+PipInstall adds a pip install instruction for Python packages.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithFindLinks\]: Add find\-links URLs
+- \[options.WithIndexURL\]: Set custom PyPI index
+- \[options.WithExtraIndexURLs\]: Add extra index URLs
+- \[options.WithPre\]: Allow pre\-release versions
+- \[options.WithExtraOptions\]: Add additional pip options
+
+Example:
+
+```
+// Basic installation
+image := daytona.Base("python:3.11").PipInstall([]string{"numpy", "pandas"})
+
+// With options
+image := daytona.Base("python:3.11").PipInstall(
+    []string{"torch"},
+    options.WithIndexURL("https://download.pytorch.org/whl/cpu"),
+    options.WithExtraOptions("--no-cache-dir"),
+)
+```
+
+<a name="DockerImage.Run"></a>
+### func \(\*DockerImage\) Run
+
+```go
+func (img *DockerImage) Run(command string) *DockerImage
+```
+
+Run adds a RUN instruction to execute a shell command.
+
+Example:
+
+```
+image := daytona.Base("ubuntu:22.04").
+    Run("mkdir -p /app/data").
+    Run("chmod 755 /app")
+```
+
+<a name="DockerImage.User"></a>
+### func \(\*DockerImage\) User
+
+```go
+func (img *DockerImage) User(username string) *DockerImage
+```
+
+User sets the user for subsequent instructions and container runtime.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Run("useradd -m appuser").
+    User("appuser").
+    Workdir("/home/appuser")
+```
+
+<a name="DockerImage.Volume"></a>
+### func \(\*DockerImage\) Volume
+
+```go
+func (img *DockerImage) Volume(paths []string) *DockerImage
+```
+
+Volume declares mount points for the container.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Volume([]string{"/data", "/logs"})
+```
+
+<a name="DockerImage.Workdir"></a>
+### func \(\*DockerImage\) Workdir
+
+```go
+func (img *DockerImage) Workdir(path string) *DockerImage
+```
+
+Workdir sets the working directory for subsequent instructions.
+
+Example:
+
+```
+image := daytona.Base("python:3.11").
+    Workdir("/app").
+    Run("pip install -r requirements.txt")
+```
+
+<a name="DockerImageContext"></a>
+## type DockerImageContext
+
+DockerImageContext represents a local file or directory to include in the build context.
+
+When using [DockerImage.AddLocalFile](https://www.daytona.io/docs/en<#DockerImage.AddLocalFile>) or [DockerImage.AddLocalDir](https://www.daytona.io/docs/en<#DockerImage.AddLocalDir>), the file/directory is uploaded to object storage and included in the Docker build context.
+
+```go
+type DockerImageContext struct {
+    SourcePath  string // Local path to the file or directory
+    ArchivePath string // Path within the build context archive
+}
+```
+
+<a name="DownloadProgress"></a>
+## type DownloadProgress
+
+DownloadProgress contains progress information for a streaming download.
+
+```go
+type DownloadProgress struct {
+    // BytesReceived is the cumulative number of bytes read so far.
+    BytesReceived int64
+    // TotalBytes is the total number of bytes expected, if known.
+    // Zero means unknown.
+    TotalBytes int64
+}
+```
+
+<a name="DownloadStreamOption"></a>
+## type DownloadStreamOption
+
+DownloadStreamOption configures the behavior of DownloadFileStream.
+
+```go
+type DownloadStreamOption func(*downloadStreamConfig)
+```
+
+<a name="WithDownloadProgress"></a>
+### func WithDownloadProgress
+
+```go
+func WithDownloadProgress(fn func(DownloadProgress)) DownloadStreamOption
+```
+
+WithDownloadProgress returns an option that enables progress tracking for streaming downloads. The callback receives the cumulative bytes read and, when available, the total bytes expected.
+
+<a name="FileSystemService"></a>
+## type FileSystemService
+
+FileSystemService provides file system operations for a sandbox.
+
+FileSystemService enables file and directory management including creating, reading, writing, moving, and deleting files. It also supports file searching and permission management. Access through \[Sandbox.FileSystem\].
+
+Example:
+
+```
+// List files in a directory
+files, err := sandbox.FileSystem.ListFiles(ctx, "/home/user")
+
+// Create a directory
+err = sandbox.FileSystem.CreateFolder(ctx, "/home/user/mydir")
+
+// Upload a file
+err = sandbox.FileSystem.UploadFile(ctx, "/local/path/file.txt", "/home/user/file.txt")
+
+// Download a file
+data, err := sandbox.FileSystem.DownloadFile(ctx, "/home/user/file.txt", nil)
+```
+
+```go
+type FileSystemService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewFileSystemService"></a>
+### func NewFileSystemService
+
+```go
+func NewFileSystemService(toolboxClient *toolbox.APIClient, otel *otelState) *FileSystemService
+```
+
+NewFileSystemService creates a new FileSystemService with the provided toolbox client.
+
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access FileSystemService through \[Sandbox.FileSystem\] rather than creating it directly.
+
+<a name="FileSystemService.CreateFolder"></a>
+### func \(\*FileSystemService\) CreateFolder
+
+```go
+func (f *FileSystemService) CreateFolder(ctx context.Context, path string, opts ...func(*options.CreateFolder)) error
+```
+
+CreateFolder creates a directory at the specified path.
+
+The path parameter specifies the absolute path for the new directory. Parent directories are created automatically if they don't exist.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithMode\]: Set Unix file permissions \(defaults to "0755"\)
+
+Example:
+
+```
+// Create with default permissions
+err := sandbox.FileSystem.CreateFolder(ctx, "/home/user/mydir")
+
+// Create with custom permissions
+err := sandbox.FileSystem.CreateFolder(ctx, "/home/user/private",
+    options.WithMode("0700"),
+)
+```
+
+Returns an error if the directory creation fails.
+
+<a name="FileSystemService.DeleteFile"></a>
+### func \(\*FileSystemService\) DeleteFile
+
+```go
+func (f *FileSystemService) DeleteFile(ctx context.Context, path string, recursive bool) error
+```
+
+DeleteFile deletes a file or directory.
+
+Parameters:
+
+- path: The file or directory path to delete
+- recursive: If true, delete directories and their contents recursively
+
+Example:
+
+```
+// Delete a file
+err := sandbox.FileSystem.DeleteFile(ctx, "/home/user/file.txt", false)
+
+// Delete a directory recursively
+err := sandbox.FileSystem.DeleteFile(ctx, "/home/user/mydir", true)
+```
+
+Returns an error if the deletion fails \(e.g., path doesn't exist, permission denied, or attempting to delete a non\-empty directory without recursive=true\).
+
+<a name="FileSystemService.DownloadFile"></a>
+### func \(\*FileSystemService\) DownloadFile
+
+```go
+func (f *FileSystemService) DownloadFile(ctx context.Context, remotePath string, localPath *string) ([]byte, error)
+```
+
+DownloadFile downloads a file from the sandbox.
+
+Parameters:
+
+- remotePath: The path to the file in the sandbox
+- localPath: Optional local path to save the file. If nil, only returns the data.
+
+Returns the file contents as a byte slice. If localPath is provided, also writes the contents to that local file.
+
+Example:
+
+```
+// Download and get contents
+data, err := sandbox.FileSystem.DownloadFile(ctx, "/home/user/file.txt", nil)
+fmt.Println(string(data))
+
+// Download and save to local file
+localPath := "/tmp/downloaded.txt"
+data, err := sandbox.FileSystem.DownloadFile(ctx, "/home/user/file.txt", &localPath)
+```
+
+Returns an error if the file doesn't exist or cannot be read.
+
+<a name="FileSystemService.DownloadFileStream"></a>
+### func \(\*FileSystemService\) DownloadFileStream
+
+```go
+func (f *FileSystemService) DownloadFileStream(ctx context.Context, remotePath string, opts ...DownloadStreamOption) (io.ReadCloser, error)
+```
+
+DownloadFileStream downloads a single file from the sandbox as a stream without buffering the entire file into memory. The returned [io.ReadCloser](https://www.daytona.io/docs/en<https://pkg.go.dev/io#ReadCloser>) can be piped directly to an HTTP response, written to a file, or processed on the fly.
+
+The caller must close the returned [io.ReadCloser](https://www.daytona.io/docs/en<https://pkg.go.dev/io#ReadCloser>) when done.
+
+Parameters:
+
+- remotePath: Path to the file in the sandbox. Relative paths are resolved based on the sandbox working directory.
+
+Returns an [io.ReadCloser](https://www.daytona.io/docs/en<https://pkg.go.dev/io#ReadCloser>) streaming the file content.
+
+Example:
+
+```
+// Stream to an HTTP response
+stream, err := sandbox.FileSystem.DownloadFileStream(ctx, "workspace/report.pdf")
+if err != nil {
+    log.Fatal(err)
+}
+defer stream.Close()
+io.Copy(w, stream) // w is an http.ResponseWriter
+
+// Stream to a local file
+stream, err := sandbox.FileSystem.DownloadFileStream(ctx, "workspace/large-file.bin")
+if err != nil {
+    log.Fatal(err)
+}
+defer stream.Close()
+out, _ := os.Create("local-copy.bin")
+defer out.Close()
+io.Copy(out, stream)
+```
+
+<a name="FileSystemService.FindFiles"></a>
+### func \(\*FileSystemService\) FindFiles
+
+```go
+func (f *FileSystemService) FindFiles(ctx context.Context, path, pattern string) (any, error)
+```
+
+FindFiles searches for text content within files.
+
+Parameters:
+
+- path: The directory to search in
+- pattern: The text pattern to search for \(supports regex\)
+
+Returns a list of matches, each containing the file path, line number, and matching content.
+
+Example:
+
+```
+result, err := sandbox.FileSystem.FindFiles(ctx, "/home/user/project", "TODO:")
+if err != nil {
+    return err
+}
+matches := result.([]map[string]any)
+for _, match := range matches {
+    fmt.Printf("%s:%d: %s\n", match["file"], match["line"], match["content"])
+}
+```
+
+Returns an error if the search fails.
+
+<a name="FileSystemService.GetFileInfo"></a>
+### func \(\*FileSystemService\) GetFileInfo
+
+```go
+func (f *FileSystemService) GetFileInfo(ctx context.Context, path string) (*types.FileInfo, error)
+```
+
+GetFileInfo retrieves metadata for a file or directory.
+
+The path parameter specifies the file or directory path.
+
+Returns \[types.FileInfo\] containing the file's name, size, permissions, modification time, and whether it's a directory.
+
+Example:
+
+```
+info, err := sandbox.FileSystem.GetFileInfo(ctx, "/home/user/file.txt")
+if err != nil {
+    return err
+}
+fmt.Printf("Size: %d bytes, Modified: %s\n", info.Size, info.ModifiedTime)
+```
+
+Returns an error if the path doesn't exist.
+
+<a name="FileSystemService.ListFiles"></a>
+### func \(\*FileSystemService\) ListFiles
+
+```go
+func (f *FileSystemService) ListFiles(ctx context.Context, path string, opts ...func(*options.ListFiles)) ([]*types.FileInfo, error)
+```
+
+ListFiles lists files and directories in the specified path.
+
+The path parameter specifies the directory to list.
+
+Returns a slice of \[types.FileInfo\] containing metadata for each file and directory, including name, size, permissions, modification time, and whether it's a directory.
+
+Example:
+
+```
+files, err := sandbox.FileSystem.ListFiles(ctx, "/home/user")
+if err != nil {
+    return err
+}
+for _, file := range files {
+    if file.IsDirectory {
+        fmt.Printf("[DIR]  %s\n", file.Name)
+    } else {
+        fmt.Printf("[FILE] %s (%d bytes)\n", file.Name, file.Size)
+    }
+}
+```
+
+Returns an error if the path doesn't exist or isn't accessible.
+
+<a name="FileSystemService.MoveFiles"></a>
+### func \(\*FileSystemService\) MoveFiles
+
+```go
+func (f *FileSystemService) MoveFiles(ctx context.Context, source, destination string) error
+```
+
+MoveFiles moves or renames a file or directory.
+
+Parameters:
+
+- source: The current path of the file or directory
+- destination: The new path for the file or directory
+
+This operation can be used for both moving and renaming:
+
+- Same directory, different name = rename
+- Different directory = move
+
+Example:
+
+```
+// Rename a file
+err := sandbox.FileSystem.MoveFiles(ctx, "/home/user/old.txt", "/home/user/new.txt")
+
+// Move a file to another directory
+err := sandbox.FileSystem.MoveFiles(ctx, "/home/user/file.txt", "/home/user/backup/file.txt")
+```
+
+Returns an error if the operation fails.
+
+<a name="FileSystemService.ReplaceInFiles"></a>
+### func \(\*FileSystemService\) ReplaceInFiles
+
+```go
+func (f *FileSystemService) ReplaceInFiles(ctx context.Context, files []string, pattern, newValue string) (any, error)
+```
+
+ReplaceInFiles replaces text in multiple files.
+
+Parameters:
+
+- files: List of file paths to process
+- pattern: The text pattern to search for \(supports regex\)
+- newValue: The replacement text
+
+Returns a list of results for each file, indicating success or failure.
+
+Example:
+
+```
+files := []string{"/home/user/file1.txt", "/home/user/file2.txt"}
+result, err := sandbox.FileSystem.ReplaceInFiles(ctx, files, "oldValue", "newValue")
+if err != nil {
+    return err
+}
+results := result.([]map[string]any)
+for _, r := range results {
+    if r["success"].(bool) {
+        fmt.Printf("Updated: %s\n", r["file"])
+    } else {
+        fmt.Printf("Failed: %s - %s\n", r["file"], r["error"])
+    }
+}
+```
+
+Returns an error if the operation fails entirely.
+
+<a name="FileSystemService.SearchFiles"></a>
+### func \(\*FileSystemService\) SearchFiles
+
+```go
+func (f *FileSystemService) SearchFiles(ctx context.Context, path, pattern string) (any, error)
+```
+
+SearchFiles searches for files matching a pattern in a directory.
+
+Parameters:
+
+- path: The directory to search in
+- pattern: The glob pattern to match file names \(e.g., "\*.txt", "test\_\*"\)
+
+Returns a map containing a "files" key with a list of matching file paths.
+
+Example:
+
+```
+result, err := sandbox.FileSystem.SearchFiles(ctx, "/home/user", "*.go")
+if err != nil {
+    return err
+}
+files := result.(map[string]any)["files"].([]string)
+for _, file := range files {
+    fmt.Println(file)
+}
+```
+
+Returns an error if the search fails.
+
+<a name="FileSystemService.SetFilePermissions"></a>
+### func \(\*FileSystemService\) SetFilePermissions
+
+```go
+func (f *FileSystemService) SetFilePermissions(ctx context.Context, path string, opts ...func(*options.SetFilePermissions)) error
+```
+
+SetFilePermissions sets file permissions, owner, and group.
+
+The path parameter specifies the file or directory to modify.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithPermissionMode\]: Set Unix file permissions \(e.g., "0644"\)
+- \[options.WithOwner\]: Set file owner username
+- \[options.WithGroup\]: Set file group name
+
+Example:
+
+```
+// Set permissions only
+err := sandbox.FileSystem.SetFilePermissions(ctx, "/home/user/script.sh",
+    options.WithPermissionMode("0755"),
+)
+
+// Set owner and group
+err := sandbox.FileSystem.SetFilePermissions(ctx, "/home/user/file.txt",
+    options.WithOwner("root"),
+    options.WithGroup("users"),
+)
+
+// Set all at once
+err := sandbox.FileSystem.SetFilePermissions(ctx, "/home/user/file.txt",
+    options.WithPermissionMode("0640"),
+    options.WithOwner("user"),
+    options.WithGroup("staff"),
+)
+```
+
+Returns an error if the operation fails.
+
+<a name="FileSystemService.UploadFile"></a>
+### func \(\*FileSystemService\) UploadFile
+
+```go
+func (f *FileSystemService) UploadFile(ctx context.Context, source any, destination string) error
+```
+
+UploadFile uploads a file to the sandbox.
+
+Parameters:
+
+- source: Either a local file path \(string\) or file contents \(\[\]byte\)
+- destination: The destination path in the sandbox
+
+Example:
+
+```
+// Upload from local file path
+err := sandbox.FileSystem.UploadFile(ctx, "/local/path/file.txt", "/home/user/file.txt")
+
+// Upload from byte slice
+content := []byte("Hello, World!")
+err := sandbox.FileSystem.UploadFile(ctx, content, "/home/user/hello.txt")
+```
+
+Returns an error if the upload fails.
+
+<a name="FileSystemService.UploadFileStream"></a>
+### func \(\*FileSystemService\) UploadFileStream
+
+```go
+func (f *FileSystemService) UploadFileStream(ctx context.Context, source io.Reader, remotePath string, opts ...UploadStreamOption) error
+```
+
+UploadFileStream streams a file to the sandbox without buffering it in memory. The reader is piped directly into a multipart request, so heap usage stays flat regardless of source size. The HTTP layer uses chunked transfer encoding, so the source's natural EOF terminates the upload — no advance size is needed. Cancellation flows through the context: cancelling ctx aborts the in\-flight HTTP request.
+
+Example:
+
+```
+f, _ := os.Open("/local/big.bin")
+defer f.Close()
+err := sandbox.FileSystem.UploadFileStream(ctx, f, "/home/user/big.bin",
+    WithUploadProgress(func(p UploadProgress) {
+        log.Printf("%d bytes sent", p.BytesSent)
+    }),
+)
+```
+
+<a name="GitService"></a>
+## type GitService
+
+GitService provides Git operations for a sandbox.
+
+GitService enables common Git workflows including cloning repositories, staging and committing changes, managing branches, and syncing with remote repositories. It is accessed through the \[Sandbox.Git\] field.
+
+Example:
+
+```
+// Clone a repository
+err := sandbox.Git.Clone(ctx, "https://github.com/user/repo.git", "/home/user/repo")
+
+// Make changes and commit
+err = sandbox.Git.Add(ctx, "/home/user/repo", []string{"."})
+resp, err := sandbox.Git.Commit(ctx, "/home/user/repo", "Initial commit", "John Doe", "john@example.com")
+
+// Push to remote
+err = sandbox.Git.Push(ctx, "/home/user/repo",
+    options.WithPushUsername("username"),
+    options.WithPushPassword("token"),
+)
+```
+
+```go
+type GitService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewGitService"></a>
+### func NewGitService
+
+```go
+func NewGitService(toolboxClient *toolbox.APIClient, otel *otelState) *GitService
+```
+
+NewGitService creates a new GitService with the provided toolbox client.
+
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access GitService through \[Sandbox.Git\] rather than creating it directly.
+
+<a name="GitService.Add"></a>
+### func \(\*GitService\) Add
+
+```go
+func (g *GitService) Add(ctx context.Context, path string, files []string) error
+```
+
+Add stages files for the next commit.
+
+The path parameter specifies the repository directory. The files parameter is a list of file paths \(relative to the repository root\) to stage. Use "." to stage all changes.
+
+Example:
+
+```
+// Stage specific files
+err := sandbox.Git.Add(ctx, "/home/user/repo", []string{"file1.txt", "src/main.go"})
+
+// Stage all changes
+err := sandbox.Git.Add(ctx, "/home/user/repo", []string{"."})
+```
+
+Returns an error if the add operation fails.
+
+<a name="GitService.Branches"></a>
+### func \(\*GitService\) Branches
+
+```go
+func (g *GitService) Branches(ctx context.Context, path string) ([]string, error)
+```
+
+Branches lists all branches in a Git repository.
+
+The path parameter specifies the repository directory.
+
+Example:
+
+```
+branches, err := sandbox.Git.Branches(ctx, "/home/user/repo")
+if err != nil {
+    return err
+}
+for _, branch := range branches {
+    fmt.Println(branch)
+}
+```
+
+Returns a slice of branch names or an error if the operation fails.
+
+<a name="GitService.Checkout"></a>
+### func \(\*GitService\) Checkout
+
+```go
+func (g *GitService) Checkout(ctx context.Context, path, name string) error
+```
+
+Checkout switches to a different branch or commit.
+
+The path parameter specifies the repository directory. The name parameter specifies the branch name or commit SHA to checkout.
+
+Example:
+
+```
+// Switch to a branch
+err := sandbox.Git.Checkout(ctx, "/home/user/repo", "develop")
+
+// Checkout a specific commit
+err := sandbox.Git.Checkout(ctx, "/home/user/repo", "abc123def")
+```
+
+Returns an error if the checkout fails \(e.g., branch doesn't exist, uncommitted changes\).
+
+<a name="GitService.Clone"></a>
+### func \(\*GitService\) Clone
+
+```go
+func (g *GitService) Clone(ctx context.Context, url, path string, opts ...func(*options.GitClone)) error
+```
+
+Clone clones a Git repository into the specified path.
+
+The url parameter specifies the repository URL \(HTTPS or SSH format\). The path parameter specifies the destination directory for the cloned repository.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithBranch\]: Clone a specific branch instead of the default
+- \[options.WithCommitId\]: Checkout a specific commit after cloning
+- \[options.WithUsername\]: Username for authentication \(HTTPS\)
+- \[options.WithPassword\]: Password or token for authentication \(HTTPS\)
+
+Example:
+
+```
+// Clone the default branch
+err := sandbox.Git.Clone(ctx, "https://github.com/user/repo.git", "/home/user/repo")
+
+// Clone a specific branch with authentication
+err := sandbox.Git.Clone(ctx, "https://github.com/user/private-repo.git", "/home/user/repo",
+    options.WithBranch("develop"),
+    options.WithUsername("username"),
+    options.WithPassword("github_token"),
+)
+
+// Clone and checkout a specific commit
+err := sandbox.Git.Clone(ctx, "https://github.com/user/repo.git", "/home/user/repo",
+    options.WithCommitId("abc123"),
+)
+```
+
+Returns an error if the clone operation fails.
+
+<a name="GitService.Commit"></a>
+### func \(\*GitService\) Commit
+
+```go
+func (g *GitService) Commit(ctx context.Context, path, message, author, email string, opts ...func(*options.GitCommit)) (*types.GitCommitResponse, error)
+```
+
+Commit creates a new Git commit with the staged changes.
+
+Parameters:
+
+- path: The repository directory
+- message: The commit message
+- author: The author name for the commit
+- email: The author email for the commit
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithAllowEmpty\]: Allow creating commits with no changes
+
+Example:
+
+```
+// Create a commit
+resp, err := sandbox.Git.Commit(ctx, "/home/user/repo",
+    "Add new feature",
+    "John Doe",
+    "john@example.com",
+)
+if err != nil {
+    return err
+}
+fmt.Printf("Created commit: %s\n", resp.SHA)
+
+// Create an empty commit
+resp, err := sandbox.Git.Commit(ctx, "/home/user/repo",
+    "Empty commit for CI trigger",
+    "John Doe",
+    "john@example.com",
+    options.WithAllowEmpty(true),
+)
+```
+
+Returns the \[types.GitCommitResponse\] containing the commit SHA, or an error if the commit fails.
+
+<a name="GitService.ConfigureUser"></a>
+### func \(\*GitService\) ConfigureUser
+
+```go
+func (g *GitService) ConfigureUser(ctx context.Context, name, email string, opts ...func(*options.GitConfig)) error
+```
+
+ConfigureUser configures the git user name and email at the given scope.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithConfigScope\]: Config scope \("global" \(default\), "local" or "system"\)
+- \[options.WithConfigPath\]: Repository path, required when scope is "local"
+
+Example:
+
+```
+err := sandbox.Git.ConfigureUser(ctx, "John Doe", "john@example.com")
+```
+
+<a name="GitService.CreateBranch"></a>
+### func \(\*GitService\) CreateBranch
+
+```go
+func (g *GitService) CreateBranch(ctx context.Context, path, name string) error
+```
+
+CreateBranch creates a new branch at the current HEAD.
+
+The path parameter specifies the repository directory. The name parameter specifies the name for the new branch.
+
+Note: This creates the branch but does not switch to it. Use [GitService.Checkout](https://www.daytona.io/docs/en<#GitService.Checkout>) to switch to the new branch after creation.
+
+Example:
+
+```
+// Create a new branch
+err := sandbox.Git.CreateBranch(ctx, "/home/user/repo", "feature/new-feature")
+if err != nil {
+    return err
+}
+
+// Switch to the new branch
+err = sandbox.Git.Checkout(ctx, "/home/user/repo", "feature/new-feature")
+```
+
+Returns an error if the branch creation fails \(e.g., branch already exists\).
+
+<a name="GitService.DangerouslyAuthenticate"></a>
+### func \(\*GitService\) DangerouslyAuthenticate
+
+```go
+func (g *GitService) DangerouslyAuthenticate(ctx context.Context, username, password string, opts ...func(*options.GitAuthenticate)) error
+```
+
+DangerouslyAuthenticate persists git credentials globally so that subsequent operations against the given host authenticate automatically.
+
+This stores the password in plaintext on disk via the git credential store.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithAuthHost\]: Host to authenticate against \(defaults to "github.com"\)
+- \[options.WithAuthProtocol\]: Protocol to authenticate against \(defaults to "https"\)
+
+Example:
+
+```
+err := sandbox.Git.DangerouslyAuthenticate(ctx, "user", "github_token")
+```
+
+<a name="GitService.DeleteBranch"></a>
+### func \(\*GitService\) DeleteBranch
+
+```go
+func (g *GitService) DeleteBranch(ctx context.Context, path, name string, opts ...func(*options.GitDeleteBranch)) error
+```
+
+DeleteBranch deletes a branch from the repository.
+
+The path parameter specifies the repository directory. The name parameter specifies the branch to delete.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithForce\]: Force delete the branch even if not fully merged
+
+Note: You cannot delete the currently checked out branch.
+
+Example:
+
+```
+// Delete a merged branch
+err := sandbox.Git.DeleteBranch(ctx, "/home/user/repo", "feature/old-feature")
+
+// Force delete an unmerged branch
+err := sandbox.Git.DeleteBranch(ctx, "/home/user/repo", "feature/abandoned",
+    options.WithForce(true),
+)
+```
+
+Returns an error if the deletion fails.
+
+<a name="GitService.GetConfig"></a>
+### func \(\*GitService\) GetConfig
+
+```go
+func (g *GitService) GetConfig(ctx context.Context, key string, opts ...func(*options.GitConfig)) (string, error)
+```
+
+GetConfig returns a git config value at the given scope, or an empty string when the key is not set.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithConfigScope\]: Config scope \("global" \(default\), "local" or "system"\)
+- \[options.WithConfigPath\]: Repository path, required when scope is "local"
+
+Example:
+
+```
+name, err := sandbox.Git.GetConfig(ctx, "user.name")
+```
+
+<a name="GitService.Init"></a>
+### func \(\*GitService\) Init
+
+```go
+func (g *GitService) Init(ctx context.Context, path string, opts ...func(*options.GitInit)) error
+```
+
+Init initializes a new Git repository at the specified path.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithBare\]: Create a bare repository without a working tree
+- \[options.WithInitialBranch\]: Name of the initial branch
+
+Example:
+
+```
+err := sandbox.Git.Init(ctx, "/home/user/repo", options.WithInitialBranch("main"))
+```
+
+<a name="GitService.Pull"></a>
+### func \(\*GitService\) Pull
+
+```go
+func (g *GitService) Pull(ctx context.Context, path string, opts ...func(*options.GitPull)) error
+```
+
+Pull fetches and merges changes from the remote repository.
+
+The path parameter specifies the repository directory.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithPullUsername\]: Username for authentication
+- \[options.WithPullPassword\]: Password or token for authentication
+
+Example:
+
+```
+// Pull from a public repository
+err := sandbox.Git.Pull(ctx, "/home/user/repo")
+
+// Pull with authentication
+err := sandbox.Git.Pull(ctx, "/home/user/repo",
+    options.WithPullUsername("username"),
+    options.WithPullPassword("github_token"),
+)
+```
+
+Returns an error if the pull fails \(e.g., merge conflicts, authentication failure\).
+
+<a name="GitService.Push"></a>
+### func \(\*GitService\) Push
+
+```go
+func (g *GitService) Push(ctx context.Context, path string, opts ...func(*options.GitPush)) error
+```
+
+Push pushes local commits to the remote repository.
+
+The path parameter specifies the repository directory.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithPushUsername\]: Username for authentication
+- \[options.WithPushPassword\]: Password or token for authentication
+
+Example:
+
+```
+// Push to a public repository (no auth required)
+err := sandbox.Git.Push(ctx, "/home/user/repo")
+
+// Push with authentication
+err := sandbox.Git.Push(ctx, "/home/user/repo",
+    options.WithPushUsername("username"),
+    options.WithPushPassword("github_token"),
+)
+```
+
+Returns an error if the push fails \(e.g., authentication failure, remote rejection\).
+
+<a name="GitService.RemoteAdd"></a>
+### func \(\*GitService\) RemoteAdd
+
+```go
+func (g *GitService) RemoteAdd(ctx context.Context, path, name, url string, opts ...func(*options.GitRemoteAdd)) error
+```
+
+RemoteAdd adds \(or overwrites\) a remote in the repository.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithRemoteFetch\]: Fetch from the remote immediately after adding it
+- \[options.WithRemoteOverwrite\]: Replace an existing remote with the same name
+
+Example:
+
+```
+err := sandbox.Git.RemoteAdd(ctx, "/home/user/repo", "origin", "https://github.com/user/repo.git")
+```
+
+<a name="GitService.RemoteGet"></a>
+### func \(\*GitService\) RemoteGet
+
+```go
+func (g *GitService) RemoteGet(ctx context.Context, path, name string) (string, error)
+```
+
+RemoteGet returns the URL of a remote, or an empty string when it does not exist.
+
+Example:
+
+```
+url, err := sandbox.Git.RemoteGet(ctx, "/home/user/repo", "origin")
+```
+
+<a name="GitService.Remotes"></a>
+### func \(\*GitService\) Remotes
+
+```go
+func (g *GitService) Remotes(ctx context.Context, path string) ([]types.GitRemote, error)
+```
+
+Remotes lists the remotes configured in the repository.
+
+Example:
+
+```
+remotes, err := sandbox.Git.Remotes(ctx, "/home/user/repo")
+for _, r := range remotes {
+    fmt.Printf("%s: %s\n", r.Name, r.URL)
+}
+```
+
+<a name="GitService.Reset"></a>
+### func \(\*GitService\) Reset
+
+```go
+func (g *GitService) Reset(ctx context.Context, path string, opts ...func(*options.GitReset)) error
+```
+
+Reset resets the current HEAD to the specified state.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithResetMode\]: Reset mode \("soft", "mixed", "hard", "merge" or "keep"\)
+- \[options.WithResetTarget\]: Revision to reset to \(defaults to HEAD\)
+- \[options.WithResetFiles\]: Constrain the reset to the given paths
+
+Example:
+
+```
+// Unstage all changes (mixed reset to HEAD)
+err := sandbox.Git.Reset(ctx, "/home/user/repo")
+
+// Hard reset to a previous commit
+err := sandbox.Git.Reset(ctx, "/home/user/repo",
+    options.WithResetMode("hard"),
+    options.WithResetTarget("HEAD~1"),
+)
+```
+
+<a name="GitService.Restore"></a>
+### func \(\*GitService\) Restore
+
+```go
+func (g *GitService) Restore(ctx context.Context, path string, files []string, opts ...func(*options.GitRestore)) error
+```
+
+Restore restores working tree files or unstages changes for the given paths.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithRestoreStaged\]: Restore the staging index for the given files
+- \[options.WithRestoreWorktree\]: Restore the working tree for the given files
+- \[options.WithRestoreSource\]: Restore from the given revision instead of the index
+
+Example:
+
+```
+// Discard working tree changes
+err := sandbox.Git.Restore(ctx, "/home/user/repo", []string{"file.txt"})
+
+// Unstage changes
+err := sandbox.Git.Restore(ctx, "/home/user/repo", []string{"file.txt"},
+    options.WithRestoreStaged(true),
+)
+```
+
+<a name="GitService.SetConfig"></a>
+### func \(\*GitService\) SetConfig
+
+```go
+func (g *GitService) SetConfig(ctx context.Context, key, value string, opts ...func(*options.GitConfig)) error
+```
+
+SetConfig sets a git config value at the given scope.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithConfigScope\]: Config scope \("global" \(default\), "local" or "system"\)
+- \[options.WithConfigPath\]: Repository path, required when scope is "local"
+
+Example:
+
+```
+err := sandbox.Git.SetConfig(ctx, "user.name", "John Doe")
+```
+
+<a name="GitService.Status"></a>
+### func \(\*GitService\) Status
+
+```go
+func (g *GitService) Status(ctx context.Context, path string) (*types.GitStatus, error)
+```
+
+Status returns the current Git status of a repository.
+
+The path parameter specifies the repository directory to check.
+
+The returned \[types.GitStatus\] contains:
+
+- CurrentBranch: The name of the currently checked out branch
+- Ahead: Number of commits ahead of the remote tracking branch
+- Behind: Number of commits behind the remote tracking branch
+- BranchPublished: Whether the branch has been pushed to remote
+- FileStatus: List of files with their staging and working tree status
+
+Example:
+
+```
+status, err := sandbox.Git.Status(ctx, "/home/user/repo")
+if err != nil {
+    return err
+}
+fmt.Printf("On branch %s\n", status.CurrentBranch)
+fmt.Printf("Ahead: %d, Behind: %d\n", status.Ahead, status.Behind)
+for _, file := range status.FileStatus {
+    fmt.Printf("%s %s\n", file.Status, file.Path)
+}
+```
+
+Returns an error if the status operation fails or the path is not a Git repository.
+
+<a name="KeyboardService"></a>
+## type KeyboardService
+
+KeyboardService provides keyboard input operations.
+
+KeyboardService enables typing text, pressing keys, and executing keyboard shortcuts. Access through [ComputerUseService.Keyboard](https://www.daytona.io/docs/en<#ComputerUseService.Keyboard>).
+
+```go
+type KeyboardService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewKeyboardService"></a>
+### func NewKeyboardService
+
+```go
+func NewKeyboardService(toolboxClient *toolbox.APIClient, otel *otelState) *KeyboardService
+```
+
+NewKeyboardService creates a new KeyboardService.
+
+<a name="KeyboardService.Hotkey"></a>
+### func \(\*KeyboardService\) Hotkey
+
+```go
+func (k *KeyboardService) Hotkey(ctx context.Context, keys string) error
+```
+
+Hotkey executes a keyboard shortcut.
+
+Parameters:
+
+- keys: A single atomic hotkey chord as a string \(e.g., "ctrl\+c", "alt\+tab", "cmd\+shift\+t", "ctrl \+ c", "shift"\). Uses the same normalized key contract as Press.
+
+Example:
+
+```
+// Copy (Ctrl+C)
+err := keyboard.Hotkey(ctx, "ctrl+c")
+
+// Paste (Ctrl+V)
+err := keyboard.Hotkey(ctx, "ctrl+v")
+
+// Switch windows (Alt+Tab)
+err := keyboard.Hotkey(ctx, "alt+tab")
+```
+
+Returns an error if the hotkey fails.
+
+<a name="KeyboardService.Press"></a>
+### func \(\*KeyboardService\) Press
+
+```go
+func (k *KeyboardService) Press(ctx context.Context, key string, modifiers []string) error
+```
+
+Press simulates pressing a key with optional modifiers.
+
+Parameters:
+
+- key: The key to press. Canonical names include "enter", "escape", "tab", letters, digits, unshifted punctuation, function keys, and grammar\-safe numpad names such as "num\_plus". Named keys are case\-insensitive, and common aliases such as "Return" and "Escape" are normalized.
+- modifiers: Canonical modifier names are "ctrl", "alt", "shift", and "cmd". Common aliases such as "control", "option", "meta", and "win" are normalized.
+
+Example:
+
+```
+// Press Enter
+err := keyboard.Press(ctx, "enter", nil)
+
+// Press Ctrl+S
+err := keyboard.Press(ctx, "s", []string{"ctrl"})
+
+// Press Ctrl+Shift+N
+err := keyboard.Press(ctx, "n", []string{"ctrl", "shift"})
+```
+
+Returns an error if the key press fails.
+
+<a name="KeyboardService.Type"></a>
+### func \(\*KeyboardService\) Type
+
+```go
+func (k *KeyboardService) Type(ctx context.Context, text string, delay *int) error
+```
+
+Type simulates typing the specified text.
+
+Parameters:
+
+- text: The text to type
+- delay: Delay in milliseconds between keystrokes, nil for default
+
+Example:
+
+```
+// Type text with default speed
+err := keyboard.Type(ctx, "Hello, World!", nil)
+
+// Type with custom delay between keystrokes
+delay := 50
+err := keyboard.Type(ctx, "Slow typing", &delay)
+```
+
+Returns an error if typing fails.
+
+<a name="ListSandboxesQuery"></a>
+## type ListSandboxesQuery
+
+ListSandboxesQuery contains query parameters for filtering and sorting when listing sandboxes.
+
+```go
+type ListSandboxesQuery struct {
+    // Per-page fetch size. Does NOT limit the total number of Sandboxes returned.
+    Limit *int
+    // Filter by ID prefix (case-insensitive)
+    ID  *string
+    // Filter by name prefix (case-insensitive)
+    Name *string
+    // Filter by labels
+    Labels map[string]string
+    // Filter by states
+    States []apiclient.SandboxState
+    // Filter by snapshot names
+    Snapshots []string
+    // Filter by targets
+    Targets []string
+    // Filter by minimum CPU
+    MinCpu *int
+    // Filter by maximum CPU
+    MaxCpu *int
+    // Filter by minimum memory in GiB
+    MinMemoryGib *int
+    // Filter by maximum memory in GiB
+    MaxMemoryGib *int
+    // Filter by minimum disk space in GiB
+    MinDiskGib *int
+    // Filter by maximum disk space in GiB
+    MaxDiskGib *int
+    // Filter by public status
+    IsPublic *bool
+    // Filter by recoverable status
+    IsRecoverable *bool
+    // Include sandboxes created after this timestamp
+    CreatedAtAfter *time.Time
+    // Include sandboxes created before this timestamp
+    CreatedAtBefore *time.Time
+    // Include sandboxes with last activity after this timestamp
+    LastActivityAfter *time.Time
+    // Include sandboxes with last activity before this timestamp
+    LastActivityBefore *time.Time
+    // Include sandboxes scheduled for auto destroy after this timestamp
+    AutoDestroyAtAfter *time.Time
+    // Include sandboxes scheduled for auto destroy before this timestamp
+    AutoDestroyAtBefore *time.Time
+    // Sort by field
+    Sort *apiclient.SandboxListSortField
+    // Sort direction
+    Order *apiclient.SandboxListSortDirection
+}
+```
+
+<a name="ListSnapshotsQuery"></a>
+## type ListSnapshotsQuery
+
+ListSnapshotsQuery contains pagination and filter parameters for listing snapshots.
+
+```go
+type ListSnapshotsQuery struct {
+    // Page number (1-indexed), nil for first page
+    Page *int
+    // Maximum snapshots per page, nil for default
+    Limit *int
+    // Filter by the ID of the sandbox the snapshot was created from
+    SourceSandboxID *string
+}
+```
+
+<a name="LspServerService"></a>
+## type LspServerService
+
+LspServerService provides Language Server Protocol \(LSP\) operations for a sandbox.
+
+LspServerService enables IDE\-like features such as code completion, symbol search, and document analysis through LSP. The service manages a language server instance for a specific language and project path. Access through [Sandbox.CreateLspServer](https://www.daytona.io/docs/en<#Sandbox.CreateLspServer>).
+
+Example:
+
+```
+// Create an LSP server for Python
+lsp := sandbox.CreateLspServer(types.LspLanguagePython, "/home/user/project")
+
+// Start the language server
+if err := lsp.Start(ctx); err != nil {
+    return err
+}
+defer lsp.Stop(ctx)
+
+// Open a file for analysis
+if err := lsp.DidOpen(ctx, "/home/user/project/main.py"); err != nil {
+    return err
+}
+
+// Get code completions
+completions, err := lsp.Completions(ctx, "/home/user/project/main.py",
+    types.Position{Line: 10, Character: 5})
+```
+
+```go
+type LspServerService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewLspServerService"></a>
+### func NewLspServerService
+
+```go
+func NewLspServerService(toolboxClient *toolbox.APIClient, languageID types.LspLanguageID, projectPath string, otel *otelState) *LspServerService
+```
+
+NewLspServerService creates a new LspServerService.
+
+This is typically called internally by the SDK through [Sandbox.CreateLspServer](https://www.daytona.io/docs/en<#Sandbox.CreateLspServer>). Users should obtain an LspServerService through [Sandbox.CreateLspServer](https://www.daytona.io/docs/en<#Sandbox.CreateLspServer>) rather than creating it directly.
+
+Parameters:
+
+- toolboxClient: The toolbox API client
+- languageID: The language identifier \(e.g., \[types.LspLanguagePython\]\)
+- projectPath: The root path of the project for LSP analysis
+
+<a name="LspServerService.Completions"></a>
+### func \(\*LspServerService\) Completions
+
+```go
+func (l *LspServerService) Completions(ctx context.Context, path string, position types.Position) (any, error)
+```
+
+Completions returns code completion suggestions at a position.
+
+The file should be opened with [LspServerService.DidOpen](https://www.daytona.io/docs/en<#LspServerService.DidOpen>) before requesting completions.
+
+Parameters:
+
+- path: Absolute path to the file
+- position: Cursor position \(line and character, 0\-indexed\)
+
+Example:
+
+```
+lsp.DidOpen(ctx, "/home/user/project/main.py")
+completions, err := lsp.Completions(ctx, "/home/user/project/main.py",
+    types.Position{Line: 10, Character: 5})
+if err != nil {
+    return err
+}
+fmt.Printf("Completions: %v\n", completions)
+```
+
+Returns completion items or an error.
+
+<a name="LspServerService.DidClose"></a>
+### func \(\*LspServerService\) DidClose
+
+```go
+func (l *LspServerService) DidClose(ctx context.Context, path string) error
+```
+
+DidClose notifies the language server that a file was closed.
+
+Call this when you're done working with a file to allow the server to release resources associated with it.
+
+Parameters:
+
+- path: Absolute path to the file
+
+Example:
+
+```
+err := lsp.DidClose(ctx, "/home/user/project/main.py")
+```
+
+Returns an error if the notification fails.
+
+<a name="LspServerService.DidOpen"></a>
+### func \(\*LspServerService\) DidOpen
+
+```go
+func (l *LspServerService) DidOpen(ctx context.Context, path string) error
+```
+
+DidOpen notifies the language server that a file was opened.
+
+This should be called before requesting completions or symbols for a file. The path is automatically converted to a file:// URI if needed.
+
+Parameters:
+
+- path: Absolute path to the file
+
+Example:
+
+```
+err := lsp.DidOpen(ctx, "/home/user/project/main.py")
+```
+
+Returns an error if the notification fails.
+
+<a name="LspServerService.DocumentSymbols"></a>
+### func \(\*LspServerService\) DocumentSymbols
+
+```go
+func (l *LspServerService) DocumentSymbols(ctx context.Context, path string) ([]any, error)
+```
+
+DocumentSymbols returns all symbols \(functions, classes, variables\) in a document.
+
+Parameters:
+
+- path: Absolute path to the file
+
+Example:
+
+```
+symbols, err := lsp.DocumentSymbols(ctx, "/home/user/project/main.py")
+if err != nil {
+    return err
+}
+for _, sym := range symbols {
+    fmt.Printf("Symbol: %v\n", sym)
+}
+```
+
+Returns a slice of symbol information or an error.
+
+<a name="LspServerService.SandboxSymbols"></a>
+### func \(\*LspServerService\) SandboxSymbols
+
+```go
+func (l *LspServerService) SandboxSymbols(ctx context.Context, query string) ([]any, error)
+```
+
+SandboxSymbols searches for symbols across the entire workspace.
+
+Use this to find symbols \(functions, classes, etc.\) by name across all files in the project.
+
+Parameters:
+
+- query: Search query to match symbol names
+
+Example:
+
+```
+symbols, err := lsp.SandboxSymbols(ctx, "MyClass")
+if err != nil {
+    return err
+}
+for _, sym := range symbols {
+    fmt.Printf("Found: %v\n", sym)
+}
+```
+
+Returns a slice of matching symbols or an error.
+
+<a name="LspServerService.Start"></a>
+### func \(\*LspServerService\) Start
+
+```go
+func (l *LspServerService) Start(ctx context.Context) error
+```
+
+Start initializes and starts the language server.
+
+The language server must be started before using other LSP operations. Call [LspServerService.Stop](https://www.daytona.io/docs/en<#LspServerService.Stop>) when finished to release resources.
+
+Example:
+
+```
+if err := lsp.Start(ctx); err != nil {
+    return err
+}
+defer lsp.Stop(ctx)
+```
+
+Returns an error if the server fails to start.
+
+<a name="LspServerService.Stop"></a>
+### func \(\*LspServerService\) Stop
+
+```go
+func (l *LspServerService) Stop(ctx context.Context) error
+```
+
+Stop shuts down the language server and releases resources.
+
+Example:
+
+```
+err := lsp.Stop(ctx)
+```
+
+Returns an error if the server fails to stop gracefully.
+
+<a name="MouseService"></a>
+## type MouseService
+
+MouseService provides mouse control operations.
+
+MouseService enables cursor movement, clicking, dragging, and scrolling. Access through [ComputerUseService.Mouse](https://www.daytona.io/docs/en<#ComputerUseService.Mouse>).
+
+```go
+type MouseService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewMouseService"></a>
+### func NewMouseService
+
+```go
+func NewMouseService(toolboxClient *toolbox.APIClient, otel *otelState) *MouseService
+```
+
+NewMouseService creates a new MouseService.
+
+<a name="MouseService.Click"></a>
+### func \(\*MouseService\) Click
+
+```go
+func (m *MouseService) Click(ctx context.Context, x, y int, button *string, double *bool) (map[string]any, error)
+```
+
+Click performs a mouse click at the specified coordinates.
+
+Parameters:
+
+- x: X coordinate to click
+- y: Y coordinate to click
+- button: Mouse button \("left", "right", "middle"\), nil for left click
+- double: Whether to double\-click, nil for single click
+
+Example:
+
+```
+// Single left click
+pos, err := mouse.Click(ctx, 100, 200, nil, nil)
+
+// Right click
+button := "right"
+pos, err := mouse.Click(ctx, 100, 200, &button, nil)
+
+// Double click
+doubleClick := true
+pos, err := mouse.Click(ctx, 100, 200, nil, &doubleClick)
+```
+
+Returns a map with the click "x" and "y" coordinates.
+
+<a name="MouseService.Drag"></a>
+### func \(\*MouseService\) Drag
+
+```go
+func (m *MouseService) Drag(ctx context.Context, startX, startY, endX, endY int, button *string) (map[string]any, error)
+```
+
+Drag performs a mouse drag operation from start to end coordinates.
+
+Parameters:
+
+- startX, startY: Starting coordinates
+- endX, endY: Ending coordinates
+- button: Mouse button to use, nil for left button
+
+Example:
+
+```
+// Drag from (100, 100) to (300, 300)
+pos, err := mouse.Drag(ctx, 100, 100, 300, 300, nil)
+```
+
+Returns a map with the final "x" and "y" coordinates.
+
+<a name="MouseService.GetPosition"></a>
+### func \(\*MouseService\) GetPosition
+
+```go
+func (m *MouseService) GetPosition(ctx context.Context) (map[string]any, error)
+```
+
+GetPosition returns the current cursor position.
+
+Example:
+
+```
+pos, err := mouse.GetPosition(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("Cursor at (%v, %v)\n", pos["x"], pos["y"])
+```
+
+Returns a map with "x" and "y" coordinates.
+
+<a name="MouseService.Move"></a>
+### func \(\*MouseService\) Move
+
+```go
+func (m *MouseService) Move(ctx context.Context, x, y int) (map[string]any, error)
+```
+
+Move moves the cursor to the specified coordinates.
+
+Parameters:
+
+- x: Target X coordinate
+- y: Target Y coordinate
+
+Example:
+
+```
+pos, err := mouse.Move(ctx, 500, 300)
+```
+
+Returns a map with the new "x" and "y" coordinates.
+
+<a name="MouseService.Scroll"></a>
+### func \(\*MouseService\) Scroll
+
+```go
+func (m *MouseService) Scroll(ctx context.Context, x, y int, direction string, amount *int) (bool, error)
+```
+
+Scroll performs a mouse scroll operation at the specified coordinates.
+
+Parameters:
+
+- x, y: Coordinates where the scroll occurs
+- direction: Scroll direction \("up", "down"\)
+- amount: Scroll amount, nil for default
+
+Example:
+
+```
+// Scroll down at position (500, 400)
+success, err := mouse.Scroll(ctx, 500, 400, "down", nil)
+
+// Scroll up with specific amount
+amount := 5
+success, err := mouse.Scroll(ctx, 500, 400, "up", &amount)
+```
+
+Returns true if the scroll was successful.
+
+<a name="OutputChannels"></a>
+## type OutputChannels
+
+OutputChannels provides channels for streaming execution output.
+
+All channels are closed when execution completes or encounters an error. The Done channel always receives exactly one message with the final result.
+
+```go
+type OutputChannels struct {
+    Stdout <-chan *types.OutputMessage   // Receives stdout messages as they occur
+    Stderr <-chan *types.OutputMessage   // Receives stderr messages as they occur
+    Errors <-chan *types.ExecutionError  // Receives execution errors
+    Done   <-chan *types.ExecutionResult // Receives final result when execution completes
+}
+```
+
+<a name="ProcessService"></a>
+## type ProcessService
+
+ProcessService provides process execution operations for a sandbox.
+
+ProcessService enables command execution, session management, and PTY \(pseudo\-terminal\) operations. It supports both synchronous command execution and interactive terminal sessions. Access through \[Sandbox.Process\].
+
+Example:
+
+```
+// Execute a command
+result, err := sandbox.Process.ExecuteCommand(ctx, "echo 'Hello, World!'")
+fmt.Println(result.Result)
+
+// Execute with options
+result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la",
+    options.WithCwd("/home/user/project"),
+    options.WithExecuteTimeout(30*time.Second),
+)
+
+// Create an interactive PTY session
+handle, err := sandbox.Process.CreatePty(ctx, "my-terminal")
+defer handle.Disconnect()
+```
+
+```go
+type ProcessService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewProcessService"></a>
+### func NewProcessService
+
+```go
+func NewProcessService(toolboxClient *toolbox.APIClient, otel *otelState, language types.CodeLanguage) *ProcessService
+```
+
+NewProcessService creates a new ProcessService with the provided toolbox client.
+
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access ProcessService through \[Sandbox.Process\] rather than creating it directly.
+
+<a name="ProcessService.CodeRun"></a>
+### func \(\*ProcessService\) CodeRun
+
+```go
+func (p *ProcessService) CodeRun(ctx context.Context, code string, opts ...func(*options.CodeRun)) (*types.ExecuteResponse, error)
+```
+
+CodeRun executes code in a language\-specific runtime and returns the result.
+
+The code is executed directly by the daemon's code\-run endpoint using the specified language runtime \(Python, JavaScript, or TypeScript\). This is different from [ProcessService.ExecuteCommand](https://www.daytona.io/docs/en<#ProcessService.ExecuteCommand>) which runs shell commands.
+
+Parameters:
+
+- code: The source code to execute
+- language: The language runtime to use \(e.g. \[types.CodeLanguagePython\]\)
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithCodeRunParams\]: Set argv and environment variables
+- \[options.WithCodeRunTimeout\]: Set execution timeout
+
+Example:
+
+```
+// Run Python code
+result, err := sandbox.Process.CodeRun(ctx, "print('Hello')", types.CodeLanguagePython)
+fmt.Println(result.Result)
+
+// Run with options
+result, err := sandbox.Process.CodeRun(ctx, code, types.CodeLanguagePython,
+    options.WithCodeRunParams(types.CodeRunParams{
+        Argv: []string{"--verbose"},
+        Env:  map[string]string{"DEBUG": "1"},
+    }),
+    options.WithCodeRunTimeout(30*time.Second),
+)
+```
+
+Returns \[types.ExecuteResponse\] containing the output, exit code, and any artifacts \(such as charts\), or an error.
+
+<a name="ProcessService.ConnectPty"></a>
+### func \(\*ProcessService\) ConnectPty
+
+```go
+func (p *ProcessService) ConnectPty(ctx context.Context, sessionID string) (*PtyHandle, error)
+```
+
+ConnectPty establishes a WebSocket connection to an existing PTY session.
+
+Returns a [PtyHandle](https://www.daytona.io/docs/en<#PtyHandle>) for interacting with the terminal. The handle provides:
+
+- DataChan\(\): Channel for receiving terminal output
+- SendInput\(\): Method for sending keyboard input
+- Resize\(\): Method for changing terminal size
+- Disconnect\(\): Method for closing the connection
+
+Parameters:
+
+- sessionID: The PTY session to connect to
+
+Example:
+
+```
+handle, err := sandbox.Process.ConnectPty(ctx, "my-terminal")
+if err != nil {
+    return err
+}
+defer handle.Disconnect()
+
+// Wait for connection
+if err := handle.WaitForConnection(ctx); err != nil {
+    return err
+}
+
+// Read output
+for data := range handle.DataChan() {
+    fmt.Print(string(data))
+}
+```
+
+Returns a [PtyHandle](https://www.daytona.io/docs/en<#PtyHandle>) for terminal interaction, or an error.
+
+<a name="ProcessService.CreatePty"></a>
+### func \(\*ProcessService\) CreatePty
+
+```go
+func (p *ProcessService) CreatePty(ctx context.Context, id string, opts ...func(*options.CreatePty)) (*PtyHandle, error)
+```
+
+CreatePty creates a new PTY session and immediately connects to it.
+
+This is a convenience method that combines [ProcessService.CreatePtySession](https://www.daytona.io/docs/en<#ProcessService.CreatePtySession>) and [ProcessService.ConnectPty](https://www.daytona.io/docs/en<#ProcessService.ConnectPty>) into a single operation.
+
+Parameters:
+
+- id: Unique identifier for the PTY session
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithCreatePtySize\]: Set terminal dimensions
+- \[options.WithCreatePtyEnv\]: Set environment variables
+
+Example:
+
+```
+handle, err := sandbox.Process.CreatePty(ctx, "interactive-shell",
+    options.WithCreatePtySize(types.PtySize{Rows: 24, Cols: 80}),
+    options.WithCreatePtyEnv(map[string]string{"TERM": "xterm-256color"}),
+)
+if err != nil {
+    return err
+}
+defer handle.Disconnect()
+
+// Wait for connection
+if err := handle.WaitForConnection(ctx); err != nil {
+    return err
+}
+
+// Send a command
+handle.SendInput([]byte("ls -la\n"))
+
+// Read output
+for data := range handle.DataChan() {
+    fmt.Print(string(data))
+}
+```
+
+Returns a [PtyHandle](https://www.daytona.io/docs/en<#PtyHandle>) for terminal interaction, or an error.
+
+<a name="ProcessService.CreatePtySession"></a>
+### func \(\*ProcessService\) CreatePtySession
+
+```go
+func (p *ProcessService) CreatePtySession(ctx context.Context, id string, opts ...func(*options.PtySession)) (*types.PtySessionInfo, error)
+```
+
+CreatePtySession creates a PTY \(pseudo\-terminal\) session.
+
+A PTY session provides a terminal interface for interactive applications. Use [ProcessService.ConnectPty](https://www.daytona.io/docs/en<#ProcessService.ConnectPty>) to connect to the session after creation.
+
+Parameters:
+
+- id: Unique identifier for the session
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithPtySize\]: Set terminal dimensions \(rows and columns\)
+- \[options.WithPtyEnv\]: Set environment variables
+
+Example:
+
+```
+// Create with default settings
+session, err := sandbox.Process.CreatePtySession(ctx, "my-terminal")
+
+// Create with custom size
+session, err := sandbox.Process.CreatePtySession(ctx, "my-terminal",
+    options.WithPtySize(types.PtySize{Rows: 24, Cols: 80}),
+)
+```
+
+Returns \[types.PtySessionInfo\] containing session details, or an error.
+
+<a name="ProcessService.CreateSession"></a>
+### func \(\*ProcessService\) CreateSession
+
+```go
+func (p *ProcessService) CreateSession(ctx context.Context, sessionID string) error
+```
+
+CreateSession creates a named session for executing multiple commands.
+
+Sessions allow you to execute multiple commands while maintaining state \(like environment variables and working directory\) between commands.
+
+Example:
+
+```
+// Create a session
+err := sandbox.Process.CreateSession(ctx, "my-session")
+if err != nil {
+    return err
+}
+defer sandbox.Process.DeleteSession(ctx, "my-session")
+
+// Execute commands in the session
+result, err := sandbox.Process.ExecuteSessionCommand(ctx, "my-session", "cd /home/user", false)
+result, err = sandbox.Process.ExecuteSessionCommand(ctx, "my-session", "pwd", false)
+```
+
+Returns an error if session creation fails.
+
+<a name="ProcessService.DeleteSession"></a>
+### func \(\*ProcessService\) DeleteSession
+
+```go
+func (p *ProcessService) DeleteSession(ctx context.Context, sessionID string) error
+```
+
+DeleteSession removes a session and releases its resources.
+
+The sessionID parameter identifies the session to delete.
+
+Example:
+
+```
+err := sandbox.Process.DeleteSession(ctx, "my-session")
+```
+
+Returns an error if the session doesn't exist or deletion fails.
+
+<a name="ProcessService.ExecuteCommand"></a>
+### func \(\*ProcessService\) ExecuteCommand
+
+```go
+func (p *ProcessService) ExecuteCommand(ctx context.Context, command string, opts ...func(*options.ExecuteCommand)) (*types.ExecuteResponse, error)
+```
+
+ExecuteCommand executes a shell command and returns the result.
+
+The command is executed in a shell context. For complex commands, consider using proper shell escaping or wrapping in a script.
+
+Optional parameters can be configured using functional options:
+
+- \[options.WithCwd\]: Set the working directory for command execution
+- \[options.WithCommandEnv\]: Set environment variables
+- \[options.WithExecuteTimeout\]: Set execution timeout
+
+Example:
+
+```
+// Simple command
+result, err := sandbox.Process.ExecuteCommand(ctx, "echo 'Hello'")
+if err != nil {
+    return err
+}
+fmt.Println(result.Result)
+
+// Command with options
+result, err := sandbox.Process.ExecuteCommand(ctx, "npm install",
+    options.WithCwd("/home/user/project"),
+    options.WithExecuteTimeout(5*time.Minute),
+)
+
+// Check exit code
+if result.ExitCode != 0 {
+    fmt.Printf("Command failed with exit code %d\n", result.ExitCode)
+}
+```
+
+Returns \[types.ExecuteResponse\] containing the output and exit code, or an error.
+
+<a name="ProcessService.ExecuteSessionCommand"></a>
+### func \(\*ProcessService\) ExecuteSessionCommand
+
+```go
+func (p *ProcessService) ExecuteSessionCommand(ctx context.Context, sessionID, command string, runAsync bool, suppressInputEcho bool) (map[string]any, error)
+```
+
+ExecuteSessionCommand executes a command within a session.
+
+Parameters:
+
+- sessionID: The session to execute the command in
+- command: The command to execute
+- runAsync: If true, return immediately without waiting for completion
+- suppressInputEcho: If true, suppress input echo
+
+When runAsync is true, use [ProcessService.GetSessionCommand](https://www.daytona.io/docs/en<#ProcessService.GetSessionCommand>) to check status and [ProcessService.GetSessionCommandLogs](https://www.daytona.io/docs/en<#ProcessService.GetSessionCommandLogs>) to retrieve output.
+
+Example:
+
+```
+// Synchronous execution
+result, err := sandbox.Process.ExecuteSessionCommand(ctx, "my-session", "ls -la", false)
+if err != nil {
+    return err
+}
+fmt.Println(result["stdout"])
+
+// Asynchronous execution
+result, err := sandbox.Process.ExecuteSessionCommand(ctx, "my-session", "long-running-cmd", true)
+cmdID := result["id"].(string)
+// Later: check status with GetSessionCommand(ctx, "my-session", cmdID)
+```
+
+Returns command result including id, exitCode \(if completed\), stdout, and stderr.
+
+<a name="ProcessService.GetEntrypointLogs"></a>
+### func \(\*ProcessService\) GetEntrypointLogs
+
+```go
+func (p *ProcessService) GetEntrypointLogs(ctx context.Context) (*toolbox.SessionCommandLogsResponse, error)
+```
+
+GetEntrypointLogs retrieves the output logs of the sandbox entrypoint.
+
+Example:
+
+```
+logs, err := sandbox.Process.GetEntrypointLogs(ctx)
+if err != nil {
+    return err
+}
+fmt.Println(logs)
+```
+
+Returns a string containing the entrypoint command output logs.
+
+<a name="ProcessService.GetEntrypointLogsStream"></a>
+### func \(\*ProcessService\) GetEntrypointLogsStream
+
+```go
+func (p *ProcessService) GetEntrypointLogsStream(ctx context.Context, stdout, stderr chan<- string) error
+```
+
+GetEntrypointLogsStream streams entrypoint logs as they become available.
+
+This method establishes a WebSocket connection to stream sandbox entrypoint logs in real\-time. The stdout and stderr channels receive log chunks as strings and are closed when the stream ends or an error occurs.
+
+Parameters:
+
+- stdout: Channel to receive stdout output
+- stderr: Channel to receive stderr output
+
+The caller should provide buffered channels to avoid blocking.
+
+Example:
+
+```
+stdout := make(chan string, 100)
+stderr := make(chan string, 100)
+
+go func() {
+    err := sandbox.Process.GetEntrypointLogsStream(ctx, stdout, stderr)
+    if err != nil {
+        log.Printf("Stream error: %v", err)
+    }
+}()
+
+for {
+    select {
+    case chunk, ok := <-stdout:
+        if !ok {
+            stdout = nil
+        } else {
+            fmt.Print(chunk)
+        }
+    case chunk, ok := <-stderr:
+        if !ok {
+            stderr = nil
+        } else {
+            fmt.Fprint(os.Stderr, chunk)
+        }
+    }
+    if stdout == nil && stderr == nil {
+        break
+    }
+}
+```
+
+Returns an error if the connection fails or stream encounters an error.
+
+<a name="ProcessService.GetEntrypointSession"></a>
+### func \(\*ProcessService\) GetEntrypointSession
+
+```go
+func (p *ProcessService) GetEntrypointSession(ctx context.Context) (*toolbox.Session, error)
+```
+
+GetEntrypointSession retrieves information about the entrypoint session.
+
+Returns an entrypoint session information containing:
+
+- SessionId: The entrypoint session identifier
+- Commands: List of commands executed in the entrypoint session
+
+Example:
+
+```
+info, err := sandbox.Process.GetEntrypointSession(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("Session: %s\n", info.SessionId)
+```
+
+Returns an error if the session doesn't exist.
+
+<a name="ProcessService.GetPtySessionInfo"></a>
+### func \(\*ProcessService\) GetPtySessionInfo
+
+```go
+func (p *ProcessService) GetPtySessionInfo(ctx context.Context, sessionID string) (*types.PtySessionInfo, error)
+```
+
+GetPtySessionInfo retrieves information about a PTY session.
+
+Parameters:
+
+- sessionID: The PTY session identifier
+
+Example:
+
+```
+info, err := sandbox.Process.GetPtySessionInfo(ctx, "my-terminal")
+if err != nil {
+    return err
+}
+fmt.Printf("Terminal size: %dx%d\n", info.Cols, info.Rows)
+```
+
+Returns \[types.PtySessionInfo\] with session details, or an error.
+
+<a name="ProcessService.GetSession"></a>
+### func \(\*ProcessService\) GetSession
+
+```go
+func (p *ProcessService) GetSession(ctx context.Context, sessionID string) (map[string]any, error)
+```
+
+GetSession retrieves information about a session.
+
+The sessionID parameter identifies the session to query.
+
+Returns a map containing:
+
+- sessionId: The session identifier
+- commands: List of commands executed in the session
+
+Example:
+
+```
+info, err := sandbox.Process.GetSession(ctx, "my-session")
+if err != nil {
+    return err
+}
+fmt.Printf("Session: %s\n", info["sessionId"])
+```
+
+Returns an error if the session doesn't exist.
+
+<a name="ProcessService.GetSessionCommand"></a>
+### func \(\*ProcessService\) GetSessionCommand
+
+```go
+func (p *ProcessService) GetSessionCommand(ctx context.Context, sessionID, commandID string) (map[string]any, error)
+```
+
+GetSessionCommand retrieves the status of a command in a session.
+
+Parameters:
+
+- sessionID: The session containing the command
+- commandID: The command identifier \(from ExecuteSessionCommand result\)
+
+Example:
+
+```
+status, err := sandbox.Process.GetSessionCommand(ctx, "my-session", cmdID)
+if err != nil {
+    return err
+}
+if exitCode, ok := status["exitCode"]; ok {
+    fmt.Printf("Command completed with exit code: %v\n", exitCode)
+} else {
+    fmt.Println("Command still running")
+}
+```
+
+Returns command status including id, command text, and exitCode \(if completed\).
+
+<a name="ProcessService.GetSessionCommandLogs"></a>
+### func \(\*ProcessService\) GetSessionCommandLogs
+
+```go
+func (p *ProcessService) GetSessionCommandLogs(ctx context.Context, sessionID, commandID string) (*toolbox.SessionCommandLogsResponse, error)
+```
+
+GetSessionCommandLogs retrieves the output logs of a command.
+
+Parameters:
+
+- sessionID: The session containing the command
+- commandID: The command identifier
+
+Example:
+
+```
+logs, err := sandbox.Process.GetSessionCommandLogs(ctx, "my-session", cmdID)
+if err != nil {
+    return err
+}
+fmt.Println(logs["logs"])
+```
+
+Returns a map containing the "logs" key with command output.
+
+<a name="ProcessService.GetSessionCommandLogsStream"></a>
+### func \(\*ProcessService\) GetSessionCommandLogsStream
+
+```go
+func (p *ProcessService) GetSessionCommandLogsStream(ctx context.Context, sessionID, commandID string, stdout, stderr chan<- string) error
+```
+
+GetSessionCommandLogsStream streams command logs as they become available.
+
+This method establishes a WebSocket connection to stream logs in real\-time. The stdout and stderr channels receive log chunks as strings and are closed when the stream ends or an error occurs.
+
+Parameters:
+
+- sessionID: The session containing the command
+- commandID: The command identifier
+- stdout: Channel to receive stdout output
+- stderr: Channel to receive stderr output
+
+The caller should provide buffered channels to avoid blocking.
+
+Example:
+
+```
+stdout := make(chan string, 100)
+stderr := make(chan string, 100)
+
+go func() {
+    err := sandbox.Process.GetSessionCommandLogsStream(ctx, "session", "cmd", stdout, stderr)
+    if err != nil {
+        log.Printf("Stream error: %v", err)
+    }
+}()
+
+for {
+    select {
+    case chunk, ok := <-stdout:
+        if !ok {
+            stdout = nil
+        } else {
+            fmt.Print(chunk)
+        }
+    case chunk, ok := <-stderr:
+        if !ok {
+            stderr = nil
+        } else {
+            fmt.Fprint(os.Stderr, chunk)
+        }
+    }
+    if stdout == nil && stderr == nil {
+        break
+    }
+}
+```
+
+Returns an error if the connection fails or stream encounters an error.
+
+<a name="ProcessService.KillPtySession"></a>
+### func \(\*ProcessService\) KillPtySession
+
+```go
+func (p *ProcessService) KillPtySession(ctx context.Context, sessionID string) error
+```
+
+KillPtySession terminates a PTY session.
+
+This ends the terminal session and any processes running in it.
+
+Parameters:
+
+- sessionID: The PTY session to terminate
+
+Example:
+
+```
+err := sandbox.Process.KillPtySession(ctx, "my-terminal")
+```
+
+Returns an error if the session doesn't exist or termination fails.
+
+<a name="ProcessService.ListPtySessions"></a>
+### func \(\*ProcessService\) ListPtySessions
+
+```go
+func (p *ProcessService) ListPtySessions(ctx context.Context) ([]*types.PtySessionInfo, error)
+```
+
+ListPtySessions returns all active PTY sessions.
+
+Example:
+
+```
+sessions, err := sandbox.Process.ListPtySessions(ctx)
+if err != nil {
+    return err
+}
+for _, session := range sessions {
+    fmt.Printf("PTY: %s (%dx%d)\n", session.ID, session.Cols, session.Rows)
+}
+```
+
+Returns a slice of \[types.PtySessionInfo\], or an error.
+
+<a name="ProcessService.ListSessions"></a>
+### func \(\*ProcessService\) ListSessions
+
+```go
+func (p *ProcessService) ListSessions(ctx context.Context) ([]map[string]any, error)
+```
+
+ListSessions returns all active sessions.
+
+Example:
+
+```
+sessions, err := sandbox.Process.ListSessions(ctx)
+if err != nil {
+    return err
+}
+for _, session := range sessions {
+    fmt.Printf("Session: %s\n", session["sessionId"])
+}
+```
+
+Returns a slice of session information maps, or an error.
+
+<a name="ProcessService.ResizePtySession"></a>
+### func \(\*ProcessService\) ResizePtySession
+
+```go
+func (p *ProcessService) ResizePtySession(ctx context.Context, sessionID string, ptySize types.PtySize) (*types.PtySessionInfo, error)
+```
+
+ResizePtySession changes the terminal dimensions of a PTY session.
+
+This sends a SIGWINCH signal to applications, notifying them of the size change.
+
+Parameters:
+
+- sessionID: The PTY session to resize
+- ptySize: New terminal dimensions
+
+Example:
+
+```
+newSize := types.PtySize{Rows: 40, Cols: 120}
+info, err := sandbox.Process.ResizePtySession(ctx, "my-terminal", newSize)
+if err != nil {
+    return err
+}
+fmt.Printf("New size: %dx%d\n", info.Cols, info.Rows)
+```
+
+Returns updated \[types.PtySessionInfo\], or an error.
+
+<a name="PtyHandle"></a>
+## type PtyHandle
+
+PtyHandle manages a WebSocket connection to a PTY \(pseudo\-terminal\) session.
+
+PtyHandle provides methods for sending input, receiving output via channels, resizing the terminal, and managing the connection lifecycle. It implements [io.Reader](https://www.daytona.io/docs/en<https://pkg.go.dev/io#Reader>) and [io.Writer](https://www.daytona.io/docs/en<https://pkg.go.dev/io#Writer>) interfaces for integration with standard Go I/O.
+
+Create a PtyHandle using [ProcessService.CreatePty](https://www.daytona.io/docs/en<#ProcessService.CreatePty>).
+
+Example:
+
+```
+// Create a PTY session
+handle, err := sandbox.Process.CreatePty(ctx, "my-pty", nil)
+if err != nil {
+    return err
+}
+defer handle.Disconnect()
+
+// Wait for connection to be established
+if err := handle.WaitForConnection(ctx); err != nil {
+    return err
+}
+
+// Send input
+handle.SendInput([]byte("ls -la\n"))
+
+// Read output from channel
+for data := range handle.DataChan() {
+    fmt.Print(string(data))
+}
+
+// Or use as io.Reader
+io.Copy(os.Stdout, handle)
+```
+
+```go
+type PtyHandle struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="PtyHandle.DataChan"></a>
+### func \(\*PtyHandle\) DataChan
+
+```go
+func (h *PtyHandle) DataChan() <-chan []byte
+```
+
+DataChan returns a channel for receiving PTY output.
+
+The channel receives raw bytes from the terminal. It is closed when the PTY session ends or the connection is closed.
+
+Example:
+
+```
+for data := range handle.DataChan() {
+    fmt.Print(string(data))
+}
+```
+
+<a name="PtyHandle.Disconnect"></a>
+### func \(\*PtyHandle\) Disconnect
+
+```go
+func (h *PtyHandle) Disconnect() error
+```
+
+Disconnect closes the WebSocket connection and releases resources.
+
+Call this when done with the PTY session. This does not terminate the underlying process \- use [PtyHandle.Kill](https://www.daytona.io/docs/en<#PtyHandle.Kill>) for that.
+
+Example:
+
+```
+defer handle.Disconnect()
+```
+
+Returns an error if the WebSocket close fails.
+
+<a name="PtyHandle.Error"></a>
+### func \(\*PtyHandle\) Error
+
+```go
+func (h *PtyHandle) Error() *string
+```
+
+Error returns the error message if the PTY session failed, or nil otherwise.
+
+<a name="PtyHandle.ExitCode"></a>
+### func \(\*PtyHandle\) ExitCode
+
+```go
+func (h *PtyHandle) ExitCode() *int
+```
+
+ExitCode returns the exit code of the PTY process, or nil if still running.
+
+<a name="PtyHandle.IsConnected"></a>
+### func \(\*PtyHandle\) IsConnected
+
+```go
+func (h *PtyHandle) IsConnected() bool
+```
+
+IsConnected returns true if the WebSocket connection is active.
+
+<a name="PtyHandle.Kill"></a>
+### func \(\*PtyHandle\) Kill
+
+```go
+func (h *PtyHandle) Kill(ctx context.Context) error
+```
+
+Kill terminates the PTY session and its associated process.
+
+This operation is irreversible. The process receives a SIGKILL signal and terminates immediately.
+
+Example:
+
+```
+err := handle.Kill(ctx)
+```
+
+Returns an error if the kill operation fails.
+
+<a name="PtyHandle.Read"></a>
+### func \(\*PtyHandle\) Read
+
+```go
+func (h *PtyHandle) Read(p []byte) (n int, err error)
+```
+
+Read implements [io.Reader](https://www.daytona.io/docs/en<https://pkg.go.dev/io#Reader>) for reading PTY output.
+
+This method blocks until data is available or the PTY closes \(returns [io.EOF](https://www.daytona.io/docs/en<https://pkg.go.dev/io#EOF>)\). Use with [io.Copy](https://www.daytona.io/docs/en<https://pkg.go.dev/io#Copy>), [bufio.Scanner](https://www.daytona.io/docs/en<https://pkg.go.dev/bufio#Scanner>), or any standard Go I/O utilities.
+
+Example:
+
+```
+// Copy all output to stdout
+io.Copy(os.Stdout, handle)
+
+// Use with bufio.Scanner
+scanner := bufio.NewScanner(handle)
+for scanner.Scan() {
+    fmt.Println(scanner.Text())
+}
+```
+
+<a name="PtyHandle.Resize"></a>
+### func \(\*PtyHandle\) Resize
+
+```go
+func (h *PtyHandle) Resize(ctx context.Context, cols, rows int) (*types.PtySessionInfo, error)
+```
+
+Resize changes the PTY terminal dimensions.
+
+This notifies terminal applications about the new dimensions via SIGWINCH signal. Call this when the terminal display size changes.
+
+Parameters:
+
+- cols: Number of columns \(width in characters\)
+- rows: Number of rows \(height in characters\)
+
+Example:
+
+```
+info, err := handle.Resize(ctx, 120, 40)
+```
+
+Returns updated \[types.PtySessionInfo\] or an error.
+
+<a name="PtyHandle.SendInput"></a>
+### func \(\*PtyHandle\) SendInput
+
+```go
+func (h *PtyHandle) SendInput(data []byte) error
+```
+
+SendInput sends input data to the PTY session.
+
+The data is sent as raw bytes and will be processed as if typed in the terminal. Use this to send commands, keystrokes, or any terminal input.
+
+Example:
+
+```
+// Send a command
+handle.SendInput([]byte("ls -la\n"))
+
+// Send Ctrl+C
+handle.SendInput([]byte{0x03})
+```
+
+Returns an error if the PTY is not connected or sending fails.
+
+<a name="PtyHandle.SessionID"></a>
+### func \(\*PtyHandle\) SessionID
+
+```go
+func (h *PtyHandle) SessionID() string
+```
+
+SessionID returns the unique identifier for this PTY session.
+
+<a name="PtyHandle.Wait"></a>
+### func \(\*PtyHandle\) Wait
+
+```go
+func (h *PtyHandle) Wait(ctx context.Context) (*types.PtyResult, error)
+```
+
+Wait blocks until the PTY process exits and returns the result.
+
+Example:
+
+```
+result, err := handle.Wait(ctx)
+if err != nil {
+    return err
+}
+if result.ExitCode != nil {
+    fmt.Printf("Process exited with code: %d\n", *result.ExitCode)
+}
+```
+
+Returns \[types.PtyResult\] with exit code and any error, or an error if the context is cancelled.
+
+<a name="PtyHandle.WaitForConnection"></a>
+### func \(\*PtyHandle\) WaitForConnection
+
+```go
+func (h *PtyHandle) WaitForConnection(ctx context.Context) error
+```
+
+WaitForConnection waits for the WebSocket connection to be established.
+
+This method blocks until the PTY session is ready to receive input and send output, or until a timeout \(10 seconds\) expires. Always call this after creating a PTY to ensure the connection is ready.
+
+Example:
+
+```
+handle, _ := sandbox.Process.CreatePty(ctx, "my-pty", nil)
+if err := handle.WaitForConnection(ctx); err != nil {
+    return fmt.Errorf("PTY connection failed: %w", err)
+}
+```
+
+Returns an error if the connection times out or fails.
+
+<a name="PtyHandle.Write"></a>
+### func \(\*PtyHandle\) Write
+
+```go
+func (h *PtyHandle) Write(p []byte) (n int, err error)
+```
+
+Write implements [io.Writer](https://www.daytona.io/docs/en<https://pkg.go.dev/io#Writer>) for sending input to the PTY.
+
+Example:
+
+```
+// Write directly
+handle.Write([]byte("echo hello\n"))
+
+// Use with io.Copy
+io.Copy(handle, strings.NewReader("echo hello\n"))
+```
+
+<a name="PushAccessCredentials"></a>
+## type PushAccessCredentials
+
+PushAccessCredentials holds temporary credentials for uploading to object storage.
+
+These credentials are obtained from the API and used for uploading build contexts when creating snapshots with custom [DockerImage](https://www.daytona.io/docs/en<#DockerImage>) definitions.
+
+```go
+type PushAccessCredentials struct {
+    StorageURL     string `json:"storageUrl"`
+    AccessKey      string `json:"accessKey"`
+    Secret         string `json:"secret"`
+    SessionToken   string `json:"sessionToken"`
+    Bucket         string `json:"bucket"`
+    OrganizationID string `json:"organizationId"`
+    Region         string `json:"region"`
+}
+```
+
+<a name="RecordingService"></a>
+## type RecordingService
+
+RecordingService provides screen recording operations.
+
+RecordingService enables starting, stopping, and managing screen recordings. Access through [ComputerUseService.Recording](https://www.daytona.io/docs/en<#ComputerUseService.Recording>).
+
+```go
+type RecordingService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewRecordingService"></a>
+### func NewRecordingService
+
+```go
+func NewRecordingService(toolboxClient *toolbox.APIClient) *RecordingService
+```
+
+NewRecordingService creates a new RecordingService.
+
+<a name="RecordingService.Delete"></a>
+### func \(\*RecordingService\) Delete
+
+```go
+func (r *RecordingService) Delete(ctx context.Context, id string) error
+```
+
+Delete deletes a recording by ID.
+
+Parameters:
+
+- id: The ID of the recording to delete
+
+Example:
+
+```
+err := cu.Recording().Delete(ctx, recordingID)
+if err != nil {
+    return err
+}
+fmt.Println("Recording deleted")
+```
+
+Returns an error if the deletion fails.
+
+<a name="RecordingService.Download"></a>
+### func \(\*RecordingService\) Download
+
+```go
+func (r *RecordingService) Download(ctx context.Context, id string, localPath string) error
+```
+
+Download downloads a recording file and saves it to a local path.
+
+The file is streamed directly to disk without loading the entire content into memory.
+
+Parameters:
+
+- id: The ID of the recording to download
+- localPath: Path to save the recording file locally
+
+Example:
+
+```
+err := cu.Recording().Download(ctx, recordingID, "local_recording.mp4")
+if err != nil {
+    return err
+}
+fmt.Println("Recording downloaded")
+```
+
+Returns an error if the download fails.
+
+<a name="RecordingService.Get"></a>
+### func \(\*RecordingService\) Get
+
+```go
+func (r *RecordingService) Get(ctx context.Context, id string) (*toolbox.Recording, error)
+```
+
+Get gets details of a specific recording by ID.
+
+Parameters:
+
+- id: The ID of the recording to retrieve
+
+Example:
+
+```
+recording, err := cu.Recording().Get(ctx, recordingID)
+if err != nil {
+    return err
+}
+fmt.Printf("Recording: %s\n", recording.GetFileName())
+fmt.Printf("Status: %s\n", recording.GetStatus())
+fmt.Printf("Duration: %v seconds\n", recording.GetDurationSeconds())
+```
+
+Returns \[toolbox.Recording\] with recording details.
+
+<a name="RecordingService.List"></a>
+### func \(\*RecordingService\) List
+
+```go
+func (r *RecordingService) List(ctx context.Context) (*toolbox.ListRecordingsResponse, error)
+```
+
+List lists all recordings \(active and completed\).
+
+Example:
+
+```
+recordings, err := cu.Recording().List(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("Found %d recordings\n", len(recordings.GetRecordings()))
+for _, rec := range recordings.GetRecordings() {
+    fmt.Printf("- %s: %s\n", rec.GetFileName(), rec.GetStatus())
+}
+```
+
+Returns \[toolbox.ListRecordingsResponse\] with all recordings.
+
+<a name="RecordingService.Start"></a>
+### func \(\*RecordingService\) Start
+
+```go
+func (r *RecordingService) Start(ctx context.Context, label *string) (*toolbox.Recording, error)
+```
+
+Start starts a new screen recording session.
+
+Parameters:
+
+- label: Optional custom label for the recording
+
+Example:
+
+```
+// Start a recording with a label
+recording, err := cu.Recording().Start(ctx, stringPtr("my-test-recording"))
+if err != nil {
+    return err
+}
+fmt.Printf("Recording started: %s\n", recording.GetId())
+fmt.Printf("File: %s\n", recording.GetFilePath())
+```
+
+Returns \[toolbox.Recording\] with recording details.
+
+<a name="RecordingService.Stop"></a>
+### func \(\*RecordingService\) Stop
+
+```go
+func (r *RecordingService) Stop(ctx context.Context, id string) (*toolbox.Recording, error)
+```
+
+Stop stops an active screen recording session.
+
+Parameters:
+
+- id: The ID of the recording to stop
+
+Example:
+
+```
+result, err := cu.Recording().Stop(ctx, recordingID)
+if err != nil {
+    return err
+}
+fmt.Printf("Recording stopped: %v seconds\n", result.GetDurationSeconds())
+fmt.Printf("Saved to: %s\n", result.GetFilePath())
+```
+
+Returns \[toolbox.Recording\] with recording details.
+
+<a name="Sandbox"></a>
+## type Sandbox
+
+Sandbox represents a Daytona sandbox environment.
+
+A Sandbox provides an isolated development environment with file system, git, process execution, code interpretation, and desktop automation capabilities. Sandboxes can be started, stopped, archived, and deleted.
+
+Access sandbox capabilities through the service fields:
+
+- FileSystem: File and directory operations
+- Git: Git repository operations
+- Process: Command execution and PTY sessions
+- CodeInterpreter: Python code execution
+- ComputerUse: Desktop automation \(mouse, keyboard, screenshots\)
+
+Language Server Protocol \(LSP\) servers are created on demand via [Sandbox.CreateLspServer](https://www.daytona.io/docs/en<#Sandbox.CreateLspServer>).
+
+Example:
+
+```
+// Create and use a sandbox
+sandbox, err := client.Create(ctx)
+if err != nil {
+    return err
+}
+defer sandbox.Delete(ctx)
+
+// Execute a command
+result, err := sandbox.Process.ExecuteCommand(ctx, "echo 'Hello'")
+
+// Work with files
+err = sandbox.FileSystem.UploadFile(ctx, "local.txt", "/home/user/remote.txt")
+```
+
+```go
+type Sandbox struct {
+    ToolboxClient *toolbox.APIClient // Internal API client
+
+    ID             string                         // Unique sandbox identifier
+    Name           string                         // Human-readable sandbox name
+    OrganizationId string                         // Organization ID of the sandbox
+    Snapshot       *string                        // Daytona snapshot used to create the sandbox
+    User           string                         // OS user running in the sandbox
+    Labels         map[string]string              // Custom labels attached to the sandbox
+    Public         bool                           // Whether the sandbox is publicly accessible
+    Target         string                         // Target region/environment where the sandbox runs
+    Cpu            float32                        // Number of CPUs allocated to the sandbox
+    Gpu            float32                        // Number of GPUs allocated to the sandbox
+    Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
+    SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
+    Memory         float32                        // Amount of memory allocated to the sandbox in GiB
+    Disk           float32                        // Amount of disk space allocated to the sandbox in GiB
+    State          apiclient.SandboxState         // Current sandbox state
+    ErrorReason    *string                        // Error message if the sandbox is in an error state
+    Recoverable    *bool                          // Whether the sandbox error is recoverable
+    BackupState    *string                        // Current state of the sandbox backup
+    SandboxClass   *types.SandboxClass            // Sandbox class (e.g. linux-vm, container)
+    WarmPoolId     *string                        // Warm pool ID the sandbox belongs to, if any
+    GpuType        *types.GpuType                 // GPU model allocated to the sandbox, if any
+    DesiredState   *apiclient.SandboxDesiredState // Desired state requested for the sandbox
+    DaemonVersion  *string                        // Version of the daemon running in the sandbox
+
+    // AutoStopInterval is the time in minutes of inactivity before auto-stopping.
+    // 0 means disabled.
+    AutoStopInterval int
+
+    // AutoPauseInterval is the time in minutes of inactivity before auto-pausing.
+    // 0 means disabled. Only supported for sandbox classes that support pausing.
+    // Mutually exclusive with AutoStopInterval.
+    AutoPauseInterval int
+
+    // AutoArchiveInterval is the time in minutes after stopping before auto-archiving.
+    // Set to 0 to disable auto-archiving.
+    AutoArchiveInterval int
+
+    // AutoDeleteInterval is the time in minutes after stopping before auto-deletion.
+    // Set to -1 to disable auto-deletion.
+    // Set to 0 to delete immediately upon stopping.
+    AutoDeleteInterval int
+
+    CreatedAt       *string // When the sandbox was created
+    UpdatedAt       *string // When the sandbox was last updated
+    LastActivityAt  *string // When the sandbox last had activity
+    ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
+    AutoDestroyAt   *string // When the sandbox will be automatically destroyed (based on TTL)
+
+    // Env contains environment variables set in the sandbox.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    Env map[string]string
+
+    // BackupCreatedAt is the timestamp of the last backup.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    BackupCreatedAt *string
+
+    // Volumes attached to the sandbox.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    Volumes []apiclient.SandboxVolume
+
+    // BuildInfo contains build information for the sandbox if it was created from a dynamic build.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    BuildInfo *apiclient.BuildInfo
+
+    // NetworkBlockAll blocks all network access when true. Nil when not populated.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    NetworkBlockAll *bool
+
+    // NetworkAllowList is a comma-separated list of allowed CIDR addresses.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    NetworkAllowList *string
+
+    // DomainAllowList is a comma-separated list of allowed domains.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    DomainAllowList *string
+
+    // OutboundProxyUrl is the outbound proxy URL the sandbox HTTP(S) traffic is
+    // routed through. Applied via the HTTP(S)_PROXY environment variables;
+    // combine with DomainAllowList for network-layer enforcement.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    OutboundProxyUrl *string
+
+    // OtelEndpointOverride is the OpenTelemetry collector endpoint override for the sandbox.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    OtelEndpointOverride *string
+
+    FileSystem      *FileSystemService      // File system operations
+    Git             *GitService             // Git operations
+    Process         *ProcessService         // Process and PTY operations
+    CodeInterpreter *CodeInterpreterService // Python code execution
+    ComputerUse     *ComputerUseService     // Desktop automation
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewSandbox"></a>
+### func NewSandbox
+
+```go
+func NewSandbox(client *Client, toolboxClient *toolbox.APIClient, dto sandboxDTO, language types.CodeLanguage, subscriptionManager *common.EventSubscriptionManager) *Sandbox
+```
+
+NewSandbox creates a new Sandbox instance from an API DTO.
+
+dto may be either \*\[apiclient.Sandbox\] \(returned by single\-sandbox endpoints such as Create, Get, Fork, RefreshData\) or \*\[apiclient.SandboxListItem\] \(returned by the list endpoint\). When dto is a \*\[apiclient.SandboxListItem\], the fields documented as "Not populated by [Client.List](https://www.daytona.io/docs/en<#Client.List>)" remain at their zero values; call [Sandbox.RefreshData](https://www.daytona.io/docs/en<#Sandbox.RefreshData>) to populate them.
+
+This is typically called internally by the SDK. Users should obtain sandboxes via [Client.Create](https://www.daytona.io/docs/en<#Client.Create>), [Client.Get](https://www.daytona.io/docs/en<#Client.Get>), or [Client.List](https://www.daytona.io/docs/en<#Client.List>) rather than calling this directly.
+
+<a name="Sandbox.Archive"></a>
+### func \(\*Sandbox\) Archive
+
+```go
+func (s *Sandbox) Archive(ctx context.Context) error
+```
+
+Archive archives the sandbox, preserving its state in cost\-effective storage.
+
+When sandboxes are archived, the entire filesystem state is moved to object storage, making it possible to keep sandboxes available for extended periods at reduced cost. Use [Sandbox.Start](https://www.daytona.io/docs/en<#Sandbox.Start>) to unarchive and resume.
+
+Example:
+
+```
+err := sandbox.Archive(ctx)
+if err != nil {
+    return err
+}
+// Sandbox is now archived and can be restored later
+```
+
+<a name="Sandbox.CreateLspServer"></a>
+### func \(\*Sandbox\) CreateLspServer
+
+```go
+func (s *Sandbox) CreateLspServer(languageID types.LspLanguageID, pathToProject string) *LspServerService
+```
+
+CreateLspServer creates a Language Server Protocol \(LSP\) server scoped to a language and project path within the sandbox.
+
+The returned [LspServerService](https://www.daytona.io/docs/en<#LspServerService>) must be started with [LspServerService.Start](https://www.daytona.io/docs/en<#LspServerService.Start>) before use, and stopped with [LspServerService.Stop](https://www.daytona.io/docs/en<#LspServerService.Stop>) when finished.
+
+Example:
+
+```
+lsp := sandbox.CreateLspServer(types.LspLanguagePython, "/home/user/project")
+if err := lsp.Start(ctx); err != nil {
+    return err
+}
+defer lsp.Stop(ctx)
+```
+
+<a name="Sandbox.CreateSnapshot"></a>
+### func \(\*Sandbox\) CreateSnapshot
+
+```go
+func (s *Sandbox) CreateSnapshot(ctx context.Context, name string) error
+```
+
+CreateSnapshot creates a snapshot from the current state of the sandbox with a default timeout of 60 seconds.
+
+This captures the sandbox's filesystem into a reusable snapshot that can be used to create new sandboxes. The sandbox will temporarily enter a 'snapshotting' state and return to its previous state when complete.
+
+Example:
+
+```
+err := sandbox.CreateSnapshot(ctx, "my-snapshot")
+if err != nil {
+    return err
+}
+```
+
+<a name="Sandbox.CreateSnapshotWithTimeout"></a>
+### func \(\*Sandbox\) CreateSnapshotWithTimeout
+
+```go
+func (s *Sandbox) CreateSnapshotWithTimeout(ctx context.Context, name string, timeout time.Duration) error
+```
+
+CreateSnapshotWithTimeout creates a snapshot from the current state of the sandbox with a custom timeout. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.CreateSnapshotWithTimeout(ctx, "my-snapshot", 2*time.Minute)
+```
+
+<a name="Sandbox.Delete"></a>
+### func \(\*Sandbox\) Delete
+
+```go
+func (s *Sandbox) Delete(ctx context.Context) error
+```
+
+Delete deletes the sandbox with a default timeout of 60 seconds.
+
+The method issues the delete API call and returns immediately without waiting for the sandbox to reach the "destroyed" state. This matches the historical behavior. Use [Sandbox.DeleteAndWait](https://www.daytona.io/docs/en<#Sandbox.DeleteAndWait>) to block until destruction.
+
+Example:
+
+```
+err := sandbox.Delete(ctx)
+```
+
+<a name="Sandbox.DeleteAndWait"></a>
+### func \(\*Sandbox\) DeleteAndWait
+
+```go
+func (s *Sandbox) DeleteAndWait(ctx context.Context, timeout time.Duration) error
+```
+
+DeleteAndWait deletes the sandbox and blocks until it reaches the "destroyed" state or the timeout is exceeded. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.DeleteAndWait(ctx, 60*time.Second)
+```
+
+<a name="Sandbox.DeleteWithTimeout"></a>
+### func \(\*Sandbox\) DeleteWithTimeout
+
+```go
+func (s *Sandbox) DeleteWithTimeout(ctx context.Context, timeout time.Duration) error
+```
+
+DeleteWithTimeout deletes the sandbox with a custom timeout for the API call. 0 means no timeout.
+
+Like [Sandbox.Delete](https://www.daytona.io/docs/en<#Sandbox.Delete>), this returns as soon as the API call completes without waiting for the "destroyed" state. Use [Sandbox.DeleteAndWait](https://www.daytona.io/docs/en<#Sandbox.DeleteAndWait>) to block until destruction.
+
+Example:
+
+```
+err := sandbox.DeleteWithTimeout(ctx, 2*time.Minute)
+```
+
+<a name="Sandbox.DownloadURL"></a>
+### func \(\*Sandbox\) DownloadURL
+
+```go
+func (s *Sandbox) DownloadURL(ctx context.Context, path string, ttlSeconds *int) (string, error)
+```
+
+DownloadURL creates a pre\-signed URL for downloading a file from the sandbox. The URL works with any HTTP client without auth headers and stays valid across sandbox restarts \(downloads succeed only while the sandbox is running\). The signing key is cached locally for up to 15 seconds; if the key was rotated from another client, URLs may be rejected until the cache refreshes.
+
+```
+url, err := sandbox.DownloadURL(ctx, "/home/user/report.pdf", nil)
+// curl "$url" -o report.pdf
+```
+
+<a name="Sandbox.ExperimentalCreateSnapshot"></a>
+### func \(\*Sandbox\) ExperimentalCreateSnapshot
+
+```go
+func (s *Sandbox) ExperimentalCreateSnapshot(ctx context.Context, name string) error
+```
+
+ExperimentalCreateSnapshot creates a snapshot from the current state of the sandbox.
+
+Deprecated: Use CreateSnapshot instead. This method will be removed in a future release.
+
+<a name="Sandbox.ExperimentalCreateSnapshotWithTimeout"></a>
+### func \(\*Sandbox\) ExperimentalCreateSnapshotWithTimeout
+
+```go
+func (s *Sandbox) ExperimentalCreateSnapshotWithTimeout(ctx context.Context, name string, timeout time.Duration) error
+```
+
+ExperimentalCreateSnapshotWithTimeout creates a snapshot with a custom timeout.
+
+Deprecated: Use CreateSnapshotWithTimeout instead. This method will be removed in a future release.
+
+<a name="Sandbox.ExperimentalFork"></a>
+### func \(\*Sandbox\) ExperimentalFork
+
+```go
+func (s *Sandbox) ExperimentalFork(ctx context.Context, name *string) (*Sandbox, error)
+```
+
+ExperimentalFork forks the sandbox with a default timeout of 60 seconds.
+
+Deprecated: Use Fork instead. This method will be removed in a future release.
+
+<a name="Sandbox.ExperimentalForkWithTimeout"></a>
+### func \(\*Sandbox\) ExperimentalForkWithTimeout
+
+```go
+func (s *Sandbox) ExperimentalForkWithTimeout(ctx context.Context, name *string, timeout time.Duration) (*Sandbox, error)
+```
+
+ExperimentalForkWithTimeout forks the sandbox with a custom timeout.
+
+Deprecated: Use ForkWithTimeout instead. This method will be removed in a future release.
+
+<a name="Sandbox.ExpireSignedPreviewLink"></a>
+### func \(\*Sandbox\) ExpireSignedPreviewLink
+
+```go
+func (s *Sandbox) ExpireSignedPreviewLink(ctx context.Context, port int, token string) error
+```
+
+ExpireSignedPreviewLink expires a previously generated signed preview link.
+
+This invalidates the signed preview link token, preventing any further access.
+
+Example:
+
+```
+err := sandbox.ExpireSignedPreviewLink(ctx, 3000, "preview-token-to-expire")
+if err != nil {
+    return err
+}
+```
+
+<a name="Sandbox.Fork"></a>
+### func \(\*Sandbox\) Fork
+
+```go
+func (s *Sandbox) Fork(ctx context.Context, name *string) (*Sandbox, error)
+```
+
+Fork forks the sandbox with a default timeout of 60 seconds, creating a new sandbox with an identical filesystem.
+
+The forked sandbox is a copy\-on\-write clone of the original. It starts with the same disk contents but operates independently from that point on. Fork waits for the new sandbox to reach the "started" state before returning.
+
+Example:
+
+```
+forked, err := sandbox.Fork(ctx, nil)
+if err != nil {
+    return err
+}
+fmt.Printf("Forked sandbox: %s\n", forked.ID)
+```
+
+<a name="Sandbox.ForkWithTimeout"></a>
+### func \(\*Sandbox\) ForkWithTimeout
+
+```go
+func (s *Sandbox) ForkWithTimeout(ctx context.Context, name *string, timeout time.Duration) (*Sandbox, error)
+```
+
+ForkWithTimeout forks the sandbox with a custom timeout, creating a new sandbox with an identical filesystem.
+
+The forked sandbox is a copy\-on\-write clone of the original. It starts with the same disk contents but operates independently from that point on. ForkWithTimeout waits for the new sandbox to reach the "started" state before returning. 0 means no timeout.
+
+Example:
+
+```
+forked, err := sandbox.ForkWithTimeout(ctx, nil, 2*time.Minute)
+if err != nil {
+    return err
+}
+fmt.Printf("Forked sandbox: %s\n", forked.ID)
+```
+
+<a name="Sandbox.GetMetrics"></a>
+### func \(\*Sandbox\) GetMetrics
+
+```go
+func (s *Sandbox) GetMetrics(ctx context.Context, start, end *time.Time) ([]SandboxMetrics, error)
+```
+
+GetMetrics returns historical time\-series resource usage metrics for the sandbox.
+
+A nil start defaults to the sandbox creation time; a nil end defaults to the current time. Samples are returned ordered ascending by timestamp.
+
+Example:
+
+```
+samples, err := sandbox.GetMetrics(ctx, nil, nil)
+if err != nil {
+    return err
+}
+for _, m := range samples {
+    fmt.Printf("%s CPU: %.1f%%\n", m.Timestamp.Format(time.RFC3339), m.CPUUsedPct)
+}
+```
+
+<a name="Sandbox.GetMetricsLatest"></a>
+### func \(\*Sandbox\) GetMetricsLatest
+
+```go
+func (s *Sandbox) GetMetricsLatest(ctx context.Context) (SandboxMetrics, error)
+```
+
+GetMetricsLatest returns the most recent resource usage sample directly from the sandbox daemon.
+
+Unlike GetMetrics, which returns aggregated historical samples, this returns the single current reading without going through the telemetry backend.
+
+Example:
+
+```
+m, err := sandbox.GetMetricsLatest(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("CPU: %.1f%%\n", m.CPUUsedPct)
+```
+
+<a name="Sandbox.GetPreviewLink"></a>
+### func \(\*Sandbox\) GetPreviewLink
+
+```go
+func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewLink, error)
+```
+
+GetPreviewLink returns a preview link for accessing a port on the sandbox.
+
+The returned PreviewLink contains both the URL and an authentication token. For private sandboxes, the token must be sent via the "x\-daytona\-preview\-token" request header.
+
+Example:
+
+```
+preview, err := sandbox.GetPreviewLink(ctx, 3000)
+if err != nil {
+    return err
+}
+fmt.Printf("URL: %s\nToken: %s\n", preview.URL, preview.Token)
+```
+
+<a name="Sandbox.GetSignedPreviewLink"></a>
+### func \(\*Sandbox\) GetSignedPreviewLink
+
+```go
+func (s *Sandbox) GetSignedPreviewLink(ctx context.Context, port int, expiresInSeconds int) (*types.SignedPreviewLink, error)
+```
+
+GetSignedPreviewLink retrieves a signed preview URL for the sandbox at the specified port, valid for up to expiresInSeconds seconds.
+
+Example:
+
+```
+preview, err := sandbox.GetSignedPreviewLink(ctx, 3000, 3600)
+if err != nil {
+    return err
+}
+fmt.Printf("Sandbox ID: %s\nPort: %d\nURL: %s\nToken: %s\n", preview.SandboxID, preview.Port, preview.URL, preview.Token)
+```
+
+<a name="Sandbox.GetUserHomeDir"></a>
+### func \(\*Sandbox\) GetUserHomeDir
+
+```go
+func (s *Sandbox) GetUserHomeDir(ctx context.Context) (string, error)
+```
+
+GetUserHomeDir returns the user's home directory path in the sandbox.
+
+Example:
+
+```
+homeDir, err := sandbox.GetUserHomeDir(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("Home directory: %s\n", homeDir) // e.g., "/home/daytona"
+```
+
+<a name="Sandbox.GetWorkingDir"></a>
+### func \(\*Sandbox\) GetWorkingDir
+
+```go
+func (s *Sandbox) GetWorkingDir(ctx context.Context) (string, error)
+```
+
+GetWorkingDir returns the current working directory in the sandbox.
+
+Example:
+
+```
+workDir, err := sandbox.GetWorkingDir(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("Working directory: %s\n", workDir)
+```
+
+<a name="Sandbox.Pause"></a>
+### func \(\*Sandbox\) Pause
+
+```go
+func (s *Sandbox) Pause(ctx context.Context) error
+```
+
+Pause pauses the Sandbox, freezing all running processes. Uses a default timeout of 60 seconds.
+
+The Sandbox will enter a 'pausing' state and transition to 'paused' when complete.
+
+Example:
+
+```
+err := sandbox.Pause(ctx)
+if err != nil {
+    return err
+}
+```
+
+<a name="Sandbox.PauseWithTimeout"></a>
+### func \(\*Sandbox\) PauseWithTimeout
+
+```go
+func (s *Sandbox) PauseWithTimeout(ctx context.Context, timeout time.Duration) error
+```
+
+PauseWithTimeout pauses the Sandbox with a custom timeout. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.PauseWithTimeout(ctx, 2*time.Minute)
+```
+
+<a name="Sandbox.RefreshData"></a>
+### func \(\*Sandbox\) RefreshData
+
+```go
+func (s *Sandbox) RefreshData(ctx context.Context) error
+```
+
+RefreshData refreshes the sandbox data from the API.
+
+This updates all sandbox fields from the server, including those not populated by [Client.List](https://www.daytona.io/docs/en<#Client.List>) \(Env, NetworkBlockAll, NetworkAllowList, DomainAllowList, OutboundProxyUrl, Volumes, BuildInfo, BackupCreatedAt\).
+
+Example:
+
+```
+err := sandbox.RefreshData(ctx)
+if err != nil {
+    return err
+}
+fmt.Printf("Current state: %s\n", sandbox.State)
+```
+
+<a name="Sandbox.Resize"></a>
+### func \(\*Sandbox\) Resize
+
+```go
+func (s *Sandbox) Resize(ctx context.Context, resources *types.Resources) error
+```
+
+Resize resizes the sandbox resources with a default timeout of 60 seconds.
+
+Changes the CPU, memory, or disk allocation. Resizing a started sandbox accepts only CPU and memory increases. Disk resize requires a stopped sandbox; disk can only grow. GPU is not resizable — to change GPU, create a new sandbox.
+
+Returns an error if resources.GPU or resources.GpuType is set.
+
+Example:
+
+```
+err := sandbox.Resize(ctx, &types.Resources{CPU: 4, Memory: 8})
+
+sandbox.Stop(ctx)
+err := sandbox.Resize(ctx, &types.Resources{CPU: 2, Memory: 4, Disk: 30})
+```
+
+<a name="Sandbox.ResizeWithTimeout"></a>
+### func \(\*Sandbox\) ResizeWithTimeout
+
+```go
+func (s *Sandbox) ResizeWithTimeout(ctx context.Context, resources *types.Resources, timeout time.Duration) error
+```
+
+ResizeWithTimeout resizes the sandbox resources with a custom timeout.
+
+Changes the CPU, memory, or disk allocation. Resizing a started sandbox accepts only CPU and memory increases. Disk resize requires a stopped sandbox; disk can only grow. GPU is not resizable — to change GPU, create a new sandbox. A timeout of 0 means no timeout.
+
+Returns an error if resources.GPU or resources.GpuType is set.
+
+Example:
+
+```
+err := sandbox.ResizeWithTimeout(ctx, &types.Resources{CPU: 4, Memory: 8}, 2*time.Minute)
+```
+
+<a name="Sandbox.RotateSigningKey"></a>
+### func \(\*Sandbox\) RotateSigningKey
+
+```go
+func (s *Sandbox) RotateSigningKey(ctx context.Context) error
+```
+
+RotateSigningKey rotates the sandbox signing key and invalidates previously signed URLs.
+
+<a name="Sandbox.SetAutoArchiveInterval"></a>
+### func \(\*Sandbox\) SetAutoArchiveInterval
+
+```go
+func (s *Sandbox) SetAutoArchiveInterval(ctx context.Context, intervalMinutes *int) error
+```
+
+SetAutoArchiveInterval sets the auto\-archive interval in minutes.
+
+The sandbox will be automatically archived after being stopped for this many minutes. Set to 0 to disable auto\-archiving \(sandbox will never auto\-archive\).
+
+Example:
+
+```
+// Archive after 30 minutes of being stopped
+interval := 30
+err := sandbox.SetAutoArchiveInterval(ctx, &interval)
+
+// Disable auto-archiving
+interval := 0
+err := sandbox.SetAutoArchiveInterval(ctx, &interval)
+```
+
+<a name="Sandbox.SetAutoDeleteInterval"></a>
+### func \(\*Sandbox\) SetAutoDeleteInterval
+
+```go
+func (s *Sandbox) SetAutoDeleteInterval(ctx context.Context, intervalMinutes *int) error
+```
+
+SetAutoDeleteInterval sets the auto\-delete interval in minutes.
+
+The sandbox will be automatically deleted after being stopped for this many minutes.
+
+Special values:
+
+- \-1: Disable auto\-deletion \(sandbox will never auto\-delete\)
+- 0: Delete immediately upon stopping
+
+Example:
+
+```
+// Delete after 60 minutes of being stopped
+interval := 60
+err := sandbox.SetAutoDeleteInterval(ctx, &interval)
+
+// Delete immediately when stopped
+interval := 0
+err := sandbox.SetAutoDeleteInterval(ctx, &interval)
+
+// Never auto-delete
+interval := -1
+err := sandbox.SetAutoDeleteInterval(ctx, &interval)
+```
+
+<a name="Sandbox.SetLabels"></a>
+### func \(\*Sandbox\) SetLabels
+
+```go
+func (s *Sandbox) SetLabels(ctx context.Context, labels map[string]string) error
+```
+
+SetLabels sets custom labels on the sandbox.
+
+Labels are key\-value pairs that can be used for organization and filtering. This replaces all existing labels.
+
+Example:
+
+```
+err := sandbox.SetLabels(ctx, map[string]string{
+    "environment": "development",
+    "team": "backend",
+    "project": "api-server",
+})
+```
+
+<a name="Sandbox.Start"></a>
+### func \(\*Sandbox\) Start
+
+```go
+func (s *Sandbox) Start(ctx context.Context) error
+```
+
+Start starts the sandbox with a default timeout of 60 seconds.
+
+If the sandbox is already running, this is a no\-op. For custom timeout, use [Sandbox.StartWithTimeout](https://www.daytona.io/docs/en<#Sandbox.StartWithTimeout>).
+
+Example:
+
+```
+err := sandbox.Start(ctx)
+if err != nil {
+    return err
+}
+// Sandbox is now running
+```
+
+<a name="Sandbox.StartWithTimeout"></a>
+### func \(\*Sandbox\) StartWithTimeout
+
+```go
+func (s *Sandbox) StartWithTimeout(ctx context.Context, timeout time.Duration) error
+```
+
+StartWithTimeout starts the sandbox with a custom timeout.
+
+The method blocks until the sandbox reaches the "started" state or the timeout is exceeded. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.StartWithTimeout(ctx, 2*time.Minute)
+if err != nil {
+    return err
+}
+```
+
+<a name="Sandbox.Stop"></a>
+### func \(\*Sandbox\) Stop
+
+```go
+func (s *Sandbox) Stop(ctx context.Context) error
+```
+
+Stop stops the sandbox with a default timeout of 60 seconds.
+
+Stopping a sandbox preserves its state. Use [Sandbox.Start](https://www.daytona.io/docs/en<#Sandbox.Start>) to resume. For custom timeout or force stop, use [Sandbox.StopWithTimeout](https://www.daytona.io/docs/en<#Sandbox.StopWithTimeout>).
+
+Example:
+
+```
+err := sandbox.Stop(ctx)
+```
+
+<a name="Sandbox.StopWithTimeout"></a>
+### func \(\*Sandbox\) StopWithTimeout
+
+```go
+func (s *Sandbox) StopWithTimeout(ctx context.Context, timeout time.Duration, force bool) error
+```
+
+StopWithTimeout stops the sandbox with a custom timeout.
+
+The method blocks until the sandbox reaches the "stopped" state or the timeout is exceeded. 0 means no timeout. Set force to true to use SIGKILL instead of SIGTERM.
+
+Example:
+
+```
+err := sandbox.StopWithTimeout(ctx, 2*time.Minute, false)
+```
+
+<a name="Sandbox.UpdateEnv"></a>
+### func \(\*Sandbox\) UpdateEnv
+
+```go
+func (s *Sandbox) UpdateEnv(ctx context.Context, env map[string]string, unset []string) error
+```
+
+UpdateEnv updates the sandbox daemon's process environment, setting the variables in env and removing the names in unset.
+
+Newly spawned processes, sessions, and PTYs inherit the change; already\-running processes keep their existing environment.
+
+<a name="Sandbox.UpdateNetworkSettings"></a>
+### func \(\*Sandbox\) UpdateNetworkSettings
+
+```go
+func (s *Sandbox) UpdateNetworkSettings(ctx context.Context, settings apiclient.UpdateSandboxNetworkSettings) error
+```
+
+UpdateNetworkSettings updates outbound network policy for this sandbox on the runner \(for example block all traffic, restore general internet access, or apply a CIDR allow list\) without stopping the sandbox.
+
+<a name="Sandbox.UpdateSecrets"></a>
+### func \(\*Sandbox\) UpdateSecrets
+
+```go
+func (s *Sandbox) UpdateSecrets(ctx context.Context, secrets map[string]string) error
+```
+
+UpdateSecrets replaces the set of vault secrets mounted in this sandbox.
+
+Each key is an environment variable name and each value is the name of an existing organization secret \(see the Secrets field on \[types.SandboxBaseParams\]\). Pass an empty map to detach all secrets; a nil map is rejected so an uninitialized map can't detach them by accident.
+
+Attached, detached, and rotated secrets take effect for outbound requests within seconds. New environment variables only become visible to processes spawned after the update, and a sandbox created without any secrets must be restarted before newly attached secrets work.
+
+<a name="Sandbox.UploadURL"></a>
+### func \(\*Sandbox\) UploadURL
+
+```go
+func (s *Sandbox) UploadURL(ctx context.Context, path string, ttlSeconds *int) (string, error)
+```
+
+UploadURL creates a pre\-signed URL for uploading a file to the sandbox. Send a POST request with the file as multipart/form\-data. The URL works with any HTTP client without auth headers. The signing key is cached locally for up to 15 seconds; if the key was rotated from another client, URLs may be rejected until the cache refreshes.
+
+```
+url, err := sandbox.UploadURL(ctx, "/home/user/data.bin", nil)
+// curl -X POST -F "file=@local.bin" "$url"
+```
+
+<a name="Sandbox.WaitForResize"></a>
+### func \(\*Sandbox\) WaitForResize
+
+```go
+func (s *Sandbox) WaitForResize(ctx context.Context, timeout time.Duration) error
+```
+
+WaitForResize waits for the sandbox resize operation to complete.
+
+This method polls the sandbox state until it's no longer resizing, encounters an error state, or the timeout is exceeded. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.WaitForResize(ctx, 2*time.Minute)
+```
+
+<a name="Sandbox.WaitForStart"></a>
+### func \(\*Sandbox\) WaitForStart
+
+```go
+func (s *Sandbox) WaitForStart(ctx context.Context, timeout time.Duration) error
+```
+
+WaitForStart waits for the sandbox to reach the "started" state.
+
+This method polls the sandbox state until it's started, encounters an error state, or the timeout is exceeded. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.WaitForStart(ctx, 2*time.Minute)
+if err != nil {
+    return err
+}
+// Sandbox is now running
+```
+
+<a name="Sandbox.WaitForStop"></a>
+### func \(\*Sandbox\) WaitForStop
+
+```go
+func (s *Sandbox) WaitForStop(ctx context.Context, timeout time.Duration) error
+```
+
+WaitForStop waits for the sandbox to reach the "stopped" state.
+
+This method polls the sandbox state until it's stopped or the timeout is exceeded. 0 means no timeout.
+
+Example:
+
+```
+err := sandbox.WaitForStop(ctx, 2*time.Minute)
+```
+
+<a name="SandboxIterator"></a>
+## type SandboxIterator
+
+SandboxIterator iterates over Sandboxes returned by [Client.List](https://www.daytona.io/docs/en<#Client.List>), following the standard Go iterator pattern used by [database/sql.Rows](https://www.daytona.io/docs/en<https://pkg.go.dev/database/sql#Rows>) and [bufio.Scanner](https://www.daytona.io/docs/en<https://pkg.go.dev/bufio#Scanner>).
+
+For Go 1.23\+ range\-over\-func consumers, see [Client.ListSeq](https://www.daytona.io/docs/en<#Client.ListSeq>).
+
+```go
+type SandboxIterator struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="SandboxIterator.Err"></a>
+### func \(\*SandboxIterator\) Err
+
+```go
+func (it *SandboxIterator) Err() error
+```
+
+Err returns the first error encountered during iteration, if any. Callers should check Err after [SandboxIterator.Next](https://www.daytona.io/docs/en<#SandboxIterator.Next>) returns false.
+
+<a name="SandboxIterator.Next"></a>
+### func \(\*SandboxIterator\) Next
+
+```go
+func (it *SandboxIterator) Next() bool
+```
+
+Next advances the iterator to the next sandbox. It returns true if a sandbox is available \(accessible via [SandboxIterator.Value](https://www.daytona.io/docs/en<#SandboxIterator.Value>)\), or false if iteration has finished or an error occurred. After Next returns false, callers should inspect [SandboxIterator.Err](https://www.daytona.io/docs/en<#SandboxIterator.Err>).
+
+<a name="SandboxIterator.Value"></a>
+### func \(\*SandboxIterator\) Value
+
+```go
+func (it *SandboxIterator) Value() *Sandbox
+```
+
+Value returns the current sandbox. Only valid after [SandboxIterator.Next](https://www.daytona.io/docs/en<#SandboxIterator.Next>) has returned true.
+
+<a name="SandboxListSortDirection"></a>
+## type SandboxListSortDirection
+
+SandboxListSortDirection selects ascending or descending order for [Client.List](https://www.daytona.io/docs/en<#Client.List>).
+
+```go
+type SandboxListSortDirection = apiclient.SandboxListSortDirection
+```
+
+<a name="SandboxListSortField"></a>
+## type SandboxListSortField
+
+SandboxListSortField selects the field used to order results from [Client.List](https://www.daytona.io/docs/en<#Client.List>).
+
+```go
+type SandboxListSortField = apiclient.SandboxListSortField
+```
+
+<a name="SandboxMetrics"></a>
+## type SandboxMetrics
+
+SandboxMetrics is a single point\-in\-time sample of historical sandbox resource usage.
+
+```go
+type SandboxMetrics struct {
+    CPUCount   int32
+    CPUUsedPct float64
+    DiskTotal  int64
+    DiskUsed   int64
+    MemTotal   int64
+    MemUsed    int64
+    MemCache   int64
+    Timestamp  time.Time
+}
+```
+
+<a name="SandboxState"></a>
+## type SandboxState
+
+SandboxState represents the lifecycle state of a Sandbox.
+
+```go
+type SandboxState = apiclient.SandboxState
+```
+
+<a name="ScreenshotService"></a>
+## type ScreenshotService
+
+ScreenshotService provides screen capture operations.
+
+ScreenshotService enables capturing full screen or region screenshots. Access through [ComputerUseService.Screenshot](https://www.daytona.io/docs/en<#ComputerUseService.Screenshot>).
+
+```go
+type ScreenshotService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewScreenshotService"></a>
+### func NewScreenshotService
+
+```go
+func NewScreenshotService(toolboxClient *toolbox.APIClient, otel *otelState) *ScreenshotService
+```
+
+NewScreenshotService creates a new ScreenshotService.
+
+<a name="ScreenshotService.TakeFullScreen"></a>
+### func \(\*ScreenshotService\) TakeFullScreen
+
+```go
+func (s *ScreenshotService) TakeFullScreen(ctx context.Context, showCursor *bool) (*types.ScreenshotResponse, error)
+```
+
+TakeFullScreen captures a screenshot of the entire screen.
+
+Parameters:
+
+- showCursor: Whether to include the cursor in the screenshot, nil for default
+
+Example:
+
+```
+// Capture full screen
+screenshot, err := ss.TakeFullScreen(ctx, nil)
+if err != nil {
+    return err
+}
+// screenshot.Image contains the base64-encoded image data
+
+// Capture with cursor visible
+showCursor := true
+screenshot, err := ss.TakeFullScreen(ctx, &showCursor)
+```
+
+Returns \[types.ScreenshotResponse\] with the captured image.
+
+<a name="ScreenshotService.TakeRegion"></a>
+### func \(\*ScreenshotService\) TakeRegion
+
+```go
+func (s *ScreenshotService) TakeRegion(ctx context.Context, region types.ScreenshotRegion, showCursor *bool) (*types.ScreenshotResponse, error)
+```
+
+TakeRegion captures a screenshot of a specific screen region.
+
+Parameters:
+
+- region: The region to capture \(X, Y, Width, Height\)
+- showCursor: Whether to include the cursor in the screenshot, nil for default
+
+Example:
+
+```
+// Capture a 200x100 region starting at (50, 50)
+region := types.ScreenshotRegion{X: 50, Y: 50, Width: 200, Height: 100}
+screenshot, err := ss.TakeRegion(ctx, region, nil)
+if err != nil {
+    return err
+}
+```
+
+Returns \[types.ScreenshotResponse\] with the captured image.
+
+<a name="SecretService"></a>
+## type SecretService
+
+SecretService provides organization\-scoped secret management operations.
+
+SecretService enables creating, listing, retrieving, updating, and deleting secrets. A secret stores a write\-only plaintext value that is never returned by the API. Secrets can be referenced when creating a sandbox \(see the Secrets field on \[types.SandboxBaseParams\]\); the env var injected into the sandbox holds the secret's opaque placeholder, which is resolved to the real value only for the secret's allowed hosts. Access through \[Client.Secret\].
+
+Example:
+
+```
+// Create a new secret
+secret, err := client.Secret.Create(ctx, &types.CreateSecretParams{
+    Name:  "anthropic-prod",
+    Value: "sk-ant-...",
+    Hosts: []string{"api.anthropic.com"},
+})
+if err != nil {
+    return err
+}
+
+// List secrets page by page
+page, err := client.Secret.List(ctx, nil)
+```
+
+```go
+type SecretService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewSecretService"></a>
+### func NewSecretService
+
+```go
+func NewSecretService(client *Client) *SecretService
+```
+
+NewSecretService creates a new SecretService.
+
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access SecretService through \[Client.Secret\] rather than creating it directly.
+
+<a name="SecretService.Create"></a>
+### func \(\*SecretService\) Create
+
+```go
+func (s *SecretService) Create(ctx context.Context, params *types.CreateSecretParams) (*types.Secret, error)
+```
+
+Create creates a new organization secret.
+
+The plaintext value is write\-only and is never returned. The name must match ^\[a\-zA\-Z\_\]\[a\-zA\-Z0\-9\_\-\]\*$ and be unique within the organization; a duplicate name returns a conflict error.
+
+Parameters:
+
+- params: Secret creation parameters including name, value, optional description, and allowed hosts
+
+Example:
+
+```
+secret, err := client.Secret.Create(ctx, &types.CreateSecretParams{
+    Name:  "anthropic-prod",
+    Value: "sk-ant-...",
+    Hosts: []string{"api.anthropic.com"},
+})
+if err != nil {
+    return err
+}
+```
+
+Returns the created \[types.Secret\] or an error.
+
+<a name="SecretService.Delete"></a>
+### func \(\*SecretService\) Delete
+
+```go
+func (s *SecretService) Delete(ctx context.Context, secretID string) error
+```
+
+Delete permanently removes a secret identified by its ID.
+
+This operation is irreversible.
+
+Parameters:
+
+- secretID: The secret ID
+
+Example:
+
+```
+err := client.Secret.Delete(ctx, secretID)
+if err != nil {
+    return err
+}
+```
+
+Returns an error if the ID is unknown \(404\) or deletion fails.
+
+<a name="SecretService.Get"></a>
+### func \(\*SecretService\) Get
+
+```go
+func (s *SecretService) Get(ctx context.Context, secretID string) (*types.Secret, error)
+```
+
+Get retrieves a secret by its ID.
+
+Parameters:
+
+- secretID: The secret ID
+
+Example:
+
+```
+secret, err := client.Secret.Get(ctx, secretID)
+if err != nil {
+    var notFound *errors.DaytonaNotFoundError
+    if errors.As(err, &notFound) {
+        log.Println("Secret not found")
+    }
+    return err
+}
+fmt.Printf("Secret %s allows hosts: %v\n", secret.Name, secret.Hosts)
+```
+
+Returns the \[types.Secret\] or an error if the ID is unknown \(404\).
+
+<a name="SecretService.List"></a>
+### func \(\*SecretService\) List
+
+```go
+func (s *SecretService) List(ctx context.Context, query *types.ListSecretsQuery) (*types.ListSecretsResponse, error)
+```
+
+List returns one page of the organization's secrets.
+
+The plaintext value is never returned; each secret carries only its opaque placeholder. Pass the NextCursor of a response as the Cursor of the next query to fetch the following page; a nil NextCursor means there are no further pages.
+
+Parameters:
+
+- query: Optional filtering, sorting, and pagination parameters. May be nil, in which case the first page is returned with server defaults \(100 results sorted by creation time, newest first\).
+
+Example:
+
+```
+limit := 50
+query := &types.ListSecretsQuery{Limit: &limit}
+for {
+    page, err := client.Secret.List(ctx, query)
+    if err != nil {
+        return err
+    }
+    fmt.Printf("Fetched %d of %d secrets\n", len(page.Items), page.Total)
+    for _, secret := range page.Items {
+        fmt.Printf("Secret %s -> %s\n", secret.Name, secret.Placeholder)
+    }
+    if page.NextCursor == nil {
+        break
+    }
+    query.Cursor = page.NextCursor
+}
+```
+
+Returns a \[types.ListSecretsResponse\] holding the page's secrets, the total number of secrets matching the filters, and the next\-page cursor, or an error if the request fails.
+
+<a name="SecretService.Update"></a>
+### func \(\*SecretService\) Update
+
+```go
+func (s *SecretService) Update(ctx context.Context, secretID string, params *types.UpdateSecretParams) (*types.Secret, error)
+```
+
+Update modifies an existing secret identified by its ID.
+
+Only the non\-nil fields of params are applied. The plaintext value is write\-only and is never returned.
+
+Parameters:
+
+- secretID: The secret ID
+- params: Fields to update \(value, description, allowed hosts\)
+
+Example:
+
+```
+newValue := "sk-ant-rotated-..."
+secret, err := client.Secret.Update(ctx, secretID, &types.UpdateSecretParams{
+    Value: &newValue,
+    Hosts: []string{"api.anthropic.com", "*.anthropic.com"},
+})
+if err != nil {
+    return err
+}
+```
+
+Returns the updated \[types.Secret\] or an error if the ID is unknown \(404\).
+
+<a name="SnapshotService"></a>
+## type SnapshotService
+
+SnapshotService provides snapshot \(image template\) management operations.
+
+SnapshotService enables creating, managing, and deleting snapshots that serve as templates for sandboxes. Snapshots can be built from Docker images or custom [DockerImage](https://www.daytona.io/docs/en<#DockerImage>) definitions with build contexts. Access through \[Client.Snapshot\].
+
+Example:
+
+```
+// Create a snapshot from an existing image
+snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+    Name:  "my-python-env",
+    Image: "python:3.11-slim",
+})
+if err != nil {
+    return err
+}
+
+// Stream build logs
+for log := range logChan {
+    fmt.Println(log)
+}
+
+// Create a snapshot from a custom Image definition
+image := daytona.Base("python:3.11-slim").
+    PipInstall([]string{"numpy", "pandas"}).
+    Workdir("/app")
+snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+    Name:  "custom-python-env",
+    Image: image,
+})
+```
+
+```go
+type SnapshotService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewSnapshotService"></a>
+### func NewSnapshotService
+
+```go
+func NewSnapshotService(client *Client) *SnapshotService
+```
+
+NewSnapshotService creates a new SnapshotService.
+
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access SnapshotService through \[Client.Snapshot\] rather than creating it directly.
+
+<a name="SnapshotService.Activate"></a>
+### func \(\*SnapshotService\) Activate
+
+```go
+func (s *SnapshotService) Activate(ctx context.Context, nameOrID string) (*types.Snapshot, error)
+```
+
+Activate transitions a snapshot into the ACTIVE state so new sandboxes can be created from it.
+
+The reference may be either the snapshot's ID \(a UUID\) or its name. Because snapshot names may themselves be UUID\-shaped, the SDK cannot decide upfront which one was intended; it uses an optimistic\-then\-fallback strategy that mirrors the TypeScript and Python SDKs.
+
+Call\-count behavior:
+
+- Plain UUID that IS the ID: 1 request \(POST /snapshots/\{id\}/activate only\).
+- Non\-UUID name: 2 requests \(GET then POST\).
+- UUID\-shaped string that turns out to be a NAME: 3 requests \(POST returns 404 → GET resolves the name → POST by resolved ID\).
+
+Parameters:
+
+- nameOrID: The snapshot's ID or name
+
+Example:
+
+```
+snapshot, err := client.Snapshot.Activate(ctx, "my-python-env")
+if err != nil {
+    return err
+}
+fmt.Printf("Snapshot %s: %s\n", snapshot.Name, snapshot.State)
+```
+
+Returns the activated \[types.Snapshot\] or an error if the snapshot cannot be found or activation fails.
+
+<a name="SnapshotService.Create"></a>
+### func \(\*SnapshotService\) Create
+
+```go
+func (s *SnapshotService) Create(ctx context.Context, params *types.CreateSnapshotParams) (*types.Snapshot, <-chan string, error)
+```
+
+Create builds a new snapshot from an image and streams build logs.
+
+The image parameter can be either a Docker image reference string \(e.g., "python:3.11"\) or an [DockerImage](https://www.daytona.io/docs/en<#DockerImage>) builder object for custom Dockerfile definitions.
+
+Parameters:
+
+- params: Snapshot creation parameters including name, image, resources, and entrypoint
+
+Example:
+
+```
+// Create from Docker Hub image
+snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+    Name:  "my-env",
+    Image: "python:3.11-slim",
+})
+if err != nil {
+    return err
+}
+
+// Stream build logs
+for log := range logChan {
+    fmt.Println(log)
+}
+
+// Create with custom image and resources
+image := daytona.Base("python:3.11").PipInstall([]string{"numpy"})
+snapshot, logChan, err := client.Snapshot.Create(ctx, &types.CreateSnapshotParams{
+    Name:  "custom-env",
+    Image: image,
+    Resources: &types.Resources{CPU: 2, Memory: 4096},
+})
+```
+
+Returns the created \[types.Snapshot\], a channel for streaming build logs, or an error. The log channel is closed when the build completes or fails.
+
+<a name="SnapshotService.Delete"></a>
+### func \(\*SnapshotService\) Delete
+
+```go
+func (s *SnapshotService) Delete(ctx context.Context, snapshot *types.Snapshot) error
+```
+
+Delete permanently removes a snapshot.
+
+Sandboxes created from this snapshot will continue to work, but no new sandboxes can be created from it after deletion.
+
+Parameters:
+
+- snapshot: The snapshot to delete
+
+Example:
+
+```
+err := client.Snapshot.Delete(ctx, snapshot)
+if err != nil {
+    return err
+}
+```
+
+Returns an error if deletion fails.
+
+<a name="SnapshotService.DeleteByNameOrID"></a>
+### func \(\*SnapshotService\) DeleteByNameOrID
+
+```go
+func (s *SnapshotService) DeleteByNameOrID(ctx context.Context, nameOrID string) error
+```
+
+DeleteByNameOrID permanently removes a snapshot referenced by name or ID.
+
+The reference may be either the snapshot's ID \(a UUID\) or its name. Because snapshot names may themselves be UUID\-shaped, the SDK cannot decide upfront which one was intended; it uses an optimistic\-then\-fallback strategy that mirrors the TypeScript and Python SDKs.
+
+Call\-count behavior:
+
+- Plain UUID that IS the ID: 1 request \(DELETE only\).
+- Non\-UUID name: 2 requests \(GET then DELETE\).
+- UUID\-shaped string that turns out to be a NAME: 3 requests \(DELETE returns 404 → GET resolves the name → DELETE by resolved ID\).
+
+Sandboxes created from this snapshot will continue to work, but no new sandboxes can be created from it after deletion.
+
+Parameters:
+
+- nameOrID: The snapshot's ID or name
+
+Example:
+
+```
+err := client.Snapshot.DeleteByNameOrID(ctx, "my-python-env")
+if err != nil {
+    return err
+}
+```
+
+Returns an error if the snapshot cannot be found or deletion fails.
+
+<a name="SnapshotService.Get"></a>
+### func \(\*SnapshotService\) Get
+
+```go
+func (s *SnapshotService) Get(ctx context.Context, nameOrID string) (*types.Snapshot, error)
+```
+
+Get retrieves a snapshot by name or ID.
+
+Parameters:
+
+- nameOrID: The snapshot name or unique ID
+
+Example:
+
+```
+snapshot, err := client.Snapshot.Get(ctx, "my-python-env")
+if err != nil {
+    return err
+}
+fmt.Printf("Snapshot %s: %s\n", snapshot.Name, snapshot.State)
+```
+
+Returns the \[types.Snapshot\] or an error if not found.
+
+<a name="SnapshotService.List"></a>
+### func \(\*SnapshotService\) List
+
+```go
+func (s *SnapshotService) List(ctx context.Context, page *int, limit *int) (*types.PaginatedSnapshots, error)
+```
+
+List returns snapshots with optional pagination.
+
+Parameters:
+
+- page: Page number \(1\-indexed\), nil for first page
+- limit: Maximum snapshots per page, nil for default
+
+Example:
+
+```
+pageNumber, pageSize := 2, 10
+page, err := client.Snapshot.List(ctx, &pageNumber, &pageSize)
+if err != nil {
+    return err
+}
+
+fmt.Printf("Page %d of %d (%d snapshots total)\n", page.Page, page.TotalPages, page.Total)
+for _, snapshot := range page.Items {
+    fmt.Printf("%s (%s)\n", snapshot.Name, snapshot.ImageName)
+}
+```
+
+Returns \[types.PaginatedSnapshots\] containing the snapshots and pagination info.
+
+<a name="SnapshotService.ListWithQuery"></a>
+### func \(\*SnapshotService\) ListWithQuery
+
+```go
+func (s *SnapshotService) ListWithQuery(ctx context.Context, query *ListSnapshotsQuery) (*types.PaginatedSnapshots, error)
+```
+
+ListWithQuery returns snapshots matching the given query.
+
+Example:
+
+```
+sandboxID := "b8f6e2d0-1234-5678-9abc-def012345678"
+page, err := client.Snapshot.ListWithQuery(ctx, &daytona.ListSnapshotsQuery{SourceSandboxID: &sandboxID})
+if err != nil {
+    return err
+}
+```
+
+Returns \[types.PaginatedSnapshots\] containing the snapshots and pagination info.
+
+<a name="UploadProgress"></a>
+## type UploadProgress
+
+UploadProgress contains progress information for a streaming upload.
+
+```go
+type UploadProgress struct {
+    // BytesSent is the cumulative number of bytes written to the wire so far.
+    BytesSent int64
+}
+```
+
+<a name="UploadStreamOption"></a>
+## type UploadStreamOption
+
+UploadStreamOption configures the behavior of UploadFileStream.
+
+```go
+type UploadStreamOption func(*uploadStreamConfig)
+```
+
+<a name="WithUploadProgress"></a>
+### func WithUploadProgress
+
+```go
+func WithUploadProgress(fn func(UploadProgress)) UploadStreamOption
+```
+
+WithUploadProgress returns an option that enables progress tracking for streaming uploads. The callback fires once per chunk written to the wire with the cumulative byte count.
+
+<a name="VolumeService"></a>
+## type VolumeService
+
+VolumeService provides persistent storage volume management operations.
+
+VolumeService enables creating, managing, and deleting persistent storage volumes that can be attached to sandboxes. Volumes persist data independently of sandbox lifecycle and can be shared between sandboxes. Access through \[Client.Volume\].
+
+Example:
+
+```
+// Create a new volume
+volume, err := client.Volume.Create(ctx, "my-data-volume")
+if err != nil {
+    return err
+}
+
+// Wait for volume to be ready
+volume, err = client.Volume.WaitForReady(ctx, volume, 60*time.Second)
+if err != nil {
+    return err
+}
+
+// List all volumes
+volumes, err := client.Volume.List(ctx)
+```
+
+```go
+type VolumeService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewVolumeService"></a>
+### func NewVolumeService
+
+```go
+func NewVolumeService(client *Client) *VolumeService
+```
+
+NewVolumeService creates a new VolumeService.
+
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access VolumeService through \[Client.Volume\] rather than creating it directly.
+
+<a name="VolumeService.Create"></a>
+### func \(\*VolumeService\) Create
+
+```go
+func (v *VolumeService) Create(ctx context.Context, name string) (*types.Volume, error)
+```
+
+Create creates a new persistent storage volume.
+
+The volume starts in "pending" state and transitions to "ready" when available. Use [VolumeService.WaitForReady](https://www.daytona.io/docs/en<#VolumeService.WaitForReady>) to wait for the volume to become ready.
+
+Parameters:
+
+- name: Unique name for the volume
+
+Example:
+
+```
+volume, err := client.Volume.Create(ctx, "my-data-volume")
+if err != nil {
+    return err
+}
+
+// Wait for volume to be ready
+volume, err = client.Volume.WaitForReady(ctx, volume, 60*time.Second)
+```
+
+Returns the created \[types.Volume\] or an error.
+
+<a name="VolumeService.Delete"></a>
+### func \(\*VolumeService\) Delete
+
+```go
+func (v *VolumeService) Delete(ctx context.Context, volume *types.Volume) error
+```
+
+Delete permanently removes a volume and all its data.
+
+This operation is irreversible. Ensure no sandboxes are using the volume before deletion.
+
+Parameters:
+
+- volume: The volume to delete
+
+Example:
+
+```
+err := client.Volume.Delete(ctx, volume)
+if err != nil {
+    return err
+}
+```
+
+Returns an error if deletion fails.
+
+<a name="VolumeService.Get"></a>
+### func \(\*VolumeService\) Get
+
+```go
+func (v *VolumeService) Get(ctx context.Context, name string) (*types.Volume, error)
+```
+
+Get retrieves a volume by its name.
+
+Parameters:
+
+- name: The volume name
+
+Example:
+
+```
+volume, err := client.Volume.Get(ctx, "my-data-volume")
+if err != nil {
+    return err
+}
+fmt.Printf("Volume state: %s\n", volume.State)
+```
+
+Returns the \[types.Volume\] or an error if not found.
+
+<a name="VolumeService.List"></a>
+### func \(\*VolumeService\) List
+
+```go
+func (v *VolumeService) List(ctx context.Context) ([]*types.Volume, error)
+```
+
+List returns all volumes in the organization.
+
+Example:
+
+```
+volumes, err := client.Volume.List(ctx)
+if err != nil {
+    return err
+}
+for _, vol := range volumes {
+    fmt.Printf("Volume %s: %s\n", vol.Name, vol.State)
+}
+```
+
+Returns a slice of \[types.Volume\] or an error if the request fails.
+
+<a name="VolumeService.WaitForReady"></a>
+### func \(\*VolumeService\) WaitForReady
+
+```go
+func (v *VolumeService) WaitForReady(ctx context.Context, volume *types.Volume, timeout time.Duration) (*types.Volume, error)
+```
+
+WaitForReady waits for a volume to reach the "ready" state.
+
+This method polls the volume status until it becomes ready, reaches an error state, or the timeout expires. The polling interval is 1 second.
+
+Parameters:
+
+- volume: The volume to wait for
+- timeout: Maximum time to wait for the volume to become ready
+
+Example:
+
+```
+volume, err := client.Volume.Create(ctx, "my-volume")
+if err != nil {
+    return err
+}
+
+// Wait up to 2 minutes for the volume to be ready
+volume, err = client.Volume.WaitForReady(ctx, volume, 2*time.Minute)
+if err != nil {
+    return fmt.Errorf("volume failed to become ready: %w", err)
+}
+```
+
+Returns the updated \[types.Volume\] when ready, or an error if the timeout expires or the volume enters an error state.
+
+<a name="WarmPoolService"></a>
+## type WarmPoolService
+
+WarmPoolService provides warm pool management operations.
+
+WarmPoolService enables listing, creating, updating, and deleting warm pools of ready\-to\-use sandboxes for a snapshot. A pool's CurrentSize versus Pool is its status: CurrentSize is the number of ready warm sandboxes, Pool is the desired number, and ErrorReason is set when the pool cannot be filled. Access through \[Client.WarmPool\].
+
+Example:
+
+```
+// Create a new warm pool
+pool, err := client.WarmPool.Create(ctx, &types.CreateWarmPoolParams{
+    Snapshot: "my-snapshot",
+    Pool:     5,
+})
+if err != nil {
+    return err
+}
+
+// List all warm pools
+pools, err := client.WarmPool.List(ctx)
+```
+
+```go
+type WarmPoolService struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="NewWarmPoolService"></a>
+### func NewWarmPoolService
+
+```go
+func NewWarmPoolService(client *Client) *WarmPoolService
+```
+
+NewWarmPoolService creates a new WarmPoolService.
+
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access WarmPoolService through \[Client.WarmPool\] rather than creating it directly.
+
+<a name="WarmPoolService.Create"></a>
+### func \(\*WarmPoolService\) Create
+
+```go
+func (w *WarmPoolService) Create(ctx context.Context, params *types.CreateWarmPoolParams) (*types.WarmPool, error)
+```
+
+Create creates a new warm pool.
+
+A pool for the same snapshot and region may exist only once; a duplicate returns a conflict error.
+
+Parameters:
+
+- params: Warm pool creation parameters including snapshot, desired pool size, and optional target region
+
+Example:
+
+```
+pool, err := client.WarmPool.Create(ctx, &types.CreateWarmPoolParams{
+    Snapshot: "my-snapshot",
+    Pool:     5,
+})
+if err != nil {
+    return err
+}
+```
+
+Returns the created \[types.WarmPool\] or an error.
+
+<a name="WarmPoolService.Delete"></a>
+### func \(\*WarmPoolService\) Delete
+
+```go
+func (w *WarmPoolService) Delete(ctx context.Context, warmPoolID string) error
+```
+
+Delete permanently removes a warm pool.
+
+Parameters:
+
+- warmPoolID: The warm pool ID
+
+Example:
+
+```
+err := client.WarmPool.Delete(ctx, warmPoolID)
+if err != nil {
+    return err
+}
+```
+
+Returns an error if the ID is unknown \(404\) or deletion fails.
+
+<a name="WarmPoolService.List"></a>
+### func \(\*WarmPoolService\) List
+
+```go
+func (w *WarmPoolService) List(ctx context.Context) ([]*types.WarmPool, error)
+```
+
+List returns all warm pools in the organization.
+
+Example:
+
+```
+pools, err := client.WarmPool.List(ctx)
+if err != nil {
+    return err
+}
+for _, pool := range pools {
+    fmt.Printf("%s: %d/%d ready\n", pool.Snapshot, pool.CurrentSize, pool.Pool)
+}
+```
+
+Returns a slice of \[types.WarmPool\] or an error if the request fails.
+
+<a name="WarmPoolService.Update"></a>
+### func \(\*WarmPoolService\) Update
+
+```go
+func (w *WarmPoolService) Update(ctx context.Context, warmPoolID string, pool int) (*types.WarmPool, error)
+```
+
+Update sets the desired size of a warm pool.
+
+Parameters:
+
+- warmPoolID: The warm pool ID
+- pool: New desired number of warm sandboxes \(0 drains the pool\)
+
+Example:
+
+```
+pool, err := client.WarmPool.Update(ctx, warmPoolID, 10)
+if err != nil {
+    return err
+}
+```
+
+Returns the updated \[types.WarmPool\] or an error if the ID is unknown \(404\).
+
+## See Also
+- [Python SDK - daytona](../python-sdk/sync/daytona.md)
+- [TypeScript SDK - daytona](../typescript-sdk/daytona.md)
+- [Java SDK - daytona](../java-sdk/daytona.md)

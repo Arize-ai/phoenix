@@ -1,0 +1,272 @@
+
+## Config
+
+Main class for a new Daytona::Config object.
+
+### Constructors
+
+#### new Config()
+
+```ruby
+def initialize(api_key: nil, jwt_token: nil, api_url: nil, organization_id: nil, target: nil, otel_enabled: nil, use_deprecated_polling: nil, _experimental: nil)
+
+```
+
+Initializes a new Daytona::Config object.
+
+**Parameters**:
+
+- `api_key` _String, nil_ - Daytona API key. Defaults to ENV['DAYTONA_API_KEY'].
+- `jwt_token` _String, nil_ - Daytona JWT token. Defaults to ENV['DAYTONA_JWT_TOKEN'].
+- `api_url` _String, nil_ - Daytona API URL. Defaults to ENV['DAYTONA_API_URL'] or Daytona::Config::API_URL.
+- `organization_id` _String, nil_ - Daytona organization ID. Defaults to ENV['DAYTONA_ORGANIZATION_ID'].
+- `target` _String, nil_ - Daytona target. Defaults to ENV['DAYTONA_TARGET'].
+- `otel_enabled` _Boolean, nil_ - Enable OpenTelemetry tracing for SDK operations.
+- `use_deprecated_polling` _Boolean, nil_ - Observe sandbox state by legacy polling instead of
+WebSocket event streaming. Defaults to false (event streaming). Can also be enabled via the
+DAYTONA_USE_DEPRECATED_POLLING environment variable.
+- `_experimental` _Hash, nil_ - Experimental configuration options.
+
+**Returns**:
+
+- `Config` - a new instance of Config
+
+### Methods
+
+#### api_key()
+
+```ruby
+def api_key()
+
+```
+
+API key for authentication with the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona API key
+
+#### api_key=()
+
+```ruby
+def api_key=(value)
+
+```
+
+API key for authentication with the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona API key
+
+#### jwt_token()
+
+```ruby
+def jwt_token()
+
+```
+
+JWT token for authentication with the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona JWT token
+
+#### jwt_token=()
+
+```ruby
+def jwt_token=(value)
+
+```
+
+JWT token for authentication with the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona JWT token
+
+#### api_url()
+
+```ruby
+def api_url()
+
+```
+
+URL of the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona API URL
+
+#### api_url=()
+
+```ruby
+def api_url=(value)
+
+```
+
+URL of the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona API URL
+
+#### organization_id()
+
+```ruby
+def organization_id()
+
+```
+
+Organization ID for authentication with the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona API URL
+
+#### organization_id=()
+
+```ruby
+def organization_id=(value)
+
+```
+
+Organization ID for authentication with the Daytona API
+
+**Returns**:
+
+- `String, nil` - Daytona API URL
+
+#### target()
+
+```ruby
+def target()
+
+```
+
+Target environment for sandboxes
+
+**Returns**:
+
+- `String, nil` - Daytona target
+
+#### target=()
+
+```ruby
+def target=(value)
+
+```
+
+Target environment for sandboxes
+
+**Returns**:
+
+- `String, nil` - Daytona target
+
+#### otel_enabled()
+
+```ruby
+def otel_enabled()
+
+```
+
+Enable OpenTelemetry tracing for SDK operations.
+
+**Returns**:
+
+- `Boolean, nil`
+
+#### otel_enabled=()
+
+```ruby
+def otel_enabled=(value)
+
+```
+
+Enable OpenTelemetry tracing for SDK operations.
+
+**Returns**:
+
+- `Boolean, nil`
+
+#### use_deprecated_polling()
+
+```ruby
+def use_deprecated_polling()
+
+```
+
+Observe sandbox state by legacy polling instead of WebSocket event streaming.
+Defaults to false (event streaming). Can also be enabled via the
+DAYTONA_USE_DEPRECATED_POLLING environment variable.
+
+**Returns**:
+
+- `Boolean`
+
+#### use_deprecated_polling=()
+
+```ruby
+def use_deprecated_polling=(value)
+
+```
+
+Observe sandbox state by legacy polling instead of WebSocket event streaming.
+Defaults to false (event streaming). Can also be enabled via the
+DAYTONA_USE_DEPRECATED_POLLING environment variable.
+
+**Returns**:
+
+- `Boolean`
+
+#### _experimental()
+
+```ruby
+def _experimental()
+
+```
+
+Experimental configuration options
+
+**Returns**:
+
+- `Hash, nil` - Experimental configuration hash
+
+#### _experimental=()
+
+```ruby
+def _experimental=(value)
+
+```
+
+Experimental configuration options
+
+**Returns**:
+
+- `Hash, nil` - Experimental configuration hash
+
+#### read_env()
+
+```ruby
+def read_env(name)
+
+```
+
+Reads a DAYTONA_-prefixed environment variable using the same precedence
+as the Config initializer: runtime ENV first, then .env.local, then .env.
+Only names starting with DAYTONA_ are accepted.
+
+**Parameters**:
+
+- `name` _String_ - The environment variable name. Must start with DAYTONA_.
+
+**Returns**:
+
+- `String, nil` - The value of the environment variable, or nil if not set.
+
+**Raises**:
+
+- `ArgumentError` - If name does not start with DAYTONA_.
+
+## See Also
+- [Java SDK - config](../java-sdk/config.md)
