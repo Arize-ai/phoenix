@@ -206,7 +206,9 @@ open-codes a project's traces into notes, then axial-codes them into per-dimensi
 annotation configurations. Its verifier lives with the task under `tests/` and reads the
 database and the agent's sidecars directly. `jobs/benchmark.yaml` runs it with two
 attempts on Daytona. In CI, `.github/workflows/harbor-evals.yml` checks the reward with
-`scripts/check_job_reward.py`.
+`scripts/check_job_reward.py`. `.github/workflows/harbor-skill-daily.yml` runs only the
+`claude-code-cli` condition every day and posts the reward to Slack through
+`SLACK_WEBHOOK_URL`.
 
 To replace its fixture, upload the new database and restage:
 

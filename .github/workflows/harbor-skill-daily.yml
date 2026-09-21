@@ -1,0 +1,92 @@
+name: Harbor Skill Daily
+
+permissions:
+  contents: read
+
+# Runs the claude-code-cli condition of the PXI benchmark once a day. That
+# condition drives Phoenix through px and the public skills, so its reward
+# tracks whether the skills still work end to end. Results post to Slack.
+on:
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: harbor-skill-daily
+  cancel-in-progress: false
+
+env:
+  HARBOR_JOB: evals/harbor/.cache/skill-daily.yaml
+  SLACK_PAYLOAD: evals/harbor/.cache/slack-payload.json
+
+jobs:
+  skill-test:
+    name: Claude Code + px + skills (Daytona)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+      PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+
+      - name: Install PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: js/pnpm-lock.yaml
+
+      - name: Install JavaScript dependencies
+        working-directory: js
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the Phoenix wheel, stage the Harbor task environments, and build the px CLI archive
+        run: make harbor-stage
+
+      - name: Select the skill condition
+        run: |
+          uv run --script evals/harbor/scripts/subset_job.py evals/harbor/jobs/benchmark.yaml \
+            --agents claude-code-cli --out "${HARBOR_JOB}"
+
+      - name: Run the skill test
+        run: make harbor-run HARBOR_JOB="${HARBOR_JOB}" HARBOR_ARGS="--job-name skill-daily-$(date -u +%F)"
+
+      # The agent is nondeterministic; require 3 of 4 steps rather than
+      # perfection, as harbor-evals.yml does.
+      - name: Check the reward and build the Slack message
+        if: always()
+        run: |
+          python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75 \
+            --slack-payload "${SLACK_PAYLOAD}" \
+            --title "Harbor skill test" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Post the results to Slack
+        if: always() && hashFiles(env.SLACK_PAYLOAD) != ''
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload-file-path: ${{ env.SLACK_PAYLOAD }}
+
+      - name: Upload job results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: harbor-skill-daily-jobs
+          path: jobs/
+          retention-days: 30
