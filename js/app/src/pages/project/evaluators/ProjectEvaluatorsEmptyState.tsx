@@ -3,12 +3,12 @@ import { type ReactNode, Suspense, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
+  Button,
   Flex,
   Icon,
   IconButton,
   Icons,
   Link,
-  LinkButton,
   Skeleton,
   Text,
 } from "@phoenix/components";
@@ -18,6 +18,7 @@ import type {
   projectEvaluatorCategoryCardsQuery$data,
 } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorCategoryCardsQuery.graphql";
 import { BuildProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { useProjectEvaluatorContext } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { PROJECT_EVALUATOR_CATEGORIES } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
@@ -40,6 +41,7 @@ type ProjectEvaluatorCategoryCardTemplate =
 
 export function ProjectEvaluatorsEmptyState() {
   const paths = useProjectEvaluatorPaths();
+  const { openGallery } = useProjectEvaluatorContext();
   return (
     <Flex
       direction="column"
@@ -54,13 +56,12 @@ export function ProjectEvaluatorsEmptyState() {
         </Suspense>
       </ErrorBoundary>
       <Flex direction="row" gap="size-100" wrap="wrap" justifyContent="center">
-        <BuildProjectEvaluatorMenu
-          size="S"
-          creationPaths={paths.listCreation}
-        />
-        <LinkButton size="S" variant="primary" to={paths.gallery}>
+        <BuildProjectEvaluatorMenu size="S" creationPaths={paths.creation} />
+        {/* The gallery is modal state, not a destination, so this opens it
+            without navigating. */}
+        <Button size="S" variant="primary" onPress={() => openGallery()}>
           Browse eval gallery
-        </LinkButton>
+        </Button>
       </Flex>
     </Flex>
   );
@@ -81,6 +82,7 @@ function CategoryCards({
   templates: readonly ProjectEvaluatorCategoryCardTemplate[];
 }) {
   const paths = useProjectEvaluatorPaths();
+  const { openGallery } = useProjectEvaluatorContext();
   // Keep the full track mounted so native scrolling can animate continuously
   // between neighboring groups of cards.
   const categoryCardListRef = useRef<HTMLUListElement>(null);
@@ -168,9 +170,12 @@ function CategoryCards({
                   aria-hidden={isCategoryVisible ? undefined : true}
                   inert={isCategoryVisible ? undefined : true}
                 >
-                  <Link
-                    to={paths.galleryCategory(value)}
-                    css={categorySummaryLinkCSS}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openGallery({ kind: "category", category: value })
+                    }
+                    css={categorySummaryButtonCSS}
                   >
                     <Text weight="heavy" color="inherit">
                       {label}
@@ -178,7 +183,7 @@ function CategoryCards({
                     <Text size="S" color="text-700">
                       {description}
                     </Text>
-                  </Link>
+                  </button>
                   {categoryTemplates.length > 0 ? (
                     <ul css={templateLinkListCSS}>
                       {categoryTemplates.map((template) => (
@@ -369,32 +374,35 @@ const categoryCardCSS = css`
   border-radius: var(--global-rounding-small);
   transition: background-color 0.15s ease;
 
-  &:has(> .link-container > a:hover) {
+  &:has(> button:hover) {
     background-color: var(--global-card-header-background-color-hover);
-  }
-
-  > .link-container {
-    display: flex;
-    flex: 1;
-    width: 100%;
-    max-width: none;
-    min-height: 0;
   }
 `;
 
-const categorySummaryLinkCSS = css`
+const categorySummaryButtonCSS = css`
+  /* Opens the gallery rather than navigating, so it is a card-sized button and
+     carries the control reset an anchor did not need. */
+  appearance: none;
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+
   box-sizing: border-box;
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--global-dimension-size-100);
   width: 100%;
+  max-width: none;
+  min-height: 0;
   padding: var(--global-dimension-size-200) var(--global-dimension-size-200)
     var(--global-dimension-size-100);
   border-radius: var(--global-rounding-small) var(--global-rounding-small) 0 0;
   color: var(--global-text-color-900);
 
-  /* Stretch this anchor without wrapping the sibling template links. */
+  /* Stretch this button without wrapping the sibling template links. */
   &::after {
     content: "";
     position: absolute;
@@ -410,10 +418,6 @@ const categorySummaryLinkCSS = css`
   &:focus-visible::after {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: calc(-1 * var(--focus-ring-thickness));
-  }
-
-  &:hover {
-    text-decoration: none;
   }
 `;
 

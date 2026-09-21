@@ -1,3 +1,6 @@
+import { createContext, useContext } from "react";
+import invariant from "tiny-invariant";
+
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 
 /**
@@ -10,3 +13,22 @@ export type ProjectEvaluatorGallerySelection =
   | { kind: "category"; category: EvaluatorCategory }
   | { kind: "template"; templateName: string }
   | { kind: "evaluator"; evaluatorId: string };
+
+type ProjectEvaluatorContextValue = {
+  openGallery: (selection?: ProjectEvaluatorGallerySelection) => void;
+};
+
+const ProjectEvaluatorContext =
+  createContext<ProjectEvaluatorContextValue | null>(null);
+
+export const ProjectEvaluatorProvider = ProjectEvaluatorContext.Provider;
+
+/** Returns the actions owned by the project evaluators page. */
+export function useProjectEvaluatorContext() {
+  const context = useContext(ProjectEvaluatorContext);
+  invariant(
+    context,
+    "useProjectEvaluatorContext must be used within the evaluators page"
+  );
+  return context;
+}

@@ -2,11 +2,17 @@ import { css } from "@emotion/react";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Header, ListBoxSection } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Outlet, useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   Button,
   Counter,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   ExpandableContent,
   Flex,
   Heading,
@@ -22,6 +28,8 @@ import {
   SelectValue,
   Skeleton,
   Text,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
 import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
@@ -35,14 +43,9 @@ import {
 } from "@phoenix/components/code";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import {
-  PROJECT_EVALUATOR_CATEGORY_PARAM,
-  PROJECT_EVALUATOR_PARAM,
-  PROJECT_EVALUATOR_TEMPLATE_PARAM,
-} from "@phoenix/constants/searchParams";
 import { useTheme } from "@phoenix/contexts";
 import type { projectEvaluatorDetailsQuery as ProjectEvaluatorDetailsQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
-import type { projectEvaluatorGalleryPageQuery as ProjectEvaluatorGalleryPageQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryPageQuery.graphql";
+import type { projectEvaluatorGalleryModalQuery as ProjectEvaluatorGalleryModalQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryModalQuery.graphql";
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
@@ -54,7 +57,6 @@ import {
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
   getProjectEvaluatorTemplateChoices,
@@ -133,8 +135,8 @@ type GalleryItem =
   | { kind: "custom"; evaluator: CustomEvaluator }
   | { kind: "template"; template: ProjectEvaluatorTemplate };
 
-const projectEvaluatorGalleryPageQuery = graphql`
-  query projectEvaluatorGalleryPageQuery($projectId: ID!) {
+const projectEvaluatorGalleryModalQuery = graphql`
+  query projectEvaluatorGalleryModalQuery($projectId: ID!) {
     evaluatorGalleryConfigs {
       name
       description
@@ -245,39 +247,58 @@ function getGalleryItemSection(item: GalleryItem): GallerySection {
     : getGalleryCategory(item.template.category);
 }
 
-export function ProjectEvaluatorGalleryPage() {
-  const paths = useProjectEvaluatorPaths();
-  const [searchParams] = useSearchParams();
-  // The gallery owns its selection as component state now, so this route
-  // reads the deep link once and hands it over as the initial target.
-  const evaluatorId = searchParams.get(PROJECT_EVALUATOR_PARAM);
-  const templateName = searchParams.get(PROJECT_EVALUATOR_TEMPLATE_PARAM);
-  const category = searchParams.get(
-    PROJECT_EVALUATOR_CATEGORY_PARAM
-  ) as EvaluatorCategory | null;
-  let initialSelection: ProjectEvaluatorGallerySelection = { kind: "default" };
-  if (evaluatorId) {
-    initialSelection = { kind: "evaluator", evaluatorId };
-  } else if (templateName) {
-    initialSelection = { kind: "template", templateName };
-  } else if (category) {
-    initialSelection = { kind: "category", category };
-  }
+/**
+ * The gallery itself, as a fullscreen modal over the evaluator list.
+ *
+ * Selection lives in component state because browsing the modal is not
+ * navigation. `initialSelection` lets entry points open directly to a card.
+ */
+export function ProjectEvaluatorGalleryModal({
+  creationPaths,
+  newLlmFromTemplatePath,
+  initialSelection,
+  onClose,
+}: {
+  creationPaths: ProjectEvaluatorCreationPaths;
+  newLlmFromTemplatePath: (templateName: string) => string;
+  initialSelection: ProjectEvaluatorGallerySelection;
+  onClose: () => void;
+}) {
   return (
-    <main css={galleryContainerCSS}>
-      <ErrorBoundary fallback={EvaluatorGalleryError}>
-        <Suspense fallback={<EvaluatorGallerySkeleton />}>
-          <EvaluatorGallery
-            creationPaths={paths.galleryCreation}
-            newLlmFromTemplatePath={paths.newLlmFromTemplate}
-            initialSelection={initialSelection}
-          />
-        </Suspense>
-      </ErrorBoundary>
-      <Suspense fallback={null}>
-        <Outlet />
-      </Suspense>
-    </main>
+    <ViewportModalOverlay
+      isOpen
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          onClose();
+        }
+      }}
+    >
+      <ViewportModal size="fullscreen">
+        <Dialog>
+          {({ close }) => (
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Evaluator gallery</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton close={close} aria-label="Close gallery" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <div css={galleryContainerCSS}>
+                <ErrorBoundary fallback={EvaluatorGalleryError}>
+                  <Suspense fallback={<EvaluatorGallerySkeleton />}>
+                    <EvaluatorGallery
+                      creationPaths={creationPaths}
+                      newLlmFromTemplatePath={newLlmFromTemplatePath}
+                      initialSelection={initialSelection}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </DialogContent>
+          )}
+        </Dialog>
+      </ViewportModal>
+    </ViewportModalOverlay>
   );
 }
 
@@ -296,8 +317,8 @@ function EvaluatorGallery({
   if (!projectId) {
     throw new Error("projectId is required");
   }
-  const data = useLazyLoadQuery<ProjectEvaluatorGalleryPageQueryType>(
-    projectEvaluatorGalleryPageQuery,
+  const data = useLazyLoadQuery<ProjectEvaluatorGalleryModalQueryType>(
+    projectEvaluatorGalleryModalQuery,
     { projectId },
     { fetchPolicy: "store-and-network" }
   );

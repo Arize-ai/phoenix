@@ -13,7 +13,6 @@ import {
   createDataRouterNavigationStateSource,
   registerRouterNavigationStateSource,
 } from "@phoenix/agent/tools/navigation/routerStateRegistry";
-import type { ParentCrumbToFn } from "@phoenix/hooks/useMatchesWithCrumb";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -105,7 +104,6 @@ import {
   ProfilePage,
   ProfilePreferencesPage,
   ProjectEvaluatorsPage,
-  ProjectEvaluatorGalleryPage,
   projectEvaluatorsLoader,
   ProjectIndexPage,
   projectLoader,
@@ -579,78 +577,6 @@ export const appRouteObjects = createRoutesFromElements(
                   }}
                 />
               </Route>
-            </Route>
-            <Route
-              path="evaluator-gallery"
-              element={<ProjectEvaluatorGalleryPage />}
-              handle={{
-                crumb: () => "Evaluator gallery",
-                parentCrumbTo: (({ parentPathname, search }) => ({
-                  pathname: `${parentPathname}/evaluators`,
-                  search,
-                })) satisfies ParentCrumbToFn,
-                agentRoute: {
-                  label: "Project Evaluator Gallery",
-                  description:
-                    "Browse evaluator templates and create a project evaluator from a template, from scratch, or an existing evaluator.",
-                },
-              }}
-            >
-              <Route
-                path="new/llm"
-                element={<NewLlmProjectEvaluatorPage />}
-                handle={{
-                  agentRoute: {
-                    label: "New Project LLM Evaluator From Gallery",
-                    description:
-                      "Author a new LLM-as-a-judge evaluator for a project from scratch, started from the evaluator gallery.",
-                  },
-                }}
-              />
-              <Route
-                path="new/code"
-                element={<NewCodeProjectEvaluatorPage />}
-                handle={{
-                  agentRoute: {
-                    label: "New Project Code Evaluator From Gallery",
-                    description:
-                      "Author a new Python or TypeScript code evaluator for a project from scratch, started from the evaluator gallery.",
-                  },
-                }}
-              />
-              <Route
-                path="new/copy-llm/:evaluatorId"
-                element={<CopyLlmProjectEvaluatorPage />}
-                handle={{
-                  agentRoute: {
-                    label: "Copy LLM Evaluator Into Project From Gallery",
-                    description:
-                      "Create a project evaluator seeded from an existing LLM evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
-                  },
-                }}
-              />
-              <Route
-                path="new/copy-code/:evaluatorId"
-                element={<CopyCodeProjectEvaluatorPage />}
-                handle={{
-                  agentRoute: {
-                    label: "Duplicate Code Evaluator Into Project From Gallery",
-                    description:
-                      "Create and attach a new project code evaluator seeded from an existing code evaluator while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
-                  },
-                }}
-              />
-              <Route
-                path="new/attach/:evaluatorId"
-                element={<AttachCodeProjectEvaluatorPage />}
-                handle={{
-                  agentRoute: {
-                    label: "Attach Code Evaluator To Project From Gallery",
-                    description:
-                      "Attach an existing code evaluator to a project while browsing the evaluator gallery. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
-                  },
-                }}
-              />
             </Route>
             {/* The evaluator details page is a full page rather than a tab,
                 mirroring the dataset evaluator details route. The edit
