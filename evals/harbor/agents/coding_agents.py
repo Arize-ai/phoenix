@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +8,9 @@ from harbor.agents.installed.base import BaseInstalledAgent, EnvVar
 from harbor.agents.installed.claude_code import ClaudeCode
 from harbor.agents.installed.codex import Codex
 from harbor.environments.base import BaseEnvironment
+from harbor.models.agent.context import AgentContext
 from harbor.models.task.config import MCPServerConfig
+from harbor.models.trial.paths import EnvironmentPaths
 
 PHOENIX_URL = "http://127.0.0.1:6006"
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -47,13 +50,32 @@ class PhoenixCliMixin(BaseInstalledAgent):
         await self.exec_as_agent(environment, "px --version")
 
 
-class ClaudeCodeMcpAgent(PhoenixMcpMixin, ClaudeCode):
+class AgentLogsOwnershipMixin(BaseInstalledAgent):
+    """Give the agent user back its log directory before each step.
+
+    Between steps Harbor re-uploads the host copy of /logs/agent as a tarball and
+    extracts it as root, which preserves the host uid. The agent user then cannot create
+    its Claude Code config directories under /logs/agent/sessions. Remove once Harbor
+    extracts uploads with --no-same-owner.
+    """
+
+    async def run(
+        self, instruction: str, environment: BaseEnvironment, context: AgentContext
+    ) -> None:
+        if (user := environment.default_user) is not None:
+            await environment.exec(
+                f"chown -R {shlex.quote(str(user))} {EnvironmentPaths.agent_dir}", user="root"
+            )
+        await super().run(instruction, environment, context)
+
+
+class ClaudeCodeMcpAgent(AgentLogsOwnershipMixin, PhoenixMcpMixin, ClaudeCode):
     @staticmethod
     def name() -> str:
         return "claude-code-mcp"
 
 
-class ClaudeCodeCliAgent(PhoenixCliMixin, ClaudeCode):
+class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, ClaudeCode):
     ENV_VARS = [
         *ClaudeCode.ENV_VARS,
         EnvVar("phoenix_endpoint", env="PHOENIX_ENDPOINT", type="str", default=PHOENIX_URL),
