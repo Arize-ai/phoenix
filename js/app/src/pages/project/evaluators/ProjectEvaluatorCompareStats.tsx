@@ -14,6 +14,7 @@ import {
 import {
   type AnnotationOptimizationConfig,
   getPositiveOptimizationFromConfig,
+  toAnnotationOptimizationConfig,
 } from "@phoenix/components/annotation";
 import {
   ChartPanel,
@@ -21,6 +22,7 @@ import {
   ChartTooltipItem,
 } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareStats_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_comparison.graphql";
+import type { ProjectEvaluatorCompareStats_evaluator$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareStats_evaluator.graphql";
 import {
   EVALUATOR_COMPARE_COLORS,
   getComparedOutputName,
@@ -340,19 +342,55 @@ function EvaluatorSummary({
   );
 }
 
+const evaluatorFragment = graphql`
+  fragment ProjectEvaluatorCompareStats_evaluator on ProjectEvaluator {
+    name
+    evaluator {
+      outputConfigs {
+        ... on AnnotationConfigBase {
+          name
+          annotationType
+        }
+        ... on CategoricalAnnotationConfig {
+          optimizationDirection
+          values {
+            label
+            score
+          }
+        }
+        ... on ContinuousAnnotationConfig {
+          optimizationDirection
+          lowerBound
+          upperBound
+        }
+        ... on FreeformAnnotationConfig {
+          optimizationDirection
+          threshold
+          lowerBound
+          upperBound
+        }
+      }
+    }
+  }
+`;
+
 export function ProjectEvaluatorCompareStats({
   comparisonRef,
-  evaluatorAName,
-  evaluatorBName,
-  evaluatorAOptimizationConfig,
-  evaluatorBOptimizationConfig,
+  evaluatorARef,
+  evaluatorBRef,
 }: {
   comparisonRef: ProjectEvaluatorCompareStats_comparison$key;
-  evaluatorAName: string;
-  evaluatorBName: string;
-  evaluatorAOptimizationConfig: AnnotationOptimizationConfig | undefined;
-  evaluatorBOptimizationConfig: AnnotationOptimizationConfig | undefined;
+  evaluatorARef: ProjectEvaluatorCompareStats_evaluator$key;
+  evaluatorBRef: ProjectEvaluatorCompareStats_evaluator$key;
 }) {
+  const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
+  const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
+  const evaluatorAOptimizationConfig = toAnnotationOptimizationConfig(
+    evaluatorA.evaluator.outputConfigs[0] ?? {}
+  );
+  const evaluatorBOptimizationConfig = toAnnotationOptimizationConfig(
+    evaluatorB.evaluator.outputConfigs[0] ?? {}
+  );
   const comparison = useFragment(
     graphql`
       fragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {
@@ -457,8 +495,8 @@ export function ProjectEvaluatorCompareStats({
               label={
                 <div css={evaluatorNameCSS}>
                   <ColorSwatch color={EVALUATOR_COMPARE_COLORS.a} size="M" />
-                  <Text size="XS" color="text-700" title={evaluatorAName}>
-                    only {evaluatorAName}
+                  <Text size="XS" color="text-700" title={evaluatorA.name}>
+                    only {evaluatorA.name}
                   </Text>
                 </div>
               }
@@ -476,8 +514,8 @@ export function ProjectEvaluatorCompareStats({
               label={
                 <div css={evaluatorNameCSS}>
                   <ColorSwatch color={EVALUATOR_COMPARE_COLORS.b} size="M" />
-                  <Text size="XS" color="text-700" title={evaluatorBName}>
-                    only {evaluatorBName}
+                  <Text size="XS" color="text-700" title={evaluatorB.name}>
+                    only {evaluatorB.name}
                   </Text>
                 </div>
               }
@@ -506,7 +544,7 @@ export function ProjectEvaluatorCompareStats({
         >
           <div css={sideBySideGridCSS}>
             <EvaluatorSummary
-              name={evaluatorAName}
+              name={evaluatorA.name}
               annotationName={comparison.sideA.annotationName}
               color={EVALUATOR_COMPARE_COLORS.a}
               evaluatedByBoth={coverage.evaluatedByBoth}
@@ -517,7 +555,7 @@ export function ProjectEvaluatorCompareStats({
               optimizationConfig={evaluatorAOptimizationConfig}
             />
             <EvaluatorSummary
-              name={evaluatorBName}
+              name={evaluatorB.name}
               annotationName={comparison.sideB.annotationName}
               color={EVALUATOR_COMPARE_COLORS.b}
               evaluatedByBoth={coverage.evaluatedByBoth}

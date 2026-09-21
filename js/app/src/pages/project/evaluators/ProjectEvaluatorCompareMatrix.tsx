@@ -3,26 +3,43 @@ import { graphql, useFragment } from "react-relay";
 import { Card, View } from "@phoenix/components";
 import { ConfusionMatrix } from "@phoenix/components/chart";
 import type { ProjectEvaluatorCompareMatrix_comparison$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareMatrix_comparison.graphql";
+import type { ProjectEvaluatorCompareMatrix_evaluator$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareMatrix_evaluator.graphql";
 import {
   formatMatrixSubtitle,
   getComparedOutputName,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
-import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
+
+const evaluatorFragment = graphql`
+  fragment ProjectEvaluatorCompareMatrix_evaluator on ProjectEvaluator {
+    name
+    evaluator {
+      outputConfigs {
+        ... on CategoricalAnnotationConfig {
+          optimizationDirection
+        }
+        ... on ContinuousAnnotationConfig {
+          optimizationDirection
+        }
+        ... on FreeformAnnotationConfig {
+          optimizationDirection
+        }
+      }
+    }
+  }
+`;
 
 export function ProjectEvaluatorCompareMatrix({
   comparisonRef,
-  evaluatorAName,
-  evaluatorBName,
-  evaluatorAOptimizationDirection,
-  evaluatorBOptimizationDirection,
+  evaluatorARef,
+  evaluatorBRef,
 }: {
   comparisonRef: ProjectEvaluatorCompareMatrix_comparison$key;
-  evaluatorAName: string;
-  evaluatorBName: string;
-  evaluatorAOptimizationDirection: EvaluatorOptimizationDirection | null;
-  evaluatorBOptimizationDirection: EvaluatorOptimizationDirection | null;
+  evaluatorARef: ProjectEvaluatorCompareMatrix_evaluator$key;
+  evaluatorBRef: ProjectEvaluatorCompareMatrix_evaluator$key;
 }) {
+  const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
+  const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
   const comparison = useFragment(
     graphql`
       fragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {
@@ -48,19 +65,19 @@ export function ProjectEvaluatorCompareMatrix({
   const labelsA = Array.from(comparison.sideA.labels);
   const labelsB = Array.from(comparison.sideB.labels);
   const outputAName = getComparedOutputName({
-    evaluatorName: evaluatorAName,
+    evaluatorName: evaluatorA.name,
     annotationName: comparison.sideA.annotationName,
   });
   const outputBName = getComparedOutputName({
-    evaluatorName: evaluatorBName,
+    evaluatorName: evaluatorB.name,
     annotationName: comparison.sideB.annotationName,
   });
   const axisLabelA = outputAName
-    ? `${evaluatorAName} · ${outputAName}`
-    : evaluatorAName;
+    ? `${evaluatorA.name} · ${outputAName}`
+    : evaluatorA.name;
   const axisLabelB = outputBName
-    ? `${evaluatorBName} · ${outputBName}`
-    : evaluatorBName;
+    ? `${evaluatorB.name} · ${outputBName}`
+    : evaluatorB.name;
 
   return (
     <Card
@@ -71,8 +88,10 @@ export function ProjectEvaluatorCompareMatrix({
         evaluatedByBoth: comparison.coverage.evaluatedByBoth,
         thresholdA: comparison.sideA.threshold,
         thresholdB: comparison.sideB.threshold,
-        optimizationDirectionA: evaluatorAOptimizationDirection,
-        optimizationDirectionB: evaluatorBOptimizationDirection,
+        optimizationDirectionA:
+          evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
+        optimizationDirectionB:
+          evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
       })}
     >
       <View padding="size-200">

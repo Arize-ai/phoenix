@@ -17,7 +17,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { toAnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import { Empty } from "@phoenix/components/core/empty";
 import {
   ConnectedTimeRangeSelector,
@@ -101,16 +100,6 @@ function ProjectEvaluatorComparePageLoaded({
               evaluator.evaluationTarget === evaluatorA.evaluationTarget
           )
       : [evaluatorA, evaluatorB];
-  const evaluatorAOptimizationDirection =
-    evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null;
-  const evaluatorBOptimizationDirection =
-    evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null;
-  const evaluatorAOptimizationConfig = toAnnotationOptimizationConfig(
-    evaluatorA.evaluator.outputConfigs[0] ?? {}
-  );
-  const evaluatorBOptimizationConfig = toAnnotationOptimizationConfig(
-    evaluatorB.evaluator.outputConfigs[0] ?? {}
-  );
   const comparisonKey = [
     evaluatorA.id,
     evaluatorB.id,
@@ -172,18 +161,8 @@ function ProjectEvaluatorComparePageLoaded({
               <Suspense fallback={<Loading />}>
                 <ProjectEvaluatorCompareContent
                   projectId={projectId}
-                  evaluatorAId={evaluatorA.id}
-                  evaluatorBId={evaluatorB.id}
-                  evaluatorAName={evaluatorA.name}
-                  evaluatorBName={evaluatorB.name}
-                  evaluatorAOptimizationDirection={
-                    evaluatorAOptimizationDirection
-                  }
-                  evaluatorBOptimizationDirection={
-                    evaluatorBOptimizationDirection
-                  }
-                  evaluatorAOptimizationConfig={evaluatorAOptimizationConfig}
-                  evaluatorBOptimizationConfig={evaluatorBOptimizationConfig}
+                  evaluatorARef={evaluatorA}
+                  evaluatorBRef={evaluatorB}
                   timeRange={timeRange}
                 />
               </Suspense>
