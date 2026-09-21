@@ -1887,6 +1887,86 @@ enum EvaluatorColumn {
   updatedAt
 }
 
+type EvaluatorComparisonCoverage {
+  """
+  Entities in range with results from both evaluators. Counts presence only; the summaries and statistics divide by `populationSize`, which also requires both results to be binnable.
+  """
+  evaluatedByBoth: Int!
+
+  """Entities in range evaluated only by evaluator A."""
+  onlyA: Int!
+
+  """Entities in range evaluated only by evaluator B."""
+  onlyB: Int!
+
+  """
+  All entities of the compared evaluation target in the project and time range.
+  """
+  totalInRange: Int!
+}
+
+"""
+Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both. Worked example, populationSize 100: A flags 40 entities and B flags 30; they agree on 25 flagged and 55 not flagged. agreement = (25 + 55) / 100 = 0.80 and disagreementCount = 20. Agreement expected by chance is 0.4 × 0.3 + 0.6 × 0.7 = 0.54, so cohensKappa = (0.80 − 0.54) / (1 − 0.54) ≈ 0.57.
+"""
+type EvaluatorComparisonStatistics {
+  """
+  Share of the population where the two evaluators agree, reduced to flagged/not-flagged when both evaluators have determinable flag semantics, else to label equality when the label sets are identical; null otherwise. 1.0 means the evaluators never disagree; 0.5 means they disagree on half the population.
+  """
+  agreement: Float
+
+  """
+  Chance-corrected agreement over the same reduction as `agreement`: 1.0 is perfect agreement, 0.0 is what two independent evaluators with these flag rates would reach by chance, and negative values are worse than chance. Null when chance agreement is already 1.0 (e.g. both evaluators flag everything), where kappa is undefined.
+  """
+  cohensKappa: Float
+
+  """
+  Spearman rank correlation over the raw score pairs; null unless both evaluators emit continuous scores. 1.0 when B ranks every entity in the same order as A, −1.0 when the order is reversed, near 0.0 when the rankings are unrelated. Uses the scores, not the flag thresholds, so it is unaffected by thresholdA / thresholdB.
+  """
+  spearmanRho: Float
+
+  """
+  Population count minus agreements, i.e. populationSize × (1 − agreement); null when `agreement` is null.
+  """
+  disagreementCount: Int
+}
+
+"""
+One evaluator's numbers within a comparison. Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both.
+"""
+type EvaluatorComparisonSummary {
+  """The project evaluator these numbers describe."""
+  evaluator: ProjectEvaluator!
+
+  """
+  The annotation name whose rows are compared: the evaluator's primary result name. Any annotation stored under this name counts, whichever source wrote it.
+  """
+  annotationName: String!
+
+  """
+  Binned labels for this evaluator, in confusion-matrix order. A continuous evaluator contributes flagged/not-flagged split at its threshold; a categorical evaluator contributes the labels present in range, capped with an 'other' fold.
+  """
+  labels: [String!]!
+
+  """
+  Which of `labels` count as flagged; null when the evaluator's config does not determine flag semantics.
+  """
+  flaggedLabels: [String!]
+
+  """
+  The flag threshold used to bin scores; null for categorical evaluators.
+  """
+  threshold: Float
+
+  """Entities this evaluator flags, over the shared population."""
+  flaggedCount: Int
+
+  """flaggedCount over `populationSize`."""
+  flagRate: Float
+
+  """Mean of this evaluator's non-null scores over the shared population."""
+  meanScore: Float
+}
+
 """A connection to a list of items."""
 type EvaluatorConnection {
   """Pagination data for this connection"""
@@ -3344,6 +3424,11 @@ type Project implements Node {
   spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
+
+  """
+  Compare two of this project's evaluators over one shared population: entities in the time range evaluated by both. Returns coverage, a confusion matrix over binned labels, and agreement statistics. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
+  """
+  evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, thresholdA: Float = null, thresholdB: Float = null): ProjectEvaluatorComparison!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -3406,6 +3491,30 @@ type ProjectEvaluator implements Node {
   enabled: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""
+Pairwise comparison of two project evaluators' results over one shared population. Confusion matrix rows follow a.labels and columns follow b.labels.
+"""
+type ProjectEvaluatorComparison {
+  """The evaluation target both evaluators share."""
+  evaluationTarget: EvaluationTarget!
+  coverage: EvaluatorComparisonCoverage!
+
+  """
+  Entities in range evaluated by both evaluators and binnable by both: the denominator of every summary and statistic. At most coverage.evaluatedByBoth.
+  """
+  populationSize: Int!
+
+  """Evaluator A's summary; confusion matrix rows follow its labels."""
+  a: EvaluatorComparisonSummary!
+
+  """Evaluator B's summary; confusion matrix columns follow its labels."""
+  b: EvaluatorComparisonSummary!
+
+  """Counts; rows follow a.labels, columns follow b.labels."""
+  confusionMatrix: [[Int!]!]!
+  statistics: EvaluatorComparisonStatistics!
 }
 
 """A connection to a list of items."""
