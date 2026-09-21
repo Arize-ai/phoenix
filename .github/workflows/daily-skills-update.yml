@@ -1,12 +1,12 @@
-name: Weekly Skills Update
+name: Daily Skills Update
 
 permissions:
   contents: read
 
 on:
   schedule:
-    # Every Monday at 14:00 UTC
-    - cron: "0 14 * * 1"
+    # Daily at 11:00 UTC (7am EDT / 6am EST)
+    - cron: "0 11 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   update-skills:
-    name: Weekly Skills Update
+    name: Daily Skills Update
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -48,10 +48,6 @@ jobs:
             mv skills-lock.json.tmp skills-lock.json
           done
 
-      - name: Generate timestamp
-        id: timestamp
-        run: echo "timestamp=$(date -u +%Y-%m-%d-%H-%M-%S)" >> "$GITHUB_OUTPUT"
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
@@ -63,7 +59,7 @@ jobs:
             `npx skills update --project`.
 
             Review the diff to confirm the upstream changes look reasonable before merging.
-          branch: update-skills-${{ steps.timestamp.outputs.timestamp }}
+          branch: update-skills
           base: main
           delete-branch: true
           labels: documentation
