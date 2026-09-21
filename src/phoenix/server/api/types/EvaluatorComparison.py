@@ -1,27 +1,32 @@
-"""GraphQL types for the pairwise evaluator comparison (compare page)."""
+"""GraphQL types for the pairwise comparison of two project evaluators' results."""
 
 from typing import Optional
 
 import strawberry
 
+from phoenix.db import models
 from phoenix.server.api.helpers.evaluator_comparison import ComparisonResult, SideSummary
-from phoenix.server.api.types.Evaluator import EvaluationTarget
+from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
 
 _SHARED_POPULATION = (
     "Computed over the shared population: entities in the selected time range "
-    "evaluated by both evaluators and binnable on both sides."
+    "evaluated by both evaluators and binnable by both."
 )
 
 
 @strawberry.type
 class EvaluatorComparisonCoverage:
     evaluated_by_both: int = strawberry.field(
-        description="Entities in range with results from both evaluators."
+        description=(
+            "Entities in range with results from both evaluators. Counts presence only; "
+            "the summaries and statistics divide by `populationSize`, which also requires "
+            "both results to be binnable."
+        )
     )
     only_a: int = strawberry.field(description="Entities in range evaluated only by evaluator A.")
     only_b: int = strawberry.field(description="Entities in range evaluated only by evaluator B.")
     total_in_range: int = strawberry.field(
-        description="All entities of the compared level in the project and time range."
+        description="All entities of the compared evaluation target in the project and time range."
     )
 
 
@@ -30,7 +35,7 @@ class EvaluatorComparisonStatistics:
     agreement: Optional[float] = strawberry.field(
         description=(
             "Share of the population where the two evaluators agree, reduced to "
-            "flagged/not-flagged when both sides have determinable flag semantics, "
+            "flagged/not-flagged when both evaluators have determinable flag semantics, "
             "else to label equality when the label sets are identical; null otherwise."
         )
     )
@@ -48,16 +53,22 @@ class EvaluatorComparisonStatistics:
     )
 
 
-@strawberry.type(description=_SHARED_POPULATION)
-class EvaluatorComparisonSide:
+@strawberry.type(description=f"One evaluator's numbers within a comparison. {_SHARED_POPULATION}")
+class EvaluatorComparisonSummary:
+    evaluator: ProjectEvaluator = strawberry.field(
+        description="The project evaluator these numbers describe."
+    )
     annotation_name: str = strawberry.field(
-        description="The annotation name this evaluator writes its results under."
+        description=(
+            "The annotation name whose rows are compared: the evaluator's primary result "
+            "name. Any annotation stored under this name counts, whichever source wrote it."
+        )
     )
     labels: list[str] = strawberry.field(
         description=(
-            "Binned labels for this side, in matrix order. A continuous evaluator "
-            "contributes flagged/not-flagged split at its threshold; a categorical "
-            "evaluator contributes the labels present in range, capped with an "
+            "Binned labels for this evaluator, in confusion-matrix order. A continuous "
+            "evaluator contributes flagged/not-flagged split at its threshold; a "
+            "categorical evaluator contributes the labels present in range, capped with an "
             "'other' fold."
         )
     )
@@ -68,14 +79,12 @@ class EvaluatorComparisonSide:
         )
     )
     threshold: Optional[float] = strawberry.field(
-        description="The flag threshold used to bin scores; null for categorical sides."
+        description="The flag threshold used to bin scores; null for categorical evaluators."
     )
     flagged_count: Optional[int] = strawberry.field(
         description="Entities this evaluator flags, over the shared population."
     )
-    flag_rate: Optional[float] = strawberry.field(
-        description="flaggedCount over the shared population size."
-    )
+    flag_rate: Optional[float] = strawberry.field(description="flaggedCount over `populationSize`.")
     mean_score: Optional[float] = strawberry.field(
         description="Mean of this evaluator's non-null scores over the shared population."
     )
@@ -84,25 +93,37 @@ class EvaluatorComparisonSide:
 @strawberry.type(
     description=(
         "Pairwise comparison of two project evaluators' results over one shared "
-        "population. Confusion matrix rows follow sideA.labels and columns follow "
-        "sideB.labels."
+        "population. Confusion matrix rows follow a.labels and columns follow b.labels."
     )
 )
 class ProjectEvaluatorComparison:
     evaluation_target: EvaluationTarget = strawberry.field(
-        description="The evaluation level both evaluators share."
+        description="The evaluation target both evaluators share."
     )
     coverage: EvaluatorComparisonCoverage
-    side_a: EvaluatorComparisonSide
-    side_b: EvaluatorComparisonSide
+    population_size: int = strawberry.field(
+        description=(
+            "Entities in range evaluated by both evaluators and binnable by both: the "
+            "denominator of every summary and statistic. At most coverage.evaluatedByBoth."
+        )
+    )
+    a: EvaluatorComparisonSummary = strawberry.field(
+        description="Evaluator A's summary; confusion matrix rows follow its labels."
+    )
+    b: EvaluatorComparisonSummary = strawberry.field(
+        description="Evaluator B's summary; confusion matrix columns follow its labels."
+    )
     confusion_matrix: list[list[int]] = strawberry.field(
-        description="Counts; rows follow sideA.labels, columns follow sideB.labels."
+        description="Counts; rows follow a.labels, columns follow b.labels."
     )
     statistics: EvaluatorComparisonStatistics
 
 
-def to_gql_comparison_side(summary: SideSummary) -> EvaluatorComparisonSide:
-    return EvaluatorComparisonSide(
+def _to_gql_summary(
+    summary: SideSummary, record: models.ProjectEvaluator
+) -> EvaluatorComparisonSummary:
+    return EvaluatorComparisonSummary(
+        evaluator=ProjectEvaluator(id=record.id, db_record=record),
         annotation_name=summary.annotation_name,
         labels=list(summary.labels),
         flagged_labels=list(summary.flagged_labels) if summary.flagged_labels is not None else None,
@@ -117,12 +138,15 @@ def to_gql_comparison(
     evaluation_target: EvaluationTarget,
     coverage: EvaluatorComparisonCoverage,
     result: ComparisonResult,
+    record_a: models.ProjectEvaluator,
+    record_b: models.ProjectEvaluator,
 ) -> ProjectEvaluatorComparison:
     return ProjectEvaluatorComparison(
         evaluation_target=evaluation_target,
         coverage=coverage,
-        side_a=to_gql_comparison_side(result.side_a),
-        side_b=to_gql_comparison_side(result.side_b),
+        population_size=result.n,
+        a=_to_gql_summary(result.side_a, record_a),
+        b=_to_gql_summary(result.side_b, record_b),
         confusion_matrix=[list(row) for row in result.matrix],
         statistics=EvaluatorComparisonStatistics(
             agreement=result.agreement,

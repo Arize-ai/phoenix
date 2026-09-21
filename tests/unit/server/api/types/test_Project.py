@@ -7656,7 +7656,12 @@ class TestEvaluatorComparison:
                             onlyB
                             totalInRange
                         }
-                        sideA {
+                        populationSize
+                        a {
+                            evaluator {
+                                id
+                                name
+                            }
                             annotationName
                             labels
                             flaggedLabels
@@ -7665,7 +7670,11 @@ class TestEvaluatorComparison:
                             flagRate
                             meanScore
                         }
-                        sideB {
+                        b {
+                            evaluator {
+                                id
+                                name
+                            }
                             annotationName
                             labels
                             flaggedLabels
@@ -7767,6 +7776,13 @@ class TestEvaluatorComparison:
             project_session = await _add_project_session(session, project, start_time=in_range)
             trace = await _add_trace(session, project, project_session, start_time=in_range)
             spans = [await _add_span(session, trace, start_time=in_range) for _ in range(7)]
+            # Selection follows the trace's start time, not the span's: this
+            # trace starts after the query window, so its span must not count
+            # even though the span itself starts inside the window.
+            out_of_range = in_range + timedelta(hours=4)
+            late_session = await _add_project_session(session, project, start_time=out_of_range)
+            late_trace = await _add_trace(session, project, late_session, start_time=out_of_range)
+            late_span = await _add_span(session, late_trace, start_time=in_range)
 
             def span_annotation(
                 span: models.Span,
@@ -7812,6 +7828,14 @@ class TestEvaluatorComparison:
                     span_annotation(spans[3], "toxicity", None, 0.8),
                     span_annotation(spans[4], "correctness", "pass", 1.0),
                     span_annotation(spans[5], "toxicity", None, 0.5),
+                    # Evaluated by both but unbinnable on the thresholded side:
+                    # counts toward coverage, not toward the population.
+                    span_annotation(spans[6], "correctness", "pass", 1.0),
+                    span_annotation(spans[6], "toxicity", None, None),
+                    # Out of the query window on every name.
+                    span_annotation(late_span, "correctness", "fail", 0.0),
+                    span_annotation(late_span, "toxicity", None, 0.9),
+                    span_annotation(late_span, "harm", None, 0.9),
                     # Correlated with toxicity on the shared spans for Spearman.
                     span_annotation(spans[0], "harm", None, 0.2),
                     span_annotation(spans[1], "harm", None, 0.8),
@@ -7820,9 +7844,11 @@ class TestEvaluatorComparison:
                 ]
             )
 
-            def session_annotation(name: str, score: float) -> models.ProjectSessionAnnotation:
+            def session_annotation(
+                name: str, score: float, session_id: Optional[int] = None
+            ) -> models.ProjectSessionAnnotation:
                 return models.ProjectSessionAnnotation(
-                    project_session_id=project_session.id,
+                    project_session_id=session_id if session_id is not None else project_session.id,
                     name=name,
                     label=None,
                     score=score,
@@ -7838,6 +7864,8 @@ class TestEvaluatorComparison:
                 [
                     session_annotation("session_quality", 0.9),
                     session_annotation("session_quality_two", 0.2),
+                    session_annotation("session_quality", 0.1, late_session.id),
+                    session_annotation("session_quality_two", 0.1, late_session.id),
                 ]
             )
 
@@ -7909,12 +7937,17 @@ class TestEvaluatorComparison:
         comparison = await self._compare(gql_client, _comparison_data, "correctness", "toxicity")
         assert comparison["evaluationTarget"] == "SPAN"
         assert comparison["coverage"] == {
-            "evaluatedByBoth": 4,
+            "evaluatedByBoth": 5,
             "onlyA": 1,
             "onlyB": 1,
             "totalInRange": 7,
         }
-        side_a = comparison["sideA"]
+        assert comparison["populationSize"] == 4
+        side_a = comparison["a"]
+        assert side_a["evaluator"] == {
+            "id": str(GlobalID("ProjectEvaluator", str(_comparison_data["correctness"]))),
+            "name": "correctness",
+        }
         assert side_a["annotationName"] == "correctness"
         assert side_a["labels"] == ["pass", "fail"]
         assert side_a["flaggedLabels"] == ["fail"]
@@ -7922,7 +7955,8 @@ class TestEvaluatorComparison:
         assert side_a["flaggedCount"] == 2
         assert side_a["flagRate"] == pytest.approx(0.5)
         assert side_a["meanScore"] == pytest.approx(0.5)
-        side_b = comparison["sideB"]
+        side_b = comparison["b"]
+        assert side_b["evaluator"]["name"] == "toxicity"
         assert side_b["annotationName"] == "toxicity"
         assert side_b["labels"] == ["flagged", "not flagged"]
         assert side_b["threshold"] == pytest.approx(0.5)
@@ -7941,10 +7975,11 @@ class TestEvaluatorComparison:
         comparison = await self._compare(gql_client, _comparison_data, "toxicity", "harm")
         assert comparison["coverage"] == {
             "evaluatedByBoth": 4,
-            "onlyA": 1,
+            "onlyA": 2,
             "onlyB": 0,
             "totalInRange": 7,
         }
+        assert comparison["populationSize"] == 4
         assert comparison["confusionMatrix"] == [[2, 0], [0, 2]]
         statistics = comparison["statistics"]
         assert statistics["agreement"] == pytest.approx(1.0)
@@ -7958,14 +7993,14 @@ class TestEvaluatorComparison:
         comparison = await self._compare(
             gql_client, _comparison_data, "correctness", "toxicity", threshold_b=0.85
         )
-        assert comparison["sideB"]["threshold"] == pytest.approx(0.85)
-        assert comparison["sideB"]["flaggedCount"] == 1
+        assert comparison["b"]["threshold"] == pytest.approx(0.85)
+        assert comparison["b"]["flaggedCount"] == 1
         assert comparison["confusionMatrix"] == [[0, 2], [1, 1]]
         statistics = comparison["statistics"]
         assert statistics["agreement"] == pytest.approx(0.75)
         assert statistics["disagreementCount"] == 1
 
-    async def test_session_level_comparison(
+    async def test_session_target_comparison(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         comparison = await self._compare(
@@ -7990,13 +8025,13 @@ class TestEvaluatorComparison:
         )
         assert "two different evaluators" in message
 
-    async def test_mismatched_levels_are_rejected(
+    async def test_mismatched_evaluation_targets_are_rejected(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
     ) -> None:
         message = await self._compare_expecting_error(
             gql_client, _comparison_data, "correctness", "session_evaluator"
         )
-        assert "same level" in message
+        assert "evaluation target" in message
 
     async def test_evaluator_from_another_project_is_not_found(
         self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient

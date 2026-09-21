@@ -2581,7 +2581,7 @@ class Project(Node):
             raise NotFound(f"ProjectEvaluator not found: {evaluator_b_id}")
         if record_a.evaluation_target != record_b.evaluation_target:
             raise BadRequest(
-                "The selected evaluators do not evaluate the same level "
+                "The selected evaluators do not share an evaluation target "
                 f"({record_a.evaluation_target} vs {record_b.evaluation_target})"
             )
         evaluation_target = record_a.evaluation_target
@@ -2631,6 +2631,8 @@ class Project(Node):
                 total_in_range=total_in_range,
             ),
             result=accumulator.result(),
+            record_a=record_a,
+            record_b=record_b,
         )
 
     @strawberry.field
@@ -3040,8 +3042,8 @@ def _primary_result_annotation(
 ) -> tuple[str, Optional[OutputConfigType]]:
     """Resolve the annotation name and output config of an evaluator's primary result.
 
-    The compare page reads one annotation per evaluator: the first output
-    config's result, named per `result_annotation_names`.
+    A comparison reads one annotation per evaluator: the first output config's
+    result, named per `result_annotation_names`.
     """
     configs = as_output_configs(
         evaluator.output_configs
@@ -3106,18 +3108,19 @@ def _evaluator_comparison_stmts(
     name_b: str,
     time_range: TimeRange,
 ) -> tuple[Select[Any], Select[Any], Select[Any]]:
-    """Build the pair, coverage, and total-entity statements for one evaluation level.
+    """Build the pair, coverage, and total-entity statements for one evaluation target.
 
-    The pair statement yields one row per entity annotated by both evaluators
-    in range — (label_a, score_a, label_b, score_b) — deduplicating multiple
+    The pair statement yields one row per entity annotated under both names in
+    range — (label_a, score_a, label_b, score_b) — deduplicating multiple
     annotation identifiers per (entity, name) to the most recently updated.
-    The coverage statement counts entities grouped by which evaluators
-    annotated them, and the total statement counts all entities of that level
-    in the project and range, for the coverage panel's denominator.
+    Rows are selected by annotation name alone, whichever source wrote them.
+    The coverage statement counts entities grouped by which names annotated
+    them, and the total statement counts all entities of that target in the
+    project and range.
     """
     level = _COMPARISON_LEVELS.get(evaluation_target)
     if level is None:
-        raise BadRequest(f"Unsupported evaluation level: {evaluation_target}")
+        raise BadRequest(f"Unsupported evaluation target: {evaluation_target}")
     assert time_range.start is not None
 
     def annotation_rows(*columns: Any) -> Select[Any]:

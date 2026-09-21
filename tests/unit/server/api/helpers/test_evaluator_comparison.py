@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from phoenix.db.types.annotation_configs import (
@@ -205,6 +207,40 @@ class TestComparisonAccumulator:
         accumulator.add(None, None, None, 0.8)  # no score on a thresholded side
         result = accumulator.result()
         assert result.n == 1
+
+    def test_non_finite_scores_are_treated_as_missing(self) -> None:
+        binning_a = make_side_binning("a", _categorical_config(name="a"), None)
+        binning_b = make_side_binning("b", _continuous_config(name="b"), None)
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        accumulator.add("pass", 1.0, None, 0.2)
+        accumulator.add("fail", math.inf, None, 0.9)  # categorical side keeps the label
+        accumulator.add("pass", 1.0, None, math.nan)  # thresholded side is unbinnable
+        result = accumulator.result()
+        assert result.n == 2
+        assert result.side_a.mean_score == pytest.approx(1.0)
+        assert result.side_b.mean_score == pytest.approx(0.55)
+
+    def test_fold_label_never_collides_with_a_real_label(self) -> None:
+        labels = [f"label_{index}" for index in range(8)] + [OTHER_LABEL]
+        config = _categorical_config(
+            direction=OptimizationDirection.NONE,
+            values=[(label, 0.0) for label in labels],
+        )
+        binning_a = make_side_binning("many", config, None)
+        binning_b = make_side_binning("toxicity", _continuous_config(), None)
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        for weight, label in enumerate(labels, start=1):
+            for _ in range(weight):
+                accumulator.add(label, None, None, 0.9)  # "other" is the most frequent
+        result = accumulator.result()
+        assert len(result.side_a.labels) == 7
+        assert len(set(result.side_a.labels)) == 7
+        assert result.side_a.labels[-1] == f"({OTHER_LABEL})"
+        assert OTHER_LABEL in result.side_a.labels[:-1]
+        # The real "other" keeps its own row; the fold collects only the tail.
+        assert sum(result.matrix[result.side_a.labels.index(OTHER_LABEL)]) == len(labels)
+        assert sum(result.matrix[-1]) == 1 + 2 + 3  # the three least frequent labels
+        assert result.n == sum(range(1, len(labels) + 1))
 
     def test_label_cap_folds_tail_into_other(self) -> None:
         config = _categorical_config(

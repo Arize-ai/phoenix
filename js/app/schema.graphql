@@ -1888,7 +1888,9 @@ enum EvaluatorColumn {
 }
 
 type EvaluatorComparisonCoverage {
-  """Entities in range with results from both evaluators."""
+  """
+  Entities in range with results from both evaluators. Counts presence only; the summaries and statistics divide by `populationSize`, which also requires both results to be binnable.
+  """
   evaluatedByBoth: Int!
 
   """Entities in range evaluated only by evaluator A."""
@@ -1897,46 +1899,18 @@ type EvaluatorComparisonCoverage {
   """Entities in range evaluated only by evaluator B."""
   onlyB: Int!
 
-  """All entities of the compared level in the project and time range."""
+  """
+  All entities of the compared evaluation target in the project and time range.
+  """
   totalInRange: Int!
 }
 
 """
-Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable on both sides.
-"""
-type EvaluatorComparisonSide {
-  """The annotation name this evaluator writes its results under."""
-  annotationName: String!
-
-  """
-  Binned labels for this side, in matrix order. A continuous evaluator contributes flagged/not-flagged split at its threshold; a categorical evaluator contributes the labels present in range, capped with an 'other' fold.
-  """
-  labels: [String!]!
-
-  """
-  Which of `labels` count as flagged; null when the evaluator's config does not determine flag semantics.
-  """
-  flaggedLabels: [String!]
-
-  """The flag threshold used to bin scores; null for categorical sides."""
-  threshold: Float
-
-  """Entities this evaluator flags, over the shared population."""
-  flaggedCount: Int
-
-  """flaggedCount over the shared population size."""
-  flagRate: Float
-
-  """Mean of this evaluator's non-null scores over the shared population."""
-  meanScore: Float
-}
-
-"""
-Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable on both sides.
+Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both.
 """
 type EvaluatorComparisonStatistics {
   """
-  Share of the population where the two evaluators agree, reduced to flagged/not-flagged when both sides have determinable flag semantics, else to label equality when the label sets are identical; null otherwise.
+  Share of the population where the two evaluators agree, reduced to flagged/not-flagged when both evaluators have determinable flag semantics, else to label equality when the label sets are identical; null otherwise.
   """
   agreement: Float
 
@@ -1950,6 +1924,43 @@ type EvaluatorComparisonStatistics {
 
   """Population count minus agreements; null when `agreement` is null."""
   disagreementCount: Int
+}
+
+"""
+One evaluator's numbers within a comparison. Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both.
+"""
+type EvaluatorComparisonSummary {
+  """The project evaluator these numbers describe."""
+  evaluator: ProjectEvaluator!
+
+  """
+  The annotation name whose rows are compared: the evaluator's primary result name. Any annotation stored under this name counts, whichever source wrote it.
+  """
+  annotationName: String!
+
+  """
+  Binned labels for this evaluator, in confusion-matrix order. A continuous evaluator contributes flagged/not-flagged split at its threshold; a categorical evaluator contributes the labels present in range, capped with an 'other' fold.
+  """
+  labels: [String!]!
+
+  """
+  Which of `labels` count as flagged; null when the evaluator's config does not determine flag semantics.
+  """
+  flaggedLabels: [String!]
+
+  """
+  The flag threshold used to bin scores; null for categorical evaluators.
+  """
+  threshold: Float
+
+  """Entities this evaluator flags, over the shared population."""
+  flaggedCount: Int
+
+  """flaggedCount over `populationSize`."""
+  flagRate: Float
+
+  """Mean of this evaluator's non-null scores over the shared population."""
+  meanScore: Float
 }
 
 """A connection to a list of items."""
@@ -3479,16 +3490,25 @@ type ProjectEvaluator implements Node {
 }
 
 """
-Pairwise comparison of two project evaluators' results over one shared population. Confusion matrix rows follow sideA.labels and columns follow sideB.labels.
+Pairwise comparison of two project evaluators' results over one shared population. Confusion matrix rows follow a.labels and columns follow b.labels.
 """
 type ProjectEvaluatorComparison {
-  """The evaluation level both evaluators share."""
+  """The evaluation target both evaluators share."""
   evaluationTarget: EvaluationTarget!
   coverage: EvaluatorComparisonCoverage!
-  sideA: EvaluatorComparisonSide!
-  sideB: EvaluatorComparisonSide!
 
-  """Counts; rows follow sideA.labels, columns follow sideB.labels."""
+  """
+  Entities in range evaluated by both evaluators and binnable by both: the denominator of every summary and statistic. At most coverage.evaluatedByBoth.
+  """
+  populationSize: Int!
+
+  """Evaluator A's summary; confusion matrix rows follow its labels."""
+  a: EvaluatorComparisonSummary!
+
+  """Evaluator B's summary; confusion matrix columns follow its labels."""
+  b: EvaluatorComparisonSummary!
+
+  """Counts; rows follow a.labels, columns follow b.labels."""
   confusionMatrix: [[Int!]!]!
   statistics: EvaluatorComparisonStatistics!
 }

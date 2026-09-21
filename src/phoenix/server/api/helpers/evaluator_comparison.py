@@ -1,14 +1,14 @@
 """Pure computation helpers for comparing two evaluators' results.
 
-Comparison semantics follow the evaluator compare page design
-(https://github.com/Arize-ai/phoenix/issues/15512): every statistic is
-computed over one shared population — entities in the selected time range
-evaluated by both evaluators — so no two numbers can drift to different
-denominators.
+Every statistic is computed over one shared population — entities in the
+selected time range evaluated by both evaluators and binnable on both sides —
+so no two numbers can drift to different denominators
+(https://github.com/Arize-ai/phoenix/issues/15512).
 """
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from dataclasses import dataclass
 from typing import Callable, Optional, Sequence, Union
@@ -183,7 +183,9 @@ class ComparisonAccumulator:
 
     Feed it every entity evaluated by both evaluators; pairs unbinnable on
     either side (e.g. a missing score on a thresholded side) are excluded
-    from the matrix population. Raw score pairs for Spearman's rho are kept
+    from the matrix population. Non-finite scores are treated as missing, so
+    a stored NaN or infinity can neither poison a mean nor make the result
+    unserializable. Raw score pairs for Spearman's rho are kept
     only when both sides are thresholded (continuous), truncated to the first
     SPEARMAN_SAMPLE_SIZE pairs.
     """
@@ -206,6 +208,8 @@ class ComparisonAccumulator:
         label_b: Optional[str],
         score_b: Optional[float],
     ) -> None:
+        score_a = _finite_or_none(score_a)
+        score_b = _finite_or_none(score_b)
         bin_a = self._binning_a.bin(label_a, score_a)
         bin_b = self._binning_b.bin(label_b, score_b)
         if bin_a is None or bin_b is None:
@@ -234,14 +238,14 @@ class ComparisonAccumulator:
             marginals_b[raw_b] += count
         labels_a = _fold_labels(marginals_a, self._binning_a)
         labels_b = _fold_labels(marginals_b, self._binning_b)
-        kept_a = set(labels_a)
-        kept_b = set(labels_b)
         index_a = {label: index for index, label in enumerate(labels_a)}
         index_b = {label: index for index, label in enumerate(labels_b)}
         matrix = [[0 for _ in labels_b] for _ in labels_a]
+        # A raw label absent from the kept labels was folded; the fold label
+        # is always last and never collides with a raw label.
         for (raw_a, raw_b), count in self._cell_counts.items():
-            row = index_a[raw_a if raw_a in kept_a else OTHER_LABEL]
-            column = index_b[raw_b if raw_b in kept_b else OTHER_LABEL]
+            row = index_a.get(raw_a, len(labels_a) - 1)
+            column = index_b.get(raw_b, len(labels_b) - 1)
             matrix[row][column] += count
 
         # Agreement statistics reduce over the raw (unfolded) labels so a
@@ -300,25 +304,35 @@ class ComparisonAccumulator:
         )
 
 
+def _finite_or_none(score: Optional[float]) -> Optional[float]:
+    return score if score is not None and math.isfinite(score) else None
+
+
 def _fold_labels(counts: Counter[str], binning: SideBinning) -> tuple[str, ...]:
     """Order the observed labels and fold the tail into "other" past the cap.
 
     A thresholded side always shows both of its labels, even at zero count.
     A categorical side shows the labels present in the data, ordered by the
     config's declared order first, then alphabetically for unexpected labels;
-    past MAX_LABELS_PER_SIDE the least frequent fold into "other".
+    past MAX_LABELS_PER_SIDE the least frequent fold into a trailing fold
+    label — "other", wrapped in parentheses as many times as it takes to
+    differ from every observed and declared label.
     """
     if binning.is_thresholded:
         return (FLAGGED_LABEL, UNFLAGGED_LABEL)
     observed = set(counts)
-    ordered = [label for label in (binning.categorical_label_order or ()) if label in observed]
+    declared = binning.categorical_label_order or ()
+    ordered = [label for label in declared if label in observed]
     ordered.extend(sorted(observed - set(ordered)))
     if len(ordered) <= MAX_LABELS_PER_SIDE:
         return tuple(ordered)
     most_frequent = set(
         sorted(ordered, key=lambda label: -counts[label])[: MAX_LABELS_PER_SIDE - 1]
     )
-    return tuple(label for label in ordered if label in most_frequent) + (OTHER_LABEL,)
+    fold_label = OTHER_LABEL
+    while fold_label in observed or fold_label in declared:
+        fold_label = f"({fold_label})"
+    return tuple(label for label in ordered if label in most_frequent) + (fold_label,)
 
 
 def _agreement_statistics(
