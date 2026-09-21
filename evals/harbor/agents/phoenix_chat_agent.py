@@ -13,11 +13,7 @@ _AGENT_DIR = "/installed-agent/phoenix-chat"
 _CHAT_CLIENT = Path(__file__).with_name("chat_client.py")
 _STEPS_DIR = "/logs/agent/steps"
 _INSTRUCTION_PATH = "/tmp/instruction.md"
-# Uploaded files must be readable by the agent user without a chown, because the Daytona
-# uploader cannot overwrite a file it no longer owns on the next step.
 _WORLD_READABLE = 0o644
-# PXI runs with mutations enabled and every tool call approved. The turn timeout matches
-# the step agent timeout in task.toml.
 _TURN_TIMEOUT_SECONDS = 1800.0
 
 
