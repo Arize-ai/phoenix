@@ -1,7 +1,10 @@
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
-import { TokenDetailsBreakdown } from "./TokenDetailsBreakdown";
+import {
+  getTokenDetails,
+  TokenDetailsBreakdown,
+} from "./TokenDetailsBreakdown";
 
 export type TokenCostsDetailsProps = Omit<
   TokenDetailsBreakdownProps,
@@ -27,18 +30,18 @@ type CostDetailSummaryEntry = {
 export function getTokenCostDetailsFromCostDetails(
   costDetails: ReadonlyArray<CostDetailSummaryEntry>
 ): Pick<TokenCostsDetailsProps, "promptDetails" | "completionDetails"> {
-  const getDetails = ({ isPrompt }: { isPrompt: boolean }) => {
-    const entries = costDetails.flatMap((detail) =>
-      detail.isPrompt === isPrompt && detail.value.cost != null
-        ? [[detail.tokenType, detail.value.cost] as const]
-        : []
-    );
-    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-  };
-
+  const getValue = (entry: CostDetailSummaryEntry) => entry.value.cost;
   return {
-    promptDetails: getDetails({ isPrompt: true }),
-    completionDetails: getDetails({ isPrompt: false }),
+    promptDetails: getTokenDetails({
+      entries: costDetails,
+      isPrompt: true,
+      getValue,
+    }),
+    completionDetails: getTokenDetails({
+      entries: costDetails,
+      isPrompt: false,
+      getValue,
+    }),
   };
 }
 

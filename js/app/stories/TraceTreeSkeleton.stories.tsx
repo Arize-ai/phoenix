@@ -1,11 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import type { CSSProperties } from "react";
 
 import {
   TraceTreeNodeSkeleton,
   TraceTreeSkeleton,
 } from "@phoenix/components/trace/TraceTreeSkeleton";
-
-import { traceTreeFrameStyle } from "./constants/traceTreeFrame";
 
 const meta: Meta<typeof TraceTreeSkeleton> = {
   title: "Trace/TraceTreeSkeleton",
@@ -18,7 +17,19 @@ const meta: Meta<typeof TraceTreeSkeleton> = {
 export default meta;
 type Story = StoryObj<typeof TraceTreeSkeleton>;
 
-const frameCSS = { ...traceTreeFrameStyle, width: 640, overflow: "auto" };
+/**
+ * The frame the stories render into, sized like the trace tree the skeleton
+ * stands in for.
+ */
+const frameCSS: CSSProperties = {
+  height: 480,
+  width: 640,
+  overflow: "auto",
+  border: "1px solid var(--global-border-color-default)",
+  background: "var(--global-color-gray-75)",
+  display: "flex",
+  flexDirection: "column",
+};
 
 export const Default: Story = {
   render: () => (

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
@@ -10,7 +11,17 @@ import {
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import { PreferencesProvider } from "@phoenix/contexts";
 
-import { traceTreeFrameStyle } from "./constants/traceTreeFrame";
+/**
+ * The frame the stories render into, sized like the trace tree's slot in the
+ * trace details view.
+ */
+const frameStyle: CSSProperties = {
+  height: 480,
+  border: "1px solid var(--global-border-color-default)",
+  background: "var(--global-color-gray-75)",
+  display: "flex",
+  flexDirection: "column",
+};
 
 /**
  * Builds a span with sensible defaults. `startOffsetMs` is relative to the
@@ -362,7 +373,7 @@ function TraceTreeFrame({
     initialSelectedSpanId ?? spans[0].id
   );
   return (
-    <div style={{ ...traceTreeFrameStyle, width }}>
+    <div style={{ ...frameStyle, width }}>
       <TraceTreeProvider>
         <TraceTree
           spans={spans}

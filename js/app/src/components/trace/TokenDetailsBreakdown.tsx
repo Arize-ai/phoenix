@@ -11,6 +11,39 @@ import {
 
 type TokenDetailValues = Record<string, number | null | undefined>;
 
+type TokenDetailEntry = {
+  tokenType: string;
+  isPrompt: boolean;
+};
+
+/**
+ * Collects one side's per-token-type values into the map
+ * {@link TokenDetailsBreakdown} draws for that side.
+ *
+ * @param params - Collection context.
+ * @param params.entries - Per-token-type entries for both sides.
+ * @param params.isPrompt - Whether to collect the prompt or the completion side.
+ * @param params.getValue - Reads the value to plot from an entry, e.g. its tokens or its cost.
+ * @returns Values keyed by token type, or `undefined` when the side has none.
+ */
+export function getTokenDetails<Entry extends TokenDetailEntry>({
+  entries,
+  isPrompt,
+  getValue,
+}: {
+  entries: ReadonlyArray<Entry>;
+  isPrompt: boolean;
+  getValue: (entry: Entry) => number | null | undefined;
+}): Record<string, number> | undefined {
+  const values = entries.flatMap((entry) => {
+    const value = getValue(entry);
+    return entry.isPrompt === isPrompt && value != null
+      ? [[entry.tokenType, value] as const]
+      : [];
+  });
+  return values.length > 0 ? Object.fromEntries(values) : undefined;
+}
+
 type DetailSegment = {
   name: string;
   value: number;
