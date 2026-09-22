@@ -67,7 +67,7 @@ jobs:
 
       # The job has no CLI agent, so the px archive is not built.
       - name: Build the Phoenix wheel and stage the PXI tasks
-        run: HARBOR_PXI_ARGS="--splits regression" HARBOR_CLI=0 make harbor-stage
+        run: HARBOR_PXI_ARGS="--splits regression" HARBOR_CLI=0 make harbor-prepare
 
       # The agent is nondeterministic and the regression split tolerates about one miss
       # per dataset. The bar is the mean step reward across tasks; tighten it once there

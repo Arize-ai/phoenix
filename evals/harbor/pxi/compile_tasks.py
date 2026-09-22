@@ -6,7 +6,7 @@
 
 Each task's ``instruction.md`` holds the user's request followed by the example as JSON,
 which is how the example reaches the agent at run time. Every task shares the same build
-context so Harbor builds one image. ``harbor-stage`` runs this before staging; the
+context so Harbor builds one image. ``harbor-prepare`` runs this before staging; the
 generated tasks are not committed because the YAML datasets are the source of truth.
 
     uv run python -m evals.harbor.pxi.compile_tasks --out evals/harbor/tasks/pxi

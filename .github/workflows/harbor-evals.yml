@@ -52,7 +52,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build the Phoenix wheel, stage the Harbor task environments, and build the px CLI archive
-        run: make harbor-stage
+        run: make harbor-prepare
 
       # The oracle validates the environment build, fixture download, and
       # verifiers without spending agent tokens; it gates the real-agent run

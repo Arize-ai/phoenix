@@ -1,5 +1,5 @@
 # Build the shared Harbor task image from this checkout, the task fixture, the verifier,
-# and the agent runtime. scripts/stage_harbor_environments.sh assembles the build context.
+# and the agent runtime. scripts/prepare_harbor_environments.sh assembles the build context.
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 # Node 22 for the coding agents and the px CLI. Copied from the official image because
 # Debian bookworm ships Node 18.

@@ -491,7 +491,7 @@ Save to `evals/harbor/pxi/datasets/<name>.yaml`. Then:
 uv run python -c "from evals.harbor.pxi.compile_tasks import load_dataset; load_dataset('<name>')"
 
 # Stage just this dataset and run it end-to-end against the real PXI agent:
-HARBOR_PXI_ARGS="--datasets <name>" HARBOR_CLI=0 make harbor-stage
+HARBOR_PXI_ARGS="--datasets <name>" HARBOR_CLI=0 make harbor-prepare
 make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml HARBOR_ARGS='-e docker -k 1'
 ```
 

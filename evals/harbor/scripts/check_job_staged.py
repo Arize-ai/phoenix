@@ -62,7 +62,7 @@ def main() -> int:
     if failures:
         print("\n".join(failures), file=sys.stderr)
         print(
-            "Run 'make harbor-stage' first; the trail-benchmark tasks need HF_TOKEN set for it.",
+            "Run 'make harbor-prepare' first; the trail-benchmark tasks need HF_TOKEN set for it.",
             file=sys.stderr,
         )
         return 1
