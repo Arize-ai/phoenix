@@ -1,6 +1,9 @@
 import { resolvePlaygroundDatasetId } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
-import type { PlaygroundStore } from "@phoenix/store/playground";
+import {
+  getPlaygroundTaskKind,
+  type PlaygroundStore,
+} from "@phoenix/store/playground";
 
 import { parseSetTemplateVariablesPathInput } from "./parsers";
 
@@ -43,18 +46,20 @@ export function createSetTemplateVariablesPathClientAction({
     }
 
     const templateVariablesPath = parsed.path || null;
-    playgroundStore
-      .getState()
-      .setTemplateVariablesPath({ templateVariablesPath, datasetId });
+    const { instances, setTemplateVariablesPath } = playgroundStore.getState();
+    // Each kind of task keeps its own path; this sets the page's kind.
+    const taskKind = getPlaygroundTaskKind(instances);
+    setTemplateVariablesPath({ templateVariablesPath, datasetId, taskKind });
 
     return {
       ok: true,
       output: {
         status: "updated",
+        taskKind,
         templateVariablesPath,
         message: templateVariablesPath
-          ? `Set template variables path to "${templateVariablesPath}".`
-          : "Set template variables path to the example root.",
+          ? `Set the ${taskKind} tasks' template variables path to "${templateVariablesPath}".`
+          : `Set the ${taskKind} tasks' template variables path to the example root.`,
       },
     };
   };

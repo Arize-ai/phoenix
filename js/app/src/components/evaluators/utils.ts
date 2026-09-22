@@ -14,6 +14,7 @@ import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
+  EvaluatorKind,
   EvaluatorMappingSource,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
@@ -399,6 +400,51 @@ const validateOutputConfigNames = (
     emptyNames,
   };
 };
+
+/**
+ * Why an output config cannot belong to an evaluator of this kind, or null.
+ *
+ * An LLM judge chooses one of its labels; its score is the score attached to
+ * the chosen label. It has no way to emit a free number, so the server rejects
+ * continuous and freeform outputs for LLM evaluators on both run and save. Code
+ * evaluators return whatever their function returns, so any output type fits.
+ */
+export const getOutputConfigKindError = ({
+  kind,
+  config,
+}: {
+  kind: EvaluatorKind;
+  config: AnnotationConfig;
+}): string | null => {
+  if (kind !== "LLM" || "values" in config) return null;
+
+  return (
+    `LLM evaluators only support categorical outputs, but "${config.name}" is ` +
+    "continuous or freeform. Define labels with scores instead (for a 0–1 " +
+    "scale, e.g. poor=0, fair=0.5, good=1), or use a code evaluator for a " +
+    "free numeric score."
+  );
+};
+
+/**
+ * Validation errors for an evaluator's output configs: the name checks below
+ * plus the per-kind type rule, so callers that know the evaluator kind reject
+ * an impossible configuration before a run or save does.
+ */
+export const getEvaluatorOutputConfigValidationErrors = ({
+  kind,
+  configs,
+}: {
+  kind: EvaluatorKind;
+  configs: AnnotationConfig[];
+}): string[] => [
+  ...getOutputConfigValidationErrors(configs),
+  ...configs.flatMap((config) => {
+    const error = getOutputConfigKindError({ kind, config });
+
+    return error ? [error] : [];
+  }),
+];
 
 /**
  * Returns an array of validation error messages for output configs.

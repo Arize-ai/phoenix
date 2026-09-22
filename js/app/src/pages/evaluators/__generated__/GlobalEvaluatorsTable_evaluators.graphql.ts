@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8228c691f37b54aa9ac22b7d60dd1ce>>
+ * @generated SignedSource<<73e75f8a22d681863bfcc1c065bcd97e>>
  * @lightSyntaxTransform
  */
 
@@ -49,28 +49,35 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "kind",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v5 = [
+v6 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 10
   }
 ],
-v6 = [
+v7 = [
   (v1/*:: as any*/),
   (v2/*:: as any*/)
 ],
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -184,14 +191,8 @@ return {
                   "selections": [
                     (v1/*:: as any*/),
                     (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "kind",
-                      "storageKey": null
-                    },
                     (v3/*:: as any*/),
+                    (v4/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -199,10 +200,10 @@ return {
                       "name": "createdAt",
                       "storageKey": null
                     },
-                    (v4/*:: as any*/),
+                    (v5/*:: as any*/),
                     {
                       "alias": null,
-                      "args": (v5/*:: as any*/),
+                      "args": (v6/*:: as any*/),
                       "concreteType": "DatasetConnection",
                       "kind": "LinkedField",
                       "name": "datasets",
@@ -223,7 +224,7 @@ return {
                               "kind": "LinkedField",
                               "name": "node",
                               "plural": false,
-                              "selections": (v6/*:: as any*/),
+                              "selections": (v7/*:: as any*/),
                               "storageKey": null
                             }
                           ],
@@ -234,7 +235,7 @@ return {
                     },
                     {
                       "alias": null,
-                      "args": (v5/*:: as any*/),
+                      "args": (v6/*:: as any*/),
                       "concreteType": "ProjectConnection",
                       "kind": "LinkedField",
                       "name": "projects",
@@ -290,9 +291,21 @@ return {
                       "plural": true,
                       "selections": [
                         (v1/*:: as any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": null,
+                          "kind": "LinkedField",
+                          "name": "evaluator",
+                          "plural": false,
+                          "selections": [
+                            (v3/*:: as any*/)
+                          ],
+                          "storageKey": null
+                        },
                         (v2/*:: as any*/),
-                        (v3/*:: as any*/),
                         (v4/*:: as any*/),
+                        (v5/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -300,10 +313,10 @@ return {
                           "kind": "LinkedField",
                           "name": "dataset",
                           "plural": false,
-                          "selections": (v6/*:: as any*/),
+                          "selections": (v7/*:: as any*/),
                           "storageKey": null
                         },
-                        (v7/*:: as any*/)
+                        (v8/*:: as any*/)
                       ],
                       "storageKey": null
                     },
@@ -317,7 +330,7 @@ return {
                           "kind": "LinkedField",
                           "name": "prompt",
                           "plural": false,
-                          "selections": (v6/*:: as any*/),
+                          "selections": (v7/*:: as any*/),
                           "storageKey": null
                         },
                         {
@@ -357,7 +370,7 @@ return {
                           ],
                           "storageKey": null
                         },
-                        (v7/*:: as any*/)
+                        (v8/*:: as any*/)
                       ],
                       "type": "LLMEvaluator",
                       "abstractKey": null
@@ -365,7 +378,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v7/*:: as any*/)
+                        (v8/*:: as any*/)
                       ],
                       "type": "CodeEvaluator",
                       "abstractKey": null
