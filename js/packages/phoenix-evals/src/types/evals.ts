@@ -15,16 +15,13 @@ export interface ExampleRecord<OutputType, InputType> {
   [key: string]: unknown;
 }
 
-/**
- * A model that can perform a classification. Either a regular AI SDK
- * {@link LanguageModel}, or an AI SDK evaluation model (e.g. TypeSafe's Jev)
- * which classifies without generating text and therefore cannot produce an
- * explanation.
- */
-export type ClassificationModel = LanguageModel | EvaluationModel;
-
 export interface WithLLM {
-  model: ClassificationModel;
+  /**
+   * Either a regular AI SDK {@link LanguageModel}, or an AI SDK
+   * {@link EvaluationModel} (e.g. TypeSafe's Jev) which classifies without
+   * generating text and therefore cannot produce an explanation.
+   */
+  model: LanguageModel | EvaluationModel;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -79,7 +76,7 @@ export interface CreateClassifierArgs extends WithTelemetry {
   /*
    * The model to use for classification / evaluation
    */
-  model: ClassificationModel;
+  model: LanguageModel | EvaluationModel;
   /**
    * The choices to classify the example into.
    * e.g. { "correct": 1, "incorrect": 0 }
