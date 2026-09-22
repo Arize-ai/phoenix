@@ -68,7 +68,9 @@ function createPierreTheme(theme: PierreTheme) {
       color: color("variable"),
     },
     {
-      tag: [t.number, t.bool, t.atom],
+      // JSON's `null` carries its own tag; without it here the editor falls
+      // back to CodeMirror's default purple while JSONPreview uses this color.
+      tag: [t.number, t.bool, t.null, t.atom],
       color: color("constant.numeric"),
     },
     {
@@ -128,3 +130,25 @@ function createPierreTheme(theme: PierreTheme) {
 
 export const pierreLight = createPierreTheme(pierreLightTheme);
 export const pierreDark = createPierreTheme(pierreDarkTheme);
+
+/**
+ * The JSON token colors of the editor theme, for read-only renderings that
+ * skip the editor (see `JSONPreview`) but should look like it.
+ */
+function jsonTokenColors(theme: PierreTheme) {
+  const color = (scope: string) =>
+    scopeColor(theme, scope) ?? theme.colors["editor.foreground"];
+
+  return {
+    key: color("entity.other.attribute-name"),
+    string: color("string"),
+    number: color("constant.numeric"),
+    literal: color("constant.numeric"),
+    punctuation: color("punctuation"),
+  };
+}
+
+export const pierreTokenColors = {
+  light: jsonTokenColors(pierreLightTheme),
+  dark: jsonTokenColors(pierreDarkTheme),
+};
