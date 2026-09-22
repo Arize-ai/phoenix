@@ -681,7 +681,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Compare Project Evaluators",
                     description:
-                      "Compare two project evaluators over the telemetry both evaluated, including agreement, coverage, side-by-side summaries, and label overlap. Pass their ProjectEvaluator Relay node IDs as two ordered evaluatorId search params.",
+                      "Compare two project evaluators: shared-result agreement and label overlap, coverage, and score or label distributions including evaluator-only results. Repeated evaluatorId search params are ordered ProjectEvaluator Relay node IDs.",
                   },
                 }}
               />

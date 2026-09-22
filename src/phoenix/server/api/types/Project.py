@@ -3,7 +3,6 @@ import json
 import logging
 import operator
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
@@ -35,17 +34,20 @@ from phoenix.db.trace_aggregates import (
     TRACE_ROWID,
     representative_root_span_by_trace,
 )
-from phoenix.db.types.annotation_configs import OutputConfigType, as_output_configs
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.helpers.evaluator_comparison import (
     ComparisonAccumulator,
-    fill_comparison_time_series,
     make_side_binning,
 )
-from phoenix.server.api.helpers.evaluators import result_annotation_names
+from phoenix.server.api.helpers.evaluator_results import (
+    EVALUATOR_RESULT_LEVELS,
+    evaluator_annotation_rows,
+    latest_evaluator_annotations,
+    primary_result_annotation,
+)
 from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
@@ -2540,7 +2542,6 @@ class Project(Node):
         evaluator_a_id: GlobalID,
         evaluator_b_id: GlobalID,
         time_range: TimeRange,
-        time_bin_config: Optional[TimeBinConfig] = None,
         threshold_a: Optional[float] = None,
         threshold_b: Optional[float] = None,
     ) -> ProjectEvaluatorComparison:
@@ -2574,24 +2575,20 @@ class Project(Node):
         ) = await info.context.data_loaders.evaluator_by_id.load_many(
             [record_a.evaluator_id, record_b.evaluator_id]
         )
-        name_a, config_a = _primary_result_annotation(record_a, evaluator_orm_a)
-        name_b, config_b = _primary_result_annotation(record_b, evaluator_orm_b)
+        name_a, config_a = primary_result_annotation(record_a, evaluator_orm_a)
+        name_b, config_b = primary_result_annotation(record_b, evaluator_orm_b)
         if name_a == name_b:
             raise BadRequest("The selected evaluators write results under the same annotation name")
 
         binning_a = make_side_binning(name_a, config_a, threshold_a)
         binning_b = make_side_binning(name_b, config_b, threshold_b)
 
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
         pairs_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
-            dialect=info.context.db.dialect,
             project_rowid=self.id,
             evaluation_target=evaluation_target,
             name_a=name_a,
             name_b=name_b,
             time_range=time_range,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
         )
 
         accumulator = ComparisonAccumulator(binning_a, binning_b)
@@ -2605,20 +2602,9 @@ class Project(Node):
                     only_a = entity_count
                 else:
                     only_b = entity_count
-            bucket_timestamps: dict[Any, datetime] = {}
             async for row in await session.stream(pairs_stmt):
-                bucket = bucket_timestamps.get(row.bucket)
-                if bucket is None:
-                    bucket = bucket_timestamps[row.bucket] = _as_datetime(row.bucket)
-                accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b, bucket=bucket)
+                accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b)
         result = accumulator.result()
-        time_series_points = fill_comparison_time_series(
-            result.time_series,
-            start_time=time_range.start,
-            end_time=time_range.end,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
-        )
 
         return to_gql_comparison(
             evaluation_target=EvaluationTarget(evaluation_target),
@@ -2631,7 +2617,6 @@ class Project(Node):
             result=result,
             record_a=record_a,
             record_b=record_b,
-            time_series_points=time_series_points,
         )
 
     @strawberry.field
@@ -3035,112 +3020,36 @@ async def _annotation_metrics_time_series(
     )
 
 
-def _primary_result_annotation(
-    project_evaluator: models.ProjectEvaluator,
-    evaluator: Optional[models.Evaluator],
-) -> tuple[str, Optional[OutputConfigType]]:
-    """Resolve the annotation name and output config of an evaluator's primary result.
-
-    A comparison reads one annotation per evaluator: the first output config's
-    result, named per `result_annotation_names`.
-    """
-    configs = as_output_configs(
-        evaluator.output_configs
-        if isinstance(
-            evaluator, (models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator)
-        )
-        else None
-    )
-    names = result_annotation_names(project_evaluator.name.root, configs)
-    return names[0], configs[0] if configs else None
-
-
-@dataclass(frozen=True)
-class _ComparisonLevel:
-    """How one evaluation level maps to its annotation and entity tables."""
-
-    annotation: Any
-    entity: Any
-    entity_id: Any
-    annotation_onclause: Any
-    joins_trace: bool
-    project_col: Any
-    time_col: Any
-
-
-_COMPARISON_LEVELS: Mapping[str, _ComparisonLevel] = {
-    "SPAN": _ComparisonLevel(
-        annotation=models.SpanAnnotation,
-        entity=models.Span,
-        entity_id=models.SpanAnnotation.span_rowid,
-        annotation_onclause=models.SpanAnnotation.span_rowid == models.Span.id,
-        joins_trace=True,
-        project_col=models.Trace.project_rowid,
-        time_col=models.Trace.start_time,
-    ),
-    "TRACE": _ComparisonLevel(
-        annotation=models.TraceAnnotation,
-        entity=models.Trace,
-        entity_id=models.TraceAnnotation.trace_rowid,
-        annotation_onclause=models.TraceAnnotation.trace_rowid == models.Trace.id,
-        joins_trace=False,
-        project_col=models.Trace.project_rowid,
-        time_col=models.Trace.start_time,
-    ),
-    "SESSION": _ComparisonLevel(
-        annotation=models.ProjectSessionAnnotation,
-        entity=models.ProjectSession,
-        entity_id=models.ProjectSessionAnnotation.project_session_id,
-        annotation_onclause=models.ProjectSessionAnnotation.project_session_id
-        == models.ProjectSession.id,
-        joins_trace=False,
-        project_col=models.ProjectSession.project_id,
-        time_col=models.ProjectSession.start_time,
-    ),
-}
-
-
 def _evaluator_comparison_stmts(
-    dialect: SupportedSQLDialect,
     project_rowid: int,
     evaluation_target: str,
     name_a: str,
     name_b: str,
     time_range: TimeRange,
-    stride: _TimeBinStride,
-    utc_offset_minutes: int,
 ) -> tuple[Select[Any], Select[Any], Select[Any]]:
     """Build the pair, coverage, and total-entity statements for one evaluation target.
 
     The pair statement yields one row per entity annotated under both names in
-    range — (bucket, label_a, score_a, label_b, score_b) — deduplicating
+    range — (label_a, score_a, label_b, score_b) — deduplicating
     multiple annotation identifiers per (entity, name) to the most recently
     updated. Rows are selected by annotation name alone, whichever source
     wrote them. The coverage statement counts entities grouped by which names
     annotated them, and the total statement counts all entities of that target
     in the project and range.
     """
-    level = _COMPARISON_LEVELS.get(evaluation_target)
+    level = EVALUATOR_RESULT_LEVELS.get(evaluation_target)
     if level is None:
         raise BadRequest(f"Unsupported evaluation target: {evaluation_target}")
     assert time_range.start is not None
 
     def annotation_rows(*columns: Any) -> Select[Any]:
-        stmt = select(*columns).join_from(
-            level.annotation, level.entity, onclause=level.annotation_onclause
+        return evaluator_annotation_rows(
+            *columns,
+            project_rowid=project_rowid,
+            evaluation_target=evaluation_target,
+            annotation_names=[name_a, name_b],
+            time_range=time_range,
         )
-        if level.joins_trace:
-            stmt = stmt.join_from(
-                level.entity, models.Trace, onclause=models.Span.trace_rowid == models.Trace.id
-            )
-        stmt = (
-            stmt.where(level.project_col == project_rowid)
-            .where(level.annotation.name.in_([name_a, name_b]))
-            .where(time_range.start <= level.time_col)
-        )
-        if time_range.end:
-            stmt = stmt.where(level.time_col < time_range.end)
-        return stmt
 
     total = select(func.count(level.entity.id))
     if level.joins_trace:
@@ -3168,40 +3077,15 @@ def _evaluator_comparison_stmts(
         presence.c.has_a, presence.c.has_b, func.count().label("entity_count")
     ).group_by(presence.c.has_a, presence.c.has_b)
 
-    row_number = (
-        func.row_number()
-        .over(
-            partition_by=[level.entity_id, level.annotation.name],
-            order_by=[level.annotation.updated_at.desc(), level.annotation.id.desc()],
-        )
-        .label("row_number")
-    )
-    annotated = annotation_rows(
-        level.entity_id.label("entity_id"),
-        level.annotation.name.label("name"),
-        level.annotation.label.label("label"),
-        level.annotation.score.label("score"),
-        level.time_col.label("entity_time"),
-        row_number,
-    ).subquery("comparison_annotations")
-    latest = (
-        select(
-            annotated.c.entity_id,
-            annotated.c.name,
-            annotated.c.label,
-            annotated.c.score,
-            annotated.c.entity_time,
-        )
-        .where(annotated.c.row_number == 1)
-        .subquery("latest_comparison_annotations")
+    latest = latest_evaluator_annotations(
+        project_rowid=project_rowid,
+        evaluation_target=evaluation_target,
+        annotation_names=[name_a, name_b],
+        time_range=time_range,
     )
     is_a = latest.c.name == name_a
-    # The time bucket is computed once per output group (all of an entity's
-    # rows share one entity_time, so max() is exact), not once per row.
-    bucket = date_trunc(dialect, stride, func.max(latest.c.entity_time), utc_offset_minutes)
     pairs: Select[Any] = (
         select(
-            bucket.label("bucket"),
             func.max(case((is_a, latest.c.label))).label("label_a"),
             func.max(case((is_a, latest.c.score))).label("score_a"),
             func.max(case((~is_a, latest.c.label))).label("label_b"),
