@@ -2,19 +2,21 @@ import { css } from "@emotion/react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import invariant from "tiny-invariant";
 
-import { Card, Flex, Text, View } from "@phoenix/components";
-import { Empty } from "@phoenix/components/core/empty";
+import { Flex } from "@phoenix/components";
 import type { ProjectEvaluatorCompareContent_evaluator$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareContent_evaluator.graphql";
 import type { ProjectEvaluatorCompareContentQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCompareContentQuery.graphql";
 import { ProjectEvaluatorCompareMatrix } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareMatrix";
 import { ProjectEvaluatorCompareStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareStats";
-import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { formatInt } from "@phoenix/utils/numberFormatUtils";
+
+import { ProjectEvaluatorCompareDistributions } from "./ProjectEvaluatorCompareDistributions";
 
 const comparisonPanelsCSS = css`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--global-dimension-size-200);
+  @media (max-width: 1100px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 `;
 
 const evaluatorFragment = graphql`
@@ -67,6 +69,20 @@ export function ProjectEvaluatorCompareContent({
             }
           }
         }
+        evaluatorA: node(id: $evaluatorAId) {
+          __typename
+          ... on ProjectEvaluator {
+            ...ProjectEvaluatorCompareDistributions_evaluator
+              @arguments(timeRange: $timeRange)
+          }
+        }
+        evaluatorB: node(id: $evaluatorBId) {
+          __typename
+          ... on ProjectEvaluator {
+            ...ProjectEvaluatorCompareDistributions_evaluator
+              @arguments(timeRange: $timeRange)
+          }
+        }
       }
     `,
     {
@@ -81,27 +97,15 @@ export function ProjectEvaluatorCompareContent({
     { fetchPolicy: "store-and-network" }
   );
   invariant(data.project?.__typename === "Project", "project is required");
+  invariant(
+    data.evaluatorA?.__typename === "ProjectEvaluator",
+    "evaluator A is required"
+  );
+  invariant(
+    data.evaluatorB?.__typename === "ProjectEvaluator",
+    "evaluator B is required"
+  );
   const comparison = data.project.evaluatorComparison;
-  const { coverage, evaluationTarget } = comparison;
-  const targetPlural = formatEvaluationTargetPlural(evaluationTarget);
-
-  if (coverage.evaluatedByBoth === 0) {
-    return (
-      <View paddingTop="size-1000">
-        <Flex direction="column" alignItems="center" gap="size-100">
-          <Empty
-            message={`No ${targetPlural} evaluated by both ${evaluatorA.name} and ${evaluatorB.name} in this time range`}
-          />
-          <Text size="S" color="text-700">
-            {evaluatorA.name} only: {formatInt(coverage.onlyA)} ·{" "}
-            {evaluatorB.name} only: {formatInt(coverage.onlyB)} · Total in
-            range: {formatInt(coverage.totalInRange)}
-          </Text>
-        </Flex>
-      </View>
-    );
-  }
-
   return (
     <Flex direction="column" gap="size-200">
       <ProjectEvaluatorCompareStats
@@ -115,7 +119,10 @@ export function ProjectEvaluatorCompareContent({
           evaluatorARef={evaluatorA}
           evaluatorBRef={evaluatorB}
         />
-        <Card title="TODO: score distributions" titleSeparator={false} />
+        <ProjectEvaluatorCompareDistributions
+          evaluatorARef={data.evaluatorA}
+          evaluatorBRef={data.evaluatorB}
+        />
       </div>
     </Flex>
   );

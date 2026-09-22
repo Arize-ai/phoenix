@@ -32,6 +32,9 @@ from phoenix.server.api.evaluators import (
     infer_input_schema_from_prompt_template,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.evaluator_comparison import make_side_binning
+from phoenix.server.api.helpers.evaluator_distribution import get_evaluator_distribution
+from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -42,6 +45,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -1340,6 +1344,42 @@ class ProjectEvaluator(Node):
     async def run_summary(self, info: Info[Context, None]) -> ProjectEvaluatorRunSummary:
         counts = await info.context.data_loaders.project_evaluator_run_counts.load(self.id)
         return _project_evaluator_run_summary(counts)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Distribution of this evaluator's primary output over all annotated targets in range. "
+            "Spans and traces filter on trace start time; sessions on session start time. "
+            "Uses the latest annotation per target and name across annotation identifiers."
+        )
+    )
+    async def distribution(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+    ) -> EvaluatorDistribution:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+        record = await self._get_record(info)
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        annotation_name, config = primary_result_annotation(record, evaluator)
+        summary = await get_evaluator_distribution(
+            db=info.context.db,
+            project_rowid=record.project_id,
+            evaluation_target=record.evaluation_target,
+            annotation_name=annotation_name,
+            config=config,
+            time_range=time_range,
+        )
+        binning = make_side_binning(annotation_name, config, None)
+        return EvaluatorDistribution(
+            evaluated_count=summary.evaluated_count,
+            threshold=binning.threshold if binning.is_thresholded else None,
+            mean_score=summary.mean_score,
+            score_bin_edges=summary.score_bin_edges,
+            score_bin_counts=summary.score_bin_counts,
+            score_value_counts=summary.score_value_counts,
+            label_counts=summary.label_counts,
+        )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
