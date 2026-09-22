@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7fa260240c58bf24abd2ae59f1dc2f51>>
+ * @generated SignedSource<<c270b02bd6868996b93ef70239694a96>>
  * @lightSyntaxTransform
  */
 
@@ -82,6 +82,9 @@ v7 = {
   "storageKey": null
 },
 v8 = [
+  (v2/*:: as any*/)
+],
+v9 = [
   {
     "alias": null,
     "args": null,
@@ -282,9 +285,7 @@ return {
                             "kind": "LinkedField",
                             "name": "project",
                             "plural": false,
-                            "selections": [
-                              (v2/*:: as any*/)
-                            ],
+                            "selections": (v8/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -344,7 +345,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "total",
                                 "plural": false,
-                                "selections": (v8/*:: as any*/),
+                                "selections": (v9/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -354,7 +355,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "prompt",
                                 "plural": false,
-                                "selections": (v8/*:: as any*/),
+                                "selections": (v9/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -364,7 +365,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "completion",
                                 "plural": false,
-                                "selections": (v8/*:: as any*/),
+                                "selections": (v9/*:: as any*/),
                                 "storageKey": null
                               }
                             ],
@@ -444,6 +445,24 @@ return {
                                 "name": "status",
                                 "storageKey": null
                               },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "taskConfig",
+                                "plural": false,
+                                "selections": [
+                                  (v4/*:: as any*/),
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": (v8/*:: as any*/),
+                                    "type": "Node",
+                                    "abstractKey": "__isNode"
+                                  }
+                                ],
+                                "storageKey": null
+                              },
                               (v2/*:: as any*/)
                             ],
                             "storageKey": null
@@ -521,12 +540,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f8c509c9e4df770cf256af9907da7035",
+    "cacheID": "897f7f53caf647382442d861cce84e42",
     "id": null,
     "metadata": {},
     "name": "ExperimentsPageQuery",
     "operationKind": "query",
-    "text": "query ExperimentsPageQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experimentCount\n    }\n    ...ExperimentsTableFragment\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        isBaseline\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentsPageQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experimentCount\n    }\n    ...ExperimentsTableFragment\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        isBaseline\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          taskConfig {\n            __typename\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

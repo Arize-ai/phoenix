@@ -43,7 +43,7 @@ function runNode({
         input: { messages: [{ role: "user", content: `input-${id}` }] },
         output: { reference: `reference-${id}` },
         metadata: { id },
-        calibrationLabels: expectedLabel
+        expectedOutputs: expectedLabel
           ? [
               {
                 annotationName: "reference_match",

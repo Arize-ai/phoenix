@@ -20,9 +20,9 @@ from phoenix.server.api.evaluators import (
     EvaluationResult as EvaluationResultDict,
 )
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.evaluator_calibration import without_expected_outputs
+from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
-from phoenix.server.api.input_types.EvaluatorPreviewInput import (
+from phoenix.server.api.input_types.EvaluatorDefinitionInput import (
     EvaluatorPreviewsInput,
 )
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
@@ -100,7 +100,7 @@ async def _evaluate_preview(
     try:
         context = {
             **context,
-            "metadata": without_expected_outputs(
+            "metadata": without_own_annotations(
                 context.get("metadata", {}),
                 evaluator_annotation_names(evaluator.name, evaluator.output_configs),
             ),
