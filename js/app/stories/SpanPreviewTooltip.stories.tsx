@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useRef } from "react";
 import { Focusable } from "react-aria";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
@@ -183,11 +182,10 @@ const pendingRelayEnvironment = new Environment({
 /**
  * A stand-in for a trace tree row, with the tooltip held open beside it as
  * it is in the tree. The row sits to the right so the tooltip has room, and
- * like a tree row its box starts well left of its icon, which the tooltip
- * anchors to.
+ * like a tree row its box starts well left of its icon: the tooltip anchors
+ * to the box's edge, which every row shares, not to the icon.
  */
 function OpenPreview({ span }: { span: ISpanItem }) {
-  const iconRef = useRef<HTMLDivElement>(null);
   return (
     <div style={{ display: "flex", justifyContent: "flex-end" }}>
       <TooltipTrigger isOpen>
@@ -205,13 +203,11 @@ function OpenPreview({ span }: { span: ISpanItem }) {
               borderRadius: "var(--global-rounding-small)",
             }}
           >
-            <div ref={iconRef} style={{ display: "flex" }}>
-              <SpanKindIcon spanKind={span.spanKind} />
-            </div>
+            <SpanKindIcon spanKind={span.spanKind} />
             <Text>{span.name}</Text>
           </div>
         </Focusable>
-        <SpanPreviewTooltip span={span} triggerRef={iconRef} />
+        <SpanPreviewTooltip span={span} />
       </TooltipTrigger>
     </div>
   );

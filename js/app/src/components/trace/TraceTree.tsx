@@ -190,7 +190,6 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   );
   const isSelected = selectedSpanNodeId === node.span.id;
   const itemRef = useRef<HTMLDivElement>(null);
-  const iconRef = useRef<HTMLDivElement>(null);
 
   // Scroll into view when selected
   useEffect(() => {
@@ -239,11 +238,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                   : undefined
               }
             >
-              <div
-                ref={iconRef}
-                css={spanNodeIconCSS}
-                className="span-node__icon"
-              >
+              <div css={spanNodeIconCSS} className="span-node__icon">
                 <SpanKindIcon spanKind={node.span.spanKind} />
               </div>
               <div css={spanNodeContentCSS} className="span-node__content">
@@ -306,9 +301,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             </SpanNodeWrap>
           </div>
         </Focusable>
-        {/* Anchored to the icon, so the preview points at the node rather
-            than at the row's edge across the nesting gutter */}
-        <SpanPreviewTooltip span={node.span} triggerRef={iconRef} />
+        <SpanPreviewTooltip span={node.span} />
       </TooltipTrigger>
       {childNodes.length ? (
         <ul
