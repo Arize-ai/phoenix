@@ -1,17 +1,28 @@
 import type { LoaderFunctionArgs } from "react-router";
 
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
-import { parsePromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import type {
+  EvaluatorTaskParam,
+  PromptParam,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import {
+  parseEvaluatorTaskParams,
+  parsePromptParams,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type {
   PlaygroundInstance,
   PlaygroundProps,
   PlaygroundStateByDatasetId,
 } from "@phoenix/store";
-import { createNormalizedPlaygroundInstance } from "@phoenix/store";
+import {
+  createEvaluatorTaskInstance,
+  createNormalizedPlaygroundInstance,
+} from "@phoenix/store";
 
 import { fetchExperimentPlaygroundProps } from "./experimentRehydration";
+import { fetchPlaygroundEvaluatorAsInstance } from "./fetchPlaygroundEvaluator";
 
 /**
  * A playground instance as returned by the fetch layer, before a
@@ -27,6 +38,11 @@ export type PlaygroundPageLoaderData =
   | {
       source: "prompt";
       promptParams: PromptParam[];
+      instances: PlaygroundInstanceWithoutId[];
+      templateFormat: TemplateFormat;
+    }
+  | {
+      source: "evaluator";
       instances: PlaygroundInstanceWithoutId[];
       templateFormat: TemplateFormat;
     }
@@ -64,7 +80,7 @@ function buildPlaygroundInstancesFromLoaderData(
 ): PlaygroundInstance[] | undefined {
   if (
     !loaderData ||
-    loaderData.source !== "prompt" ||
+    loaderData.source === "experiment" ||
     loaderData.instances.length === 0
   ) {
     return undefined;
@@ -116,85 +132,181 @@ export function buildPlaygroundPropsFromLoaderData(
 }
 
 /**
- * Loader for the /playground route.
+ * The fetches the loader makes. The route uses the real ones; tests hand in
+ * stand-ins, so the loader's ordering and fallback rules are checked without
+ * the network.
+ */
+export type PlaygroundPageLoaderFetchers = {
+  fetchPromptAsInstance: typeof fetchPlaygroundPromptAsInstance;
+  fetchEvaluatorAsInstance: typeof fetchPlaygroundEvaluatorAsInstance;
+  fetchExperimentProps: typeof fetchExperimentPlaygroundProps;
+};
+
+const ROUTE_FETCHERS: PlaygroundPageLoaderFetchers = {
+  fetchPromptAsInstance: fetchPlaygroundPromptAsInstance,
+  fetchEvaluatorAsInstance: fetchPlaygroundEvaluatorAsInstance,
+  fetchExperimentProps: fetchExperimentPlaygroundProps,
+};
+
+/**
+ * Loads the evaluator tasks the URL names, one instance per position. A
+ * task that fails to load (deleted, built-in) is skipped; a page with no
+ * loadable task opens on a fresh LLM evaluator draft so the kind the URL
+ * asked for is kept.
+ */
+async function loadEvaluatorTaskInstances(
+  evaluators: EvaluatorTaskParam[],
+  fetchEvaluatorAsInstance: PlaygroundPageLoaderFetchers["fetchEvaluatorAsInstance"]
+): Promise<Extract<PlaygroundPageLoaderData, { source: "evaluator" }>> {
+  const fetches = evaluators.map((param) => {
+    // A binding names its evaluator too, so the binding wins: its mapping is
+    // what the task should carry.
+    const source = param.projectEvaluatorId
+      ? {
+          type: "projectEvaluator" as const,
+          projectEvaluatorId: param.projectEvaluatorId,
+        }
+      : param.datasetEvaluatorId
+        ? {
+            type: "datasetEvaluator" as const,
+            datasetEvaluatorId: param.datasetEvaluatorId,
+          }
+        : param.evaluatorId
+          ? { type: "evaluator" as const, evaluatorId: param.evaluatorId }
+          : null;
+
+    return source
+      ? fetchEvaluatorAsInstance(source).catch(() => null)
+      : Promise.resolve(null);
+  });
+
+  const loaded = (await Promise.all(fetches)).filter(
+    (result) => result != null
+  );
+
+  if (loaded.length === 0) {
+    return {
+      source: "evaluator",
+      instances: [createEvaluatorTaskInstance({ kind: "LLM" })],
+      templateFormat: TemplateFormats.Mustache,
+    };
+  }
+
+  return {
+    source: "evaluator",
+    instances: loaded.map((result) => result.instance),
+    // The page has one format; the first judge prompt's is as good a pick
+    // as any, and code evaluators have no say.
+    templateFormat:
+      loaded.find((result) => result.templateFormat != null)?.templateFormat ??
+      TemplateFormats.Mustache,
+  };
+}
+
+/**
+ * Builds the loader for the /playground route over the given fetches.
  *
- * Supports two sources:
- * - promptId/promptVersionId/promptTagName URL params → load from prompt version
+ * Supports three sources:
  * - experimentId URL param → load from experiment task config
+ * - evaluator{n}/datasetEvaluator{n} URL params, or taskKind=evaluator → evaluator tasks
+ * - promptId/promptVersionId/promptTagName URL params → load from prompt version
  *
  * Returns `null` when no params are present (default playground).
  */
-export const playgroundPageLoader = async ({
-  request,
-}: LoaderFunctionArgs): Promise<PlaygroundPageLoaderData> => {
-  const url = new URL(request.url);
+export function createPlaygroundPageLoader(
+  fetchers: PlaygroundPageLoaderFetchers = ROUTE_FETCHERS
+) {
+  return async ({
+    request,
+  }: LoaderFunctionArgs): Promise<PlaygroundPageLoaderData> => {
+    const url = new URL(request.url);
 
-  // Check for experiment rehydration first
-  const experimentId = url.searchParams.get("experimentId");
-  if (experimentId) {
-    const result = await fetchExperimentPlaygroundProps(experimentId);
-    if (result) {
-      return {
-        source: "experiment",
-        playgroundProps: result.playgroundProps,
-        datasetId: result.datasetId,
-        stateByDatasetId: result.stateByDatasetId,
-        selectedDatasetEvaluatorIds: result.selectedDatasetEvaluatorIds,
-      };
+    // Check for experiment rehydration first
+    const experimentId = url.searchParams.get("experimentId");
+
+    if (experimentId) {
+      const result = await fetchers.fetchExperimentProps(experimentId);
+
+      if (result) {
+        return {
+          source: "experiment",
+          playgroundProps: result.playgroundProps,
+          datasetId: result.datasetId,
+          stateByDatasetId: result.stateByDatasetId,
+          selectedDatasetEvaluatorIds: result.selectedDatasetEvaluatorIds,
+        };
+      }
+
+      return null;
     }
-    return null;
-  }
 
-  // Fall back to prompt params
-  const promptParams = parsePromptParams(url.searchParams);
+    const evaluatorTasks = parseEvaluatorTaskParams(url.searchParams);
 
-  if (!promptParams.length) {
-    return null;
-  }
-
-  // De-duplicate identical prompt params so we only make one network
-  // request per unique (promptId, promptVersionId, tagName) triple.
-  const fetchCache = new Map<
-    string,
-    Promise<{
-      instance: PlaygroundInstanceWithoutId;
-      promptVersion: { templateFormat: string };
-    } | null>
-  >();
-
-  for (const { promptId, promptVersionId, tagName } of promptParams) {
-    const key = promptParamKey(promptId, promptVersionId, tagName);
-    if (!fetchCache.has(key)) {
-      fetchCache.set(
-        key,
-        fetchPlaygroundPromptAsInstance({
-          promptId,
-          promptVersionId,
-          tagName,
-        }).catch(() => null) // Skip prompts that fail to load (e.g. deleted)
+    if (evaluatorTasks.isEvaluatorKind) {
+      return loadEvaluatorTaskInstances(
+        evaluatorTasks.evaluators,
+        fetchers.fetchEvaluatorAsInstance
       );
     }
-  }
 
-  // Wait for all unique fetches, then map each param to its result in
-  // the original order so that instance positions match the URL params.
-  await Promise.all(fetchCache.values());
+    // Fall back to prompt params
+    const promptParams = parsePromptParams(url.searchParams);
 
-  const instances: PlaygroundInstanceWithoutId[] = [];
-  let templateFormat: TemplateFormat | null = null;
-
-  for (const { promptId, promptVersionId, tagName } of promptParams) {
-    const key = promptParamKey(promptId, promptVersionId, tagName);
-    const result = await fetchCache.get(key);
-    if (result) {
-      instances.push(result.instance);
-      templateFormat ??= result.promptVersion.templateFormat as TemplateFormat;
+    if (!promptParams.length) {
+      return null;
     }
-  }
 
-  if (instances.length === 0 || templateFormat === null) {
-    return null;
-  }
+    // De-duplicate identical prompt params so we only make one network
+    // request per unique (promptId, promptVersionId, tagName) triple.
+    const fetchCache = new Map<
+      string,
+      Promise<{
+        instance: PlaygroundInstanceWithoutId;
+        promptVersion: { templateFormat: string };
+      } | null>
+    >();
 
-  return { source: "prompt", promptParams, instances, templateFormat };
-};
+    for (const { promptId, promptVersionId, tagName } of promptParams) {
+      const key = promptParamKey(promptId, promptVersionId, tagName);
+
+      if (!fetchCache.has(key)) {
+        fetchCache.set(
+          key,
+          fetchers
+            .fetchPromptAsInstance({ promptId, promptVersionId, tagName })
+            .catch(() => null) // Skip prompts that fail to load (e.g. deleted)
+        );
+      }
+    }
+
+    // Wait for all unique fetches, then map each param to its result in
+    // the original order so that instance positions match the URL params.
+    await Promise.all(fetchCache.values());
+
+    const instances: PlaygroundInstanceWithoutId[] = [];
+    let templateFormat: TemplateFormat | null = null;
+
+    for (const { promptId, promptVersionId, tagName } of promptParams) {
+      const key = promptParamKey(promptId, promptVersionId, tagName);
+      const result = await fetchCache.get(key);
+
+      if (result) {
+        instances.push(result.instance);
+        // SAFETY: Relay widens the schema's TemplateFormat enum with
+        // "%future added value"; a saved prompt version always carries a
+        // known format.
+        templateFormat ??= result.promptVersion
+          .templateFormat as TemplateFormat;
+      }
+    }
+
+    if (instances.length === 0 || templateFormat === null) {
+      return null;
+    }
+
+    return { source: "prompt", promptParams, instances, templateFormat };
+  };
+}
+
+/** The /playground route's loader, over the real fetches. */
+export const playgroundPageLoader = createPlaygroundPageLoader();

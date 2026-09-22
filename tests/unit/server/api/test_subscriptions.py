@@ -286,7 +286,7 @@ class TestChatCompletionSubscription:
                         "messages": [{"role": "USER", "content": [{"text": {"text": "hello"}}]}]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -1129,10 +1129,12 @@ class TestChatCompletionSubscription:
         assert not attributes
 
 
-class TestChatCompletionOverDatasetSubscription:
+class TestExperimentsOverDatasetPromptTaskSubscription:
+    """Prompt-task behaviours the legacy single-task dataset subscription used to carry."""
+
     QUERY = """
-      subscription ChatCompletionOverDatasetSubscription($input: ChatCompletionOverDatasetInput!) {
-        chatCompletionOverDataset(input: $input) {
+      subscription ExperimentsOverDatasetSubscription($input: ExperimentsOverDatasetInput!) {
+        experimentsOverDataset(input: $input) {
           __typename
           datasetExampleId
           ... on TextChunk {
@@ -1269,28 +1271,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
+                ],
                 "repetitions": 1,
                 "createEphemeralExperiment": True,
             }
@@ -1303,10 +1310,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1323,10 +1330,10 @@ class TestChatCompletionOverDatasetSubscription:
         subscription_runs = {}
         subscription_spans = {}
         for example_id in example_ids:
-            last_payload = payloads[example_id][-1]["chatCompletionOverDataset"]
+            last_payload = payloads[example_id][-1]["experimentsOverDataset"]
             if last_payload["__typename"] != ChatCompletionSubscriptionResult.__name__:
                 continue
-            result_payload = payloads[example_id].pop()["chatCompletionOverDataset"]
+            result_payload = payloads[example_id].pop()["experimentsOverDataset"]
             assert result_payload.pop("__typename") == ChatCompletionSubscriptionResult.__name__
             assert result_payload.pop("datasetExampleId") == example_id
             subscription_runs[example_id] = result_payload.pop("experimentRun")
@@ -1336,35 +1343,35 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 1 response text
         example_id = example_ids[0]
         assert all(
-            payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+            payload["experimentsOverDataset"]["__typename"] == TextChunk.__name__
             for payload in payloads[example_id]
         )
         response_text = "".join(
-            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
+            payload["experimentsOverDataset"]["content"] for payload in payloads[example_id]
         )
         assert response_text == "France"
 
         # check example 2 response text
         example_id = example_ids[1]
         assert all(
-            payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+            payload["experimentsOverDataset"]["__typename"] == TextChunk.__name__
             for payload in payloads[example_id]
         )
         response_text = "".join(
-            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
+            payload["experimentsOverDataset"]["content"] for payload in payloads[example_id]
         )
         assert response_text == "Japan"
 
         # check example 3 error message
         example_id = example_ids[2]
-        assert (error_payload := payloads[example_id].pop()["chatCompletionOverDataset"])[
+        assert (error_payload := payloads[example_id].pop()["experimentsOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionError.__name__
         assert error_payload["message"] == "Missing template variable(s): city"
 
         # check experiment payload
         assert len(payloads[None]) == 1
-        assert (experiment_payload := payloads[None].pop()["chatCompletionOverDataset"])[
+        assert (experiment_payload := payloads[None].pop()["experimentsOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionExperiment.__name__
         experiment = experiment_payload["experiment"]
@@ -1681,31 +1688,36 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": (
-                                                "What country is {city} in? "
-                                                "Answer with the country name only without punctuation."
-                                            )
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": (
+                                                            "What country is {city} in? "
+                                                            "Answer with the country name only without punctuation."
+                                                        )
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
+                ],
                 "repetitions": 1,
             }
         }
@@ -1717,10 +1729,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1736,11 +1748,11 @@ class TestChatCompletionOverDatasetSubscription:
 
         # check span payloads
         for example_id in example_ids:
-            assert (span_payload := payloads[example_id].pop()["chatCompletionOverDataset"])[
+            assert (span_payload := payloads[example_id].pop()["experimentsOverDataset"])[
                 "__typename"
             ] == ChatCompletionSubscriptionResult.__name__
             assert all(
-                payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+                payload["experimentsOverDataset"]["__typename"] == TextChunk.__name__
                 for payload in payloads[example_id]
             )
             assert (span := span_payload["span"])
@@ -1763,13 +1775,13 @@ class TestChatCompletionOverDatasetSubscription:
             )
             assert output_message_content == cities_to_countries[city]
             response_text = "".join(
-                payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
+                payload["experimentsOverDataset"]["content"] for payload in payloads[example_id]
             )
             assert response_text == output_message_content
 
         # check experiment payload
         assert len(payloads[None]) == 1
-        assert (experiment := payloads[None].pop()["chatCompletionOverDataset"]["experiment"])
+        assert (experiment := payloads[None].pop()["experimentsOverDataset"]["experiment"])
         experiment_id = experiment["id"]
         assert isinstance(experiment_id, str)
 
@@ -1793,28 +1805,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
+                ],
                 "repetitions": 1,
                 "splitIds": [train_split_id],  # Only train split
             }
@@ -1828,10 +1845,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1858,7 +1875,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment payload exists
         assert len(payloads[None]) == 1
-        assert (experiment_payload := payloads[None][0]["chatCompletionOverDataset"])[
+        assert (experiment_payload := payloads[None][0]["experimentsOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionExperiment.__name__
         experiment_id = experiment_payload["experiment"]["id"]
@@ -1893,28 +1910,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
+                ],
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],  # Both splits
             }
@@ -1928,10 +1950,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1944,7 +1966,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment has both split associations in DB
         assert len(payloads[None]) == 1
-        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+        experiment_id = payloads[None][0]["experimentsOverDataset"]["experiment"]["id"]
 
         async with db() as session:
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
@@ -2046,28 +2068,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
+                ],
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],
             }
@@ -2084,9 +2111,9 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                dataset_example_id = payload["chatCompletionOverDataset"]["datasetExampleId"]
+                dataset_example_id = payload["experimentsOverDataset"]["datasetExampleId"]
                 payloads.setdefault(dataset_example_id, []).append(payload)
 
         all_example_ids = [
@@ -2095,9 +2122,9 @@ class TestChatCompletionOverDatasetSubscription:
         assert set(payloads.keys()) == set(all_example_ids) | {None}
         for example_id in all_example_ids:
             result_payloads = [
-                p["chatCompletionOverDataset"]
+                p["experimentsOverDataset"]
                 for p in payloads[example_id]
-                if p["chatCompletionOverDataset"]["__typename"]
+                if p["experimentsOverDataset"]["__typename"]
                 == ChatCompletionSubscriptionResult.__name__
             ]
             assert len(result_payloads) == 1, f"expected one result for {example_id}"
@@ -2118,28 +2145,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
+                ],
                 "repetitions": 1,
                 # No splitIds provided
             }
@@ -2153,10 +2185,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -2169,7 +2201,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment has NO split associations in DB
         assert len(payloads[None]) == 1
-        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+        experiment_id = payloads[None][0]["experimentsOverDataset"]["experiment"]["id"]
 
         async with db() as session:
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
@@ -2251,42 +2283,46 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
-                    },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
-                "repetitions": 1,
-                "tracingEnabled": True,
-                "evaluators": [
-                    {
-                        "id": llm_evaluator_gid,
-                        "name": "correctness",
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                    },
-                    {
-                        "id": builtin_evaluator_gid,
-                        "name": "exact-match",
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                            "evaluators": [
+                                {
+                                    "id": llm_evaluator_gid,
+                                    "name": "correctness",
+                                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                },
+                                {
+                                    "id": builtin_evaluator_gid,
+                                    "name": "exact-match",
+                                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                },
+                            ],
+                        },
                     },
                 ],
+                "repetitions": 1,
             }
         }
 
@@ -2297,13 +2333,13 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                typename = payload["chatCompletionOverDataset"]["__typename"]
+                typename = payload["experimentsOverDataset"]["__typename"]
                 if typename == EvaluationChunk.__name__:
-                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
+                    evaluation_chunks.append(payload["experimentsOverDataset"])
                 else:
-                    dataset_example_id = payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id = payload["experimentsOverDataset"]["datasetExampleId"]
                     if dataset_example_id not in payloads:
                         payloads[dataset_example_id] = []
                     payloads[dataset_example_id].append(payload)
@@ -2840,41 +2876,47 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
-                                        }
-                                    }
-                                ],
-                            }
-                        ]
-                    },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-nonexistent-model",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "repetitions": 1,
-                "evaluators": [
+                "tasks": [
                     {
-                        "id": evaluator_gid,
-                        "name": "correctness",
-                        "inputMapping": {
-                            "literalMapping": {},
-                            "pathMapping": {
-                                "input": "$.input",
-                                "output": "$.output",
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
+                                        }
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-nonexistent-model",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
                             },
+                            "evaluators": [
+                                {
+                                    "id": evaluator_gid,
+                                    "name": "correctness",
+                                    "inputMapping": {
+                                        "literalMapping": {},
+                                        "pathMapping": {
+                                            "input": "$.input",
+                                            "output": "$.output",
+                                        },
+                                    },
+                                }
+                            ],
                         },
-                    }
+                    },
                 ],
+                "repetitions": 1,
             }
         }
 
@@ -2885,13 +2927,13 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                typename = payload["chatCompletionOverDataset"]["__typename"]
+                typename = payload["experimentsOverDataset"]["__typename"]
                 if typename == ChatCompletionSubscriptionError.__name__:
-                    error_chunks.append(payload["chatCompletionOverDataset"])
+                    error_chunks.append(payload["experimentsOverDataset"])
                 elif typename == EvaluationChunk.__name__:
-                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
+                    evaluation_chunks.append(payload["experimentsOverDataset"])
 
         # Verify we got an error chunk (message may mention model or be a connection/API error)
         assert len(error_chunks) == 1
@@ -2951,36 +2993,41 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
-                                        }
-                                    }
-                                ],
-                            }
-                        ]
-                    },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
-                "repetitions": 1,
-                "evaluators": [
+                "tasks": [
                     {
-                        "id": evaluator_gid,
-                        "name": custom_name,
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                    }
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
+                                        }
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4o",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                            "evaluators": [
+                                {
+                                    "id": evaluator_gid,
+                                    "name": custom_name,
+                                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                }
+                            ],
+                        },
+                    },
                 ],
+                "repetitions": 1,
             }
         }
 
@@ -2993,11 +3040,11 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                typename = payload["chatCompletionOverDataset"]["__typename"]
+                typename = payload["experimentsOverDataset"]["__typename"]
                 if typename == EvaluationChunk.__name__:
-                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
+                    evaluation_chunks.append(payload["experimentsOverDataset"])
 
         # Verify we got exactly 1 evaluation chunk with custom display name
         assert len(evaluation_chunks) == 1
@@ -3068,7 +3115,7 @@ class TestExperimentsOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
