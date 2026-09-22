@@ -1,8 +1,7 @@
-import type { LanguageModel } from "ai";
-
 import { getTemplateVariables } from "../template";
 import type {
   ClassificationChoicesMap,
+  ClassificationModel,
   CreateClassificationEvaluatorArgs,
   EvaluatorFn,
   PromptTemplate,
@@ -29,7 +28,7 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
   /**
    * The model to use for classification
    */
-  readonly model: LanguageModel;
+  readonly model: ClassificationModel;
   /**
    * The choices to classify the example into
    */

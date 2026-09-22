@@ -1,5 +1,6 @@
 import type { LanguageModel } from "ai";
 
+import type { EvaluationModel } from "../utils/isEvaluationModel";
 import type { ObjectMapping } from "./data";
 import type { WithTelemetry } from "./otel";
 import type { PromptTemplate } from "./templating";
@@ -14,8 +15,16 @@ export interface ExampleRecord<OutputType, InputType> {
   [key: string]: unknown;
 }
 
+/**
+ * A model that can perform a classification. Either a regular AI SDK
+ * {@link LanguageModel}, or an AI SDK evaluation model (e.g. TypeSafe's Jev)
+ * which classifies without generating text and therefore cannot produce an
+ * explanation.
+ */
+export type ClassificationModel = LanguageModel | EvaluationModel;
+
 export interface WithLLM {
-  model: LanguageModel;
+  model: ClassificationModel;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -68,9 +77,9 @@ export type ClassificationChoicesMap = Record<string, number>;
  */
 export interface CreateClassifierArgs extends WithTelemetry {
   /*
-   * The LLM to use for classification / evaluation
+   * The model to use for classification / evaluation
    */
-  model: LanguageModel;
+  model: ClassificationModel;
   /**
    * The choices to classify the example into.
    * e.g. { "correct": 1, "incorrect": 0 }
