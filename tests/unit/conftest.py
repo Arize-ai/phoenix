@@ -423,6 +423,7 @@ def _memoized_fastapi_type_adapters(
 _ROUTER_BUILDER_NAMES = (
     "create_v1_router",
     "create_agents_router",
+    "create_codex_auth_router",
     "create_legacy_agents_router",
 )
 _REAL_ROUTER_BUILDERS: dict[str, Callable[..., APIRouter]] = {
