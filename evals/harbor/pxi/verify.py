@@ -2,8 +2,7 @@
 
 Usage inside a task verifier::
 
-    PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.verify \
-        --example /app/example.json --seed /app/seed.json
+    PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.verify --seed /app/seed.json
 
 The verifier reads the session transcript back from the running Phoenix server, drops
 the seeded prefix, converts the new assistant parts to the message shape the PXI
@@ -130,13 +129,12 @@ def fetch_session_messages(base_url: str, session_id: str) -> list[dict[str, Any
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--example", type=Path, default=Path("/app/example.json"))
     parser.add_argument("--seed", type=Path, default=Path("/app/seed.json"))
     parser.add_argument("--base-url", default="http://127.0.0.1:6006")
     parser.add_argument("--reward-file", type=Path, default=None)
     args = parser.parse_args(argv)
-    example = json.loads(args.example.read_text())
     seed = json.loads(args.seed.read_text())
+    example = seed["example"]
     transcript = fetch_session_messages(args.base_url, seed["session_id"])
     turn_messages = scored_messages(transcript, seed["scoring"])
     output = evaluator_output(turn_messages)

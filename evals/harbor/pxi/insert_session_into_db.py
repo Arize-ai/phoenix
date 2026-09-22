@@ -1,11 +1,12 @@
 """Seed a PXI agent session with an example's primed transcript.
 
 ``plan_seed`` turns an example into the rows to store and the ``ChatRequestBody`` that
-continues the turn. The command line writes the rows to the Phoenix database and the plan
-to a JSON file for the verifier, and prints the request for the chat client::
+continues the turn. The command line reads the example from stdin, writes the rows to the
+Phoenix database and the plan (example included) to a JSON file for the verifier, and
+prints the request for the chat client::
 
-    PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.insert_session_into_db /app/example.json \
-        --model openai/gpt-5.4 --out /app/seed.json
+    PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.insert_session_into_db \
+        --model openai/gpt-5.4 --out /app/seed.json < example.json
 
 The transcript ends either with a user message, which becomes the request's ``message``,
 or with an assistant message whose tool calls have completed outputs. In the second case
@@ -22,6 +23,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -321,6 +323,7 @@ def plan_seed(
     scoring["seeded_message_ids"] = [message["id"] for message in stored]
 
     return {
+        "example": example,
         "session": {
             "project_name": get_env_phoenix_agents_assistant_project_name(),
             "title": f"{example['dataset']}/{example['id']}",
@@ -370,12 +373,11 @@ def write_session(plan: dict[str, Any], *, database_url: str) -> int:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("example", type=Path)
     parser.add_argument("--model", required=True, help="Harbor provider/model name")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--database-url", default="sqlite:////data/phoenix.db")
     args = parser.parse_args(argv)
-    example = json.loads(args.example.read_text())
+    example = json.load(sys.stdin)
     plan = plan_seed(example, model=args.model)
     rowid = write_session(plan, database_url=args.database_url)
     plan["session_id"] = agent_session_global_id(rowid)
