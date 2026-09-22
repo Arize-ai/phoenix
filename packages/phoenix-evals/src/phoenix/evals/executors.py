@@ -549,7 +549,12 @@ class SyncExecutor(Executor):
                             break
                         except Exception as exc:
                             execution_details[index].log_exception(exc)
-                            is_phoenix_exception = isinstance(exc, PhoenixException)
+                            # RateLimitError subclasses PhoenixException but is transient, so it
+                            # must not be treated as fatal here (mirrors the AsyncExecutor).
+                            is_rate_limit_error = isinstance(exc, RateLimitError)
+                            is_phoenix_exception = (
+                                isinstance(exc, PhoenixException) and not is_rate_limit_error
+                            )
                             if attempt >= self.max_retries or is_phoenix_exception:
                                 raise exc
                             else:
