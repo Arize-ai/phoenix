@@ -4,6 +4,7 @@ import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
 import {
+  CODEX_ACCESS_TOKEN_CREDENTIAL_KEY,
   getEffectiveAttachUserId,
   getEffectiveTraceRecordingSettings,
   GITHUB_PAT_CREDENTIAL_KEY,
@@ -55,6 +56,11 @@ type BuildAgentChatRequestBodyOptions = {
    * the server never persists them.
    */
   integrationCredentials?: Record<string, string>;
+  /**
+   * Access token of the browser's ChatGPT (Codex subscription) sign-in. Rides
+   * the request only when the turn's model is on the `OPENAI_CODEX` provider.
+   */
+  codexAccessToken?: string | null;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
   /** Tool calls this client resolved as interrupted. */
@@ -62,6 +68,45 @@ type BuildAgentChatRequestBodyOptions = {
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequestBody"];
+
+type ChatRequestCredential = components["schemas"]["ChatRequestCredential"];
+
+/** Whether a selection runs on the ChatGPT (Codex subscription) provider. */
+export function isCodexModelSelection(
+  modelSelection: AgentModelSelection
+): boolean {
+  return (
+    modelSelection.providerType === "builtin" &&
+    modelSelection.provider === "OPENAI_CODEX"
+  );
+}
+
+/**
+ * Client-held credentials that ride a chat or compaction request. The
+ * ChatGPT token is attached only for turns on the Codex provider, so a
+ * subscription token never reaches a request for another provider.
+ */
+export function buildChatRequestCredentials({
+  githubToken,
+  codexAccessToken,
+  modelSelection,
+}: {
+  githubToken?: string | null;
+  codexAccessToken?: string | null;
+  modelSelection: AgentModelSelection;
+}): ChatRequestCredential[] {
+  const credentials: ChatRequestCredential[] = [];
+  if (githubToken) {
+    credentials.push({ key: GITHUB_PAT_CREDENTIAL_KEY, value: githubToken });
+  }
+  if (codexAccessToken && isCodexModelSelection(modelSelection)) {
+    credentials.push({
+      key: CODEX_ACCESS_TOKEN_CREDENTIAL_KEY,
+      value: codexAccessToken,
+    });
+  }
+  return credentials;
+}
 
 /**
  * Browser-recorded execution timings added to the `phoenix` namespace of
@@ -148,6 +193,7 @@ export function buildAgentChatRequestBody({
   integrationCredentials = {},
   toolTimings = null,
   locallyInterruptedToolCallIds = {},
+  codexAccessToken,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const traceRecording = getEffectiveTraceRecordingSettings({
     agentsConfig,
@@ -164,15 +210,16 @@ export function buildAgentChatRequestBody({
   const githubToken = agentsConfig.githubEnabled
     ? integrationCredentials[GITHUB_PAT_CREDENTIAL_KEY]
     : undefined;
+  const credentials = buildChatRequestCredentials({
+    githubToken,
+    codexAccessToken,
+    modelSelection,
+  });
   const base = {
     ...body,
     id,
     headless: false,
-    ...(githubToken
-      ? {
-          credentials: [{ key: GITHUB_PAT_CREDENTIAL_KEY, value: githubToken }],
-        }
-      : {}),
+    ...(credentials.length > 0 ? { credentials } : {}),
     recordLocalTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
     instrumentUserId: getEffectiveAttachUserId({ agentsConfig, observability }),

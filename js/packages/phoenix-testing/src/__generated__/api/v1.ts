@@ -1573,7 +1573,7 @@ export interface paths {
         put?: never;
         /**
          * OpenAI-compatible chat completions
-         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
+         * @description Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) — callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, openai_codex, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.
          *
          *     **Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.
          */
@@ -1895,6 +1895,86 @@ export interface paths {
         put?: never;
         /** Chat */
         post: operations["agentSessionChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/codex/device_auth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Device Auth
+         * @description Begin a ChatGPT device-code sign-in for the public Codex client.
+         */
+        post: operations["startCodexDeviceAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/codex/device_auth/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Poll Device Auth
+         * @description One poll of a device-code sign-in. Completes with the token bundle.
+         */
+        post: operations["pollCodexDeviceAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/codex/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh
+         * @description Rotate the browser's refresh token. Refresh tokens are single-use.
+         */
+        post: operations["refreshCodexTokens"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/codex/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * List Models
+         * @description Models the signed-in ChatGPT subscription can use.
+         */
+        post: operations["listCodexModels"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2464,9 +2544,9 @@ export interface components {
             /**
              * Key
              * @description The credential's secret-key name.
-             * @constant
+             * @enum {string}
              */
-            key: "GITHUB_PERSONAL_ACCESS_TOKEN";
+            key: "GITHUB_PERSONAL_ACCESS_TOKEN" | "OPENAI_CODEX_ACCESS_TOKEN";
             /**
              * Value
              * Format: password
@@ -2483,6 +2563,83 @@ export interface components {
             /** Evaluatornodeid */
             evaluatorNodeId?: string | null;
         };
+        /** CodexDeviceAuthPollRequestBody */
+        CodexDeviceAuthPollRequestBody: {
+            /** Deviceauthid */
+            deviceAuthId: string;
+            /** Usercode */
+            userCode: string;
+        };
+        /** CodexDeviceAuthPollResponseBody */
+        CodexDeviceAuthPollResponseBody: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "complete";
+            tokens?: components["schemas"]["CodexTokenBundle"] | null;
+        };
+        /** CodexDeviceAuthStartResponseBody */
+        CodexDeviceAuthStartResponseBody: {
+            /** Deviceauthid */
+            deviceAuthId: string;
+            /**
+             * Usercode
+             * @description One-time code the user types at ``verificationUrl``.
+             */
+            userCode: string;
+            /**
+             * Intervalseconds
+             * @description Suggested polling interval.
+             */
+            intervalSeconds: number;
+            /** Verificationurl */
+            verificationUrl: string;
+            /**
+             * Expiresinseconds
+             * @description The user code expires roughly this long after it was issued.
+             * @default 900
+             */
+            expiresInSeconds?: number;
+        };
+        /** CodexModelsRequestBody */
+        CodexModelsRequestBody: {
+            /**
+             * Accesstoken
+             * Format: password
+             */
+            accessToken: string;
+        };
+        /** CodexModelsResponseBody */
+        CodexModelsResponseBody: {
+            /**
+             * Models
+             * @description Model slugs the subscription can use.
+             */
+            models: string[];
+        };
+        /** CodexRefreshRequestBody */
+        CodexRefreshRequestBody: {
+            /**
+             * Refreshtoken
+             * Format: password
+             */
+            refreshToken: string;
+        };
+        /**
+         * CodexTokenBundle
+         * @description The browser-held credential set. Returned once; never stored server-side.
+         */
+        CodexTokenBundle: {
+            /** Accesstoken */
+            accessToken: string;
+            /** Refreshtoken */
+            refreshToken: string;
+            /** Idtoken */
+            idToken?: string | null;
+            /** Accountid */
+            accountId: string;
+        };
         /**
          * CompactAgentSessionRequestBody
          * @description Request a model-generated checkpoint for a persisted conversation.
@@ -2490,6 +2647,11 @@ export interface components {
         CompactAgentSessionRequestBody: {
             /** @description The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``. */
             model: components["schemas"]["AgentModelSelection"];
+            /**
+             * Credentials
+             * @description Client-held credentials the summary model needs, as on the chat route (e.g. the ChatGPT subscription token for Codex sessions). Never persisted.
+             */
+            credentials?: components["schemas"]["ChatRequestCredential"][];
         };
         /**
          * CompactAgentSessionResponseBody
@@ -2593,7 +2755,7 @@ export interface components {
         CreateChatCompletionRequestBody: {
             /**
              * Model
-             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
+             * @description Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, openai_codex, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'.
              */
             model: string;
             /** Messages */
@@ -4096,7 +4258,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
+        ModelProvider: "OPENAI" | "OPENAI_CODEX" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -13876,6 +14038,233 @@ export interface operations {
             };
             /** @description Insufficient Storage */
             507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    startCodexDeviceAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexDeviceAuthStartResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    pollCodexDeviceAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodexDeviceAuthPollRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexDeviceAuthPollResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    refreshCodexTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodexRefreshRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexTokenBundle"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listCodexModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodexModelsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodexModelsResponseBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

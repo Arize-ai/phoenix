@@ -23,6 +23,7 @@ export const convertMessageToolCallsToProvider = ({
   return toolCalls.map((toolCall) => {
     switch (provider) {
       case "OPENAI":
+      case "OPENAI_CODEX":
       case "DEEPSEEK":
       case "XAI":
       case "OLLAMA":

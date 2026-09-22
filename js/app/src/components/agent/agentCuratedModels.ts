@@ -1,14 +1,13 @@
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
 
 export type AgentBuiltInModelSelection = {
-  provider: GenerativeProviderKey;
+  provider: ModelProvider;
   modelName: string;
 };
 
 export type AgentPlaygroundModel = {
   readonly name: string;
-  readonly providerKey: GenerativeProviderKey;
+  readonly providerKey: ModelProvider;
 };
 
 export const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentBuiltInModelSelection[] =

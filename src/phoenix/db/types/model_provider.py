@@ -124,6 +124,9 @@ async def _bedrock_client_with_headers(
 
 class ModelProvider(Enum):
     OPENAI = "OPENAI"
+    # ChatGPT/Codex subscription auth (OAuth), not an API key. Speaks the
+    # Responses API against the Codex backend.
+    OPENAI_CODEX = "OPENAI_CODEX"
     AZURE_OPENAI = "AZURE_OPENAI"
     ANTHROPIC = "ANTHROPIC"
     GOOGLE = "GOOGLE"

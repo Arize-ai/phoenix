@@ -1,5 +1,6 @@
 import { Alert, Flex, Text } from "@phoenix/components";
 import { SystemSettingsWarning } from "@phoenix/components/agent";
+import { AgentCodexSettings } from "@phoenix/components/agent/AgentCodexSettings";
 import { isAgentCuratedModelSelection } from "@phoenix/components/agent/agentCuratedModels";
 import { AgentModelMenu } from "@phoenix/components/agent/AgentModelMenu";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
@@ -175,6 +176,7 @@ export function SettingsAgentsGeneralTab() {
         <ul css={settingsRowsCSS}>
           <AssistantAgentEnabledSetting />
           <AssistantModelSetting />
+          <AgentCodexSettings />
           <AssistantFabModeSetting />
           <AssistantTemporaryChatSetting />
         </ul>

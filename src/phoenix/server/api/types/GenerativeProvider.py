@@ -41,6 +41,10 @@ class GenerativeProviderKey(Enum):
 
         if model_provider is ModelProvider.OPENAI:
             return cls.OPENAI
+        elif model_provider is ModelProvider.OPENAI_CODEX:
+            # Codex has no playground/provider-catalog presence of its own; it
+            # surfaces as OpenAI wherever a GenerativeProviderKey is needed.
+            return cls.OPENAI
         elif model_provider is ModelProvider.AZURE_OPENAI:
             return cls.AZURE_OPENAI
         elif model_provider is ModelProvider.ANTHROPIC:

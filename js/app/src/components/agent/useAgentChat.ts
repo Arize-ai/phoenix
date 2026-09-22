@@ -11,7 +11,10 @@ import {
   buildAgentChatApiUrl,
   buildAgentCompactApiUrl,
 } from "@phoenix/agent/chat/agentChatApi";
-import type { AgentChatRequestBodyPatch } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import {
+  type AgentChatRequestBodyPatch,
+  buildChatRequestCredentials,
+} from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import {
   createAgentSessionChat,
@@ -22,6 +25,7 @@ import { cleanupPendingToolState } from "@phoenix/agent/chat/pendingToolStateCle
 import { USER_INTERRUPT_ERROR } from "@phoenix/agent/chat/shouldSendAutomatically";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { buildUserMessageMetadata } from "@phoenix/agent/chat/userMessageMetadata";
+import { ensureFreshCodexAuth } from "@phoenix/agent/codex/codexAuthApi";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -278,6 +282,9 @@ export function useAgentChat({
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
     setCompactionStatus(null);
+    // A ChatGPT token about to expire is rotated before the turn starts so
+    // the token riding this request outlives the request.
+    await ensureFreshCodexAuth(store);
     if (isDraft) {
       createSessionAndSendMessage(...args);
       return;
@@ -355,10 +362,15 @@ export function useAgentChat({
         );
       };
       try {
+        const codexAuth = await ensureFreshCodexAuth(store);
+        const credentials = buildChatRequestCredentials({
+          codexAccessToken: codexAuth?.accessToken,
+          modelSelection: assertedModel,
+        });
         const response = await authFetch(buildAgentCompactApiUrl(sessionId), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model: assertedModel }),
+          body: JSON.stringify({ model: assertedModel, credentials }),
         });
         if (!response.ok) {
           const errorBody = await response.text().catch(() => "");
