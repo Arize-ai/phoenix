@@ -21,3 +21,27 @@ Every other skill in this directory is for people working on Phoenix itself and 
 metadata:
   internal: true
 ```
+
+## Third-Party Skills
+
+When a vendor ships a Claude Code plugin, install it as a plugin in
+[`.claude/settings.json`](../../.claude/settings.json) (`extraKnownMarketplaces` and
+`enabledPlugins`) instead of copying the skill here. Claude Code installs the plugin for
+anyone who trusts the repository, and the vendor keeps it current.
+
+| Plugin | Marketplace | Replaces |
+| ------ | ----------- | -------- |
+| `daytona` | `daytona` (github.com/daytona/skills) | Daytona sandbox and SDK reference |
+| `mintlify` | `claude-plugins-official` | The Mintlify docs skill |
+
+Skills whose vendor does not ship a plugin are vendored here with
+`npx skills add <source> --project --agent universal` and tracked in
+[`skills-lock.json`](../../skills-lock.json). The daily skills update workflow refreshes
+them and opens a pull request.
+
+| Skill | Source | Why vendored |
+| ----- | ------ | ------------ |
+| [create-task](create-task/) | `harbor-framework/harbor` | Harbor has no plugin |
+| [rewardkit](rewardkit/) | `harbor-framework/harbor` | Harbor has no plugin |
+| [gh-stack](gh-stack/) | `github/gh-stack` | gh-stack has no plugin |
+| [vercel-react-best-practices](vercel-react-best-practices/) | `vercel-labs/agent-skills` | The Vercel plugin bundles 37 skills, commands, agents, and an MCP server; only this skill is wanted |

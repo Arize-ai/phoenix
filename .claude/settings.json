@@ -33,6 +33,16 @@
   },
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true,
+    "mintlify@claude-plugins-official": true,
+    "daytona@daytona": true
+  },
+  "extraKnownMarketplaces": {
+    "daytona": {
+      "source": {
+        "source": "github",
+        "repo": "daytona/skills"
+      }
+    }
   }
 }
