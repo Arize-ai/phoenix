@@ -1,4 +1,4 @@
-"""Human expected outputs for evaluator calibration.
+"""Human expected outputs stored on a dataset example.
 
 An expected output is stored the way the span→example converter stores span
 annotations: under ``metadata["annotations"][<annotation name>]`` as a list of
@@ -47,28 +47,20 @@ def get_expected_outputs(metadata: Mapping[str, Any]) -> dict[str, dict[str, Any
     return expected
 
 
-def without_expected_outputs(
+def without_own_annotations(
     metadata: Mapping[str, Any], annotation_names: Iterable[str]
 ) -> dict[str, Any]:
-    """Return a copy of ``metadata`` without the human expected outputs for the given names.
+    """Return a copy of ``metadata`` with every record under the given annotation names removed.
 
-    Everything else stays: other annotation names, and records of other annotator kinds
-    under the same names. This is the only difference between the context an evaluator
-    task judges and the example revision itself, and it exists so an evaluator never
-    reads the answer key it is being calibrated against.
+    An evaluator binds the whole ``metadata``, so a record under a name it is about to
+    write would reach it as context: a human's expected output, or its own verdict from
+    an earlier evaluation of the same example.
     """
     annotations = metadata.get(ANNOTATIONS_METADATA_KEY)
     names = set(annotation_names)
     if not isinstance(annotations, Mapping) or not names & set(annotations):
         return dict(metadata)
-    kept: dict[str, Any] = {}
-    for name, records in annotations.items():
-        if name in names and isinstance(records, list):
-            remaining = [record for record in records if not _is_expected_output(record)]
-            if remaining:
-                kept[name] = remaining
-        else:
-            kept[name] = records
+    kept = {name: records for name, records in annotations.items() if name not in names}
     return {**metadata, ANNOTATIONS_METADATA_KEY: kept}
 
 

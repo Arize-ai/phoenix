@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a2dc01ee8655538eae8903a1aec78ef>>
+ * @generated SignedSource<<abba5c8556154adce286b49e65b689f8>>
  * @lightSyntaxTransform
  */
 
@@ -24,10 +24,10 @@ export type EvaluatorPreviewsInput = {
 export type EvaluatorPreviewItemInput = {
   applyOnlineEvaluationLimits?: boolean;
   context: any;
-  evaluator: EvaluatorPreviewInput;
+  evaluator: EvaluatorDefinitionInput;
   inputMapping: EvaluatorInputMappingInput;
 };
-export type EvaluatorPreviewInput = {
+export type EvaluatorDefinitionInput = {
   builtInEvaluatorId: string;
   codeEvaluatorId?: never;
   inlineCodeEvaluator?: never;

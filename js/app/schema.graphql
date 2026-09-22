@@ -1293,28 +1293,6 @@ type DatasetExample implements Node {
   datasetSplits: [DatasetSplit!]!
 }
 
-type DatasetExampleCalibrationLabel {
-  annotationName: String!
-  label: String
-  score: Float
-  explanation: String
-}
-
-input DatasetExampleCalibrationLabelInput {
-  exampleId: ID!
-  expectedRevisionId: ID!
-  annotationName: String!
-  label: String
-  score: Float = null
-  explanation: String = null
-}
-
-type DatasetExampleCalibrationLabelsPayload {
-  dataset: Dataset!
-  version: DatasetVersion!
-  examples: [DatasetExample!]!
-}
-
 """A connection to a list of items."""
 type DatasetExampleConnection {
   """Pagination data for this connection"""
@@ -1331,6 +1309,28 @@ type DatasetExampleEdge {
 
   """The item at the end of the edge"""
   node: DatasetExample!
+}
+
+type DatasetExampleExpectedOutput {
+  annotationName: String!
+  label: String
+  score: Float
+  explanation: String
+}
+
+input DatasetExampleExpectedOutputInput {
+  exampleId: ID!
+  expectedRevisionId: ID!
+  annotationName: String!
+  label: String
+  score: Float = null
+  explanation: String = null
+}
+
+type DatasetExampleExpectedOutputsPayload {
+  dataset: Dataset!
+  version: DatasetVersion!
+  examples: [DatasetExample!]!
 }
 
 input DatasetExampleInput {
@@ -1356,7 +1356,7 @@ type DatasetExampleRevision implements ExampleRevision {
   revisionKind: RevisionKind!
   createdAt: DateTime!
   evaluationContext: JSON!
-  calibrationLabels: [DatasetExampleCalibrationLabel!]!
+  expectedOutputs: [DatasetExampleExpectedOutput!]!
 }
 
 type DatasetExperimentAnnotationSummary {
@@ -1990,6 +1990,13 @@ type EvaluatorConnection {
   edges: [EvaluatorEdge!]!
 }
 
+input EvaluatorDefinitionInput @oneOf {
+  builtInEvaluatorId: ID
+  inlineLlmEvaluator: InlineLLMEvaluatorInput
+  codeEvaluatorId: ID
+  inlineCodeEvaluator: InlineCodeEvaluatorInput
+}
+
 """Independent distribution of a project evaluator's primary result."""
 type EvaluatorDistribution {
   """
@@ -2073,15 +2080,8 @@ type EvaluatorLabelCount {
   count: Int!
 }
 
-input EvaluatorPreviewInput @oneOf {
-  builtInEvaluatorId: ID
-  inlineLlmEvaluator: InlineLLMEvaluatorInput
-  codeEvaluatorId: ID
-  inlineCodeEvaluator: InlineCodeEvaluatorInput
-}
-
 input EvaluatorPreviewItemInput {
-  evaluator: EvaluatorPreviewInput!
+  evaluator: EvaluatorDefinitionInput!
   context: JSON!
   inputMapping: EvaluatorInputMappingInput!
 
@@ -2142,8 +2142,7 @@ type EvaluatorTaskConfig implements Node {
 }
 
 input EvaluatorTaskInput {
-  """The evaluator, inline or stored, in the shape the evaluator test uses"""
-  evaluator: EvaluatorPreviewInput!
+  evaluator: EvaluatorDefinitionInput!
   inputMapping: EvaluatorInputMappingInput!
 
   """
@@ -2277,14 +2276,9 @@ type ExperimentJob implements Node {
   maxConcurrency: Int!
 
   """
-  Task configuration snapshot. Use to rehydrate the playground with the exact settings used for this experiment.
+  Snapshot of the task this experiment ran, a prompt or an evaluator. Use to rehydrate the playground with the exact settings used for this experiment. Null for eval-only experiments.
   """
-  taskConfig: PromptTaskConfig
-
-  """
-  Evaluator task configuration snapshot of an experiment whose task is an evaluator. Null for prompt and eval-only experiments.
-  """
-  evaluatorTaskConfig: EvaluatorTaskConfig
+  taskConfig: ExperimentTaskConfig
 
   """Dataset evaluators attached to this experiment job."""
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
@@ -2535,6 +2529,8 @@ type ExperimentTag implements Node {
   name: Identifier!
   description: String
 }
+
+union ExperimentTaskConfig = PromptTaskConfig | EvaluatorTaskConfig
 
 input ExperimentTaskInput @oneOf {
   prompt: PromptTaskInput
@@ -2972,7 +2968,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
-  setDatasetExampleCalibrationLabels(input: SetDatasetExampleCalibrationLabelsInput!): DatasetExampleCalibrationLabelsPayload!
+  setDatasetExampleExpectedOutputs(input: SetDatasetExampleExpectedOutputsInput!): DatasetExampleExpectedOutputsPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
@@ -4748,9 +4744,9 @@ input SetAgentTraceRecordingInput {
   allowRemoteExport: Boolean!
 }
 
-input SetDatasetExampleCalibrationLabelsInput {
+input SetDatasetExampleExpectedOutputsInput {
   datasetId: ID!
-  labels: [DatasetExampleCalibrationLabelInput!]!
+  expectedOutputs: [DatasetExampleExpectedOutputInput!]!
 }
 
 input SetDatasetExampleSplitsInput {
