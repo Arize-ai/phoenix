@@ -1,10 +1,13 @@
 from datetime import datetime
 from enum import Enum
+from typing import Any, cast
 
 import strawberry
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
+from phoenix.server.api.helpers.evaluator_calibration import get_expected_outputs
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 
 
@@ -16,17 +19,44 @@ class RevisionKind(Enum):
 
 
 @strawberry.type
+class DatasetExampleCalibrationLabel:
+    annotation_name: str
+    label: str | None
+    score: float | None
+    explanation: str | None
+
+
+def get_calibration_labels(metadata: Any) -> list[DatasetExampleCalibrationLabel]:
+    """The expected outputs stored on an example's metadata, one per annotation name."""
+    return [
+        DatasetExampleCalibrationLabel(
+            annotation_name=name,
+            label=value.get("label"),
+            score=value.get("score"),
+            explanation=value.get("explanation"),
+        )
+        for name, value in get_expected_outputs(cast(dict[str, Any], metadata)).items()
+    ]
+
+
+@strawberry.type
 class DatasetExampleRevision(ExampleRevision):
     """
     Represents a revision (i.e., update or alteration) of a dataset example.
     """
 
+    revision_id: GlobalID
     revision_kind: RevisionKind
     created_at: datetime
+
+    @strawberry.field
+    def calibration_labels(self) -> list[DatasetExampleCalibrationLabel]:
+        return get_calibration_labels(self.metadata)
 
     @classmethod
     def from_orm_revision(cls, revision: models.DatasetExampleRevision) -> "DatasetExampleRevision":
         return cls(
+            revision_id=GlobalID("DatasetExampleRevision", str(revision.id)),
             input=JSON(revision.input),
             output=JSON(revision.output),
             metadata=JSON(revision.metadata_),
