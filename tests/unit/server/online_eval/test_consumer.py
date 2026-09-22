@@ -846,10 +846,7 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
         await executor.evaluate_and_annotate(unit, hydrated)
     assert evaluate.await_args is not None
     assert evaluate.await_args.kwargs["context"]["metadata"] == {
-        "annotations": {
-            annotation_name: [{"label": "bad", "annotator_kind": "LLM"}],
-            "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
-        },
+        "annotations": {"tone": [{"label": "warm", "annotator_kind": "HUMAN"}]},
         "source": "unit",
     }
 
