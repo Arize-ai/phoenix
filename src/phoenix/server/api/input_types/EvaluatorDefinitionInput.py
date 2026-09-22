@@ -106,11 +106,8 @@ class InlineCodeEvaluatorInput:
 
 
 @strawberry.input(one_of=True)
-class EvaluatorPreviewInput:
-    """
-    Input for previewing an evaluator. Either provide an existing evaluator ID
-    or an inline evaluator definition.
-    """
+class EvaluatorDefinitionInput:
+    """An evaluator: a stored one by id, or an inline definition."""
 
     built_in_evaluator_id: Optional[GlobalID] = UNSET
     inline_llm_evaluator: Optional[InlineLLMEvaluatorInput] = UNSET
@@ -157,7 +154,7 @@ class EvaluatorPreviewsInput:
 class EvaluatorPreviewItemInput:
     """A single evaluator preview request with one or more contexts."""
 
-    evaluator: EvaluatorPreviewInput
+    evaluator: EvaluatorDefinitionInput
     context: JSON
     input_mapping: EvaluatorInputMappingInput
     apply_online_evaluation_limits: bool = strawberry.field(

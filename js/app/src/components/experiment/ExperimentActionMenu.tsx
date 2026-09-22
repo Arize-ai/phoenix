@@ -63,6 +63,7 @@ type ExperimentActionMenuBaseProps = {
   experimentId: string;
   metadata: unknown;
   jobStatus?: ExperimentJobStatus | null;
+  canOpenInPlayground?: boolean;
   size?: ButtonProps["size"];
 } & (
   | {
@@ -132,7 +133,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       }
     }
   `);
-  const { projectId, jobStatus } = props;
+  const { projectId, jobStatus, canOpenInPlayground } = props;
   const { datasetId } = useParams();
   const credentials = useCredentialsContext((state) => state);
   const navigate = useNavigate();
@@ -218,7 +219,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </Flex>
     </MenuItem>,
   ];
-  if (jobStatus != null) {
+  if (jobStatus != null && canOpenInPlayground) {
     menuItems.push(
       <MenuItem
         key={ExperimentAction.OPEN_IN_PLAYGROUND}

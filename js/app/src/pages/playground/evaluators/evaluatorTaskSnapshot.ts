@@ -1,4 +1,4 @@
-import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import {
   buildOutputConfigsInput,
   createLLMEvaluatorPayload,
@@ -109,7 +109,7 @@ export function getEvaluatorTaskPreview({
   playgroundStore: PlaygroundStore;
   instanceId: number;
   datasetId: string | null;
-}): EvaluatorPreviewInput {
+}): EvaluatorDefinitionInput {
   if (evaluator.kind === "CODE") {
     const code = evaluator.code;
 
@@ -120,6 +120,7 @@ export function getEvaluatorTaskPreview({
     return {
       inlineCodeEvaluator: {
         name,
+        description: evaluator.description,
         language: code.language,
         sourceCode: code.sourceCode,
         sandboxConfigId: code.sandboxConfigId,

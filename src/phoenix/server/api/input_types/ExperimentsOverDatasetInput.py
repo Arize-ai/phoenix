@@ -11,7 +11,7 @@ from phoenix.db.types.evaluator_definition import EvaluatorSource
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.ConnectionConfigInput import ConnectionConfigInput
-from phoenix.server.api.input_types.EvaluatorPreviewInput import EvaluatorPreviewInput
+from phoenix.server.api.input_types.EvaluatorDefinitionInput import EvaluatorDefinitionInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
     EvaluatorInputMappingInput,
@@ -84,9 +84,7 @@ def _optional_node_id(global_id: Optional[GlobalID], type_names: tuple[str, ...]
 class EvaluatorTaskInput:
     """An evaluator run on every example, judging the example as the span it came from."""
 
-    evaluator: EvaluatorPreviewInput = strawberry.field(
-        description="The evaluator, inline or stored, in the shape the evaluator test uses",
-    )
+    evaluator: EvaluatorDefinitionInput
     input_mapping: EvaluatorInputMappingInput
     source: Optional[EvaluatorTaskSourceInput] = strawberry.field(
         default=None,
