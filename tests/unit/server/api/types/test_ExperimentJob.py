@@ -140,24 +140,27 @@ TASK_CONFIG_QUERY = """
     node(id: $jobId) {
       ... on ExperimentJob {
         taskConfig {
-          id
-        }
-        evaluatorTaskConfig {
-          id
-          name
-          evaluatorKind
-          inputMapping {
-            literalMapping
-            pathMapping
+          __typename
+          ... on PromptTaskConfig {
+            id
           }
-          outputConfigs {
-            ... on ContinuousAnnotationConfig {
-              name
-              lowerBound
-              upperBound
+          ... on EvaluatorTaskConfig {
+            id
+            name
+            evaluatorKind
+            inputMapping {
+              literalMapping
+              pathMapping
             }
+            outputConfigs {
+              ... on ContinuousAnnotationConfig {
+                name
+                lowerBound
+                upperBound
+              }
+            }
+            definition
           }
-          definition
         }
       }
     }
@@ -236,8 +239,8 @@ async def test_evaluator_job_exposes_its_evaluator_task_config(
     assert response.data is not None
     node = response.data["node"]
 
-    assert node["taskConfig"] is None
-    config = node["evaluatorTaskConfig"]
+    config = node["taskConfig"]
+    assert config["__typename"] == "EvaluatorTaskConfig"
     assert config["name"] == "answer-length"
     assert config["evaluatorKind"] == "CODE"
     assert config["inputMapping"] == {
@@ -252,7 +255,7 @@ async def test_evaluator_job_exposes_its_evaluator_task_config(
     assert [output["name"] for output in definition["output_configs"]] == ["length"]
 
 
-async def test_prompt_job_has_no_evaluator_task_config(
+async def test_job_without_a_task_has_no_task_config(
     gql_client: AsyncGraphQLClient,
     experiment_with_logs: ExperimentWithLogs,
 ) -> None:
@@ -262,4 +265,4 @@ async def test_prompt_job_has_no_evaluator_task_config(
     response = await gql_client.execute(query=TASK_CONFIG_QUERY, variables={"jobId": job_id})
     assert not response.errors
     assert response.data is not None
-    assert response.data["node"]["evaluatorTaskConfig"] is None
+    assert response.data["node"]["taskConfig"] is None

@@ -46,105 +46,108 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
             }
           }
           taskConfig {
-            prompt {
-              templateType
-              templateFormat
-              template {
-                __typename
-                ... on PromptChatTemplate {
-                  messages {
-                    role
-                    content {
-                      __typename
-                      ... on TextContentPart {
-                        text {
-                          text
+            __typename
+            ... on PromptTaskConfig {
+              prompt {
+                templateType
+                templateFormat
+                template {
+                  __typename
+                  ... on PromptChatTemplate {
+                    messages {
+                      role
+                      content {
+                        __typename
+                        ... on TextContentPart {
+                          text {
+                            text
+                          }
                         }
-                      }
-                      ... on ToolCallContentPart {
-                        toolCall {
-                          toolCallId
+                        ... on ToolCallContentPart {
                           toolCall {
-                            name
-                            arguments
+                            toolCallId
+                            toolCall {
+                              name
+                              arguments
+                            }
+                          }
+                        }
+                        ... on ToolResultContentPart {
+                          toolResult {
+                            toolCallId
+                            result
                           }
                         }
                       }
-                      ... on ToolResultContentPart {
-                        toolResult {
-                          toolCallId
-                          result
-                        }
+                    }
+                  }
+                }
+                tools {
+                  tools {
+                    __typename
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
                       }
                     }
-                  }
-                }
-              }
-              tools {
-                tools {
-                  __typename
-                  ... on PromptToolFunction {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolRaw {
+                      raw
                     }
                   }
-                  ... on PromptToolRaw {
-                    raw
+                  toolChoice {
+                    type
+                    functionName
+                  }
+                  disableParallelToolCalls
+                }
+                responseFormat {
+                  jsonSchema {
+                    name
+                    description
+                    schema
+                    strict
                   }
                 }
-                toolChoice {
-                  type
-                  functionName
+                invocationParameters {
+                  ...PromptInvocationParametersReadableFragment
                 }
-                disableParallelToolCalls
+                modelProvider
+                modelName
               }
-              responseFormat {
-                jsonSchema {
-                  name
-                  description
-                  schema
-                  strict
+              connection {
+                __typename
+                ... on OpenAIConnectionConfig {
+                  baseUrl
+                  openaiApiType
+                }
+                ... on AzureOpenAIConnectionConfig {
+                  azureEndpoint
+                  openaiApiType
+                }
+                ... on AnthropicConnectionConfig {
+                  baseUrl
+                }
+                ... on AWSBedrockConnectionConfig {
+                  regionName
+                  endpointUrl
+                }
+                ... on GoogleGenAIConnectionConfig {
+                  baseUrl
                 }
               }
-              invocationParameters {
-                ...PromptInvocationParametersReadableFragment
+              customProvider {
+                id
+                name
               }
-              modelProvider
-              modelName
+              playgroundConfig {
+                templateVariablesPath
+                appendedMessagesPath
+              }
+              streamModelOutput
             }
-            connection {
-              __typename
-              ... on OpenAIConnectionConfig {
-                baseUrl
-                openaiApiType
-              }
-              ... on AzureOpenAIConnectionConfig {
-                azureEndpoint
-                openaiApiType
-              }
-              ... on AnthropicConnectionConfig {
-                baseUrl
-              }
-              ... on AWSBedrockConnectionConfig {
-                regionName
-                endpointUrl
-              }
-              ... on GoogleGenAIConnectionConfig {
-                baseUrl
-              }
-            }
-            customProvider {
-              id
-              name
-            }
-            playgroundConfig {
-              templateVariablesPath
-              appendedMessagesPath
-            }
-            streamModelOutput
           }
         }
       }
@@ -166,12 +169,13 @@ export type ExperimentRehydrationResult = {
   selectedDatasetEvaluatorIds: string[];
 };
 
-type TaskConfig = NonNullable<
+type TaskConfig = Extract<
   NonNullable<
     NonNullable<
       experimentRehydrationQuery["response"]["node"]["job"]
     >["taskConfig"]
-  >
+  >,
+  { __typename: "PromptTaskConfig" }
 >;
 
 function taskConfigToPlaygroundProps(
@@ -286,7 +290,7 @@ export async function fetchExperimentPlaygroundProps(
 
   const node = data.node;
   const job = node.job;
-  if (!job?.taskConfig) return null;
+  if (job?.taskConfig?.__typename !== "PromptTaskConfig") return null;
 
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(
     (edge) => edge.node.id

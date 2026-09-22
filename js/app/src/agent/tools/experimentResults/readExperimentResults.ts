@@ -111,7 +111,7 @@ export function toExperimentResults({
         score: annotation.score ?? null,
         explanation: annotation.explanation ?? null,
       })),
-      expectedOutputs: node.example.revision.calibrationLabels.map(
+      expectedOutputs: node.example.revision.expectedOutputs.map(
         (expected) => ({
           annotationName: expected.annotationName,
           label: expected.label ?? null,
@@ -207,7 +207,7 @@ export async function readExperimentResults({
                       input
                       output
                       metadata
-                      calibrationLabels {
+                      expectedOutputs {
                         annotationName
                         label
                         score
