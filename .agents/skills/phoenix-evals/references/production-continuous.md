@@ -107,8 +107,7 @@ For trace-level monitoring (e.g., agent workflows), use `get_traces`/`getTraces`
 traces = client.traces.get_traces(
     project_identifier="my-app",
     start_time=datetime.now() - timedelta(hours=1),
-    sort="latency_ms",
-    order="desc",
+    filter="latency_ms >= 1000",
     limit=50,
 )
 ```
@@ -120,9 +119,16 @@ import { getTraces } from "@arizeai/phoenix-client/traces";
 const { traces } = await getTraces({
   project: { projectName: "my-app" },
   startTime: new Date(Date.now() - 60 * 60 * 1000),
+  filter: "latency_ms >= 1000",
   limit: 50,
 });
 ```
+
+`filter` takes a trace filter expression (`error_count > 0`, `latency_ms >= 1000`,
+`any(span.span_kind == "TOOL" for span in spans)`); the vocabulary is in
+[filter-expressions.md](filter-expressions.md). It requires Phoenix server
+>= 20.12.0, and against an older server the client raises rather than
+silently returning unfiltered traces.
 
 ## Alerting
 
