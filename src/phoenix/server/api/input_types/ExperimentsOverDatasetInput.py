@@ -18,6 +18,7 @@ from phoenix.server.api.input_types.PlaygroundEvaluatorInput import (
     PlaygroundEvaluatorInput,
 )
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.redaction import Redacted
 
 MAX_TASKS_PER_RUN = 4
 
@@ -30,7 +31,7 @@ class PromptTaskInput:
     prompt_version: ChatPromptVersionInput
     prompt_name: Optional[Identifier] = None
     connection_config: Optional[ConnectionConfigInput] = None
-    headers: Optional[JSON] = None
+    headers: Redacted[Optional[JSON]] = None
     appended_messages_path: Optional[str] = strawberry.field(
         default=None,
         description="Dot-notation path to messages in dataset example input to append to prompt",

@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import {
   GridListItem,
+  Flex,
   Icon,
   IconButton,
   Icons,
@@ -25,12 +26,14 @@ type EvaluatorMenuItemProps = {
   evaluator: EvaluatorItem;
   isSelected?: boolean;
   onEdit: () => void;
+  onOpenPlayground?: () => void;
 };
 
 export function EvaluatorSelectMenuItem({
   evaluator,
   isSelected,
   onEdit,
+  onOpenPlayground,
 }: EvaluatorMenuItemProps) {
   const { name, alreadyAdded } = evaluator;
 
@@ -70,9 +73,20 @@ export function EvaluatorSelectMenuItem({
         ) : undefined
       }
       trailingContent={
-        <IconButton size="S" aria-label="Edit evaluator" onPress={onEdit}>
-          <Icon svg={<Icons.Edit />} />
-        </IconButton>
+        <Flex gap="size-50">
+          {onOpenPlayground ? (
+            <IconButton
+              size="S"
+              aria-label="Open in evaluator playground"
+              onPress={onOpenPlayground}
+            >
+              <Icon svg={<Icons.PlayCircle />} />
+            </IconButton>
+          ) : null}
+          <IconButton size="S" aria-label="Edit evaluator" onPress={onEdit}>
+            <Icon svg={<Icons.Edit />} />
+          </IconButton>
+        </Flex>
       }
     >
       <StableWidthText

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da14eb44051a93c8aeeacb27638ed29f>>
+ * @generated SignedSource<<83fe9829f09a4363251a30359c4b8f47>>
  * @lightSyntaxTransform
  */
 
@@ -308,6 +308,7 @@ return {
                       "name": "evaluator",
                       "plural": false,
                       "selections": [
+                        (v5/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,

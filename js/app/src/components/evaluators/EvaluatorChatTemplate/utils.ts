@@ -79,6 +79,7 @@ export const makeLLMEvaluatorInstance = ({
       prompt: null,
       repetitions: DEFAULT_INSTANCE_PARAMS().repetitions,
       selectedRepetitionNumber: 1,
+      task: { kind: "prompt" },
     },
   ];
 };
