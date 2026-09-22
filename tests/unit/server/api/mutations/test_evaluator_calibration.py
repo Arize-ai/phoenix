@@ -51,7 +51,7 @@ _MUTATION = """
       examples {
         id
         revision {
-          revisionId input output metadata
+          revisionId input output metadata evaluationContext
           calibrationLabels { annotationName label score explanation }
         }
       }
@@ -126,6 +126,11 @@ class TestCalibrationLabels:
         ]
         assert first_revision["input"] == {"question": "Hello 0"}
         assert first_revision["metadata"]["team"] == "support"
+        assert first_revision["evaluationContext"] == {
+            "input": first_revision["input"],
+            "output": first_revision["output"],
+            "metadata": first_revision["metadata"],
+        }
         assert first_revision["revisionId"] != _label(first)["expectedRevisionId"]
 
     async def test_set_merge_clear_and_annotation_shape(
