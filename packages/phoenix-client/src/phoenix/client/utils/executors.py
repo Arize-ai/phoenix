@@ -564,8 +564,6 @@ class SyncExecutor(Executor):
                             break
                         except Exception as exc:
                             execution_details[index].log_exception(exc)
-                            # RateLimitError subclasses PhoenixException but is transient, so it
-                            # must not be treated as fatal here (mirrors the AsyncExecutor).
                             is_client_rate_limit_error = isinstance(exc, RateLimitError)
                             is_evals_rate_limit_error = isinstance(exc, EvalsRateLimitError)
                             is_rate_limit_error = (
