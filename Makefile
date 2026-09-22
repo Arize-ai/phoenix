@@ -222,7 +222,7 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 		--wrap-string-literal \
 		--formatters black isort \
 		--disable-timestamp
-	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1 $(CURDIR)/schemas/openapi.json
 	@$(UV) run ruff format $(PHOENIX_CLIENT_GENERATED)/v1
 	@$(UV) run ruff check --fix $(PHOENIX_CLIENT_GENERATED)/v1
 	@echo -e "$(GREEN)✓ Done$(NC)"

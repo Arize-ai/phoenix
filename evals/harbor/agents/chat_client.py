@@ -21,23 +21,6 @@ from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_strea
 
 EditPermission = Literal["manual", "bypass"]
 Message = v1.PhoenixUIMessage
-ModelSelection = v1.BuiltInProviderModelSelection | v1.CustomProviderModelSelection
-ChatContext = (
-    v1.AppContext
-    | v1.ProjectUIContext
-    | v1.TraceUIContext
-    | v1.SessionUIContext
-    | v1.PromptUIContext
-    | v1.PromptVersionUIContext
-    | v1.SpanUIContext
-    | v1.PlaygroundUIContext
-    | v1.CodeEvaluatorUIContext
-    | v1.LlmEvaluatorUIContext
-    | v1.DatasetUIContext
-    | v1.GraphQLContext
-    | v1.WebAccessContext
-    | v1.SubagentsContext
-)
 ToolOutputPart = (
     v1.PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart
     | v1.PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart
@@ -121,7 +104,7 @@ def user_message(text: str) -> Message:
     return {"id": str(uuid4()), "role": "user", "parts": [{"type": "text", "text": text}]}
 
 
-def chat_contexts(*, mutations_enabled: bool, now: datetime | None = None) -> list[ChatContext]:
+def chat_contexts(*, mutations_enabled: bool, now: datetime | None = None) -> list[v1.ChatContext]:
     now = now or datetime.now(timezone.utc)
     return [
         {"type": "app", "currentDateTime": now.isoformat(), "timeZone": "UTC"},
@@ -196,7 +179,7 @@ class AgentSessionChatClient:
         self,
         base_url: str,
         *,
-        model: ModelSelection,
+        model: v1.AgentModelSelection,
         transport: httpx.AsyncBaseTransport | None = None,
         turn_timeout_seconds: float = 900.0,
     ) -> None:
@@ -310,7 +293,7 @@ class AgentSessionChatClient:
         tool_outputs: Sequence[ToolOutputPart] = (),
         last_message_id: str | None,
         edit_permission: EditPermission,
-        contexts: Sequence[ChatContext],
+        contexts: Sequence[v1.ChatContext],
         headless: bool,
         record_local_traces: bool,
         approve: ApprovalPolicy | None,
@@ -452,7 +435,7 @@ async def _run_seeded_turn(client: AgentSessionChatClient, seed_file: Path) -> t
         tool_outputs=cast(list[ToolOutputPart], request["tool_outputs"]),
         last_message_id=cast(str | None, request["last_message_id"]),
         edit_permission=cast(EditPermission, request["edit_permission"]),
-        contexts=cast(list[ChatContext], request["contexts"]),
+        contexts=cast(list[v1.ChatContext], request["contexts"]),
         headless=False,
         record_local_traces=False,
         approve=None,

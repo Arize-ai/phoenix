@@ -2435,3 +2435,26 @@ class OtlpSpan(TypedDict):
 class OtlpSpansResponseBody(TypedDict):
     data: Sequence[OtlpSpan]
     next_cursor: Optional[str]
+
+
+AgentModelSelection = Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+ChatContext = Union[
+    AppContext,
+    ProjectUIContext,
+    TraceUIContext,
+    SessionUIContext,
+    PromptUIContext,
+    PromptVersionUIContext,
+    SpanUIContext,
+    PlaygroundUIContext,
+    CodeEvaluatorUIContext,
+    LlmEvaluatorUIContext,
+    DatasetUIContext,
+    GraphQLContext,
+    WebAccessContext,
+    SubagentsContext,
+]
+CreateAnnotationConfigData = Union[
+    CategoricalAnnotationConfigData, ContinuousAnnotationConfigData, FreeformAnnotationConfigData
+]
+LegacyChatRequest = Union[LegacyChatSubmitMessage, LegacyChatRegenerateMessage]
