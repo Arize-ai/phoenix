@@ -25,7 +25,7 @@ type CostDetailSummaryEntry =
 export function getTokenCountDetailsFromCostDetails(
   costDetails: ReadonlyArray<CostDetailSummaryEntry>
 ): Pick<TokenCountDetailsProps, "promptDetails" | "completionDetails"> {
-  const getDetails = (isPrompt: boolean) => {
+  const getDetails = ({ isPrompt }: { isPrompt: boolean }) => {
     const entries = costDetails.flatMap((detail) =>
       detail.isPrompt === isPrompt && detail.value.tokens != null
         ? [[detail.tokenType, detail.value.tokens] as const]
@@ -35,8 +35,8 @@ export function getTokenCountDetailsFromCostDetails(
   };
 
   return {
-    promptDetails: getDetails(true),
-    completionDetails: getDetails(false),
+    promptDetails: getDetails({ isPrompt: true }),
+    completionDetails: getDetails({ isPrompt: false }),
   };
 }
 
