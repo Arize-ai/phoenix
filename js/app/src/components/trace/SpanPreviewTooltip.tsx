@@ -1,7 +1,12 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
 
-import { ErrorBoundary, RichTooltip, Text } from "@phoenix/components";
+import {
+  ErrorBoundary,
+  RichTooltip,
+  Text,
+  TooltipArrow,
+} from "@phoenix/components";
 import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
 import { useSettled, useTimeFormatters } from "@phoenix/hooks";
 
@@ -97,11 +102,12 @@ export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
   return (
     <RichTooltip
       placement="left top"
-      offset={8}
       width={300}
       className="span-preview"
       css={spanPreviewTooltipCSS}
     >
+      {/* The arrow points at the row so the preview reads as its own */}
+      <TooltipArrow />
       <div css={cardCSS}>
         <header className="span-preview__header">
           <SpanKindIcon spanKind={span.spanKind} />
