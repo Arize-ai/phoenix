@@ -1,5 +1,6 @@
 import {
   Button,
+  Checkbox,
   ComboBox,
   ComboBoxItem,
   Dialog,
@@ -16,6 +17,11 @@ import {
   View,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import {
+  getPlaygroundTaskKind,
+  getTemplateVariablesPath,
+} from "@phoenix/store/playground";
 
 const TEMPLATE_VARIABLES_PATH_OPTIONS = [
   {
@@ -47,19 +53,37 @@ export function PlaygroundExperimentSettingsButton({
   isDisabled?: boolean;
   datasetId: string;
 }) {
-  const playgroundDatasetState = usePlaygroundContext(
-    (state) => state.stateByDatasetId[datasetId]
+  const appendedMessagesPath = usePlaygroundContext(
+    (state) => state.stateByDatasetId[datasetId]?.appendedMessagesPath
   );
-  const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
-    playgroundDatasetState ?? {};
+
+  // Each kind of task keeps its own path; the gear edits the page's kind.
+  const taskKind = usePlaygroundContext((state) =>
+    getPlaygroundTaskKind(state.instances)
+  );
+
+  const templateVariablesPath = usePlaygroundContext((state) =>
+    getTemplateVariablesPath({
+      stateByDatasetId: state.stateByDatasetId,
+      datasetId,
+      taskKind: getPlaygroundTaskKind(state.instances),
+    })
+  );
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
   );
-  const setMaxConcurrency = usePlaygroundContext(
-    (state) => state.setMaxConcurrency
+
+  // A per-browser preference: the metadata cells leave the `annotations` key
+  // out until this is turned off.
+  const hideExpectedAnnotations = usePreferencesContext(
+    (state) => state.hideExpectedAnnotationsInMetadata
+  );
+
+  const setHideExpectedAnnotations = usePreferencesContext(
+    (state) => state.setHideExpectedAnnotationsInMetadata
   );
 
   return (
@@ -77,7 +101,7 @@ export function PlaygroundExperimentSettingsButton({
             <Flex direction="column" gap="size-200">
               <ComboBox
                 label="Template variables path"
-                description="Path prefix for template variables"
+                description="Path prefix for template variables, kept per kind of task"
                 size="M"
                 placeholder="the root of the example"
                 selectedKey={templateVariablesPath ?? ""}
@@ -89,6 +113,7 @@ export function PlaygroundExperimentSettingsButton({
                     setTemplateVariablesPath({
                       templateVariablesPath: key || null,
                       datasetId,
+                      taskKind,
                     });
                   }
                 }}
@@ -96,6 +121,7 @@ export function PlaygroundExperimentSettingsButton({
                   setTemplateVariablesPath({
                     templateVariablesPath: value || null,
                     datasetId,
+                    taskKind,
                   });
                 }}
               >
@@ -123,25 +149,19 @@ export function PlaygroundExperimentSettingsButton({
                   Path to messages from the dataset to append to prompts
                 </Text>
               </TextField>
-              <TextField
-                value={String(maxConcurrency ?? 10)}
-                size="S"
-                onChange={(value) => {
-                  const parsed = parseInt(value, 10);
-                  if (!isNaN(parsed) && parsed >= 1 && parsed <= 100) {
-                    setMaxConcurrency({
-                      maxConcurrency: parsed,
-                      datasetId,
-                    });
-                  }
-                }}
-              >
-                <Label>Max concurrency</Label>
-                <Input type="number" />
-                <Text slot="description">
-                  Maximum number of tasks/evals that will be run concurrently.
+              <Flex direction="column" gap="size-50">
+                <Checkbox
+                  isSelected={hideExpectedAnnotations}
+                  onChange={setHideExpectedAnnotations}
+                >
+                  Hide expected annotations in metadata cells
+                </Checkbox>
+                <Text size="XS" color="text-700">
+                  Expected outputs are stored under the example&apos;s
+                  &quot;annotations&quot; key and already show in each
+                  evaluator&apos;s expected band.
                 </Text>
-              </TextField>
+              </Flex>
             </Flex>
           </View>
         </Dialog>

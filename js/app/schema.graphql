@@ -625,37 +625,6 @@ input ChatCompletionInput {
   streamModelOutput: Boolean! = true
 }
 
-input ChatCompletionOverDatasetInput {
-  promptVersionId: ID = null
-  promptVersion: ChatPromptVersionInput!
-  connectionConfig: ConnectionConfigInput = null
-  headers: JSON = null
-  credentials: [GenerativeCredentialInput!]
-  repetitions: Int!
-  datasetId: ID!
-  datasetVersionId: ID = null
-  splitIds: [ID!] = null
-  experimentName: String = null
-  experimentDescription: String = null
-  experimentMetadata: JSON = null
-  promptName: Identifier = null
-  evaluators: [PlaygroundEvaluatorInput!]! = []
-
-  """
-  Dot-notation path to messages in dataset example input to append to prompt
-  """
-  appendedMessagesPath: String = null
-
-  """
-  Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
-  """
-  templateVariablesPath: String = "input"
-  tracingEnabled: Boolean! = true
-  streamModelOutput: Boolean! = true
-  createEphemeralExperiment: Boolean = false
-  maxConcurrency: Int! = 10
-}
-
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
@@ -5177,7 +5146,6 @@ type StopExperimentPayload {
 
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
-  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
   experimentsOverDataset(input: ExperimentsOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 

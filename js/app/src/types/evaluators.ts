@@ -164,7 +164,13 @@ export type SandboxBackendType =
 export type DatasetEvaluatorMappingSource = {
   input: Record<string, unknown>;
   output: Record<string, unknown>;
-  reference: Record<string, unknown>;
+  /**
+   * The example's output when a dataset evaluator judges a prompt task's
+   * run. Absent when the example itself is judged, as an evaluator task in
+   * the playground does: a record has no reference, and the online span
+   * context has none either.
+   */
+  reference?: Record<string, unknown>;
   metadata: Record<string, unknown>;
 };
 
