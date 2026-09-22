@@ -37,9 +37,7 @@ export function EvaluatorTaskMappingSource({
               edges {
                 example: node {
                   revision {
-                    input
-                    output
-                    metadata
+                    evaluationContext
                   }
                 }
               }
