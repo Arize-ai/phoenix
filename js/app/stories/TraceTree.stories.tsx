@@ -382,13 +382,12 @@ function TraceTreeFrame({
  * latency | tokens | cost. Metrics a span lacks are dropped from its footer,
  * so rows differ in height, and the tree edges end at each row's own center.
  *
- * Rows carry no tooltips of their own. Hovering or focusing any row opens
- * one preview popover beside the tree that names the span and shows its
- * latency, token and cost breakdown. It opens at once with the totals the
- * row already knows and, once the pointer rests on a row, lazily loads the
- * full breakdown. In these stories a canned Relay environment answers that
- * load after a short delay. Scrub the pointer down a tree to see the
- * preview follow it.
+ * Every row is the trigger of a rich tooltip beside the tree that names
+ * the span and shows when it ran, then its token and cost breakdown. The
+ * breakdown is fetched only when a tooltip opens, with the totals the row
+ * already knows standing in until it arrives. In these stories a canned
+ * Relay environment answers that load after a short delay. Scrub the
+ * pointer down a tree: after the first tooltip, each row's opens at once.
  */
 const meta: Meta<typeof TraceTree> = {
   title: "Trace/TraceTree",

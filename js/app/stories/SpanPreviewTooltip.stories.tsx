@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { PropsWithChildren } from "react";
+import { Focusable } from "react-aria";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
-import { popoverSurfaceCSS } from "@phoenix/components/core/overlay";
-import { SpanPreviewCard } from "@phoenix/components/trace/TraceTreeSpanPreview";
+import { Text, TooltipTrigger } from "@phoenix/components";
+import { SpanPreviewTooltip } from "@phoenix/components/trace/SpanPreviewTooltip";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 
 const TRACE_START = Date.parse("2026-09-22T09:53:23.284Z");
@@ -91,9 +91,9 @@ const unpricedSpan = span({
 });
 
 /**
- * The breakdown the card loads for the LLM span: a prompt/completion split
- * with cache reads and writes, priced. The unpriced span answers with tokens
- * alone; every other span has no breakdown.
+ * The breakdown the tooltip loads for the LLM span: a prompt/completion
+ * split with cache reads and writes, priced. The unpriced span answers with
+ * tokens alone; every other span has no breakdown.
  */
 function buildSpanDetails(nodeId: string) {
   const base = { __typename: "Span", id: nodeId };
@@ -172,90 +172,99 @@ const mockRelayEnvironment = new Environment({
   store: new Store(new RecordSource()),
 });
 
-/** Never answers, so the card keeps showing the totals it opened with. */
+/** Never answers, so the tooltip keeps showing the totals it opened with. */
 const pendingRelayEnvironment = new Environment({
   network: Network.create(() => new Promise(() => {})),
   store: new Store(new RecordSource()),
 });
 
-/** The popover surface the card sits on in the tree, without the anchoring. */
-function PreviewSurface({ children }: PropsWithChildren) {
+/**
+ * A stand-in for a trace tree row, with the tooltip held open beside it as
+ * it is in the tree. The row sits to the right so the tooltip has room.
+ */
+function OpenPreview({ span }: { span: ISpanItem }) {
   return (
-    <div css={popoverSurfaceCSS} style={{ width: "fit-content" }}>
-      {children}
+    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <TooltipTrigger isOpen>
+        <Focusable>
+          <div
+            role="button"
+            tabIndex={0}
+            style={{
+              padding: "8px 16px",
+              border: "1px solid var(--global-border-color-default)",
+              borderRadius: "var(--global-rounding-small)",
+            }}
+          >
+            <Text>{span.name}</Text>
+          </div>
+        </Focusable>
+        <SpanPreviewTooltip span={span} />
+      </TooltipTrigger>
     </div>
   );
 }
 
 /**
- * The card the trace tree's hover preview shows for one span. It opens with
- * the span's identity and timing, which every span has, and for spans with
+ * The tooltip each trace tree row opens on hover or focus. It names the
+ * span and shows when it ran, which every span has, and for spans with
  * usage lazily loads the token and cost breakdown, showing the totals the
- * tree already knows until it arrives. These stories draw the card on the
- * popover surface it sits on in the tree; a canned Relay environment
- * answers the breakdown after a short delay.
+ * row already knows until it arrives. A canned Relay environment answers
+ * the breakdown after a short delay; no requests leave the story.
  */
-const meta: Meta<typeof SpanPreviewCard> = {
-  title: "Trace/TraceTreeSpanPreview",
-  component: SpanPreviewCard,
+const meta: Meta<typeof SpanPreviewTooltip> = {
+  title: "Trace/SpanPreviewTooltip",
+  component: SpanPreviewTooltip,
   decorators: [
     (Story) => (
       <RelayEnvironmentProvider environment={mockRelayEnvironment}>
-        <PreviewSurface>
-          <Story />
-        </PreviewSurface>
+        <Story />
       </RelayEnvironmentProvider>
     ),
   ],
   parameters: {
+    width: 720,
     controls: { disable: true },
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof SpanPreviewCard>;
+type Story = StoryObj<typeof SpanPreviewTooltip>;
 
 /** An LLM span: timing, then the token and cost breakdown once loaded. */
 export const LLMSpan: Story = {
-  args: { span: llmSpan, showDetails: true },
+  render: () => <OpenPreview span={llmSpan} />,
 };
 
 /** A local model: tokens are counted but nothing is priced. */
 export const TokensWithoutCost: Story = {
-  args: { span: unpricedSpan, showDetails: true },
+  render: () => <OpenPreview span={unpricedSpan} />,
 };
 
-/** A tool span has no usage, so timing is the whole card. */
+/** A tool span has no usage, so timing is the whole tooltip. */
 export const ToolSpan: Story = {
-  args: { span: toolSpan, showDetails: true },
+  render: () => <OpenPreview span={toolSpan} />,
 };
 
 /** A span that has not ended yet has no end time and no latency. */
 export const OpenSpan: Story = {
-  args: { span: openSpan, showDetails: true },
+  render: () => <OpenPreview span={openSpan} />,
 };
 
 /** An error span carries its status beside the name. */
 export const ErrorSpan: Story = {
-  args: { span: errorSpan, showDetails: true },
+  render: () => <OpenPreview span={errorSpan} />,
 };
 
-/** A long name truncates rather than widening the card. */
+/** A long name truncates rather than widening the tooltip. */
 export const LongName: Story = {
-  args: { span: longNameSpan, showDetails: true },
+  render: () => <OpenPreview span={longNameSpan} />,
 };
 
 /**
- * Before the pointer settles on a row, the card shows only what the tree
- * knows: timing and the token and cost totals, with no breakdown fetched.
- */
-export const BeforeDetailsLoad: Story = {
-  args: { span: llmSpan, showDetails: false },
-};
-
-/**
- * While the breakdown is in flight the same totals stand in, so the card
- * never blanks or shows a spinner. This story's request never completes.
+ * While the breakdown is in flight the row's totals stand in, so the
+ * tooltip never blanks or shows a spinner. This story's request never
+ * completes.
  */
 export const DetailsPending: Story = {
   decorators: [
@@ -265,5 +274,5 @@ export const DetailsPending: Story = {
       </RelayEnvironmentProvider>
     ),
   ],
-  args: { span: llmSpan, showDetails: true },
+  render: () => <OpenPreview span={llmSpan} />,
 };

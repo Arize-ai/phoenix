@@ -29,7 +29,7 @@ export type SpanMetricsProps = SpanMetricsRowProps & {
  * @remarks
  * For a surface that shows one span at a time, such as the span header. The
  * trace tree draws the bare `SpanMetricsRow` under each row instead and
- * shares one preview popover across every row (`TraceTreeSpanPreview`).
+ * gives each row a `SpanPreviewTooltip` of its own.
  * Renders nothing for a span with no metrics, so callers need not check
  * first.
  */

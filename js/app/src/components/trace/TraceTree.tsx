@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
+import { Focusable } from "react-aria";
 
 import {
   DisclosureArrow,
@@ -9,6 +10,7 @@ import {
   Icon,
   Icons,
   Text,
+  TooltipTrigger,
 } from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
@@ -18,6 +20,7 @@ import { classNames } from "@phoenix/utils/classNames";
 
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanMetricsRow } from "./SpanMetricsRow";
+import { SpanPreviewTooltip } from "./SpanPreviewTooltip";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { useTraceTree } from "./TraceTreeContext";
 import {
@@ -25,10 +28,6 @@ import {
   SpanTreeEdge,
   SpanTreeEdgeConnector,
 } from "./TraceTreeEdges";
-import {
-  spanPreviewTargetProps,
-  TraceTreeSpanPreviewRegion,
-} from "./TraceTreeSpanPreview";
 import {
   nestingLevelStyle,
   spanControlsCSS,
@@ -80,38 +79,36 @@ export function TraceTree(props: TraceTreeProps) {
         container-type: inline-size;
       `}
     >
-      <TraceTreeSpanPreviewRegion spans={spans}>
-        <ul
-          css={[
-            traceTreeListCSS,
-            css`
-              overflow: auto;
-            `,
-          ]}
-          data-testid="trace-tree"
-        >
-          {noSearchResults ? (
-            <li aria-live="polite">
-              <TraceTreeSearchEmpty searchQuery={searchQuery} />
-            </li>
-          ) : null}
-          {!rootSpan ? (
-            <li>
-              <Empty message="No spans" size="S" />
-            </li>
-          ) : null}
-          {filteredSpanTree.map((spanNode) => (
-            <SpanTreeItem
-              key={spanNode.span.id}
-              node={spanNode}
-              overallTimeRange={overallTimeRange}
-              onSpanClick={onSpanClick}
-              selectedSpanNodeId={selectedSpanNodeId}
-              scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
-            />
-          ))}
-        </ul>
-      </TraceTreeSpanPreviewRegion>
+      <ul
+        css={[
+          traceTreeListCSS,
+          css`
+            overflow: auto;
+          `,
+        ]}
+        data-testid="trace-tree"
+      >
+        {noSearchResults ? (
+          <li aria-live="polite">
+            <TraceTreeSearchEmpty searchQuery={searchQuery} />
+          </li>
+        ) : null}
+        {!rootSpan ? (
+          <li>
+            <Empty message="No spans" size="S" />
+          </li>
+        ) : null}
+        {filteredSpanTree.map((spanNode) => (
+          <SpanTreeItem
+            key={spanNode.span.id}
+            node={spanNode}
+            overallTimeRange={overallTimeRange}
+            onSpanClick={onSpanClick}
+            selectedSpanNodeId={selectedSpanNodeId}
+            scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+          />
+        ))}
+      </ul>
     </div>
   );
 }
@@ -214,91 +211,98 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     node.span;
   return (
     <div ref={itemRef}>
-      <div
-        role="button"
-        tabIndex={0}
-        css={spanNodeButtonCSS}
-        {...spanPreviewTargetProps(node.span.id)}
-        onClick={() => {
-          startTransition(() => {
-            if (onSpanClick) {
-              onSpanClick(node.span);
-            }
-          });
-        }}
-      >
-        <SpanNodeWrap
-          isSelected={isSelected}
-          nestingLevel={nestingLevel}
-          statusCode={statusCode}
-          dropStatusCode={
-            hasChildren && !effectiveIsCollapsed
-              ? childNodes[0].span.statusCode
-              : undefined
-          }
-        >
-          <div css={spanNodeIconCSS} className="span-node__icon">
-            <SpanKindIcon spanKind={node.span.spanKind} />
-          </div>
-          <div css={spanNodeContentCSS} className="span-node__content">
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              minWidth={0}
-              height="var(--trace-tree-heading-height)"
-              className="span-node__heading"
-            >
-              <span css={spanNameCSS}>{name}</span>
-              {statusCode === "ERROR" ? (
-                <SpanStatusCodeIcon
-                  statusCode="ERROR"
-                  css={css`
-                    font-size: var(--global-font-size-m);
-                    flex: none;
-                  `}
-                />
-              ) : null}
-            </Flex>
-            {showMetricsInTraceTree ? (
-              <SpanMetricsRow
-                size="XS"
-                latencyMs={latencyMs}
-                tokenCountTotal={tokenCountTotal}
-                costTotal={costSummary?.total?.cost}
-              />
-            ) : null}
-          </div>
-          {showMetricsInTraceTree ? (
-            <div css={spanTimingCSS} className="span-tree-timing">
-              <SpanTimelineBar
-                spanKind={node.span.spanKind}
-                overallTimeRange={overallTimeRange}
-                spanTimeRange={{
-                  start: new Date(node.span.startTime),
-                  end: node.span.endTime
-                    ? new Date(node.span.endTime)
-                    : new Date(), // Assume un-closed
-                }}
-              />
-            </div>
-          ) : null}
+      {/* The row is the tooltip's trigger: hover or focus it and the span's
+          preview opens beside it. The short delay keeps a scrub down the
+          tree from opening (and fetching) a preview for every row passed. */}
+      <TooltipTrigger delay={SPAN_PREVIEW_DELAY_MS} closeDelay={0}>
+        <Focusable>
           <div
-            css={spanControlsCSS}
-            data-testid="span-controls"
-            className="span-controls"
+            role="button"
+            tabIndex={0}
+            css={spanNodeButtonCSS}
+            onClick={() => {
+              startTransition(() => {
+                if (onSpanClick) {
+                  onSpanClick(node.span);
+                }
+              });
+            }}
           >
-            {hasChildren && !isSearching ? (
-              <CollapseToggleButton
-                isCollapsed={isCollapsed}
-                onClick={() => {
-                  setIsCollapsed(!isCollapsed);
-                }}
-              />
-            ) : null}
+            <SpanNodeWrap
+              isSelected={isSelected}
+              nestingLevel={nestingLevel}
+              statusCode={statusCode}
+              dropStatusCode={
+                hasChildren && !effectiveIsCollapsed
+                  ? childNodes[0].span.statusCode
+                  : undefined
+              }
+            >
+              <div css={spanNodeIconCSS} className="span-node__icon">
+                <SpanKindIcon spanKind={node.span.spanKind} />
+              </div>
+              <div css={spanNodeContentCSS} className="span-node__content">
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                  minWidth={0}
+                  height="var(--trace-tree-heading-height)"
+                  className="span-node__heading"
+                >
+                  <span css={spanNameCSS}>{name}</span>
+                  {statusCode === "ERROR" ? (
+                    <SpanStatusCodeIcon
+                      statusCode="ERROR"
+                      css={css`
+                        font-size: var(--global-font-size-m);
+                        flex: none;
+                      `}
+                    />
+                  ) : null}
+                </Flex>
+                {showMetricsInTraceTree ? (
+                  <SpanMetricsRow
+                    size="XS"
+                    latencyMs={latencyMs}
+                    tokenCountTotal={tokenCountTotal}
+                    costTotal={costSummary?.total?.cost}
+                  />
+                ) : null}
+              </div>
+              {showMetricsInTraceTree ? (
+                <div css={spanTimingCSS} className="span-tree-timing">
+                  <SpanTimelineBar
+                    spanKind={node.span.spanKind}
+                    overallTimeRange={overallTimeRange}
+                    spanTimeRange={{
+                      start: new Date(node.span.startTime),
+                      end: node.span.endTime
+                        ? new Date(node.span.endTime)
+                        : new Date(), // Assume un-closed
+                    }}
+                  />
+                </div>
+              ) : null}
+              <div
+                css={spanControlsCSS}
+                data-testid="span-controls"
+                className="span-controls"
+              >
+                {hasChildren && !isSearching ? (
+                  <CollapseToggleButton
+                    isCollapsed={isCollapsed}
+                    onClick={() => {
+                      setIsCollapsed(!isCollapsed);
+                    }}
+                  />
+                ) : null}
+              </div>
+            </SpanNodeWrap>
           </div>
-        </SpanNodeWrap>
-      </div>
+        </Focusable>
+        <SpanPreviewTooltip span={node.span} />
+      </TooltipTrigger>
       {childNodes.length ? (
         <ul
           css={css`
@@ -339,6 +343,12 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     </div>
   );
 }
+
+/**
+ * How long the pointer rests on a row before its preview opens. React Aria
+ * warms up after the first: moving to the next row then opens at once.
+ */
+const SPAN_PREVIEW_DELAY_MS = 150;
 
 const spanNodeButtonCSS = css`
   width: 100%;
