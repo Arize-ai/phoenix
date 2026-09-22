@@ -32,22 +32,32 @@ export function useSessionFilters() {
   return context;
 }
 
-export function SessionFiltersProvider(props: PropsWithChildren) {
+export function SessionFiltersProvider(
+  props: PropsWithChildren<{
+    /** An embedded caller's own condition; the provider then ignores the URL. */
+    initialFilterCondition?: string;
+  }>
+) {
+  const isDetached = props.initialFilterCondition !== undefined;
   // Read only: the URL is written where a condition is applied, not here.
   const [searchParams] = useSearchParams();
   const urlCondition = readFilterConditionParam(
     searchParams,
     SESSION_FILTER_CONDITION_PARAM
   );
-  const [filterCondition, setFilterConditionState] =
-    useState<string>(urlCondition);
+  const [filterCondition, setFilterConditionState] = useState<string>(
+    props.initialFilterCondition ?? urlCondition
+  );
 
   // A just-applied filter's own URL write is a no-op here: the draft holds it.
   useEffect(() => {
+    if (isDetached) {
+      return;
+    }
     startTransition(() => {
       setFilterConditionState(urlCondition);
     });
-  }, [urlCondition]);
+  }, [isDetached, urlCondition]);
 
   function setFilterCondition(condition: string) {
     startTransition(() => {
