@@ -1,118 +1,147 @@
-import { css } from "@emotion/react";
-import { graphql, useLazyLoadQuery } from "react-relay";
-
-import { Flex, Text } from "@phoenix/components";
-import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
-
-import type { SpanMetricsDetailsQuery } from "./__generated__/SpanMetricsDetailsQuery.graphql";
+import type { PreloadedQuery } from "react-relay";
 import {
-  getTokenCostDetailsFromCostDetails,
-  TokenCostsDetails,
-} from "./TokenCostsDetails";
-import {
-  getTokenCountDetailsFromCostDetails,
-  TokenCountDetails,
-} from "./TokenCountDetails";
+  graphql,
+  useFragment,
+  useLazyLoadQuery,
+  usePreloadedQuery,
+} from "react-relay";
 
-const sectionCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
-  &:not(:first-of-type) {
-    padding-top: var(--global-dimension-size-150);
-    border-top: var(--global-border-size-thin) solid
-      var(--global-color-gray-300);
+import type {
+  SpanMetricsDetails_span$data,
+  SpanMetricsDetails_span$key,
+} from "./__generated__/SpanMetricsDetails_span.graphql";
+import type { SpanMetricsDetailsQuery as SpanMetricsDetailsQueryType } from "./__generated__/SpanMetricsDetailsQuery.graphql";
+import type { SpanMetricsDetailsViewProps } from "./SpanMetricsDetailsView";
+import { SpanMetricsDetailsView } from "./SpanMetricsDetailsView";
+import { getTokenCostDetailsFromCostDetails } from "./TokenCostsDetails";
+import { getTokenCountDetailsFromCostDetails } from "./TokenCountDetails";
+
+/**
+ * The span fields the metrics details draw. Spread it into any query that
+ * already loads a span to render the details without a second round trip.
+ */
+const SpanMetricsDetailsFragment = graphql`
+  fragment SpanMetricsDetails_span on Span {
+    latencyMs
+    tokenCountTotal
+    tokenCountPrompt
+    tokenCountCompletion
+    costSummary {
+      total {
+        cost
+      }
+      prompt {
+        cost
+      }
+      completion {
+        cost
+      }
+    }
+    costDetailSummaryEntries {
+      tokenType
+      isPrompt
+      value {
+        cost
+        tokens
+      }
+    }
   }
 `;
 
 /**
- * Everything the trace tree's metrics row summarizes, in full: latency, the
- * token breakdown, and the cost breakdown of a single span.
- *
- * @remarks
- * Loads with one query so a tooltip over the row opens with one round trip.
- * Mount it lazily (inside the tooltip) so a tree of hundreds of spans does
- * not fetch details for rows the user never hovers.
+ * Loads the metrics details of one span by node id. Pass it to
+ * `useQueryLoader` to start the fetch ahead of render, then draw the result
+ * with {@link PreloadedSpanMetricsDetails}.
  */
-export function SpanMetricsDetails(props: { spanNodeId: string }) {
-  const data = useLazyLoadQuery<SpanMetricsDetailsQuery>(
-    graphql`
-      query SpanMetricsDetailsQuery($nodeId: ID!) {
-        node(id: $nodeId) {
-          __typename
-          ... on Span {
-            latencyMs
-            tokenCountTotal
-            tokenCountPrompt
-            tokenCountCompletion
-            costSummary {
-              total {
-                cost
-              }
-              prompt {
-                cost
-              }
-              completion {
-                cost
-              }
-            }
-            costDetailSummaryEntries {
-              tokenType
-              isPrompt
-              value {
-                cost
-                tokens
-              }
-            }
-          }
-        }
+export const SpanMetricsDetailsQuery = graphql`
+  query SpanMetricsDetailsQuery($nodeId: ID!) {
+    node(id: $nodeId) {
+      __typename
+      ... on Span {
+        ...SpanMetricsDetails_span
       }
-    `,
-    { nodeId: props.spanNodeId }
-  );
+    }
+  }
+`;
 
-  if (data.node.__typename !== "Span") {
+/**
+ * Maps a span's fragment data onto the plain values the view draws.
+ */
+export function getSpanMetricsDetailsViewProps(
+  span: SpanMetricsDetails_span$data
+): SpanMetricsDetailsViewProps {
+  const costDetails = span.costDetailSummaryEntries;
+  const costTotal = span.costSummary?.total?.cost;
+  return {
+    latencyMs: span.latencyMs ?? null,
+    tokens:
+      span.tokenCountTotal != null
+        ? {
+            total: span.tokenCountTotal,
+            prompt: span.tokenCountPrompt,
+            completion: span.tokenCountCompletion,
+            ...getTokenCountDetailsFromCostDetails(costDetails),
+          }
+        : null,
+    costs:
+      costTotal != null
+        ? {
+            total: costTotal,
+            prompt: span.costSummary?.prompt?.cost,
+            completion: span.costSummary?.completion?.cost,
+            ...getTokenCostDetailsFromCostDetails(costDetails),
+          }
+        : null,
+  };
+}
+
+/**
+ * Metrics details for a span whose data the parent already holds. Spread
+ * `SpanMetricsDetails_span` into the parent's query or fragment.
+ */
+export function SpanMetricsDetails(props: {
+  span: SpanMetricsDetails_span$key;
+}) {
+  const span = useFragment(SpanMetricsDetailsFragment, props.span);
+  return <SpanMetricsDetailsView {...getSpanMetricsDetailsViewProps(span)} />;
+}
+
+type SpanMetricsDetailsNode = SpanMetricsDetailsQueryType["response"]["node"];
+
+function SpanMetricsDetailsForNode({ node }: { node: SpanMetricsDetailsNode }) {
+  if (node.__typename !== "Span") {
     return null;
   }
-  const span = data.node;
-  const hasTokens = span.tokenCountTotal != null;
-  const costTotal = span.costSummary?.total?.cost;
-  const hasCost = costTotal != null;
+  return <SpanMetricsDetails span={node} />;
+}
 
-  const costDetails = span.costDetailSummaryEntries;
-
-  return (
-    <Flex direction="column">
-      <section css={sectionCSS}>
-        <Flex direction="row" justifyContent="space-between" gap="size-200">
-          <Text size="S" color="text-700">
-            Latency
-          </Text>
-          <Text size="S" fontFamily="mono">
-            {latencyMsFormatter(span.latencyMs)}
-          </Text>
-        </Flex>
-      </section>
-      {hasTokens ? (
-        <section css={sectionCSS}>
-          <TokenCountDetails
-            total={span.tokenCountTotal}
-            prompt={span.tokenCountPrompt}
-            completion={span.tokenCountCompletion}
-            {...getTokenCountDetailsFromCostDetails(costDetails)}
-          />
-        </section>
-      ) : null}
-      {hasCost ? (
-        <section css={sectionCSS}>
-          <TokenCostsDetails
-            total={costTotal}
-            prompt={span.costSummary?.prompt?.cost}
-            completion={span.costSummary?.completion?.cost}
-            {...getTokenCostDetailsFromCostDetails(costDetails)}
-          />
-        </section>
-      ) : null}
-    </Flex>
+/**
+ * Metrics details fetched on render for one span by node id.
+ *
+ * @remarks
+ * Suspends while loading, so mount it lazily (inside a tooltip) behind a
+ * `Suspense` boundary. A tree of hundreds of spans then fetches details only
+ * for the rows the user opens.
+ */
+export function SpanMetricsDetailsById(props: { spanNodeId: string }) {
+  const data = useLazyLoadQuery<SpanMetricsDetailsQueryType>(
+    SpanMetricsDetailsQuery,
+    { nodeId: props.spanNodeId }
   );
+  return <SpanMetricsDetailsForNode node={data.node} />;
+}
+
+/**
+ * Metrics details from a query reference the parent started with
+ * `useQueryLoader(SpanMetricsDetailsQuery)`, for surfaces that want the fetch
+ * under way before the details are shown.
+ */
+export function PreloadedSpanMetricsDetails(props: {
+  queryRef: PreloadedQuery<SpanMetricsDetailsQueryType>;
+}) {
+  const data = usePreloadedQuery<SpanMetricsDetailsQueryType>(
+    SpanMetricsDetailsQuery,
+    props.queryRef
+  );
+  return <SpanMetricsDetailsForNode node={data.node} />;
 }

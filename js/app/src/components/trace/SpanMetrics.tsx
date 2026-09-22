@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@phoenix/components";
 
-import { SpanMetricsDetails } from "./SpanMetricsDetails";
+import { SpanMetricsDetailsById } from "./SpanMetricsDetails";
 import type { SpanMetricsRowProps } from "./SpanMetricsRow";
 import { hasSpanMetrics, SpanMetricsRow } from "./SpanMetricsRow";
 
@@ -38,7 +38,7 @@ export function SpanMetrics({ spanNodeId, ...rowProps }: SpanMetricsProps) {
       <RichTooltip placement="bottom start">
         <TooltipArrow />
         <Suspense fallback={<Loading />}>
-          <SpanMetricsDetails spanNodeId={spanNodeId} />
+          <SpanMetricsDetailsById spanNodeId={spanNodeId} />
         </Suspense>
       </RichTooltip>
     </TooltipTrigger>
