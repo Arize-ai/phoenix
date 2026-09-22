@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
@@ -42,8 +42,11 @@ function SpansTabContent({
     ProjectPageQueriesSpansQuery,
     queryReference
   );
+  const { traceId } = useParams();
 
-  return <SpansTable project={data.project} seed={seed} />;
+  return (
+    <SpansTable project={data.project} seed={seed} selectedRowId={traceId} />
+  );
 }
 
 export const ProjectSpansPage = () => {
