@@ -21,7 +21,11 @@ from phoenix.db.helpers import (
     code_evaluator_with_latest_version,
     delete_projects_and_evaluator_trace_projects,
 )
-from phoenix.db.models import EvaluatorKind
+from phoenix.db.models import (
+    DEFAULT_EVALUATION_DELAY_SECONDS,
+    MINIMUM_EVALUATION_DELAY_SECONDS,
+    EvaluatorKind,
+)
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     AnnotationType,
@@ -71,10 +75,6 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxConfig,
 )
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.online_eval.session_policy import (
-    DEFAULT_EVALUATION_DELAY_SECONDS,
-    MINIMUM_EVALUATION_DELAY_SECONDS,
-)
 from phoenix.server.sandbox import SANDBOX_ADAPTERS
 from phoenix.server.sandbox.types import SandboxRuntimeContext, SandboxValidationUnavailable
 from phoenix.server.session_filters import validate_session_filter_condition
@@ -390,7 +390,7 @@ def _materialize_project_evaluator_evaluation_delay(
 ) -> int:
     """Resolve the delay to store; TRACE and SESSION targets are the ones that wait it out."""
     if evaluation_delay_seconds is None:
-        return DEFAULT_EVALUATION_DELAY_SECONDS
+        return 0 if evaluation_target is EvaluationTarget.SPAN else DEFAULT_EVALUATION_DELAY_SECONDS
     if evaluation_target is EvaluationTarget.SPAN:
         raise BadRequest(
             "evaluationDelaySeconds is not accepted for SPAN evaluators: span scheduling "
@@ -566,8 +566,9 @@ class CreateProjectLLMEvaluatorInput:
         description=(
             "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
             f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
-            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
-            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the "
+            f"default: {DEFAULT_EVALUATION_DELAY_SECONDS} seconds for TRACE and SESSION, and 0 "
+            "for SPAN, which evaluates spans as they arrive. A trace or "
             "session is evaluated only once, and later activity does not schedule another "
             "evaluation."
         ),
@@ -595,8 +596,9 @@ class UpdateProjectLLMEvaluatorInput:
             "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
             f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
             "TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current "
-            "setting, or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated "
+            "setting, or use null to restore the default: "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds for TRACE and SESSION, and 0 for SPAN. "
+            "A trace or session is evaluated "
             "only once, and later activity does not schedule another evaluation."
         ),
     )
@@ -623,8 +625,9 @@ class AddProjectCodeEvaluatorInput:
         description=(
             "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
             f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
-            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
-            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the "
+            f"default: {DEFAULT_EVALUATION_DELAY_SECONDS} seconds for TRACE and SESSION, and 0 "
+            "for SPAN, which evaluates spans as they arrive. A trace or "
             "session is evaluated only once, and later activity does not schedule another "
             "evaluation."
         ),
@@ -657,8 +660,9 @@ class CreateProjectCodeEvaluatorInput:
         description=(
             "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
             f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
-            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store "
-            f"the current default of {DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or "
+            "TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the "
+            f"default: {DEFAULT_EVALUATION_DELAY_SECONDS} seconds for TRACE and SESSION, and 0 "
+            "for SPAN, which evaluates spans as they arrive. A trace or "
             "session is evaluated only once, and later activity does not schedule another "
             "evaluation."
         ),
@@ -693,8 +697,9 @@ class UpdateProjectCodeEvaluatorInput:
             "Seconds a trace or session must stay quiet before evaluation is scheduled; the "
             f"minimum is {MINIMUM_EVALUATION_DELAY_SECONDS} seconds. The delay applies to "
             "TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current "
-            "setting, or use null to store the current default of "
-            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds. A trace or session is evaluated "
+            "setting, or use null to restore the default: "
+            f"{DEFAULT_EVALUATION_DELAY_SECONDS} seconds for TRACE and SESSION, and 0 for SPAN. "
+            "A trace or session is evaluated "
             "only once, and later activity does not schedule another evaluation."
         ),
     )

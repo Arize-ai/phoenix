@@ -1280,9 +1280,12 @@ CREATE TABLE project_evaluators (
     evaluation_target VARCHAR NOT NULL
         CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
         CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
-    evaluation_delay_seconds INTEGER DEFAULT '300' NOT NULL
+    evaluation_delay_seconds INTEGER NOT NULL
         CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
-        CHECK (evaluation_delay_seconds >= 10),
+        CHECK (
+            (evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0)
+            OR (evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= 10)
+        ),
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
     swept_through_at TIMESTAMP,

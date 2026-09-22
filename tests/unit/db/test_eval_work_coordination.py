@@ -256,7 +256,7 @@ async def test_project_evaluator_defaults_and_relationships(
         assert fetched.name.root.startswith("project-evaluator-name-")
         assert fetched.filter_condition == ""
         assert fetched.evaluation_target == "SPAN"
-        assert fetched.evaluation_delay_seconds == 300
+        assert fetched.evaluation_delay_seconds == 0
         assert fetched.input_mapping is None
         assert fetched.sampling_rate == 1.0
         assert fetched.evaluator.id == evaluator_id
@@ -428,3 +428,78 @@ def test_migration_status_predicates_match_the_code_that_reads_them() -> None:
         migration._TERMINAL_EVAL_SESSION_WORK_PREDICATE
         == eval_work.terminal_eval_session_work_index_predicate()
     )
+
+
+@pytest.mark.parametrize(
+    "evaluation_target,evaluation_delay_seconds",
+    [
+        pytest.param("SPAN", 300, id="span-with-delay"),
+        pytest.param("TRACE", 0, id="trace-without-delay"),
+        pytest.param("SESSION", 5, id="session-below-minimum"),
+    ],
+)
+async def test_evaluation_delay_constraint_is_target_aware(
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+    evaluation_delay_seconds: int,
+) -> None:
+    """Spans store exactly 0; every other target stores at least the minimum."""
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"eval-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target=evaluation_target,
+                evaluation_delay_seconds=evaluation_delay_seconds,
+            )
+        )
+        with pytest.raises((SQLAlchemyIntegrityError, SQLiteIntegrityError)):
+            await session.flush()
+
+
+async def test_omitted_evaluation_delay_defaults_by_target(db: DbSessionFactory) -> None:
+    """An omitted delay is 0 for spans and the default for every other target."""
+    async with db() as session:
+        project = await _add_project(session)
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"eval-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        rows = {
+            target: models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target=target,
+            )
+            for target in ("SPAN", "TRACE", "SESSION")
+        }
+        session.add_all(rows.values())
+        await session.flush()
+        for row in rows.values():
+            await session.refresh(row, attribute_names=["evaluation_delay_seconds"])
+    assert rows["SPAN"].evaluation_delay_seconds == 0
+    assert rows["TRACE"].evaluation_delay_seconds == models.DEFAULT_EVALUATION_DELAY_SECONDS
+    assert rows["SESSION"].evaluation_delay_seconds == models.DEFAULT_EVALUATION_DELAY_SECONDS
