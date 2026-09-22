@@ -41,8 +41,10 @@ CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CODEX_AUTH_ISSUER = "https://auth.openai.com"
 CODEX_DEVICE_VERIFICATION_URL = f"{CODEX_AUTH_ISSUER}/codex/device"
 CODEX_BACKEND_URL = "https://chatgpt.com/backend-api/codex"
-# The models endpoint 404s without a client_version; Codex CLI sends its own.
-_CODEX_MODELS_CLIENT_VERSION = "0.101.0"
+# The models endpoint 404s without a client_version and hides every model whose
+# minimum Codex CLI version is newer than the one sent. A far-future version
+# keeps the list complete without pinning a release that goes stale.
+_CODEX_MODELS_CLIENT_VERSION = "999.0.0"
 _HTTP_TIMEOUT = httpx.Timeout(timeout=30, connect=5)
 
 
@@ -253,7 +255,9 @@ async def list_models(client: httpx.AsyncClient, *, access_token: str) -> list[s
     models = data.get("models") if isinstance(data, dict) else None
     slugs: list[str] = []
     for model in models or []:
-        slug = model.get("slug") if isinstance(model, dict) else None
+        if not isinstance(model, dict) or model.get("visibility", "list") != "list":
+            continue
+        slug = model.get("slug")
         if isinstance(slug, str) and slug and slug not in slugs:
             slugs.append(slug)
     return slugs

@@ -174,7 +174,15 @@ class TestDeviceFlow:
             assert request.headers["authorization"] == f"Bearer {ACCESS_TOKEN}"
             assert request.headers["chatgpt-account-id"] == "acct_123"
             return httpx.Response(
-                200, json={"models": [{"slug": "gpt-5.4"}, {"slug": "gpt-5.4"}, {"slug": "o3"}]}
+                200,
+                json={
+                    "models": [
+                        {"slug": "gpt-5.4", "visibility": "list"},
+                        {"slug": "gpt-5.4", "visibility": "list"},
+                        {"slug": "codex-auto-review", "visibility": "hide"},
+                        {"slug": "o3"},
+                    ]
+                },
             )
 
         async with _client(handler) as client:
