@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e41d4da92d3735fd1cf66b8d3b782210>>
+ * @generated SignedSource<<db24d84c6c3a0190c51532491fbe67d8>>
  * @lightSyntaxTransform
  */
 
@@ -12,10 +12,10 @@ import { FragmentRefs } from "relay-runtime";
 export type EvaluatorCategory = "AGENTS" | "GROUNDING_AND_RETRIEVAL" | "RESPONSE_QUALITY" | "SAFETY_AND_SECURITY" | "USER_EXPERIENCE";
 export type EvaluatorScope = "SESSION" | "SPAN" | "TRACE";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type projectEvaluatorGalleryPageQuery$variables = {
+export type projectEvaluatorGalleryModalQuery$variables = {
   projectId: string;
 };
-export type projectEvaluatorGalleryPageQuery$data = {
+export type projectEvaluatorGalleryModalQuery$data = {
   readonly evaluatorGalleryConfigs: ReadonlyArray<{
     readonly category: EvaluatorCategory | null;
     readonly choices: any;
@@ -43,9 +43,9 @@ export type projectEvaluatorGalleryPageQuery$data = {
     }>;
   };
 };
-export type projectEvaluatorGalleryPageQuery = {
-  response: projectEvaluatorGalleryPageQuery$data;
-  variables: projectEvaluatorGalleryPageQuery$variables;
+export type projectEvaluatorGalleryModalQuery = {
+  response: projectEvaluatorGalleryModalQuery$data;
+  variables: projectEvaluatorGalleryModalQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -237,7 +237,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "projectEvaluatorGalleryPageQuery",
+    "name": "projectEvaluatorGalleryModalQuery",
     "selections": [
       {
         "alias": null,
@@ -337,7 +337,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "projectEvaluatorGalleryPageQuery",
+    "name": "projectEvaluatorGalleryModalQuery",
     "selections": [
       {
         "alias": null,
@@ -435,7 +435,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "436e3265740db2e43c42fa0c6b0cccfa",
+    "cacheID": "a8662137b60a576d38010c15174cf86c",
     "id": null,
     "metadata": {
       "connection": [
@@ -449,13 +449,13 @@ return {
         }
       ]
     },
-    "name": "projectEvaluatorGalleryPageQuery",
+    "name": "projectEvaluatorGalleryModalQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorGalleryPageQuery(\n  $projectId: ID!\n) {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    inputs {\n      name\n      description\n    }\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}, excludeProjectId: $projectId) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorGalleryModalQuery(\n  $projectId: ID!\n) {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    inputs {\n      name\n      description\n    }\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}, excludeProjectId: $projectId) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2876d6ef4338ad6ef8db2c6fb35760f8";
+(node as any).hash = "4f2afbe74df40d531211ab95cca1c817";
 
 export default node;
