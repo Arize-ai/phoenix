@@ -3180,7 +3180,14 @@ class TestExperimentsOverDatasetSubscription:
             )
         )
         sandbox_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
-        variables = self._input([self._evaluator_task(sandbox_config_id)])
+        # A draft that was never saved: the client sends a source with every id null
+        source = {
+            "evaluatorId": None,
+            "promptVersionId": None,
+            "datasetEvaluatorId": None,
+            "projectEvaluatorId": None,
+        }
+        variables = self._input([self._evaluator_task(sandbox_config_id, source=source)])
 
         with patch("phoenix.server.api.evaluators.build_sandbox_backend", return_value=backend):
             payloads = await self._collect(gql_client, variables)
@@ -3227,6 +3234,7 @@ class TestExperimentsOverDatasetSubscription:
             assert evaluator_task.name == Identifier("answer-length")
             assert evaluator_task.evaluator_kind == "CODE"
             assert evaluator_task.definition.type == "inline_code_evaluator"
+            assert evaluator_task.definition.source is None
             assert evaluator_task.input_mapping.path_mapping == {"output": "$.input"}
             assert [config.name for config in evaluator_task.output_configs] == ["length"]
             runs = (
