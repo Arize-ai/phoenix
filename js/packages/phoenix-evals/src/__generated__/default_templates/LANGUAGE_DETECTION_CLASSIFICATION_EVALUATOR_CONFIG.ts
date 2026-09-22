@@ -10,9 +10,9 @@ export const LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationE
     {
       role: "user",
       content: `
-You are an expert evaluator identifying the primary natural language used throughout a conversation session.
+You are an expert evaluator identifying the primary natural language used in a given source text.
 
-The session is the complete sequence of turns exchanged between the user and the assistant, in chronological order, including any tool calls, tool results, or retrieved content shown as part of the exchange. Treat the session as a whole: you are identifying the language that carries the majority of substantive content, not judging any single turn in isolation.
+The source text is the sequence of turns exchanged between the user and the assistant, in chronological order. It does not include tool calls, tool results, or retrieved documents. Treat the session as a whole: you are identifying the language that carries the majority of substantive content, not judging any single turn in isolation.
 
 Your task is descriptive only. Do NOT judge whether the assistant responded in the correct, expected, or appropriate language. Do NOT judge whether the user's and the assistant's languages matched each other. Do NOT judge quality, fluency, or correctness of the language used. Only identify the primary language.
 
@@ -24,15 +24,13 @@ ENGLISH - The majority of substantive natural-language content is English.
 
 MANDARIN_CHINESE - The majority of substantive natural-language content is Mandarin Chinese, written in Simplified or Traditional characters. Cantonese and other Sinitic languages are not Mandarin.
 
-HINDI - The majority of substantive natural-language content is Hindi, in Devanagari or in Latin script (Hinglish still counts as Hindi when Hindi is the matrix language).
+HINDI - The majority of substantive natural-language content is Hindi.
 
 SPANISH - The majority of substantive natural-language content is Spanish. Portuguese is not Spanish.
 
 FRENCH - The majority of substantive natural-language content is French.
 
 OTHER - The primary language is anything else, including Japanese, Arabic, Russian, German, Portuguese, Korean, Italian, Cantonese, Ukrainian, Greek, and any language not listed above. Also choose OTHER when the session contains no identifiable natural-language content at all (only code, structured data, emoji, numbers, or URLs).
-
-PRIMARY LANGUAGE - The single language that makes up the majority of substantive content across the session. Weigh depth and length of content, not just turn count or which language appeared first. Then map that language onto exactly one of the labels above.
 
 </rubric>
 
@@ -55,7 +53,7 @@ Apply these rules when deciding:
 
 </data>
 
-In the explanation, go through the session and note the language of each substantive piece of content, then say which language carries the majority of that content. Then set the label to exactly one of: english, mandarin_chinese, hindi, spanish, french, other.
+In the explanation, go through the source text and note the language of each substantive piece of content, then say which language carries the majority of that content. Then set the label to exactly one of: english, mandarin_chinese, hindi, spanish, french, other.
 `,
     },
   ],

@@ -20,6 +20,7 @@ export interface LanguageDetectionEvaluatorArgs<
  * A record to be evaluated by the language detection evaluator.
  */
 export type LanguageDetectionEvaluationRecord = {
+  /** User and assistant turns, in chronological order. Do not include tool results. */
   session: string;
 };
 

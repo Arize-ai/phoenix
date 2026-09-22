@@ -10,7 +10,7 @@ messages:
     content: |-
       You are an expert evaluator identifying the primary natural language used in a given source text.
 
-      The source text could be a session, which is the complete sequence of turns exchanged between the user and the assistant, in chronological order. It could include any tool calls, tool results, or retrieved content shown as part of the exchange. Treat the session as a whole: you are identifying the language that carries the majority of substantive content, not judging any single turn in isolation.
+      The source text is the sequence of turns exchanged between the user and the assistant, in chronological order. It does not include tool calls, tool results, or retrieved documents. Treat the session as a whole: you are identifying the language that carries the majority of substantive content, not judging any single turn in isolation.
 
       Your task is descriptive only. Do NOT judge whether the assistant responded in the correct, expected, or appropriate language. Do NOT judge whether the user's and the assistant's languages matched each other. Do NOT judge quality, fluency, or correctness of the language used. Only identify the primary language.
 

@@ -63,7 +63,7 @@ class LanguageDetectionEvaluator(ClassificationEvaluator):
 
     class LanguageDetectionInputSchema(BaseModel):
         session: str = Field(
-            description="The full conversation session whose primary language should be identified."
+            description="User and assistant turns, in chronological order. Do not include tool results."
         )
 
     def __init__(

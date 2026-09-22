@@ -19,17 +19,17 @@ The evaluator is descriptive. It records which language is primary. It does not 
 |-------|-----------|-------|
 | **Span** | Yes | Apply when a span contains the full exchange to classify. |
 | **Trace** | Yes | Useful when a trace holds one complete conversation. |
-| **Session** | Yes | The intended level. Pass the whole session as one string. |
+| **Session** | Yes | The intended level. Pass the user and assistant turns as one string. |
 
-**Relevant span kinds:** AGENT, CHAIN, and LLM spans that preserve the conversation, including tool calls and retrieved text shown in the exchange.
+**Relevant span kinds:** AGENT, CHAIN, and LLM spans that preserve the conversation between the user and the assistant. Leave tool calls, tool results, and retrieved text out of the input.
 
 ## Input Requirements
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `session` | `string` | The full conversation, in chronological order, as readable text. |
+| `session` | `string` | User and assistant turns, in chronological order, as readable text. |
 
-Include both parties, and include tool calls, tool results, or retrieved documents when they are part of the exchange. Natural-language prose inside comments counts. Code, JSON, markup, proper nouns, and lone loanwords do not decide the language on their own.
+Pass both parties. Leave out tool calls, tool results, and retrieved documents. Natural-language prose inside comments counts. Code, JSON, markup, proper nouns, and lone loanwords do not decide the language on their own.
 
 ## Output Interpretation
 
