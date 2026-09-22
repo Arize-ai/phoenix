@@ -1,196 +1,105 @@
-# Notebook index
+# Notebooks
 
-Audit baseline: `7c56f1dcc143fa68588fafc495a879879118f1ad`. This index covers all 124 tracked notebooks and notebook links in the documentation.
+We want to remove more notebooks to reduce maintenance. Start with those not referenced in the docs, then review the remaining notebooks for outdated or duplicate examples.
 
-- 80 notebooks referenced by documentation (retained).
-- 16 notebooks absent from documentation but referenced elsewhere (retained).
-- 28 notebooks with no repository references found (removed; historical links below).
+## Not referenced in docs
 
-## Audit scope and maintenance
+- [js/examples/notebooks/deno_datasets_and_experiments_quickstart.ipynb](js/examples/notebooks/deno_datasets_and_experiments_quickstart.ipynb)
+- [js/examples/notebooks/langchain/tracing_langchain_node_tutorial.ipynb](js/examples/notebooks/langchain/tracing_langchain_node_tutorial.ipynb)
+- [js/examples/notebooks/phoenix_prompts_cross_sdk_tutorial.ipynb](js/examples/notebooks/phoenix_prompts_cross_sdk_tutorial.ipynb)
+- [js/examples/notebooks/phoenix_prompts_openai_tutorial.ipynb](js/examples/notebooks/phoenix_prompts_openai_tutorial.ipynb)
+- [js/examples/notebooks/phoenix_prompts_vercel_ai_sdk.ipynb](js/examples/notebooks/phoenix_prompts_vercel_ai_sdk.ipynb)
+- [js/examples/notebooks/tracing_openai_node_tutorial.ipynb](js/examples/notebooks/tracing_openai_node_tutorial.ipynb)
+- [scripts/benchmarks/hallucination_eval_benchmark.ipynb](scripts/benchmarks/hallucination_eval_benchmark.ipynb)
+- [scripts/data/wrangle_halueval.ipynb](scripts/data/wrangle_halueval.ipynb)
+- [scripts/data/wrangle_ms_marco.ipynb](scripts/data/wrangle_ms_marco.ipynb)
+- [scripts/data/wrangle_wiki_qa.ipynb](scripts/data/wrangle_wiki_qa.ipynb)
+- [scripts/data/wrangle_wiki_toxic.ipynb](scripts/data/wrangle_wiki_toxic.ipynb)
+- [scripts/fixtures/ChatRAG-Bench.ipynb](scripts/fixtures/ChatRAG-Bench.ipynb)
+- [scripts/fixtures/multi-turn_chat_sessions.ipynb](scripts/fixtures/multi-turn_chat_sessions.ipynb)
+- [scripts/fixtures/vision.ipynb](scripts/fixtures/vision.ipynb)
+- [scripts/testing/experiment_runs_filters.ipynb](scripts/testing/experiment_runs_filters.ipynb)
+- [tutorials/evals/evals_quickstart.ipynb](tutorials/evals/evals_quickstart.ipynb)
 
-Documentation includes `docs/`, `api_reference/`, package `docs/` directories, and `docs.json`, including pages outside the navigation and release notes. References were checked across tracked text files and notebook cell sources, with URL decoding and filename matching to catch moved paths. Self-links and notebook outputs do not count. README directory links and wildcard references were also inspected. “Unreferenced” describes repository evidence; it does not establish whether someone uses a notebook externally.
+## Referenced in docs
 
-When adding or moving a notebook, update its entry and referring pages here. When removing a docs link, move its notebook to the undocumented section for review. This index itself must not count as evidence of use. Preserve the removal ledger when updating the inventory.
-
-## Notebooks referenced by documentation
-
-| Notebook | Referencing documentation |
-| --- | --- |
-| [js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb](js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb) | [docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions.mdx](docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions.mdx) |
-| [tutorials/agents/autogen/autogen_agents_evaluator_optimizer.ipynb](tutorials/agents/autogen/autogen_agents_evaluator_optimizer.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/autogen.mdx](docs/phoenix/cookbook/agent-workflow-patterns/autogen.mdx) |
-| [tutorials/agents/autogen/autogen_agents_parallelization.ipynb](tutorials/agents/autogen/autogen_agents_parallelization.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/autogen.mdx](docs/phoenix/cookbook/agent-workflow-patterns/autogen.mdx) |
-| [tutorials/agents/autogen/autogen_agents_prompt_chaining.ipynb](tutorials/agents/autogen/autogen_agents_prompt_chaining.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/autogen.mdx](docs/phoenix/cookbook/agent-workflow-patterns/autogen.mdx) |
-| [tutorials/agents/crewai/crewai_ parallelization_tutorial.ipynb](tutorials/agents/crewai/crewai_%20parallelization_tutorial.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx](docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx) |
-| [tutorials/agents/crewai/crewai_orchestrator_workers_tutorial.ipynb](tutorials/agents/crewai/crewai_orchestrator_workers_tutorial.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx](docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx) |
-| [tutorials/agents/crewai/crewai_prompt_chaining_tutorial.ipynb](tutorials/agents/crewai/crewai_prompt_chaining_tutorial.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx](docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx) |
-| [tutorials/agents/crewai/crewai_routing_tutorial.ipynb](tutorials/agents/crewai/crewai_routing_tutorial.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx](docs/phoenix/cookbook/agent-workflow-patterns/crewai.mdx) |
-| [tutorials/agents/google-adk/google_adk_financial_advisor.ipynb](tutorials/agents/google-adk/google_adk_financial_advisor.ipynb) | [docs/phoenix/integrations/python/google-adk.mdx](docs/phoenix/integrations/python/google-adk.mdx) |
-| [tutorials/agents/google-genai/evaluator-optimizer-agent.ipynb](tutorials/agents/google-genai/evaluator-optimizer-agent.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx](docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx) |
-| [tutorials/agents/google-genai/orchestration-agent.ipynb](tutorials/agents/google-genai/orchestration-agent.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx](docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx) |
-| [tutorials/agents/google-genai/parallelization-agent.ipynb](tutorials/agents/google-genai/parallelization-agent.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx](docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx) |
-| [tutorials/agents/google-genai/routing-agent.ipynb](tutorials/agents/google-genai/routing-agent.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx](docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx) |
-| [tutorials/agents/google-genai/sequential-agent.ipynb](tutorials/agents/google-genai/sequential-agent.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx](docs/phoenix/cookbook/agent-workflow-patterns/google-genai-sdk-manual-orchestration.mdx) |
-| [tutorials/agents/langgraph/langgraph_evaluator.ipynb](tutorials/agents/langgraph/langgraph_evaluator.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx](docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx) |
-| [tutorials/agents/langgraph/langgraph_orchestrator.ipynb](tutorials/agents/langgraph/langgraph_orchestrator.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx](docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx) |
-| [tutorials/agents/langgraph/langgraph_parallel.ipynb](tutorials/agents/langgraph/langgraph_parallel.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx](docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx) |
-| [tutorials/agents/langgraph/langgraph_promptchaining.ipynb](tutorials/agents/langgraph/langgraph_promptchaining.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx](docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx) |
-| [tutorials/agents/langgraph/langgraph_router.ipynb](tutorials/agents/langgraph/langgraph_router.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx](docs/phoenix/cookbook/agent-workflow-patterns/langgraph.mdx) |
-| [tutorials/agents/openai/openai_agents_basic.ipynb](tutorials/agents/openai/openai_agents_basic.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx) |
-| [tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb](tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx) |
-| [tutorials/agents/openai/openai_agents_orchestrator.ipynb](tutorials/agents/openai/openai_agents_orchestrator.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx) |
-| [tutorials/agents/openai/openai_agents_parallelization.ipynb](tutorials/agents/openai/openai_agents_parallelization.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx) |
-| [tutorials/agents/openai/openai_agents_prompt_chaining.ipynb](tutorials/agents/openai/openai_agents_prompt_chaining.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx) |
-| [tutorials/agents/openai/openai_agents_routing.ipynb](tutorials/agents/openai/openai_agents_routing.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/openai-agents.mdx) |
-| [tutorials/agents/smolagents/smolagents_orchestrator.ipynb](tutorials/agents/smolagents/smolagents_orchestrator.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/smolagents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/smolagents.mdx) |
-| [tutorials/agents/smolagents/smolagents_prompt_chaining.ipynb](tutorials/agents/smolagents/smolagents_prompt_chaining.ipynb) | [docs/phoenix/cookbook/agent-workflow-patterns/smolagents.mdx](docs/phoenix/cookbook/agent-workflow-patterns/smolagents.mdx) |
-| [tutorials/annotations/custom-annotations-tool-for-eval-driven-development.ipynb](tutorials/annotations/custom-annotations-tool-for-eval-driven-development.ipynb) | [docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development.mdx](docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development.mdx) |
-| [tutorials/evals/bedrock_tracing_and_evals_tutorial.ipynb](tutorials/evals/bedrock_tracing_and_evals_tutorial.ipynb) | [docs/phoenix/integrations/llm-providers/amazon-bedrock.mdx](docs/phoenix/integrations/llm-providers/amazon-bedrock.mdx)<br>[docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx](docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing.mdx) |
-| [tutorials/evals/creating_a_custom_llm_evaluator.ipynb](tutorials/evals/creating_a_custom_llm_evaluator.ipynb) | [docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.mdx](docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset.mdx) |
-| [tutorials/evals/evaluate_agent.ipynb](tutorials/evals/evaluate_agent.ipynb) | [docs/phoenix/cookbook/evaluation/evaluate-an-agent.mdx](docs/phoenix/cookbook/evaluation/evaluate-an-agent.mdx)<br>[docs/phoenix/integrations/llm-providers/openai.mdx](docs/phoenix/integrations/llm-providers/openai.mdx) |
-| [tutorials/evals/evaluate_agent_parameter_extraction_classifications.ipynb](tutorials/evals/evaluate_agent_parameter_extraction_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [tutorials/evals/evaluate_agent_tool_calling_classifications.ipynb](tutorials/evals/evaluate_agent_tool_calling_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [tutorials/evals/evaluate_agent_tool_selection_classifications.ipynb](tutorials/evals/evaluate_agent_tool_selection_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [tutorials/evals/evaluate_code_readability_classifications.ipynb](tutorials/evals/evaluate_code_readability_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/code-readability-evaluation.mdx](docs/phoenix/cookbook/evaluation/code-readability-evaluation.mdx) |
-| [tutorials/evals/openai_agents_cookbook.ipynb](tutorials/evals/openai_agents_cookbook.ipynb) | [docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook.mdx](docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook.mdx)<br>[docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing.mdx](docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing.mdx) |
-| [tutorials/evals/optimizing_llm_as_a_judge_prompts.ipynb](tutorials/evals/optimizing_llm_as_a_judge_prompts.ipynb) | [docs/phoenix/cookbook/prompt-engineering/llm-as-a-judge-prompt-optimization.mdx](docs/phoenix/cookbook/prompt-engineering/llm-as-a-judge-prompt-optimization.mdx) |
-| [tutorials/evals/session_level_evals.ipynb](tutorials/evals/session_level_evals.ipynb) | [docs/phoenix/cookbook/evaluation/session-level-evaluation.mdx](docs/phoenix/cookbook/evaluation/session-level-evaluation.mdx) |
-| [tutorials/evals/trace_level_evals.ipynb](tutorials/evals/trace_level_evals.ipynb) | [docs/phoenix/cookbook/evaluation/trace-level-evaluation.mdx](docs/phoenix/cookbook/evaluation/trace-level-evaluation.mdx) |
-| [tutorials/experiments/agents-cookbook.ipynb](tutorials/experiments/agents-cookbook.ipynb) | [docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent.mdx](docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent.mdx)<br>[docs/phoenix/integrations/llm-providers/openai.mdx](docs/phoenix/integrations/llm-providers/openai.mdx) |
-| [tutorials/experiments/building_your_own_eval_harness.ipynb](tutorials/experiments/building_your_own_eval_harness.ipynb) | [docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness.mdx](docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness.mdx) |
-| [tutorials/experiments/datasets_and_experiments_quickstart.ipynb](tutorials/experiments/datasets_and_experiments_quickstart.ipynb) | [docs/phoenix/datasets-and-experiments/quickstart-datasets.mdx](docs/phoenix/datasets-and-experiments/quickstart-datasets.mdx) |
-| [tutorials/experiments/generating_synthetic_datasets.ipynb](tutorials/experiments/generating_synthetic_datasets.ipynb) | [docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents.mdx](docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents.mdx) |
-| [tutorials/experiments/python_experiments_quickstart.ipynb](tutorials/experiments/python_experiments_quickstart.ipynb) | [docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset.mdx](docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset.mdx)<br>[docs/phoenix/datasets-and-experiments/tutorial/iteration-workflow-experiments.mdx](docs/phoenix/datasets-and-experiments/tutorial/iteration-workflow-experiments.mdx)<br>[docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-code-evals.mdx](docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-code-evals.mdx)<br>[docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-llm-judge.mdx](docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-llm-judge.mdx) |
-| [tutorials/experiments/run_experiments_with_llama_index.ipynb](tutorials/experiments/run_experiments_with_llama_index.ipynb) | [docs/phoenix/cookbook/datasets-and-experiments/cookbooks.mdx](docs/phoenix/cookbook/datasets-and-experiments/cookbooks.mdx) |
-| [tutorials/experiments/running_experiments_with_repetitions.ipynb](tutorials/experiments/running_experiments_with_repetitions.ipynb) | [docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments.mdx](docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments.mdx)<br>[docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments.mdx](docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments.mdx) |
-| [tutorials/experiments/summarization.ipynb](tutorials/experiments/summarization.ipynb) | [docs/phoenix/cookbook/datasets-and-experiments/summarization.mdx](docs/phoenix/cookbook/datasets-and-experiments/summarization.mdx) |
-| [tutorials/experiments/txt2sql.ipynb](tutorials/experiments/txt2sql.ipynb) | [docs/phoenix/cookbook/datasets-and-experiments/text2sql.mdx](docs/phoenix/cookbook/datasets-and-experiments/text2sql.mdx) |
-| [tutorials/guardrails/designing_realtime_guardrails.ipynb](tutorials/guardrails/designing_realtime_guardrails.ipynb) | [docs/phoenix/cookbook/guardrails/designing-realtime-guardrails.mdx](docs/phoenix/cookbook/guardrails/designing-realtime-guardrails.mdx) |
-| [tutorials/guardrails/jailbreak_and_prompt_injection_defense.ipynb](tutorials/guardrails/jailbreak_and_prompt_injection_defense.ipynb) | [docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense.mdx](docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense.mdx) |
-| [tutorials/integrations/amazon_bedrock_agents_tracing_and_evals.ipynb](tutorials/integrations/amazon_bedrock_agents_tracing_and_evals.ipynb) | [docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing.mdx](docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing.mdx) |
-| [tutorials/integrations/evaluating_traces_cleanlabTLM.ipynb](tutorials/integrations/evaluating_traces_cleanlabTLM.ipynb) | [docs/phoenix/integrations/evaluation-integrations/cleanlab.mdx](docs/phoenix/integrations/evaluation-integrations/cleanlab.mdx) |
-| [tutorials/llm_ops_overview.ipynb](tutorials/llm_ops_overview.ipynb) | [docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python.mdx](docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python.mdx)<br>[docs/phoenix/end-to-end-features-notebook.mdx](docs/phoenix/end-to-end-features-notebook.mdx) |
-| [tutorials/prompts/chain_of_thought_prompting.ipynb](tutorials/prompts/chain_of_thought_prompting.ipynb) | [docs/phoenix/cookbook/prompt-engineering/chain-of-thought-prompting.mdx](docs/phoenix/cookbook/prompt-engineering/chain-of-thought-prompting.mdx) |
-| [tutorials/prompts/few_shot_prompting.ipynb](tutorials/prompts/few_shot_prompting.ipynb) | [docs/phoenix/cookbook/prompt-engineering/few-shot-prompting.mdx](docs/phoenix/cookbook/prompt-engineering/few-shot-prompting.mdx) |
-| [tutorials/prompts/phoenix_prompt_tutorial.ipynb](tutorials/prompts/phoenix_prompt_tutorial.ipynb) | [docs/phoenix/prompt-engineering/tutorial.mdx](docs/phoenix/prompt-engineering/tutorial.mdx)<br>[docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions.mdx](docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions.mdx)<br>[docs/phoenix/prompt-engineering/tutorial/identify-and-edit-prompts.mdx](docs/phoenix/prompt-engineering/tutorial/identify-and-edit-prompts.mdx)<br>[docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically.mdx](docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically.mdx)<br>[docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale.mdx](docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale.mdx) |
-| [tutorials/prompts/prompt-optimization.ipynb](tutorials/prompts/prompt-optimization.ipynb) | [docs/phoenix/cookbook/prompt-engineering/prompt-optimization.mdx](docs/phoenix/cookbook/prompt-engineering/prompt-optimization.mdx) |
-| [tutorials/prompts/react_prompting.ipynb](tutorials/prompts/react_prompting.ipynb) | [docs/phoenix/cookbook/prompt-engineering/react-prompting.mdx](docs/phoenix/cookbook/prompt-engineering/react-prompting.mdx) |
-| [tutorials/quickstarts/agno_agent_for_evals.ipynb](tutorials/quickstarts/agno_agent_for_evals.ipynb) | [docs/phoenix/evaluation/tutorials/customize-eval-template.mdx](docs/phoenix/evaluation/tutorials/customize-eval-template.mdx)<br>[docs/phoenix/evaluation/tutorials/customize-your-llm-endpoint.mdx](docs/phoenix/evaluation/tutorials/customize-your-llm-endpoint.mdx)<br>[docs/phoenix/evaluation/tutorials/run-evals-with-built-in-evals.mdx](docs/phoenix/evaluation/tutorials/run-evals-with-built-in-evals.mdx) |
-| [tutorials/quickstarts/python_quickstart.ipynb](tutorials/quickstarts/python_quickstart.ipynb) | [docs/phoenix/get-started/get-started-datasets-and-experiments.mdx](docs/phoenix/get-started/get-started-datasets-and-experiments.mdx)<br>[docs/phoenix/get-started/get-started-evaluations.mdx](docs/phoenix/get-started/get-started-evaluations.mdx)<br>[docs/phoenix/get-started/get-started-tracing.mdx](docs/phoenix/get-started/get-started-tracing.mdx) |
-| [tutorials/tracing/agentic_rag_tracing.ipynb](tutorials/tracing/agentic_rag_tracing.ipynb) | [docs/phoenix/cookbook/tracing/agentic-rag-tracing.mdx](docs/phoenix/cookbook/tracing/agentic-rag-tracing.mdx) |
-| [tutorials/tracing/anthropic_tracing_tutorial.ipynb](tutorials/tracing/anthropic_tracing_tutorial.ipynb) | [docs/phoenix/integrations/llm-providers/anthropic.mdx](docs/phoenix/integrations/llm-providers/anthropic.mdx) |
-| [tutorials/tracing/autogen_tutorial.ipynb](tutorials/tracing/autogen_tutorial.ipynb) | [docs/phoenix/integrations/python/autogen/autogen-tracing.mdx](docs/phoenix/integrations/python/autogen/autogen-tracing.mdx) |
-| [tutorials/tracing/crewai_tracing_tutorial.ipynb](tutorials/tracing/crewai_tracing_tutorial.ipynb) | [docs/phoenix/integrations/python/crewai/crewai-tracing.mdx](docs/phoenix/integrations/python/crewai/crewai-tracing.mdx) |
-| [tutorials/tracing/dspy_tracing_tutorial.ipynb](tutorials/tracing/dspy_tracing_tutorial.ipynb) | [docs/phoenix/integrations/python/dspy.mdx](docs/phoenix/integrations/python/dspy.mdx)<br>[docs/phoenix/integrations/python/dspy/dspy-tracing.mdx](docs/phoenix/integrations/python/dspy/dspy-tracing.mdx) |
-| [tutorials/tracing/google_agent_engine_tracing_tutorial.ipynb](tutorials/tracing/google_agent_engine_tracing_tutorial.ipynb) | [docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph.mdx](docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph.mdx) |
-| [tutorials/tracing/groq_tracing_tutorial.ipynb](tutorials/tracing/groq_tracing_tutorial.ipynb) | [docs/phoenix/integrations/llm-providers/groq.mdx](docs/phoenix/integrations/llm-providers/groq.mdx)<br>[docs/phoenix/integrations/llm-providers/groq/groq-tracing.mdx](docs/phoenix/integrations/llm-providers/groq/groq-tracing.mdx) |
-| [tutorials/tracing/langchain_agent_tracing_tutorial.ipynb](tutorials/tracing/langchain_agent_tracing_tutorial.ipynb) | [docs/phoenix/cookbook/tracing/cookbooks.mdx](docs/phoenix/cookbook/tracing/cookbooks.mdx)<br>[docs/phoenix/integrations/llm-providers/openai.mdx](docs/phoenix/integrations/llm-providers/openai.mdx)<br>[docs/phoenix/integrations/python/langchain.mdx](docs/phoenix/integrations/python/langchain.mdx) |
-| [tutorials/tracing/langchain_tracing_tutorial.ipynb](tutorials/tracing/langchain_tracing_tutorial.ipynb) | [docs/phoenix/cookbook/tracing/cookbooks.mdx](docs/phoenix/cookbook/tracing/cookbooks.mdx)<br>[docs/phoenix/integrations/python/langchain/langchain-tracing.mdx](docs/phoenix/integrations/python/langchain/langchain-tracing.mdx) |
-| [tutorials/tracing/langgraph_agent_tracing_tutorial.ipynb](tutorials/tracing/langgraph_agent_tracing_tutorial.ipynb) | [docs/phoenix/integrations/python/langgraph/langgraph-tracing.mdx](docs/phoenix/integrations/python/langgraph/langgraph-tracing.mdx) |
-| [tutorials/tracing/llama_index_openai_agent_tracing_tutorial.ipynb](tutorials/tracing/llama_index_openai_agent_tracing_tutorial.ipynb) | [docs/phoenix/cookbook/tracing/cookbooks.mdx](docs/phoenix/cookbook/tracing/cookbooks.mdx)<br>[docs/phoenix/integrations/python/llamaindex.mdx](docs/phoenix/integrations/python/llamaindex.mdx) |
-| [tutorials/tracing/llama_index_sql_retriever_tutorial.ipynb](tutorials/tracing/llama_index_sql_retriever_tutorial.ipynb) | [docs/phoenix/integrations/python/llamaindex.mdx](docs/phoenix/integrations/python/llamaindex.mdx) |
-| [tutorials/tracing/llama_index_tracing_tutorial.ipynb](tutorials/tracing/llama_index_tracing_tutorial.ipynb) | [docs/phoenix/cookbook/tracing/cookbooks.mdx](docs/phoenix/cookbook/tracing/cookbooks.mdx)<br>[docs/phoenix/integrations/python/llamaindex.mdx](docs/phoenix/integrations/python/llamaindex.mdx)<br>[docs/phoenix/integrations/python/llamaindex/llamaindex-tracing.mdx](docs/phoenix/integrations/python/llamaindex/llamaindex-tracing.mdx) |
-| [tutorials/tracing/multilingual_text2cypher_evals.ipynb](tutorials/tracing/multilingual_text2cypher_evals.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx)<br>[docs/phoenix/cookbook/tracing/cookbooks.mdx](docs/phoenix/cookbook/tracing/cookbooks.mdx) |
-| [tutorials/tracing/openai_sessions_tutorial.ipynb](tutorials/tracing/openai_sessions_tutorial.ipynb) | [docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions.mdx](docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions.mdx) |
-| [tutorials/tracing/openai_tracing_tutorial.ipynb](tutorials/tracing/openai_tracing_tutorial.ipynb) | [docs/phoenix/cookbook/tracing/structured-data-extraction.mdx](docs/phoenix/cookbook/tracing/structured-data-extraction.mdx)<br>[docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx](docs/phoenix/integrations/llm-providers/openai/openai-tracing.mdx) |
-| [tutorials/tracing/openinference_best_practices_tutorial.ipynb](tutorials/tracing/openinference_best_practices_tutorial.ipynb) | [docs/phoenix/cookbook/tracing/openinference-best-practices.mdx](docs/phoenix/cookbook/tracing/openinference-best-practices.mdx) |
-| [tutorials/tracing/project_sessions_llama_index_query_engine.ipynb](tutorials/tracing/project_sessions_llama_index_query_engine.ipynb) | [docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions.mdx](docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions.mdx) |
-| [tutorials/tracing/python_tracing_quickstart.ipynb](tutorials/tracing/python_tracing_quickstart.ipynb) | [docs/phoenix/tracing/tutorial.mdx](docs/phoenix/tracing/tutorial.mdx)<br>[docs/phoenix/tracing/tutorial/annotations-and-evaluations.mdx](docs/phoenix/tracing/tutorial/annotations-and-evaluations.mdx)<br>[docs/phoenix/tracing/tutorial/sessions.mdx](docs/phoenix/tracing/tutorial/sessions.mdx)<br>[docs/phoenix/tracing/tutorial/your-first-traces.mdx](docs/phoenix/tracing/tutorial/your-first-traces.mdx) |
-| [tutorials/tracing/smolagents_tracing_tutorial.ipynb](tutorials/tracing/smolagents_tracing_tutorial.ipynb) | [docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing.mdx](docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing.mdx) |
-
-## Notebooks not used in docs: retained for other uses
-
-Directory and wildcard references count as other uses; the JavaScript examples are linked from `js/DEVELOPMENT.md` and dataset preparation notebooks from `scripts/README.md`.
-
-| Notebook | Other reference |
-| --- | --- |
-| [js/examples/notebooks/deno_datasets_and_experiments_quickstart.ipynb](js/examples/notebooks/deno_datasets_and_experiments_quickstart.ipynb) | [js/DEVELOPMENT.md](js/DEVELOPMENT.md) |
-| [js/examples/notebooks/langchain/tracing_langchain_node_tutorial.ipynb](js/examples/notebooks/langchain/tracing_langchain_node_tutorial.ipynb) | [js/DEVELOPMENT.md](js/DEVELOPMENT.md) |
-| [js/examples/notebooks/phoenix_prompts_cross_sdk_tutorial.ipynb](js/examples/notebooks/phoenix_prompts_cross_sdk_tutorial.ipynb) | [js/DEVELOPMENT.md](js/DEVELOPMENT.md) |
-| [js/examples/notebooks/phoenix_prompts_openai_tutorial.ipynb](js/examples/notebooks/phoenix_prompts_openai_tutorial.ipynb) | [js/DEVELOPMENT.md](js/DEVELOPMENT.md) |
-| [js/examples/notebooks/phoenix_prompts_vercel_ai_sdk.ipynb](js/examples/notebooks/phoenix_prompts_vercel_ai_sdk.ipynb) | [js/DEVELOPMENT.md](js/DEVELOPMENT.md) |
-| [js/examples/notebooks/tracing_openai_node_tutorial.ipynb](js/examples/notebooks/tracing_openai_node_tutorial.ipynb) | [js/DEVELOPMENT.md](js/DEVELOPMENT.md) |
-| [scripts/benchmarks/hallucination_eval_benchmark.ipynb](scripts/benchmarks/hallucination_eval_benchmark.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/data/wrangle_halueval.ipynb](scripts/data/wrangle_halueval.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/data/wrangle_ms_marco.ipynb](scripts/data/wrangle_ms_marco.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/data/wrangle_wiki_qa.ipynb](scripts/data/wrangle_wiki_qa.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/data/wrangle_wiki_toxic.ipynb](scripts/data/wrangle_wiki_toxic.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/fixtures/ChatRAG-Bench.ipynb](scripts/fixtures/ChatRAG-Bench.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/fixtures/multi-turn_chat_sessions.ipynb](scripts/fixtures/multi-turn_chat_sessions.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/fixtures/vision.ipynb](scripts/fixtures/vision.ipynb) | [scripts/README.md](scripts/README.md) |
-| [scripts/testing/experiment_runs_filters.ipynb](scripts/testing/experiment_runs_filters.ipynb) | [scripts/README.md](scripts/README.md) |
-| [tutorials/evals/evals_quickstart.ipynb](tutorials/evals/evals_quickstart.ipynb) | [tutorials/evals/_run_evals_quickstart.py](tutorials/evals/_run_evals_quickstart.py) |
-
-## Notebooks not used in docs: removal ledger
-
-These notebooks had no references found elsewhere in the repository. Links point to the audit baseline so their contents remain accessible after removal.
-
-| Removed notebook | Historical source |
-| --- | --- |
-| `examples/llamaindex-workflows-research-agent/evaluate_traces.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/examples/llamaindex-workflows-research-agent/evaluate_traces.ipynb) |
-| `packages/phoenix-client/examples/prompts/prompts_for_various_SDKs.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/packages/phoenix-client/examples/prompts/prompts_for_various_SDKs.ipynb) |
-| `scripts/prompt_caching_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/scripts/prompt_caching_tutorial.ipynb) |
-| `tutorials/agents/agno/tracing_an_agno_agent.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/agents/agno/tracing_an_agno_agent.ipynb) |
-| `tutorials/agents/autogen/autogen_agents_orchestrator.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/agents/autogen/autogen_agents_orchestrator.ipynb) |
-| `tutorials/agents/autogen/autogen_agents_routing.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/agents/autogen/autogen_agents_routing.ipynb) |
-| `tutorials/evals/CoT_explanations_simple_vs_complex_evals.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/evals/CoT_explanations_simple_vs_complex_evals.ipynb) |
-| `tutorials/evals/evals_introduction.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/evals/evals_introduction.ipynb) |
-| `tutorials/evals/evaluate_code_functionality_classifications.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/evals/evaluate_code_functionality_classifications.ipynb) |
-| `tutorials/evals/evaluate_rag_system.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/evals/evaluate_rag_system.ipynb) |
-| `tutorials/experiments/run_experiments_splits.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/experiments/run_experiments_splits.ipynb) |
-| `tutorials/experiments/tool_calling_eval_dataset.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/experiments/tool_calling_eval_dataset.ipynb) |
-| `tutorials/human_feedback/chatbot_with_human_feedback.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/human_feedback/chatbot_with_human_feedback.ipynb) |
-| `tutorials/integrations/bedrock_tracing_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/integrations/bedrock_tracing_tutorial.ipynb) |
-| `tutorials/integrations/ragas_agents_cookbook_phoenix.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/integrations/ragas_agents_cookbook_phoenix.ipynb) |
-| `tutorials/integrations/tracing_and_evals_weaviate.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/integrations/tracing_and_evals_weaviate.ipynb) |
-| `tutorials/llama_index_multimodal_image_reasoning.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/llama_index_multimodal_image_reasoning.ipynb) |
-| `tutorials/llm_application_tracing_evaluating_and_analysis.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/llm_application_tracing_evaluating_and_analysis.ipynb) |
-| `tutorials/log_traces_to_phoenix.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/log_traces_to_phoenix.ipynb) |
-| `tutorials/multi_modal/image_classification_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/multi_modal/image_classification_tutorial.ipynb) |
-| `tutorials/multi_modal/tracing_with_images_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/multi_modal/tracing_with_images_tutorial.ipynb) |
-| `tutorials/prompts/from_anthropic.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/prompts/from_anthropic.ipynb) |
-| `tutorials/prompts/from_openai.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/prompts/from_openai.ipynb) |
-| `tutorials/prompts/hallucination_eval.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/prompts/hallucination_eval.ipynb) |
-| `tutorials/tracing/haystack_tracing_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/tracing/haystack_tracing_tutorial.ipynb) |
-| `tutorials/tracing/langchain_vertex_ai_tracing_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/tracing/langchain_vertex_ai_tracing_tutorial.ipynb) |
-| `tutorials/tracing/manual_instrumentation_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/tracing/manual_instrumentation_tutorial.ipynb) |
-| `tutorials/tracing/span_filtering_tutorial.ipynb` | [View notebook](https://github.com/Arize-ai/phoenix/blob/7c56f1dcc143fa68588fafc495a879879118f1ad/tutorials/tracing/span_filtering_tutorial.ipynb) |
-
-## Docs references to paths missing from this checkout
-
-These gaps predate the removal above. A historical commit link may still work remotely. Filename matches are retained above even when the referenced directory is stale. Links have not been checked over the network.
-
-| Referenced path | Documentation to review |
-| --- | --- |
-| `tutorials/evals/evaluate_rag.ipynb` | [docs/phoenix/cookbook/evaluation/evaluate-rag.mdx](docs/phoenix/cookbook/evaluation/evaluate-rag.mdx)<br>[docs/phoenix/integrations/python/llamaindex.mdx](docs/phoenix/integrations/python/llamaindex.mdx)<br>[docs/phoenix/use-cases/rag-evaluation.mdx](docs/phoenix/use-cases/rag-evaluation.mdx) |
-| `tutorials/evals/evaluate_rag_haystack.ipynb` | [docs/phoenix/integrations/python/haystack.mdx](docs/phoenix/integrations/python/haystack.mdx) |
-| `tutorials/evals/google_adk_financial_advisor.ipynb` | [docs/phoenix/integrations/python/google-adk.mdx](docs/phoenix/integrations/python/google-adk.mdx) |
-| `tutorials/evals/multilingual_text2cypher_evals.ipynb` | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| `tutorials/experiments/llama-index/answer_and_context_relevancy.ipynb` | [docs/phoenix/cookbook/datasets-and-experiments/cookbooks.mdx](docs/phoenix/cookbook/datasets-and-experiments/cookbooks.mdx) |
-| `tutorials/experiments/llama-index/guideline_eval.ipynb` | [docs/phoenix/cookbook/datasets-and-experiments/cookbooks.mdx](docs/phoenix/cookbook/datasets-and-experiments/cookbooks.mdx) |
-
-## External notebooks used in docs
-
-These notebooks live in other repositories or Google Drive and are outside the local cleanup scope. GitHub and Colab URLs are listed as written, with query strings and cell anchors removed.
-
-| Notebook link | Referencing documentation |
-| --- | --- |
-| [Notebook](https://colab.research.google.com/drive/1NDn5jzsW5k0UrwaBjZenRX29l6ocrZ-_) | [docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations.mdx](docs/phoenix/release-notes/2024/07-18-2024-guardrails-ai-integrations.mdx) |
-| [Notebook](https://colab.research.google.com/drive/1e4vZR5VPelXXYGtWfvM3CErPhItHAIp2) | [docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments.mdx](docs/phoenix/release-notes/2024/07-03-2024-datasets-and-experiments.mdx) |
-| [Notebook](https://colab.research.google.com/drive/1nXcsy-u2qX8OEWk2SElXIgHgLqMttE9_) | [docs/phoenix/integrations/python/hugging-face-smolagents.mdx](docs/phoenix/integrations/python/hugging-face-smolagents.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_QA_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_hallucination_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_human_vs_ai_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_reference_link_correctness_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_relevance_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/relevance-classification-evaluation.mdx](docs/phoenix/cookbook/evaluation/relevance-classification-evaluation.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_summarization_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_toxicity_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/evaluate_user_frustration_classifications.ipynb) | [docs/phoenix/cookbook/evaluation/cookbooks.mdx](docs/phoenix/cookbook/evaluation/cookbooks.mdx) |
-| [Notebook](https://colab.research.google.com/github/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/ragas_retrieval_evals_tutorial.ipynb) | [docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent.mdx](docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent.mdx)<br>[docs/phoenix/integrations/evaluation-integrations/ragas.mdx](docs/phoenix/integrations/evaluation-integrations/ragas.mdx) |
-| [Notebook](https://colab.research.google.com/github/GoogleCloudPlatform/generative-ai/blob/main/gemini/evaluation/multi_agent_evals_with_arize_and_crewai.ipynb) | [docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals-1.mdx](docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals-1.mdx) |
-| [Notebook](https://github.com/Arize-ai/dataset-embeddings-guardrails/blob/main/validator/arize_demo_dataset_embeddings_guard.ipynb) | [docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx](docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx) |
-| [Notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-promptflow/examples/chat_flow_example_to_phoenix.ipynb) | [docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing.mdx](docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing.mdx) |
-| [Notebook](https://github.com/Arize-ai/prompt-learning/blob/main/cline/act_mode/optimize_cline_act_PX.ipynb) | [docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning.mdx](docs/phoenix/cookbook/prompt-engineering/optimizing-coding-agent-prompts-prompt-learning.mdx) |
-| [Notebook](https://github.com/Arize-ai/prompt-learning/blob/main/notebooks/phoenix_support_query_classification.ipynb) | [docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification.mdx](docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification.mdx) |
-| [Notebook](https://github.com/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/pydantic-evals.ipynb) | [docs/phoenix/integrations/python/pydantic/pydantic-evals.mdx](docs/phoenix/integrations/python/pydantic/pydantic-evals.mdx) |
-| [Notebook](https://github.com/Arize-ai/tutorials/blob/main/python/cookbooks/phoenix_evals_examples/uqlm_phoenix_confidence_example.ipynb) | [docs/phoenix/integrations/evaluation-integrations/uqlm.mdx](docs/phoenix/integrations/evaluation-integrations/uqlm.mdx) |
-| [Notebook](https://github.com/run-llama/llama_index/blob/a7c79201bbc5e195a0447ae557980791010b4747/docs/docs/examples/evaluation/pairwise_eval.ipynb) | [docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator.mdx](docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator.mdx) |
+- [js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb](js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb)
+- [tutorials/agents/autogen/autogen_agents_evaluator_optimizer.ipynb](tutorials/agents/autogen/autogen_agents_evaluator_optimizer.ipynb)
+- [tutorials/agents/autogen/autogen_agents_parallelization.ipynb](tutorials/agents/autogen/autogen_agents_parallelization.ipynb)
+- [tutorials/agents/autogen/autogen_agents_prompt_chaining.ipynb](tutorials/agents/autogen/autogen_agents_prompt_chaining.ipynb)
+- [tutorials/agents/crewai/crewai_ parallelization_tutorial.ipynb](tutorials/agents/crewai/crewai_%20parallelization_tutorial.ipynb)
+- [tutorials/agents/crewai/crewai_orchestrator_workers_tutorial.ipynb](tutorials/agents/crewai/crewai_orchestrator_workers_tutorial.ipynb)
+- [tutorials/agents/crewai/crewai_prompt_chaining_tutorial.ipynb](tutorials/agents/crewai/crewai_prompt_chaining_tutorial.ipynb)
+- [tutorials/agents/crewai/crewai_routing_tutorial.ipynb](tutorials/agents/crewai/crewai_routing_tutorial.ipynb)
+- [tutorials/agents/google-adk/google_adk_financial_advisor.ipynb](tutorials/agents/google-adk/google_adk_financial_advisor.ipynb)
+- [tutorials/agents/google-genai/evaluator-optimizer-agent.ipynb](tutorials/agents/google-genai/evaluator-optimizer-agent.ipynb)
+- [tutorials/agents/google-genai/orchestration-agent.ipynb](tutorials/agents/google-genai/orchestration-agent.ipynb)
+- [tutorials/agents/google-genai/parallelization-agent.ipynb](tutorials/agents/google-genai/parallelization-agent.ipynb)
+- [tutorials/agents/google-genai/routing-agent.ipynb](tutorials/agents/google-genai/routing-agent.ipynb)
+- [tutorials/agents/google-genai/sequential-agent.ipynb](tutorials/agents/google-genai/sequential-agent.ipynb)
+- [tutorials/agents/langgraph/langgraph_evaluator.ipynb](tutorials/agents/langgraph/langgraph_evaluator.ipynb)
+- [tutorials/agents/langgraph/langgraph_orchestrator.ipynb](tutorials/agents/langgraph/langgraph_orchestrator.ipynb)
+- [tutorials/agents/langgraph/langgraph_parallel.ipynb](tutorials/agents/langgraph/langgraph_parallel.ipynb)
+- [tutorials/agents/langgraph/langgraph_promptchaining.ipynb](tutorials/agents/langgraph/langgraph_promptchaining.ipynb)
+- [tutorials/agents/langgraph/langgraph_router.ipynb](tutorials/agents/langgraph/langgraph_router.ipynb)
+- [tutorials/agents/openai/openai_agents_basic.ipynb](tutorials/agents/openai/openai_agents_basic.ipynb)
+- [tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb](tutorials/agents/openai/openai_agents_evaluator_optimizer.ipynb)
+- [tutorials/agents/openai/openai_agents_orchestrator.ipynb](tutorials/agents/openai/openai_agents_orchestrator.ipynb)
+- [tutorials/agents/openai/openai_agents_parallelization.ipynb](tutorials/agents/openai/openai_agents_parallelization.ipynb)
+- [tutorials/agents/openai/openai_agents_prompt_chaining.ipynb](tutorials/agents/openai/openai_agents_prompt_chaining.ipynb)
+- [tutorials/agents/openai/openai_agents_routing.ipynb](tutorials/agents/openai/openai_agents_routing.ipynb)
+- [tutorials/agents/smolagents/smolagents_orchestrator.ipynb](tutorials/agents/smolagents/smolagents_orchestrator.ipynb)
+- [tutorials/agents/smolagents/smolagents_prompt_chaining.ipynb](tutorials/agents/smolagents/smolagents_prompt_chaining.ipynb)
+- [tutorials/annotations/custom-annotations-tool-for-eval-driven-development.ipynb](tutorials/annotations/custom-annotations-tool-for-eval-driven-development.ipynb)
+- [tutorials/evals/bedrock_tracing_and_evals_tutorial.ipynb](tutorials/evals/bedrock_tracing_and_evals_tutorial.ipynb)
+- [tutorials/evals/creating_a_custom_llm_evaluator.ipynb](tutorials/evals/creating_a_custom_llm_evaluator.ipynb)
+- [tutorials/evals/evaluate_agent.ipynb](tutorials/evals/evaluate_agent.ipynb)
+- [tutorials/evals/evaluate_agent_parameter_extraction_classifications.ipynb](tutorials/evals/evaluate_agent_parameter_extraction_classifications.ipynb)
+- [tutorials/evals/evaluate_agent_tool_calling_classifications.ipynb](tutorials/evals/evaluate_agent_tool_calling_classifications.ipynb)
+- [tutorials/evals/evaluate_agent_tool_selection_classifications.ipynb](tutorials/evals/evaluate_agent_tool_selection_classifications.ipynb)
+- [tutorials/evals/evaluate_code_readability_classifications.ipynb](tutorials/evals/evaluate_code_readability_classifications.ipynb)
+- [tutorials/evals/openai_agents_cookbook.ipynb](tutorials/evals/openai_agents_cookbook.ipynb)
+- [tutorials/evals/optimizing_llm_as_a_judge_prompts.ipynb](tutorials/evals/optimizing_llm_as_a_judge_prompts.ipynb)
+- [tutorials/evals/session_level_evals.ipynb](tutorials/evals/session_level_evals.ipynb)
+- [tutorials/evals/trace_level_evals.ipynb](tutorials/evals/trace_level_evals.ipynb)
+- [tutorials/experiments/agents-cookbook.ipynb](tutorials/experiments/agents-cookbook.ipynb)
+- [tutorials/experiments/building_your_own_eval_harness.ipynb](tutorials/experiments/building_your_own_eval_harness.ipynb)
+- [tutorials/experiments/datasets_and_experiments_quickstart.ipynb](tutorials/experiments/datasets_and_experiments_quickstart.ipynb)
+- [tutorials/experiments/generating_synthetic_datasets.ipynb](tutorials/experiments/generating_synthetic_datasets.ipynb)
+- [tutorials/experiments/python_experiments_quickstart.ipynb](tutorials/experiments/python_experiments_quickstart.ipynb)
+- [tutorials/experiments/run_experiments_with_llama_index.ipynb](tutorials/experiments/run_experiments_with_llama_index.ipynb)
+- [tutorials/experiments/running_experiments_with_repetitions.ipynb](tutorials/experiments/running_experiments_with_repetitions.ipynb)
+- [tutorials/experiments/summarization.ipynb](tutorials/experiments/summarization.ipynb)
+- [tutorials/experiments/txt2sql.ipynb](tutorials/experiments/txt2sql.ipynb)
+- [tutorials/guardrails/designing_realtime_guardrails.ipynb](tutorials/guardrails/designing_realtime_guardrails.ipynb)
+- [tutorials/guardrails/jailbreak_and_prompt_injection_defense.ipynb](tutorials/guardrails/jailbreak_and_prompt_injection_defense.ipynb)
+- [tutorials/integrations/amazon_bedrock_agents_tracing_and_evals.ipynb](tutorials/integrations/amazon_bedrock_agents_tracing_and_evals.ipynb)
+- [tutorials/integrations/evaluating_traces_cleanlabTLM.ipynb](tutorials/integrations/evaluating_traces_cleanlabTLM.ipynb)
+- [tutorials/llm_ops_overview.ipynb](tutorials/llm_ops_overview.ipynb)
+- [tutorials/prompts/chain_of_thought_prompting.ipynb](tutorials/prompts/chain_of_thought_prompting.ipynb)
+- [tutorials/prompts/few_shot_prompting.ipynb](tutorials/prompts/few_shot_prompting.ipynb)
+- [tutorials/prompts/phoenix_prompt_tutorial.ipynb](tutorials/prompts/phoenix_prompt_tutorial.ipynb)
+- [tutorials/prompts/prompt-optimization.ipynb](tutorials/prompts/prompt-optimization.ipynb)
+- [tutorials/prompts/react_prompting.ipynb](tutorials/prompts/react_prompting.ipynb)
+- [tutorials/quickstarts/agno_agent_for_evals.ipynb](tutorials/quickstarts/agno_agent_for_evals.ipynb)
+- [tutorials/quickstarts/python_quickstart.ipynb](tutorials/quickstarts/python_quickstart.ipynb)
+- [tutorials/tracing/agentic_rag_tracing.ipynb](tutorials/tracing/agentic_rag_tracing.ipynb)
+- [tutorials/tracing/anthropic_tracing_tutorial.ipynb](tutorials/tracing/anthropic_tracing_tutorial.ipynb)
+- [tutorials/tracing/autogen_tutorial.ipynb](tutorials/tracing/autogen_tutorial.ipynb)
+- [tutorials/tracing/crewai_tracing_tutorial.ipynb](tutorials/tracing/crewai_tracing_tutorial.ipynb)
+- [tutorials/tracing/dspy_tracing_tutorial.ipynb](tutorials/tracing/dspy_tracing_tutorial.ipynb)
+- [tutorials/tracing/google_agent_engine_tracing_tutorial.ipynb](tutorials/tracing/google_agent_engine_tracing_tutorial.ipynb)
+- [tutorials/tracing/groq_tracing_tutorial.ipynb](tutorials/tracing/groq_tracing_tutorial.ipynb)
+- [tutorials/tracing/langchain_agent_tracing_tutorial.ipynb](tutorials/tracing/langchain_agent_tracing_tutorial.ipynb)
+- [tutorials/tracing/langchain_tracing_tutorial.ipynb](tutorials/tracing/langchain_tracing_tutorial.ipynb)
+- [tutorials/tracing/langgraph_agent_tracing_tutorial.ipynb](tutorials/tracing/langgraph_agent_tracing_tutorial.ipynb)
+- [tutorials/tracing/llama_index_openai_agent_tracing_tutorial.ipynb](tutorials/tracing/llama_index_openai_agent_tracing_tutorial.ipynb)
+- [tutorials/tracing/llama_index_sql_retriever_tutorial.ipynb](tutorials/tracing/llama_index_sql_retriever_tutorial.ipynb)
+- [tutorials/tracing/llama_index_tracing_tutorial.ipynb](tutorials/tracing/llama_index_tracing_tutorial.ipynb)
+- [tutorials/tracing/multilingual_text2cypher_evals.ipynb](tutorials/tracing/multilingual_text2cypher_evals.ipynb)
+- [tutorials/tracing/openai_sessions_tutorial.ipynb](tutorials/tracing/openai_sessions_tutorial.ipynb)
+- [tutorials/tracing/openai_tracing_tutorial.ipynb](tutorials/tracing/openai_tracing_tutorial.ipynb)
+- [tutorials/tracing/openinference_best_practices_tutorial.ipynb](tutorials/tracing/openinference_best_practices_tutorial.ipynb)
+- [tutorials/tracing/project_sessions_llama_index_query_engine.ipynb](tutorials/tracing/project_sessions_llama_index_query_engine.ipynb)
+- [tutorials/tracing/python_tracing_quickstart.ipynb](tutorials/tracing/python_tracing_quickstart.ipynb)
+- [tutorials/tracing/smolagents_tracing_tutorial.ipynb](tutorials/tracing/smolagents_tracing_tutorial.ipynb)
