@@ -4,9 +4,9 @@
 
 ## Overview
 
-ATIF (Agent Trajectory Interchange Format) is an open schema for recording agent execution. Frameworks like **Claude Code**, **OpenHands**, **Gemini CLI**, and **Codex** export ATIF via [Harbor](https://www.harborframework.com/docs). The `phoenix-client` package converts ATIF JSON into OpenTelemetry span trees and uploads them to Phoenix.
+ATIF (Agent Trajectory Interchange Format) is an open schema for recording agent execution. Frameworks like **Claude Code**, **OpenHands**, **Gemini CLI**, and **Codex** export ATIF via [Harbor](https://www.harborframework.com/docs). `upload_atif_trajectories_as_spans` in `arize-phoenix-client` converts ATIF JSON (schema v1.0 through v1.7) into an OpenInference span tree and uploads it to a Phoenix project.
 
-Supports ATIF schema versions v1.0 through v1.7. Callers load the documents themselves — the helper does not read referenced files, fetch URLs, or upload media bytes.
+The helper works on documents you have already loaded. It does not read referenced files, fetch URLs, or upload media bytes.
 
 ## Installation
 
@@ -48,16 +48,21 @@ def upload_atif_trajectories_as_spans(
 - `project_name` — the Phoenix project to upload spans into
 - `timeout` — request timeout in seconds (default: 30)
 
-Raises `ValueError` when a trajectory or the resulting span graph fails validation.
+Raises `ValueError` when a trajectory or the resulting span graph fails validation. Nothing is uploaded on failure.
 
-## Trace Hierarchy
+## The Resulting Trace
 
-Each trajectory gets an AGENT root. Spans are named by their target, since the
-span kind already names the operation: the agent name for the root, the model
-name for LLM calls, the tool name for tool calls. Each fresh agent step becomes
-a CHAIN span named `iteration N`; context-management steps become
-`compaction N` and operational system steps `system event N`. User messages are
-prompt context, not spans.
+One trajectory becomes one trace with an AGENT root named after the agent. Every fresh step becomes a CHAIN span, and the LLM call and tool calls that step made hang off it. User messages are prompt context, not spans. Spans are named by what they act on, since the span kind already says what they do:
+
+| Span | Kind | Name | `input.value` / `output.value` |
+| --- | --- | --- | --- |
+| Trajectory root | AGENT | the agent name (`assistant`) | the user request the trajectory answers / the last agent message |
+| Turn (multi-turn only) | AGENT | `turn N` | the user message that opens the turn / the last agent message in it |
+| Agent step | CHAIN | `iteration N` | the preceding context / the step's message and any tool result no call claimed |
+| Context-management step | CHAIN | `compaction N` | the step's own message / its observation |
+| Operational system step | CHAIN | `system event N` | the step's own message / its observation |
+| Model call | LLM | the model name (`gpt-4`) | the reconstructed prompt (JSON) / the step's message |
+| Tool call | TOOL | the tool name (`search`) | the call arguments (JSON) / the matching observation result |
 
 **Single-turn** — every step hangs off the root:
 ```
@@ -69,9 +74,7 @@ AGENT assistant
     LLM gpt-4
 ```
 
-**Multi-turn** — one AGENT span per turn. A turn opens at each user message
-that follows agent activity, so leading system steps and consecutive context
-messages stay in the turn they introduce:
+**Multi-turn** — one `turn N` AGENT span per turn. A turn opens at each user message that follows agent activity, so leading system steps and consecutive context messages stay in the turn they introduce:
 ```
 AGENT assistant
   AGENT turn 1
@@ -83,35 +86,27 @@ AGENT assistant
       LLM gpt-4
 ```
 
-Steps marked `is_copied_context: true` reconstruct prompt history without
-creating execution spans; an LLM span whose context includes copied history
-carries `metadata.has_copied_context = True`.
+Two kinds of step produce fewer spans than the table suggests:
 
-An agent step with `llm_call_count: 0` is non-LLM orchestration that issued
-tool calls. It still gets its iteration CHAIN and its TOOL spans, but no LLM
-span.
+- Steps marked `is_copied_context: true` are replayed history. They feed the prompt of later LLM spans but create no spans of their own, and an LLM span whose prompt includes copied history carries `metadata.has_copied_context = True`.
+- An agent step with `llm_call_count: 0` is orchestration that issued tool calls without a model call. It gets its `iteration N` CHAIN and its TOOL spans, but no LLM span.
 
 ## Timing
 
-ATIF records one event timestamp per step, not an interval, so the converter
-reports honest event timing rather than fabricating durations:
+ATIF records one timestamp per step: when it happened, not when it began. The converter reports what the document supports instead of inventing durations:
 
-- A step's CHAIN span runs from the preceding fresh event to its own
-  timestamp (`metadata.atif.timing = "event_interval"`).
-- TOOL spans are zero-duration events at the step timestamp
-  (`metadata.atif.timing = "event"`). ATIF does not say whether tool calls in
-  one step ran serially or concurrently.
-- An LLM span is a zero-duration event too, unless an adapter supplies a
-  measured latency; a measured interval is clamped to the step interval and
-  recorded as `metadata.atif.measured_latency_ms`.
-- Missing or non-monotonic timestamps collapse onto the preceding event.
+| Span | Interval | `metadata.atif.timing` |
+| --- | --- | --- |
+| CHAIN | from the preceding fresh event to the step's own timestamp | `event_interval` |
+| TOOL | zero-duration event at the step timestamp | `event` |
+| LLM | zero-duration event at the step timestamp | `event` |
+| LLM with an adapter-supplied latency | starts with the step and runs for the measured latency, clamped to the step interval | the adapter's source name, suffixed `_clamped` when clamping applied; the latency is in `metadata.atif.measured_latency_ms` |
 
-Document order and tool-call array order are preserved.
+Missing or non-monotonic timestamps collapse onto the preceding event. ATIF does not say whether the tool calls in one step ran serially or concurrently, so they share the step timestamp. Document order and tool-call array order are preserved.
 
-## Multi-Agent / Subagent Linking
+## Subagents
 
-Upload parent and child trajectories together, parents first, for
-cross-references to resolve:
+Upload parent and child trajectories in the same batch, parents first, so cross-references resolve:
 
 ```python
 with open("parent.json") as f:
@@ -124,62 +119,35 @@ upload_atif_trajectories_as_spans(
 )
 ```
 
-Resulting trace:
+Child spans always land in the parent's trace. The `subagent_trajectory_ref` in the parent step's observation result decides which span they nest under, and the child attaches to the most specific span the document supports:
+
+| The reference | Child nests under |
+| --- | --- |
+| has a `source_call_id` matching one of the step's `tool_calls` (a `delegate_task` tool, for example) | that TOOL span |
+| sits on a step that produced a CHAIN span but names no matching tool call — a system- or orchestrator-started spawn | that step's CHAIN span |
+| sits on a step with no CHAIN span (copied context, a bare message) | the parent trajectory's root AGENT span |
+
 ```
 AGENT parent
   CHAIN iteration 1
     LLM gpt-4
-    TOOL delegate_task
+    TOOL delegate_task          # ref with a matching source_call_id
       AGENT child agent
         CHAIN iteration 1
           LLM gpt-4
           TOOL search
-```
-
-### Which span parents the child
-
-A step in the parent trajectory declares that it spawned a subagent via a
-`subagent_trajectory_ref` in its observation result. The child's spans always
-land in the parent's trace; the ref decides which span they nest under, and the
-child attaches to the closest span the document actually proves:
-
-**The subagent was spawned by a named tool call** (e.g. a `delegate_task`
-tool). The result's `source_call_id` matches one of the step's `tool_calls`, so
-the child nests under that TOOL span, as in the trace above.
-
-**The spawn is attributable to a step but not to a call** — the system or an
-orchestration layer started it, there is no `source_call_id`, or the
-`source_call_id` matches none of the step's tool calls. There is no TOOL span
-to hang it on, so the child nests under that step's CHAIN span:
-
-```
-AGENT parent
-  CHAIN iteration 1
+  CHAIN iteration 2
     LLM gpt-4
-    AGENT child agent
+    AGENT other child agent     # ref with no matching tool call
       CHAIN iteration 1
         LLM gpt-4
 ```
 
-**The referencing step is not operational** (copied context, a bare message).
-There is no CHAIN span either, so the child nests directly under the parent
-trajectory's root AGENT span.
+ATIF v1.7 embedded `subagent_trajectories` are included automatically and resolve by `trajectory_id`; earlier versions resolve refs by `session_id`. Duplicate span IDs, unresolved parents, cross-trace parent links, and cycles are rejected before anything is uploaded.
 
-Duplicate span IDs, unresolved parents, cross-trace parent links, and cycles
-are rejected before upload.
+## Continuations
 
-**ATIF v1.7**: embedded `subagent_trajectories` inside a single trajectory file
-are included automatically and resolve by `trajectory_id` — no separate upload
-needed. Earlier versions resolve refs by `session_id`.
-
-## Continuation Merging
-
-When an agent's context window fills up, Harbor splits the session across
-multiple files. Load them into the same batch: a `session_id` ending in
-`-cont-N` joins the original session's trace. The continuation root is named
-`<agent> (continuation N)` and carries `metadata.is_continuation = True` plus
-`metadata.continuation_index`. The helper does not follow
-`continued_trajectory_ref` to other files; the Harbor plugin does that itself.
+When an agent's context window fills up, Harbor splits the session across files. Load them into the same batch: a `session_id` ending in `-cont-N` joins the original session's trace, with a root named `<agent> (continuation N)` that carries `metadata.is_continuation = True` and `metadata.continuation_index = N`. The helper does not follow `continued_trajectory_ref` to other files; the Harbor plugin does that itself.
 
 ## Attribute Mapping
 
@@ -192,56 +160,57 @@ multiple files. Load them into the same batch: a `session_id` ending in
 | `agent.model_name` / step `model_name` | `llm.model_name` |
 | `agent.tool_definitions` | `llm.tools.{i}.tool.json_schema` |
 | `reasoning_content` | `metadata.reasoning_content` |
-| `final_metrics` | Root span `metadata.final_metrics` |
-| `trajectory_id` | Root span `metadata.trajectory_id` |
+| `final_metrics` | root span `metadata.final_metrics` |
+| `trajectory_id` | root span `metadata.trajectory_id` |
 | `session_id` | `session.id` on every span |
 | Step messages | `llm.input_messages` / `llm.output_messages` |
 | Text and image message parts | `message.contents` |
 | Tool calls | `llm.output_messages.{i}.message.tool_calls` |
-| Observations | Tool span `output.value` |
+| Observations | TOOL span `output.value` |
 
-Only LLM spans carry `llm.*` attributes. Every span carries
-`metadata.agent_name` and, below the root, `metadata.atif.step_id` holding the
-producer's own step identifier.
+Only LLM spans carry `llm.*` attributes. `llm.token_count.total` is the sum of prompt and completion tokens.
 
-ATIF has no fields for cache-write or reasoning tokens, so producers record
-them under `metrics.extra` with their own names — Claude Code writes
-`cache_creation_input_tokens` and `output_tokens_details.thinking_tokens`,
-Codex writes `cache_write_input_tokens` and `reasoning_output_tokens`. The
-converter maps whichever it finds to
-`llm.token_count.prompt_details.cache_write` and
-`llm.token_count.completion_details.reasoning`.
+ATIF has no fields for cache-write or reasoning tokens, so producers put them in `metrics.extra` under their own names. The converter recognizes Claude Code's `cache_creation_input_tokens` and `output_tokens_details.thinking_tokens` and Codex's `cache_write_input_tokens` and `reasoning_output_tokens`, and maps them to `llm.token_count.prompt_details.cache_write` and `llm.token_count.completion_details.reasoning`.
+
+## Metadata the Converter Adds
+
+These keys tell imported spans apart from live instrumentation and preserve the producer's own identifiers:
+
+| Key | On | Meaning |
+| --- | --- | --- |
+| `metadata.agent_name` | every span | the ATIF agent name |
+| `metadata.atif.step_id` | every span below the root | the producer's own step identifier |
+| `metadata.atif.source` | CHAIN | the step's ATIF `source` (`agent`, `system`, ...) |
+| `metadata.atif.context_management` | CHAIN | `True` on compaction steps |
+| `metadata.atif.timing` | CHAIN, LLM, TOOL | how the interval was derived (see [Timing](#timing)) |
+| `metadata.atif.measured_latency_ms` | LLM | adapter-supplied latency, when present |
+| `metadata.atif.input_source` | LLM | always `"reconstructed"` (see below) |
+| `metadata.atif.tool_call_index` | TOOL | position in the step's `tool_calls` array |
+| `metadata.has_copied_context` | LLM | the prompt includes `is_copied_context` history |
+| `metadata.has_multimodal_content` | LLM | the step message has non-text parts |
+| `metadata.llm_call_count` | LLM, TOOL | the step's declared `llm_call_count` |
+| `metadata.tool_call_extra`, `metadata.observation_extra` | TOOL | the `extra` payloads on the call and its result |
+| `metadata.agent_version`, `metadata.model_name` | root | the agent's `version` and `model_name`; `agent.extra` keys are merged in alongside |
+| `metadata.is_continuation`, `metadata.continuation_index` | continuation root | see [Continuations](#continuations) |
 
 ## Reconstructed Messages
 
-LLM inputs are reconstructed from ATIF context, not captured provider requests,
-and every LLM span says so with `metadata.atif.input_source = "reconstructed"`.
-ATIF sources `user`, `system`, and `agent` map to roles `user`, `system`, and
-`assistant`. The converter does not parse provider-native messages or interpret
-tool argument keys. A result with a matching call ID becomes a tool message;
-feedback without one stays an `observation` entry with `after_step_id` in
-`input.value` and no inferred role. Multimodal results keep their content
-parts. ATIF v1.8 audio fields are not supported.
+LLM inputs are rebuilt from ATIF context, not captured provider requests, and every LLM span says so with `metadata.atif.input_source = "reconstructed"`. In practice:
 
-## Deterministic IDs and Re-uploads
+- ATIF sources `user`, `system`, and `agent` become message roles `user`, `system`, and `assistant`.
+- A tool result with a matching call ID becomes a `tool` message. Feedback without one stays an `observation` entry with `after_step_id` in `input.value`, with no inferred role.
+- Provider-native message payloads and tool argument keys are passed through, not interpreted.
+- Multimodal results keep their text and image parts. ATIF v1.8 audio fields are not supported.
 
-IDs are deterministic for the same documents and parent relationships: the
-converter seeds them from session and document identities, falling back to
-content hashes for v1.7 documents with no document ID. Give separate documents
-distinct `trajectory_id` values where the format allows it.
+## Re-uploads
 
-Determinism is not deduplication. This helper does not skip spans Phoenix has
-already stored, and Phoenix rejects a batch containing an existing span ID — so
-re-running an upload over an already-imported trajectory fails rather than
-merging. The Harbor plugin handles replay itself by querying stored IDs and
-uploading only the missing spans.
+Span and trace IDs are deterministic: the same documents with the same parent relationships produce the same IDs, seeded from session and document identities (content hashes for v1.7 documents with no document ID). Give separate documents distinct `trajectory_id` values where the format allows it, or their IDs can collide.
 
-## Known Limitation
+Deterministic is not idempotent. The helper does not skip spans Phoenix already holds, and Phoenix rejects a batch that contains an existing span ID, so re-running an upload over an imported trajectory fails rather than merging. To replay safely, query the stored span IDs first and upload only the missing spans, as the Harbor plugin does.
 
-Each LLM span repeats its whole reconstructed context in `input.value` and its
-known-role messages in `llm.input_messages`. Very long sessions can exceed OTel
-attribute size limits and be truncated or rejected, as with live
-instrumentation.
+## Limits
+
+Each LLM span repeats its whole reconstructed context in `input.value` and its known-role messages in `llm.input_messages`. Very long sessions can exceed OTel attribute size limits and be truncated or rejected, as with live instrumentation.
 
 ## API Reference
 
