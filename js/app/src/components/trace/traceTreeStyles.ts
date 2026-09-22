@@ -60,7 +60,9 @@ export const traceTreeListCSS = css`
   width: 100%;
   --trace-tree-nesting-indent: ${NESTING_INDENT}px;
   --trace-tree-heading-height: ${HEADING_HEIGHT}px;
-  --trace-tree-row-padding-y: var(--global-dimension-size-100);
+  /* Tight enough to keep a long trace short, wide enough that a row's fill
+     still frames its icon */
+  --trace-tree-row-padding-y: var(--global-dimension-size-75);
   /* Vertical center of a row's icon, measured from the top of the row */
   --trace-tree-icon-center: calc(
     var(--trace-tree-row-padding-y) + var(--trace-tree-heading-height) / 2
@@ -138,11 +140,14 @@ export const spanNodeIconCSS = css`
   z-index: ${TREE_ICON_Z_INDEX};
 `;
 
-/** The title line and the metrics footer beneath it. */
+/**
+ * The title line and the metrics footer beneath it. The title's line box
+ * already leaves room under its text, so the footer follows closely.
+ */
 export const spanNodeContentCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-size-50);
+  gap: var(--global-dimension-size-25);
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
