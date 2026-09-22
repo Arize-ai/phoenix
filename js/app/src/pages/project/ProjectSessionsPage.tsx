@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -49,7 +49,14 @@ function SessionsTabContent({
     ProjectPageQueriesSessionsQuery,
     queryReference
   );
-  return <SessionsTable project={data.project} seed={seed} />;
+  const { sessionId } = useParams();
+  return (
+    <SessionsTable
+      project={data.project}
+      seed={seed}
+      selectedRowId={sessionId}
+    />
+  );
 }
 
 export const ProjectSessionsPage = () => {
