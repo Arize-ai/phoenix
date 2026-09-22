@@ -1,7 +1,8 @@
 import asyncio
 import logging
 from collections import deque
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
+from dataclasses import dataclass, replace
 from typing import (
     Any,
     AsyncGenerator,
@@ -12,11 +13,16 @@ from typing import (
     cast,
 )
 
+import anyio
 import strawberry
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.context import Context as OtelContext
+from pydantic import ValidationError
 from sqlalchemy import and_, insert, select
 from sqlalchemy import func as sa_func
+from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
@@ -26,11 +32,21 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
 )
+from phoenix.db.types.evaluator_definition import (
+    BuiltInEvaluatorDefinition,
+    EvaluatorDefinition,
+    evaluator_kind_of,
+)
 from phoenix.db.types.experiment_config import PlaygroundConfig
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.evaluators import (
+    BaseEvaluator,
+    build_evaluator_from_definition,
+    pin_evaluator_definition,
+)
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
@@ -45,6 +61,13 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionOverDatasetInput,
 )
 from phoenix.server.api.input_types.ConnectionConfigInput import to_connection_config
+from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
+    EvaluatorTaskInput,
+    ExperimentsOverDatasetInput,
+    ExperimentTaskInput,
+    PromptTaskInput,
+)
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -52,8 +75,9 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionResult,
 )
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Experiment import to_gql_experiment
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -70,6 +94,10 @@ initialize_playground_clients()
 
 RepetitionNumber: TypeAlias = int
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
+PayloadStream: TypeAlias = MemoryObjectReceiveStream[ChatCompletionSubscriptionPayload]
+
+# Each experiment's subscriber stream buffers this many payloads in the runner
+_EXPERIMENT_STREAM_BUFFER_SIZE = 1000
 
 
 async def _stream_single_chat_completion(
@@ -297,91 +325,107 @@ class Subscription:
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
         """
-        Run dataset playground experiment in the background via ExperimentRunner and stream
-        subscription payloads (chunks, results, errors) to the client.
+        Run one prompt over a dataset as an experiment in the background via ExperimentRunner
+        and stream subscription payloads (chunks, results, errors) to the client.
+
+        The single-task form of ``experimentsOverDataset``, kept while the client migrates.
         """
-        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
-        version_id = (
-            from_global_id_with_expected_type(
-                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
-            )
-            if input.dataset_version_id
-            else None
+        experiments_input = ExperimentsOverDatasetInput(
+            dataset_id=input.dataset_id,
+            dataset_version_id=input.dataset_version_id,
+            split_ids=input.split_ids,
+            repetitions=input.repetitions,
+            max_concurrency=input.max_concurrency,
+            credentials=input.credentials,
+            experiment_name=input.experiment_name,
+            experiment_description=input.experiment_description,
+            experiment_metadata=input.experiment_metadata,
+            create_ephemeral_experiment=input.create_ephemeral_experiment,
+            tasks=[
+                ExperimentTaskInput(
+                    prompt=PromptTaskInput(
+                        prompt_version_id=input.prompt_version_id,
+                        prompt_version=input.prompt_version,
+                        prompt_name=input.prompt_name,
+                        connection_config=input.connection_config,
+                        headers=input.headers,
+                        appended_messages_path=input.appended_messages_path,
+                        template_variables_path=input.template_variables_path,
+                        stream_model_output=input.stream_model_output,
+                        evaluators=input.evaluators,
+                    )
+                )
+            ],
         )
+        async for payload in _stream_experiments_over_dataset(info, experiments_input):
+            yield payload
 
-        async with info.context.db() as session:
-            # Validate dataset exists
-            if (
-                await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
-            ) is None:
-                raise NotFound(f"Could not find dataset with ID {dataset_id}")
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def experiments_over_dataset(
+        self, info: Info[Context, None], input: ExperimentsOverDatasetInput
+    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        """
+        Run every task over the dataset as its own experiment, in the background via
+        ExperimentRunner, and stream all their payloads to the client.
 
-            # Resolve version ID
-            if version_id is None:
-                if (
-                    resolved_version_id := await session.scalar(
-                        select(models.DatasetVersion.id)
-                        .where(models.DatasetVersion.dataset_id == dataset_id)
-                        .order_by(models.DatasetVersion.id.desc())
-                        .limit(1)
-                    )
-                ) is None:
-                    raise NotFound(f"No versions found for dataset with ID {dataset_id}")
-            else:
-                if (
-                    resolved_version_id := await session.scalar(
-                        select(models.DatasetVersion.id).where(
-                            and_(
-                                models.DatasetVersion.dataset_id == dataset_id,
-                                models.DatasetVersion.id == version_id,
-                            )
-                        )
-                    )
-                ) is None:
-                    raise NotFound(f"Could not find dataset version with ID {version_id}")
+        One ``ChatCompletionSubscriptionExperiment`` per task arrives first, in ``tasks``
+        order; every payload carries the ``experimentId`` it belongs to.
+        """
+        async for payload in _stream_experiments_over_dataset(info, input):
+            yield payload
 
-            # Parse split IDs if provided
-            resolved_split_ids: Optional[list[int]] = None
-            if input.split_ids is not None and len(input.split_ids) > 0:
-                resolved_split_ids = [
-                    from_global_id_with_expected_type(split_id, models.DatasetSplit.__name__)
-                    for split_id in input.split_ids
-                ]
 
-            # Validate at least one example exists (don't load all - daemon will paginate)
-            example_count = await session.scalar(
-                select(sa_func.count()).select_from(
-                    get_dataset_example_revisions(
-                        resolved_version_id,
-                        split_ids=resolved_split_ids,
-                    ).subquery()
-                )
+@dataclass(frozen=True)
+class _DatasetRunTarget:
+    """The dataset rows a run covers, resolved from the input's global ids."""
+
+    dataset_id: int
+    dataset_version_id: int
+    split_ids: Optional[list[int]]
+    example_ids: Optional[list[int]]
+
+
+@dataclass(frozen=True)
+class _ResolvedEvaluatorTask:
+    """An evaluator task whose evaluator was built once to validate it and read its name."""
+
+    definition: EvaluatorDefinition
+    evaluator: BaseEvaluator
+    name: Identifier
+
+
+async def _stream_experiments_over_dataset(
+    info: Info[Context, None],
+    input: ExperimentsOverDatasetInput,
+) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+    """Create one experiment per task, start them all, and merge their payload streams."""
+    credentials = input.credentials or ()
+
+    async with info.context.db() as session:
+        target = await _resolve_dataset_run_target(session, input)
+        # Building the evaluators up front rejects a bad definition (missing sandbox, judge
+        # prompt tools that do not match) before any experiment row exists. The runner
+        # rebuilds them from the frozen definition when it starts each experiment.
+        resolved_evaluator_tasks = [
+            await _resolve_evaluator_task(
+                task.evaluator, info=info, session=session, credentials=credentials
             )
-            if not example_count:
-                raise NotFound("No examples found for the given dataset and version")
+            if task.evaluator
+            else None
+            for task in input.tasks
+        ]
 
-            # === Create project (same as chat_completion_over_dataset) ===
+    async with info.context.db() as session:
+        user_id = get_user(info)
+        experiments: list[models.Experiment] = []
+        for task, resolved_evaluator_task in zip(input.tasks, resolved_evaluator_tasks):
             project_name = generate_experiment_project_name()
-            if (
-                await session.scalar(
-                    select(models.Project.id).where(models.Project.name == project_name)
-                )
-            ) is None:
-                await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=project_name,
-                        description="Traces from prompt playground",
-                    )
-                )
-
-            # === Create experiment (same as chat_completion_over_dataset) ===
+            await _ensure_project(session, project_name)
             experiment = models.Experiment(
-                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
-                dataset_version_id=resolved_version_id,
+                dataset_id=target.dataset_id,
+                dataset_version_id=target.dataset_version_id,
                 name=input.experiment_name
-                or _default_playground_experiment_name(input.prompt_name),
+                or _default_experiment_name(task, resolved_evaluator_task),
                 description=input.experiment_description,
                 repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
@@ -389,87 +433,308 @@ class Subscription:
                 project_name=project_name,
                 user_id=info.context.user_id,
             )
-            if resolved_split_ids:
+            if target.split_ids:
                 experiment.experiment_dataset_splits = [
                     models.ExperimentDatasetSplit(dataset_split_id=split_id)
-                    for split_id in resolved_split_ids
+                    for split_id in target.split_ids
                 ]
-            await insert_experiment_with_examples_snapshot(session, experiment)
-
-            # === Create execution config (task prompt frozen in JSON; evaluators via junction) ===
-            prompt_version: models.PromptVersion = input.prompt_version.to_orm_prompt_version()
-            # Connection JSON is mutually exclusive with custom_provider_id (DB constraint).
-            # If custom provider is set, connection overrides are ignored.
-            task_connection = (
-                None
-                if prompt_version.custom_provider_id is not None
-                else to_connection_config(prompt_version.model_provider, input.connection_config)
+            await insert_experiment_with_examples_snapshot(
+                session, experiment, example_ids=target.example_ids
             )
-
-            prompt_version_id = (
-                from_global_id_with_expected_type(input.prompt_version_id, "PromptVersion")
-                if input.prompt_version_id
-                else None
-            )
-
-            # ExperimentPromptTask inherits from ExperimentJob
-            # (polymorphic joined table inheritance), so creating it
-            # automatically inserts into both tables.
-            execution_config = models.ExperimentPromptTask(
-                id=experiment.id,
-                # claimed_at=NULL means not running; start_experiment(experiment.id) will claim it
-                max_concurrency=input.max_concurrency,
-                prompt_version_id=prompt_version_id,
-                model_provider=prompt_version.model_provider,
-                model_name=prompt_version.model_name,
-                custom_provider_id=prompt_version.custom_provider_id,
-                template_type=prompt_version.template_type,
-                template_format=prompt_version.template_format,
-                template=prompt_version.template,
-                tools=prompt_version.tools,
-                response_format=prompt_version.response_format,
-                invocation_parameters=prompt_version.invocation_parameters,
-                connection=task_connection,
-                playground_config=PlaygroundConfig(
-                    template_variables_path=input.template_variables_path,
-                    appended_messages_path=input.appended_messages_path,
-                ),
-                stream_model_output=input.stream_model_output,
-            )
-            session.add(execution_config)
-            for evaluator_input in input.evaluators:
+            # The job rows inherit from ExperimentJob (polymorphic joined table
+            # inheritance), so adding one inserts into both tables. claimed_at=NULL means
+            # not running; start_experiment(experiment.id) claims it.
+            if task.prompt:
+                _add_prompt_task(
+                    session, experiment, task.prompt, max_concurrency=input.max_concurrency
+                )
+            else:
+                assert task.evaluator and resolved_evaluator_task is not None
                 session.add(
-                    models.ExperimentDatasetEvaluator(
-                        experiment_id=experiment.id,
-                        dataset_evaluator_id=from_global_id_with_expected_type(
-                            evaluator_input.id, "DatasetEvaluator"
-                        ),
+                    models.ExperimentEvaluatorTask(
+                        id=experiment.id,
+                        max_concurrency=input.max_concurrency,
+                        name=resolved_evaluator_task.name,
+                        evaluator_kind=evaluator_kind_of(resolved_evaluator_task.definition),
+                        definition=resolved_evaluator_task.definition,
+                        input_mapping=task.evaluator.input_mapping.to_orm(),
+                        output_configs=list(resolved_evaluator_task.evaluator.output_configs),
                     )
                 )
+            experiments.append(experiment)
 
-        # === Yield experiment immediately ===
-        yield ChatCompletionSubscriptionExperiment(experiment=to_gql_experiment(experiment))
-
-        # === Register with daemon and stream results ===
-        # Pass credentials as ephemeral data (not stored in DB)
-        credentials = input.credentials or ()
-        _, receive_stream = await info.context.experiment_runner.start_experiment(
-            experiment.id,
-            credentials=credentials,
-            subscribe=True,
+    experiment_ids = [
+        GlobalID(Experiment.__name__, str(experiment.id)) for experiment in experiments
+    ]
+    # === Yield the experiments immediately, in task order ===
+    for experiment, experiment_id in zip(experiments, experiment_ids):
+        yield ChatCompletionSubscriptionExperiment(
+            experiment=to_gql_experiment(experiment),
+            experiment_id=experiment_id,
         )
 
-        # Stream results until producer closes the stream (signals completion via EndOfStream)
+    # === Register with the daemon and stream results ===
+    # Credentials are passed as ephemeral data (not stored in DB)
+    runner = info.context.experiment_runner
+    streams: list[tuple[GlobalID, PayloadStream]] = []
+    send_stream, receive_stream = anyio.create_memory_object_stream[
+        ChatCompletionSubscriptionPayload
+    ](max_buffer_size=_EXPERIMENT_STREAM_BUFFER_SIZE * len(experiments))
+    merge_task: Optional[asyncio.Task[None]] = None
+    try:
         try:
-            async for payload in receive_stream:
-                yield payload
-        finally:
-            # Close the receive stream - experiment continues in background
-            # User must explicitly cancel via mutation if they want to stop it
-            await receive_stream.aclose()
-            # Stop the experiment if it's ephemeral
-            if input.create_ephemeral_experiment:
-                await info.context.experiment_runner.stop_experiment(experiment.id)
+            for experiment, experiment_id in zip(experiments, experiment_ids):
+                _, experiment_stream = await runner.start_experiment(
+                    experiment.id,
+                    credentials=credentials,
+                    subscribe=True,
+                )
+                streams.append((experiment_id, experiment_stream))
+        except BaseException:
+            # The run is all-or-nothing from the user's side: if a later task fails to
+            # start, stop the ones already running rather than leave a partial run
+            # going in the background that nothing is streaming.
+            for experiment in experiments:
+                await runner.stop_experiment(experiment.id)
+            raise
+        merge_task = asyncio.create_task(_merge_experiment_streams(streams, send_stream))
+        # Stream results until every experiment closes its stream (completion or stop)
+        async for payload in receive_stream:
+            yield payload
+    finally:
+        # Close the streams; the experiments continue in the background unless they are
+        # ephemeral, in which case the user's disconnect ends them.
+        if merge_task is not None:
+            merge_task.cancel()
+            await asyncio.gather(merge_task, return_exceptions=True)
+        await receive_stream.aclose()
+        for _, experiment_stream in streams:
+            await experiment_stream.aclose()
+        if input.create_ephemeral_experiment:
+            for experiment in experiments:
+                await runner.stop_experiment(experiment.id)
+
+
+async def _merge_experiment_streams(
+    streams: Sequence[tuple[GlobalID, PayloadStream]],
+    send_stream: MemoryObjectSendStream[ChatCompletionSubscriptionPayload],
+) -> None:
+    """Forward every experiment's payloads into one stream, stamped with their experiment id.
+
+    Runs as its own task because a task group cannot stay open across a generator's yields.
+    The merged stream closes once every experiment's stream has closed.
+    """
+    async with send_stream:
+        async with anyio.create_task_group() as task_group:
+            for experiment_id, experiment_stream in streams:
+                task_group.start_soon(
+                    _forward_experiment_payloads,
+                    experiment_id,
+                    experiment_stream,
+                    send_stream.clone(),
+                )
+
+
+async def _forward_experiment_payloads(
+    experiment_id: GlobalID,
+    experiment_stream: PayloadStream,
+    send_stream: MemoryObjectSendStream[ChatCompletionSubscriptionPayload],
+) -> None:
+    async with send_stream:
+        async for payload in experiment_stream:
+            # The runner broadcasts one payload object to every subscriber, so stamp a
+            # copy rather than writing to the shared instance.
+            await send_stream.send(replace(payload, experiment_id=experiment_id))
+
+
+async def _resolve_dataset_run_target(
+    session: AsyncSession,
+    input: ExperimentsOverDatasetInput,
+) -> _DatasetRunTarget:
+    dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+    version_id = (
+        from_global_id_with_expected_type(
+            global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
+        )
+        if input.dataset_version_id
+        else None
+    )
+
+    # Validate dataset exists
+    if (
+        await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
+    ) is None:
+        raise NotFound(f"Could not find dataset with ID {dataset_id}")
+
+    # Resolve version ID
+    if version_id is None:
+        if (
+            resolved_version_id := await session.scalar(
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .order_by(models.DatasetVersion.id.desc())
+                .limit(1)
+            )
+        ) is None:
+            raise NotFound(f"No versions found for dataset with ID {dataset_id}")
+    else:
+        if (
+            resolved_version_id := await session.scalar(
+                select(models.DatasetVersion.id).where(
+                    and_(
+                        models.DatasetVersion.dataset_id == dataset_id,
+                        models.DatasetVersion.id == version_id,
+                    )
+                )
+            )
+        ) is None:
+            raise NotFound(f"Could not find dataset version with ID {version_id}")
+
+    # Parse split IDs if provided
+    resolved_split_ids: Optional[list[int]] = None
+    if input.split_ids is not None and len(input.split_ids) > 0:
+        resolved_split_ids = [
+            from_global_id_with_expected_type(split_id, models.DatasetSplit.__name__)
+            for split_id in input.split_ids
+        ]
+
+    # Parse example IDs if provided: a row's play button runs one example
+    resolved_example_ids: Optional[list[int]] = None
+    if input.example_ids is not None and len(input.example_ids) > 0:
+        resolved_example_ids = [
+            from_global_id_with_expected_type(example_id, DatasetExample.__name__)
+            for example_id in input.example_ids
+        ]
+
+    # Validate at least one example exists (don't load all - daemon will paginate)
+    example_count = await session.scalar(
+        select(sa_func.count()).select_from(
+            get_dataset_example_revisions(
+                resolved_version_id,
+                split_ids=resolved_split_ids,
+                example_ids=resolved_example_ids,
+            ).subquery()
+        )
+    )
+    if not example_count:
+        raise NotFound("No examples found for the given dataset and version")
+
+    return _DatasetRunTarget(
+        dataset_id=dataset_id,
+        dataset_version_id=resolved_version_id,
+        split_ids=resolved_split_ids,
+        example_ids=resolved_example_ids,
+    )
+
+
+async def _resolve_evaluator_task(
+    task: EvaluatorTaskInput,
+    *,
+    info: Info[Context, None],
+    session: AsyncSession,
+    credentials: Sequence[GenerativeCredentialInput],
+) -> _ResolvedEvaluatorTask:
+    # Pin what the experiment freezes: a stored evaluator's current version, not a
+    # pointer its owner can edit while the experiment is paused.
+    definition = await pin_evaluator_definition(task.evaluator.to_definition(), session=session)
+    if task.source is not None and not isinstance(definition, BuiltInEvaluatorDefinition):
+        definition = definition.model_copy(update={"source": task.source.to_source()})
+    evaluator = await build_evaluator_from_definition(
+        definition=definition,
+        session=session,
+        decrypt=info.context.decrypt,
+        credentials=credentials,
+        sandbox_runtime=info.context.sandbox_runtime,
+    )
+    try:
+        name = Identifier.model_validate(evaluator.name)
+    except ValidationError:
+        raise BadRequest(
+            f"Evaluator name '{evaluator.name}' must use lowercase letters, digits, hyphens "
+            "and underscores, and start and end with a letter or digit"
+        )
+    return _ResolvedEvaluatorTask(definition=definition, evaluator=evaluator, name=name)
+
+
+async def _ensure_project(session: AsyncSession, project_name: str) -> None:
+    if (
+        await session.scalar(select(models.Project.id).where(models.Project.name == project_name))
+    ) is None:
+        await session.scalar(
+            insert(models.Project)
+            .returning(models.Project.id)
+            .values(
+                name=project_name,
+                description="Traces from prompt playground",
+            )
+        )
+
+
+def _add_prompt_task(
+    session: AsyncSession,
+    experiment: models.Experiment,
+    task: PromptTaskInput,
+    *,
+    max_concurrency: int,
+) -> None:
+    """Freeze the prompt in an ExperimentPromptTask row and attach its dataset evaluators."""
+    try:
+        prompt_version: models.PromptVersion = task.prompt_version.to_orm_prompt_version()
+    except ValidationError as error:
+        raise BadRequest(str(error))
+    # Connection JSON is mutually exclusive with custom_provider_id (DB constraint).
+    # If custom provider is set, connection overrides are ignored.
+    task_connection = (
+        None
+        if prompt_version.custom_provider_id is not None
+        else to_connection_config(prompt_version.model_provider, task.connection_config)
+    )
+    prompt_version_id = (
+        from_global_id_with_expected_type(task.prompt_version_id, "PromptVersion")
+        if task.prompt_version_id
+        else None
+    )
+    session.add(
+        models.ExperimentPromptTask(
+            id=experiment.id,
+            max_concurrency=max_concurrency,
+            prompt_version_id=prompt_version_id,
+            model_provider=prompt_version.model_provider,
+            model_name=prompt_version.model_name,
+            custom_provider_id=prompt_version.custom_provider_id,
+            template_type=prompt_version.template_type,
+            template_format=prompt_version.template_format,
+            template=prompt_version.template,
+            tools=prompt_version.tools,
+            response_format=prompt_version.response_format,
+            invocation_parameters=prompt_version.invocation_parameters,
+            connection=task_connection,
+            playground_config=PlaygroundConfig(
+                template_variables_path=task.template_variables_path,
+                appended_messages_path=task.appended_messages_path,
+            ),
+            stream_model_output=task.stream_model_output,
+        )
+    )
+    for evaluator_input in task.evaluators:
+        session.add(
+            models.ExperimentDatasetEvaluator(
+                experiment_id=experiment.id,
+                dataset_evaluator_id=from_global_id_with_expected_type(
+                    evaluator_input.id, "DatasetEvaluator"
+                ),
+            )
+        )
+
+
+def _default_experiment_name(
+    task: ExperimentTaskInput,
+    resolved_evaluator_task: Optional[_ResolvedEvaluatorTask],
+) -> str:
+    if task.prompt:
+        return _default_playground_experiment_name(task.prompt.prompt_name)
+    assert resolved_evaluator_task is not None
+    return f"playground-experiment evaluator:{resolved_evaluator_task.name}"
 
 
 def _create_task_with_timeout(
