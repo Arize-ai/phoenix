@@ -92,13 +92,6 @@ class PhoenixChatAgent(BaseAgent):
             context.metadata = {**(context.metadata or {}), "api_request_times_msec": latencies}
 
     @staticmethod
-    async def _upload_for_agent(environment: BaseEnvironment, source: Path, target: str) -> None:
-        """Upload a file the agent user must be able to read; ``upload_file`` copies as root."""
-        await environment.upload_file(source, target)
-        if (user := environment.default_user) is not None:
-            await environment.exec(f"chown {shlex.quote(str(user))} {target}", user="root")
-
-    @staticmethod
     async def _exec(environment: BaseEnvironment, command: str) -> str:
         result = await environment.exec(command)
         if result.return_code != 0:

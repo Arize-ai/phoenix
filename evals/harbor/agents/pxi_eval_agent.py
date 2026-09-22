@@ -55,6 +55,6 @@ class PxiEvalAgent(PhoenixChatAgent):
             json.dump(example, file)
             example_file = Path(file.name)
         try:
-            await self._upload_for_agent(environment, example_file, _EXAMPLE_PATH)
+            await environment.upload_file(example_file, _EXAMPLE_PATH)
         finally:
             example_file.unlink()
