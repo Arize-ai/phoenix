@@ -28,9 +28,6 @@ import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
 const CHARTS_PANEL_MAX_SIZE = "60%";
 
-const PANEL_IDS_WITH_CHARTS = ["metrics-charts", "table-content"];
-const PANEL_IDS_WITHOUT_CHARTS = ["table-content"];
-
 /**
  * Pull the following panel up by the handle's height so the handle adds no
  * layout height of its own — it overlays the top of the table content's
@@ -98,8 +95,9 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
  * Lays out the metric charts strip above a table in a vertically resizable
  * panel group. A transparent drag handle sits between the charts and the
  * table content (filter bar + table) so the charts can be resized to take up
- * more or less vertical space. When no charts are selected the charts panel
- * and handle are not rendered and the table content fills the space.
+ * more or less vertical space. Where the project store offers no metric
+ * charts at all, the table content renders on its own, outside any panel
+ * group.
  */
 export function TableMetricsChartsPanelGroup({
   view,
@@ -108,6 +106,7 @@ export function TableMetricsChartsPanelGroup({
   view: MetricChartTableView;
   children: ReactNode;
 }) {
+  const showMetricCharts = useProjectContext((state) => state.showMetricCharts);
   // The store guarantees keys are valid catalog keys, so any selection means
   // there are charts to show
   const hasCharts = useProjectContext(
@@ -118,9 +117,15 @@ export function TableMetricsChartsPanelGroup({
   const layoutId = `${view}-table-metrics-layout`;
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: layoutId,
-    panelIds: hasCharts ? PANEL_IDS_WITH_CHARTS : PANEL_IDS_WITHOUT_CHARTS,
+    panelIds: hasCharts
+      ? ["metrics-charts", "table-content"]
+      : ["table-content"],
     storage: localStorage,
   });
+  if (!showMetricCharts) {
+    return children;
+  }
+  // Keep the table panel mounted when the chart strip appears or disappears.
   return (
     <Group
       orientation="vertical"
