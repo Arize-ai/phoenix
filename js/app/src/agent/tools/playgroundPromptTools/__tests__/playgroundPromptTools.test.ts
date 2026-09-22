@@ -83,7 +83,7 @@ describe("playground prompt tools agent tools", () => {
 
     it("requires an explicit instanceId when multiple instances exist", () => {
       const playgroundStore = newStore();
-      playgroundStore.getState().addInstance();
+      playgroundStore.getState().addInstance({ type: "duplicate" });
 
       const snapshot = getPromptToolsSnapshot({ playgroundStore });
 
