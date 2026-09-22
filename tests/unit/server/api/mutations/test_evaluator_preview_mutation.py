@@ -25,7 +25,7 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 
-async def test_preview_hides_own_human_annotation() -> None:
+async def test_preview_hides_every_annotation_under_its_own_name() -> None:
     evaluator = MagicMock()
     evaluator.name = "quality"
     evaluator.output_configs = [MagicMock()]
@@ -49,10 +49,7 @@ async def test_preview_hides_own_human_annotation() -> None:
     assert evaluator.evaluate.await_args.kwargs["context"] == {
         "input": {"question": "Hello"},
         "metadata": {
-            "annotations": {
-                "quality": [{"label": "bad", "annotator_kind": "LLM"}],
-                "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
-            },
+            "annotations": {"tone": [{"label": "warm", "annotator_kind": "HUMAN"}]},
             "source": "unit",
         },
     }

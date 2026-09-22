@@ -163,7 +163,7 @@ describe("getEvaluatorCellResult", () => {
 });
 
 describe("getExpectedOutput", () => {
-  const calibrationLabels = [
+  const expectedOutputs = [
     { annotationName: "no_sql", label: "pass", score: 1, explanation: null },
   ];
 
@@ -171,14 +171,14 @@ describe("getExpectedOutput", () => {
     expect(
       getExpectedOutput({
         pending: { no_sql: { label: "fail", score: 0 } },
-        calibrationLabels,
+        expectedOutputs,
         annotationName: "no_sql",
       })
     ).toEqual({ label: "fail", score: 0 });
     expect(
       getExpectedOutput({
         pending: { no_sql: null },
-        calibrationLabels,
+        expectedOutputs,
         annotationName: "no_sql",
       })
     ).toBeUndefined();
@@ -188,14 +188,14 @@ describe("getExpectedOutput", () => {
     expect(
       getExpectedOutput({
         pending: { other: { label: "x" } },
-        calibrationLabels,
+        expectedOutputs,
         annotationName: "no_sql",
       })
     ).toEqual({ label: "pass", score: 1, explanation: null });
     expect(
       getExpectedOutput({
         pending: undefined,
-        calibrationLabels,
+        expectedOutputs,
         annotationName: "missing",
       })
     ).toBeUndefined();
@@ -215,7 +215,7 @@ describe("summarizeExpectedAgreement", () => {
     const examples = [
       {
         id: "e1",
-        calibrationLabels: [
+        expectedOutputs: [
           {
             annotationName: "no_sql",
             label: "pass",
@@ -226,7 +226,7 @@ describe("summarizeExpectedAgreement", () => {
       },
       {
         id: "e2",
-        calibrationLabels: [
+        expectedOutputs: [
           {
             annotationName: "no_sql",
             label: "fail",
@@ -238,7 +238,7 @@ describe("summarizeExpectedAgreement", () => {
       {
         // An expectation the config cannot produce is counted, not compared.
         id: "e3",
-        calibrationLabels: [
+        expectedOutputs: [
           {
             annotationName: "no_sql",
             label: "maybe",
@@ -247,7 +247,7 @@ describe("summarizeExpectedAgreement", () => {
           },
         ],
       },
-      { id: "e4", calibrationLabels: [] },
+      { id: "e4", expectedOutputs: [] },
     ];
 
     const responses = {

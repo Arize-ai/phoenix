@@ -7,7 +7,6 @@ import {
   Flex,
   Icon,
   Icons,
-  Input,
   Label,
   ListBox,
   Loading,
@@ -21,7 +20,6 @@ import {
   TabPanel,
   Tabs,
   Text,
-  TextField,
   View,
   Button,
 } from "@phoenix/components";
@@ -38,6 +36,7 @@ import { extractCodeEvaluatorVariables } from "@phoenix/components/evaluators/co
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
+import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
 import { TemplateEvaluatorContextProvider } from "@phoenix/components/templateEditor/TemplateEvaluatorContext";
 import {
   useEvaluatorStore,
@@ -681,24 +680,13 @@ function CodeEditor({
 }
 
 function EvaluatorTaskNameField() {
-  const globalName = useEvaluatorStore((state) => state.evaluator.globalName);
-
-  const setEvaluatorGlobalName = useEvaluatorStore(
-    (state) => state.setEvaluatorGlobalName
-  );
-
   return (
-    <TextField
+    <EvaluatorNameInput
       aria-label="Evaluator name"
-      value={globalName}
-      onChange={setEvaluatorGlobalName}
-    >
-      <Label>Name</Label>
-      <Input placeholder="e.g. correctness" />
-      <Text slot="description">
-        Annotations from this evaluator are stored under this name.
-      </Text>
-    </TextField>
+      autoFocus={false}
+      placeholder="e.g. correctness"
+      description="Annotations from this evaluator are stored under this name."
+    />
   );
 }
 
