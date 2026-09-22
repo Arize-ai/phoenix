@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<093b3e3cc0b28907ec2cea2dde4ffeee>>
+ * @generated SignedSource<<04523ec7159d11c2fd98dc9052b65810>>
  * @lightSyntaxTransform
  */
 
@@ -19,9 +19,7 @@ export type EvaluatorTaskMappingSourceQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly example: {
           readonly revision: {
-            readonly input: any;
-            readonly metadata: any;
-            readonly output: any;
+            readonly evaluationContext: any;
           };
         };
       }>;
@@ -80,21 +78,7 @@ v5 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "input",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "output",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "metadata",
+      "name": "evaluationContext",
       "storageKey": null
     }
   ],
@@ -262,16 +246,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7c1c1dcb84e176ca76cd3a6eeeba8737",
+    "cacheID": "21a537599213d60fd1f2f10d71e72fde",
     "id": null,
     "metadata": {},
     "name": "EvaluatorTaskMappingSourceQuery",
     "operationKind": "query",
-    "text": "query EvaluatorTaskMappingSourceQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n  $hasDataset: Boolean!\n) {\n  dataset: node(id: $datasetId) @include(if: $hasDataset) {\n    __typename\n    ... on Dataset {\n      examples(first: 1, splitIds: $splitIds) {\n        edges {\n          example: node {\n            revision {\n              input\n              output\n              metadata\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorTaskMappingSourceQuery(\n  $datasetId: ID!\n  $splitIds: [ID!]\n  $hasDataset: Boolean!\n) {\n  dataset: node(id: $datasetId) @include(if: $hasDataset) {\n    __typename\n    ... on Dataset {\n      examples(first: 1, splitIds: $splitIds) {\n        edges {\n          example: node {\n            revision {\n              evaluationContext\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "561762fb4d3e4f341856150bc55888aa";
+(node as any).hash = "992aa8804257288cef53880e48f4844b";
 
 export default node;
