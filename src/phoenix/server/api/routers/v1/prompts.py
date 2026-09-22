@@ -1,3 +1,5 @@
+"""Manage prompts, prompt versions, and version tags over REST."""
+
 import logging
 from typing import Any, Optional, Union
 
@@ -5,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, ValidationError, model_validator
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -20,15 +23,13 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
-from phoenix.server.api.exceptions import BadRequest, Conflict
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompt_version_tags import (
     upsert_prompt_version_tag,
     validate_prompt_version_tag_delete,
     validate_prompt_version_tag_move,
 )
-from phoenix.server.api.helpers.prompts.validation import (
-    validate_invocation_parameters_match_provider,
-)
+from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.prompt_models import (
     Prompt,
@@ -414,6 +415,7 @@ async def get_prompt_version_by_latest(
     response_description="The newly created prompt version",
     responses=add_errors_to_responses(
         [
+            404,
             422,
         ]
     ),
@@ -453,26 +455,19 @@ async def create_prompt(
     if request.app.state.authentication_enabled:
         assert isinstance(user := request.user, PhoenixUser)
         user_id = int(user.identity)
+    try:
+        version_orm = version.to_orm(user_id=user_id)
+    except BadRequest as error:
+        raise HTTPException(422, str(error)) from error
     async with request.app.state.db() as session:
+        await _validate_custom_provider(session, version_orm)
         if not (prompt_orm := await session.scalar(select(models.Prompt).filter_by(name=name))):
             prompt_orm = models.Prompt(
                 name=name,
                 description=prompt.description,
                 metadata_=prompt.metadata or {},
             )
-        version_orm = models.PromptVersion(
-            user_id=user_id,
-            prompt=prompt_orm,
-            description=version.description,
-            model_provider=version.model_provider,
-            model_name=version.model_name,
-            template_type=version.template_type,
-            template_format=version.template_format,
-            template=version.template,
-            invocation_parameters=version.invocation_parameters,
-            tools=version.tools,
-            response_format=version.response_format,
-        )
+        version_orm.prompt = prompt_orm
         session.add(version_orm)
     data = PromptVersion.from_orm_prompt_version(version_orm)
     return CreatePromptResponseBody(data=data)
@@ -527,14 +522,6 @@ async def create_prompt_version(
     """
     version = request_body.version
     _require_chat_template(version)
-    try:
-        validate_invocation_parameters_match_provider(
-            model_provider=version.model_provider,
-            invocation_parameters=version.invocation_parameters,
-        )
-    except BadRequest as e:
-        raise HTTPException(422, str(e))
-
     identifier = _parse_prompt_identifier(prompt_identifier)
     if isinstance(identifier, _PromptId):
         where_clause = models.Prompt.id == int(identifier)
@@ -548,24 +535,18 @@ async def create_prompt_version(
         assert isinstance(user := request.user, PhoenixUser)
         user_id = int(user.identity)
 
+    try:
+        version_orm = version.to_orm(user_id=user_id)
+    except BadRequest as error:
+        raise HTTPException(422, str(error)) from error
+
     async with request.app.state.db() as session:
         prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
         if prompt_id is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
 
-        version_orm = models.PromptVersion(
-            user_id=user_id,
-            prompt_id=prompt_id,
-            description=version.description,
-            model_provider=version.model_provider,
-            model_name=version.model_name,
-            template_type=version.template_type,
-            template_format=version.template_format,
-            template=version.template,
-            invocation_parameters=version.invocation_parameters,
-            tools=version.tools,
-            response_format=version.response_format,
-        )
+        await _validate_custom_provider(session, version_orm)
+        version_orm.prompt_id = prompt_id
         session.add(version_orm)
         try:
             await session.flush()
@@ -967,3 +948,13 @@ def _filter_by_prompt_identifier(
 def _require_chat_template(version: PromptVersionData) -> None:
     if version.template_type is not PromptTemplateType.CHAT:
         raise HTTPException(422, "Only CHAT template type is supported for prompts")
+
+
+async def _validate_custom_provider(session: AsyncSession, version: models.PromptVersion) -> None:
+    """Map the shared provider check to REST codes: 404 missing, 422 incompatible."""
+    try:
+        await validate_custom_provider(session, version)
+    except NotFound as error:
+        raise HTTPException(404, str(error)) from error
+    except BadRequest as error:
+        raise HTTPException(422, str(error)) from error
