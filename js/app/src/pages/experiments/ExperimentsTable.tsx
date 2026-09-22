@@ -261,6 +261,9 @@ export function ExperimentsTable({
                 }
                 job {
                   status
+                  taskConfig {
+                    __typename
+                  }
                 }
               }
             }
@@ -609,6 +612,10 @@ export function ExperimentsTable({
                 isBaseline={row.original.isBaseline}
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
+                canOpenInPlayground={
+                  row.original.job?.taskConfig?.__typename ===
+                  "PromptTaskConfig"
+                }
                 size="S"
                 canEditExperiment
                 experimentName={row.original.name}

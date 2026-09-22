@@ -45,7 +45,7 @@ const PlaygroundExpectedOutputsContext =
 /**
  * The expected outputs of the dataset table's examples: what is queued to be
  * written, and the writer. Expected outputs are HUMAN annotations on the
- * example, written in batches through setDatasetExampleCalibrationLabels
+ * example, written in batches through setDatasetExampleExpectedOutputs
  * with a revision guard, so the writer reads each example's current revision
  * from the table.
  */
@@ -117,8 +117,8 @@ export function usePlaygroundExpectedOutputs(): PlaygroundExpectedOutputs {
   return value;
 }
 
-type ExpectedOutputLabelInput =
-  PlaygroundExpectedOutputsContextMutation$variables["input"]["labels"][number];
+type ExpectedOutputInput =
+  PlaygroundExpectedOutputsContextMutation$variables["input"]["expectedOutputs"][number];
 
 /** One mutation, one dataset version, for every annotation in the batch. */
 function writeExpectedOutputs({
@@ -132,7 +132,7 @@ function writeExpectedOutputs({
   batch: PendingExpectedOutputs;
   getRevisionId: (exampleId: string) => string | undefined;
 }): Promise<UIOperationResult> {
-  const labels: ExpectedOutputLabelInput[] = [];
+  const expectedOutputs: ExpectedOutputInput[] = [];
 
   for (const [exampleId, byName] of Object.entries(batch)) {
     const expectedRevisionId = getRevisionId(exampleId);
@@ -146,7 +146,7 @@ function writeExpectedOutputs({
     }
 
     for (const [annotationName, output] of Object.entries(byName)) {
-      labels.push({
+      expectedOutputs.push({
         exampleId,
         expectedRevisionId,
         annotationName,
@@ -157,14 +157,14 @@ function writeExpectedOutputs({
     }
   }
 
-  if (labels.length === 0) {
+  if (expectedOutputs.length === 0) {
     return Promise.resolve({ ok: true });
   }
 
   return new Promise((resolve) => {
     commitMutation<PlaygroundExpectedOutputsContextMutation>(environment, {
       mutation: expectedOutputsMutation,
-      variables: { input: { datasetId, labels } },
+      variables: { input: { datasetId, expectedOutputs } },
       onCompleted: (response, errors) => {
         if (errors?.length) {
           resolve({
@@ -178,7 +178,7 @@ function writeExpectedOutputs({
         resolve({
           ok: true,
           output: {
-            saved: response.setDatasetExampleCalibrationLabels.examples.length,
+            saved: response.setDatasetExampleExpectedOutputs.examples.length,
           },
         });
       },
@@ -188,18 +188,18 @@ function writeExpectedOutputs({
 }
 
 // The payload returns the examples' new revisions in the table's own shape,
-// so the rows read the fresh revision id and labels from the Relay store and
+// so the rows read the fresh revision id and expected outputs from the Relay store and
 // the next write on the same example carries the right revision guard.
 const expectedOutputsMutation = graphql`
   mutation PlaygroundExpectedOutputsContextMutation(
-    $input: SetDatasetExampleCalibrationLabelsInput!
+    $input: SetDatasetExampleExpectedOutputsInput!
   ) {
-    setDatasetExampleCalibrationLabels(input: $input) {
+    setDatasetExampleExpectedOutputs(input: $input) {
       examples {
         id
         revision {
           revisionId
-          calibrationLabels {
+          expectedOutputs {
             annotationName
             label
             score
