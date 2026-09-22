@@ -13,15 +13,6 @@ This directory contains [skills](https://docs.anthropic.com/en/docs/claude-code/
 
 The [Cursor plugin](../../.cursor-plugin/README.md) ships these three skills by listing their paths in `.cursor-plugin/plugin.json`. If you rename or move one, update that list.
 
-## Internal Skills
-
-Every other skill in this directory is for people working on Phoenix itself and is marked in its `SKILL.md` frontmatter with:
-
-```yaml
-metadata:
-  internal: true
-```
-
 ## Third-Party Skills
 
 When a vendor ships a Claude Code plugin, install it as a plugin in
