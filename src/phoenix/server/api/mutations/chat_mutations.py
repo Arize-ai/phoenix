@@ -14,11 +14,13 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
     build_evaluator_from_definition,
+    evaluator_annotation_names,
 )
 from phoenix.server.api.evaluators import (
     EvaluationResult as EvaluationResultDict,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.evaluator_calibration import without_expected_outputs
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,
@@ -96,6 +98,13 @@ async def _evaluate_preview(
     input_mapping: InputMapping,
 ) -> list[EvaluationResultDict]:
     try:
+        context = {
+            **context,
+            "metadata": without_expected_outputs(
+                context.get("metadata", {}),
+                evaluator_annotation_names(evaluator.name, evaluator.output_configs),
+            ),
+        }
         return await evaluator.evaluate(
             context=context,
             input_mapping=input_mapping,
