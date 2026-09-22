@@ -2,13 +2,13 @@ import { savePromptInputSchema } from "@phoenix/agent/tools/playgroundSavePrompt
 
 import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
+import { PLAYGROUND_PROMPT_ROUTE_HINT } from "./playgroundRouteHints";
 
 /**
  * The catalog entry replacing the `save_prompt` client-action tool. Saving is
  * an approval operation: the browser stages the save and the promise resolves
  * only after the user accepts or rejects it. The input schema is reused from
- * the existing tool module; the description moves here verbatim from the
- * Python `DESCRIPTION`.
+ * the existing tool module.
  */
 export const savePromptOperation = defineUIOperation({
   name: "playground.prompt.save",
@@ -26,7 +26,9 @@ export const savePromptOperation = defineUIOperation({
     "`promptId` only when saving a new version on a specific existing prompt. Always pass " +
     "a clear, short, concise `description` that states the change or intention. Tags work " +
     "like releases: pass tags only when the user explicitly asks to tag, release, or " +
-    "promote this version.",
+    "promote this version. On an evaluator page this saves the LLM evaluator's judge " +
+    "prompt as a prompt version; to save the evaluator itself use " +
+    "`playground.evaluator.save`.",
   inputSchema: savePromptInputSchema,
   operationKind: "approval",
   requireSession: true,
@@ -36,7 +38,7 @@ export const savePromptOperation = defineUIOperation({
   },
   defaultSuccessOutput: "Prompt saved.",
   availability: {
-    routeHint: "the Prompt Playground page (a /playground route)",
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 
