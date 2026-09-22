@@ -14,7 +14,7 @@ from openinference.semconv.trace import (
 from strawberry.relay.types import GlobalID
 from typing_extensions import NotRequired
 
-from phoenix.db.models import Span, SpanAnnotation, User
+from phoenix.db.models import DatasetExampleRevision, Span, SpanAnnotation, User
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -112,24 +112,55 @@ def get_dataset_example_metadata(
     }
 
 
+def dataset_example_eval_context(revision: DatasetExampleRevision) -> dict[str, Any]:
+    return {
+        "input": revision.input,
+        "output": revision.output,
+        "metadata": revision.metadata_,
+    }
+
+
+def build_annotation_record(
+    *,
+    label: Optional[str],
+    score: Optional[float],
+    explanation: Optional[str],
+    metadata: dict[str, Any],
+    annotator_kind: str,
+    user_id: Optional[str],
+    username: Optional[str],
+    email: Optional[str],
+) -> dict[str, Any]:
+    return {
+        "label": label,
+        "score": score,
+        "explanation": explanation,
+        "metadata": metadata,
+        "annotator_kind": annotator_kind,
+        "user_id": user_id,
+        "username": username,
+        "email": email,
+    }
+
+
 def get_span_annotations_by_name(
     annotations: Sequence[SpanAnnotation],
 ) -> dict[str, list[dict[str, Any]]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     for annotation in sorted(annotations, key=lambda a: a.id):
         grouped.setdefault(annotation.name, []).append(
-            {
-                "label": annotation.label,
-                "score": annotation.score,
-                "explanation": annotation.explanation,
-                "metadata": annotation.metadata_,
-                "annotator_kind": annotation.annotator_kind,
-                "user_id": str(GlobalID(User.__name__, str(user_id)))
+            build_annotation_record(
+                label=annotation.label,
+                score=annotation.score,
+                explanation=annotation.explanation,
+                metadata=annotation.metadata_,
+                annotator_kind=annotation.annotator_kind,
+                user_id=str(GlobalID(User.__name__, str(user_id)))
                 if (user_id := annotation.user_id) is not None
                 else None,
-                "username": user.username if (user := annotation.user) is not None else None,
-                "email": user.email if user is not None else None,
-            }
+                username=user.username if (user := annotation.user) is not None else None,
+                email=user.email if user is not None else None,
+            )
         )
     return grouped
 

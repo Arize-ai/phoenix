@@ -1,5 +1,5 @@
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import select
@@ -7,6 +7,7 @@ from strawberry.relay.types import GlobalID
 
 from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES
 from phoenix.db import models
+from phoenix.server.api.mutations.chat_mutations import _evaluate_preview
 from phoenix.server.monty_runtime import (
     MontyBusy,
     MontyDeadlineExceeded,
@@ -22,6 +23,40 @@ from phoenix.server.sandbox.result_protocol import (
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+
+async def test_preview_hides_own_human_annotation() -> None:
+    evaluator = MagicMock()
+    evaluator.name = "quality"
+    evaluator.output_configs = [MagicMock()]
+    evaluator.evaluate = AsyncMock(return_value=[])
+    context: dict[str, Any] = {
+        "input": {"question": "Hello"},
+        "metadata": {
+            "annotations": {
+                "quality": [
+                    {"label": "good", "annotator_kind": "HUMAN"},
+                    {"label": "bad", "annotator_kind": "LLM"},
+                ],
+                "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        },
+    }
+
+    await _evaluate_preview(evaluator, context=context, input_mapping=MagicMock())
+
+    assert evaluator.evaluate.await_args.kwargs["context"] == {
+        "input": {"question": "Hello"},
+        "metadata": {
+            "annotations": {
+                "quality": [{"label": "bad", "annotator_kind": "LLM"}],
+                "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        },
+    }
+    assert context["metadata"]["annotations"]["quality"][0]["annotator_kind"] == "HUMAN"
 
 
 class TestEvaluatorPreviewMutation:

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
 from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
@@ -815,20 +815,43 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
         annotation_name = project_evaluator.name.root
 
     executor = _executor(db, evaluation_target="SESSION")
-    await executor.evaluate_and_annotate(
-        unit,
-        _hydrated_stub(
-            results=[_evaluation_result(annotation_name)],
-            evaluator_kind="BUILTIN",
-            output_configs=[],
-            annotation_name=annotation_name,
-            annotation_metadata={
-                "phoenix.online_eval.session_policy": {
-                    "last_loaded_event_time": event_time.isoformat()
-                }
-            },
-        ),
+    hydrated = _hydrated_stub(
+        results=[_evaluation_result(annotation_name)],
+        evaluator_kind="BUILTIN",
+        output_configs=[_output_config(annotation_name)],
+        annotation_name=annotation_name,
+        annotation_metadata={
+            "phoenix.online_eval.session_policy": {"last_loaded_event_time": event_time.isoformat()}
+        },
     )
+    hydrated.context.update(
+        {
+            "metadata": {
+                "annotations": {
+                    annotation_name: [
+                        {"label": "good", "annotator_kind": "HUMAN"},
+                        {"label": "bad", "annotator_kind": "LLM"},
+                    ],
+                    "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+                },
+                "source": "unit",
+            }
+        }
+    )
+    with patch.object(
+        hydrated.evaluator,
+        "evaluate",
+        new=AsyncMock(wraps=hydrated.evaluator.evaluate),
+    ) as evaluate:
+        await executor.evaluate_and_annotate(unit, hydrated)
+    assert evaluate.await_args is not None
+    assert evaluate.await_args.kwargs["context"]["metadata"] == {
+        "annotations": {
+            annotation_name: [{"label": "bad", "annotator_kind": "LLM"}],
+            "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+        },
+        "source": "unit",
+    }
 
     stored = await _get_session_unit(db, unit_id)
     assert stored.status == "RUNNING"

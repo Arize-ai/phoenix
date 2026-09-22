@@ -9,6 +9,8 @@ playground and an example built from an annotated span share one shape.
 
 from typing import Any, Iterable, Mapping, Optional
 
+from phoenix.server.api.helpers.dataset_helpers import build_annotation_record
+
 ANNOTATIONS_METADATA_KEY = "annotations"
 HUMAN_ANNOTATOR_KIND = "HUMAN"
 
@@ -96,16 +98,16 @@ def set_expected_output(
     records = [record for record in existing if not _is_expected_output(record)]
     if label is not None or score is not None or explanation is not None:
         records.append(
-            {
-                "label": label,
-                "score": score,
-                "explanation": explanation,
-                "metadata": {},
-                "annotator_kind": HUMAN_ANNOTATOR_KIND,
-                "user_id": user_id,
-                "username": username,
-                "email": email,
-            }
+            build_annotation_record(
+                label=label,
+                score=score,
+                explanation=explanation,
+                metadata={},
+                annotator_kind=HUMAN_ANNOTATOR_KIND,
+                user_id=user_id,
+                username=username,
+                email=email,
+            )
         )
     next_annotations = {**annotations}
     if records:
