@@ -4,6 +4,7 @@ import type { HTMLAttributes, Ref } from "react";
 import type { TextProps } from "@phoenix/components/core/content";
 import { dotSeparatedRowCSS } from "@phoenix/components/core/styles";
 import type { TextColorValue } from "@phoenix/components/core/types/style";
+import { isPositiveNumber } from "@phoenix/utils/numberUtils";
 
 import { LatencyText } from "./LatencyText";
 import { TokenCosts } from "./TokenCosts";
@@ -29,8 +30,8 @@ const spanMetricsRowCSS = css`
 export function hasSpanMetrics(metrics: SpanMetricsValues): boolean {
   return (
     metrics.latencyMs != null ||
-    hasPositiveValue(metrics.tokenCountTotal) ||
-    hasPositiveValue(metrics.costTotal)
+    isPositiveNumber(metrics.tokenCountTotal) ||
+    isPositiveNumber(metrics.costTotal)
   );
 }
 
@@ -40,13 +41,9 @@ export function hasSpanMetrics(metrics: SpanMetricsValues): boolean {
  */
 export function hasSpanMetricsDetails(metrics: SpanMetricsValues): boolean {
   return (
-    hasPositiveValue(metrics.tokenCountTotal) ||
-    hasPositiveValue(metrics.costTotal)
+    isPositiveNumber(metrics.tokenCountTotal) ||
+    isPositiveNumber(metrics.costTotal)
   );
-}
-
-function hasPositiveValue(value: number | null | undefined): value is number {
-  return typeof value === "number" && value > 0;
 }
 
 export interface SpanMetricsRowProps
@@ -103,12 +100,12 @@ export function SpanMetricsRow({
           color={color}
         />
       ) : null}
-      {hasPositiveValue(tokenCountTotal) ? (
+      {isPositiveNumber(tokenCountTotal) ? (
         <TokenCount size={size} color={color}>
           {tokenCountTotal}
         </TokenCount>
       ) : null}
-      {hasPositiveValue(costTotal) ? (
+      {isPositiveNumber(costTotal) ? (
         <TokenCosts size={size} color={color}>
           {costTotal}
         </TokenCosts>

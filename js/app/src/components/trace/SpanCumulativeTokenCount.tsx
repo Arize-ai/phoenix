@@ -2,15 +2,11 @@ import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SpanCumulativeTokenCountDetails } from "./SpanCumulativeTokenCountDetails";
 import { TokenCount } from "./TokenCount";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 
 type SpanCumulativeTokenCountProps = {
   /**
@@ -40,7 +36,13 @@ export function SpanCumulativeTokenCount(props: SpanCumulativeTokenCountProps) {
       </Pressable>
       <RichTooltip>
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton
+              tokens={{ total: props.tokenCountTotal }}
+            />
+          }
+        >
           <SpanCumulativeTokenCountDetails spanNodeId={props.nodeId} />
         </Suspense>
       </RichTooltip>

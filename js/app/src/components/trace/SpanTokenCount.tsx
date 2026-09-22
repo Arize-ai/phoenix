@@ -3,15 +3,11 @@ import type { PressEvent } from "react-aria";
 import { Pressable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SpanTokenCountDetails } from "./SpanTokenCountDetails";
 import { TokenCount } from "./TokenCount";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 
 type SpanTokenCountProps = {
   /**
@@ -55,7 +51,13 @@ export function SpanTokenCount(props: SpanTokenCountProps) {
       </Pressable>
       <RichTooltip>
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton
+              tokens={{ total: props.tokenCountTotal }}
+            />
+          }
+        >
           <SpanTokenCountDetails spanNodeId={props.nodeId} />
         </Suspense>
       </RichTooltip>

@@ -1,143 +1,184 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Pressable } from "react-aria";
 
-import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
+import {
+  Flex,
+  RichTooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
-import { TokenDetailsBreakdown } from "@phoenix/components/trace/TokenDetailsBreakdown";
-import { formatCost, formatNumber } from "@phoenix/utils/numberFormatUtils";
+import {
+  TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
+  TokenDetailsBreakdown,
+  TokenDetailsBreakdownSkeleton,
+} from "@phoenix/components/trace/TokenDetailsBreakdown";
 
 /**
- * The body of every cost and token tooltip in the app. A total is split into
- * prompt and completion and drawn as a proportional bar, so the split reads at
- * a glance instead of having to be inferred from the numbers.
+ * The body of every token and cost tooltip in the app: the trace tree's row
+ * preview, the span header, and the token counts and costs in tables.
  *
- * Prompt and completion get a bar of their own when they break down further by
- * token type. A group whose details amount to a single token type is left out,
- * since its bar would restate the legend row above it.
+ * A bar per measure splits the total into token types, with a tick where the
+ * prompt ends and the completion begins, and a table gives each type's value
+ * and share in every measure. Because the bars share their segments, a type's
+ * share of the tokens reads against its share of the cost: cache reads that
+ * are most of the context window but a fraction of the bill.
  *
- * `TokenCostsDetails` and `TokenCountDetails` are thin wrappers over this
- * component that fix the formatter and the value label.
+ * `TokenCountDetails` and `TokenCostsDetails` are thin wrappers over this
+ * component for surfaces that show one measure only.
  */
 const meta = {
   title: "Tokens/Token Details Breakdown",
   component: TokenDetailsBreakdown,
   parameters: {
-    layout: "centered",
+    width: TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
   },
   tags: ["autodocs"],
-  argTypes: {
-    formatter: {
-      control: false,
-      description: "Renders a value in the unit being broken down.",
-    },
-  },
 } satisfies Meta<typeof TokenDetailsBreakdown>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 /**
- * Cost split between prompt and completion. With no token-type details, the
- * breakdown is a single bar.
+ * A cached LLM call, priced. Cache reads dominate the tokens but not the
+ * cost, and the output is the reverse.
  */
-export const Cost: Story = {
+export const TokensAndCost: Story = {
   args: {
-    valueLabel: "cost",
-    formatter: formatCost,
-    total: 27.09,
-    prompt: 24.04,
-    completion: 3.05,
-  },
-};
-
-/**
- * A cached conversation. The prompt bar shows what the cache absorbed, which is
- * the detail that explains an otherwise surprising prompt cost.
- */
-export const CostWithCacheDetails: Story = {
-  args: {
-    valueLabel: "cost",
-    formatter: formatCost,
-    total: 27.09,
-    prompt: 24.04,
-    completion: 3.05,
-    promptDetails: {
-      input: 4.04,
-      cache_read: 16.0,
-      cache_write: 4.0,
+    tokens: {
+      total: 49_494,
+      prompt: 48_210,
+      completion: 1_284,
+      promptDetails: { input: 3_490, cache_read: 41_600, cache_write: 3_120 },
+    },
+    costs: {
+      total: 0.0539,
+      prompt: 0.0347,
+      completion: 0.0193,
+      promptDetails: { input: 0.0105, cache_read: 0.0125, cache_write: 0.0117 },
     },
   },
 };
 
 /**
- * Token counts, with details on both sides of the split. Reasoning tokens keep
- * the same color here that they carry in the project metrics charts.
+ * Token counts alone, as a local model reports them.
  */
-export const TokenCounts: Story = {
+export const TokensOnly: Story = {
   args: {
-    valueLabel: "tokens",
-    formatter: formatNumber,
-    total: 84_320,
-    prompt: 78_100,
-    completion: 6_220,
-    promptDetails: {
-      input: 12_774,
-      cache_read: 61_326,
-      cache_write: 4_000,
-    },
-    completionDetails: {
-      output: 4_220,
-      reasoning: 2_000,
+    tokens: { total: 812, prompt: 600, completion: 212 },
+  },
+};
+
+/**
+ * Cost alone, as a cost tooltip in a table shows it. Reasoning tokens keep
+ * the color they carry in the project metrics charts.
+ */
+export const CostOnly: Story = {
+  args: {
+    costs: {
+      total: 27.09,
+      prompt: 24.04,
+      completion: 3.05,
+      promptDetails: { input: 4.04, cache_read: 16.0, cache_write: 4.0 },
+      completionDetails: { output: 2.05, reasoning: 1.0 },
     },
   },
 };
 
 /**
- * Details recorded before a token type was tracked can add up to less than the
- * group they belong to. The unaccounted remainder is attributed to Input or
- * Output rather than left as a gap, so the bar still fills its total.
+ * Details recorded before a token type was tracked can add up to less than
+ * the side they belong to. The unaccounted remainder is attributed to plain
+ * input or output rather than left as a gap, so the bar still fills its
+ * total.
  */
 export const IncompleteDetails: Story = {
   args: {
-    valueLabel: "tokens",
-    formatter: formatNumber,
-    total: 84_320,
-    prompt: 78_100,
-    completion: 6_220,
-    // Only the cache is broken out; the remaining 16,774 prompt tokens
-    // surface as Input.
-    promptDetails: {
-      cache_read: 61_326,
+    tokens: {
+      total: 84_320,
+      prompt: 78_100,
+      completion: 6_220,
+      // Only the cache is broken out; the remaining 16,774 prompt tokens
+      // surface as Input.
+      promptDetails: { cache_read: 61_326 },
     },
   },
 };
 
 /**
- * An experiment average, where the total is labeled rather than "Total".
+ * A token type used on both sides, such as audio heard and audio spoken, is
+ * told apart by the side it was used on.
  */
-export const AverageLabel: Story = {
+export const TypeOnBothSides: Story = {
   args: {
-    valueLabel: "cost",
-    totalLabel: "Average",
-    formatter: formatCost,
-    total: 0.34,
-    prompt: 0.28,
-    completion: 0.06,
+    tokens: {
+      total: 9_400,
+      prompt: 7_000,
+      completion: 2_400,
+      promptDetails: { input: 3_000, audio: 4_000 },
+      completionDetails: { output: 1_400, audio: 1_000 },
+    },
   },
 };
 
 /**
- * Nothing was spent. The bar is dropped rather than drawn empty, which would
- * read as a rendering failure.
+ * An experiment's average per run, where the totals are qualified rather
+ * than plain.
  */
-export const ZeroCost: Story = {
+export const Average: Story = {
+  args: { ...CostOnly.args, totalLabel: "Average" },
+};
+
+/**
+ * Totals whose split was never recorded. Each measure is one neutral bar of
+ * its total and there is no table. This is a final state, not a loading one:
+ * while a split loads, `TokenDetailsBreakdownSkeleton` stands in instead.
+ */
+export const TotalsOnly: Story = {
   args: {
-    valueLabel: "cost",
-    formatter: formatCost,
-    total: 0,
-    prompt: 0,
-    completion: 0,
+    tokens: { total: 49_494 },
+    costs: { total: 0.0539 },
   },
+};
+
+/**
+ * The skeleton every token and cost tooltip shows while its breakdown loads.
+ * It is given the totals the tooltip already has, so the heading, the
+ * measure labels and the totals are real, and the split, the bars and the
+ * table rows pulse in their places on the loaded layout's grid.
+ */
+export const Loading: Story = {
+  render: (args) => <TokenDetailsBreakdownSkeleton {...args} />,
+  args: TotalsOnly.args,
+};
+
+/**
+ * The skeleton over the breakdown it stands in for, at the same width. The
+ * header, bars, rule and table columns line up; only the number of table
+ * rows can differ, since the skeleton cannot know how many token types the
+ * span used.
+ */
+export const LoadingAndLoaded: Story = {
+  render: (args) => (
+    <Flex direction="column" gap="size-400">
+      <TokenDetailsBreakdownSkeleton
+        tokens={{ total: args.tokens?.total }}
+        costs={{ total: args.costs?.total }}
+        rows={4}
+      />
+      <TokenDetailsBreakdown {...args} />
+    </Flex>
+  ),
+  args: TokensAndCost.args,
+};
+
+/**
+ * A single measure loading, as the token count tooltips in tables show it,
+ * with the tooltip's default width.
+ */
+export const LoadingTokensOnly: Story = {
+  render: (args) => <TokenDetailsBreakdownSkeleton {...args} />,
+  args: { tokens: { total: 812 } },
+  parameters: { width: 300 },
 };
 
 /**
@@ -149,29 +190,17 @@ export const InTooltip: Story = {
     <TooltipTrigger delay={0}>
       <Pressable>
         <TokenCosts role="button" tabIndex={0}>
-          {27.09}
+          {0.0539}
         </TokenCosts>
       </Pressable>
-      <RichTooltip placement="bottom">
+      <RichTooltip
+        placement="bottom"
+        width={TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}
+      >
         <TooltipArrow />
         <TokenDetailsBreakdown {...args} />
       </RichTooltip>
     </TooltipTrigger>
   ),
-  args: {
-    valueLabel: "cost",
-    formatter: formatCost,
-    total: 27.09,
-    prompt: 24.04,
-    completion: 3.05,
-    promptDetails: {
-      input: 4.04,
-      cache_read: 16.0,
-      cache_write: 4.0,
-    },
-    completionDetails: {
-      output: 2.05,
-      reasoning: 1.0,
-    },
-  },
+  args: TokensAndCost.args,
 };

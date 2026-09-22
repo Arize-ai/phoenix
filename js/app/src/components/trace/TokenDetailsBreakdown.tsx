@@ -1,14 +1,34 @@
-import { Flex } from "@phoenix/components";
-import { useCategoryChartColors } from "@phoenix/components/chart";
-import { RichTokenBreakdown } from "@phoenix/components/RichTokenBreakdown";
+import { css } from "@emotion/react";
+
+import { Divider, Text, TextSkeleton } from "@phoenix/components";
+import type {
+  BreakdownDimension,
+  BreakdownSegment,
+} from "@phoenix/components/chart";
+import {
+  BreakdownBars,
+  BreakdownBarsSkeleton,
+  BreakdownTable,
+  BreakdownTableSkeleton,
+  useCategoryChartColors,
+} from "@phoenix/components/chart";
+import {
+  costPreciseFormatter,
+  numberFormatter,
+} from "@phoenix/utils/numberFormatUtils";
+import { isPositiveNumber } from "@phoenix/utils/numberUtils";
 import {
   compareTokenTypes,
-  getRemainderTokenType,
   getTokenDetailColor,
-  getTokenDetailLabel,
-  TOKEN_DETAIL_EPSILON,
+  getTokenDetailLabelForKind,
+  getTokenDetailValuesWithRemainder,
+  getTokenKind,
+  getTokenKindLabel,
 } from "@phoenix/utils/tokenDetailUtils";
 
+/**
+ * Values keyed by token type, e.g. `{ input: 12, cache_read: 4 }`.
+ */
 type TokenDetailValues = Record<string, number | null | undefined>;
 
 type TokenDetailEntry = {
@@ -44,26 +64,11 @@ export function getTokenDetails<Entry extends TokenDetailEntry>({
   return values.length > 0 ? Object.fromEntries(values) : undefined;
 }
 
-type DetailSegment = {
-  name: string;
-  value: number;
-  color: string;
-};
-
-export interface TokenDetailsBreakdownProps {
-  /**
-   * The noun for the value being broken down, e.g. "cost" or "tokens".
-   */
-  valueLabel: string;
-  /**
-   * Qualifies the total, e.g. "Total" or "Average".
-   * @default "Total"
-   */
-  totalLabel?: string;
-  /**
-   * Renders a value in the unit being broken down.
-   */
-  formatter: (value: number) => string;
+/**
+ * One measure of usage, tokens or cost, as a total split into prompt and
+ * completion and, where known, further into token types.
+ */
+export type TokenDetailTotals = {
   total?: number | null;
   prompt?: number | null;
   completion?: number | null;
@@ -75,135 +80,365 @@ export interface TokenDetailsBreakdownProps {
    * Completion values keyed by token type.
    */
   completionDetails?: TokenDetailValues | null;
+};
+
+export interface TokenDetailsBreakdownProps {
+  /** Token counts. Omit for usage that was not counted. */
+  tokens?: TokenDetailTotals | null;
+  /** Costs. Omit when no pricing applied. */
+  costs?: TokenDetailTotals | null;
+  /**
+   * Qualifies the totals in the heading, e.g. "Average" for an experiment's
+   * mean per run. Omit for plain totals.
+   */
+  totalLabel?: string;
 }
 
 /**
- * A total split into prompt and completion, each drawn as a proportional bar
- * with a color-keyed legend. Prompt and completion get a bar of their own when
- * they break down further by token type, e.g. into cache reads and writes.
+ * The tooltip width that fits the breakdown with both measures: the table's
+ * rows carry a value and a share for each of the two beside the type's name.
+ * Pass it to the `RichTooltip` that hosts the breakdown, since the tooltip's
+ * default cap is narrower.
  */
-export function TokenDetailsBreakdown({
-  valueLabel,
-  totalLabel = "Total",
-  formatter,
-  total,
-  prompt,
-  completion,
-  promptDetails,
-  completionDetails,
-}: TokenDetailsBreakdownProps) {
-  const colors = useCategoryChartColors();
+export const TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH = 380;
 
-  if (total == null && prompt == null && completion == null) {
-    return null;
+/**
+ * The width of the split summary's skeleton: about what
+ * "48,210 prompt → 1,284 completion" takes in the summary's small mono type,
+ * so the header wraps where the loaded one will.
+ */
+const SPLIT_SKELETON_WIDTH = 220;
+
+/**
+ * The token types the skeleton leaves room for: a modern LLM call breaks
+ * down into input, cache read and output.
+ */
+const DEFAULT_SKELETON_ROWS = 3;
+
+const tokenDetailsBreakdownCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-150);
+  min-width: 240px;
+
+  .token-details-breakdown__header {
+    display: flex;
+    /* The split drops under the heading when the two will not share a line */
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--global-dimension-size-50) var(--global-dimension-size-200);
+    white-space: nowrap;
   }
+  .token-details-breakdown__split {
+    margin-left: auto;
+  }
+`;
 
-  const groups = [
-    {
-      label: "Prompt",
-      isPrompt: true,
-      value: prompt,
-      details: promptDetails,
-      color: colors.category1,
-    },
-    {
-      label: "Completion",
-      isPrompt: false,
-      value: completion,
-      details: completionDetails,
-      color: colors.category2,
-    },
-  ].map((group) => ({
-    ...group,
-    // An absent group is left out of the split entirely; a zero one still
-    // belongs in the legend.
-    value: group.value ?? 0,
-    isPresent: group.value != null,
-    segments: buildDetailSegments({
-      colors,
-      details: group.details,
-      groupTotal: group.value ?? 0,
-      isPrompt: group.isPrompt,
-    }),
-  }));
+type CategoryChartColors = ReturnType<typeof useCategoryChartColors>;
 
+type TokenMeasure = {
+  key: "tokens" | "cost";
+  label: string;
+  formatter: (value: number) => string;
+  data: TokenDetailTotals;
+};
+
+/**
+ * Whether a measure has anything to show: a total or a part above zero.
+ */
+function hasUsage(
+  data: TokenDetailTotals | null | undefined
+): data is TokenDetailTotals {
+  if (!data) {
+    return false;
+  }
   return (
-    <Flex direction="column" gap="size-200" minWidth="size-3000">
-      <RichTokenBreakdown
-        valueLabel={valueLabel}
-        totalLabel={totalLabel}
-        totalValue={
-          total ?? groups.reduce((acc, group) => acc + group.value, 0)
-        }
-        formatter={formatter}
-        segments={groups
-          .filter((group) => group.isPresent)
-          .map(({ label, value, color }) => ({ name: label, value, color }))}
-      />
-      {/* A lone segment restates the group total, so it is left to the legend above */}
-      {groups
-        .filter((group) => group.segments.length > 1)
-        .map((group) => (
-          <RichTokenBreakdown
-            key={group.label}
-            valueLabel={valueLabel}
-            totalLabel={group.label}
-            totalValue={group.value}
-            formatter={formatter}
-            segments={group.segments}
-          />
-        ))}
-    </Flex>
+    isPositiveNumber(data.total) ||
+    isPositiveNumber(data.prompt) ||
+    isPositiveNumber(data.completion) ||
+    Object.values(data.promptDetails ?? {}).some(isPositiveNumber) ||
+    Object.values(data.completionDetails ?? {}).some(isPositiveNumber)
   );
 }
 
+function getMeasures({
+  tokens,
+  costs,
+}: Pick<TokenDetailsBreakdownProps, "tokens" | "costs">): TokenMeasure[] {
+  const measures: TokenMeasure[] = [];
+  if (hasUsage(tokens)) {
+    measures.push({
+      key: "tokens",
+      label: "Tokens",
+      formatter: numberFormatter,
+      data: tokens,
+    });
+  }
+  if (hasUsage(costs)) {
+    measures.push({
+      key: "cost",
+      label: "Cost",
+      formatter: costPreciseFormatter,
+      data: costs,
+    });
+  }
+  return measures;
+}
+
 /**
- * Turns one group's token-type values into labeled, colored segments.
- *
- * Any value the details do not account for is attributed to the group's plain
- * token type, so the bar always adds up to the total it is drawn against.
- *
- * @param params - Segment building context.
- * @param params.colors - Theme-aware categorical chart colors.
- * @param params.details - Values keyed by token type.
- * @param params.groupTotal - The prompt or completion total the details refine.
- * @param params.isPrompt - Whether the group holds prompt rather than completion usage.
- * @returns Segments in canonical token-type order.
+ * Keys a token type by the side it was used on, since audio, say, can be
+ * both heard in the prompt and spoken in the completion.
  */
-function buildDetailSegments({
-  colors,
-  details,
-  groupTotal,
+function getSegmentKey({
   isPrompt,
+  tokenType,
 }: {
-  colors: ReturnType<typeof useCategoryChartColors>;
-  details: TokenDetailValues | null | undefined;
-  groupTotal: number;
   isPrompt: boolean;
-}): DetailSegment[] {
-  const values: Record<string, number> = {};
-  let detailTotal = 0;
-  Object.entries(details ?? {}).forEach(([tokenType, value]) => {
-    if (value != null && value > 0) {
-      values[tokenType] = value;
-      detailTotal += value;
-    }
+  tokenType: string;
+}) {
+  return `${getTokenKind({ isPrompt })}:${tokenType}`;
+}
+
+/**
+ * Lays tokens and costs out over one set of token-type segments, so that a
+ * token type has the same row, color and position in the tokens bar as in
+ * the cost bar.
+ *
+ * Prompt token types come first, then completion types, each side in the
+ * canonical token-type order. Any value a side's details do not account for
+ * is attributed to that side's plain type, input or output, so every bar adds
+ * up to the total it is drawn against; a side with no details at all is one
+ * plain segment. Each dimension marks where its prompt ends and its
+ * completion begins.
+ *
+ * @param params - The usage to lay out.
+ * @param params.tokens - Token counts, if counted.
+ * @param params.costs - Costs, if priced.
+ * @param params.colors - Theme-aware categorical chart colors.
+ * @returns The measures with usage, and their segments and dimensions; all
+ *   empty when there is no usage.
+ */
+export function buildTokenBreakdown({
+  tokens,
+  costs,
+  colors,
+}: Pick<TokenDetailsBreakdownProps, "tokens" | "costs"> & {
+  colors: CategoryChartColors;
+}): {
+  measures: TokenMeasure[];
+  segments: BreakdownSegment[];
+  dimensions: BreakdownDimension[];
+} {
+  const measures = getMeasures({ tokens, costs });
+  const valuesByMeasure: Record<
+    string,
+    Record<string, number>
+  > = Object.fromEntries(measures.map((measure) => [measure.key, {}]));
+
+  /**
+   * Records one side's values for every measure and returns the token types
+   * the side used, in display order.
+   */
+  const layOutSide = (isPrompt: boolean): string[] => {
+    const tokenTypes = new Set<string>();
+    measures.forEach((measure) => {
+      const values = getTokenDetailValuesWithRemainder({
+        details: isPrompt
+          ? measure.data.promptDetails
+          : measure.data.completionDetails,
+        sideTotal: isPrompt ? measure.data.prompt : measure.data.completion,
+        isPrompt,
+      });
+      Object.entries(values).forEach(([tokenType, value]) => {
+        valuesByMeasure[measure.key][getSegmentKey({ isPrompt, tokenType })] =
+          value;
+        tokenTypes.add(tokenType);
+      });
+    });
+    return [...tokenTypes].sort(compareTokenTypes);
+  };
+  const promptTypes = layOutSide(true);
+  const completionTypes = layOutSide(false);
+
+  const segments: BreakdownSegment[] = [
+    ...promptTypes.map((tokenType) => ({ isPrompt: true, tokenType })),
+    ...completionTypes.map((tokenType) => ({ isPrompt: false, tokenType })),
+  ].map(({ isPrompt, tokenType }, index) => ({
+    key: getSegmentKey({ isPrompt, tokenType }),
+    label: getTokenDetailLabelForKind({
+      tokenType,
+      isPrompt,
+      isUsedByBothKinds:
+        promptTypes.includes(tokenType) && completionTypes.includes(tokenType),
+    }),
+    color: getTokenDetailColor({ colors, index, tokenType }),
+  }));
+
+  const dimensions: BreakdownDimension[] = measures.map((measure) => {
+    const values = valuesByMeasure[measure.key];
+    const sum = Object.values(values).reduce((acc, value) => acc + value, 0);
+    const { prompt, completion } = measure.data;
+    return {
+      key: measure.key,
+      label: measure.label,
+      total: measure.data.total ?? sum,
+      values,
+      formatter: measure.formatter,
+      markerValues:
+        prompt != null && completion != null && prompt > 0 && completion > 0
+          ? [prompt]
+          : undefined,
+    };
   });
-  if (detailTotal === 0) {
-    return [];
-  }
 
-  const remainder = groupTotal - detailTotal;
-  if (remainder > TOKEN_DETAIL_EPSILON) {
-    const tokenType = getRemainderTokenType(isPrompt);
-    values[tokenType] = (values[tokenType] ?? 0) + remainder;
-  }
+  return { measures, segments, dimensions };
+}
 
-  return Object.entries(values)
-    .sort(([leftType], [rightType]) => compareTokenTypes(leftType, rightType))
-    .map(([tokenType, value], index) => ({
-      name: getTokenDetailLabel(tokenType),
-      value,
-      color: getTokenDetailColor({ colors, index, tokenType }),
-    }));
+/**
+ * The heading over the breakdown: which measures it holds, qualified when
+ * the totals are not plain totals. "Tokens and cost", "Average cost".
+ */
+function getHeading(measures: TokenMeasure[], totalLabel?: string) {
+  const labels = measures.map((measure) => measure.label);
+  if (totalLabel) {
+    // "Average tokens and cost": the qualifier keeps its case, the rest lower
+    return `${totalLabel} ${labels.map((label) => label.toLowerCase()).join(" and ")}`;
+  }
+  // "Tokens and cost": the first label keeps its case, the rest lower
+  const [first, ...rest] = labels;
+  return [first, ...rest.map((label) => label.toLowerCase())].join(" and ");
+}
+
+/**
+ * The prompt and completion totals of the first measure that has both, as
+ * "48,210 prompt → 1,284 completion", so the split the bar marker points at
+ * is also given in numbers, in the words the rest of Phoenix uses for it.
+ */
+function getSplitSummary(measures: TokenMeasure[]): string | null {
+  for (const { formatter, data } of measures) {
+    const { prompt, completion } = data;
+    if (prompt != null && completion != null) {
+      const side = (isPrompt: boolean) =>
+        getTokenKindLabel({ isPrompt }).toLowerCase();
+      return `${formatter(prompt)} ${side(true)} → ${formatter(completion)} ${side(false)}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Token usage and what it cost, broken down by token type.
+ *
+ * A bar per measure, tokens and cost, splits the total into the token types
+ * that make it up, with a tick where the prompt ends and the completion
+ * begins; the bars share their segments so a type's share of the tokens can
+ * be read against its share of the cost. Under them a table gives each
+ * type's value and share in every measure. Pass one measure or both: the
+ * layout is the same, and a measure whose split is not yet known draws as
+ * one bar of its total, so a tooltip can open on totals it already has and
+ * fill in the split when it loads.
+ *
+ * Renders nothing when there is no usage to show, so callers pass what they
+ * have without checking first.
+ */
+export function TokenDetailsBreakdown({
+  tokens,
+  costs,
+  totalLabel,
+}: TokenDetailsBreakdownProps) {
+  const colors = useCategoryChartColors();
+  const { measures, segments, dimensions } = buildTokenBreakdown({
+    tokens,
+    costs,
+    colors,
+  });
+  if (measures.length === 0) {
+    return null;
+  }
+  const splitSummary = getSplitSummary(measures);
+  return (
+    <div className="token-details-breakdown" css={tokenDetailsBreakdownCSS}>
+      <header className="token-details-breakdown__header">
+        <Text size="S" weight="heavy">
+          {getHeading(measures, totalLabel)}
+        </Text>
+        {splitSummary ? (
+          <Text
+            className="token-details-breakdown__split"
+            size="XS"
+            fontFamily="mono"
+            color="text-500"
+          >
+            {splitSummary}
+          </Text>
+        ) : null}
+      </header>
+      <BreakdownBars segments={segments} dimensions={dimensions} />
+      {segments.length > 0 ? (
+        <>
+          <Divider />
+          <BreakdownTable segments={segments} dimensions={dimensions} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export interface TokenDetailsBreakdownSkeletonProps extends TokenDetailsBreakdownProps {
+  /**
+   * How many token-type rows to leave room for in the table.
+   * @default 3
+   */
+  rows?: number;
+}
+
+/**
+ * The breakdown's shape while its split loads, for the `Suspense` fallback
+ * of a tooltip that opens on totals it already has.
+ *
+ * The heading and each measure's label and total are drawn from what the
+ * caller passes, since they are known before the fetch; the split summary,
+ * the bars and the table rows are drawn as skeletons in their places, on the
+ * same grid as the loaded breakdown, so nothing moves when the details land
+ * apart from the number of rows in the table.
+ *
+ * Pass the totals the loaded breakdown will get, and it renders nothing when
+ * they hold no usage, just as the breakdown itself would.
+ */
+export function TokenDetailsBreakdownSkeleton({
+  tokens,
+  costs,
+  totalLabel,
+  rows = DEFAULT_SKELETON_ROWS,
+}: TokenDetailsBreakdownSkeletonProps) {
+  const measures = getMeasures({ tokens, costs });
+  if (measures.length === 0) {
+    return null;
+  }
+  const dimensions = measures.map(({ key, label, formatter, data }) => ({
+    key,
+    label,
+    total: data.total != null ? formatter(data.total) : undefined,
+  }));
+  return (
+    <div
+      className="token-details-breakdown"
+      css={tokenDetailsBreakdownCSS}
+      aria-busy="true"
+    >
+      <header className="token-details-breakdown__header">
+        <Text size="S" weight="heavy">
+          {getHeading(measures, totalLabel)}
+        </Text>
+        <TextSkeleton
+          className="token-details-breakdown__split"
+          size="XS"
+          width={SPLIT_SKELETON_WIDTH}
+        />
+      </header>
+      <BreakdownBarsSkeleton dimensions={dimensions} />
+      <Divider />
+      <BreakdownTableSkeleton dimensions={dimensions} rows={rows} />
+    </div>
+  );
 }

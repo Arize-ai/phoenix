@@ -1,6 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { ContentSkeleton, Flex, Skeleton } from "@phoenix/components";
+import {
+  ContentSkeleton,
+  Flex,
+  Skeleton,
+  Text,
+  TextSkeleton,
+} from "@phoenix/components";
 
 const meta: Meta<typeof Skeleton> = {
   title: "Core/Feedback/Skeleton",
@@ -58,4 +64,22 @@ export const Card: Story = {
 
 export const Content: Story = {
   render: () => <ContentSkeleton />,
+};
+
+/**
+ * `TextSkeleton` stands in for one line of `Text`. It takes the line height
+ * of the size it stands in for, so a row of text and its skeleton are the
+ * same height and nothing moves when the text arrives.
+ */
+export const TextLine: Story = {
+  render: () => (
+    <Flex direction="column" gap="size-100" width="300px">
+      {(["XS", "S", "M", "L"] as const).map((size) => (
+        <Flex key={size} direction="row" gap="size-200" alignItems="start">
+          <Text size={size}>Text size {size}</Text>
+          <TextSkeleton size={size} width={120} />
+        </Flex>
+      ))}
+    </Flex>
+  ),
 };

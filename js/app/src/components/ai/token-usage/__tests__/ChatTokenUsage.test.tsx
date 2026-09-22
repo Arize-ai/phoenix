@@ -94,7 +94,7 @@ describe("ChatTokenUsage", () => {
     });
 
     const chart = container.querySelector<HTMLElement>(
-      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+      '[aria-label="Token usage breakdown"] .segment-chart__bar'
     );
     const chartSegments = Array.from(chart?.children ?? []);
     const promptSegment = chartSegments[0] as HTMLElement;
@@ -120,7 +120,7 @@ describe("ChatTokenUsage", () => {
     });
 
     const chart = container.querySelector<HTMLElement>(
-      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+      '[aria-label="Token usage breakdown"] .segment-chart__bar'
     );
     const chartSegments = Array.from(chart?.children ?? []);
     const promptSegment = chartSegments[0] as HTMLElement;
@@ -182,7 +182,7 @@ describe("ChatTokenUsage", () => {
     await vi.waitFor(() => {
       const tooltip = document.querySelector('[role="tooltip"]');
       expect(tooltip?.textContent).toContain("Prompt details");
-      expect(tooltip?.textContent).toContain("8.0K Uncached");
+      expect(tooltip?.textContent).toContain("8.0K Input");
       expect(tooltip?.textContent).toContain("21K Cache read");
       expect(tooltip?.textContent).toContain("3.0K Cache write");
     });
@@ -190,7 +190,7 @@ describe("ChatTokenUsage", () => {
     expect(container.textContent).toContain("1.2K Completion");
 
     const chart = container.querySelector<HTMLElement>(
-      '[aria-label="Token usage breakdown"] [aria-hidden="true"] > div'
+      '[aria-label="Token usage breakdown"] .segment-chart__bar'
     );
     expect(chart?.children).toHaveLength(2);
 
@@ -228,7 +228,7 @@ describe("ChatTokenUsage", () => {
     await vi.waitFor(() => {
       const tooltip = document.querySelector('[role="tooltip"]');
       expect(tooltip?.textContent).toContain("32K Cache read");
-      expect(tooltip?.textContent).not.toContain("Uncached");
+      expect(tooltip?.textContent).not.toContain("Input");
     });
 
     await act(async () => promptTrigger!.blur());

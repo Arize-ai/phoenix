@@ -13,8 +13,11 @@ import { useSettled, useTimeFormatters } from "@phoenix/hooks";
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanMetricsDetailsById } from "./SpanMetricsDetails";
-import { SpanMetricsDetailsView } from "./SpanMetricsDetailsView";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
+import {
+  TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH,
+  TokenDetailsBreakdownSkeleton,
+} from "./TokenDetailsBreakdown";
 import type { ISpanItem } from "./types";
 
 /**
@@ -91,13 +94,14 @@ export type SpanPreviewTooltipProps = {
  * The identity, timing and totals render at once from what the row already
  * holds. The breakdown is fetched only once the tooltip has stayed open a
  * moment, so a scrub down the tree fetches details for the rows the pointer
- * rests on and no others, and the totals stand in until it arrives.
+ * rests on and no others; until it arrives, a skeleton of the breakdown
+ * holds its place around the totals.
  */
 export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
   return (
     <RichTooltip
       placement="left top"
-      width={300}
+      width={TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}
       className="span-preview"
       css={spanPreviewTooltipCSS}
     >
@@ -125,29 +129,24 @@ export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
 }
 
 /**
- * The span's token and cost totals at once, replaced by the full breakdown
- * once the tooltip has settled and the breakdown has loaded.
+ * The span's token and cost totals at once, in a skeleton of the breakdown,
+ * replaced by the full breakdown once the tooltip has settled and the
+ * breakdown has loaded.
  */
 function SpanPreviewMetrics({ span }: SpanPreviewTooltipProps) {
   const hasSettled = useSettled(DETAILS_SETTLE_MS);
-  const tokenCountTotal = span.tokenCountTotal;
-  const costTotal = span.costSummary?.total?.cost;
-  const totals = (
-    <SpanMetricsDetailsView
-      tokens={
-        tokenCountTotal != null && tokenCountTotal > 0
-          ? { total: tokenCountTotal }
-          : null
-      }
-      costs={costTotal != null && costTotal > 0 ? { total: costTotal } : null}
+  const skeleton = (
+    <TokenDetailsBreakdownSkeleton
+      tokens={{ total: span.tokenCountTotal }}
+      costs={{ total: span.costSummary?.total?.cost }}
     />
   );
   if (!hasSettled) {
-    return totals;
+    return skeleton;
   }
   return (
     <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-      <Suspense fallback={totals}>
+      <Suspense fallback={skeleton}>
         <SpanMetricsDetailsById spanNodeId={span.id} />
       </Suspense>
     </ErrorBoundary>

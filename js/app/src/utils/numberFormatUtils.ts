@@ -17,6 +17,9 @@ const siPrefixFormat = format("0.2s");
 const twoDecimalFormat = format("0.2f");
 const exponentFormat = format(".2e");
 const percentDecimalFormat = format(".2f");
+const oneDecimalFormat = format(".1f");
+const integerFormat = format(".0f");
+const fourDecimalFormat = format("0.4f");
 
 /**
  * Formats ints cleanly across different sizes.
@@ -76,6 +79,20 @@ export function formatPercent(float: number): string {
 }
 
 /**
+ * Formats a percentage in as few characters as still tell shares apart: one
+ * decimal under 10%, whole numbers above, and a floor for traces of a share
+ * that would otherwise round to nothing. For the tight "%" column beside a
+ * value, where `formatPercent`'s two decimals would crowd the number out.
+ * @param float - The percentage, e.g. 84 for 84%
+ */
+export function formatPercentShort(float: number): string {
+  if (float === 0) return "0%";
+  if (Math.abs(float) < 0.1) return "<0.1%";
+  if (Math.abs(float) < 10) return oneDecimalFormat(float) + "%";
+  return integerFormat(float) + "%";
+}
+
+/**
  * Formats a number to be displayed cleanly across different sizes.
  * NB: this may not work for every type of number but can be used when you want to display a number
  * without knowing the range of the number
@@ -104,6 +121,26 @@ export function formatCost(cost: number): string {
   if (cost < 100) return `$${twoDecimalFormat(cost)}`;
   if (cost < 10000) return `$${commaFormat(cost)}`;
   return `$${siPrefixFormat(cost).replace("G", "B").replace("k", "K")}`;
+}
+
+/**
+ * Formats a cost in dollars with the precision a breakdown needs: the parts
+ * of a cent that `formatCost` rounds away are the whole difference between
+ * the token types of one LLM call. Four decimals under a dollar, then as
+ * `formatCost`.
+ * @param cost The cost value in dollars
+ */
+export function formatCostPrecise(cost: number): string {
+  if (cost === 0) {
+    return "$0";
+  }
+  if (cost < 0.0001) {
+    return "<$0.0001";
+  }
+  if (cost < 1) {
+    return `$${fourDecimalFormat(cost)}`;
+  }
+  return formatCost(cost);
 }
 
 /**
@@ -151,6 +188,7 @@ export const floatFormatter = createNumberFormatter(formatFloat);
 export const numberFormatter = createNumberFormatter(formatNumber);
 export const percentFormatter = createNumberFormatter(formatPercent);
 export const costFormatter = createNumberFormatter(formatCost);
+export const costPreciseFormatter = createNumberFormatter(formatCostPrecise);
 export const latencyMsFormatter = createNumberFormatter(formatLatencyMs);
 
 /**

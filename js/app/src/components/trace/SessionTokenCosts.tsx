@@ -2,15 +2,11 @@ import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SessionTokenCostsDetails } from "./SessionTokenCostsDetails";
 import { TokenCosts } from "./TokenCosts";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 
 type SessionTokenCostsProps = {
   /**
@@ -40,7 +36,11 @@ export function SessionTokenCosts(props: SessionTokenCostsProps) {
       </Pressable>
       <RichTooltip>
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton costs={{ total: props.totalCost }} />
+          }
+        >
           <SessionTokenCostsDetails sessionNodeId={props.nodeId} />
         </Suspense>
       </RichTooltip>

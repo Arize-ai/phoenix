@@ -4,7 +4,13 @@ import {
   ONE_SECOND_MS,
 } from "@phoenix/constants/timeConstants";
 
-import { formatFloat, formatInt, formatLatencyMs } from "../numberFormatUtils";
+import {
+  formatFloat,
+  formatInt,
+  formatCostPrecise,
+  formatLatencyMs,
+  formatPercentShort,
+} from "../numberFormatUtils";
 
 describe("formatInt", () => {
   it("formats integers cleanly", () => {
@@ -49,5 +55,26 @@ describe("formatLatencyMs", () => {
     expect(
       formatLatencyMs(ONE_HOUR_MS + 15 * ONE_MINUTE_MS + 27 * ONE_SECOND_MS)
     ).toEqual("1h 15m 27s");
+  });
+});
+
+describe("formatPercentShort", () => {
+  it("spends decimals only where they tell shares apart", () => {
+    expect(formatPercentShort(0)).toEqual("0%");
+    expect(formatPercentShort(0.04)).toEqual("<0.1%");
+    expect(formatPercentShort(2.56)).toEqual("2.6%");
+    expect(formatPercentShort(9.99)).toEqual("10.0%");
+    expect(formatPercentShort(23.4)).toEqual("23%");
+    expect(formatPercentShort(100)).toEqual("100%");
+  });
+});
+
+describe("formatCostPrecise", () => {
+  it("keeps the parts of a cent under a dollar", () => {
+    expect(formatCostPrecise(0)).toEqual("$0");
+    expect(formatCostPrecise(0.00004)).toEqual("<$0.0001");
+    expect(formatCostPrecise(0.0539)).toEqual("$0.0539");
+    expect(formatCostPrecise(0.5)).toEqual("$0.5000");
+    expect(formatCostPrecise(27.09)).toEqual("$27.09");
   });
 });

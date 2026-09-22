@@ -2,15 +2,11 @@ import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SessionTokenCountDetails } from "./SessionTokenCountDetails";
 import { TokenCount } from "./TokenCount";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 
 type SessionTokenCountProps = {
   /**
@@ -40,7 +36,13 @@ export function SessionTokenCount(props: SessionTokenCountProps) {
       </Pressable>
       <RichTooltip>
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton
+              tokens={{ total: props.tokenCountTotal }}
+            />
+          }
+        >
           <SessionTokenCountDetails sessionNodeId={props.nodeId} />
         </Suspense>
       </RichTooltip>

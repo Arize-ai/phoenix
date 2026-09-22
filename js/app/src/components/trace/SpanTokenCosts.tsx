@@ -2,15 +2,11 @@ import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { SpanTokenCostsDetails } from "./SpanTokenCostsDetails";
 import { TokenCosts } from "./TokenCosts";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 
 type SpanTokenCostsProps = {
   /**
@@ -49,7 +45,11 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
       </Pressable>
       <RichTooltip>
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton costs={{ total: props.totalCost }} />
+          }
+        >
           <SpanTokenCostsDetails spanNodeId={props.spanNodeId} />
         </Suspense>
       </RichTooltip>
