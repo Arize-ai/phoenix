@@ -51,7 +51,16 @@ class PhoenixCliMixin(BaseInstalledAgent):
 
 
 class AgentLogsOwnershipMixin(BaseInstalledAgent):
-    """Workaround for https://github.com/harbor-framework/harbor/issues/1959."""
+    """Hand ``/logs/agent`` back to the agent user before every step.
+
+    Claude Code runs as ``environment.default_user`` and writes its session
+    transcripts under ``/logs/agent/sessions``. On Daytona, Harbor uploads
+    each step's files by extracting a tarball that keeps the uploader's
+    ownership, so after step one the directory no longer belongs to the agent
+    user and Claude Code cannot write there.
+
+    Workaround for https://github.com/harbor-framework/harbor/issues/1959.
+    """
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
