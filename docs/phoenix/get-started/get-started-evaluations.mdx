@@ -1,25 +1,148 @@
 ---
-title: "Evaluate your agent"
+title: "Evaluate Your Agent"
+description: >-
+  Run an experiment over a dataset and score every output with an evaluator.
 ---
 
-import AgentAssistedOnboardingPrereq from "../../snippets/agent-assisted-onboarding-prereq.mdx";
+Evaluations in Phoenix run **offline**. An evaluator scores the output of an experiment. Continuous scoring of live production traffic is not available yet.
 
-An evaluation produces a score or label for an output, so you can track quality across runs. Traces tell us what happened during a run, but they don’t tell us whether the output was good; evaluations fill that gap by letting us score outputs in a consistent, repeatable way.
-
-In this guide, you’ll set up evaluations in Phoenix and run them on existing trace data so you can measure the quality of model outputs from a real agent.
-
-With traces already in place, you can score them against metrics like correctness, relevance, or custom checks that matter to your use case.
+A dataset of examples feeds a task, which is your prompt, agent, or app. The evaluator scores each output, using the example's input, its reference output, and any metadata as context.
 
 ## **Before We Start**
 
-To follow along, you’ll need to have completed [Get Started with Tracing](/docs/phoenix/get-started/get-started-tracing) so you should have:
+After completing [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), you should have:
 
-- Financial Analysis and Research Chatbot
-- A project in Phoenix holding traces with LLM inputs and outputs
-
-<AgentAssistedOnboardingPrereq />
+- Traces flowing into Phoenix
 
 <Tabs>
+  <Tab title="In the Prompt Playground">
+
+<Steps>
+  <Step title={<span className="step-title">Create a Dataset from Your Traces</span>}>
+    A dataset is a fixed set of examples you test every change against. Each example holds the input your agent received, optionally a reference output to compare against, and any metadata.
+
+    Build one from the runs you want to improve: typical interactions, edge cases, and the flagged or failed runs in your traces. See [Defining the Dataset](/docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset) for what makes a good one, or the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets) to do it in code.
+
+    ### **Create a Dataset in the UI**
+
+    1. Navigate to your project in Phoenix.
+    2. Filter the spans table to the runs you want to test against.
+    3. Select the spans you want to include.
+    4. Click **Add to Dataset**.
+    5. Pick an existing dataset, or click **+** to create one, name it, and click **Create Dataset**.
+
+    <Frame caption="Create a New Dataset & add Examples">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/make%20dataset%20python%20quickstart.mp4"
+    />
+    </Frame>
+  </Step>
+
+  <Step title={<span className="step-title">Attach an Evaluator to the Dataset</span>}>
+    An experiment needs an evaluator to produce a score. Attach one to the dataset and it runs on every experiment you launch from the Playground, with no code.
+
+    1. Open the dataset and click the **Evaluators** tab.
+    2. Click **Add evaluator** and choose an **LLM evaluator** to have a model judge the output, or a **built-in code evaluator** for a deterministic check such as exact match or contains.
+    3. Configure the input mapping so the evaluator knows which fields to read. It can use the example's `input`, the task's `output`, the `reference` expected output, and the example's `metadata`.
+    4. Click **Test** to try it against one of your examples, then click **Create**.
+
+    See [Dataset Evaluators](/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators) for the evaluator types and [Input Mapping](/docs/phoenix/evaluation/server-evals/input-mapping) for the field paths.
+
+    <Note>
+      Attached evaluators run automatically for experiments launched from the Phoenix UI. Programmatic experiments pass their evaluators to `run_experiment` instead, which is what the **In code** tab does.
+    </Note>
+  </Step>
+
+  <Step title={<span className="step-title">Save a Prompt from a Trace</span>}>
+    The prompt is the task the experiment runs. Traces capture the exact prompts sent to the model, along with their context and outputs, so saving one from a trace gives you a real starting point.
+
+    1. Navigate to your project in Phoenix.
+    2. Open the Traces view and click into a trace.
+    3. Find an LLM span, then open it in the Playground and save the prompt to the Prompt Hub.
+
+    <Frame caption="Save the Financial Research Agent Prompt">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/save_a_prompt.mp4"
+    />
+    </Frame>
+  </Step>
+
+  <Step title={<span className="step-title">Run the Prompt Over the Dataset</span>}>
+    Running a prompt across a dataset is an experiment: each example's input becomes a task run, and the attached evaluators score each output. The playground substitutes your dataset's input keys into the prompt, using Mustache format by default, so reference them with double braces.
+
+    1. Navigate to the **Prompt Playground**.
+    2. Select the prompt you just saved from the Prompt Hub.
+    3. Click **Test over a dataset** and choose the dataset you created.
+    4. Set the User prompt to reference your dataset's input keys. Which keys you have depends on the agent you traced: `{{tickers}}` and `{{focus}}` if you followed the Python guide, `{{input}}` if you followed TypeScript.
+
+       Following the Python guide, the start of the User prompt should look like this:
+
+       ```
+       Current Task:
+       Research: {{tickers}}
+       Focus on: {{focus}}
+       ```
+
+    5. Click **Run**.
+
+    That run is your baseline, scored by the evaluator you attached.
+
+    <Frame caption="Run the Saved Prompt on your Dataset of Failed Traces">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first%20prompt%20run.mp4"
+    />
+    </Frame>
+
+    ### **Score a Change Against the Baseline**
+
+    With a baseline in place, edit the prompt and run it again. The same evaluator scores both, so the comparison is like for like.
+
+    1. Update the prompt directly in the playground. Add this line in:
+
+       > Make sure to include more than 1 financial ratio (such as P/E or P/B).
+
+    2. Run it to preview how outputs change.
+    3. Save the new version as a separate prompt in the Prompt Hub.
+
+    <Frame caption="Update Prompt & Run a Comparison in Prompt Playground">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/iterate%20on%20prompt.mp4"
+    />
+    </Frame>
+  </Step>
+
+  <Step title={<span className="step-title">Review the Scores</span>}>
+    Every playground run against the dataset is logged as an experiment, with the evaluator's score on each run.
+
+    1. Navigate to the Datasets page and open the dataset you made earlier.
+    2. The **Experiments** tab lists a run for each time you ran the prompt, with its score.
+    3. Open one, then use the **comparisons** selector at the top to add another and see them side by side.
+
+    <Frame caption="View Prompt Playground Runs through Experiment View">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompt%20playground%20experiment%20view.mp4"
+    />
+    </Frame>
+
+    **Congratulations!** You’ve built a dataset, scored an experiment with an evaluator, and measured the effect of a change.
+  </Step>
+</Steps>
+
+  </Tab>
+
+  <Tab title="In code">
+
+  <Tabs>
   <Tab title="Python">
 
 <Info>
@@ -29,117 +152,95 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
 </Info>
 
 <Steps>
-  <Step title={<span className="step-title">Make Sure You Have Data in Phoenix</span>}>
-    An evaluation needs something to evaluate, and Phoenix evaluations run over existing trace data.
+  <Step title={<span className="step-title">Create a Dataset from Your Traces</span>}>
+    A dataset is a fixed set of examples you test every change against. Each example holds the input your agent received, optionally a reference output to compare against, and any metadata. Build one from the runs you want to improve: typical interactions, edge cases, and the flagged or failed runs in your traces.
 
-    Multiple traces are better, since they show how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
+    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
 
-    ```python
-    test_queries = [
-        {"tickers": "AAPL", "focus": "financial analysis and market outlook"},
-        {"tickers": "NVDA", "focus": "valuation metrics and growth prospects"},
-        {"tickers": "AMZN", "focus": "profitability and market share"},
-        {"tickers": "AAPL, MSFT", "focus": "comparative financial analysis"},
-        {"tickers": "META, SNAP, PINS", "focus": "social media sector trends"},
-        {"tickers": "RIVN", "focus": "financial health and viability"},
-        {"tickers": "SNOW", "focus": "revenue growth trajectory"},
-        {"tickers": "KO", "focus": "dividend yield and stability"},
-        {"tickers": "META", "focus": "latest developments and stock performance"},
-        {"tickers": "AAPL, MSFT, GOOGL, AMZN, META", "focus": "big tech comparison and market outlook"},
-        {"tickers": "AMC", "focus": "financial analysis and market sentiment"},
-    ]
+    ### **Create a Dataset in the UI**
 
-    for query in test_queries:
-        crew.kickoff(inputs=query)
-    ```
+    1. Navigate to your project in Phoenix.
+    2. Filter the spans table to the runs you want to test against.
+    3. Select the spans you want to include.
+    4. Click **Add to Dataset**.
+    5. Pick an existing dataset, or click **+** to create one, name it, and click **Create Dataset**.
+
+    <Frame caption="Create a New Dataset & add Examples">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/make%20dataset%20python%20quickstart.mp4"
+    />
+    </Frame>
   </Step>
 
-  <Step title={<span className="step-title">Define an Evaluation</span>}>
-    With trace data in place, the next question is how to decide whether an output is actually good.
+  <Step title={<span className="step-title">Define and Run the Experiment</span>}>
+    ### **Update the Agent Instructions**
 
-    An evaluation makes that decision explicit. You define a rule, and Phoenix applies it consistently across many runs in place of inspecting outputs by hand.
+    This example strengthens the agents' backstory instructions, giving the model clearer guidance on what a good response looks like.
 
-    Phoenix supports several kinds of evaluation. This guide uses LLM-as-a-judge as a starting point: it works well for questions like correctness or relevance, and produces metrics quickly. (For code-based evaluations, see [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
-
-    For LLM-as-a-judge evaluations, that means defining three things:
-
-    - A prompt that describes the judgment criteria
-    - An LLM that performs the evaluation
-    - The data to score
-
-    Define a basic completeness evaluation that checks whether the agent's output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) you can use or adapt for other metrics like relevance or faithfulness.
-
-    ### **Define the Evaluation Prompt**
-
-    Start with the prompt that tells the evaluator how to judge an answer. It uses `attributes.input.value` and `attributes.output.value`, which is how span data stores input and output.
+    Below is an example of tightening the agent backstory to be more explicit about the expected output.
 
     ```python
-    financial_completeness_template = """
-    You are evaluating whether a financial research report correctly completes ALL parts of the user's task with COMPREHENSIVE coverage.
+    researcher = Agent(
+            role="Financial Research Analyst",
+            goal="""Gather up-to-date financial data, trends, and news for the target companies/markets.
+            Make sure to include more than 1 financial ratios (such as P/E or P/B), news from the last 6 months, and current stock price or performance data.""",
+            backstory="""
+                You are a Senior Financial Research Analyst.
+            """,
+            verbose=True,
+            allow_delegation=False,
+            max_iter=2,
+            tools=[search_tool],
+            )
 
-    User input: {attributes.input.value}
-
-    Generated report: {attributes.output.value}
-
-    To be marked as "complete", the report MUST meet ALL of these strict requirements:
-
-    1. TICKER COVERAGE (MANDATORY):
-       - Cover ALL companies/tickers mentioned in the input
-       - If multiple tickers are listed, EACH must have dedicated analysis (not just mentioned in passing)
-       - For multiple tickers, the report must provide COMPARATIVE analysis when relevant
-
-    2. FOCUS AREA COVERAGE (MANDATORY):
-       - Address ALL focus areas mentioned in the input
-       - If the focus mentions multiple topics (e.g., "earnings and outlook"), BOTH must be thoroughly addressed
-       - Each focus area must have substantial content, not just a brief mention
-
-    3. FINANCIAL DATA REQUIREMENTS (MANDATORY):
-       - For EACH ticker, the report must include:
-         * Current/recent stock price or performance data
-         * At least 2 key financial ratios (P/E, P/B, debt-to-equity, ROE, etc.)
-         * Revenue or earnings information
-         * Recent news or developments (within last 6 months)
-       - If focus mentions specific metrics (e.g., "P/E ratio"), those MUST be explicitly provided
-
-    4. DEPTH REQUIREMENT (MANDATORY):
-       - Each ticker must have at least 3-4 sentences of dedicated analysis
-       - Generic statements without specific data do NOT count
-       - The report must demonstrate thorough research, not superficial coverage
-
-    5. COMPARISON REQUIREMENT (if multiple tickers):
-       - If 2+ tickers are requested, the report MUST include direct comparisons
-       - Comparisons should cover multiple key metrics side-by-side
-       - Generic statements like "both companies are good" do NOT satisfy this requirement
-       - Must explicitly state which company performs better/worse on specific metrics
-
-    The report is "incomplete" if it fails ANY of the above requirements, including:
-    - Missing any ticker or only mentioning it briefly
-    - Failing to address any focus area or only addressing it superficially
-    - Missing required financial data for any ticker
-    - Providing generic analysis without specific metrics or data
-    - Failing to provide comparisons when multiple tickers are requested
-    - Not meeting the depth requirement for any ticker
-
-    Respond with ONLY one word: "complete" or "incomplete"
-    Then provide a detailed explanation of which specific requirements were met or failed.
-    """
+    writer = Agent(
+        role="Financial Report Writer",
+        goal="Compile and summarize financial research into clear, actionable insights. If there are multiple tickers, make sure to include a dedicated comparison section.",
+        backstory="""
+            You are an experienced financial content writer.
+        """,
+        verbose=True,
+        allow_delegation=True,
+        max_iter=1
+    )
     ```
 
-    That prompt defines what correctness means for your agent.
-
-    ### **Define the LLM Judge**
-
-    Define the model that acts as the judge.
+    Create an updated crew with these new, updated agents.
 
     ```python
-    from phoenix.evals import LLM
-
-    llm = LLM(model="gpt-4o", provider="openai")
+    updated_crew = Crew(
+    	agents=[researcher, writer],
+        tasks=[task1, task2],
+        verbose=True,
+        process=Process.sequential,
+    )
     ```
 
-    ### **Create the Evaluator**
+    That is a targeted change, driven by the explanations for why these traces were classified as real failures.
 
-    Combine the prompt and model into an evaluator.
+    ### **Define an Experiment**
+
+    With the agent updated, run the new flow to test whether the change improves quality.
+
+    An experiment needs two things:
+
+    - **The experiment task**
+
+      A task takes each example from the dataset and produces an output, usually by running your agent on the input.
+
+    - **The experiment evaluation**
+
+      An experiment evaluation works like any other evaluation, but scores a task's output, often against an expected result or a scoring metric.
+
+    Here the task reruns the agent with the updated instructions. That produces new outputs for the same inputs, so rerun the same evaluation to compare the two directly.
+
+    ```python
+    def my_task(example):
+        result = updated_crew.kickoff(inputs=example.input)
+        return result
+    ```
 
     ```python
     from phoenix.evals import ClassificationEvaluator
@@ -150,74 +251,63 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
         llm=llm,
         choices={"complete": 1.0, "incomplete": 0.0},
     )
+
+    completeness_evaluator.bind(
+        {
+            "attributes.input.value": "input",
+            "attributes.output.value": "output",
+        }
+    )
+
+    evaluators = [completeness_evaluator]
     ```
 
-    Phoenix now knows how to evaluate correctness, but nothing has run yet.
-  </Step>
+    ### **Run the Experiment on the Dataset**
 
-  <Step title={<span className="step-title">Run the Evaluation</span>}>
-    Pull your trace data from Phoenix and run the evaluator on it.
+    Pull down the dataset you created earlier.
 
-    Fetch the spans to evaluate:
+    That tests the new version of the agent against the exact inputs that previously failed.
 
     ```python
     from phoenix.client import Client
 
-    px_client = Client()
-    df = px_client.spans.get_spans_dataframe(project_name="crewai-tracing-quickstart")
-    parent_spans = df[df["span_kind"] == "CHAIN"]
+    client = Client()
+    dataset = client.datasets.get_dataset(dataset="python quickstart fails")
     ```
 
-    Then run the evaluator over that data. `suppress_tracing()` is there because auto-instrumentation is enabled, and these OpenAI evaluation calls should not be traced into your project.
+    Then run the experiment:
 
     ```python
-    from phoenix.evals import async_evaluate_dataframe
-    from phoenix.trace import suppress_tracing
-
-    with suppress_tracing():
-        results_df = await async_evaluate_dataframe(
-            dataframe=parent_spans,
-            evaluators=[completeness_evaluator],
-            concurrency=10,
-        )
+    experiment = client.experiments.run_experiment(dataset=dataset, task=my_task, evaluators=evaluators)
     ```
 
-    This produces evaluation results for each span in the dataset.
+    Once this completes, Phoenix logs the experiment results automatically.
   </Step>
 
-  <Step title={<span className="step-title">Log Evaluation Results to Phoenix</span>}>
-    Log the evaluation results back to Phoenix so they appear alongside your traces in the UI. That is what makes an evaluation useful beyond a single run: the results become part of the same view you already use to understand behavior.
+  <Step title={<span className="step-title">Review the Scores</span>}>
+    Head back to Phoenix and open the **Experiments** view.
 
-    ```python
-    from phoenix.evals.utils import to_annotation_dataframe
+    Here, you can see:
 
-    evaluations = to_annotation_dataframe(
-        dataframe=results_df
-    )
+    - The original runs compared against the new ones under 'reference output'
+    - New agent runs produced by your task
+    - Evaluation results for each version
 
-    Client().spans.log_span_annotations_dataframe(
-        dataframe=evaluations
-    )
-    ```
-
-    Once this completes, head back to Phoenix.
-
-    You’ll now see evaluation results attached to your trace data in the annotations column, making it easy to understand which runs passed, which failed, and how quality varies across executions.
-
-    <Frame caption="Tracing Project with Evaluation Annotations">
+    <Frame caption="View Experiment Results">
       <video
         controls
         className="w-full aspect-video rounded-xl"
-        src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/completeness%20evals%20quickstart.mp4"
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
       />
     </Frame>
 
-    **Congratulations**! You’ve run your first evaluation in Phoenix.
+    You should see more traces receiving a **complete** label, indicating the change improved performance.
+
+    **Congratulations!** You’ve built a dataset, scored an experiment with an evaluator, and measured the effect of a change.
   </Step>
 </Steps>
 
   </Tab>
-
   <Tab title="TypeScript">
 
 <Info>
@@ -225,230 +315,184 @@ To follow along, you’ll need to have completed [Get Started with Tracing](/doc
 </Info>
 
 <Steps>
-  <Step title={<span className="step-title">Make Sure You Have Data in Phoenix</span>}>
-    An evaluation needs something to evaluate, and Phoenix evaluations run over existing trace data.
+  <Step title={<span className="step-title">Create a Dataset from Your Traces</span>}>
+    A dataset is a fixed set of examples you test every change against. Each example holds the input your agent received, optionally a reference output to compare against, and any metadata. Build one from the runs you want to improve: typical interactions, edge cases, and the flagged or failed runs in your traces.
 
-    Multiple traces are better, since they show how evaluation results vary from run to run. If needed, run your agent a few times with different inputs to generate more data.
+    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
 
-    Create a folder in `src/mastra` called `evals` to hold the scripts in this guide.
+    ### **Create a Dataset in the UI**
 
-    The first script runs more queries to generate trace data in your Phoenix project. Before running it, make sure `npm run dev` is running in the background.
+    1. Navigate to your project in Phoenix.
+    2. Filter the spans table to the runs you want to test against.
+    3. Select the spans you want to include.
+    4. Click **Add to Dataset**.
+    5. Pick an existing dataset, or click **+** to create one, name it, and click **Create Dataset**.
 
-    Create a file called `add_traces.ts`:
-    ```typescript
-    import "dotenv/config";
-    import { MastraClient } from "@mastra/client-js";
-
-    const mastraClient = new MastraClient({
-      baseUrl: "http://localhost:4111",
-    });
-
-    const agent = mastraClient.getAgent("financialOrchestratorAgent");
-
-    const questions = [
-      "Research NVDA with focus on valuation metrics and growth prospects",
-      "Research AAPL, MSFT with focus on comparative financial analysis",
-      "Research META, SNAP, PINS with focus on social media sector trends",
-      "Research RIVN with focus on financial health and viability",
-      "Research KO with focus on dividend yield and stability",
-      "Research META with focus on latest developments and stock performance",
-      "Research AAPL, MSFT, GOOGL, AMZN, META with focus on big tech comparison and market outlook",
-      "Research Apple with focus on financial analysis and market outlook",
-    ];
-
-    for (const question of questions) {
-      await agent.generate([{ role: "user", content: question }]);
-      console.log(`Completed: ${question}`);
-    }
-    ```
-  </Step>
-
-  <Step title={<span className="step-title">Define an Evaluation</span>}>
-    With trace data in place, the next question is how to decide whether an output is actually good.
-
-    An evaluation makes that decision explicit. You define a rule, and Phoenix applies it consistently across many runs in place of inspecting outputs by hand.
-
-    Phoenix supports several kinds of evaluation. This guide uses LLM-as-a-judge as a starting point: it works well for questions like correctness or relevance, and produces metrics quickly. (For code-based evaluations, see [the guide](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators#using-create-evaluator) on setting those up.)
-
-    For LLM-as-a-judge evaluations, that means defining three things:
-
-    - A prompt that describes the judgment criteria
-    - An LLM that performs the evaluation
-    - The data to score
-
-    Define a basic completeness evaluation that checks whether the agent’s output completely answers the input. Phoenix also provides [pre-built evaluation templates](https://arize.com/docs/phoenix/evaluation/pre-built-metrics) you can use or adapt for other metrics like relevance or hallucinations.
-
-    Create a file called `evals.ts` in `src/mastra/evals` to hold the evaluation code.
-
-    Add the imports and constants at the top of the file. `phoenix-evals` creates the evaluator; `phoenix-client` fetches traces in code and pushes annotations back to the project.
-
-    ```typescript
-    import "dotenv/config";
-    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-    import { openai } from "@ai-sdk/openai";
-    import { getSpans, logSpanAnnotations } from "@arizeai/phoenix-client/spans";
-
-    const EVAL_NAME = "completeness";
-    const AGENT_SPAN_NAME = "invoke_agent Financial Analysis Orchestrator";
-    const PROJECT_NAME = process.env.PHOENIX_PROJECT_NAME ?? "mastra-tracing-quickstart";
-    ```
-
-    ### **Define the Evaluation Prompt**
-
-    Start with the prompt that tells the evaluator how to judge an answer.
-
-    ```typescript
-    const financialCompletenessTemplate = `
-    You are evaluating whether a financial research report correctly completes ALL parts of the user's task.
-
-    User input: {{input}}
-
-    Generated report:
-    {{output}}
-
-    To be marked as "correct", the report should:
-    1. Cover ALL companies/tickers mentioned in the input (if multiple are listed, all must be addressed)
-    2. Address ALL focus areas mentioned in the input (e.g., if user asks for "earnings and outlook", both must be covered)
-    3. Provide relevant financial information for each company/ticker requested
-
-    The report is "incorrect" if:
-    - It misses any company/ticker mentioned in the input
-    - It fails to address any focus area mentioned in the input
-    - It only partially covers the requested companies or topics
-
-    Examples:
-    - Input: "tickers: AAPL, MSFT, focus: earnings and outlook" → Report must cover BOTH AAPL AND MSFT, AND address BOTH earnings AND outlook
-    - Input: "tickers: TSLA, focus: valuation metrics" → Report must cover TSLA AND address valuation metrics
-    - Input: "tickers: NVDA, AMD, focus: comparative analysis" → Report must cover BOTH NVDA AND AMD AND provide comparison
-
-    Respond with ONLY one word: "complete" or "incomplete"
-    Then provide a brief explanation of which parts were completed or missed.
-    `;
-    ```
-    That prompt defines what completeness means for your agent.
-
-    ### **Create the Evaluator**
-
-    Combine the prompt and model into an evaluator. Wrap the evaluation logic in a `main()` function to handle async operations.
-
-    ```typescript
-    async function main() {
-      const evaluator = createClassificationEvaluator({
-        model: openai("gpt-4o-mini") as Parameters<typeof createClassificationEvaluator>[0]["model"],
-        promptTemplate: financialCompletenessTemplate,
-        choices: { complete: 1, incomplete: 0 },
-        name: EVAL_NAME,
-      });
-    ```
-    Phoenix now knows how to evaluate completeness, but nothing has run yet.
-  </Step>
-
-  <Step title={<span className="step-title">Fetch and Filter Trace Data</span>}>
-    Before running the evaluator, pull down the trace data and prepare it. Get all the spans from Phoenix, filter for the orchestrator agent spans, and extract their input and output values.
-
-    ```typescript
-      const { spans } = await getSpans({
-        project: { projectName: PROJECT_NAME },
-        limit: 500,
-      });
-
-      const toEvaluate: { spanId: string; input: string; output: string }[] = [];
-      for (const s of spans) {
-        const span = s as {
-          name?: string;
-          span_name?: string;
-          attributes?: Record<string, unknown>;
-          context?: { span_id?: string };
-          span_id?: string;
-          id?: string;
-        };
-        if ((span.name ?? span.span_name) !== AGENT_SPAN_NAME) continue;
-        const attrs = span.attributes ?? {};
-        const rawInput = attrs["input.value"] ?? attrs["input"];
-        const rawOutput = attrs["output.value"] ?? attrs["output"];
-        const input =
-          typeof rawInput === "string"
-            ? rawInput
-            : rawInput != null
-              ? JSON.stringify(rawInput)
-              : null;
-        const output =
-          typeof rawOutput === "string"
-            ? rawOutput
-            : rawOutput != null
-              ? JSON.stringify(rawOutput)
-              : null;
-        const rawId = span.context?.span_id ?? span.span_id ?? span.id;
-        const spanId = rawId != null ? String(rawId) : null;
-        if (input && output && spanId) toEvaluate.push({ spanId, input, output });
-      }
-
-      console.log(`Found ${toEvaluate.length} orchestrator spans to evaluate`);
-    ```
-  </Step>
-
-  <Step title={<span className="step-title">Run the Evaluator</span>}>
-    With the data and the evaluator in place, run the evaluator over the data.
-
-    ```typescript
-      const spanAnnotations = await Promise.all(
-        toEvaluate.map(async ({ spanId, input, output }) => {
-          const { label, score, explanation } = await evaluator.evaluate({
-            input,
-            output,
-          });
-          return {
-            spanId,
-            name: EVAL_NAME as "completeness",
-            label,
-            score,
-            explanation,
-            annotatorKind: "LLM" as const,
-            metadata: { evaluator: EVAL_NAME, input, output },
-          };
-        }),
-      );
-    ```
-
-    This produces evaluation results for each span in the dataset.
-  </Step>
-
-  <Step title={<span className="step-title">Log Evaluation Results to Phoenix</span>}>
-    Log the evaluation results back to Phoenix so they appear alongside your traces in the UI. That is what makes an evaluation useful beyond a single run: the results become part of the same view you already use to understand behavior.
-
-    ```typescript
-      await logSpanAnnotations({ spanAnnotations, sync: true });
-      console.log(
-        `Logged ${spanAnnotations.length} ${EVAL_NAME} evaluations to Phoenix`,
-      );
-    }
-    ```
-
-    Once this completes, head back to Phoenix.
-
-    You’ll now see evaluation results attached to your trace data in the annotations column, making it easy to understand which runs passed, which failed, and how quality varies across executions.
-
-    <Frame caption="Tracing Project with Evaluation Annotations">
+    <Frame caption="Create a New Dataset & add Examples">
     <video
       controls
       className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-eval.mp4"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-dataset.mp4"
+    />
+    </Frame>
+  </Step>
+
+  <Step title={<span className="step-title">Define and Run the Experiment</span>}>
+    ### **Update the Agent Instructions**
+
+    This example strengthens the agent's instructions, giving the model clearer guidance on what a good response looks like.
+
+    Start with the imports:
+
+    ```typescript
+    import "dotenv/config";
+    import type { Example } from "@arizeai/phoenix-client/types/datasets";
+    import { runExperiment } from "@arizeai/phoenix-client/experiments";
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+    import { Agent } from "@mastra/core/agent";
+    import { Mastra } from "@mastra/core/mastra";
+    import { financialSearchTool } from "../tools/financial-search-tool";
+    import { financialOrchestratorAgent } from "../agents/financial-orchestrator-agent";
+    import { financialWriterAgent } from "../agents/financial-writer-agent";
+    import { financialCompletenessTemplate } from "../evals/evals";
+    ```
+
+    Below is an example of tightening the agent instructions to be more explicit about the expected output.
+
+    ```typescript
+    const financialResearcherAgent = new Agent({
+      id: "financial-researcher-agent",
+      name: "Financial Research Analyst",
+      instructions: `You are a Senior Financial Research Analyst. Your job is to collect accurate, up-to-date financial information so a report writer can turn it into a polished analysis.
+
+    What to do:
+    - Use the financialSearch tool to look up each company or ticker mentioned in the request.
+    - For every ticker, pull: current or recent prices, key ratios (P/E, P/B, debt-to-equity, ROE), revenue and earnings, and notable news or events from the last 6 months.
+    - If the user asks for a specific focus (e.g. valuation, growth, dividends), prioritize that in your search and summary.
+    - For multiple tickers, run research per ticker and then summarize in one coherent research brief.
+
+    Output:
+    - Produce a single research summary that covers all requested tickers and focus areas.
+    - Be specific: use numbers and sources, not vague statements.
+    - Write so the Financial Report Writer can use this summary directly to draft the final report.
+
+    Make sure to report financial data for all tickers mentioned in the request. Use that financial data for the specific focus area mentioned in the request.`,
+      model: "openai/gpt-4o",
+      tools: { financialSearchTool },
+    });
+    ```
+
+    Create an updated Mastra instance with this new, modified agent:
+
+    ```typescript
+    async function main() {
+      const mastra = new Mastra({
+        agents: {
+          financialResearcherAgent,
+          financialWriterAgent,
+          financialOrchestratorAgent,
+        },
+      });
+    ```
+
+    That is a targeted change, driven by the explanations for why these traces were classified as failures.
+
+    ### **Define an Experiment**
+
+    With the agent updated, run the new flow to test whether the change improves quality.
+
+    An experiment needs two things:
+
+    - **The experiment task**
+
+      A task takes each example from the dataset and produces an output, usually by running your agent on the input.
+
+    - **The experiment evaluation**
+
+      An experiment evaluation works like any other evaluation, but scores a task's output, often against an expected result or a scoring metric.
+
+    Here the task reruns the agent with the updated instructions. That produces new outputs for the same inputs, so rerun the same evaluation to compare the two directly.
+
+    #### **Define the Task**
+
+    ```typescript
+      const task = async (example: Example): Promise<string> => {
+        const raw = example.input as unknown as
+          | { role: "user"; content: string }[]
+          | { input: { role: "user"; content: string }[] };
+        const messages = Array.isArray(raw) ? raw : raw.input;
+        const response = await mastra
+          .getAgent("financialOrchestratorAgent")
+          .generate(messages);
+        return response.text ?? "";
+      };
+    ```
+
+    #### **Define the Evaluator**
+
+    ```typescript
+      const completenessEvaluator = createClassificationEvaluator({
+        model: openai("gpt-4o-mini"),
+        promptTemplate: financialCompletenessTemplate,
+        choices: { complete: 1, incomplete: 0 },
+        name: "completeness",
+      });
+    ```
+
+    ### **Run the Experiment on the Dataset**
+
+    Specify the dataset you created earlier.
+
+    That tests the new version of the agent against the exact inputs that previously failed.
+
+    ```typescript
+      const datasetSelector = { datasetName: "ts quickstart fails" };
+
+      await runExperiment({
+        dataset: datasetSelector,
+        task,
+        evaluators: [completenessEvaluator],
+        experimentName: "new-experiment",
+      });
+    }
+    ```
+
+    Once this completes, Phoenix logs the experiment results automatically.
+  </Step>
+
+  <Step title={<span className="step-title">Review the Scores</span>}>
+    Head back to Phoenix and open the **Experiments** view.
+
+    Here, you can see:
+
+    - The original runs compared against the new ones under 'reference output'
+    - New agent runs produced by your task
+    - Evaluation results for each version
+
+    <Frame caption="View Experiment Results">
+    <video
+      controls
+      className="w-full aspect-video rounded-xl"
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-experiment.mp4"
     />
     </Frame>
 
-    **Congratulations**! You’ve run your first evaluation in Phoenix.
+    You should see more traces receiving a **complete** label, indicating the change improved performance.
+
+    **Congratulations!** You’ve built a dataset, scored an experiment with an evaluator, and measured the effect of a change.
   </Step>
 </Steps>
 
   </Tab>
+  </Tabs>
+  </Tab>
 </Tabs>
 
-## **Learn More About Evals**
+## **Learn More**
 
-Now that you have evaluation results in Phoenix, you can start using them to guide iteration.
+[Datasets and Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) covers building datasets for specific user segments or edge cases, comparing multiple prompt or model variants, and tracking quality over time.
 
-You can group traces with an incorrect label into a dataset, make changes to prompts or logic, and then run experiments on the same inputs to compare how outputs differ. The easiest and fastest way to iterate on your agent without writing code is through prompt playground. The [Improve your agent guide](/docs/phoenix/get-started/get-started-improve-your-agent) walks through this workflow in more detail.
+For evaluators themselves, [Server Evals](/docs/phoenix/evaluation/server-evals/overview) covers the LLM and built-in code evaluators you can attach to a dataset, and the [Evaluation](/docs/phoenix/evaluation/evals) section covers writing your own.
 
-To go deeper on evaluations, the [Evaluations Tutorial](https://arize.com/docs/phoenix/evaluation/typescript-quickstart) covers writing more nuanced evaluators, using different scoring strategies, and comparing quality across runs as your agent evolves.
-
-This was a simple example, but evaluations in Phoenix support much more advanced workflows over time.
+The [Prompt Playground and Prompt Hub guides](https://arize.com/docs/phoenix/prompt-engineering/tutorial) go deeper on prompt iteration and versioning.

@@ -1,5 +1,5 @@
 ---
-title: "Instrument your agent"
+title: "Observe Your Agent"
 description: >-
   Instrument your LLM agent and send traces to Phoenix for full visibility into
   every request: retrieval, tool calls, LLM calls, and latency.
@@ -25,8 +25,6 @@ This guide uses the CrewAI framework in Python, but Phoenix works with many agen
 
 To follow along, you’ll need an [OpenAI API key](https://platform.openai.com/api-keys) & a [Serper Dev Key](https://serper.dev/signup).
 
-The chatbot uses OpenAI as its LLM provider and Serper as its web search tool.
-
 <Info>
   **Follow along with code**: This guide has a companion notebook with runnable
   code examples. Find it
@@ -41,8 +39,6 @@ The chatbot uses OpenAI as its LLM provider and Serper as its web search tool.
   </Step>
 
   <Step title={<span className="step-title">Configure your Environment</span>}>
-    With Phoenix running, connect your agent to it.
-
     Install the dependencies and set a few environment variables. That is what lets Phoenix receive trace data from your agent. Once it is in place, running the agent creates a project in the Phoenix UI and records each traced run there.
 
     Install the CrewAI package alongside the OpenInference CrewAI auto-instrumentation package, which handles tracing without manual instrumentation.
@@ -75,12 +71,9 @@ The chatbot uses OpenAI as its LLM provider and Serper as its web search tool.
     tracer_provider = register(project_name="crewai-tracing-quickstart", auto_instrument=True)
     ```
 
-    Your agent is now configured to send traces to Phoenix.
   </Step>
 
   <Step title={<span className="step-title">Create your Agent</span>}>
-    With Phoenix running and the environment configured, build the agent that will generate the runs you trace.
-
     Build a simple Financial Analysis and Research chatbot.
 
     This agent is made up of:
@@ -157,12 +150,9 @@ The chatbot uses OpenAI as its LLM provider and Serper as its web search tool.
     )
     ```
 
-    That is a working CrewAI setup with multiple agents, tasks, and a tool. Next, run the crew and watch its execution arrive as a trace in Phoenix.
   </Step>
 
   <Step title={<span className="step-title">Look at the Trace in Phoenix</span>}>
-    Run the chatbot and see what Phoenix captures.
-
     To run the agent, execute the following:
 
     ```python
@@ -182,8 +172,6 @@ The chatbot uses OpenAI as its LLM provider and Serper as its web search tool.
       src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_trace_onboarding.mov"
     />
 
-    You can now follow the chatbot's full execution as a single trace in Phoenix.
-
     The trace shows how your agent actually ran:
 
     - Which agents were invoked and in what order
@@ -195,8 +183,6 @@ The chatbot uses OpenAI as its LLM provider and Serper as its web search tool.
 </Steps>
 
 ## **Learn More About Traces**
-
-You’ve now sent a trace to Phoenix and seen how an agent run shows up from start to finish.
 
 Next, run evaluations on your agent to measure where it works well and where it needs iteration. See the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations).
 
@@ -227,8 +213,6 @@ The agent uses OpenAI as its LLM provider, and so do the evals later in this ser
   </Step>
 
   <Step title={<span className="step-title">Configure your Environment</span>}>
-    With Phoenix running, connect your agent to it.
-
     Start with an empty Mastra directory. Run this in the terminal, in the location where you want the agent project to live. 
 
     ```
@@ -291,8 +275,6 @@ The agent uses OpenAI as its LLM provider, and so do the evals later in this ser
   </Step>
 
   <Step title={<span className="step-title">Create your Tools</span>}>
-    With Phoenix running and the environment configured, build the agent that will generate the runs you trace.
-
     Build the tools first, so they can be wired into the agents as those are defined.
 
     The agent is made up of: 
@@ -567,8 +549,6 @@ The agent uses OpenAI as its LLM provider, and so do the evals later in this ser
     <Frame caption="Invoke the Chatbot & See Full Trace in Phoenix ">
     <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-trace.mp4" />
     </Frame>
-
-    You can now follow the chatbot's full execution as a single trace in Phoenix.
 
     The trace shows how your agent actually ran:
 

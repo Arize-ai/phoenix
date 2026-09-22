@@ -367,67 +367,8 @@ Install both MCP integrations if you want your coding agent to both look up docs
 
 ## Skills
 
-Install Phoenix skills using [skills add](https://github.com/vercel-labs/skills):
-
-```bash
-npx skills add Arize-ai/phoenix
-```
-
-This installs skills into the project's agent directory (for example, `.claude/skills/`, `.cursor/skills/`, or `.github/skills/`). In Claude Code, the [Phoenix plugin](#claude-code) already registers the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so installing it covers those.
-
-### Available Skills
-
-<CardGroup cols={2}>
-  <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-cli/SKILL.md">
-    Debug LLM apps using Phoenix CLI for traces, experiments, datasets, and prompts. Recommended.
-  </Card>
-  <Card title="phoenix-error-analysis" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-error-analysis/SKILL.md">
-    Read sampled traces, write free-form notes, then group them into a failure taxonomy that picks eval targets and fix priorities.
-  </Card>
-  <Card title="phoenix-evals" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-evals/SKILL.md">
-    Build and run evaluators for AI/LLM apps across code-based and LLM-as-judge workflows.
-  </Card>
-  <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-tracing/SKILL.md">
-    Implement OpenInference tracing conventions and instrumentation in Python and TypeScript.
-  </Card>
-  <Card title="phoenix-harbor" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-harbor/SKILL.md">
-    Configure Harbor agent evaluations and interpret their Phoenix experiments, scores, and ATIF traces.
-  </Card>
-</CardGroup>
-
-### `skills add` Options
-
-| Option | Description |
-|--------|-------------|
-| `-g, --global` | Install to user directory instead of project |
-| `-a, --agent <agents...>` | Target specific agents (for example, `claude-code`, `cursor`) |
-| `-s, --skill <skills...>` | Install specific skills by name |
-| `-l, --list` | List available skills without installing |
-| `-y, --yes` | Skip confirmation prompts |
-
-### Examples
-
-```bash
-# Install the CLI skill globally for all projects
-npx skills add Arize-ai/phoenix --skill phoenix-cli -g
-
-# Install CLI + tracing skills together
-npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
-
-# Install for specific coding agents
-npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
-
-# Non-interactive installation
-npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
-```
-
-Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents).
-
-Recommended default:
-
-```bash
-npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
-```
+Phoenix ships skills that teach a coding agent its conventions for the CLI, tracing, and evals.
+See [Skills](/docs/phoenix/integrations/developer-tools/skills) to install them and for the full list.
 
 ## Docs and Source Code in `node_modules`
 
