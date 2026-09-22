@@ -2,15 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createClassificationEvaluator } from "../../src";
 import { generateClassification } from "../../src/llm/generateClassification";
-import { type EvaluationModel, isEvaluationModel } from "../../src/utils";
+import {
+  type EvaluationModel,
+  isEvaluationModel,
+} from "../../src/utils/isEvaluationModel";
 
-function createMockEvaluationModel(choice: string) {
+function createMockEvaluationModel(
+  choice: string,
+  probabilities?: Record<string, number>
+) {
   const doEvaluate = vi.fn(
     async (options: Parameters<EvaluationModel["doEvaluate"]>[0]) => ({
       answers: Object.fromEntries(
         Object.keys(options.questions).map((id) => [
           id,
-          { type: "choice" as const, choice },
+          { type: "choice" as const, choice, probabilities },
         ])
       ),
       warnings: [],
@@ -28,7 +34,10 @@ function createMockEvaluationModel(choice: string) {
 
 describe("generateClassification with an evaluation model", () => {
   it("routes a text prompt through a single choice question", async () => {
-    const { model, doEvaluate } = createMockEvaluationModel("incorrect");
+    const { model, doEvaluate } = createMockEvaluationModel("incorrect", {
+      correct: 0.03,
+      incorrect: 0.97,
+    });
 
     const result = await generateClassification({
       model,
@@ -36,7 +45,13 @@ describe("generateClassification with an evaluation model", () => {
       prompt: "Is 2 + 2 = 5 correct?",
     });
 
-    expect(result).toEqual({ label: "incorrect" });
+    expect(result).toEqual({
+      label: "incorrect",
+      metadata: {
+        probabilities: { correct: 0.03, incorrect: 0.97 },
+        modelId: "mock-evaluation-model",
+      },
+    });
     expect(result.explanation).toBeUndefined();
     expect(doEvaluate).toHaveBeenCalledTimes(1);
     const call = doEvaluate.mock.calls[0]![0];
@@ -113,7 +128,14 @@ describe("createClassificationEvaluator with an evaluation model", () => {
 
     const result = await evaluator.evaluate({ question: "asdf" });
 
-    expect(result).toEqual({ label: "invalid", score: 0 });
+    expect(result).toEqual({
+      label: "invalid",
+      score: 0,
+      metadata: {
+        probabilities: undefined,
+        modelId: "mock-evaluation-model",
+      },
+    });
     expect(doEvaluate).toHaveBeenCalledTimes(1);
     expect(doEvaluate.mock.calls[0]![0].state).toEqual({
       prompt: [

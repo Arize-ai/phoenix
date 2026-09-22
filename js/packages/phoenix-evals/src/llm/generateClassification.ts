@@ -5,7 +5,10 @@ import { getTelemetryIntegrations, tracer } from "../telemetry";
 import type { ClassificationResult, WithLLM } from "../types/evals";
 import type { WithTelemetry } from "../types/otel";
 import type { WithPrompt } from "../types/prompts";
-import { type EvaluationModel, isEvaluationModel } from "../utils";
+import {
+  type EvaluationModel,
+  isEvaluationModel,
+} from "../utils/isEvaluationModel";
 
 export type ClassifyArgs = WithLLM &
   WithTelemetry &
@@ -73,7 +76,8 @@ type EvaluationState = Parameters<typeof experimental_evaluate>[0]["state"];
 /**
  * Classify using an AI SDK evaluation model. The rendered prompt becomes the
  * shared evaluation state and the labels become the options of one choice
- * question.
+ * question. The model's label probabilities and resolved model id are
+ * returned as metadata.
  */
 async function evaluateClassification(args: {
   model: EvaluationModel;
@@ -93,7 +97,14 @@ async function evaluateClassification(args: {
       },
     },
   });
-  return { label: result.answers.label.choice };
+  const answer = result.answers.label;
+  return {
+    label: answer.choice,
+    metadata: {
+      probabilities: answer.probabilities,
+      modelId: result.response.modelId,
+    },
+  };
 }
 
 /**

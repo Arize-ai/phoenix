@@ -46,6 +46,11 @@ export interface EvaluationResult {
    * @example "The model correctly identified the sentiment of the text."
    */
   explanation?: string;
+  /**
+   * Additional information about how the result was produced, e.g. the
+   * label probabilities reported by an evaluation model.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -54,6 +59,7 @@ export interface EvaluationResult {
 export interface ClassificationResult {
   label: string;
   explanation?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**

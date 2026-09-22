@@ -89,10 +89,15 @@ async function main() {
     gptLatencies.push(gptMs);
     if (jevResult.label === expected) jevCorrect++;
     if (gptResult.label === expected) gptCorrect++;
+    // Evaluation models report the full label distribution as metadata.
+    const probabilities = jevResult.metadata?.probabilities as
+      | Record<string, number>
+      | undefined;
     rows.push({
       output: example.output,
       expected,
       [jev.modelId]: jevResult.label,
+      "jev P(label)": probabilities?.[jevResult.label ?? ""],
       [gpt.modelId]: gptResult.label,
       "jev ms": Math.round(jevMs),
       "gpt ms": Math.round(gptMs),
