@@ -1,101 +1,112 @@
 /* eslint-disable no-console */
 /**
- * Run classification evaluators on TypeSafe's Jev, a decision-only model.
+ * Run the built-in hallucination evaluator side by side on TypeSafe's Jev
+ * and an OpenAI chat model, then compare labels and latency.
  *
- * Jev classifies without generating text, so it is far cheaper than a chat
- * model for single-label evals. The trade-off is that results carry a label
- * and score but no explanation.
+ * Jev is a decision-only model: it classifies without generating text, so it
+ * is much cheaper and faster than a chat model for single-label evals. The
+ * trade-off is that its results carry a label and score but no explanation.
  *
- * Requires TYPESAFE_AI_API_KEY to be set.
+ * Requires TYPESAFE_AI_API_KEY and OPENAI_API_KEY to be set.
  *
  *   tsx examples/typesafe_jev_example.ts
  */
+import { openai } from "@ai-sdk/openai";
 import { typeSafeAi } from "@ai-sdk/typesafe-ai";
 
-import {
-  createClassificationEvaluator,
-  createHallucinationEvaluator,
-} from "../src/llm";
+import { createHallucinationEvaluator } from "../src/llm";
 
-const model = typeSafeAi.evaluationModel("jev-latest");
+const jev = typeSafeAi.evaluationModel("jev-latest");
+const gpt = openai("gpt-4o-mini");
 
-// 1. A built-in evaluator: every pre-built evaluator accepts an evaluation model.
-const hallucinationEvaluator = createHallucinationEvaluator({ model });
+const jevEvaluator = createHallucinationEvaluator({ model: jev });
+const gptEvaluator = createHallucinationEvaluator({ model: gpt });
 
-// The built-in hallucination evaluator reads `input` (everything the
-// assistant had available, treated as the source of truth) and `output`.
+// The hallucination evaluator reads `input` (everything the assistant had
+// available, treated as the source of truth) and `output` (the response).
 const phoenixContext =
   "Retrieved document: Arize Phoenix is an open-source platform for tracing and evaluating AI applications.";
 const eiffelContext =
   "Retrieved document: The Eiffel Tower was completed in 1889 for the World's Fair.";
 
-const hallucinationExamples = [
+const examples = [
   {
     input: `${phoenixContext}\n\nUser: Is Arize Phoenix open source?`,
     output: "Yes, Arize Phoenix is open source.",
+    expected: "grounded",
   },
   {
     input: `${phoenixContext}\n\nUser: Is Arize Phoenix open source?`,
     output: "No, Arize Phoenix is a closed-source commercial product.",
+    expected: "hallucinated",
   },
   {
     input: `${eiffelContext}\n\nUser: What year was the Eiffel Tower completed?`,
     output: "It was completed in 1889.",
+    expected: "grounded",
   },
   {
     input: `${eiffelContext}\n\nUser: What year was the Eiffel Tower completed?`,
     output: "It was completed in 1925 to celebrate the end of World War I.",
+    expected: "hallucinated",
   },
 ];
 
-// 2. A custom multi-class evaluator.
-const routingEvaluator = createClassificationEvaluator({
-  name: "support_department",
-  model,
-  promptTemplate: `You are triaging customer support messages.
-Which team should handle the following message?
+async function timed<T>(fn: () => Promise<T>): Promise<[T, number]> {
+  const start = performance.now();
+  const value = await fn();
+  return [value, performance.now() - start];
+}
 
-- billing: charges, invoices, refunds, payment methods
-- technical: bugs, errors, outages, integration problems
-- account: login, password, profile, permissions
-- other: anything else
-
-[Message]: {{message}}`,
-  choices: { billing: 0, technical: 1, account: 2, other: 3 },
-});
-
-const routingExamples = [
-  { message: "I was charged twice this month. Please refund the duplicate." },
-  { message: "The OTLP exporter returns a 502 every time I send traces." },
-  { message: "I can't log in after resetting my password." },
-  { message: "Do you have a booth at the conference next week?" },
-];
+function summarize(name: string, latenciesMs: number[], correct: number) {
+  const total = latenciesMs.reduce((sum, ms) => sum + ms, 0);
+  return {
+    model: name,
+    calls: latenciesMs.length,
+    correct: `${correct}/${latenciesMs.length}`,
+    "mean ms": Math.round(total / latenciesMs.length),
+    "min ms": Math.round(Math.min(...latenciesMs)),
+    "max ms": Math.round(Math.max(...latenciesMs)),
+    "total ms": Math.round(total),
+  };
+}
 
 async function main() {
-  console.log(`\nHallucination (built-in evaluator) on ${model.modelId}\n`);
-  const hallucinationRows = [];
-  for (const example of hallucinationExamples) {
-    const result = await hallucinationEvaluator.evaluate(example);
-    hallucinationRows.push({
-      output: example.output,
-      label: result.label,
-      score: result.score,
-      explanation: result.explanation ?? "(none: Jev does not generate text)",
-    });
-  }
-  console.table(hallucinationRows);
+  const rows = [];
+  const jevLatencies: number[] = [];
+  const gptLatencies: number[] = [];
+  let jevCorrect = 0;
+  let gptCorrect = 0;
 
-  console.log(`\nSupport routing (custom 4-way classifier)\n`);
-  const routingRows = [];
-  for (const example of routingExamples) {
-    const result = await routingEvaluator.evaluate(example);
-    routingRows.push({
-      message: example.message,
-      label: result.label,
-      score: result.score,
+  for (const { expected, ...example } of examples) {
+    const [jevResult, jevMs] = await timed(() =>
+      jevEvaluator.evaluate(example)
+    );
+    const [gptResult, gptMs] = await timed(() =>
+      gptEvaluator.evaluate(example)
+    );
+    jevLatencies.push(jevMs);
+    gptLatencies.push(gptMs);
+    if (jevResult.label === expected) jevCorrect++;
+    if (gptResult.label === expected) gptCorrect++;
+    rows.push({
+      output: example.output,
+      expected,
+      [jev.modelId]: jevResult.label,
+      [gpt.modelId]: gptResult.label,
+      "jev ms": Math.round(jevMs),
+      "gpt ms": Math.round(gptMs),
     });
   }
-  console.table(routingRows);
+
+  console.log("\nHallucination evaluator: labels\n");
+  console.table(rows);
+
+  console.log("\nLatency summary\n");
+  console.table([
+    summarize(jev.modelId, jevLatencies, jevCorrect),
+    summarize(gpt.modelId, gptLatencies, gptCorrect),
+  ]);
 }
 
 main().catch((error) => {
