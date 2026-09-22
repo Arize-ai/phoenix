@@ -2,21 +2,14 @@ import { useMemo } from "react";
 import { useLocation } from "react-router";
 
 import {
-  PROJECT_EVALUATOR_CATEGORY_PARAM,
   PROJECT_EVALUATOR_COMPARE_PARAM,
   PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM,
-  PROJECT_EVALUATOR_PARAM,
-  PROJECT_EVALUATOR_TEMPLATE_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
-import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 const projectEvaluatorsPath = (projectRootPath: string) =>
   `${projectRootPath}/evaluators`;
-
-const projectEvaluatorGalleryPath = (projectRootPath: string) =>
-  `${projectRootPath}/evaluator-gallery`;
 
 /**
  * Exported for the loader that forwards the legacy `?createLlmEvaluator` and
@@ -54,7 +47,6 @@ export function useProjectEvaluatorPaths() {
   const { search } = useLocation();
   return useMemo(() => {
     const list = projectEvaluatorsPath(rootPath);
-    const gallery = projectEvaluatorGalleryPath(rootPath);
     const searchWithoutComparison = withSearchParams(search, (searchParams) => {
       searchParams.delete(PROJECT_EVALUATOR_COMPARE_PARAM);
       searchParams.delete(PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM);
@@ -79,48 +71,20 @@ export function useProjectEvaluatorPaths() {
           `${parentPath}/new/attach/${encodeURIComponent(evaluatorId)}`
         ),
     });
-    // A fresh gallery entry clears stale selection while preserving unrelated
-    // project-page state in the query string.
-    const defaultGallerySearch = withSearchParams(search, (searchParams) => {
-      searchParams.delete(PROJECT_EVALUATOR_CATEGORY_PARAM);
-      searchParams.delete(PROJECT_EVALUATOR_PARAM);
-      searchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
-    });
     return {
       list: withCurrentSearch(list),
       compare: ({ a, b }: { a: string; b: string }) =>
         `${list}/compare${withSearchParams(
           searchWithoutComparison,
           (searchParams) => {
-            searchParams.delete(PROJECT_EVALUATOR_PARAM);
             searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, a);
             searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, b);
           }
         )}`,
-      gallery: `${gallery}${defaultGallerySearch}`,
-      galleryCategory: (category: EvaluatorCategory) =>
-        `${gallery}${withSearchParams(search, (searchParams) => {
-          searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
-          searchParams.delete(PROJECT_EVALUATOR_PARAM);
-          searchParams.delete(PROJECT_EVALUATOR_TEMPLATE_PARAM);
-        })}`,
-      galleryTemplate: ({
-        category,
-        templateName,
-      }: {
-        category: EvaluatorCategory;
-        templateName: string;
-      }) =>
-        `${gallery}${withSearchParams(search, (searchParams) => {
-          searchParams.set(PROJECT_EVALUATOR_CATEGORY_PARAM, category);
-          searchParams.delete(PROJECT_EVALUATOR_PARAM);
-          searchParams.set(PROJECT_EVALUATOR_TEMPLATE_PARAM, templateName);
-        })}`,
-      listCreation: buildCreationPaths(list),
-      galleryCreation: buildCreationPaths(gallery),
-      galleryNewLlmFromTemplate: (templateName: string) =>
+      creation: buildCreationPaths(list),
+      newLlmFromTemplate: (templateName: string) =>
         withCurrentSearch(
-          `${gallery}/new/template/${encodeURIComponent(templateName)}`
+          `${list}/new/template/${encodeURIComponent(templateName)}`
         ),
       details: (projectEvaluatorId: string) =>
         withCurrentSearch(`${list}/${encodeURIComponent(projectEvaluatorId)}`),

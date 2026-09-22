@@ -271,7 +271,7 @@ test.describe.serial("Projects", () => {
       page.getByText("Evaluators read span inputs", { exact: false })
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Browse eval gallery" })
+      page.getByRole("button", { name: "Browse eval gallery" })
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Build from scratch" })
