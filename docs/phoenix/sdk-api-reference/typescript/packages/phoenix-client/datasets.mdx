@@ -30,9 +30,21 @@ const { datasetId } = await createDataset({
       output: { answer: "Use the tracking page in your account." },
       metadata: { channel: "chat" },
     },
+    {
+      id: "password-reset",
+      input: { question: "How do I reset my password?" },
+      output: { answer: "Use the forgot password flow." },
+      metadata: { channel: "chat" },
+    },
   ],
 });
 ```
+
+`id` is optional. When you do provide it, give every example its own value:
+example IDs are unique per dataset, so reusing one across examples in the same
+dataset is an error. A stable, unique `id` is what `createDataset()` matches on
+when it upserts, and what you can hand to the split helpers below instead of the
+server-generated `nodeId`. Omit `id` and the server generates one for you.
 
 ## Upsert Or Append
 
@@ -125,7 +137,9 @@ await deleteDatasetSplit({
 
 Split names are unique across the Phoenix instance. Creating or renaming a
 split to an existing name fails with HTTP 409. These helpers require Phoenix
-server 19.20.0 or newer.
+server 19.20.0 or newer. Servers on 19.20.0 through 20.15.0 resolve membership
+by `nodeId` only — user-provided `id` values are accepted from the release that
+follows 20.15.0, so pass `nodeId` when you target an older server.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
