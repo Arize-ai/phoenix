@@ -1,4 +1,4 @@
-"""Integration tests for chatCompletionOverDataset GraphQL subscription."""
+"""Integration tests for the experimentsOverDataset GraphQL subscription."""
 
 from __future__ import annotations
 
@@ -17,9 +17,9 @@ from .conftest import CustomProviders, DatasetEvaluators, _gql
 # GraphQL Operations
 # =============================================================================
 
-CHAT_COMPLETION_OVER_DATASET = """
-subscription ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) {
-    chatCompletionOverDataset(input: $input) {
+EXPERIMENTS_OVER_DATASET = """
+subscription ExperimentsOverDataset($input: ExperimentsOverDatasetInput!) {
+    experimentsOverDataset(input: $input) {
         __typename
         ... on TextChunk {
             content
@@ -166,7 +166,7 @@ async def _run_subscription_with_evaluators(
     evaluators: DatasetEvaluators,
     stream_model_output: bool = True,
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Run chatCompletionOverDataset subscription with evaluators.
+    """Run the experimentsOverDataset subscription with one prompt task and evaluators.
 
     Uses the custom OpenAI provider pointing to mock server.
     Includes all 4 evaluators (one per provider type).
@@ -176,90 +176,98 @@ async def _run_subscription_with_evaluators(
     """
     variables = {
         "input": {
-            "promptVersion": {
-                "templateFormat": "MUSTACHE",
-                "template": {
-                    "messages": [
-                        {
-                            "role": "SYSTEM",
-                            "content": [{"text": {"text": "You are a helpful assistant."}}],
-                        },
-                        {
-                            "role": "USER",
-                            "content": [{"text": {"text": "{{question}}"}}],
-                        },
-                    ]
-                },
-                "invocationParameters": {"openai": {}},
-                "modelProvider": "OPENAI",
-                "modelName": "gpt-4o-mini",
-                "customProviderId": custom_provider_id,
-            },
             "repetitions": 2,
             "datasetId": dataset_id,
-            "evaluators": [
+            "tasks": [
                 {
-                    "id": evaluators.openai,
-                    "name": "openai_eval",
-                    "inputMapping": {
-                        "pathMapping": {
-                            "input": "$.input",
-                            "output": "$.output",
-                            "reference": "$.reference",
+                    "prompt": {
+                        "promptVersion": {
+                            "templateFormat": "MUSTACHE",
+                            "template": {
+                                "messages": [
+                                    {
+                                        "role": "SYSTEM",
+                                        "content": [
+                                            {"text": {"text": "You are a helpful assistant."}}
+                                        ],
+                                    },
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "{{question}}"}}],
+                                    },
+                                ]
+                            },
+                            "invocationParameters": {"openai": {}},
+                            "modelProvider": "OPENAI",
+                            "modelName": "gpt-4o-mini",
+                            "customProviderId": custom_provider_id,
                         },
-                        "literalMapping": {},
-                    },
-                },
-                {
-                    "id": evaluators.openai_responses,
-                    "name": "openai_responses_eval",
-                    "inputMapping": {
-                        "pathMapping": {
-                            "input": "$.input",
-                            "output": "$.output",
-                            "reference": "$.reference",
-                        },
-                        "literalMapping": {},
-                    },
-                },
-                {
-                    "id": evaluators.anthropic,
-                    "name": "anthropic_eval",
-                    "inputMapping": {
-                        "pathMapping": {
-                            "input": "$.input",
-                            "output": "$.output",
-                            "reference": "$.reference",
-                        },
-                        "literalMapping": {},
-                    },
-                },
-                {
-                    "id": evaluators.google_genai,
-                    "name": "google_eval",
-                    "inputMapping": {
-                        "pathMapping": {
-                            "input": "$.input",
-                            "output": "$.output",
-                            "reference": "$.reference",
-                        },
-                        "literalMapping": {},
-                    },
-                },
-                {
-                    "id": evaluators.bedrock,
-                    "name": "bedrock_eval",
-                    "inputMapping": {
-                        "pathMapping": {
-                            "input": "$.input",
-                            "output": "$.output",
-                            "reference": "$.reference",
-                        },
-                        "literalMapping": {},
+                        "evaluators": [
+                            {
+                                "id": evaluators.openai,
+                                "name": "openai_eval",
+                                "inputMapping": {
+                                    "pathMapping": {
+                                        "input": "$.input",
+                                        "output": "$.output",
+                                        "reference": "$.reference",
+                                    },
+                                    "literalMapping": {},
+                                },
+                            },
+                            {
+                                "id": evaluators.openai_responses,
+                                "name": "openai_responses_eval",
+                                "inputMapping": {
+                                    "pathMapping": {
+                                        "input": "$.input",
+                                        "output": "$.output",
+                                        "reference": "$.reference",
+                                    },
+                                    "literalMapping": {},
+                                },
+                            },
+                            {
+                                "id": evaluators.anthropic,
+                                "name": "anthropic_eval",
+                                "inputMapping": {
+                                    "pathMapping": {
+                                        "input": "$.input",
+                                        "output": "$.output",
+                                        "reference": "$.reference",
+                                    },
+                                    "literalMapping": {},
+                                },
+                            },
+                            {
+                                "id": evaluators.google_genai,
+                                "name": "google_eval",
+                                "inputMapping": {
+                                    "pathMapping": {
+                                        "input": "$.input",
+                                        "output": "$.output",
+                                        "reference": "$.reference",
+                                    },
+                                    "literalMapping": {},
+                                },
+                            },
+                            {
+                                "id": evaluators.bedrock,
+                                "name": "bedrock_eval",
+                                "inputMapping": {
+                                    "pathMapping": {
+                                        "input": "$.input",
+                                        "output": "$.output",
+                                        "reference": "$.reference",
+                                    },
+                                    "literalMapping": {},
+                                },
+                            },
+                        ],
+                        "streamModelOutput": stream_model_output,
                     },
                 },
             ],
-            "streamModelOutput": stream_model_output,
         }
     }
 
@@ -275,7 +283,7 @@ async def _run_subscription_with_evaluators(
         async with client.stream(
             "POST",
             "/graphql",
-            json={"query": CHAT_COMPLETION_OVER_DATASET, "variables": variables},
+            json={"query": EXPERIMENTS_OVER_DATASET, "variables": variables},
             headers={
                 "Accept": "multipart/mixed;boundary=graphql;subscriptionSpec=1.0,application/json",
                 "Content-Type": "application/json",
@@ -291,7 +299,7 @@ async def _run_subscription_with_evaluators(
                 if errs := inner.get("errors"):
                     errors_seen.extend(errs)
                 if data := inner.get("data"):
-                    subscription_data = data.get("chatCompletionOverDataset")
+                    subscription_data = data.get("experimentsOverDataset")
                     if subscription_data:
                         typename = subscription_data.get("__typename")
                         if typename == "ChatCompletionSubscriptionExperiment":
@@ -337,7 +345,7 @@ async def _run_subscription_without_evaluators(
     invocation_parameters: dict[str, Any],
     stream_model_output: bool = True,
 ) -> tuple[str, list[dict[str, Any]]]:
-    """Run chatCompletionOverDataset subscription without evaluators.
+    """Run the experimentsOverDataset subscription with one prompt task and no evaluators.
 
     Tests the primary prompt with a specific custom provider.
 
@@ -346,29 +354,37 @@ async def _run_subscription_without_evaluators(
     """
     variables = {
         "input": {
-            "promptVersion": {
-                "templateFormat": "MUSTACHE",
-                "template": {
-                    "messages": [
-                        {
-                            "role": "SYSTEM",
-                            "content": [{"text": {"text": "You are a helpful assistant."}}],
-                        },
-                        {
-                            "role": "USER",
-                            "content": [{"text": {"text": "{{question}}"}}],
-                        },
-                    ]
-                },
-                "invocationParameters": invocation_parameters,
-                "modelProvider": model_provider,
-                "modelName": model_name,
-                "customProviderId": custom_provider_id,
-            },
             "repetitions": 1,
             "datasetId": dataset_id,
-            "evaluators": [],
-            "streamModelOutput": stream_model_output,
+            "tasks": [
+                {
+                    "prompt": {
+                        "promptVersion": {
+                            "templateFormat": "MUSTACHE",
+                            "template": {
+                                "messages": [
+                                    {
+                                        "role": "SYSTEM",
+                                        "content": [
+                                            {"text": {"text": "You are a helpful assistant."}}
+                                        ],
+                                    },
+                                    {
+                                        "role": "USER",
+                                        "content": [{"text": {"text": "{{question}}"}}],
+                                    },
+                                ]
+                            },
+                            "invocationParameters": invocation_parameters,
+                            "modelProvider": model_provider,
+                            "modelName": model_name,
+                            "customProviderId": custom_provider_id,
+                        },
+                        "evaluators": [],
+                        "streamModelOutput": stream_model_output,
+                    },
+                },
+            ],
         }
     }
 
@@ -383,7 +399,7 @@ async def _run_subscription_without_evaluators(
         async with client.stream(
             "POST",
             "/graphql",
-            json={"query": CHAT_COMPLETION_OVER_DATASET, "variables": variables},
+            json={"query": EXPERIMENTS_OVER_DATASET, "variables": variables},
             headers={
                 "Accept": "multipart/mixed;boundary=graphql;subscriptionSpec=1.0,application/json",
                 "Content-Type": "application/json",
@@ -399,7 +415,7 @@ async def _run_subscription_without_evaluators(
                 if errs := inner.get("errors"):
                     errors_seen.extend(errs)
                 if data := inner.get("data"):
-                    subscription_data = data.get("chatCompletionOverDataset")
+                    subscription_data = data.get("experimentsOverDataset")
                     if subscription_data:
                         typename = subscription_data.get("__typename")
                         if typename == "ChatCompletionSubscriptionExperiment":
@@ -465,8 +481,8 @@ async def _get_experiment(
 # =============================================================================
 
 
-class TestChatCompletionOverDataset:
-    """Tests for chatCompletionOverDataset subscription with evaluators."""
+class TestExperimentsOverDatasetPromptTask:
+    """Tests for the experimentsOverDataset subscription running one prompt task."""
 
     @pytest.mark.parametrize(
         "stream_model_output",
@@ -483,7 +499,7 @@ class TestChatCompletionOverDataset:
         _dataset_evaluators: DatasetEvaluators,
         stream_model_output: bool,
     ) -> None:
-        """Test chatCompletionOverDataset with all 4 provider evaluators.
+        """Test experimentsOverDataset with all 4 provider evaluators.
 
         Uses OpenAI custom provider (pointing to mock server) for the experiment,
         and attaches evaluators using all 4 custom providers (OpenAI, Anthropic,
@@ -647,7 +663,7 @@ class TestChatCompletionOverDataset:
         invocation_parameters: dict[str, Any],
         stream_model_output: bool,
     ) -> None:
-        """Test chatCompletionOverDataset with a provider on primary prompt.
+        """Test experimentsOverDataset with a provider on the primary prompt.
 
         Tests the custom provider for the primary prompt without any evaluators.
         This exercises the text generation path for the provider.

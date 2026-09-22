@@ -47,7 +47,7 @@ Local docker-compose stack for development: Phoenix, OIDC, LDAP, SMTP, Grafana, 
 ### `evaluators/`
 GraphQL smoke tests for the chat / playground / evaluator surface.
 - `test_chat_mutation.py`, `test_chat_subscription.py` — `chatCompletion` mutation/subscription.
-- `test_chat_over_dataset.py`, `test_chat_over_dataset_mutation.py` — `chatCompletionOverDataset`.
+- `test_experiments_over_dataset.py` — `experimentsOverDataset` (one prompt task over a dataset).
 - `test_create_llm_evaluator.py` — `createDatasetLlmEvaluator` mutation.
 
 ### `experiments/`
