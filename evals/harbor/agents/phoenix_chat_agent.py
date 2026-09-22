@@ -13,7 +13,7 @@ _AGENT_DIR = "/installed-agent/phoenix-chat"
 _CHAT_CLIENT = Path(__file__).with_name("chat_client.py")
 _STEPS_DIR = "/logs/agent/steps"
 _INSTRUCTION_PATH = "/tmp/instruction.md"
-_WORLD_READABLE = 0o644
+_READABLE_BY_AGENT_USER = 0o644
 _TURN_TIMEOUT_SECONDS = 1800.0
 
 
@@ -94,7 +94,7 @@ class PhoenixChatAgent(BaseAgent):
             file.write(instruction)
             instruction_file = Path(file.name)
         try:
-            instruction_file.chmod(_WORLD_READABLE)
+            instruction_file.chmod(_READABLE_BY_AGENT_USER)
             await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
         finally:
             instruction_file.unlink()

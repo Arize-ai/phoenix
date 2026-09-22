@@ -51,13 +51,7 @@ class PhoenixCliMixin(BaseInstalledAgent):
 
 
 class AgentLogsOwnershipMixin(BaseInstalledAgent):
-    """Give the agent user back its log directory before each step.
-
-    Between steps Harbor re-uploads the host copy of /logs/agent as a tarball and
-    extracts it as root, which preserves the host uid. The agent user then cannot create
-    its Claude Code config directories under /logs/agent/sessions. Remove once Harbor
-    extracts uploads with --no-same-owner.
-    """
+    """Workaround for https://github.com/harbor-framework/harbor/issues/1959."""
 
     async def run(
         self, instruction: str, environment: BaseEnvironment, context: AgentContext
