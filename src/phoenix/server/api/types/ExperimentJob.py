@@ -15,7 +15,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
-from phoenix.server.api.types.ExperimentTaskConfig import PromptTaskConfig
+from phoenix.server.api.types.ExperimentTaskConfig import EvaluatorTaskConfig, PromptTaskConfig
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
 if TYPE_CHECKING:
@@ -122,6 +122,17 @@ class ExperimentJob(Node):
             if config is None:
                 return None
             return PromptTaskConfig.from_orm(config)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Evaluator task configuration snapshot of an experiment whose task is an "
+        "evaluator. Null for prompt and eval-only experiments.",
+    )
+    async def evaluator_task_config(self, info: Info[Context, None]) -> EvaluatorTaskConfig | None:
+        async with info.context.db.read() as session:
+            config = await session.get(models.ExperimentEvaluatorTask, self.id)
+            if config is None:
+                return None
+            return EvaluatorTaskConfig.from_orm(config)
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Dataset evaluators attached to this experiment job.",

@@ -1,21 +1,66 @@
 from __future__ import annotations
 
 import heapq
+import json
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Hashable, Sequence
+from secrets import token_hex
+from typing import Any, AsyncIterator, Hashable, Sequence, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
+from anyio.streams.memory import MemoryObjectReceiveStream
+from sqlalchemy import select
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+    OutputConfigType,
+)
+from phoenix.db.types.evaluator_definition import (
+    EvaluatorDefinition,
+    InlineCodeEvaluatorDefinition,
+    InlineLLMEvaluatorDefinition,
+    InlineLLMEvaluatorPromptVersion,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptToolChoiceOneOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
+)
+from phoenix.server.api.evaluators import (
+    BaseEvaluator,
+    CodeEvaluatorRunner,
+    EvaluationResult,
+    LLMEvaluator,
+)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
+    ChatCompletionSubscriptionPayload,
+    ChatCompletionSubscriptionResult,
     EvaluationChunk,
+    FunctionCallChunk,
+    ToolCallChunk,
 )
 from phoenix.server.daemons.experiment_runner import (
+    _NO_OP_LLM_CLIENT,
     CircuitBreaker,
     EvaluatorRunSpec,
+    EvaluatorTaskWorkItem,
     EvalWorkItem,
     ExperimentRunner,
     RetryItem,
@@ -26,7 +71,10 @@ from phoenix.server.daemons.experiment_runner import (
 )
 from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
+from phoenix.server.sandbox.result_protocol import PHOENIX_RESULT_BEGIN, PHOENIX_RESULT_END
+from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
+from phoenix.tracers import Tracer
 
 # ---------------------------------------------------------------------------
 # Helpers / Factories
@@ -1317,3 +1365,662 @@ class TestEvalWorkItemPersistsErrorAnnotation:
         assert failure_args is not None
         assert failure_args.args[0] is eval_item
         assert failure_args.args[1] is error
+
+
+# ===========================================================================
+# Group 8: Evaluator tasks (the evaluator is the experiment's task)
+# ===========================================================================
+
+_ANSWER_LENGTH_SOURCE = "def evaluate(output):\n    return len(output)"
+
+_LENGTH_CONFIG = ContinuousOutputConfig(
+    type="CONTINUOUS",
+    name="length",
+    optimization_direction=OptimizationDirection.MAXIMIZE,
+    description=None,
+    lower_bound=0.0,
+    upper_bound=None,
+)
+
+_CORRECTNESS_CONFIG = CategoricalOutputConfig(
+    type="CATEGORICAL",
+    name="correctness",
+    optimization_direction=OptimizationDirection.MAXIMIZE,
+    values=[
+        CategoricalAnnotationValue(label="correct", score=1.0),
+        CategoricalAnnotationValue(label="incorrect", score=0.0),
+    ],
+)
+
+_OUTPUT_ANSWER_MAPPING = InputMapping(
+    literal_mapping={}, path_mapping={"output": "$.output.answer"}
+)
+
+
+@dataclass(frozen=True)
+class _EvaluatorExperiment:
+    """An experiment over two examples whose metadata carries reviewer-recorded verdicts."""
+
+    project: models.Project
+    experiment: models.Experiment
+    revisions: list[models.DatasetExampleRevision]
+
+
+@pytest.fixture
+async def evaluator_experiment(db: DbSessionFactory) -> _EvaluatorExperiment:
+    async with db() as session:
+        project = models.Project(name=f"Experiment-{token_hex(4)}")
+        dataset = models.Dataset(name=f"dataset-{token_hex(4)}", metadata_={})
+        session.add_all([project, dataset])
+        await session.flush()
+        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(version)
+        await session.flush()
+        revisions: list[models.DatasetExampleRevision] = []
+        for answer in ("Paris", "Tokyo"):
+            example = models.DatasetExample(
+                dataset_id=dataset.id, created_at=datetime.now(timezone.utc)
+            )
+            session.add(example)
+            await session.flush()
+            revision = models.DatasetExampleRevision(
+                dataset_example_id=example.id,
+                dataset_version_id=version.id,
+                input={"question": "Which capital?"},
+                output={"answer": answer},
+                # An expected output a reviewer recorded; the evaluator must never see it
+                metadata_={"annotations": [{"name": "length", "score": 5.0}], "source": "unit"},
+                revision_kind="CREATE",
+            )
+            session.add(revision)
+            revisions.append(revision)
+        await session.flush()
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=version.id,
+            name="answer-length",
+            repetitions=1,
+            metadata_={},
+            project_name=project.name,
+        )
+        session.add(experiment)
+        await session.flush()
+        session.add_all(
+            [
+                models.ExperimentDatasetExample(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    dataset_example_revision_id=revision.id,
+                )
+                for revision in revisions
+            ]
+        )
+    return _EvaluatorExperiment(project=project, experiment=experiment, revisions=revisions)
+
+
+def _code_definition(
+    name: str, output_configs: Sequence[OutputConfigType], *, sandbox_config_id: int = 1
+) -> InlineCodeEvaluatorDefinition:
+    return InlineCodeEvaluatorDefinition(
+        type="inline_code_evaluator",
+        name=name,
+        description=None,
+        language="PYTHON",
+        source_code=_ANSWER_LENGTH_SOURCE,
+        sandbox_config_id=sandbox_config_id,
+        output_configs=list(output_configs),
+    )
+
+
+async def _create_evaluator_task(
+    db: DbSessionFactory,
+    experiment_id: int,
+    *,
+    definition: EvaluatorDefinition,
+    evaluator_kind: str = "CODE",
+    output_configs: Sequence[OutputConfigType] = (_LENGTH_CONFIG,),
+    input_mapping: InputMapping = _OUTPUT_ANSWER_MAPPING,
+) -> models.ExperimentEvaluatorTask:
+    """Persist the EVALUATOR job row of an experiment and return it, detached."""
+    async with db() as session:
+        evaluator_task = models.ExperimentEvaluatorTask(
+            id=experiment_id,
+            name=Identifier(definition.name if hasattr(definition, "name") else "evaluator"),
+            evaluator_kind=evaluator_kind,
+            definition=definition,
+            input_mapping=input_mapping,
+            output_configs=list(output_configs),
+        )
+        session.add(evaluator_task)
+    return evaluator_task
+
+
+def _code_evaluator(result_text: str = "0.75") -> tuple[CodeEvaluatorRunner, AsyncMock]:
+    """A code evaluator over a mocked sandbox backend that prints ``result_text``."""
+    backend = AsyncMock()
+    backend.execute_with_inputs = AsyncMock(
+        return_value=ExecutionResult(
+            stdout=f"{PHOENIX_RESULT_BEGIN}\n{result_text}\n{PHOENIX_RESULT_END}\n",
+            stderr="",
+            error=None,
+        )
+    )
+    backend.close = AsyncMock(return_value=None)
+    runner = CodeEvaluatorRunner(
+        name="answer-length",
+        description=None,
+        source_code=_ANSWER_LENGTH_SOURCE,
+        stored_output_configs=[_LENGTH_CONFIG],
+        sandbox_backend=backend,
+        language="PYTHON",
+        sandbox_session_manager=None,
+        timeout=30,
+    )
+    return runner, backend
+
+
+class _FakeJudgeClient:
+    """Stands in for the judge model and always votes 'correct' through the evaluator's tool."""
+
+    def get_rate_limit_key(self) -> Hashable:
+        return "fake-judge"
+
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return False
+
+    def is_transient_error(self, e: Exception) -> bool:
+        return False
+
+    async def chat_completion_create(self, **_: Any) -> AsyncIterator[ToolCallChunk]:
+        yield ToolCallChunk(
+            id="call-1",
+            function=FunctionCallChunk(
+                name="correctness",
+                arguments=json.dumps({"label": "correct", "explanation": "matches"}),
+            ),
+        )
+
+
+def _correctness_prompt() -> tuple[PromptChatTemplate, PromptTools]:
+    template = PromptChatTemplate(
+        type="chat",
+        messages=[PromptMessage(role="user", content="Q: {{input}}\nA: {{output}}\nCorrect?")],
+    )
+    tools = PromptTools(
+        type="tools",
+        tools=[
+            PromptToolFunction(
+                type="function",
+                function=PromptToolFunctionDefinition(
+                    name="correctness",
+                    description="judges the correctness of the answer",
+                    parameters={
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "enum": ["correct", "incorrect"],
+                                "description": "correctness",
+                            },
+                        },
+                        "required": ["label"],
+                    },
+                ),
+            )
+        ],
+        tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+    )
+    return template, tools
+
+
+def _running_evaluator_experiment(
+    db: DbSessionFactory,
+    experiment: models.Experiment,
+    evaluator_task: models.ExperimentEvaluatorTask,
+    evaluator: BaseEvaluator | None,
+    *,
+    max_retries: int = 3,
+) -> RunningExperiment:
+    return RunningExperiment(
+        experiment=experiment,
+        experiment_job=evaluator_task,
+        llm_client=_NoOpLLMClient(),
+        db=db,
+        decrypt=lambda b: b,
+        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        token_buckets=_StubTokenBucketRegistry(),
+        on_done=_make_on_done(),
+        task_evaluator=evaluator,
+        max_retries=max_retries,
+        base_backoff_seconds=0.01,
+    )
+
+
+def _drain(
+    receive: MemoryObjectReceiveStream[ChatCompletionSubscriptionPayload],
+) -> list[ChatCompletionSubscriptionPayload]:
+    payloads: list[ChatCompletionSubscriptionPayload] = []
+    while True:
+        try:
+            payloads.append(receive.receive_nowait())
+        except anyio.WouldBlock:
+            return payloads
+
+
+async def _stored_run_and_annotations(
+    db: DbSessionFactory, experiment_id: int
+) -> tuple[models.ExperimentRun, list[models.ExperimentRunAnnotation]]:
+    async with db() as session:
+        runs = (
+            await session.scalars(
+                select(models.ExperimentRun).where(
+                    models.ExperimentRun.experiment_id == experiment_id
+                )
+            )
+        ).all()
+        assert len(runs) == 1
+        annotations = (
+            await session.scalars(
+                select(models.ExperimentRunAnnotation)
+                .where(models.ExperimentRunAnnotation.experiment_run_id == runs[0].id)
+                .order_by(models.ExperimentRunAnnotation.name)
+            )
+        ).all()
+    return runs[0], list(annotations)
+
+
+class TestEvaluatorTaskWorkItem:
+    def test_context_hides_expected_outputs_and_starts_reference_empty(self) -> None:
+        """The evaluator judges the example itself and never sees the reviewer's answer key."""
+        exp = _make_running_experiment()
+        revision = _make_dataset_example_revision()
+        # As the span→example converter writes them: records grouped by name. The
+        # ``length`` HUMAN record is this task's own expected output; the LLM record under
+        # the same name and the ``tone`` annotation are what the online evaluator would
+        # also see, so they stay.
+        revision.metadata_ = {
+            "annotations": {
+                "length": [
+                    {"label": "long", "score": 5.0, "annotator_kind": "HUMAN"},
+                    {"label": "short", "score": 1.0, "annotator_kind": "LLM"},
+                ],
+                "tone": [{"label": "polite", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        }
+        evaluator_task = MagicMock(spec=models.ExperimentEvaluatorTask)
+        evaluator_task.name = Identifier("length")
+        evaluator_task.output_configs = [_LENGTH_CONFIG]
+        work_item = EvaluatorTaskWorkItem(
+            running_experiment=exp,
+            experiment=exp._experiment,
+            dataset_example_revision=revision,
+            repetition_number=1,
+            evaluator_task=evaluator_task,
+            evaluator=MagicMock(spec=BaseEvaluator),
+            db=exp._db,
+            tracer_factory=exp._tracer_factory,
+            project_id=1,
+        )
+
+        assert work_item._build_context() == {
+            "input": {"question": "test"},
+            "output": {"answer": "42"},
+            "metadata": {
+                "annotations": {
+                    "length": [{"label": "short", "score": 1.0, "annotator_kind": "LLM"}],
+                    "tone": [{"label": "polite", "annotator_kind": "HUMAN"}],
+                },
+                "source": "unit",
+            },
+        }
+
+    async def test_code_evaluator_persists_run_and_annotation_and_broadcasts(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        evaluator, backend = _code_evaluator("0.75")
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        assert isinstance(work_item, EvaluatorTaskWorkItem)
+        await work_item.execute()
+
+        # The evaluator was handed the example's output, mapped by the task's input mapping
+        call = backend.execute_with_inputs.await_args
+        assert call is not None
+        assert call.kwargs["inputs"] == {"_inputs": {"output": "Paris"}}
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert run.dataset_example_id == revision.dataset_example_id
+        assert run.repetition_number == 1
+        assert run.trace_id is not None
+        verdict = run.output["task_output"]
+        assert set(verdict) == {"name", "label", "score", "explanation", "metadata"}
+        assert (verdict["name"], verdict["label"], verdict["score"]) == (
+            "answer-length",
+            None,
+            0.75,
+        )
+        assert [(a.name, a.annotator_kind, a.score, a.trace_id) for a in annotations] == [
+            ("answer-length", "CODE", 0.75, run.trace_id)
+        ]
+        async with db() as session:
+            trace = await session.scalar(
+                select(models.Trace).where(models.Trace.trace_id == run.trace_id)
+            )
+            assert trace is not None
+            assert trace.project_rowid == evaluator_experiment.project.id
+
+        result, chunk = _drain(receive)
+        assert isinstance(result, ChatCompletionSubscriptionResult)
+        assert result.experiment_run is not None
+        assert result.experiment_run.id == run.id
+        assert result.span is not None
+        assert result.dataset_example_id == GlobalID(
+            "DatasetExample", str(revision.dataset_example_id)
+        )
+        assert result.repetition_number == 1
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.evaluator_name == "answer-length"
+        assert chunk.error is None
+        assert chunk.experiment_run_evaluation is not None
+        assert chunk.experiment_run_evaluation.id == annotations[0].id
+        assert chunk.trace is not None
+        assert exp._tasks_succeeded == 1
+        assert exp._tasks_failed == 0
+
+    async def test_llm_evaluator_persists_llm_annotation(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        template, tools = _correctness_prompt()
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai", openai=PromptOpenAIInvocationParametersContent()
+        )
+        definition = InlineLLMEvaluatorDefinition(
+            type="inline_llm_evaluator",
+            name="correctness",
+            description=None,
+            prompt_version=InlineLLMEvaluatorPromptVersion(
+                template_format=PromptTemplateFormat.MUSTACHE,
+                template=template,
+                tools=tools,
+                response_format=None,
+                invocation_parameters=invocation_parameters,
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                custom_provider_id=None,
+            ),
+            output_configs=[_CORRECTNESS_CONFIG],
+        )
+        evaluator_task = await _create_evaluator_task(
+            db,
+            experiment.id,
+            definition=definition,
+            evaluator_kind="LLM",
+            output_configs=[_CORRECTNESS_CONFIG],
+            input_mapping=InputMapping(
+                literal_mapping={}, path_mapping={"input": "$.input", "output": "$.output"}
+            ),
+        )
+        evaluator = LLMEvaluator(
+            name="correctness",
+            description=None,
+            template=template,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+            model_provider=ModelProvider.OPENAI,
+            llm_client=cast(Any, _FakeJudgeClient()),
+            output_configs=[_CORRECTNESS_CONFIG],
+            prompt_name="correctness",
+        )
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        await work_item.execute()
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert run.output["task_output"]["label"] == "correct"
+        assert [
+            (a.name, a.annotator_kind, a.label, a.score, a.explanation) for a in annotations
+        ] == [("correctness", "LLM", "correct", 1.0, "matches")]
+        result, chunk = _drain(receive)
+        assert isinstance(result, ChatCompletionSubscriptionResult)
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.evaluator_name == "correctness"
+        assert exp._tasks_succeeded == 1
+
+    async def test_evaluator_exception_persists_errored_run_and_annotation(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.evaluate = AsyncMock(side_effect=RuntimeError("sandbox exploded"))
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        await work_item.execute()
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error == "sandbox exploded"
+        assert run.output == {}
+        assert [(a.name, a.annotator_kind, a.error, a.label, a.score) for a in annotations] == [
+            ("answer-length", "CODE", "sandbox exploded", None, None)
+        ]
+        error, chunk = _drain(receive)
+        assert isinstance(error, ChatCompletionSubscriptionError)
+        assert error.message == "sandbox exploded"
+        assert error.experiment_run is not None
+        assert error.experiment_run.id == run.id
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.error == "sandbox exploded"
+        assert chunk.experiment_run_evaluation is None
+        assert exp._tasks_failed == 1
+        assert exp._tasks_succeeded == 0
+
+    async def test_evaluator_reported_error_is_an_errored_run(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        """An error the evaluator returns (not raises) still lands as an errored run."""
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        now = datetime.now(timezone.utc)
+        error_result: EvaluationResult = {
+            "name": "answer-length",
+            "annotator_kind": "CODE",
+            "label": None,
+            "score": None,
+            "explanation": None,
+            "metadata": {},
+            "error": "Input mapping failed: output",
+            "trace_id": None,
+            "start_time": now,
+            "end_time": now,
+        }
+        evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.evaluate = AsyncMock(return_value=[error_result])
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        await work_item.execute()
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error == "Input mapping failed: output"
+        assert run.output == {}
+        assert [(a.name, a.error) for a in annotations] == [
+            ("answer-length", "Input mapping failed: output")
+        ]
+        error, chunk = _drain(receive)
+        assert isinstance(error, ChatCompletionSubscriptionError)
+        assert error.message == "Input mapping failed: output"
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.error == "Input mapping failed: output"
+        assert exp._tasks_failed == 1
+
+    async def test_exhausted_retries_persist_errored_run_and_annotation(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        evaluator, _ = _code_evaluator()
+        exp = _running_evaluator_experiment(
+            db, experiment, evaluator_task, evaluator, max_retries=0
+        )
+        receive = exp.subscribe()
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+
+        await exp._retry_or_fail(work_item, "timeout")
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error == "timeout after 0 retries"
+        assert [(a.name, a.error) for a in annotations] == [
+            ("answer-length", "timeout after 0 retries")
+        ]
+        error, chunk = _drain(receive)
+        assert isinstance(error, ChatCompletionSubscriptionError)
+        assert error.message == "timeout after 0 retries"
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.evaluator_name == "answer-length"
+        assert chunk.error == "timeout after 0 retries"
+        assert exp._tasks_failed == 1
+
+
+class TestEvaluatorExperimentResume:
+    async def test_ensure_task_buffer_queues_only_incomplete_examples(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        """Resuming a half-finished evaluator experiment queues the examples without a run."""
+        experiment, revisions = evaluator_experiment.experiment, evaluator_experiment.revisions
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        now = datetime.now(timezone.utc)
+        async with db() as session:
+            session.add(
+                models.ExperimentRun(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revisions[0].dataset_example_id,
+                    repetition_number=1,
+                    output={"task_output": {"name": "answer-length", "score": 5.0}},
+                    start_time=now,
+                    end_time=now,
+                    error=None,
+                    trace_id=None,
+                )
+            )
+        evaluator, _ = _code_evaluator()
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+
+        await exp._ensure_task_buffer()
+
+        assert exp._task_db_exhausted is True
+        queued = list(exp._task_queue)
+        assert len(queued) == 1
+        assert isinstance(queued[0], EvaluatorTaskWorkItem)
+        assert (
+            queued[0].dataset_example_revision.dataset_example_id == revisions[1].dataset_example_id
+        )
+        assert queued[0].repetition_number == 1
+        assert queued[0].evaluator is evaluator
+
+    async def test_ensure_task_buffer_dispatches_nothing_without_a_task_evaluator(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment = evaluator_experiment.experiment
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, None)
+
+        await exp._ensure_task_buffer()
+
+        assert exp._task_db_exhausted is True
+        assert not exp._task_queue
+
+
+class TestLoadEvaluatorTaskConfig:
+    async def test_rebuilds_the_evaluator_from_its_frozen_definition(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment = evaluator_experiment.experiment
+        async with db() as session:
+            sandbox_config = models.SandboxConfig(
+                backend_type="WASM",
+                language="PYTHON",
+                name=Identifier("wasm-python"),
+                description=None,
+                config={},
+                timeout=30,
+            )
+            session.add(sandbox_config)
+            await session.flush()
+            sandbox_config_id = sandbox_config.id
+        await _create_evaluator_task(
+            db,
+            experiment.id,
+            definition=_code_definition(
+                "answer-length", [_LENGTH_CONFIG], sandbox_config_id=sandbox_config_id
+            ),
+        )
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda b: b,
+            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+            sandbox_runtime=cast(Any, MagicMock()),
+        )
+
+        with patch(
+            "phoenix.server.api.evaluators.build_sandbox_backend",
+            return_value=MagicMock(),
+        ):
+            async with db() as session:
+                job, llm_client, specs, evaluator = await runner._load_experiment_config(
+                    session, experiment.id, credentials=None
+                )
+
+        assert isinstance(job, models.ExperimentEvaluatorTask)
+        assert job.name == Identifier("answer-length")
+        assert llm_client is _NO_OP_LLM_CLIENT
+        assert specs == []
+        assert isinstance(evaluator, CodeEvaluatorRunner)
+        assert evaluator.name == "answer-length"
+        assert list(evaluator.output_configs) == [_LENGTH_CONFIG]

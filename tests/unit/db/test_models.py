@@ -23,6 +23,7 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
     OutputConfigType,
 )
+from phoenix.db.types.evaluator_definition import InlineCodeEvaluatorDefinition
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
@@ -1774,7 +1775,14 @@ class TestExperimentJobPolymorphism:
                 repetitions=1,
                 metadata_={},
             )
-            session.add_all([exp1, exp2])
+            exp3 = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name=f"evaluator-exp-{token_hex(6)}",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add_all([exp1, exp2, exp3])
             await session.flush()
 
             session.add(
@@ -1791,13 +1799,42 @@ class TestExperimentJobPolymorphism:
                 )
             )
             session.add(models.ExperimentEvalOnlyConfig(id=exp2.id))
+            length_config = ContinuousOutputConfig(
+                type="CONTINUOUS",
+                name="length",
+                optimization_direction=OptimizationDirection.MAXIMIZE,
+                description=None,
+                lower_bound=0.0,
+                upper_bound=None,
+            )
+            definition = InlineCodeEvaluatorDefinition(
+                type="inline_code_evaluator",
+                name="answer-length",
+                description=None,
+                language="PYTHON",
+                source_code="def evaluate(output):\n    return len(output)",
+                sandbox_config_id=1,
+                output_configs=[length_config],
+            )
+            session.add(
+                models.ExperimentEvaluatorTask(
+                    id=exp3.id,
+                    name=Identifier("answer-length"),
+                    evaluator_kind="CODE",
+                    definition=definition,
+                    input_mapping=InputMapping(
+                        literal_mapping={}, path_mapping={"output": "$.output"}
+                    ),
+                    output_configs=[length_config],
+                )
+            )
             await session.flush()
-            exp1_id, exp2_id = exp1.id, exp2.id
+            exp1_id, exp2_id, exp3_id = exp1.id, exp2.id, exp3.id
 
         # Query base class returns correct subclass types
         async with db() as session:
             configs = (await session.scalars(select(models.ExperimentJob))).all()
-            assert len(configs) == 2
+            assert len(configs) == 3
             by_id = {c.id: c for c in configs}
 
             prompt_config = by_id[exp1_id]
@@ -1810,6 +1847,17 @@ class TestExperimentJobPolymorphism:
             assert isinstance(eval_config, models.ExperimentEvalOnlyConfig)
             assert not isinstance(eval_config, models.ExperimentPromptTask)
             assert eval_config.type == "EVAL_ONLY"
+
+            evaluator_task = by_id[exp3_id]
+            assert isinstance(evaluator_task, models.ExperimentEvaluatorTask)
+            assert not isinstance(evaluator_task, models.ExperimentPromptTask)
+            assert evaluator_task.type == "EVALUATOR"
+            await session.refresh(evaluator_task)
+            assert evaluator_task.name == Identifier("answer-length")
+            assert evaluator_task.evaluator_kind == "CODE"
+            assert evaluator_task.definition == definition
+            assert evaluator_task.input_mapping.path_mapping == {"output": "$.output"}
+            assert evaluator_task.output_configs == [length_config]
 
 
 class TestJSONBReflection:
