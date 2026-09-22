@@ -3434,6 +3434,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
             turn_final_output_text: str | None = None
             turn_is_terminal = False
+            turn_error_text: str | None = None
 
             async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
                 nonlocal turn_final_output_text, turn_is_terminal
@@ -3614,6 +3615,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         assert _is_async_generator(raw_stream)
 
                         async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                            nonlocal turn_error_text
                             # A client that stops the turn never receives the completion
                             # metadata, so the trace context is sent up front.
                             turn_trace_context_streamed = resolved_turn_trace_context is None
@@ -3624,6 +3626,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             forced_skills_streamed = not forced_skills
                             async with aclosing(raw_stream) as stream:
                                 async for agent_message_chunk in stream:
+                                    if isinstance(agent_message_chunk, ErrorChunk):
+                                        turn_error_text = (
+                                            agent_message_chunk.error_text.strip()
+                                            or "Agent run failed"
+                                        )
                                     if isinstance(agent_message_chunk, ToolInputAvailableChunk):
                                         chunk = agent_message_chunk
                                         chunk.provider_metadata = _get_updated_provider_metadata(
@@ -3704,8 +3711,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     raise
                 finally:
                     heartbeat_task.cancel()
-                    # Disconnect cancellation re-fires at every await; shield so cleanup completes.
-                    with anyio.CancelScope(shield=turn_interrupted):
+                    # A disconnect can cancel any await here, including one arriving
+                    # after the last chunk was sent; shield so cleanup completes.
+                    with anyio.CancelScope(shield=True):
                         if turn_interrupted and not turn_persisted:
                             await _persist_interrupted_turn()
                         await _release_agent_session_turn_lock(
@@ -3716,7 +3724,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             if not summary_task.done():
                                 summary_task.cancel()
                         if tracer is not None:
-                            if turn_is_terminal or stream_error is not None:
+                            turn_error_message = (
+                                (str(stream_error) or type(stream_error).__name__)
+                                if stream_error is not None
+                                else turn_error_text
+                            )
+                            if turn_is_terminal or turn_error_message is not None:
                                 turn_output_text = (
                                     turn_final_output_text
                                     if turn_is_terminal
@@ -3728,11 +3741,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                     session_id=otel_session_id,
                                     input_text=_get_last_user_text(transcript_messages),
                                     output_text=turn_output_text,
-                                    error_message=(
-                                        None
-                                        if stream_error is None
-                                        else (str(stream_error) or type(stream_error).__name__)
-                                    ),
+                                    error_message=turn_error_message,
                                     end_time=datetime.now(timezone.utc),
                                     user_email=phoenix_user_email if instrument_user_id else None,
                                 )

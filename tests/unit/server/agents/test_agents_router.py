@@ -22,6 +22,7 @@ from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
 from pydantic import ValidationError
+from pydantic_ai import RunContext, Tool
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -32,6 +33,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
@@ -5273,3 +5275,79 @@ async def test_the_persisted_user_message_records_the_turns_ui_state(
     phoenix_metadata = user_message["metadata"]["phoenix"]
     assert phoenix_metadata["uiContexts"]["project"]["projectNodeId"] == "UHJvamVjdDox"
     assert phoenix_metadata["editPermission"] == "bypass"
+
+
+def _mock_datetime_tool_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serve a traced model whose chat turn calls ``get_current_datetime``."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        yield {1: DeltaToolCall(name="get_current_datetime", json_args="{}")}
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[])
+
+    async def _fake_build_model(
+        *args: object,
+        tracer_provider: TracerProvider | None = None,
+        **kwargs: object,
+    ) -> OpenInferenceModelWrapper:
+        provider = tracer_provider if tracer_provider is not None else TracerProvider()
+        tracer = OITracer(provider.get_tracer(__name__), config=TraceConfig())
+        return OpenInferenceModelWrapper(
+            FunctionModel(function=function, stream_function=stream_function), tracer=tracer
+        )
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+
+async def test_failed_server_tool_call_records_an_error_tool_span(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A server tool that raises ends the turn, so the trace still gets its
+    ``pxi.turn`` root and the failed TOOL span is not left orphaned."""
+    from phoenix.server.agents.capabilities.tools.internal import current_datetime
+
+    async def broken_tool(ctx: RunContext[Any]) -> Any:
+        raise RuntimeError("INTENTIONAL_PXI_RCA_PLANT: get_current_datetime is broken")
+
+    def patched_init(self: Any) -> None:
+        FunctionToolset.__init__(
+            self, tools=[Tool(broken_tool, name="get_current_datetime", takes_ctx=True)]
+        )
+
+    monkeypatch.setattr(current_datetime.GetCurrentDatetimeToolset, "__init__", patched_init)
+    await _enable_local_trace_recording(app)
+    _mock_datetime_tool_model(monkeypatch)
+    session_id = "78787878-7878-4878-8878-787878787878"
+    agent_session_id = await _create_agent_session_row(db, title="Already titled", messages=[])
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("what time is it"), recordLocalTraces=True),
+    )
+    assert response.status_code == 200
+    error_chunk = next(chunk for chunk in _stream_chunks(response.text) if chunk["type"] == "error")
+    assert "INTENTIONAL_PXI_RCA_PLANT" in error_chunk["errorText"]
+
+    async with db() as session:
+        spans = (await session.scalars(select(models.Span))).all()
+
+    root = next(span for span in spans if span.parent_id is None)
+    assert root.name == "pxi.turn"
+    assert root.status_code == "ERROR"
+    assert "INTENTIONAL_PXI_RCA_PLANT" in (root.status_message or "")
+    tool_spans = [span for span in spans if span.span_kind == "TOOL"]
+    assert len(tool_spans) == 1
+    (tool_span,) = tool_spans
+    assert tool_span.name == "get_current_datetime"
+    assert tool_span.status_code == "ERROR"
+    assert tool_span.parent_id == root.span_id
+    (exception_event,) = tool_span.events
+    assert exception_event["name"] == "exception"
+    assert exception_event["attributes"]["exception.type"] == "RuntimeError"
