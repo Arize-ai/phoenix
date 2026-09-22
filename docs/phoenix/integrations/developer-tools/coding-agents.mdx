@@ -6,7 +6,7 @@ description: Integrate Phoenix with AI coding assistants using CLI, MCP, and ski
 Use this guide to connect coding agents (Claude Code, Codex, Cursor, VS Code, Windsurf, and others) to Phoenix for debugging, observability, and evaluation workflows. If you haven't instrumented your app yet, start with [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup).
 
 <Note>
-This page sets up your coding agent to **operate on Phoenix** — reading traces, experiments, and datasets via the CLI, MCP, and skills. To instead **trace your sessions with a coding agent** (turns, tool calls, and token costs), see [Coding Agents](/docs/phoenix/integrations/coding-agents/claude-code).
+This page sets up your coding agent to **operate on Phoenix**: reading traces, experiments, and datasets via the CLI, MCP, and skills. To instead **trace your sessions with a coding agent** (turns, tool calls, and token costs), see [Coding Agents](/docs/phoenix/integrations/coding-agents/claude-code).
 </Note>
 
 ## Recommended Setup
@@ -27,11 +27,11 @@ Phoenix connects to a coding agent through three pieces. Most setups use all thr
 
 How you install them depends on your agent. For agents that have a plugin system, the Phoenix repository is also a plugin marketplace, and the plugin is the fastest way to set up the MCP server (and, for Claude Code, the skills):
 
-- **Claude Code** — install the [Phoenix plugin](#claude-code). It registers the Phoenix MCP server and the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so the only piece left to add is the [CLI](#cli).
-- **Codex** — install the [Phoenix plugin](#codex). It registers the Phoenix MCP server; add the [CLI](#cli) and [skills](#skills) yourself.
-- **Every other agent** (Cursor, VS Code, Windsurf, and more) — follow the [CLI](#cli), [MCP](#mcp), and [Skills](#skills) sections below.
+- **Claude Code**: install the [Phoenix plugin](#claude-code). It registers the Phoenix MCP server and the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so the only piece left to add is the [CLI](#cli).
+- **Codex**: install the [Phoenix plugin](#codex). It registers the Phoenix MCP server; add the [CLI](#cli) and [skills](#skills) yourself.
+- **Every other agent** (Cursor, VS Code, Windsurf, and more): follow the [CLI](#cli), [MCP](#mcp), and [Skills](#skills) sections below.
 
-Both plugins connect to the MCP endpoint built into the Phoenix server, which requires **Phoenix 19.0.0 or later**. Neither includes the [Phoenix Docs MCP](#phoenix-docs-mcp-documentation-access) for documentation lookup — add that separately if you want it.
+Both plugins connect to the MCP endpoint built into the Phoenix server, which requires **Phoenix 19.0.0 or later**. Neither includes the [Phoenix Docs MCP](#phoenix-docs-mcp-documentation-access) for documentation lookup. Add that separately if you want it.
 
 <Note>
 **The plugins are optional.** You don't have to add a marketplace to use Phoenix from Claude Code or Codex. If you'd rather not, or want only some of the pieces, install them individually: the [CLI](#cli), [MCP](#mcp), and [Skills](#skills) sections below work for Claude Code and Codex exactly as they do for every other agent. The plugin just bundles the MCP and skills steps into one install that stays up to date.
@@ -46,15 +46,15 @@ Every setup on this page needs the **endpoint** of your Phoenix instance: the ba
 | Local Phoenix (`phoenix serve`) | `http://localhost:6006` | `http://localhost:6006/mcp` |
 | Deployed Phoenix | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
 
-Enter the endpoint column, never the `/mcp` column — the plugins and the `px` CLI append `/mcp` themselves. A local Phoenix works with the defaults everywhere below; the API key is only required when auth is enabled.
+Enter the endpoint column, never the `/mcp` column. The plugins and the `px` CLI append `/mcp` themselves. A local Phoenix works with the defaults everywhere below; the API key is only required when auth is enabled.
 
 ## Claude Code
 
 The Phoenix repository is a [Claude Code plugin marketplace](https://code.claude.com/docs/en/discover-plugins). The `arize-phoenix` plugin registers the Phoenix MCP server and the Phoenix skills in one install, and because the marketplace is versioned in the repository, Claude Code updates both as new versions land.
 
-Using the plugin is optional. To set things up piece by piece instead — or to skip the marketplace entirely — register the MCP server by hand with `claude mcp add` as shown on the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) page, and add skills with [`skills add`](#skills). The result is the same; the plugin only saves the steps and keeps them updated.
+Using the plugin is optional. To set things up piece by piece instead, or to skip the marketplace entirely, register the MCP server by hand with `claude mcp add` as shown on the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) page, and add skills with [`skills add`](#skills). The result is the same; the plugin only saves the steps and keeps them updated.
 
-**Prerequisites:** Phoenix 19.0.0 or later, and a current Claude Code — if `/plugin` is not recognized, update Claude Code first. Steps 1, 2, and 4 are slash commands typed inside a Claude Code session; the shell equivalents follow the steps.
+**Prerequisites:** Phoenix 19.0.0 or later, and a current Claude Code. If `/plugin` is not recognized, update Claude Code first. Steps 1, 2, and 4 are slash commands typed inside a Claude Code session; the shell equivalents follow the steps.
 
 ### Install the Plugin
 
@@ -76,7 +76,7 @@ Using the plugin is optional. To set things up piece by piece instead — or to 
     Claude Code asks for a scope: **user** for all your projects, **project** to share it with collaborators through `.claude/settings.json`, or **local** for this repository only.
   </Step>
   <Step title="Set your Phoenix endpoint">
-    Claude Code prompts for one setting, **Phoenix endpoint**, as it enables the plugin. Enter [your Phoenix endpoint](#find-your-phoenix-endpoint) — the base URL only, with no trailing slash — or keep the default `http://localhost:6006` for a local Phoenix. The plugin appends `/mcp` itself:
+    Claude Code prompts for one setting, **Phoenix endpoint**, as it enables the plugin. Enter [your Phoenix endpoint](#find-your-phoenix-endpoint), the base URL only with no trailing slash, or keep the default `http://localhost:6006` for a local Phoenix. The plugin appends `/mcp` itself:
 
     | You enter | The plugin connects to |
     | --------- | ---------------------- |
@@ -88,7 +88,7 @@ Using the plugin is optional. To set things up piece by piece instead — or to 
   <Step title="Verify">
     Run `/mcp` and select **phoenix**. If your Phoenix has auth enabled, a browser window opens to sign in with your Phoenix account; without auth, it connects straight away. The server is ready once `/mcp` shows it as connected.
 
-    To see everything the plugin added — the MCP server and the three skills — run `claude plugin details arize-phoenix@arize-phoenix` in your shell. It also reports what the plugin adds to your context window.
+    To see everything the plugin added (the MCP server and the three skills), run `claude plugin details arize-phoenix@arize-phoenix` in your shell. It also reports what the plugin adds to your context window.
   </Step>
 </Steps>
 
@@ -98,12 +98,12 @@ To script the install instead, run the shell equivalents `claude plugin marketpl
 
 | Component | What it is |
 | --------- | ---------- |
-| `phoenix` MCP server | Streamable HTTP to `<your-endpoint>/mcp` — the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) built into Phoenix 19.0.0 and later. |
+| `phoenix` MCP server | Streamable HTTP to `<your-endpoint>/mcp`, the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) built into Phoenix 19.0.0 and later. |
 | `phoenix-cli` skill | Fetching traces, inspecting datasets and experiments, and querying GraphQL with the `px` CLI. |
 | `phoenix-evals` skill | Building and running evaluators. |
 | `phoenix-tracing` skill | Instrumenting apps with OpenInference. |
 
-These are the same skills described under [Skills](#skills), so you don't need `skills add` for them in Claude Code. Two things the plugin does **not** include: the [`px` CLI](#cli), which the `phoenix-cli` skill needs on your `PATH`, and the [Phoenix Docs MCP](#phoenix-docs-mcp-documentation-access) — add either separately.
+These are the same skills described under [Skills](#skills), so you don't need `skills add` for them in Claude Code. Two things the plugin does **not** include: the [`px` CLI](#cli), which the `phoenix-cli` skill needs on your `PATH`, and the [Phoenix Docs MCP](#phoenix-docs-mcp-documentation-access). Add either separately.
 
 ### Change the Endpoint
 
@@ -126,14 +126,14 @@ To change it afterward, run `/plugin configure` inside Claude Code, or edit `plu
 ```
 
 <Note>
-This setting configures the MCP server only. The `px` CLI that the `phoenix-cli` skill drives reads `PHOENIX_ENDPOINT` and `PHOENIX_API_KEY` from your shell, so export those as well — see [Shared Environment Configuration](#shared-environment-configuration).
+This setting configures the MCP server only. The `px` CLI that the `phoenix-cli` skill drives reads `PHOENIX_ENDPOINT` and `PHOENIX_API_KEY` from your shell, so export those as well. See [Shared Environment Configuration](#shared-environment-configuration).
 </Note>
 
 ### Authentication
 
 When your Phoenix has auth enabled, the plugin's MCP server signs in with OAuth in the browser the first time you use it; the plugin has no slot for an API key. When Phoenix runs without auth, no login happens.
 
-For a headless environment where no browser can open — CI, a remote machine — don't use the plugin's server. Register one that sends your API key as a bearer token instead:
+For a headless environment where no browser can open (CI, a remote machine), don't use the plugin's server. Register one that sends your API key as a bearer token instead:
 
 ```bash
 px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
@@ -148,15 +148,15 @@ claude plugin update arize-phoenix@arize-phoenix     # pull the latest version
 claude plugin uninstall arize-phoenix@arize-phoenix  # remove the plugin
 ```
 
-To work on the plugin itself, add the marketplace from a checkout with `/plugin marketplace add ./` at the repository root — note the `./`, since a bare `.` is rejected — and check your changes with `claude plugin validate plugins/claude/arize-phoenix`. The catalog is [`.claude-plugin/marketplace.json`](https://github.com/Arize-ai/phoenix/blob/main/.claude-plugin/marketplace.json) and the plugin lives in [`plugins/claude/arize-phoenix`](https://github.com/Arize-ai/phoenix/tree/main/plugins/claude/arize-phoenix).
+To work on the plugin itself, add the marketplace from a checkout with `/plugin marketplace add ./` at the repository root (note the `./`, since a bare `.` is rejected), and check your changes with `claude plugin validate plugins/claude/arize-phoenix`. The catalog is [`.claude-plugin/marketplace.json`](https://github.com/Arize-ai/phoenix/blob/main/.claude-plugin/marketplace.json) and the plugin lives in [`plugins/claude/arize-phoenix`](https://github.com/Arize-ai/phoenix/tree/main/plugins/claude/arize-phoenix).
 
 ## Codex
 
-The same repository is a [Codex plugin marketplace](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli). The `arize-phoenix` plugin registers the Phoenix MCP server in Codex. It does not ship skills — add those with [`skills add`](#skills), passing `-a codex`.
+The same repository is a [Codex plugin marketplace](https://developers.openai.com/plugins/build/plugins#add-a-marketplace-from-the-cli). The `arize-phoenix` plugin registers the Phoenix MCP server in Codex. It does not ship skills. Add those with [`skills add`](#skills), passing `-a codex`.
 
 Using the plugin is optional. To skip the marketplace, add the MCP server to `~/.codex/config.toml` by hand as shown on the [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) page, and install the [CLI](#cli) and [skills](#skills) individually.
 
-**Prerequisites:** Phoenix 19.0.0 or later, and Node.js — the plugin starts its MCP bridge with `npx`. The `codex plugin` commands below run in your shell.
+**Prerequisites:** Phoenix 19.0.0 or later, and Node.js. The plugin starts its MCP bridge with `npx`. The `codex plugin` commands below run in your shell.
 
 ### Install the Plugin
 
@@ -176,7 +176,7 @@ Using the plugin is optional. To skip the marketplace, add the MCP server to `~/
     Codex caches the plugin under `~/.codex/plugins/cache/arize-phoenix/arize-phoenix/<version>` and enables it in `~/.codex/config.toml`. You can also browse and install from the `/plugins` browser inside Codex.
   </Step>
   <Step title="Export your Phoenix endpoint">
-    The Codex plugin has no settings dialog; it reads [your Phoenix endpoint](#find-your-phoenix-endpoint) from `PHOENIX_ENDPOINT` — the same variable the `px` CLI reads. Export it, and your API key if auth is enabled, in the shell you launch Codex from:
+    The Codex plugin has no settings dialog; it reads [your Phoenix endpoint](#find-your-phoenix-endpoint) from `PHOENIX_ENDPOINT`, the same variable the `px` CLI reads. Export it, and your API key if auth is enabled, in the shell you launch Codex from:
 
     ```bash
     export PHOENIX_ENDPOINT=https://phoenix.example.com   # base URL only; the plugin appends /mcp
@@ -222,7 +222,7 @@ To work on the plugin itself, add the marketplace from a checkout with `codex pl
 
 ## Shared Environment Configuration
 
-Set environment variables to connect to your Phoenix instance. `PHOENIX_ENDPOINT` is [your Phoenix endpoint](#find-your-phoenix-endpoint) — the base URL, with no path:
+Set environment variables to connect to your Phoenix instance. `PHOENIX_ENDPOINT` is [your Phoenix endpoint](#find-your-phoenix-endpoint), the base URL, with no path:
 
 ```bash
 export PHOENIX_ENDPOINT=http://localhost:6006    # Your Phoenix endpoint
@@ -270,7 +270,7 @@ Phoenix offers a few MCP integrations, and they serve different goals.
 | MCP Integration | Purpose | When to use |
 |---|---|---|
 | `Phoenix Docs MCP` | Search Phoenix documentation from your coding agent | Recommended for all users |
-| [`Remote MCP Server`](/docs/phoenix/integrations/remote-mcp) (beta) | Operate directly on your Phoenix instance via the `/mcp` endpoint built into the server — no install | Primary choice for Phoenix data operations |
+| [`Remote MCP Server`](/docs/phoenix/integrations/remote-mcp) (beta) | Operate directly on your Phoenix instance via the `/mcp` endpoint built into the server, no install | Primary choice for Phoenix data operations |
 | `Phoenix MCP Server` (npm, maintenance mode) | Operate directly on your Phoenix instance via a local stdio `npx` server | Only with Phoenix versions that don't serve `/mcp` |
 
 ### Phoenix Docs MCP (Documentation Access)
@@ -358,8 +358,8 @@ Reference docs: [Claude Code MCP](https://docs.anthropic.com/en/docs/claude-code
 
 For direct operations against your Phoenix instance (traces, sessions, prompts, datasets, experiments, and more), use the dedicated setup guides:
 
-- [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) (beta) — built into the Phoenix server, no install. The primary way to connect going forward. In [Claude Code](#claude-code) and [Codex](#codex), the Phoenix plugin registers this server for you.
-- [Phoenix MCP Server](/docs/phoenix/integrations/phoenix-mcp-server) — the `@arizeai/phoenix-mcp` npm package, in maintenance mode; for Phoenix versions without `/mcp`.
+- [Remote MCP Server](/docs/phoenix/integrations/remote-mcp) (beta): built into the Phoenix server, no install. The primary way to connect going forward. In [Claude Code](#claude-code) and [Codex](#codex), the Phoenix plugin registers this server for you.
+- [Phoenix MCP Server](/docs/phoenix/integrations/phoenix-mcp-server): the `@arizeai/phoenix-mcp` npm package, in maintenance mode; for Phoenix versions without `/mcp`.
 
 <Info>
 Install both MCP integrations if you want your coding agent to both look up docs and perform direct Phoenix instance operations.
@@ -387,7 +387,7 @@ node_modules/@arizeai/phoenix-otel/docs/
 node_modules/@arizeai/phoenix-otel/src/
 ```
 
-This means your agent can look up accurate API signatures, implementations, and usage examples directly from the installed package — ensuring it always uses the version of the SDK that's actually installed in your project.
+This means your agent can look up accurate API signatures, implementations, and usage examples directly from the installed package, ensuring it always uses the version of the SDK that's actually installed in your project.
 
 ## Related
 
@@ -402,6 +402,6 @@ This means your agent can look up accurate API signatures, implementations, and 
     Interact with projects, traces, sessions, prompts, datasets, and experiments via the Phoenix MCP servers.
   </Card>
   <Card title="Coding Agents" icon="terminal" href="/docs/phoenix/integrations/coding-agents/claude-code">
-    Trace your sessions with a coding agent — turns, tool calls, and token costs — with the coding-harness-tracing toolkit.
+    Use the coding-harness-tracing toolkit to trace your sessions with a coding agent: turns, tool calls, and token costs.
   </Card>
 </CardGroup>

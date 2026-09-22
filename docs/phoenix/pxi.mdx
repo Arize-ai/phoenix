@@ -9,19 +9,19 @@ description: >-
 ---
 
 <Frame>
-  ![PXI — Phoenix Intelligence](https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/phoenix_intelligence.png)
+  ![PXI: Phoenix Intelligence](https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/phoenix_intelligence.png)
 </Frame>
 
 <Warning>
 PXI is in **beta**. It can and will make mistakes, and it should be used with
-care — especially on production data. Agent assistance is **opt-in and
+care, especially on production data. Agent assistance is **opt-in and
 controllable**: see [You stay in control](#you-stay-in-control).
 </Warning>
 
 **PXI** (pronounced *"pixie"*, short for **Phoenix Intelligence**) is an AI
 engineering agent built into Phoenix. Instead of manually digging through traces,
 prompts, evaluations, and experiments, you hand the investigation to an agent that
-already understands the context you are looking at — the trace you opened, the
+already understands the context you are looking at: the trace you opened, the
 prompt you are editing, the filters you applied.
 
 Think of it as a coding agent, but pointed at your observability data instead of a
@@ -42,7 +42,7 @@ experiments, authors evaluators, annotates spans, and navigates Phoenix for you.
     [Setup](#setup) for the validated model list.
   </Step>
   <Step title="Open PXI and accept the consent gate">
-    Open the assistant from any Phoenix page — click the assistant button or
+    Open the assistant from any Phoenix page. Click the assistant button or
     press <kbd>⌘I</kbd> (<kbd>Ctrl+I</kbd> on Windows and Linux). The first time,
     you review the session-trace settings and acknowledge to enable the chat
     surface for your browser.
@@ -75,7 +75,7 @@ point:
   messages the text drops back into the input so you can edit and re-send it; on
   a response the chat reverts to that answer and discards what came after.
 - **Branch** forks a new chat from that point and leaves the current one
-  untouched — a way to try an alternative without losing the thread you came
+  untouched, a way to try an alternative without losing the thread you came
   from.
 
 Persisted chats are subject to retention limits an administrator sets under
@@ -85,8 +85,8 @@ for the defaults and how to change them.
 
 ### Over the API
 
-The same sessions are exposed as REST routes under `/v1/agent_sessions` — create,
-list, get, patch, compact, chat, submit tool outputs, and fetch messages — the
+The same sessions are exposed as REST routes under `/v1/agent_sessions`: create,
+list, get, patch, compact, chat, submit tool outputs, and fetch messages. These are the
 endpoints the browser panel and the terminal client both use. See the
 [Agent Sessions API reference](/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions).
 The TypeScript client `@arizeai/phoenix-client` exports an `AGENT_SESSION_*`
@@ -111,7 +111,7 @@ what to do:
 | `agent_session_busy` | Another turn holds the session's lock. Wait for it to finish, or retry once its heartbeat goes stale. |
 | `agent_session_messages_stale` | Another client appended to the transcript. Refetch the messages and retry. |
 | `agent_session_model_stale` | The session's model was switched. Refetch the session and retry. |
-| `agent_session_tool_outputs_conflict` | The submitted tool outputs don't match the pending tool calls — fix the request rather than retry. |
+| `agent_session_tool_outputs_conflict` | The submitted tool outputs don't match the pending tool calls. Fix the request rather than retry. |
 | `agent_session_compaction_conflict` | The conversation changed mid-compaction. Retry. |
 | `agent_session_already_compact` | Nothing left to compact. Not retryable. |
 
@@ -159,8 +159,8 @@ browser agent (sending `headless: true` on its chat turns), so it
 requires a running Phoenix server with a configured model provider.
 On launch it runs a preflight check against the server's model catalog and
 credentials, surfacing configuration problems as a clean error before the chat
-opens. It also requires a Phoenix server on **20.0.0 or newer** — the release
-that introduced persisted agent sessions — and exits at startup with an upgrade
+opens. It also requires a Phoenix server on **20.0.0 or newer**, the release
+that introduced persisted agent sessions, and exits at startup with an upgrade
 message when the connected server is older, rather than failing on the first
 send.
 </Note>
@@ -182,7 +182,7 @@ send.
 | `--attach-user-id` | Attach the authenticated Phoenix user to PXI traces (opt-in; see the **Privacy, safety & configuration** section below). |
 | `--skip-model-preflight` | Skip the model catalog and credential checks before launch. |
 
-Each capability flag is still subject to the server's own settings — for
+Each capability flag is still subject to the server's own settings. For
 example, `--enable-subagents` has no effect when
 `PHOENIX_AGENTS_DISABLE_BASH=true`, and `--export-remote-traces` requires a
 configured collector and an administrator who has allowed export.
@@ -213,8 +213,8 @@ shows the busy indicator and refreshes when the other turn completes.
 
 While a turn streams, the terminal client shows a live **thinking indicator**,
 and once the response settles a bottom-right **context-usage line** reports the
-size of the context PXI is currently carrying — the tokens retained after the
-latest response, not a running total for the turn — preceded by a cache-activity
+size of the context PXI is currently carrying (the tokens retained after the
+latest response, not a running total for the turn), preceded by a cache-activity
 summary when the provider reports cache reads or writes. The active model name
 sits next to the input prompt so you always know which provider and model the
 session is talking to.
@@ -226,25 +226,25 @@ cache-write tokens.
 
 ## What it does
 
-- **Drives the product** — navigates, filters, and pivots through your Phoenix
+- **Drives the product**: navigates, filters, and pivots through your Phoenix
   data the same way you would.
-- **Investigates failures** — walks failing traces and proposes root causes
+- **Investigates failures**: walks failing traces and proposes root causes
   instead of leaving you to grep through spans.
-- **Iterates on prompts** — reads, edits, and tests playground prompts, with
+- **Iterates on prompts**: reads, edits, and tests playground prompts, with
   every change shown as a diff you approve.
-- **Reasons over your data** — a sandboxed runtime lets PXI query your Phoenix
+- **Reasons over your data**: a sandboxed runtime lets PXI query your Phoenix
   instance to answer questions evals and dashboards cannot.
-- **Knows the product** — Phoenix's own documentation is wired in as a
+- **Knows the product**: Phoenix's own documentation is wired in as a
   first-class source, so answers are grounded rather than guessed.
 
-PXI is **context-aware**: it has access to the history already in Phoenix —
+PXI is **context-aware**: it has access to the history already in Phoenix:
 prompt versions, experiment results, datasets, evaluations, annotations, and
-trace data — and its capabilities adapt to the page you are on. What it can do on
+trace data. Its capabilities adapt to the page you are on. What it can do on
 a trace differs from what it can do in the prompt playground.
 
 ## Skills
 
-A **skill** is a reusable, multi-step procedure for one Phoenix workflow — what to
+A **skill** is a reusable, multi-step procedure for one Phoenix workflow: what to
 look at, in what order, and what the output should be. PXI loads the matching
 skill on demand rather than improvising each investigation from scratch.
 
@@ -267,7 +267,7 @@ the [Phoenix roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13
   </Card>
   <Card title="GraphQL queries" icon="code">
     Query the Phoenix API with GraphQL for custom analysis, or get working queries
-    for your own scripts — built on schema patterns that skip introspection.
+    for your own scripts, built on schema patterns that skip introspection.
   </Card>
 </CardGroup>
 
@@ -283,8 +283,8 @@ GitHub issue that links the relevant traces and spans, backed by
 To enable it, add a
 [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 with **Issues read/write** access under **Settings → Assistant → Tools →
-GitHub**. The token stays in your browser — Phoenix never persists
-it — and issues are filed as you. Admins can set a shared workspace token as a
+GitHub**. The token stays in your browser (Phoenix never persists
+it), and issues are filed as you. Admins can set a shared workspace token as a
 fallback, or turn the feature off with the **GitHub tools** switch on the same
 tab. In the terminal, set `githubPersonalAccessToken` in
 your `~/.px/settings.json` profile; issue creation there requires
@@ -298,7 +298,7 @@ and body before anything is posted.
 Agent assistance is opt-in. PXI can be turned off completely, runs under an
 explicit permission model, and only reaches the internet when you let it.
 
-<Frame caption="Settings → Assistant — workspace and personal assistant controls, organized into topical tabs.">
+<Frame caption="Settings → Assistant: workspace and personal assistant controls, organized into topical tabs.">
   ![PXI assistant settings](https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/assistant_settings.png)
 </Frame>
 
@@ -308,7 +308,7 @@ explicit permission model, and only reaches the internet when you let it.
   (**Settings → Assistant → General → Use assistant**).
 - **State-changing actions are gated by approval.** Saving a prompt, creating or
   replacing an annotation config, writing dataset examples, submitting an
-  evaluator — each is proposed as a reviewable diff or card and applied only when
+  evaluator. Each is proposed as a reviewable diff or card and applied only when
   you accept, under an edit-approval mode you pick from the chat input (or cycle
   with `Ctrl+T`). Read-only actions run freely.
 - **Add web grounding when you want it.** Toggle **web access** with the globe
@@ -333,14 +333,14 @@ Bedrock credentials, or a custom provider under **Settings → Models**). The
 consent gate shown the first time you open PXI enables the chat surface for that
 browser; it does not override system settings.
 
-PXI relies heavily on **tool calling** — almost every action it takes is a tool
+PXI relies heavily on **tool calling**. Almost every action it takes is a tool
 call. Models that are weak at tool use produce broken sessions even if they
 handle free-form chat well. Pick one of these validated models unless you have a
 specific reason not to:
 
-- **Anthropic** — `claude-fable-5-1`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
-- **OpenAI** — `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
-- **Google** — `gemini-3.7-flash`, `gemini-3.1-pro-preview`
+- **Anthropic**: `claude-fable-5-1`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
+- **OpenAI**: `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
+- **Google**: `gemini-3.7-flash`, `gemini-3.1-pro-preview`
 
 Other built-in or custom-provider models can be selected from the model menu,
 but they are untested with PXI and may fail to invoke tools correctly.
@@ -350,7 +350,7 @@ but they are untested with PXI and may fail to invoke tools correctly.
 PXI is split between the Phoenix server, which owns everything the model sees
 (tool definitions, system prompt, skills, capability guidance), and the browser,
 which executes tool calls that touch the page. Capabilities are gated by
-**context** — PXI only advertises a tool when the required Phoenix UI context is
+**context**: PXI only advertises a tool when the required Phoenix UI context is
 present, so it does not offer an action that cannot succeed on your current page.
 
 <AccordionGroup>
@@ -392,10 +392,10 @@ present, so it does not offer an action that cannot succeed on your current page
       MCP --> Docs
   ```
 
-  The server hosts the agent and everything the model sees — its **tools**,
+  The server hosts the agent and everything the model sees: its **tools**,
   **skills**, an **MCP** client, and a sandboxed **bash** shell. Bash runs in an
   in-process virtual shell on the server with networking disabled; inside it the
-  **phoenix-gql** builtin queries the Phoenix **GraphQL API** directly — the same
+  **phoenix-gql** builtin queries the Phoenix **GraphQL API** directly, the same
   schema a logged-in user hits. The browser owns the chat UI and runs the tool
   calls that touch the page you are on: applying filters, navigating, and driving
   the playground. The server calls your LLM provider with your API key and, when
@@ -405,12 +405,12 @@ present, so it does not offer an action that cannot succeed on your current page
   <Accordion title="Runs entirely on your Phoenix">
   PXI runs **inside the Phoenix process you are already running**:
 
-  - Tool calls execute against your Phoenix server and your data — no separate
+  - Tool calls execute against your Phoenix server and your data. No separate
     Arize service is involved.
   - The LLM is **your model provider**, called with **your API key**. Arize is
     not in the request path.
   - Documentation lookups go to the **Mintlify-hosted Phoenix docs MCP server**
-    when external resources are allowed — the same public docs you can read in a
+    when external resources are allowed, the same public docs you can read in a
     browser, serving docs only.
   - Remote trace export happens **only if every gate is enabled**: a remote
     collector is configured, an administrator allows export in system settings,
@@ -436,8 +436,8 @@ present, so it does not offer an action that cannot succeed on your current page
   what PXI did and evaluate it like any other agent in Phoenix.
 
   **Attach your identity (opt-in).** Session traces are anonymous by default. If
-  you want to associate a session with the signed-in user — for example to
-  attribute recorded sessions to a specific person — enable **Attach your email
+  you want to associate a session with the signed-in user (for example to
+  attribute recorded sessions to a specific person), enable **Attach your email
   to session traces** under **Settings → Assistant → Tracing & privacy**. From
   the terminal client the same opt-in is the `--attach-user-id` flag. It is off
   unless you turn it on.
@@ -453,10 +453,10 @@ present, so it does not offer an action that cannot succeed on your current page
 
   <Accordion title="Safety limits">
   - **Verify before you act.** PXI can apply filters, edit prompts, and run
-    bash. Review proposed changes — especially prompt edits — before accepting.
+    bash. Review proposed changes, especially prompt edits, before accepting.
   - **Bash runs on the server.** PXI's bash tool executes in an in-process
     virtual shell on the Phoenix server, with networking disabled and scoped to a
-    scratch workspace — it does not reach a host machine, a container, or the
+    scratch workspace. It does not reach a host machine, a container, or the
     internet. Set `PHOENIX_AGENTS_DISABLE_BASH=true` to remove it (see the
     configuration reference below).
   - **Don't point it at sensitive production data without controls.** PXI sees
@@ -481,9 +481,9 @@ present, so it does not offer an action that cannot succeed on your current page
   | `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project name for locally recorded assistant traces (default `assistant_agent`). |
 
   When `phoenix serve` starts, it prints the assistant's effective configuration
-  as part of the boot banner — whether the agent is enabled, the trace project,
+  as part of the boot banner: whether the agent is enabled, the trace project,
   local and remote trace settings, web access, and whether server-side bash is
-  on — so you can confirm what a deployment resolved to. A malformed
+  on, so you can confirm what a deployment resolved to. A malformed
   `PHOENIX_AGENTS_*` value fails the server at startup, before migrations run,
   rather than surfacing later at request time.
   </Accordion>

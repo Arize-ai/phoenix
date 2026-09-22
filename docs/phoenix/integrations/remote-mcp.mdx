@@ -1,15 +1,15 @@
 ---
 title: "Remote MCP Server"
-description: "Connect AI assistants directly to your Phoenix instance through the MCP endpoint built into the Phoenix server — no local install required."
+description: "Connect AI assistants directly to your Phoenix instance through the MCP endpoint built into the Phoenix server, with no local install required."
 tag: "BETA"
 ---
 
-Phoenix ships a remote [MCP](https://modelcontextprotocol.io/) server built directly into the Phoenix server. Point any MCP-compatible client (Claude Code, Cursor, VS Code, and others) at your Phoenix instance's `/mcp` endpoint and it can search, query, and operate on your projects, traces, datasets, experiments, prompts, and annotations — everything the Phoenix REST API can do.
+Phoenix ships a remote [MCP](https://modelcontextprotocol.io/) server built directly into the Phoenix server. Point any MCP-compatible client (Claude Code, Cursor, VS Code, and others) at your Phoenix instance's `/mcp` endpoint and it can search, query, and operate on your projects, traces, datasets, experiments, prompts, and annotations: everything the Phoenix REST API can do.
 
 <Warning>
 **The remote MCP server is in beta.** We are still tuning the tools and building out agent skills around them, so tool names, behavior, and defaults may change between releases. It ships enabled by default, and you can [turn it off or restrict it](#configuration) with environment variables.
 
-Feedback is very welcome — please [open a GitHub issue](https://github.com/Arize-ai/phoenix/issues) with what worked, what didn't, and what you'd like the tools to do.
+Feedback is very welcome. Please [open a GitHub issue](https://github.com/Arize-ai/phoenix/issues) with what worked, what didn't, and what you'd like the tools to do.
 </Warning>
 
 <Note>
@@ -31,12 +31,12 @@ The `/mcp` endpoint requires **Phoenix 19.0.0 or later**. On older servers, upgr
 
 ## Connect
 
-Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure — add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
+Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure. Add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
 
 A client that follows the MCP authorization spec finds all of this on its own: the endpoint advertises [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) protected-resource metadata at `/.well-known/oauth-protected-resource/mcp`, which points at Phoenix's authorization server. See [Agent Authentication Discovery](/docs/phoenix/self-hosting/features/authentication#agent-authentication-discovery) for the full set of discovery endpoints.
 
 <Tip>
-  The [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) automates the steps below for Claude Code, Codex, Gemini, Cursor, OpenCode, and VS Code — it infers your endpoint and writes each agent's config for you:
+  The [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) automates the steps below for Claude Code, Codex, Gemini, Cursor, OpenCode, and VS Code. It infers your endpoint and writes each agent's config for you:
 
   ```bash
   px setup mcp --agent claude   # or codex, gemini, cursor, opencode, vscode
@@ -173,7 +173,7 @@ A client that follows the MCP authorization spec finds all of this on its own: t
     </Steps>
 
     <Note>
-      This is **Gemini CLI**, Google's terminal agent — not **Antigravity** (below), which is a separate tool that also writes under `~/.gemini/` but uses an API key rather than OAuth.
+      This is **Gemini CLI**, Google's terminal agent, not **Antigravity** (below), which is a separate tool that also writes under `~/.gemini/` but uses an API key rather than OAuth.
     </Note>
   </Accordion>
 
@@ -234,7 +234,7 @@ In JSON-based client configs, set the equivalent header:
 
 ## How it works
 
-Instead of exposing dozens of individual tools, the server presents a compact **code-mode** surface by default — five tools that let the agent discover and compose Phoenix operations:
+Instead of exposing dozens of individual tools, the server presents a compact **code-mode** surface by default: five tools that let the agent discover and compose Phoenix operations:
 
 | Tool         | Purpose                                                              |
 | ------------ | -------------------------------------------------------------------- |
@@ -294,7 +294,7 @@ PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
 
 Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the MCP server's instructions and in the Phoenix Assistant's skill picker.
 
-The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls — a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
+The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls: a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
 
 ## Security notes
 
@@ -305,7 +305,7 @@ The browser-login flow is served by Phoenix's built-in OAuth2 authorization serv
 ## Inspecting the server with MCP Inspector
 
 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is the official tool for
-exercising an MCP server by hand — list its tools, read their schemas, and call them without
+exercising an MCP server by hand: list its tools, read their schemas, and call them without
 wiring up a full client. It's the fastest way to confirm the Phoenix `/mcp` endpoint is reachable,
 that auth works, and that a tool returns what you expect.
 
@@ -315,7 +315,7 @@ that auth works, and that a tool returns what you expect.
     npx @modelcontextprotocol/inspector
     ```
 
-    This starts the Inspector and opens it in your browser. No install step — `npx` fetches it on
+    This starts the Inspector and opens it in your browser. No install step: `npx` fetches it on
     demand.
   </Step>
   <Step title="Connect to the Phoenix endpoint">
@@ -325,12 +325,12 @@ that auth works, and that a tool returns what you expect.
     - **URL**: `http://localhost:6006/mcp` (or your deployment's base URL plus `/mcp`)
 
     Click **Connect**. If authentication is enabled on your Phoenix, the Inspector runs the OAuth
-    browser flow automatically — you approve the same consent page your other clients use, and it
+    browser flow automatically. You approve the same consent page your other clients use, and it
     stores the resulting token for the session.
   </Step>
   <Step title="Explore the tools">
     Open the **Tools** tab and click **List Tools**. With code mode on (the default) you'll see the
-    discovery surface — `search`, `tags`, `list_tools`, `get_schema`, and `execute`. Select any
+    discovery surface: `search`, `tags`, `list_tools`, `get_schema`, and `execute`. Select any
     tool, fill in its parameters, and click **Run Tool** to see the raw result.
 
     For example, call `search` with `{ "query": "latest traces" }` to find the relevant operation,
@@ -339,7 +339,7 @@ that auth works, and that a tool returns what you expect.
 </Steps>
 
 <Tip>
-Prefer to pass a token yourself instead of the browser flow — for a headless box or CI — expand
+To pass a token yourself instead of the browser flow, for a headless box or CI, expand
 **Authentication** in the connection panel and set a **Bearer Token** to a Phoenix
 [API key](/docs/phoenix/settings/api-keys). The Inspector then sends `Authorization: Bearer <key>`
 and skips OAuth entirely.
@@ -360,7 +360,7 @@ Your Phoenix version predates the MCP server, or it was disabled with `PHOENIX_E
 Re-run the login (`/mcp` in Claude Code, or remove and re-add the server). If you're using the API-key fallback, confirm the key is valid and passed as `Authorization: Bearer <key>`.
 
 **Server not appearing in your client:**
-Restart the client and verify the config file syntax — most clients only reload MCP config on startup.
+Restart the client and verify the config file syntax. Most clients only reload MCP config on startup.
 
 ## Relationship to `@arizeai/phoenix-mcp`
 
