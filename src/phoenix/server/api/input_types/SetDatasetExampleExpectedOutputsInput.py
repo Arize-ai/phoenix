@@ -6,14 +6,14 @@ from strawberry.relay import GlobalID
 
 from phoenix.server.api.exceptions import BadRequest
 
-MAX_CALIBRATION_LABELS_PER_BATCH = 200
+MAX_EXPECTED_OUTPUTS_PER_BATCH = 200
 MAX_ANNOTATION_NAME_LENGTH = 256
 MAX_LABEL_LENGTH = 1024
 MAX_EXPLANATION_LENGTH = 10_000
 
 
 @strawberry.input
-class DatasetExampleCalibrationLabelInput:
+class DatasetExampleExpectedOutputInput:
     """One human expected output to set, or clear when no value is given."""
 
     example_id: GlobalID
@@ -49,23 +49,23 @@ class DatasetExampleCalibrationLabelInput:
 
 
 @strawberry.input
-class SetDatasetExampleCalibrationLabelsInput:
+class SetDatasetExampleExpectedOutputsInput:
     """Set or clear human expected outputs on several examples of one dataset
     in a single dataset version. Applied atomically: one stale revision rejects
     the whole batch."""
 
     dataset_id: GlobalID
-    labels: list[DatasetExampleCalibrationLabelInput]
+    expected_outputs: list[DatasetExampleExpectedOutputInput]
 
     def __post_init__(self) -> None:
-        if not self.labels:
+        if not self.expected_outputs:
             raise BadRequest("Provide at least one expected output.")
-        if len(self.labels) > MAX_CALIBRATION_LABELS_PER_BATCH:
+        if len(self.expected_outputs) > MAX_EXPECTED_OUTPUTS_PER_BATCH:
             raise BadRequest(
-                f"Provide at most {MAX_CALIBRATION_LABELS_PER_BATCH} expected outputs per batch."
+                f"Provide at most {MAX_EXPECTED_OUTPUTS_PER_BATCH} expected outputs per batch."
             )
         seen: set[tuple[str, str]] = set()
-        for item in self.labels:
+        for item in self.expected_outputs:
             key = (str(item.example_id), item.annotation_name)
             if key in seen:
                 raise BadRequest(

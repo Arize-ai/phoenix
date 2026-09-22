@@ -170,6 +170,7 @@ describe("getExperimentsOverDatasetInput", () => {
           evaluator: createPlaygroundEvaluatorTask({
             kind: "CODE",
             name: "no_sql_in_output",
+            description: "Flags SQL in the answer",
             inputMapping: {
               literalMapping: {},
               pathMapping: { output: "output.answer" },
@@ -197,6 +198,7 @@ describe("getExperimentsOverDatasetInput", () => {
     expect(evaluatorTask?.evaluator.inlineLlmEvaluator).toBeUndefined();
     expect(evaluatorTask?.evaluator.inlineCodeEvaluator).toMatchObject({
       name: "no_sql_in_output",
+      description: "Flags SQL in the answer",
       language: "TYPESCRIPT",
       sourceCode: "export function evaluate() { return { label: 'pass' }; }",
       sandboxConfigId: "sandbox-1",
