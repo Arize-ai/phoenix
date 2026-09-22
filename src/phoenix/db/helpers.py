@@ -337,6 +337,8 @@ def get_dataset_example_revisions(
 
 def create_experiment_examples_snapshot_insert(
     experiment: models.Experiment,
+    *,
+    example_ids: Optional[Sequence[int]] = None,
 ) -> Insert:
     """
     Create an INSERT statement to snapshot dataset examples for an experiment.
@@ -346,6 +348,8 @@ def create_experiment_examples_snapshot_insert(
 
     Args:
         experiment: The experiment to create the snapshot for
+        example_ids: When given, only these examples are snapshotted (a run over
+            chosen rows); None snapshots every example the splits allow
 
     Returns:
         SQLAlchemy INSERT statement ready for execution
@@ -376,6 +380,9 @@ def create_experiment_examples_snapshot_insert(
         )
     )
 
+    if example_ids is not None:
+        stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+
     ranked_subquery = stmt.subquery()
     return insert(models.ExperimentDatasetExample).from_select(
         [
@@ -397,13 +404,16 @@ def create_experiment_examples_snapshot_insert(
 async def insert_experiment_with_examples_snapshot(
     session: AsyncSession,
     experiment: models.Experiment,
+    *,
+    example_ids: Optional[Sequence[int]] = None,
 ) -> None:
     """
-    Insert an experiment with its snapshot of dataset examples.
+    Insert an experiment with its snapshot of dataset examples, or of only
+    `example_ids` when given.
     """
     session.add(experiment)
     await session.flush()
-    insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+    insert_stmt = create_experiment_examples_snapshot_insert(experiment, example_ids=example_ids)
     await session.execute(insert_stmt)
 
 

@@ -14,6 +14,10 @@ from .Trace import Trace
 class ChatCompletionSubscriptionPayload:
     dataset_example_id: Optional[GlobalID] = None
     repetition_number: Optional[int] = None
+    experiment_id: Optional[GlobalID] = strawberry.field(
+        default=None,
+        description="The experiment this payload belongs to, on every payload of a dataset run",
+    )
 
 
 @strawberry.type
