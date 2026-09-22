@@ -1,7 +1,5 @@
 import z from "zod";
 
-// The matrix is the only selection source today. `kind` stays in the URL
-// payload so other sources can be added later without invalidating links.
 const compareSelectionSchema = z.object({
   kind: z.literal("matrix"),
   a: z.string(),

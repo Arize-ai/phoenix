@@ -86,15 +86,9 @@ function ProjectEvaluatorComparePageLoaded({
     query: projectEvaluatorCompareLoaderGQL,
     queryRef,
   });
-  // Freeze an open-ended range above the Suspense boundary. If the querying
-  // child owned this hook, every suspended retry would remount it with a new
-  // `now` and issue a different request indefinitely.
+  // Keep Suspense retries on one closed range instead of advancing `now`.
   const timeRange = useClosedTimeRange();
-  // A live range's "now" advances every minute or hour. Deferring it keeps the
-  // current comparison on screen while the refreshed queries load, and nothing
-  // below is keyed on the range, so the comparison subtree refetches in place
-  // and keeps its table state. The Suspense boundary is keyed on the pair
-  // alone, so a new pair still shows the loading state at once.
+  // Keep the current comparison visible while a live range refreshes.
   const deferredTimeRange = useDeferredValue(timeRange);
   const evaluatorA =
     data.evaluatorA?.__typename === "ProjectEvaluator" ? data.evaluatorA : null;

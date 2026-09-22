@@ -122,7 +122,6 @@ import {
 import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
-  /** The trace or session id whose row renders as selected. */
   selectedRowId?: string;
   emptyState?: ReactNode;
   project: TracesTable_spans$key;

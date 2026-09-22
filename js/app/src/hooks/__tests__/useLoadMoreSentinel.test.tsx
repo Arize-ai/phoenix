@@ -43,7 +43,6 @@ function liveObservers() {
   return observers.filter((record) => !record.isDisconnected);
 }
 
-/** Report the sentinel's intersection through the one live observer. */
 function reportIntersection(isIntersecting: boolean) {
   const live = liveObservers();
   expect(live).toHaveLength(1);
@@ -144,7 +143,6 @@ describe("useLoadMoreSentinel", () => {
     render({ loadNext, rows });
     reportIntersection(true);
     expect(loadNext).toHaveBeenCalledTimes(1);
-    // Relay flips isLoadingNext on and off around the failed request
     render({ loadNext, rows, isLoadingNext: true });
     render({ loadNext, rows });
     reportIntersection(true);

@@ -92,7 +92,6 @@ import {
   normalizeAnnotationColumnOrder,
 } from "./tableUtils";
 type SessionsTableProps = {
-  /** The trace or session id whose row renders as selected. */
   selectedRowId?: string;
   emptyState?: ReactNode;
   project: SessionsTable_sessions$key;

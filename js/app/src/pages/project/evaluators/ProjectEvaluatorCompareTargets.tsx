@@ -82,7 +82,6 @@ export function ProjectEvaluatorCompareTargets({
   comparisonRef: ProjectEvaluatorCompareTargets_comparison$key;
   evaluatorARef: ProjectEvaluatorCompareTargets_evaluator$key;
   evaluatorBRef: ProjectEvaluatorCompareTargets_evaluator$key;
-  /** The closed range the comparison was computed over. */
   timeRange: TimeRange;
 }) {
   const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
@@ -91,12 +90,12 @@ export function ProjectEvaluatorCompareTargets({
     graphql`
       fragment ProjectEvaluatorCompareTargets_comparison on ProjectEvaluatorComparison {
         evaluationTarget
-        sideA {
+        sideA: a {
           annotationName
           labels
           threshold
         }
-        sideB {
+        sideB: b {
           annotationName
           labels
           threshold
@@ -122,13 +121,10 @@ export function ProjectEvaluatorCompareTargets({
   };
   const { selection, optimisticSelection, isPending, setSelection } =
     useCompareSelection();
-  // A changed time range may remove a categorical bin from the matrix; the
-  // selection then stays in the URL but is ignored until the bin returns.
+  // Ignore a selection when its bin is absent from the current time range.
   const isValid =
     !selection || isCompareSelectionValid({ selection, sideA, sideB });
   const activeSelection = isValid ? selection : null;
-  // The heading follows the pressed cell at once; the rows follow once the
-  // selection commits and the targets for it have loaded.
   const shownSelection = isPending ? optimisticSelection : activeSelection;
   const condition = buildCompareFilterCondition({
     target,
@@ -178,11 +174,7 @@ export function ProjectEvaluatorCompareTargets({
         showMetricCharts={false}
       >
         <StreamStateProvider>
-          {/*
-            The page remounts this subtree when the pair changes, so the compared
-            annotation columns are enabled as initial state and kept in memory
-            only. Persisting them would carry one pair's columns into the next.
-          */}
+          {/* Comparison columns are scoped to this evaluator pair. */}
           <TracingProvider
             projectId={projectId}
             tableId={COMPARE_TABLE_IDS[target]}
@@ -211,19 +203,9 @@ export function ProjectEvaluatorCompareTargets({
               )]: 150,
             }}
           >
-            {/*
-              A selection change navigates inside a transition. The Suspense
-              boundary sits above the keyed subtree so it is already mounted when
-              the key changes and the transition keeps the current rows (dimmed)
-              until the next ones load; a boundary mounted with the new key would
-              show its fallback instead.
-            */}
+            {/* Keep current rows visible while the next selection loads. */}
             <div css={targetsTableCSS} aria-busy={isPending}>
               <Suspense fallback={<Loading />}>
-                {/*
-                  The key resets the error state, the filter providers' initial
-                  condition and the targets query together.
-                */}
                 <ErrorBoundary key={condition} fallback={CompareTargetsError}>
                   <CompareTargetsFilters
                     projectId={projectId}
@@ -285,7 +267,6 @@ type TargetsProps = {
   timeRange: TimeRange;
 };
 
-/** The span table needs a settled seed; the other tables take the condition. */
 type TargetsTableProps = Omit<TargetsProps, "target"> &
   (
     | { target: "SPAN"; seed: SettledSpanFilterSeed }
@@ -308,10 +289,7 @@ function CompareTargetsFilters(props: TargetsProps) {
 }
 
 function CompareSpanTargets(props: TargetsProps) {
-  // The condition is generated (escaped annotation predicates, never root-span
-  // only), so it is used as a settled seed instead of going through the server
-  // validation that arbitrary text needs. If the server still rejects it, the
-  // error fallback shows an editable field.
+  // Generated conditions skip arbitrary-text validation but retain its fallback.
   const [seed, setSeed] = useState<SettledSpanFilterSeed>(() => ({
     condition: props.condition,
     requiresServerValidation: false,
@@ -384,8 +362,7 @@ function CompareTargetsTable(props: TargetsTableProps) {
       isTrace: target === "TRACE",
       isSession: target === "SESSION",
     },
-    // Re-selecting a cell reuses the same variables; refetch so a running
-    // evaluator's newer results replace the rows cached from the first visit
+    // Refresh cached rows when a selection is revisited.
     { fetchPolicy: "store-and-network" }
   );
   const emptyState = (

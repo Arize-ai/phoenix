@@ -67,11 +67,7 @@ export type ProjectEvaluatorCompareInvalidReason =
   | "other-project"
   | "different-target";
 
-/**
- * The loader depends only on the project and the compared pair. A selection
- * or drawer change in the query string skips it so the page does not refetch
- * and re-suspend. Same-URL requests (useRevalidator) keep the router default.
- */
+/** Revalidate pair changes while preserving explicit same-URL refreshes. */
 export const shouldRevalidateProjectEvaluatorCompare: ShouldRevalidateFunction =
   ({
     currentUrl,

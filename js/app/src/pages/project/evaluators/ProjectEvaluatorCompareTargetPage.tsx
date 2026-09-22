@@ -26,9 +26,6 @@ import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 export const PROJECT_EVALUATOR_COMPARE_ROUTE_ID = "projectEvaluatorCompare";
 
-/**
- * A matching target, opened over the comparison table.
- */
 export function ProjectEvaluatorCompareTargetPage() {
   const { targetId, projectId } = useParams();
   const navigate = useNavigate();

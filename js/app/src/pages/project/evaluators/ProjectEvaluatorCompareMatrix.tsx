@@ -43,8 +43,6 @@ export function ProjectEvaluatorCompareMatrix({
 }) {
   const evaluatorA = useFragment(evaluatorFragment, evaluatorARef);
   const evaluatorB = useFragment(evaluatorFragment, evaluatorBRef);
-  // The optimistic selection highlights the pressed cell at once, before the
-  // navigation that carries it commits.
   const { optimisticSelection: selection, setSelection } =
     useCompareSelection();
   const comparison = useFragment(

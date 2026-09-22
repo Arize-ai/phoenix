@@ -16,9 +16,7 @@ type ErrorBoundaryProps = {
    */
   fallback?: ErrorBoundaryFallbackComponent;
   /**
-   * A change to this key clears a caught error and renders the children again.
-   * Unlike a `key` on the boundary, it does not remount the children when no
-   * error is showing, so their state survives the change.
+   * Clears a caught error when changed without remounting healthy children.
    */
   resetKey?: string;
 };

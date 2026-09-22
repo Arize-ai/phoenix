@@ -21,13 +21,7 @@ import {
 import { confusionMatrixCSS } from "./styles";
 
 export type ConfusionMatrixProps = {
-  /**
-   * Makes cells with a count pressable
-   */
   onCellPress?: (cell: ConfusionMatrixDatum) => void;
-  /**
-   * The cell to render as selected
-   */
   selectedCell?: { actual: string; predicted: string };
   /**
    * Flat (actual, predicted, count) records; the matrix is pivoted from these
@@ -307,8 +301,7 @@ export function ConfusionMatrix({
                     count={count}
                     label={`${actualAxisLabel}: ${actualLabel}; ${predictedAxisLabel}: ${predictedLabel}; ${count}`}
                     isSelected={isSelected}
-                    // A selected cell stays pressable at zero count so it can
-                    // be deselected
+                    // Keep a selected zero-count cell pressable for deselection.
                     onPress={
                       onCellPress && (count > 0 || isSelected)
                         ? () =>

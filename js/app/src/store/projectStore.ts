@@ -52,10 +52,7 @@ const makeProjectStoreKey = (projectId: string) =>
 
 export type CreateProjectStoreProps = {
   projectId: string;
-  /**
-   * Suffixes the persistence key so a second store for the same project keeps
-   * its own preferences.
-   */
+  /** Isolates persisted preferences for an embedded surface. */
   scope?: string;
   showTableAside?: boolean;
   showMetricCharts?: boolean;
@@ -97,8 +94,7 @@ export function createProjectStore({
       })),
       {
         name: `${makeProjectStoreKey(projectId)}${scope ? `-${scope}` : ""}`,
-        // showMetricCharts is a layout decision made by whoever mounts the
-        // tables, not a user preference, so it is never persisted
+        // The mounting surface owns this layout choice; do not persist it.
         partialize: ({ defaultTab, showTableAside, metricChartKeys }) => ({
           defaultTab,
           showTableAside,

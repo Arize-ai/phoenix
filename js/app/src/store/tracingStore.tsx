@@ -69,18 +69,11 @@ const makeTracingStoreKey = ({
   tableId: ProjectTab;
 }) => `arize-phoenix-tracing-${projectId}-${tableId}`;
 
-/**
- * The `TracingProps` fields seed the store's initial state. They are read once
- * when the store is created, so later changes to them have no effect.
- */
+/** Initial values are read once when the store is created. */
 export type CreateTracingStoreProps = {
   projectId: string;
   tableId: ProjectTab;
-  /**
-   * Whether column preferences are persisted to localStorage per project and
-   * table. When false they last only as long as the store.
-   * @default true
-   */
+  /** Persist column preferences to localStorage. @default true */
   persistPreferences?: boolean;
 } & Partial<TracingProps>;
 

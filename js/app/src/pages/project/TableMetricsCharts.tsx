@@ -106,7 +106,6 @@ export function TableMetricsChartsPanelGroup({
   view: MetricChartTableView;
   children: ReactNode;
 }) {
-  // Fixed for the store's lifetime, so this never flips under a mounted table
   const showMetricCharts = useProjectContext((state) => state.showMetricCharts);
   // The store guarantees keys are valid catalog keys, so any selection means
   // there are charts to show
@@ -126,9 +125,7 @@ export function TableMetricsChartsPanelGroup({
   if (!showMetricCharts) {
     return children;
   }
-  // The table content always sits in the same panel of the same group whether
-  // or not charts are selected, so selecting the first chart or clearing the
-  // last one shows or hides the strip without remounting the table beneath it
+  // Keep the table panel mounted when the chart strip appears or disappears.
   return (
     <Group
       orientation="vertical"

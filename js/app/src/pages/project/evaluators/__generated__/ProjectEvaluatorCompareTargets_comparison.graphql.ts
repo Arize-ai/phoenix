@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7ad442e19cd43e7e1bcf3a51f1d89ed7>>
+ * @generated SignedSource<<754092fe898f810706e22447640d9e0d>>
  * @lightSyntaxTransform
  */
 
@@ -67,21 +67,21 @@ return {
       "storageKey": null
     },
     {
-      "alias": null,
+      "alias": "sideA",
       "args": null,
-      "concreteType": "EvaluatorComparisonSide",
+      "concreteType": "EvaluatorComparisonSummary",
       "kind": "LinkedField",
-      "name": "sideA",
+      "name": "a",
       "plural": false,
       "selections": (v0/*:: as any*/),
       "storageKey": null
     },
     {
-      "alias": null,
+      "alias": "sideB",
       "args": null,
-      "concreteType": "EvaluatorComparisonSide",
+      "concreteType": "EvaluatorComparisonSummary",
       "kind": "LinkedField",
-      "name": "sideB",
+      "name": "b",
       "plural": false,
       "selections": (v0/*:: as any*/),
       "storageKey": null
@@ -92,6 +92,6 @@ return {
 };
 })();
 
-(node as any).hash = "422d32c32152eb85a7aee586fdab4f08";
+(node as any).hash = "8909dc26bb3a7761932db2111f5b708a";
 
 export default node;

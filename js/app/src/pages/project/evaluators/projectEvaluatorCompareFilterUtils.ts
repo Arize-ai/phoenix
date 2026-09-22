@@ -75,7 +75,6 @@ export function isCompareSelectionValid({
   );
 }
 
-/** Build the table population without deriving a row count from the matrix. */
 export function buildCompareFilterCondition({
   target,
   selection,
@@ -90,8 +89,7 @@ export function buildCompareFilterCondition({
   const fieldA = getAnnotationField({ target, side: sideA });
   const fieldB = getAnnotationField({ target, side: sideB });
   if (!selection || !isCompareSelectionValid({ selection, sideA, sideB }))
-    // A bare annotation reference is an existence check, which matches how
-    // the comparison's coverage counts presence by annotation name alone.
+    // Bare annotation references select targets evaluated by both names.
     return joinFilterConditions({
       existingCondition: fieldA,
       nextCondition: fieldB,

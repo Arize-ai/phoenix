@@ -125,7 +125,6 @@ import {
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
 
 type SpansTableProps = {
-  /** The trace or session id whose row renders as selected. */
   selectedRowId?: string;
   project: SpansTable_spans$key;
   /**
@@ -282,9 +281,7 @@ export function SpansTable(props: SpansTableProps) {
       setSearchParamsRef.current(
         (prev) => {
           const next = new URLSearchParams(prev);
-          // Written even when empty: an absent param seeds the default, an
-          // empty one means the filter was cleared on purpose. Deleting it
-          // would bring the default back on reload.
+          // Preserve an explicit empty filter instead of restoring the default.
           next.set(SPAN_FILTER_CONDITION_PARAM, condition);
           return next;
         },

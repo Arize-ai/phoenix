@@ -16,14 +16,8 @@ import {
 } from "./projectEvaluatorCompareSelection";
 
 type CompareSelectionContextValue = {
-  /** The committed selection from the URL. Drives the loaded targets. */
   selection: CompareSelection | null;
-  /**
-   * The selection the user just chose, shown at once while `isPending`.
-   * Equals `selection` otherwise.
-   */
   optimisticSelection: CompareSelection | null;
-  /** True from a selection change until the targets for it have loaded. */
   isPending: boolean;
   setSelection: (
     next: CompareSelection | null,
@@ -34,11 +28,7 @@ type CompareSelectionContextValue = {
 const CompareSelectionContext =
   createContext<CompareSelectionContextValue | null>(null);
 
-/**
- * Owns the matrix selection stored in the URL. A change navigates inside a
- * transition, so the current targets stay on screen while the next ones load;
- * the optimistic copy lets the matrix and heading respond immediately.
- */
+/** Keeps URL-backed selection responsive while matching targets load. */
 export function CompareSelectionProvider({ children }: PropsWithChildren) {
   const [searchParams, setSearchParams] = useSearchParams();
   const selection = parseCompareSelection(
