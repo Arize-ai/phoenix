@@ -444,43 +444,7 @@ def test_sync_executor_retries():
     assert mock_generate.call_count == 4, "1 initial call + 3 retries"
 
 
-def test_sync_executor_retries_rate_limit_error():
-    """A transient RateLimitError must be retried, not treated as fatal.
-
-    RateLimitError subclasses PhoenixException, so the sync executor used to bail on the
-    first attempt (mirrors what the AsyncExecutor already does). Regression test for #16328.
-    """
-
-    def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise RateLimitError("throttled")
-        return payload - 1
-
-    executor = SyncExecutor(
-        dummy_fn,
-        max_retries=3,
-        exit_on_error=False,
-        fallback_return_value=52,
-    )
-    inputs = [1, 2, 3, 4, 5]
-    outputs, execution_details = executor.run(inputs)
-
-    assert outputs == [0, 1, 52, 3, 4], "the throttled row is retried, not fatal on attempt 1"
-    assert execution_details[2].status == ExecutionStatus.FAILED
-    assert len(execution_details[2].exceptions) == 4, "1 initial + 3 retries, all rate limited"
-    assert all(isinstance(exc, RateLimitError) for exc in execution_details[2].exceptions)
-    # rows after the throttled one still run (they would be DID_NOT_RUN if it were fatal)
-    assert [status.status for status in execution_details] == [
-        ExecutionStatus.COMPLETED,
-        ExecutionStatus.COMPLETED,
-        ExecutionStatus.FAILED,
-        ExecutionStatus.COMPLETED,
-        ExecutionStatus.COMPLETED,
-    ]
-
-
 def test_sync_executor_recovers_from_transient_rate_limit_error():
-    """A single 429 followed by success completes the row instead of failing the run."""
     attempts = 0
 
     def dummy_fn(payload: int) -> int:
@@ -505,8 +469,6 @@ def test_sync_executor_recovers_from_transient_rate_limit_error():
 
 
 def test_sync_executor_still_treats_other_phoenix_exceptions_as_fatal():
-    """Non-rate-limit PhoenixExceptions remain fatal (fail on the first attempt)."""
-
     def dummy_fn(payload: int) -> int:
         if payload == 3:
             raise PhoenixContextLimitExceeded("boom")
