@@ -908,7 +908,10 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         return "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
 
     def _build_context(self) -> dict[str, Any]:
-        return dataset_example_eval_context(self._dataset_example_revision)
+        revision = self._dataset_example_revision
+        return dataset_example_eval_context(
+            input=revision.input, output=revision.output, metadata=revision.metadata_
+        )
 
     @override
     async def execute(self) -> None:
