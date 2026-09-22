@@ -14,6 +14,7 @@ export * from "./RunExperimentCodeDialog";
 export * from "./ExperimentRunCellAnnotationsList";
 export * from "./ExperimentReferenceOutputCell";
 export * from "./ExperimentInputCell";
+export * from "./ExperimentMetadataCell";
 export * from "./ExperimentOutputContent";
 export * from "./experimentTableUtils";
 export * from "./ExperimentNameWithColorSwatch";
