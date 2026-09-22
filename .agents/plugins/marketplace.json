@@ -15,6 +15,24 @@
         "authentication": "ON_USE"
       },
       "category": "Developer Tools"
+    },
+    {
+      "name": "daytona",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/daytona/skills.git"
+      },
+      "description": "Creates and manages isolated cloud sandboxes on the Daytona platform.",
+      "category": "Developer Tools"
+    },
+    {
+      "name": "mintlify",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/mintlify/mintlify-claude-plugin.git"
+      },
+      "description": "Build and maintain Mintlify documentation sites.",
+      "category": "Developer Tools"
     }
   ]
 }

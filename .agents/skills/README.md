@@ -15,15 +15,29 @@ The [Cursor plugin](../../.cursor-plugin/README.md) ships these three skills by 
 
 ## Third-Party Skills
 
-When a vendor ships a Claude Code plugin, install it as a plugin in
-[`.claude/settings.json`](../../.claude/settings.json) (`extraKnownMarketplaces` and
-`enabledPlugins`) instead of copying the skill here. Claude Code installs the plugin for
-anyone who trusts the repository, and the vendor keeps it current.
+When a vendor ships a Claude Code plugin, install it as a plugin instead of copying the
+skill here. Codex and Cursor read the same plugin format, so one plugin serves three
+tools; the vendor keeps it current.
 
 | Plugin | Marketplace | Replaces |
 | ------ | ----------- | -------- |
-| `daytona` | `daytona` (github.com/daytona/skills) | Daytona sandbox and SDK reference |
-| `mintlify` | `claude-plugins-official` | The Mintlify docs skill |
+| `daytona` | github.com/daytona/skills | Daytona sandbox and SDK reference |
+| `mintlify` | github.com/mintlify/mintlify-claude-plugin (also in `claude-plugins-official`) | The Mintlify docs skill |
+
+How each tool picks them up:
+
+- **Claude Code** enables them for anyone who trusts the repository through
+  `extraKnownMarketplaces` and `enabledPlugins` in
+  [`.claude/settings.json`](../../.claude/settings.json).
+- **Codex** lists them in the repository marketplace
+  [`.agents/plugins/marketplace.json`](../plugins/marketplace.json). Register it once with
+  `codex plugin marketplace add Arize-ai/phoenix`, then
+  `codex plugin add daytona@arize-phoenix` and `codex plugin add mintlify@arize-phoenix`.
+- **Cursor** has no project-scoped plugins. Install Mintlify from the public marketplace,
+  and load Daytona with `agent --plugin-dir <clone of daytona/skills>` or by importing
+  github.com/daytona/skills as a team marketplace.
+- **OpenCode** has no plugin support; it only reads skill directories. Install the skills
+  for your user with `npx skills add daytona/skills -g` and `npx skills add mintlify.com -g`.
 
 Skills whose vendor does not ship a plugin are vendored here with
 `npx skills add <source> --project --agent universal` and tracked in
