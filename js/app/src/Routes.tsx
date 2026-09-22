@@ -894,7 +894,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
             },
             navigation: {
               section: "Pages",
@@ -912,7 +912,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                  "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
               },
             }}
           />

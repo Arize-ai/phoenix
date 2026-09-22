@@ -11,9 +11,13 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
   DEFAULT_INSTANCE_PARAMS,
   DEFAULT_MAX_CONCURRENCY,
-  DEFAULT_TEMPLATE_VARIABLES_PATH,
   generateInstanceId,
 } from "@phoenix/store/playground/playgroundStore";
+import {
+  DEFAULT_TEMPLATE_VARIABLES_PATH,
+  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+  type TemplateVariablesPathByTaskKind,
+} from "@phoenix/store/playground/templateVariablesPath";
 import type {
   ModelConfig,
   PlaygroundInstance,
@@ -154,7 +158,7 @@ export type ExperimentRehydrationResult = {
   stateByDatasetId: Record<
     string,
     {
-      templateVariablesPath?: string | null;
+      templateVariablesPathByTaskKind: TemplateVariablesPathByTaskKind;
       appendedMessagesPath?: string | null;
       maxConcurrency: number;
     }
@@ -235,9 +239,14 @@ function taskConfigToPlaygroundProps(
     toolChoice: instanceFields.toolChoice,
   };
 
-  const templateVariablesPath =
-    taskConfig.playgroundConfig?.templateVariablesPath ??
-    DEFAULT_TEMPLATE_VARIABLES_PATH;
+  // An experiment's playground config belongs to its prompt task; the
+  // evaluator kind keeps its default.
+  const templateVariablesPathByTaskKind: TemplateVariablesPathByTaskKind = {
+    ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_TASK_KIND,
+    prompt:
+      taskConfig.playgroundConfig?.templateVariablesPath ??
+      DEFAULT_TEMPLATE_VARIABLES_PATH,
+  };
   const appendedMessagesPath =
     taskConfig.playgroundConfig?.appendedMessagesPath ?? null;
 
@@ -245,7 +254,7 @@ function taskConfigToPlaygroundProps(
     datasetId
       ? {
           [datasetId]: {
-            templateVariablesPath,
+            templateVariablesPathByTaskKind,
             appendedMessagesPath,
             maxConcurrency,
           },

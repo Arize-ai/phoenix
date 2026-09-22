@@ -1,5 +1,5 @@
 """
-Test script for chatCompletionOverDataset GraphQL mutation.
+Test script for the experimentsOverDataset GraphQL subscription: one prompt task over a dataset.
 """
 
 import asyncio
@@ -7,40 +7,68 @@ import base64
 import json
 
 from gql import Client, gql
-from gql.transport.aiohttp import AIOHTTPTransport
+from gql.transport.websockets import WebsocketsTransport
 
-MUTATION = gql("""
-mutation ChatCompletionOverDatasetMutation($input: ChatCompletionOverDatasetInput!) {
-  chatCompletionOverDataset(input: $input) {
-    datasetId
-    datasetVersionId
+SUBSCRIPTION = gql("""
+subscription ExperimentsOverDatasetSubscription(
+  $input: ExperimentsOverDatasetInput!
+) {
+  experimentsOverDataset(input: $input) {
+    __typename
     experimentId
-    examples {
+    ... on TextChunk {
+      content
       datasetExampleId
       repetitionNumber
-      experimentRunId
-      repetition {
-        repetitionNumber
-        content
-        toolCalls {
+    }
+    ... on ToolCallChunk {
+      id
+      datasetExampleId
+      repetitionNumber
+      function {
+        name
+        arguments
+      }
+    }
+    ... on ChatCompletionSubscriptionExperiment {
+      experiment {
+        id
+      }
+    }
+    ... on ChatCompletionSubscriptionResult {
+      datasetExampleId
+      repetitionNumber
+      span {
+        id
+        tokenCountTotal
+        latencyMs
+        project {
           id
-          function {
-            name
-            arguments
-          }
         }
-        span {
-          id
+        context {
+          traceId
         }
-        errorMessage
-        evaluations {
-          name
-          label
-          score
-          annotatorKind
-          explanation
-          metadata
-        }
+      }
+      experimentRun {
+        id
+      }
+    }
+    ... on ChatCompletionSubscriptionError {
+      datasetExampleId
+      repetitionNumber
+      message
+    }
+    ... on EvaluationChunk {
+      datasetExampleId
+      repetitionNumber
+      experimentRunEvaluation {
+        id
+        name
+        label
+        score
+        annotatorKind
+        explanation
+        metadata
       }
     }
   }
@@ -49,9 +77,11 @@ mutation ChatCompletionOverDatasetMutation($input: ChatCompletionOverDatasetInpu
 
 
 async def main() -> None:
-    transport = AIOHTTPTransport(url="http://localhost:6006/graphql")
+    transport = WebsocketsTransport(
+        url="ws://localhost:6006/graphql",
+        subprotocols=["graphql-transport-ws"],
+    )
 
-    # The evaluator ID from test_create_llm_evaluator.py
     llm_evaluator_id = base64.b64encode(b"LLMEvaluator:1").decode("utf-8")
     built_in_evaluator_id = "QnVpbHRJbkV2YWx1YXRvcjotMjAwNTY2NTgzMgo="
 
@@ -79,7 +109,6 @@ async def main() -> None:
         },
     ]
 
-    # Dataset ID - update this to match your dataset
     dataset_id = "RGF0YXNldDozNA=="
 
     # Build promptVersion (model identity + template); clientOptions optional.
@@ -107,17 +136,17 @@ async def main() -> None:
 
     variables = {
         "input": {
-            "promptVersion": prompt_version,
-            "repetitions": 1,
             "datasetId": dataset_id,
             "splitIds": None,
-            "evaluators": evaluators,
+            "repetitions": 1,
+            "tasks": [{"prompt": {"promptVersion": prompt_version, "evaluators": evaluators}}],
         }
     }
 
     async with Client(transport=transport, fetch_schema_from_transport=False) as session:
-        result = await session.execute(MUTATION, variable_values=variables)
-        print(json.dumps(result, indent=2))
+        async for result in session.subscribe(SUBSCRIPTION, variable_values=variables):
+            payload = result["experimentsOverDataset"]
+            print(json.dumps(payload))
 
 
 if __name__ == "__main__":
