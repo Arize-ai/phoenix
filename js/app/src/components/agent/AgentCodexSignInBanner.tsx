@@ -10,10 +10,9 @@ const bannerCSS = css`
 `;
 
 /**
- * Shown above the composer when the session runs on the ChatGPT (Codex
- * subscription) provider but this browser holds no ChatGPT sign-in, e.g. a
- * session opened from another browser. Sends without a token are rejected by
- * the server, so the user is pointed at the sign-in before they type.
+ * A Codex session can outlive the browser that signed in (or be opened from
+ * another one); sends without a token are rejected, so point at the sign-in
+ * before the user types.
  */
 export function AgentCodexSignInBanner({
   modelMenuValue,

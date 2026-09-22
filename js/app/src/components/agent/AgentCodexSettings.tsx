@@ -44,13 +44,9 @@ type DeviceFlowState =
   | { status: "error"; message: string };
 
 /**
- * ChatGPT (Codex subscription) sign-in for the assistant. Experimental.
- *
- * Runs the OAuth device-code flow of the public Codex client: the user opens
- * the verification page, enters the one-time code, and this browser polls
- * until tokens arrive. The token bundle is kept only in this browser's local
- * storage; the server relays the auth calls and sees the access token
- * ephemerally on each chat request.
+ * ChatGPT (Codex subscription) sign-in for the assistant, via the OAuth
+ * device-code flow of the public Codex client. Experimental. The token bundle
+ * is kept only in this browser's local storage.
  */
 export function AgentCodexSettings() {
   const store = useAgentStore();
@@ -58,7 +54,6 @@ export function AgentCodexSettings() {
   const codexAuth = useAgentContext((state) => state.codexAuth);
   const [flow, setFlow] = useState<DeviceFlowState>({ status: "idle" });
 
-  // Poll while a device flow is waiting on the user.
   useEffect(() => {
     if (flow.status !== "waiting") {
       return () => {};

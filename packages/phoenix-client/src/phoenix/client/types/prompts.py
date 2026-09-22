@@ -232,8 +232,6 @@ class PromptVersion:
                 meta=v1.PromptMetaInvocationParametersContent(),
             )
         elif model_provider == "OPENAI_CODEX":
-            # ChatGPT subscription auth for the Phoenix assistant; speaks the
-            # OpenAI Responses API.
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
                 type="openai",
                 openai=v1.PromptOpenAIInvocationParametersContent(),

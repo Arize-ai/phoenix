@@ -3,7 +3,7 @@
 Experimental. A user signs in to their ChatGPT account from the browser with
 the OAuth *device code* flow of the public Codex CLI client. The resulting
 token bundle lives only in the browser; the access token rides each chat
-request as a ``credentials`` entry (like the GitHub PAT) and is never
+request as a ``credentials`` entry and is never
 persisted or traced server-side. The server's role in the login is limited to
 stateless pass-through calls to ``auth.openai.com`` (the browser cannot call
 them directly because of CORS) and, at turn time, wiring the token into
@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import base64
 import json
-import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -34,10 +33,7 @@ from typing import Any, Literal
 import httpx
 from pydantic import SecretStr
 
-logger = logging.getLogger(__name__)
-
 CODEX_ACCESS_TOKEN_SECRET_KEY: Literal["OPENAI_CODEX_ACCESS_TOKEN"] = "OPENAI_CODEX_ACCESS_TOKEN"
-"""``credentials`` key under which the browser sends the Codex access token."""
 
 # The public Codex CLI client. Its registration is what makes the device flow
 # (and the pinned localhost redirect of the PKCE flow) work.
@@ -51,8 +47,6 @@ _HTTP_TIMEOUT = httpx.Timeout(timeout=30, connect=5)
 
 
 class CodexAuthError(Exception):
-    """A pass-through call to the OpenAI auth service or Codex backend failed."""
-
     def __init__(self, message: str, *, status_code: int = 502) -> None:
         super().__init__(message)
         self.status_code = status_code
@@ -75,11 +69,8 @@ class CodexTokens:
 
 
 def resolve_codex_access_token(request_credentials: Mapping[str, SecretStr]) -> SecretStr | None:
-    """The Codex access token supplied on the request, or ``None``.
-
-    Unlike the GitHub token there is deliberately no workspace-secret or
-    environment fallback: a subscription token is personal, and OpenAI's
-    guidance is not to pool or share it.
+    """No workspace-secret or environment fallback, unlike the GitHub token: a
+    subscription token is personal, and OpenAI's guidance is not to pool or share it.
     """
     token = request_credentials.get(CODEX_ACCESS_TOKEN_SECRET_KEY)
     if token is not None and token.get_secret_value():
@@ -102,11 +93,8 @@ def jwt_payload(token: str) -> dict[str, Any] | None:
 
 
 def account_id_from_token(token: str) -> str | None:
-    """The ChatGPT account id a Codex token is scoped to.
-
-    Codex nests it under the ``https://api.openai.com/auth`` claim; older
-    shapes carry a top-level ``chatgpt_account_id`` or ``account_id``.
-    """
+    """Codex nests the id under the ``https://api.openai.com/auth`` claim; older
+    token shapes carry it top-level."""
     payload = jwt_payload(token)
     if payload is None:
         return None
@@ -167,7 +155,6 @@ async def _post_token_form(client: httpx.AsyncClient, form: Mapping[str, str]) -
 
 
 async def start_device_auth(client: httpx.AsyncClient) -> CodexDeviceAuthStart:
-    """Request a device user code for the public Codex client."""
     response = await client.post(
         f"{CODEX_AUTH_ISSUER}/api/accounts/deviceauth/usercode",
         json={"client_id": CODEX_CLIENT_ID},
@@ -200,7 +187,7 @@ async def poll_device_auth(
     device_auth_id: str,
     user_code: str,
 ) -> CodexTokens | None:
-    """One poll of the device flow. ``None`` while the user has not finished signing in."""
+    """``None`` while the user has not finished signing in."""
     response = await client.post(
         f"{CODEX_AUTH_ISSUER}/api/accounts/deviceauth/token",
         json={"device_auth_id": device_auth_id, "user_code": user_code},
@@ -231,7 +218,7 @@ async def poll_device_auth(
 
 
 async def refresh_tokens(client: httpx.AsyncClient, *, refresh_token: str) -> CodexTokens:
-    """Rotate a refresh token. Refresh tokens are single-use."""
+    """Refresh tokens are single-use: the caller must replace its stored bundle."""
     return await _post_token_form(
         client,
         {
@@ -243,7 +230,6 @@ async def refresh_tokens(client: httpx.AsyncClient, *, refresh_token: str) -> Co
 
 
 async def list_models(client: httpx.AsyncClient, *, access_token: str) -> list[str]:
-    """Model slugs the subscription can use, from the Codex backend."""
     account_id = account_id_from_token(access_token)
     headers = {
         "Authorization": f"Bearer {access_token}",

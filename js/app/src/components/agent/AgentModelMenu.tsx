@@ -73,11 +73,6 @@ function AgentModelItem({
   );
 }
 
-/**
- * Models the browser's ChatGPT (Codex subscription) sign-in can use. Hidden
- * entirely when the browser is not signed in; the sign-in lives under
- * Settings > Assistant.
- */
 function CodexModelMenuSection({
   onChange,
 }: {

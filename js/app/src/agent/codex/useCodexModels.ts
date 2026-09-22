@@ -14,10 +14,6 @@ type CodexModelsState = {
 // list rarely changes within a sign-in.
 const cache = new Map<string, string[]>();
 
-/**
- * Live model list for the browser's ChatGPT (Codex subscription) sign-in.
- * Empty (and not loading) when the browser is not signed in.
- */
 export function useCodexModels(): CodexModelsState {
   const store = useAgentStore();
   const accessToken = useAgentContext(

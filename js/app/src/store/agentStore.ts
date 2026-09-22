@@ -65,16 +65,15 @@ export const GITHUB_PAT_CREDENTIAL_KEY =
 
 /**
  * Secret-key name under which the ChatGPT (Codex subscription) access token
- * rides chat requests for sessions on the `OPENAI_CODEX` provider. The token
- * bundle itself lives in {@link AgentProps.codexAuth}.
+ * rides chat requests. Matches the server's `ChatRequestCredentialKey`.
  */
 export const CODEX_ACCESS_TOKEN_CREDENTIAL_KEY =
   "OPENAI_CODEX_ACCESS_TOKEN" as const;
 
 /**
- * Browser-held ChatGPT/Codex subscription credentials from the device-code
- * sign-in. Persisted only in this browser's local storage; the server sees
- * the access token ephemerally on each request and never stores it.
+ * ChatGPT/Codex subscription credentials. Persisted only in this browser's
+ * local storage; the server sees the access token ephemerally on each request
+ * and never stores it.
  */
 export type CodexAuth = {
   accessToken: string;
@@ -383,7 +382,6 @@ export interface AgentProps {
    * never stored server-side. Cleared credentials are removed from the map.
    */
   integrationCredentials: Record<string, string>;
-  /** ChatGPT (Codex subscription) sign-in for this browser, or null. */
   codexAuth: CodexAuth | null;
 }
 
@@ -433,7 +431,6 @@ export interface AgentState extends AgentProps {
     key: string;
     value: string | null;
   }) => void;
-  /** Replace (or clear with null) the browser-held ChatGPT sign-in. */
   setCodexAuth: (codexAuth: CodexAuth | null) => void;
 
   // -- Elicitation (ephemeral, not persisted) --

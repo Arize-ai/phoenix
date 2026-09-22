@@ -23,7 +23,6 @@ type CodexTokenBundle = components["schemas"]["CodexTokenBundle"];
 type CodexDeviceAuthPoll =
   components["schemas"]["CodexDeviceAuthPollResponseBody"];
 
-/** Refresh this long before the access token's `exp`. */
 const REFRESH_LEEWAY_MS = 5 * 60 * 1000;
 
 export class CodexAuthApiError extends Error {
@@ -124,14 +123,10 @@ export function isCodexAuthStale(
 let inflightRefresh: Promise<CodexAuth | null> | null = null;
 
 /**
- * Rotate the stored ChatGPT credentials if the access token is about to
- * expire, so the token that rides the next chat request outlives the turn's
- * start. Single-flight: refresh tokens are single-use, and two concurrent
- * refreshes would invalidate each other.
- *
- * A rejected grant clears the sign-in (the user must connect again); any
- * other failure keeps the current credentials, since the server will report
- * a real 401 if they are in fact unusable.
+ * Single-flight: refresh tokens are single-use, so two concurrent refreshes
+ * would invalidate each other. Only a rejected grant clears the sign-in; a
+ * transport failure keeps the current credentials, since the server reports a
+ * real 401 if they are in fact unusable.
  */
 export function ensureFreshCodexAuth(
   store: AgentStore

@@ -56,10 +56,7 @@ type BuildAgentChatRequestBodyOptions = {
    * the server never persists them.
    */
   integrationCredentials?: Record<string, string>;
-  /**
-   * Access token of the browser's ChatGPT (Codex subscription) sign-in. Rides
-   * the request only when the turn's model is on the `OPENAI_CODEX` provider.
-   */
+  /** Access token of the browser's ChatGPT (Codex subscription) sign-in. */
   codexAccessToken?: string | null;
   /** Browser execution timings added to completed client-tool parts. */
   toolTimings?: ClientToolTimingRecorder | null;
@@ -71,7 +68,6 @@ type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequestBody"];
 
 type ChatRequestCredential = components["schemas"]["ChatRequestCredential"];
 
-/** Whether a selection runs on the ChatGPT (Codex subscription) provider. */
 export function isCodexModelSelection(
   modelSelection: AgentModelSelection
 ): boolean {
@@ -82,8 +78,7 @@ export function isCodexModelSelection(
 }
 
 /**
- * Client-held credentials that ride a chat or compaction request. The
- * ChatGPT token is attached only for turns on the Codex provider, so a
+ * The ChatGPT token is attached only for turns on the Codex provider, so a
  * subscription token never reaches a request for another provider.
  */
 export function buildChatRequestCredentials({

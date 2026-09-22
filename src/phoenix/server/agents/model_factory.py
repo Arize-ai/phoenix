@@ -80,12 +80,7 @@ def _build_openai_codex_model(
     model_name: str,
     request_credentials: Mapping[str, SecretStr],
 ) -> "PydanticAIModel":
-    """A Responses model on the Codex backend, authenticated with the user's
-    ChatGPT subscription token from the request.
-
-    ``pydantic_ai``'s ``OpenAICodexProvider`` owns the wire dialect (bearer +
-    ``chatgpt-account-id`` headers, ``store=false``, stream-only requests).
-    The refresh token stays in the browser, so the provider is handed an empty
+    """The refresh token stays in the browser, so the provider is handed an empty
     one: a mid-turn 401 surfaces as an error instead of a server-side refresh
     that would invalidate the browser's single-use refresh token.
     """
@@ -223,9 +218,8 @@ async def build_model(
 ) -> OpenInferenceModelWrapper:
     """Build a ``pydantic_ai`` model.
 
-    ``request_credentials`` are the client-held credentials riding the
-    request (see ``ChatRequestBody.credentials``); only providers that
-    authenticate per user (Codex subscription auth) consult them.
+    ``request_credentials`` are the client-held credentials riding the request;
+    only providers that authenticate per user consult them.
     """
     if isinstance(model, CustomProviderModelSelection):
         async with db() as session:
