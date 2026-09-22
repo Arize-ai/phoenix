@@ -603,6 +603,7 @@
                   "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing"
                 ]
               },
+              "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing",
               {
                 "group": "Together AI",
                 "pages": [
@@ -1728,6 +1729,10 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/integrations/platforms/cloudflare-ai-gateway",
+      "destination": "/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing"
+    },
     {
       "source": "/docs/phoenix/integrations/typescript/typesafe",
       "destination": "/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript"
