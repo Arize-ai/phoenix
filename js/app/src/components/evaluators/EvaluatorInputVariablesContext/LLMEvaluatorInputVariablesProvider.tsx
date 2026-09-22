@@ -5,8 +5,17 @@ import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDeri
 
 export const LLMEvaluatorInputVariablesProvider = ({
   children,
-}: PropsWithChildren) => {
-  const { variableKeys: variables } = useDerivedPlaygroundVariables();
+  instanceId,
+}: PropsWithChildren<{
+  /**
+   * The instance whose judge prompt supplies the variables. Omit where the
+   * playground holds one judge prompt, as the evaluator dialogs do.
+   */
+  instanceId?: number;
+}>) => {
+  const { variableKeys: variables } = useDerivedPlaygroundVariables({
+    instanceId,
+  });
 
   return (
     <EvaluatorInputVariablesProvider variables={variables}>
