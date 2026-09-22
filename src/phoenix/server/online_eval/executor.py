@@ -51,6 +51,7 @@ from phoenix.server.api.evaluators import (
     CodeEvaluatorRunner,
     EvaluationResult,
     LLMEvaluator,
+    evaluator_annotation_names,
     get_builtin_evaluator_by_key,
 )
 from phoenix.server.api.helpers.dataset_helpers import (
@@ -58,6 +59,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_metadata,
     get_dataset_example_output,
 )
+from phoenix.server.api.helpers.evaluator_calibration import without_expected_outputs
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
@@ -1112,8 +1114,15 @@ class OnlineEvalExecutor:
             else None
         )
         try:
+            context = {
+                **hydrated.context,
+                "metadata": without_expected_outputs(
+                    hydrated.context.get("metadata", {}),
+                    evaluator_annotation_names(hydrated.annotation_name, hydrated.output_configs),
+                ),
+            }
             results = await hydrated.evaluator.evaluate(
-                context=hydrated.context,
+                context=context,
                 input_mapping=hydrated.input_mapping,
                 name=hydrated.annotation_name,
                 output_configs=hydrated.output_configs,
