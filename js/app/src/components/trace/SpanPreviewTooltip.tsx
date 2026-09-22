@@ -57,20 +57,12 @@ const cardCSS = css`
     white-space: nowrap;
   }
   .span-preview__timing {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    column-gap: var(--global-dimension-size-200);
-    row-gap: var(--global-dimension-size-100);
-    margin: 0;
-    dt,
-    dd {
-      margin: 0;
-    }
-    dd {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-    }
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--global-dimension-size-200);
+    white-space: nowrap;
   }
   /* The breakdowns follow the timing under a rule, as sections do inside them */
   .span-preview__timing + * {
@@ -163,51 +155,25 @@ function SpanPreviewMetrics({ span }: SpanPreviewTooltipProps) {
 }
 
 /**
- * When a span started and ended, and how long that took. Every span has
- * these, so a tool or chain span without tokens still has a preview worth
- * opening. Times are to the millisecond: sibling spans often start within
- * the same second.
+ * One line: when the span started and ended on the left, and how long that
+ * took on the right. Every span has these, so a tool or chain span without
+ * tokens still has a preview worth opening. Times stop at the second: the
+ * latency beside them carries the finer resolution.
  */
 function SpanTimingDetails({
   startTime,
   endTime,
   latencyMs,
 }: Pick<ISpanItem, "startTime" | "endTime" | "latencyMs">) {
-  const { preciseTimeFormatter } = useTimeFormatters();
+  const { timeOfDayFormatter } = useTimeFormatters();
   return (
-    <dl className="span-preview__timing">
-      <dt>
-        <Text size="S" color="text-700">
-          Start
-        </Text>
-      </dt>
-      <dd>
-        <Text size="S" fontFamily="mono">
-          {preciseTimeFormatter(new Date(startTime))}
-        </Text>
-      </dd>
-      <dt>
-        <Text size="S" color="text-700">
-          End
-        </Text>
-      </dt>
-      <dd>
-        <Text
-          size="S"
-          fontFamily="mono"
-          color={endTime ? undefined : "text-500"}
-        >
-          {endTime ? preciseTimeFormatter(new Date(endTime)) : "in progress"}
-        </Text>
-      </dd>
-      <dt>
-        <Text size="S" color="text-700">
-          Latency
-        </Text>
-      </dt>
-      <dd>
-        <LatencyText latencyMs={latencyMs} size="S" showIcon={false} />
-      </dd>
-    </dl>
+    <div className="span-preview__timing">
+      <Text size="S" fontFamily="mono" color="text-700">
+        {timeOfDayFormatter(new Date(startTime))}
+        {" to "}
+        {endTime ? timeOfDayFormatter(new Date(endTime)) : "now"}
+      </Text>
+      <LatencyText latencyMs={latencyMs} size="S" showIcon={false} />
+    </div>
   );
 }

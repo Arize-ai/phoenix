@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { usePreferencesContext } from "@phoenix/contexts";
 import {
   createFullTimeFormatter,
-  createPreciseTimeFormatter,
+  createTimeOfDayFormatter,
   createShortDateTimeFormatter,
   createShortTimeFormatter,
   createTimeRangeFormatter,
@@ -29,7 +29,7 @@ export function useTimeFormatters() {
         locale: getLocale(),
         timeZone,
       }),
-      preciseTimeFormatter: createPreciseTimeFormatter({
+      timeOfDayFormatter: createTimeOfDayFormatter({
         locale: getLocale(),
         timeZone,
       }),
