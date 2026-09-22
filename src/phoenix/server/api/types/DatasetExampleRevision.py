@@ -7,6 +7,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
+from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
 from phoenix.server.api.helpers.evaluator_calibration import get_expected_outputs
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 
@@ -48,6 +49,12 @@ class DatasetExampleRevision(ExampleRevision):
     revision_id: GlobalID
     revision_kind: RevisionKind
     created_at: datetime
+    db_record: strawberry.Private[models.DatasetExampleRevision | None] = None
+
+    @strawberry.field
+    def evaluation_context(self) -> JSON:
+        assert self.db_record is not None
+        return JSON(dataset_example_eval_context(self.db_record))
 
     @strawberry.field
     def calibration_labels(self) -> list[DatasetExampleCalibrationLabel]:
@@ -62,4 +69,5 @@ class DatasetExampleRevision(ExampleRevision):
             metadata=JSON(revision.metadata_),
             revision_kind=RevisionKind(revision.revision_kind),
             created_at=revision.created_at,
+            db_record=revision,
         )
