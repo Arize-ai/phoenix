@@ -129,8 +129,10 @@ from phoenix.server.api.evaluators import (
     build_evaluator_from_definition,
     code_evaluator_sandbox_session_key,
     evaluation_result_to_model,
+    evaluator_annotation_names,
     get_evaluators,
 )
+from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
 from phoenix.server.api.helpers.evaluator_calibration import without_expected_outputs
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
@@ -866,15 +868,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
 
     @cached_property
     def annotation_names(self) -> list[str]:
-        """The names the evaluator gives its results.
-
-        Mirrors ``BaseEvaluator.evaluate``: the task name alone for one output config,
-        ``<task name>.<config name>`` for each config when there are several.
-        """
-        name = self._evaluator_task.name.root
-        if len(self.output_configs) > 1:
-            return [f"{name}.{config.name}" for config in self.output_configs]
-        return [name]
+        return evaluator_annotation_names(self._evaluator_task.name.root, self.output_configs)
 
     @cached_property
     def debug_identifier(self) -> str:
@@ -897,22 +891,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         return "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
 
     def _build_context(self) -> dict[str, Any]:
-        """The example revision itself, as the span it may have been converted from.
-
-        Deliberately not EvalWorkItem's context: that item judges a prompt task's run,
-        so its ``output`` is the run's output and ``reference`` is the example's output.
-        An evaluator task judges the example, which the span→example converter built
-        with the same ``input``, ``output`` and ``metadata`` the online evaluator sees on
-        the span, so a mapping drafted here runs unchanged online. The one departure is
-        the task's own expected outputs, removed from ``metadata.annotations`` so the
-        evaluator never reads the answer key it is calibrated against.
-        """
-        revision = self._dataset_example_revision
-        return {
-            "input": revision.input,
-            "output": revision.output,
-            "metadata": without_expected_outputs(revision.metadata_, self.annotation_names),
-        }
+        return dataset_example_eval_context(self._dataset_example_revision)
 
     @override
     async def execute(self) -> None:
@@ -924,8 +903,12 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         start_time = datetime.now(timezone.utc)
         try:
             with anyio.fail_after(self._timeout):
+                context = self._build_context()
+                context["metadata"] = without_expected_outputs(
+                    context["metadata"], self.annotation_names
+                )
                 eval_results = await self._evaluator.evaluate(
-                    context=self._build_context(),
+                    context=context,
                     input_mapping=self._evaluator_task.input_mapping,
                     name=self._evaluator_task.name.root,
                     output_configs=self.output_configs,
@@ -1309,6 +1292,10 @@ class EvalWorkItem(WorkItem):
                     "output": self._experiment_run.output.get("task_output"),
                     "metadata": self._dataset_example_revision.metadata_,
                 }
+                context_dict["metadata"] = without_expected_outputs(
+                    context_dict["metadata"],
+                    evaluator_annotation_names(self._output_configs[0].name, self._output_configs),
+                )
                 eval_results = await self._evaluator.evaluate(
                     context=context_dict,
                     input_mapping=self._input_mapping,
