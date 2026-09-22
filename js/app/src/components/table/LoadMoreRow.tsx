@@ -13,10 +13,6 @@ const buttonWrapCSS = css`
   align-items: center;
 `;
 
-/**
- * A table row that is used to load more data.
- * @returns A table row that is used to load more data.
- */
 export function LoadMoreRow({
   onLoadMore,
   isLoadingNext,

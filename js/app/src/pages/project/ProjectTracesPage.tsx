@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
@@ -51,6 +51,7 @@ function TracesTabContent({
     ProjectPageQueriesTracesQuery,
     tracesQueryReference
   );
+  const { traceId } = useParams();
 
   if (!data.project.hasTraces) {
     return (
@@ -58,7 +59,9 @@ function TracesTabContent({
     );
   }
 
-  return <TracesTable project={data.project} seed={seed} />;
+  return (
+    <TracesTable project={data.project} seed={seed} selectedRowId={traceId} />
+  );
 }
 
 export const ProjectTracesPage = () => {

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import { Suspense, useDeferredValue } from "react";
+import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -48,6 +48,12 @@ const mainCSS = css`
   overflow: hidden;
 `;
 
+const scrollCSS = css`
+  height: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+`;
+
 const contentCSS = css`
   max-width: 1600px;
   margin-inline: auto;
@@ -80,10 +86,10 @@ function ProjectEvaluatorComparePageLoaded({
     query: projectEvaluatorCompareLoaderGQL,
     queryRef,
   });
-  // Freeze an open-ended range above the Suspense boundary. If the querying
-  // child owned this hook, every suspended retry would remount it with a new
-  // `now` and issue a different request indefinitely.
+  // Keep Suspense retries on one closed range instead of advancing `now`.
   const timeRange = useClosedTimeRange();
+  // Keep the current comparison visible while a live range refreshes.
+  const deferredTimeRange = useDeferredValue(timeRange);
   const evaluatorA =
     data.evaluatorA?.__typename === "ProjectEvaluator" ? data.evaluatorA : null;
   const evaluatorB =
@@ -100,11 +106,11 @@ function ProjectEvaluatorComparePageLoaded({
               evaluator.evaluationTarget === evaluatorA.evaluationTarget
           )
       : [evaluatorA, evaluatorB];
+  const pairKey = `${evaluatorA.id}:${evaluatorB.id}`;
   const comparisonKey = [
-    evaluatorA.id,
-    evaluatorB.id,
-    timeRange.start.toISOString(),
-    timeRange.end.toISOString(),
+    pairKey,
+    deferredTimeRange.start.toISOString(),
+    deferredTimeRange.end.toISOString(),
   ].join(":");
 
   return (
@@ -151,25 +157,28 @@ function ProjectEvaluatorComparePageLoaded({
           </Flex>
         }
       />
-      <View overflow="auto" height="100%">
+      <div css={scrollCSS}>
         <View padding="size-200">
           <div css={contentCSS}>
-            <ErrorBoundary
-              key={comparisonKey}
-              fallback={ProjectEvaluatorCompareErrorFallback}
-            >
-              <Suspense fallback={<Loading />}>
+            <Suspense key={pairKey} fallback={<Loading />}>
+              <ErrorBoundary
+                resetKey={comparisonKey}
+                fallback={ProjectEvaluatorCompareErrorFallback}
+              >
                 <ProjectEvaluatorCompareContent
                   projectId={projectId}
                   evaluatorARef={evaluatorA}
                   evaluatorBRef={evaluatorB}
-                  timeRange={timeRange}
+                  timeRange={deferredTimeRange}
                 />
-              </Suspense>
-            </ErrorBoundary>
+              </ErrorBoundary>
+            </Suspense>
           </div>
         </View>
-      </View>
+      </div>
+      <Suspense fallback={<Loading />}>
+        <Outlet />
+      </Suspense>
     </main>
   );
 }

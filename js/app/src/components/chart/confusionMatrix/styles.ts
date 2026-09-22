@@ -131,6 +131,18 @@ export const confusionMatrixCSS = css`
     min-height: var(--confusion-matrix-cell-min-height);
   }
 
+  button.confusion-matrix__cell {
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .confusion-matrix__cell--selected,
+  button.confusion-matrix__cell:focus-visible {
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
   .confusion-matrix__cell--empty {
     background-color: var(--global-color-gray-100);
     color: var(--global-text-color-300);
