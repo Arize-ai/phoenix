@@ -5,7 +5,7 @@ import argparse
 import asyncio
 import json
 import sys
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -21,13 +21,10 @@ from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_strea
 
 EditPermission = Literal["manual", "bypass"]
 Message = v1.PhoenixUIMessage
-ApprovalRequestedPart = v1.ToolApprovalRequestedPart | v1.DynamicToolApprovalRequestedPart
-ApprovalPolicy = Callable[[ApprovalRequestedPart], bool]
 
 
 _MESSAGE = TypeAdapter(Message)
 _MODEL_SELECTION = TypeAdapter(v1.BuiltInProviderModelSelection)
-_APPROVAL_REQUESTED_PART: TypeAdapter[ApprovalRequestedPart] = TypeAdapter(ApprovalRequestedPart)
 _CHAT_REQUEST_BODY = TypeAdapter(v1.ChatRequestBody)
 TurnSpan = dict[str, Any]
 
@@ -110,14 +107,6 @@ def chat_contexts(*, mutations_enabled: bool, now: datetime | None = None) -> li
         {"type": "graphql", "mutationsEnabled": mutations_enabled},
         {"type": "web_access", "enabled": False},
         {"type": "subagents", "enabled": False},
-    ]
-
-
-def pending_approvals(message: Message) -> list[ApprovalRequestedPart]:
-    return [
-        _APPROVAL_REQUESTED_PART.validate_python(part)
-        for part in message["parts"]
-        if part.get("state") == "approval-requested"
     ]
 
 
@@ -271,40 +260,23 @@ class AgentSessionChatClient:
             if not cursor:
                 return messages
 
-    async def last_message_id(self, session_id: str) -> str | None:
-        transcript = await self.list_messages(session_id)
-        return transcript[-1]["id"] if transcript else None
+    async def run_turn(self, request: v1.ChatRequestBody) -> Turn:
+        """Post ``request`` to open a turn. The turn ends when the model finishes or when it
+        calls a client-executed tool or asks for approval, which the caller sees pending.
 
-    async def run_turn(
-        self, request: v1.ChatRequestBody, *, approve: ApprovalPolicy | None
-    ) -> Turn:
-        """Post ``request`` to open a turn, then answer approval requests with ``approve``
-        until the model finishes. With ``approve=None`` the turn ends at the first approval
-        request, or when the model calls a client-executed tool, and the caller sees it
-        pending.
+        The server rejects a send whose ``lastMessageId`` is not the transcript's newest
+        message. A request without one is completed from the stored transcript.
         """
         message = request.get("message")
         if (message is None) == (not request.get("toolOutputs")):
             raise ValueError("A turn opens with either a user message or tool outputs")
         session_id = request["id"]
+        if "lastMessageId" not in request and (transcript := await self.list_messages(session_id)):
+            request = {**request, "lastMessageId": transcript[-1]["id"]}
         turn = Turn(user_message=message)
         reply, errors = await self._chat(session_id, request)
         turn.assistant_messages.append(reply)
         turn.stream_errors.extend(errors)
-        while approve is not None and not errors and (approvals := pending_approvals(reply)):
-            tool_approvals: list[v1.ToolApproval] = [
-                {"toolCallId": part["toolCallId"], "approved": approve(part)} for part in approvals
-            ]
-            continuation: v1.ChatRequestBody = {
-                **request,
-                "toolApprovals": tool_approvals,
-                "lastMessageId": reply["id"],
-            }
-            continuation.pop("message", None)
-            continuation.pop("toolOutputs", None)
-            reply, errors = await self._chat(session_id, continuation)
-            turn.assistant_messages.append(reply)
-            turn.stream_errors.extend(errors)
         return turn
 
     async def _chat(self, session_id: str, body: v1.ChatRequestBody) -> tuple[Message, list[str]]:
@@ -395,7 +367,6 @@ async def run(args: argparse.Namespace) -> None:
     try:
         if args.request is not None:
             request = _CHAT_REQUEST_BODY.validate_json(args.request)
-            approve: ApprovalPolicy | None = None
         else:
             if args.instruction is None:
                 raise ValueError("--instruction is required without --request")
@@ -410,11 +381,8 @@ async def run(args: argparse.Namespace) -> None:
                 "recordLocalTraces": True,
                 "message": user_message(args.instruction),
             }
-            if (last_message_id := await client.last_message_id(session_id)) is not None:
-                request["lastMessageId"] = last_message_id
-            approve = lambda _part: args.approve_tool_calls  # noqa: E731
         session_id = request["id"]
-        turn = await client.run_turn(request, approve=approve)
+        turn = await client.run_turn(request)
         turn_spans = await client.fetch_turn_spans(turn.trace_contexts)
     finally:
         await client.aclose()
@@ -447,7 +415,6 @@ def main() -> None:
         "--session-id", default=None, help="Continue this session; omit to create one"
     )
     parser.add_argument("--allow-mutations", action="store_true")
-    parser.add_argument("--approve-tool-calls", action="store_true")
     parser.add_argument("--turn-timeout-seconds", type=float, default=900.0)
     asyncio.run(run(parser.parse_args()))
 

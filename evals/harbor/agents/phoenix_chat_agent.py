@@ -43,7 +43,6 @@ class PhoenixChatAgent(BaseAgent):
         command = [
             f"--instruction {shlex.quote(instruction)}",
             "--allow-mutations",
-            "--approve-tool-calls",
             f"--turn-timeout-seconds {_TURN_TIMEOUT_SECONDS}",
         ]
         if self._session_id is not None:
