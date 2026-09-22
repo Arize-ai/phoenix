@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1cb50d8be15bdb8023a4e44c6703d532>>
+ * @generated SignedSource<<12d57905266a5eeb22d809acfebb308f>>
  * @lightSyntaxTransform
  */
 
@@ -22,6 +22,9 @@ export type ProjectEvaluatorCompareMatrix_comparison$data = {
     readonly threshold: number | null;
   };
   readonly confusionMatrix: ReadonlyArray<ReadonlyArray<number>>;
+  readonly coverage: {
+    readonly evaluatedByBoth: number;
+  };
   readonly evaluationTarget: EvaluationTarget;
   readonly populationSize: number;
   readonly " $fragmentType": "ProjectEvaluatorCompareMatrix_comparison";
@@ -71,6 +74,24 @@ return {
     {
       "alias": null,
       "args": null,
+      "concreteType": "EvaluatorComparisonCoverage",
+      "kind": "LinkedField",
+      "name": "coverage",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "evaluatedByBoth",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "kind": "ScalarField",
       "name": "populationSize",
       "storageKey": null
@@ -108,6 +129,6 @@ return {
 };
 })();
 
-(node as any).hash = "0cd08d8b766764428e00656f4d613abf";
+(node as any).hash = "6d6ca31b072964984d6115649c664c73";
 
 export default node;
