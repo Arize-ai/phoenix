@@ -91,7 +91,7 @@ export function NewCodeProjectEvaluatorPage() {
   );
 }
 
-export function NewGalleryLlmFromTemplateProjectEvaluatorPage() {
+export function NewLlmFromTemplateProjectEvaluatorPage() {
   const projectId = useRouteProjectId();
   const { templateName } = useParams();
   invariant(templateName, "templateName is required");
