@@ -1,5 +1,6 @@
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import type { PlaygroundTaskKind } from "@phoenix/store/playground/types";
 
 export const PLAYGROUND_PANEL_LAYOUT_ID = "playground-panels-v2";
 
@@ -11,11 +12,13 @@ export const PLAYGROUND_PANEL_LAYOUT_ID = "playground-panels-v2";
 export function getPlaygroundPanelIds({
   isDatasetMode,
   templateFormat,
+  taskKind = "prompt",
 }: {
   isDatasetMode: boolean;
   templateFormat: TemplateFormat;
+  taskKind?: PlaygroundTaskKind;
 }): string[] {
-  if (isDatasetMode) {
+  if (isDatasetMode || taskKind === "evaluator") {
     return ["prompts", "io"];
   }
   return templateFormat !== TemplateFormats.NONE

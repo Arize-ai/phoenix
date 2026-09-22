@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import {
   chatMessageRolesSchema,
   chatMessageSchema,
 } from "@phoenix/pages/playground/schemas";
+
+import { taskSourceSchema } from "../playgroundTask/schemas";
 
 const promptToolCallsSchema = chatMessageSchema.shape.toolCalls.unwrap();
 
@@ -27,7 +28,29 @@ export const clonePromptInstanceInputSchema = z
     return typeof instanceId === "number" ? { instanceId } : {};
   });
 
-export const addPromptInstanceInputSchema = emptyToolInputSchema;
+/**
+ * What the added instance holds. `{}` (or no input) still adds a new task of
+ * the page's kind, as the operation always has; the preprocess coalesces an
+ * omitted input so that call keeps working.
+ */
+export const addPromptInstanceInputSchema = z
+  .preprocess(
+    (input) => (input == null ? {} : input),
+    z.object({
+      source: z
+        .union([
+          taskSourceSchema,
+          z.strictObject({ type: z.literal("duplicate") }),
+        ])
+        .optional()
+        .describe(
+          "The task to add: a fresh draft, a saved prompt or evaluator of " +
+            "the page's kind, or a duplicate of the first instance. Defaults " +
+            "to a new task of the page's kind."
+        ),
+    })
+  )
+  .transform(({ source }) => (source ? { source } : {}));
 
 export const removePromptInstanceInputSchema = z
   .preprocess(

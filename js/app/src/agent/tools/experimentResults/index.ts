@@ -2,7 +2,7 @@ export { createReadExperimentResultsClientAction } from "./clientActions";
 export {
   MAX_EXPERIMENT_RESULT_RUNS,
   readExperimentResults,
-  shapeExperimentResults,
+  toExperimentResults,
 } from "./readExperimentResults";
 export type { ExperimentResults } from "./readExperimentResults";
 export {

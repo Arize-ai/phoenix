@@ -1,8 +1,14 @@
 import { isOperationCallApprovalGranted } from "@phoenix/agent/uiOperations/scriptApprovalGrant";
 import { parseUIOperationCallContext } from "@phoenix/agent/uiOperations/types";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
-import type { PlaygroundStore } from "@phoenix/store/playground";
+import type {
+  PlaygroundInstanceSource,
+  PlaygroundStore,
+} from "@phoenix/store/playground";
 
+import { settleInstanceSource } from "../playgroundTask/instanceLoad";
+import type { WaitForEvaluatorTaskHost } from "../playgroundTask/taskSnapshot";
+import { readTaskSnapshot } from "../playgroundTask/taskSnapshot";
 import {
   parseAddPromptInstanceInput,
   parseClonePromptInstanceInput,
@@ -67,22 +73,73 @@ export function createClonePromptInstanceClientAction({
   };
 }
 
+function describeAddedInstance(source: PlaygroundInstanceSource): string {
+  switch (source.type) {
+    case "duplicate":
+      return "Duplicate of the first task added for comparison.";
+    case "new":
+      return source.kind === "prompt"
+        ? "Default prompt instance added for comparison."
+        : `New ${source.kind} evaluator task added for comparison.`;
+    default:
+      return "Saved task loaded into a new instance for comparison.";
+  }
+}
+
 /**
- * Creates the client action handler for the add_prompt_instance tool.
- * Adds a default-content comparison instance that inherits runnable playground
- * config.
+ * Creates the client action handler for `playground.instance.add`. Adds a
+ * comparison instance from the given source (a new task of the page's kind
+ * by default), awaits a saved source's content, and reports the new
+ * instance in the shape of its kind's read operation.
  */
 export function createAddPromptInstanceClientAction({
   playgroundStore,
+  waitForEvaluatorHost,
 }: {
   playgroundStore: PlaygroundStore;
+  waitForEvaluatorHost: WaitForEvaluatorTaskHost;
 }) {
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseAddPromptInstanceInput(input);
     if (!parsed) {
       return { ok: false, error: "Invalid playground.instance.add input." };
     }
-    return addPromptInstance({ playgroundStore });
+
+    const added = addPromptInstance({ playgroundStore, source: parsed.source });
+
+    if (!added.ok) return added;
+    const { instanceId, source } = added.output;
+
+    const failure = await settleInstanceSource({
+      playgroundStore,
+      instanceId,
+      source,
+    });
+
+    if (failure) {
+      // The UI leaves a blank draft behind too, with a toast; say so.
+      return {
+        ...failure,
+        error: `${failure.error} Instance ${instanceId} was added as an empty draft: give it another task with playground.task.select, or remove it.`,
+      };
+    }
+
+    const snapshot = await readTaskSnapshot({
+      playgroundStore,
+      instanceId,
+      waitForEvaluatorHost,
+    });
+
+    if (!snapshot.ok) return snapshot;
+
+    return {
+      ok: true,
+      output: {
+        status: "added",
+        addedInstance: snapshot.output,
+        message: describeAddedInstance(source),
+      },
+    };
   };
 }
 
