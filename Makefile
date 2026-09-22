@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-evaluator-bound-variables gen-otel-models \
+	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-evaluator-bound-variables check-prompt-compilers gen-otel-models \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -101,6 +101,7 @@ help: ## Show this help message
 	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
 	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
 	@echo -e "  check-evaluator-bound-variables - Ensure the evaluator editor's bound variables match the server"
+	@echo -e "  check-prompt-compilers - Ensure the YAML prompt compilers accept and emit evaluator gallery metadata"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -464,6 +465,11 @@ check-skill-filter-examples: ## Ensure span/trace/session filter conditions in s
 check-evaluator-bound-variables: ## Ensure the evaluator editor's bound variables match the server
 	@echo -e "$(CYAN)Checking the evaluator editor's bound variables against the server...$(NC)"
 	@$(UV) run python $(CURDIR)/scripts/ci/check_evaluator_bound_variables.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-prompt-compilers: ## Ensure the YAML prompt compilers accept and emit evaluator gallery metadata
+	@echo -e "$(CYAN)Checking the YAML prompt compilers...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_prompt_compilers.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
