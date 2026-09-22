@@ -29,7 +29,8 @@ export type ClassifyArgs = WithLLM &
  * When given an AI SDK evaluation model (e.g. TypeSafe's Jev) the
  * classification is routed through `experimental_evaluate` as a single
  * choice question. Evaluation models cannot generate text, so no explanation
- * is returned in that case.
+ * is returned in that case. `telemetry`, `schemaName` and `schemaDescription`
+ * are ignored on that path: `experimental_evaluate` does not emit spans yet.
  */
 export async function generateClassification(
   args: ClassifyArgs
@@ -97,23 +98,26 @@ async function evaluateClassification(args: {
 
 /**
  * Convert an AI SDK prompt into JSON-compatible evaluation state.
- * A plain text prompt is passed through as a string; anything else
- * (system messages, message arrays) is serialized to JSON.
+ * A bare text prompt is passed through as a string; anything else
+ * (instructions, system messages, message arrays) is serialized to JSON.
  */
 function toEvaluationState(prompt: WithPrompt): EvaluationState {
-  const { system, messages } = prompt;
-  const text = "prompt" in prompt ? prompt.prompt : undefined;
+  const { instructions, system, messages, prompt: promptContent } = prompt;
   if (
-    typeof text === "string" &&
+    typeof promptContent === "string" &&
+    instructions === undefined &&
     system === undefined &&
     messages === undefined
   ) {
-    return text;
+    return promptContent;
   }
   const state: Record<string, unknown> = {};
+  if (instructions !== undefined) state.instructions = instructions;
   if (system !== undefined) state.system = system;
-  if (text !== undefined) state.prompt = text;
+  if (promptContent !== undefined) state.prompt = promptContent;
   if (messages !== undefined) state.messages = messages;
-  // Drop anything that is not JSON-compatible (e.g. binary file parts).
+  // Round-trip through JSON so the state only contains JSON values
+  // (strips `undefined`, turns Date/URL into strings). Binary file parts
+  // are not supported by evaluation models and are not stripped here.
   return JSON.parse(JSON.stringify(state)) as EvaluationState;
 }

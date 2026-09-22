@@ -1,10 +1,8 @@
-import type { Experimental_EvaluationModel } from "ai";
 import { describe, expect, it, vi } from "vitest";
 
+import { createClassificationEvaluator } from "../../src";
 import { generateClassification } from "../../src/llm/generateClassification";
-import { isEvaluationModel } from "../../src/utils";
-
-type EvaluationModel = Exclude<Experimental_EvaluationModel, string>;
+import { type EvaluationModel, isEvaluationModel } from "../../src/utils";
 
 function createMockEvaluationModel(choice: string) {
   const doEvaluate = vi.fn(
@@ -68,6 +66,22 @@ describe("generateClassification with an evaluation model", () => {
     });
   });
 
+  it("keeps instructions in the state instead of dropping them", async () => {
+    const { model, doEvaluate } = createMockEvaluationModel("correct");
+
+    await generateClassification({
+      model,
+      labels: ["correct", "incorrect"],
+      instructions: "You are a strict grader.",
+      prompt: "Is the sky blue?",
+    });
+
+    expect(doEvaluate.mock.calls[0]![0].state).toEqual({
+      instructions: "You are a strict grader.",
+      prompt: "Is the sky blue?",
+    });
+  });
+
   it("surfaces answers outside the label set as an error", async () => {
     const { model } = createMockEvaluationModel("maybe");
 
@@ -78,6 +92,35 @@ describe("generateClassification with an evaluation model", () => {
         prompt: "Is 2 + 2 = 4 correct?",
       })
     ).rejects.toThrow();
+  });
+});
+
+describe("createClassificationEvaluator with an evaluation model", () => {
+  it("maps the chosen label to a score without an explanation", async () => {
+    const { model, doEvaluate } = createMockEvaluationModel("invalid");
+    const evaluator = createClassificationEvaluator<{ question: string }>({
+      name: "isValid",
+      model,
+      promptTemplate: [
+        { role: "system", content: "You judge questions." },
+        {
+          role: "user",
+          content: "is the following question valid: {{question}}",
+        },
+      ],
+      choices: { valid: 1, invalid: 0 },
+    });
+
+    const result = await evaluator.evaluate({ question: "asdf" });
+
+    expect(result).toEqual({ label: "invalid", score: 0 });
+    expect(doEvaluate).toHaveBeenCalledTimes(1);
+    expect(doEvaluate.mock.calls[0]![0].state).toEqual({
+      prompt: [
+        { role: "system", content: "You judge questions." },
+        { role: "user", content: "is the following question valid: asdf" },
+      ],
+    });
   });
 });
 
