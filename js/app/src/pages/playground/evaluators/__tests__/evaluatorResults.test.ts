@@ -20,9 +20,11 @@ describe("evaluator results", () => {
     };
 
     const context = createEvaluatorContext({
-      input: { question: "hello" },
-      output: { response: "hello" },
-      metadata,
+      evaluationContext: {
+        input: { question: "hello" },
+        output: { response: "hello" },
+        metadata,
+      },
     });
 
     expect(context).toEqual({
@@ -35,9 +37,11 @@ describe("evaluator results", () => {
   it("offers an example's context as a dataset-grain mapping source, wrapping primitive fields", () => {
     expect(
       createEvaluatorMappingSource({
-        input: "What is 2 + 2?",
-        output: { answer: "4" },
-        metadata: { annotations: { quality: [] }, topic: "math" },
+        evaluationContext: {
+          input: "What is 2 + 2?",
+          output: { answer: "4" },
+          metadata: { annotations: { quality: [] }, topic: "math" },
+        },
       })
     ).toEqual({
       input: { value: "What is 2 + 2?" },
