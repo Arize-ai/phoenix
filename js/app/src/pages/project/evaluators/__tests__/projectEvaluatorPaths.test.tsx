@@ -25,30 +25,14 @@ function TestProjectEvaluatorPaths() {
   const paths = useProjectEvaluatorPaths();
   return (
     <output
-      data-gallery={paths.gallery}
-      data-list-new-llm={paths.listCreation.newLlm}
-      data-list-new-code={paths.listCreation.newCode}
-      data-list-copy-llm={paths.listCreation.copyLlm("Evaluator:llm/source")}
-      data-list-copy-code={paths.listCreation.copyCode("Evaluator:code/source")}
-      data-list-attach-code={paths.listCreation.attachCode(
-        "Evaluator:code/source"
-      )}
-      data-gallery-new-llm={paths.galleryCreation.newLlm}
-      data-gallery-new-code={paths.galleryCreation.newCode}
-      data-gallery-copy-llm={paths.galleryCreation.copyLlm(
-        "Evaluator:llm/source"
-      )}
-      data-gallery-copy-code={paths.galleryCreation.copyCode(
-        "Evaluator:code/source"
-      )}
-      data-gallery-attach-code={paths.galleryCreation.attachCode(
-        "Evaluator:code/source"
-      )}
-      data-response-quality-gallery={paths.galleryCategory("RESPONSE_QUALITY")}
-      data-template-gallery={paths.galleryTemplate({
-        category: "RESPONSE_QUALITY",
-        templateName: "Correctness",
-      })}
+      data-list={paths.list}
+      data-template={paths.newLlmFromTemplate("Correctness")}
+      data-new-llm={paths.creation.newLlm}
+      data-new-code={paths.creation.newCode}
+      data-copy-llm={paths.creation.copyLlm("Evaluator:llm/source")}
+      data-copy-code={paths.creation.copyCode("Evaluator:code/source")}
+      data-attach-code={paths.creation.attachCode("Evaluator:code/source")}
+      data-edit={paths.edit("ProjectEvaluator:1")}
       data-compare={paths.compare({
         a: "ProjectEvaluator:a/source",
         b: "ProjectEvaluator:b/source",
@@ -57,67 +41,55 @@ function TestProjectEvaluatorPaths() {
   );
 }
 
-describe("useProjectEvaluatorPaths", () => {
-  it("builds list and gallery destinations while preserving view state", () => {
-    act(() => {
-      root.render(
-        <MemoryRouter
-          initialEntries={[
-            "/projects/project-1/evaluators?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved",
-          ]}
-        >
-          <Routes>
-            <Route
-              path="/projects/:projectId/:tab"
-              element={<TestProjectEvaluatorPaths />}
-            />
-          </Routes>
-        </MemoryRouter>
-      );
-    });
+function renderAt(url: string) {
+  act(() => {
+    root.render(
+      <MemoryRouter initialEntries={[url]}>
+        <Routes>
+          <Route
+            path="/projects/:projectId/:tab"
+            element={<TestProjectEvaluatorPaths />}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+  });
+  const output = container.querySelector("output");
+  return (name: string) => output?.getAttribute(`data-${name}`);
+}
 
-    const output = container.querySelector("output");
-    expect(output?.getAttribute("data-gallery")).toBe(
-      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&proof=preserved"
+describe("useProjectEvaluatorPaths", () => {
+  it("builds evaluator destinations while preserving view state", () => {
+    const path = renderAt(
+      "/projects/project-1/evaluators?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-list-new-llm")).toBe(
-      "/projects/project-1/evaluators/new/llm?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+
+    expect(path("list")).toBe(
+      "/projects/project-1/evaluators?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-list-new-code")).toBe(
-      "/projects/project-1/evaluators/new/code?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+    expect(path("template")).toBe(
+      "/projects/project-1/evaluators/new/template/Correctness?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-list-copy-llm")).toBe(
-      "/projects/project-1/evaluators/new/copy-llm/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+    expect(path("new-llm")).toBe(
+      "/projects/project-1/evaluators/new/llm?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-list-copy-code")).toBe(
-      "/projects/project-1/evaluators/new/copy-code/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+    expect(path("new-code")).toBe(
+      "/projects/project-1/evaluators/new/code?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-list-attach-code")).toBe(
-      "/projects/project-1/evaluators/new/attach/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+    expect(path("copy-llm")).toBe(
+      "/projects/project-1/evaluators/new/copy-llm/Evaluator%3Allm%2Fsource?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-gallery-new-llm")).toBe(
-      "/projects/project-1/evaluator-gallery/new/llm?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+    expect(path("copy-code")).toBe(
+      "/projects/project-1/evaluators/new/copy-code/Evaluator%3Acode%2Fsource?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-gallery-new-code")).toBe(
-      "/projects/project-1/evaluator-gallery/new/code?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+    expect(path("attach-code")).toBe(
+      "/projects/project-1/evaluators/new/attach/Evaluator%3Acode%2Fsource?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-gallery-copy-llm")).toBe(
-      "/projects/project-1/evaluator-gallery/new/copy-llm/Evaluator%3Allm%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
+    expect(path("edit")).toBe(
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1/edit?timeRangeKey=7d&proof=preserved"
     );
-    expect(output?.getAttribute("data-gallery-copy-code")).toBe(
-      "/projects/project-1/evaluator-gallery/new/copy-code/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
-    );
-    expect(output?.getAttribute("data-gallery-attach-code")).toBe(
-      "/projects/project-1/evaluator-gallery/new/attach/Evaluator%3Acode%2Fsource?timeRangeKey=7d&category=AGENTS&evaluator=Evaluator%3Astale&template=Hallucination&proof=preserved"
-    );
-    expect(output?.getAttribute("data-response-quality-gallery")).toBe(
-      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&proof=preserved"
-    );
-    expect(output?.getAttribute("data-template-gallery")).toBe(
-      "/projects/project-1/evaluator-gallery?timeRangeKey=7d&category=RESPONSE_QUALITY&template=Correctness&proof=preserved"
-    );
-    expect(output?.getAttribute("data-compare")).toBe(
-      "/projects/project-1/evaluators/compare?timeRangeKey=7d&category=AGENTS&template=Hallucination&proof=preserved&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"
+    expect(path("compare")).toBe(
+      "/projects/project-1/evaluators/compare?timeRangeKey=7d&proof=preserved&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"
     );
   });
 
@@ -140,7 +112,7 @@ describe("useProjectEvaluatorPaths", () => {
     });
 
     const output = container.querySelector("output");
-    expect(output?.getAttribute("data-list-new-llm")).toBe(
+    expect(output?.getAttribute("data-new-llm")).toBe(
       "/projects/project-1/evaluators/new/llm?timeRangeKey=7d"
     );
     expect(output?.getAttribute("data-compare")).toContain(
