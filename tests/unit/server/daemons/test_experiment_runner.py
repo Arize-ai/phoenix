@@ -1091,7 +1091,7 @@ class TestRoundRobinFairness:
 
 
 class TestEvalWorkItemContext:
-    async def test_hides_own_human_annotation(self) -> None:
+    async def test_hides_every_annotation_under_its_own_name(self) -> None:
         experiment = _make_running_experiment()
         work_item = _make_eval_work_item(experiment, output_names=("quality",))
         work_item.dataset_example_revision.metadata_ = {
@@ -1113,10 +1113,7 @@ class TestEvalWorkItemContext:
 
         assert evaluate.await_args is not None
         assert evaluate.await_args.kwargs["context"]["metadata"] == {
-            "annotations": {
-                "quality": [{"label": "bad", "annotator_kind": "LLM"}],
-                "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
-            },
+            "annotations": {"tone": [{"label": "warm", "annotator_kind": "HUMAN"}]},
             "source": "unit",
         }
 
@@ -1664,14 +1661,13 @@ async def _stored_run_and_annotations(
 
 
 class TestEvaluatorTaskWorkItem:
-    async def test_context_hides_expected_outputs_and_starts_reference_empty(self) -> None:
+    async def test_context_hides_annotations_under_its_own_name(self) -> None:
         """The evaluator judges the example itself and never sees the reviewer's answer key."""
         exp = _make_running_experiment()
         revision = _make_dataset_example_revision()
-        # As the span→example converter writes them: records grouped by name. The
-        # ``length`` HUMAN record is this task's own expected output; the LLM record under
-        # the same name and the ``tone`` annotation are what the online evaluator would
-        # also see, so they stay.
+        # As the span→example converter writes them: records grouped by name. Both records
+        # under ``length`` are hidden — the human expected output and an earlier verdict of
+        # this evaluator's own — while the ``tone`` annotation stays.
         revision.metadata_ = {
             "annotations": {
                 "length": [
@@ -1710,10 +1706,7 @@ class TestEvaluatorTaskWorkItem:
             "input": revision.input,
             "output": revision.output,
             "metadata": {
-                "annotations": {
-                    "length": [{"label": "short", "score": 1.0, "annotator_kind": "LLM"}],
-                    "tone": [{"label": "polite", "annotator_kind": "HUMAN"}],
-                },
+                "annotations": {"tone": [{"label": "polite", "annotator_kind": "HUMAN"}]},
                 "source": "unit",
             },
         }
