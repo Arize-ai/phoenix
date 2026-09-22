@@ -484,10 +484,10 @@ class TestGetSpansDataframeRootSpansOnlyDeprecation:
             Spans(client).get_spans_dataframe(root_spans_only=True)
 
     def test_omitting_root_spans_only_does_not_warn(self) -> None:
-        client = httpx.Client(
-            transport=_make_dataframe_handler(expected_root_spans_only=None),
-            base_url="http://test",
-        )
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"data": [], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         with warnings.catch_warnings():
             warnings.simplefilter("error", DeprecationWarning)
             Spans(client).get_spans_dataframe()

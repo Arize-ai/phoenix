@@ -39,6 +39,7 @@ from phoenix.client.constants.server_requirements import (
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
 from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
+from phoenix.client.utils.attributes import nest_span_attributes
 from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
@@ -201,8 +202,16 @@ class Spans:
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
-                to filter by.
+                to filter by. A project name may contain any characters; names with
+                ``/``, ``?``, or ``#`` are exported through the legacy endpoint (see below).
             timeout (Optional[int]): Optional request timeout in seconds.
+
+        Plain exports (no ``query`` and no ``root_spans_only``) are fetched page by
+        page from the cursor-paginated span endpoint on Phoenix >= 20.16.0, so large
+        projects do not tie up a single server request. Queries that use the
+        SpanQuery DSL, ``root_spans_only``, project names containing ``/``, ``?``,
+        or ``#``, and older servers fall back to the legacy single-request endpoint.
+        Both paths return the same columns, indexed by ``context.span_id``.
 
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
@@ -224,20 +233,6 @@ class Spans:
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
 
-        # The simple span endpoint is cursor-paginated, while the legacy query
-        # endpoint evaluates the complete request in one database call. Use the
-        # paginated endpoint for the common unfiltered export path, but retain
-        # the legacy endpoint for queries that rely on the SpanQuery DSL.
-        use_paginated_endpoint = not query.to_dict() and root_spans_only is None
-
-        request_body = {
-            "queries": [query.to_dict()],
-            "start_time": _to_iso_format(normalized_start_time),
-            "end_time": _to_iso_format(normalized_end_time),
-            "limit": limit,
-            "root_spans_only": root_spans_only,
-        }
-
         try:
             import pandas as pd
 
@@ -245,16 +240,19 @@ class Spans:
 
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
-            elif use_paginated_endpoint:
+            if _is_plain_export(
+                query, root_spans_only, project_identifier or project_name
+            ) and self._guard.supports(GET_SPANS_SORT):
                 spans = self.get_spans(
                     project_identifier=project_identifier or project_name or "default",
                     start_time=normalized_start_time,
                     end_time=normalized_end_time,
+                    sort="start_time",
                     limit=limit,
                     timeout=timeout,
                 )
                 return _spans_to_dataframe(spans)
-            elif project_identifier and not project_name:
+            if project_identifier and not project_name:
                 if is_node_id(project_identifier, node_type="Project"):
                     project_response = self._client.get(
                         url=f"v1/projects/{project_identifier}",
@@ -267,6 +265,13 @@ class Spans:
                 else:
                     project_name = project_identifier
 
+            request_body = {
+                "queries": [query.to_dict()],
+                "start_time": _to_iso_format(normalized_start_time),
+                "end_time": _to_iso_format(normalized_end_time),
+                "limit": limit,
+                "root_spans_only": root_spans_only,
+            }
             response = self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
@@ -1528,9 +1533,16 @@ class AsyncSpans:
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
-                to filter by.
+                to filter by. A project name may contain any characters; names with
+                ``/``, ``?``, or ``#`` are exported through the legacy endpoint (see below).
             timeout (Optional[int]): Optional request timeout in seconds.
 
+        Plain exports (no ``query`` and no ``root_spans_only``) are fetched page by
+        page from the cursor-paginated span endpoint on Phoenix >= 20.16.0, so large
+        projects do not tie up a single server request. Queries that use the
+        SpanQuery DSL, ``root_spans_only``, project names containing ``/``, ``?``,
+        or ``#``, and older servers fall back to the legacy single-request endpoint.
+        Both paths return the same columns, indexed by ``context.span_id``.
 
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
@@ -1552,19 +1564,6 @@ class AsyncSpans:
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
 
-        # Keep the DSL-backed endpoint for advanced queries. The simple endpoint
-        # supports cursor pagination, which prevents large unfiltered exports from
-        # monopolizing a server request.
-        use_paginated_endpoint = not query.to_dict() and root_spans_only is None
-
-        request_body = {
-            "queries": [query.to_dict()],
-            "start_time": _to_iso_format(normalized_start_time),
-            "end_time": _to_iso_format(normalized_end_time),
-            "limit": limit,
-            "root_spans_only": root_spans_only,
-        }
-
         try:
             import pandas as pd
 
@@ -1572,16 +1571,19 @@ class AsyncSpans:
 
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
-            elif use_paginated_endpoint:
+            if _is_plain_export(
+                query, root_spans_only, project_identifier or project_name
+            ) and await self._guard.supports(GET_SPANS_SORT):
                 spans = await self.get_spans(
                     project_identifier=project_identifier or project_name or "default",
                     start_time=normalized_start_time,
                     end_time=normalized_end_time,
+                    sort="start_time",
                     limit=limit,
                     timeout=timeout,
                 )
                 return _spans_to_dataframe(spans)
-            elif project_identifier and not project_name:
+            if project_identifier and not project_name:
                 if is_node_id(project_identifier, node_type="Project"):
                     project_response = await self._client.get(
                         url=f"v1/projects/{project_identifier}",
@@ -1594,6 +1596,13 @@ class AsyncSpans:
                 else:
                     project_name = project_identifier
 
+            request_body = {
+                "queries": [query.to_dict()],
+                "start_time": _to_iso_format(normalized_start_time),
+                "end_time": _to_iso_format(normalized_end_time),
+                "limit": limit,
+                "root_spans_only": root_spans_only,
+            }
             response = await self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
@@ -2870,38 +2879,66 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         return pd.DataFrame()
 
 
+_SPAN_EXPORT_COLUMNS = (
+    "name",
+    "span_kind",
+    "parent_id",
+    "start_time",
+    "end_time",
+    "status_code",
+    "status_message",
+    "events",
+    "context.span_id",
+    "context.trace_id",
+)
+
+_PATH_UNSAFE_CHARACTERS = "/?#"
+
+
+def _is_plain_export(
+    query: SpanQuery,
+    root_spans_only: Optional[bool],
+    project_identifier: Optional[str],
+) -> bool:
+    """Whether the cursor-paginated span endpoint can serve this export; anything else
+    needs the legacy endpoint, which understands the SpanQuery DSL and takes the project
+    name as a query parameter rather than a path segment."""
+    if query.to_dict() or root_spans_only is not None:
+        return False
+    return not any(char in (project_identifier or "") for char in _PATH_UNSAFE_CHARACTERS)
+
+
 def _spans_to_dataframe(spans: Sequence[v1.Span]) -> "pd.DataFrame":
-    """Convert cursor-paginated span responses to the dataframe export shape."""
+    """Shape spans into the columns and index of the legacy query endpoint."""
     import pandas as pd
 
-    columns = [
-        "name",
-        "span_kind",
-        "parent_id",
-        "start_time",
-        "end_time",
-        "status_code",
-        "status_message",
-        "events",
-        "context.span_id",
-        "context.trace_id",
-    ]
-    if not spans:
-        return pd.DataFrame(columns=columns)
-
-    records = [dict(span) for span in spans]
-    dataframe = pd.json_normalize(records, sep=".")
-    for column in columns:
-        if column not in dataframe.columns:
-            dataframe[column] = None
-
-    attribute_columns = sorted(
-        column for column in dataframe.columns if column.startswith("attributes.")
-    )
-    dataframe = dataframe.loc[:, [*columns, *attribute_columns]]
+    df = pd.DataFrame.from_records(
+        [_span_export_record(span) for span in spans],
+        columns=list(_SPAN_EXPORT_COLUMNS),
+    ).set_index("context.span_id", drop=False)
     for column in ("start_time", "end_time"):
-        dataframe[column] = pd.to_datetime(dataframe[column], utc=True)
-    return dataframe.set_index("context.span_id", drop=False)
+        df[column] = pd.to_datetime(df[column], utc=True, format="ISO8601")
+    if df.empty:
+        return df
+    attributes = pd.DataFrame.from_records(
+        [nest_span_attributes(span.get("attributes") or {}) for span in spans]
+    ).set_axis(df.index, axis=0)
+    return pd.concat([df, attributes.add_prefix("attributes.")], axis=1)
+
+
+def _span_export_record(span: v1.Span) -> dict[str, Any]:
+    return {
+        "name": span["name"],
+        "span_kind": span["span_kind"],
+        "parent_id": span.get("parent_id"),
+        "start_time": span["start_time"],
+        "end_time": span.get("end_time"),
+        "status_code": span["status_code"],
+        "status_message": span.get("status_message", ""),
+        "events": list(span.get("events") or []),
+        "context.span_id": span["context"]["span_id"],
+        "context.trace_id": span["context"]["trace_id"],
+    }
 
 
 def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
