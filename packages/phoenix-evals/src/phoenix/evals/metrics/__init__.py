@@ -4,6 +4,7 @@ from .document_relevance import DocumentRelevanceEvaluator
 from .exact_match import exact_match
 from .faithfulness import FaithfulnessEvaluator
 from .hallucination import HallucinationEvaluator  # Deprecated alias
+from .language_detection import LanguageDetectionEvaluator
 from .matches_regex import MatchesRegex
 from .precision_recall import PrecisionRecallFScore
 from .qa_correctness import QACorrectnessEvaluator
@@ -21,6 +22,7 @@ __all__ = [
     "exact_match",
     "FaithfulnessEvaluator",
     "HallucinationEvaluator",  # Deprecated: use FaithfulnessEvaluator
+    "LanguageDetectionEvaluator",
     "MatchesRegex",
     "PrecisionRecallFScore",
     "QACorrectnessEvaluator",

@@ -15,6 +15,9 @@ from ._faithfulness_classification_evaluator_config import (
 from ._hallucination_classification_evaluator_config import (
     HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
+from ._language_detection_classification_evaluator_config import (
+    LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 from ._models import ClassificationEvaluatorConfig, PromptMessage
 from ._qa_correctness_classification_evaluator_config import (
     QA_CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG,
@@ -42,6 +45,7 @@ __all__ = [
     "DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG",
     "FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG",
+    "LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG",
     "QA_CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG",

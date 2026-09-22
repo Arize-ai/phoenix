@@ -18,6 +18,7 @@ from phoenix.evals.metrics.correctness import CorrectnessEvaluator
 from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
 from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
+from phoenix.evals.metrics.language_detection import LanguageDetectionEvaluator
 from phoenix.evals.metrics.qa_correctness import QACorrectnessEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
@@ -100,6 +101,11 @@ ALL_EVALUATORS = [
         UserFrictionEvaluator,
         {"conversation": "User: Help me.\nAssistant: What do you need?", "user_message": "Logs."},
         id="UserFrictionEvaluator",
+    ),
+    pytest.param(
+        LanguageDetectionEvaluator,
+        {"session": "User: Hello.\nAssistant: Hi, how can I help?"},
+        id="LanguageDetectionEvaluator",
     ),
     pytest.param(
         HallucinationEvaluator,
