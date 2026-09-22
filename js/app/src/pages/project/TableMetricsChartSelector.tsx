@@ -44,6 +44,10 @@ export function TableMetricsChartSelector({
 }: {
   view: MetricChartTableView;
 }) {
+  const showMetricCharts = useProjectContext((state) => state.showMetricCharts);
+  if (!showMetricCharts) {
+    return null;
+  }
   return (
     <MenuTrigger>
       <Button aria-label="Select metric charts">

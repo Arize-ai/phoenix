@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 import { Loading } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -50,6 +50,7 @@ function TracesTabContent({
     ProjectPageQueriesTracesQuery,
     tracesQueryReference
   );
+  const { traceId } = useParams();
 
   if (!data.project.hasTraces) {
     return (
@@ -57,7 +58,9 @@ function TracesTabContent({
     );
   }
 
-  return <TracesTable project={data.project} seed={seed} />;
+  return (
+    <TracesTable project={data.project} seed={seed} selectedRowId={traceId} />
+  );
 }
 
 export const ProjectTracesPage = () => {
