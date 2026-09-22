@@ -12,6 +12,10 @@ export interface ISpanItem {
   parentId: string | null;
   spanId: string;
   tokenCountTotal?: number | null;
+  /** Cost of the span, when pricing applied. Shaped as the API reports it. */
+  costSummary?: {
+    total?: { cost?: number | null } | null;
+  } | null;
   [otherKeys: string]: unknown;
 }
 
