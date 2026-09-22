@@ -58,7 +58,6 @@ const cardCSS = css`
   }
   .span-preview__timing {
     display: flex;
-    flex-direction: row;
     justify-content: space-between;
     align-items: center;
     gap: var(--global-dimension-size-200);
@@ -85,13 +84,14 @@ export type SpanPreviewTooltipProps = {
  * Render it as the tooltip of a `TooltipTrigger` around the row, which
  * anchors it beside the row and wires the row's hover, focus, Escape and
  * `aria-describedby` for it. Every row's box starts at the tree's edge, so
- * the preview keeps one horizontal position as the pointer moves down the
- * tree, whatever the nesting; the arrow and the row's hover fill, which
- * reaches that same edge, tie the two together. The identity, timing and totals render at
- * once from what the row already holds. The breakdown is fetched only once
- * the tooltip has stayed open a moment, so a scrub down the tree fetches
- * details for the rows the pointer rests on and no others, and the totals
- * stand in until it arrives.
+ * the preview holds one horizontal position as the pointer moves down the
+ * tree whatever the nesting, and the arrow and the row's hover fill, which
+ * reaches that same edge, tie the two together.
+ *
+ * The identity, timing and totals render at once from what the row already
+ * holds. The breakdown is fetched only once the tooltip has stayed open a
+ * moment, so a scrub down the tree fetches details for the rows the pointer
+ * rests on and no others, and the totals stand in until it arrives.
  */
 export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
   return (
@@ -101,7 +101,7 @@ export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
       className="span-preview"
       css={spanPreviewTooltipCSS}
     >
-      {/* The arrow points at the row so the preview reads as its own */}
+      {/* The arrow points at the row the preview describes */}
       <TooltipArrow />
       <div css={cardCSS}>
         <header className="span-preview__header">
