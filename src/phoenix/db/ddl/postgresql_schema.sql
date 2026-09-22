@@ -805,7 +805,7 @@ CREATE TABLE public.dataset_evaluators (
     evaluator_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    output_configs JSONB NOT NULL,
+    output_configs JSONB,
     input_mapping JSONB NOT NULL,
     user_id BIGINT,
     project_id BIGINT NOT NULL,
@@ -1767,7 +1767,7 @@ CREATE TABLE public.llm_evaluators (
     CONSTRAINT fk_llm_evaluators_prompt_version_tag_id_prompt_version_tags
         FOREIGN KEY (prompt_version_tag_id)
         REFERENCES public.prompt_version_tags (id)
-        ON DELETE SET NULL
+        ON DELETE RESTRICT
 );
 
 CREATE INDEX ix_llm_evaluators_prompt_id ON public.llm_evaluators

@@ -1543,11 +1543,13 @@ class EvaluatorMutationMixin:
                 if dataset_name is None:
                     raise NotFound(f"Dataset with id {dataset_id} not found")
 
+                # The input describes the evaluator itself, so the binding stores no
+                # override and inherits the evaluator's description and outputs.
                 dataset_evaluator_record = models.DatasetEvaluators(
                     dataset_id=dataset_id,
                     name=validated_name,
-                    description=input.description if input.description is not UNSET else None,
-                    output_configs=output_configs,
+                    description=None,
+                    output_configs=None,
                     input_mapping=input.input_mapping.to_orm(),
                     user_id=user_id,
                     project=_get_project_for_dataset_evaluator(
@@ -1802,9 +1804,10 @@ class EvaluatorMutationMixin:
                 active_prompt_version = prompt_version
 
             dataset_evaluator.name = evaluator_name
-            if input.description is not UNSET:
-                dataset_evaluator.description = input.description
-            dataset_evaluator.output_configs = list(output_configs)
+            # The input describes the evaluator itself, so the binding stores no
+            # override and inherits the evaluator's description and outputs.
+            dataset_evaluator.description = None
+            dataset_evaluator.output_configs = None
             if input.input_mapping is None:
                 raise BadRequest("input_mapping is required")
             dataset_evaluator.input_mapping = input.input_mapping.to_orm()
