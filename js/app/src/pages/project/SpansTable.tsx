@@ -78,6 +78,7 @@ import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
@@ -123,6 +124,7 @@ import { TraceNotesTableCell } from "./TraceNotesTableCell";
 import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type SpansTableProps = {
+  selectedRowId?: string;
   project: SpansTable_spans$key;
   /**
    * The condition the preload carried; always settled, so the rows on hand
@@ -157,11 +159,13 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   hasNext,
   onLoadNext,
   isLoadingNext,
+  selectedRowId,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
+  selectedRowId?: string;
 }) => {
   "use no memo";
   const navigate = useNavigate();
@@ -171,7 +175,9 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = isSpanRowSelected(selectedTraceSlots, row.original);
+        const isSelected =
+          isSpanRowSelected(selectedTraceSlots, row.original) ||
+          row.original.trace.traceId === selectedRowId;
         return (
           <tr
             key={row.id}
@@ -241,11 +247,11 @@ const MetadataCell = <TData extends { metadata: unknown }, TValue>({
 
 export function SpansTable(props: SpansTableProps) {
   const { projectEvaluatorId } = props;
+  const { persistToUrl } = useSpanFilterActions();
   const [searchParams, setSearchParams] = useSearchParams();
   const basePath = useResolvedPath(".").pathname;
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -271,21 +277,21 @@ export function SpansTable(props: SpansTableProps) {
   useEffect(() => {
     setSearchParamsRef.current = setSearchParams;
   }, [setSearchParams]);
-  const writeFilterConditionParam = useCallback((condition: string) => {
-    setSearchParamsRef.current(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        // Written even when empty. An absent param means "no filter was
-        // applied here", which seeds the default; an empty one means the
-        // filter was deliberately cleared. Deleting it instead would make
-        // those two indistinguishable, so clearing the filter would not
-        // survive a reload -- the default would come back.
-        next.set(SPAN_FILTER_CONDITION_PARAM, condition);
-        return next;
-      },
-      { replace: true }
-    );
-  }, []);
+  const writeFilterConditionParam = useCallback(
+    (condition: string) => {
+      if (!persistToUrl) return;
+      setSearchParamsRef.current(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          // Preserve an explicit empty filter instead of restoring the default.
+          next.set(SPAN_FILTER_CONDITION_PARAM, condition);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [persistToUrl]
+  );
   const handleValidFilterCondition = useCallback(
     ({
       condition,
@@ -863,22 +869,13 @@ export function SpansTable(props: SpansTableProps) {
     projectEvaluatorId,
     timeRangeISOStrings,
   ]);
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+  const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    pageSize: PAGE_SIZE,
+    rows: data.spans.edges,
+  });
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
   const storedColumnOrder = useTracingContext((state) => state.columnOrder);
@@ -1015,10 +1012,6 @@ export function SpansTable(props: SpansTableProps) {
                 height: 100%;
                 overflow: auto;
               `}
-              onScroll={(e) =>
-                fetchMoreOnBottomReached(e.target as HTMLDivElement)
-              }
-              ref={tableContainerRef}
             >
               <ColumnOrderingProvider
                 columnOrder={visibleColumnOrder}
@@ -1136,6 +1129,7 @@ export function SpansTable(props: SpansTableProps) {
                   ) : (
                     <TableBody
                       table={table}
+                      selectedRowId={props.selectedRowId}
                       hasNext={hasNext}
                       onLoadNext={() => loadNext(PAGE_SIZE)}
                       isLoadingNext={isLoadingNext}
@@ -1143,6 +1137,7 @@ export function SpansTable(props: SpansTableProps) {
                   )}
                 </table>
               </ColumnOrderingProvider>
+              <div ref={loadMoreSentinelRef} />
             </div>
           </Panel>
           <TableAsidePanel>

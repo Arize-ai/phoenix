@@ -14,7 +14,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import React, {
   Fragment,
   startTransition,
@@ -82,6 +82,7 @@ import { createSpanTree } from "@phoenix/components/trace/utils";
 import { TRACE_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -120,12 +121,18 @@ import { useTraceFilters } from "./TraceFiltersContext";
 import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type TracesTableProps = {
+  selectedRowId?: string;
+  emptyState?: ReactNode;
   project: TracesTable_spans$key;
   /**
    * The settled condition `project` was loaded with; the rows on hand already
    * match it.
    */
-  seed: string;
+  /**
+   * The page's URL-backed filter condition. Embedded tables omit it: they start
+   * from their filter provider's condition and leave the URL alone.
+   */
+  seed?: string;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -164,8 +171,10 @@ const TableBody = <
     IAdditionalSpansRow,
 >({
   table,
+  selectedRowId,
 }: {
   table: Table<T>;
+  selectedRowId?: string;
 }) => {
   "use no memo";
   const navigate = useNavigate();
@@ -178,7 +187,7 @@ const TableBody = <
         // every row of a viewed trace is highlighted, whichever span is shown
         const isSelected = selectedTraceSlots.some(
           (slot) => slot.traceId === row.original.trace.traceId
-        );
+        ) || row.original.trace.traceId === selectedRowId;
         return (
           <tr
             key={row.id}
@@ -271,15 +280,16 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
+  const { filterCondition: providerFilterCondition } = useTraceFilters();
   const [searchParams, setSearchParams] = useSearchParams();
   const basePath = useResolvedPath(".").pathname;
+  const ownsUrl = props.seed !== undefined;
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
-    useState<string>(props.seed);
+    useState<string>(props.seed ?? providerFilterCondition);
   // React Router 8.2 recreates this setter whenever location.search changes; a
   // stable ref keeps unrelated param changes out of the field's validation.
   const setSearchParamsRef = useRef(setSearchParams);
@@ -291,7 +301,7 @@ export function TracesTable(props: TracesTableProps) {
       setValidTraceFilterCondition(condition);
       // The mount settlement echoes the URL's own condition; writing it back
       // would touch the URL on every visit to the tab.
-      if (isInitialSettlement) {
+      if (isInitialSettlement || !ownsUrl) {
         return;
       }
       setSearchParamsRef.current(
@@ -304,7 +314,7 @@ export function TracesTable(props: TracesTableProps) {
         { replace: true }
       );
     },
-    []
+    [ownsUrl]
   );
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
@@ -957,22 +967,13 @@ export function TracesTable(props: TracesTableProps) {
     timeRangeISOStrings,
   ]);
 
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+  const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    pageSize: PAGE_SIZE,
+    rows: data.rootSpans.edges,
+  });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -1129,8 +1130,6 @@ export function TracesTable(props: TracesTableProps) {
             flex: 1 1 auto;
             overflow: auto;
           `}
-          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-          ref={tableContainerRef}
         >
           <ColumnOrderingProvider
             columnOrder={visibleColumnOrder}
@@ -1226,7 +1225,7 @@ export function TracesTable(props: TracesTableProps) {
                   ))}
               </thead>
               {isEmpty ? (
-                <ProjectTableEmpty />
+                (props.emptyState ?? <ProjectTableEmpty />)
               ) : columnSizingInfo.isResizingColumn ? (
                 <MemoizedTableBody
                   table={
@@ -1239,6 +1238,7 @@ export function TracesTable(props: TracesTableProps) {
                 />
               ) : (
                 <TableBody
+                  selectedRowId={props.selectedRowId}
                   table={
                     // We can't access the internal TableRowType in the TableBody component
                     // so we cast to unknown and then to the correct type
@@ -1250,6 +1250,7 @@ export function TracesTable(props: TracesTableProps) {
               )}
             </table>
           </ColumnOrderingProvider>
+          <div ref={loadMoreSentinelRef} />
         </div>
         {selectedRows.length ? (
           <SpanSelectionToolbar
