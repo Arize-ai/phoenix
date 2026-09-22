@@ -38,6 +38,7 @@ jobs:
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
       evaluator_bound_variables: ${{ steps.filter.outputs.evaluator_bound_variables }}
+      prompt_compilers: ${{ steps.filter.outputs.prompt_compilers }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -88,6 +89,10 @@ jobs:
               - "js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts"
               - "src/phoenix/server/online_eval/bound_variables.py"
               - "scripts/ci/check_evaluator_bound_variables.py"
+            prompt_compilers:
+              - "scripts/prompts/**"
+              - "packages/phoenix-evals/src/phoenix/evals/llm/prompts/**"
+              - "scripts/ci/check_prompt_compilers.py"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -103,6 +108,7 @@ jobs:
           JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
           FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
           EVALUATOR_BOUND_VARIABLES: ${{ steps.filter.outputs.evaluator_bound_variables }}
+          PROMPT_COMPILERS: ${{ steps.filter.outputs.prompt_compilers }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -117,6 +123,7 @@ jobs:
           echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
           echo "filter_dsl: $FILTER_DSL"
           echo "evaluator_bound_variables: $EVALUATOR_BOUND_VARIABLES"
+          echo "prompt_compilers: $PROMPT_COMPILERS"
 
   phoenix-client:
     name: Phoenix Client
@@ -351,6 +358,38 @@ jobs:
       - name: Check the evaluator editor's bound variables against the server
         run: make check-evaluator-bound-variables
 
+  check-prompt-compilers:
+    name: Check Prompt Compilers
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.prompt_compilers == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/ci/
+            scripts/prompts/
+            requirements/
+            src/phoenix/
+            packages/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+      - name: Check the YAML prompt compilers
+        run: make check-prompt-compilers
+
   doctests:
     name: Doctests
     needs: changes
@@ -567,7 +606,6 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             requirements/
-            scripts/prompts/
             src/phoenix/
             evals/
             packages/phoenix-evals/
@@ -788,6 +826,7 @@ jobs:
       - build-graphql-schema
       - check-filter-dsl-snippets
       - check-evaluator-bound-variables
+      - check-prompt-compilers
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts

@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-evaluator-bound-variables gen-otel-models \
+	codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-evaluator-bound-variables check-prompt-compilers gen-otel-models \
 	gh-comment-watch \
 	harbor-stage-environments harbor-publish-fixtures harbor-plugin-e2e harbor-oracle harbor-run harbor-view \
 	clean clean-all
@@ -98,6 +98,7 @@ help: ## Show this help message
 	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
 	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
 	@echo -e "  check-evaluator-bound-variables - Ensure the evaluator editor's bound variables match the server"
+	@echo -e "  check-prompt-compilers - Ensure the YAML prompt compilers accept and emit evaluator gallery metadata"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -442,6 +443,11 @@ check-filter-dsl-snippets: ## Ensure UI filter DSL snippets and examples compile
 check-evaluator-bound-variables: ## Ensure the evaluator editor's bound variables match the server
 	@echo -e "$(CYAN)Checking the evaluator editor's bound variables against the server...$(NC)"
 	@$(UV) run python $(CURDIR)/scripts/ci/check_evaluator_bound_variables.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-prompt-compilers: ## Ensure the YAML prompt compilers accept and emit evaluator gallery metadata
+	@echo -e "$(CYAN)Checking the YAML prompt compilers...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_prompt_compilers.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
