@@ -1090,6 +1090,37 @@ class TestRoundRobinFairness:
 # ===========================================================================
 
 
+class TestEvalWorkItemContext:
+    async def test_hides_own_human_annotation(self) -> None:
+        experiment = _make_running_experiment()
+        work_item = _make_eval_work_item(experiment, output_names=("quality",))
+        work_item.dataset_example_revision.metadata_ = {
+            "annotations": {
+                "quality": [
+                    {"label": "good", "annotator_kind": "HUMAN"},
+                    {"label": "bad", "annotator_kind": "LLM"},
+                ],
+                "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        }
+        with (
+            patch.object(work_item.evaluator, "evaluate", new_callable=AsyncMock) as evaluate,
+            patch.object(work_item, "_persist_eval_results", new_callable=AsyncMock),
+        ):
+            evaluate.return_value = []
+            await work_item.execute()
+
+        assert evaluate.await_args is not None
+        assert evaluate.await_args.kwargs["context"]["metadata"] == {
+            "annotations": {
+                "quality": [{"label": "bad", "annotator_kind": "LLM"}],
+                "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        }
+
+
 class TestEvalWorkItemCancellation:
     @pytest.mark.anyio
     async def test_eval_work_item_cancellation_reraises(self) -> None:
@@ -1429,7 +1460,10 @@ async def evaluator_experiment(db: DbSessionFactory) -> _EvaluatorExperiment:
                 input={"question": "Which capital?"},
                 output={"answer": answer},
                 # An expected output a reviewer recorded; the evaluator must never see it
-                metadata_={"annotations": [{"name": "length", "score": 5.0}], "source": "unit"},
+                metadata_={
+                    "annotations": {"length": [{"score": 5.0, "annotator_kind": "HUMAN"}]},
+                    "source": "unit",
+                },
                 revision_kind="CREATE",
             )
             session.add(revision)
@@ -1630,7 +1664,7 @@ async def _stored_run_and_annotations(
 
 
 class TestEvaluatorTaskWorkItem:
-    def test_context_hides_expected_outputs_and_starts_reference_empty(self) -> None:
+    async def test_context_hides_expected_outputs_and_starts_reference_empty(self) -> None:
         """The evaluator judges the example itself and never sees the reviewer's answer key."""
         exp = _make_running_experiment()
         revision = _make_dataset_example_revision()
@@ -1651,21 +1685,30 @@ class TestEvaluatorTaskWorkItem:
         evaluator_task = MagicMock(spec=models.ExperimentEvaluatorTask)
         evaluator_task.name = Identifier("length")
         evaluator_task.output_configs = [_LENGTH_CONFIG]
+        evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.evaluate = AsyncMock(return_value=[])
         work_item = EvaluatorTaskWorkItem(
             running_experiment=exp,
             experiment=exp._experiment,
             dataset_example_revision=revision,
             repetition_number=1,
             evaluator_task=evaluator_task,
-            evaluator=MagicMock(spec=BaseEvaluator),
+            evaluator=evaluator,
             db=exp._db,
             tracer_factory=exp._tracer_factory,
             project_id=1,
         )
 
         assert work_item._build_context() == {
-            "input": {"question": "test"},
-            "output": {"answer": "42"},
+            "input": revision.input,
+            "output": revision.output,
+            "metadata": revision.metadata_,
+        }
+        with patch.object(work_item, "_record_results", new_callable=AsyncMock):
+            await work_item.execute()
+        assert evaluator.evaluate.await_args.kwargs["context"] == {
+            "input": revision.input,
+            "output": revision.output,
             "metadata": {
                 "annotations": {
                     "length": [{"label": "short", "score": 1.0, "annotator_kind": "LLM"}],
