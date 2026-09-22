@@ -11,7 +11,7 @@ import type {
   MutationParameters,
 } from "relay-runtime";
 
-import type { EvaluatorPreviewInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { EvaluatorDefinitionInput } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
 import type { PlaygroundInstancePrompt } from "@phoenix/store";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 
@@ -33,7 +33,7 @@ export type SaveEvaluatorTaskRequest = {
   description: string | undefined;
   inputMapping: EvaluatorInputMapping;
   /** The task's run payload; it already carries the prompt or the code. */
-  preview: EvaluatorPreviewInput;
+  preview: EvaluatorDefinitionInput;
   /**
    * The prompt version the LLM task was loaded from. The server appends a
    * new version to that prompt only when the content changed; without it,
