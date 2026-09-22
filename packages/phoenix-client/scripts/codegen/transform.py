@@ -1,8 +1,7 @@
 import ast
-import json
 import sys
 from pathlib import Path
-from typing import Callable, Collection, Literal, Mapping, Optional, Sequence
+from typing import Callable, Literal, Mapping, Optional, Sequence
 
 # =============================================================================
 # String-to-DateTime field type conversions
@@ -212,10 +211,8 @@ def is_union_alias(node: ast.stmt) -> bool:
         Alias = Union[A, B]                 # bare assignment
         Alias: TypeAlias = Union[A, B]      # annotated assignment
 
-    Both are dropped from the output. `--collapse-root-models` only emits an
-    alias for a union used directly as a request body, so the generator's
-    aliases are an arbitrary subset of the schema's named unions; the full set
-    is rebuilt from the schema by `schema_union_aliases`.
+    Both are dropped from the output, because the client exposes the member
+    TypedDicts directly rather than the union aliases.
 
     Args:
         node: A top-level statement from the generated module.
@@ -249,10 +246,8 @@ def transform_dataclass(code: str) -> ast.AST:
     # `prune_unused_imports`.
     for index, node in enumerate(parsed_ast.body):
         if isinstance(node, ast.ClassDef):
-            # `typing_extensions` rather than `typing`: pydantic refuses to build
-            # a schema from `typing.TypedDict` on Python < 3.12.
             import_typeddict = ast.ImportFrom(
-                module="typing_extensions",
+                module="typing",
                 names=[ast.alias(name="TypedDict", asname=None)],
                 level=0,
             )
@@ -277,53 +272,6 @@ def transform_dataclass(code: str) -> ast.AST:
     transformer = ConvertDataClassToTypedDict()
     transformed_ast = transformer.visit(parsed_ast)
     return transformed_ast
-
-
-# =============================================================================
-# Union aliases for the schema's named union components.
-# =============================================================================
-def schema_union_aliases(schema_path: Path, class_names: Collection[str]) -> list[ast.stmt]:
-    """
-    Build a `Name = Union[A, B, ...]` alias for each schema component that is a
-    bare `oneOf`/`anyOf` of references, such as `ChatContext`.
-
-    `--collapse-root-models` inlines such a component at every field that uses
-    it, so without these aliases the client has no name for the union.
-
-    Args:
-        schema_path: Path to the OpenAPI schema the module was generated from.
-        class_names: The names of the classes defined in the generated module.
-
-    Returns:
-        One assignment per named union, in schema order.
-    """
-    components: Mapping[str, Mapping[str, object]] = json.loads(schema_path.read_text())[
-        "components"
-    ]["schemas"]
-    aliases: list[ast.stmt] = []
-    for name, component in components.items():
-        members = component.get("oneOf") or component.get("anyOf")
-        if not isinstance(members, list) or name in class_names:
-            continue
-        if not all(isinstance(member, dict) and "$ref" in member for member in members):
-            continue
-        member_names = [member["$ref"].rsplit("/", 1)[-1] for member in members]
-        unknown = [member for member in member_names if member not in class_names]
-        assert not unknown, f"{name} refers to schemas with no generated class: {unknown}"
-        aliases.append(
-            ast.Assign(
-                targets=[ast.Name(id=name, ctx=ast.Store())],
-                value=ast.Subscript(
-                    value=ast.Name(id="Union", ctx=ast.Load()),
-                    slice=ast.Tuple(
-                        elts=[ast.Name(id=member, ctx=ast.Load()) for member in member_names],
-                        ctx=ast.Load(),
-                    ),
-                    ctx=ast.Load(),
-                ),
-            )
-        )
-    return aliases
 
 
 # =============================================================================
@@ -529,7 +477,6 @@ def rewrite_file(
     input_filename: str,
     output_filename: str,
     transform: Callable[[str], ast.AST],
-    schema_path: Path,
 ) -> None:
     """
     Reads a Python file, applies the AST transformation and class adjustments,
@@ -540,7 +487,6 @@ def rewrite_file(
         input_filename: The name of the input file.
         output_filename: The name of the output file.
         transform: A function that converts a code string to an AST.
-        schema_path: Path to the OpenAPI schema the input was generated from.
     """
     file_path: Path = directory / input_filename
     with open(file_path, "r") as file:
@@ -563,9 +509,7 @@ def rewrite_file(
     non_class_statements: list[ast.stmt] = [
         stmt for stmt in transformed_ast.body if not isinstance(stmt, ast.ClassDef)
     ]
-    # The aliases refer to the classes by name, so they come last.
-    union_aliases: list[ast.stmt] = schema_union_aliases(schema_path, class_nodes.keys())
-    new_body: list[ast.stmt] = non_class_statements + sorted_classes + union_aliases
+    new_body: list[ast.stmt] = non_class_statements + sorted_classes
 
     new_module: ast.Module = ast.Module(body=new_body, type_ignores=[])
     new_module = prune_unused_imports(new_module)
@@ -581,8 +525,8 @@ def rewrite_file(
 # Main entry point.
 # =============================================================================
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python transform.py <directory> <openapi.json>")
+    if len(sys.argv) != 2:
+        print("Usage: python transform.py <directory>")
         sys.exit(1)
     directory: Path = Path(sys.argv[1])
     rewrite_file(
@@ -590,5 +534,4 @@ if __name__ == "__main__":
         ".dataclass.py",
         "__init__.py",
         transform_dataclass,
-        schema_path=Path(sys.argv[2]),
     )

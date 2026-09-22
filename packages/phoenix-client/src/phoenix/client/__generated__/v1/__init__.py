@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, TypedDict, Union
 
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired
 
 
 class AgentSessionConflictError(TypedDict):
@@ -2435,26 +2435,3 @@ class OtlpSpan(TypedDict):
 class OtlpSpansResponseBody(TypedDict):
     data: Sequence[OtlpSpan]
     next_cursor: Optional[str]
-
-
-AgentModelSelection = Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
-ChatContext = Union[
-    AppContext,
-    ProjectUIContext,
-    TraceUIContext,
-    SessionUIContext,
-    PromptUIContext,
-    PromptVersionUIContext,
-    SpanUIContext,
-    PlaygroundUIContext,
-    CodeEvaluatorUIContext,
-    LlmEvaluatorUIContext,
-    DatasetUIContext,
-    GraphQLContext,
-    WebAccessContext,
-    SubagentsContext,
-]
-CreateAnnotationConfigData = Union[
-    CategoricalAnnotationConfigData, ContinuousAnnotationConfigData, FreeformAnnotationConfigData
-]
-LegacyChatRequest = Union[LegacyChatSubmitMessage, LegacyChatRegenerateMessage]
