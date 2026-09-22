@@ -7,8 +7,8 @@ language. The vocabularies do not mix.
 | Language | Argument | Keeps | Accepted on |
 | --- | --- | --- | --- |
 | Span filter | `filterCondition` | individual spans | `Project.spans`, `Trace.spans`, project aggregates (`recordCount`, `tokenCountTotal`, `costSummary`, `latencyMsQuantile`, ...), `SpanQuery().where(...)` in the Python client, the UI spans filter bar |
-| Trace filter | `traceFilterCondition` | every span of a matching trace | `Project.spans`, the UI traces filter bar, the `filter` query param on `GET /v1/projects/{id}/traces` |
-| Session filter | `sessionFilterCondition` | sessions | `Project.sessions`, project aggregates, the UI sessions filter bar |
+| Trace filter | `traceFilterCondition` | every span of a matching trace | `Project.spans`, the UI traces filter bar, the `filter` query param on `GET /v1/projects/{id}/traces` and the `filter` argument of `client.traces.get_traces(...)` (Python) and `getTraces({...})` (TypeScript) |
+| Session filter | `sessionFilterCondition` | sessions | `Project.sessions`, project aggregates, the UI sessions filter bar, the `filter` query param on `GET /v1/projects/{id}/sessions` and the `filter` argument of `client.sessions.list(...)` (Python) and `listSessions({...})` (TypeScript) |
 
 `filterCondition` and `traceFilterCondition` compose on `Project.spans`: matching spans inside
 matching traces. `filterCondition` and `sessionFilterCondition` are mutually exclusive on the
@@ -60,8 +60,10 @@ against the vocabulary before concluding there is no data.
   metadata['flag']` is rejected; write `metadata['flag'] == True`.
 - The whole expression must be a condition. A bare `True` or a bare field is rejected.
 - `'text' in field` ignores case. `==` and list membership are exact.
-- Annotation accessors expose `.label` (string), `.score` (number), `.explanation` (string). The
-  bare accessor is an existence check: `annotations['quality']`.
+- Annotation accessors expose `.label` (string), `.score` (number), `.explanation` (string), and
+  `.identifier` (string). The bare accessor is an existence check: `annotations['quality']`.
+- `.identifier` is never missing: it is `''` on an annotation written without one, so test for
+  that with `== ''` rather than `is None`.
 
 ## Span filter
 
@@ -134,6 +136,11 @@ The accessor picks the level. The wrong level compiles and matches nothing.
 get one row per trace. Discover names with `Project.spanAnnotationNames` and
 `Project.traceAnnotationNames`.
 
+One name can cover several rows on the same span — a reviewer per pass, a run per coding
+session — because annotations are keyed by `(name, span, identifier)`. `.identifier` picks out
+one of them: `annotations['note'].identifier == 'coding-run:1'` reads only the row that run
+wrote, and combining it with `.label` or `.score` constrains that same row.
+
 ### Spellings that compile and match nothing
 
 Unknown names fall back to attribute paths, so these are not errors.
@@ -179,6 +186,8 @@ annotations["correctness"].label == "incorrect"
 annotations["hallucination"].score > 0.5
 annotations["correctness"].label is None
 annotations["correctness"]
+annotations["note"].identifier == "coding-run:1"
+annotations["note"].identifier == "coding-run:1" and annotations["note"].label == "bad"
 evals["correctness"].label == "incorrect"
 trace_annotations["quality"].label == "poor"
 parent_id is None and trace_annotations["quality"].score < 0.5
@@ -225,6 +234,7 @@ user.id == "u1"
 metadata["topic"] == "support"
 attributes["llm.model_name"] == "gpt-4o"
 trace_annotations["quality"].score < 0.5
+trace_annotations["quality"].identifier == "review-2"
 start_time >= "2026-07-01T00:00:00Z"
 any(span.status_code == "ERROR" for span in spans)
 any(span.span_kind == "LLM" and span.latency_ms > 5000 for span in spans)
@@ -266,6 +276,7 @@ duration_ms > 60000
 "refund" in any_input
 last_output is not None
 session_annotations["Quality"].score <= 0.5
+session_annotations["Quality"].identifier == "review-2"
 any(span.status_code == "ERROR" for span in spans)
 all(trace.latency_ms < 30000 for trace in traces)
 any(len([span for span in trace.spans if span.span_kind == "TOOL"]) > 5 for trace in traces)

@@ -1,5 +1,25 @@
 # @arizeai/phoenix-client
 
+## 7.14.0
+
+### Minor Changes
+
+- aab229f: Add `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` helpers to the `datasets` subpath. The helpers select datasets by name or GlobalID, create splits on existing datasets, partially update split fields, add or remove example memberships idempotently, and delete splits without deleting their examples. They require Phoenix server 19.20.0 or newer.
+  
+  Also export the generated `DatasetSplit` response type and a `DatasetIdentifier` selector type from the datasets subpath.
+
+## 7.13.0
+
+### Minor Changes
+
+- c282563: Add an `upsertOrDeleteSecrets` helper to the new `secrets` subpath. It atomically creates, updates, or deletes ordered key/value-or-null batches through `PUT /v1/secrets`, returns only the affected key names, and keeps submitted values out of helper output and error messages.
+
+## 7.12.0
+
+### Minor Changes
+
+- dab09f1: Add `filter` expressions to `getTraces` and `listSessions` (requires Phoenix server >= 20.12.0). Deprecate the individual trace error and latency parameters while retaining their behavior and support for server >= 20.8.0.
+
 ## 7.11.0
 
 ### Minor Changes

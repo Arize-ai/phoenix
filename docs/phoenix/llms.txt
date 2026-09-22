@@ -266,6 +266,8 @@
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [Together AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing): Auto-instrument the Together AI Python SDK with openinference-instrumentation-together
+- [TypeSafe AI Tracing (Python)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python): Auto-instrument TypeSafe AI SDK system_one calls in Python with openinference-instrumentation-typesafe
+- [TypeSafe AI Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript): Auto-instrument TypeSafe AI SDK systemOne calls in TypeScript with @arizeai/openinference-instrumentation-typesafe
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
 
 ### Python Frameworks
@@ -399,6 +401,7 @@
 - [OpenRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): Trace calls routed through OpenRouter's unified multi-model API
 - [OrcaRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): Trace calls through OrcaRouter's OpenAI-compatible gateway to 200+ models
 - [Together AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/together): Trace Together AI's fast open-source model inference calls in Phoenix
+- [TypeSafe AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe): Pick a TypeSafe AI tracing path for Python or TypeScript
 - [VertexAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai): Trace and evaluate Google Cloud Vertex AI model calls in Phoenix
 
 ## Settings

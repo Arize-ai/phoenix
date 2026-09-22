@@ -43,9 +43,9 @@
     "openapi-msw": "^2.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.2",
     "openapi-typescript": "^7.13.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "engines": {
     "node": ">=18"

@@ -56,7 +56,7 @@ dependencies = [
   "arize-phoenix-sqlean>=0.1.2",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=3.7.0",
+  "arize-phoenix-evals>=3.9.0",
   "arize-phoenix-otel>=0.17.0",
   "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
@@ -77,6 +77,7 @@ dependencies = [
   "orjson",
   "jmespath",
   "ldap3",
+  "snowballstemmer>=3.1",
 ]
 dynamic = ["version"]
 
@@ -377,6 +378,7 @@ module = [
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
+  "snowballstemmer",
 ]
 ignore_missing_imports = true
 
@@ -458,7 +460,7 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.12.7"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
+required-version = "==0.12.17"  # When updating this version, also update ARG UV_IMAGE in the Dockerfile
 exclude-newer = "3 days"
 # Exempt our own packages from the `exclude-newer` window so freshly published
 # versions are immediately resolvable. arize-phoenix-sqlean is not a workspace

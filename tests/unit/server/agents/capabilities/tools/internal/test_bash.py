@@ -254,6 +254,48 @@ async def test_resolver_errors_are_reported(run_bash: RunBash) -> None:
     assert payload["errors"][0]["message"] == "kaboom"
 
 
+async def test_error_lines_carry_their_location_and_path(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql 'query {\n  hello\n  boom\n}'")
+
+    assert result["exitCode"] == 1
+    assert "- [3:3] kaboom (at boom)" in result["stderr"]
+
+
+async def test_a_document_with_several_operations_needs_a_name(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql 'query A { hello } query B { echo(text: \"b\") }'")
+
+    assert result["exitCode"] == 1
+    assert result["stdout"] == ""
+    assert "--operation-name" in result["stderr"]
+
+
+async def test_operation_name_selects_one_operation(run_bash: RunBash) -> None:
+    result = await run_bash(
+        "phoenix-gql 'query A { hello } query B { echo(text: \"b\") }' --operation-name B"
+    )
+
+    assert result["exitCode"] == 0
+    assert json.loads(result["stdout"]) == {"data": {"echo": "b"}}
+    assert result["stderr"] == ""
+
+
+async def test_a_missing_query_file_is_not_sent_as_a_query(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql scorcard.graphql")
+
+    assert result["exitCode"] == 1
+    assert result["stdout"] == ""
+    assert "File not found: scorcard.graphql" in result["stderr"]
+
+
+async def test_malformed_variables_point_at_vars_file(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql '{ hello }' --vars '{\"text\": hi}'")
+
+    assert result["exitCode"] == 1
+    assert result["stdout"] == ""
+    assert "not valid JSON" in result["stderr"]
+    assert "--vars-file" in result["stderr"]
+
+
 async def test_unknown_option_errors(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql --bogus")
 
@@ -267,14 +309,96 @@ async def test_help_reflects_permissions(
 ) -> None:
     queries_only = await run_bash("phoenix-gql --help")
     with_mutations = await run_bash_with_mutations("phoenix-gql --help")
+    with_approval = await _build_run_bash_with_context()("phoenix-gql --help", _context())
+    search_advice = 'the word "mutations"'
+    approval_advice = "keep mutations in their own bash call"
 
     assert queries_only["exitCode"] == 0
     assert "Usage: phoenix-gql" in queries_only["stdout"]
     assert "queries only (mutations are disabled)" in queries_only["stdout"]
+    assert search_advice not in queries_only["stdout"]
+    assert approval_advice not in queries_only["stdout"]
     assert queries_only["stderr"] == ""
     assert with_mutations["exitCode"] == 0
     assert "queries and mutations are ENABLED" in with_mutations["stdout"]
+    assert search_advice in with_mutations["stdout"]
+    assert approval_advice not in with_mutations["stdout"]
     assert with_mutations["stderr"] == ""
+    assert "the user approves it before the command runs" in with_approval["stdout"]
+    assert search_advice in with_approval["stdout"]
+    assert approval_advice in with_approval["stdout"]
+
+
+async def test_schema_search_finds_a_field(run_bash: RunBash) -> None:
+    result = await run_bash('phoenix-gql schema --search "echo"')
+    assert result["exitCode"] == 0
+    assert result["stdout"].startswith("Query\n  echo(text: String!): String!")
+
+
+async def test_schema_with_no_flags_prints_the_query_root(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema")
+    assert result["exitCode"] == 0
+    assert result["stdout"].startswith("type Query {")
+
+
+async def test_schema_rejects_bare_words(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema echo")
+    assert result["exitCode"] == 1
+    assert "unexpected argument 'echo': use --search <text> and --names <A,B>" in result["stderr"]
+
+
+async def test_schema_looks_up_names_and_searches_in_one_call(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --names Query,Query.echo --search hello")
+    assert result["exitCode"] == 0
+    blocks = result["stdout"].split("\n\n")
+    assert blocks[0].startswith("type Query {")
+    assert blocks[1].startswith("Query.echo(text: String!): String!")
+    assert "  hello: String!" in blocks[2]
+
+
+async def test_schema_labels_several_searches(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --search hello --search=echo")
+    assert result["exitCode"] == 0
+    assert result["stdout"].startswith("# search: hello\n")
+    assert "\n\n# search: echo\n" in result["stdout"]
+
+
+async def test_schema_flag_without_a_value_is_an_error(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --search hello --names")
+    assert result["exitCode"] == 1
+    assert "--names needs a value" in result["stderr"]
+
+
+async def test_schema_lookup_prints_a_type(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --names Query")
+    assert result["exitCode"] == 0
+    assert "type Query {" in result["stdout"]
+    assert "hello: String!" in result["stdout"]
+
+
+async def test_schema_search_with_no_match_says_so(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --search zzqx")
+    assert result["exitCode"] == 0
+    assert result["stdout"].startswith("-- No type")
+
+
+async def test_schema_search_omits_mutations_when_disabled(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql schema --names deleteEverything")
+    assert result["exitCode"] == 0
+    assert "mutation deleteEverything" not in result["stdout"]
+    assert "Mutations are disabled for this session" in result["stdout"]
+
+
+async def test_schema_search_lists_mutations_when_enabled(
+    run_bash_with_mutations: RunBash,
+) -> None:
+    result = await run_bash_with_mutations("phoenix-gql schema --names deleteEverything")
+    assert result["stdout"].startswith("mutation deleteEverything: String!")
+
+
+async def test_help_mentions_schema_search(run_bash: RunBash) -> None:
+    result = await run_bash("phoenix-gql --help")
+    assert "phoenix-gql schema" in result["stdout"]
 
 
 async def test_output_path_writes_file(run_bash: RunBash) -> None:
@@ -628,3 +752,20 @@ class TestRegressionsFromTheDigestEraApprovalFlow:
         )
         assert result["exitCode"] == 0, result["stderr"]
         assert len(TAG_EVERYTHING_CALLS) == 1
+
+
+def test_schema_flag_values_are_bounded() -> None:
+    from phoenix.server.agents.capabilities.tools.internal.bash import (
+        _MAX_VALUE_CHARS,
+        _parse_schema_args,
+    )
+
+    _, names = _parse_schema_args(["--names", "id," * 100_000])
+    assert len(names) <= _MAX_VALUE_CHARS // 3 + 1
+
+
+def test_schema_flag_count_is_bounded() -> None:
+    from phoenix.server.agents.capabilities.tools.internal.bash import _MAX_ARGS, _parse_schema_args
+
+    _, names = _parse_schema_args(["--names", "id"] * 1000)
+    assert len(names) == _MAX_ARGS // 2

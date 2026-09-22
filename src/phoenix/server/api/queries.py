@@ -153,7 +153,6 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS, load_skills
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
@@ -1734,7 +1733,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[AgentSkill]:
-        skills = load_skills(PXI_SKILLS_ROOTS)
+        skills = info.context.get_request().app.state.agent_skills
         return [
             AgentSkill(
                 name=skill.name,

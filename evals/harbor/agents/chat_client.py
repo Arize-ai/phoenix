@@ -388,26 +388,16 @@ def _raise_for_status(response: httpx.Response) -> None:
     raise RuntimeError(message)
 
 
-def _load_step_config(path: Path | None) -> dict[str, Any]:
-    if path is None or not path.is_file():
-        return {}
-    config = json.loads(path.read_text())
-    return config if isinstance(config, dict) else {}
-
-
 def _dump_json(value: Any) -> str:
     return json.dumps(value, indent=2) + "\n"
 
 
 async def run(args: argparse.Namespace) -> None:
-    step_config = _load_step_config(args.step_config)
-    allow_mutations = bool(step_config.get("allow_mutations", False))
-    approve_tool_calls = bool(step_config.get("approve_tool_calls", False))
-    edit_permission: EditPermission = "bypass" if allow_mutations else "manual"
+    edit_permission: EditPermission = "bypass" if args.allow_mutations else "manual"
     client = AgentSessionChatClient(
         args.base_url,
         model=builtin_model_selection(args.model),
-        turn_timeout_seconds=float(step_config.get("turn_timeout_seconds", 900.0)),
+        turn_timeout_seconds=args.turn_timeout_seconds,
     )
     try:
         session_id = args.session_id or await client.create_session()
@@ -415,8 +405,8 @@ async def run(args: argparse.Namespace) -> None:
             session_id,
             args.instruction_file.read_text(),
             edit_permission=edit_permission,
-            mutations_enabled=allow_mutations,
-            approve=lambda _part: approve_tool_calls,
+            mutations_enabled=args.allow_mutations,
+            approve=lambda _part: args.approve_tool_calls,
             record_local_traces=True,
         )
         transcript = await client.list_messages(session_id)
@@ -444,7 +434,9 @@ def main() -> None:
     parser.add_argument(
         "--session-id", default=None, help="Continue this session; omit to create one"
     )
-    parser.add_argument("--step-config", type=Path, default=None)
+    parser.add_argument("--allow-mutations", action="store_true")
+    parser.add_argument("--approve-tool-calls", action="store_true")
+    parser.add_argument("--turn-timeout-seconds", type=float, default=900.0)
     asyncio.run(run(parser.parse_args()))
 
 

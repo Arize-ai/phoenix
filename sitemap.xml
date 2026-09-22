@@ -945,6 +945,18 @@
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-typescript</loc>
+    <lastmod>2026-09-18T21:37:46+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/vertexai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1387,6 +1399,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions</loc>
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/secrets</loc>
+    <lastmod>2026-09-21T23:14:46+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users</loc>
@@ -2203,6 +2219,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-14-2026-coding-agent-plugins-and-error-analysis</loc>
+    <lastmod>2026-09-21T22:56:24+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/09-2026/09-08-2026-model-providers-trace-filters-and-pxi</loc>
