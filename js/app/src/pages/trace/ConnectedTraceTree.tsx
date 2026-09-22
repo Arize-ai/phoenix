@@ -43,6 +43,11 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
               parentId
               latencyMs
               tokenCountTotal
+              costSummary {
+                total {
+                  cost
+                }
+              }
               spanAnnotationSummaries {
                 labels
                 count

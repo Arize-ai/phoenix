@@ -5,6 +5,8 @@ import {
   TraceTreeSkeleton,
 } from "@phoenix/components/trace/TraceTreeSkeleton";
 
+import { traceTreeFrameStyle } from "./constants/traceTreeFrame";
+
 const meta: Meta<typeof TraceTreeSkeleton> = {
   title: "Trace/TraceTreeSkeleton",
   component: TraceTreeSkeleton,
@@ -16,13 +18,7 @@ const meta: Meta<typeof TraceTreeSkeleton> = {
 export default meta;
 type Story = StoryObj<typeof TraceTreeSkeleton>;
 
-const frameCSS = {
-  width: 640,
-  height: 480,
-  border: "1px solid var(--global-border-color-default)",
-  background: "var(--global-color-gray-75)",
-  overflow: "auto" as const,
-};
+const frameCSS = { ...traceTreeFrameStyle, width: 640, overflow: "auto" };
 
 export const Default: Story = {
   render: () => (

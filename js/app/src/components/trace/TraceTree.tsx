@@ -12,16 +12,28 @@ import {
 } from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
-import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
 
-import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
+import { SpanMetrics } from "./SpanMetrics";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { useTraceTree } from "./TraceTreeContext";
-import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
+import {
+  SpanTreeDrop,
+  SpanTreeEdge,
+  SpanTreeEdgeConnector,
+} from "./TraceTreeEdges";
+import {
+  nestingLevelStyle,
+  spanControlsCSS,
+  spanNodeContentCSS,
+  spanNodeIconCSS,
+  spanNodeWrapCSS,
+  spanTimingCSS,
+  traceTreeListCSS,
+} from "./traceTreeStyles";
 import type { ISpanItem, SpanStatusCodeType } from "./types";
 import type { SpanTreeNode } from "./utils";
 import { createSpanTree, filterSpanTree } from "./utils";
@@ -192,17 +204,14 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     setIsCollapsed(treeIsCollapsed);
   }, [treeIsCollapsed]);
 
-  const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
+  const { name, latencyMs, statusCode, tokenCountTotal, costSummary } =
+    node.span;
   return (
     <div ref={itemRef}>
       <div
         role="button"
         tabIndex={0}
-        css={css`
-          width: 100%;
-          overflow: hidden;
-          cursor: pointer;
-        `}
+        css={spanNodeButtonCSS}
         onClick={() => {
           startTransition(() => {
             if (onSpanClick) {
@@ -212,51 +221,52 @@ function SpanTreeItem<TSpan extends ISpanItem>(
         }}
       >
         <SpanNodeWrap
-          isSelected={selectedSpanNodeId === node.span.id}
+          isSelected={isSelected}
           nestingLevel={nestingLevel}
+          statusCode={statusCode}
+          dropStatusCode={
+            hasChildren && !effectiveIsCollapsed
+              ? childNodes[0].span.statusCode
+              : undefined
+          }
         >
-          <Flex
-            direction="row"
-            gap="size-100"
-            justifyContent="start"
-            alignItems="center"
-            flex="1 1 auto"
-            minWidth={0}
-            css={css`
-              overflow: hidden;
-            `}
-          >
+          <div css={spanNodeIconCSS} className="span-node__icon">
             <SpanKindIcon spanKind={node.span.spanKind} />
-            <span css={spanNameCSS} title={name}>
-              {name}
-            </span>
-            {statusCode === "ERROR" ? (
-              <SpanStatusCodeIcon
-                statusCode="ERROR"
-                css={css`
-                  font-size: var(--global-font-size-m);
-                `}
-              />
-            ) : null}
-            {typeof tokenCountTotal === "number" &&
-            tokenCountTotal > 0 &&
-            showMetricsInTraceTree ? (
-              <SpanTokenCount
-                tokenCountTotal={tokenCountTotal}
-                nodeId={node.span.id}
-              />
-            ) : null}
-          </Flex>
-          {showMetricsInTraceTree ? (
-            <div css={spanTimingCSS} className="span-tree-timing">
-              {latencyMs != null ? (
-                <LatencyText
-                  latencyMs={latencyMs}
-                  showIcon={false}
-                  size="XS"
-                  color="text-500"
+          </div>
+          <div css={spanNodeContentCSS} className="span-node__content">
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              minWidth={0}
+              height="var(--trace-tree-heading-height)"
+              className="span-node__heading"
+            >
+              <span css={spanNameCSS} title={name}>
+                {name}
+              </span>
+              {statusCode === "ERROR" ? (
+                <SpanStatusCodeIcon
+                  statusCode="ERROR"
+                  css={css`
+                    font-size: var(--global-font-size-m);
+                    flex: none;
+                  `}
                 />
               ) : null}
+            </Flex>
+            {showMetricsInTraceTree ? (
+              <SpanMetrics
+                spanNodeId={node.span.id}
+                size="XS"
+                latencyMs={latencyMs}
+                tokenCountTotal={tokenCountTotal}
+                costTotal={costSummary?.total?.cost}
+              />
+            ) : null}
+          </div>
+          {showMetricsInTraceTree ? (
+            <div css={spanTimingCSS} className="span-tree-timing">
               <SpanTimelineBar
                 spanKind={node.span.spanKind}
                 overallTimeRange={overallTimeRange}
@@ -302,14 +312,13 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                 css={css`
                   position: relative;
                 `}
+                style={nestingLevelStyle(nestingLevel)}
               >
                 {nexSibling ? (
                   <SpanTreeEdgeConnector
-                    {...nexSibling.span}
-                    nestingLevel={nestingLevel}
+                    statusCode={nexSibling.span.statusCode}
                   />
                 ) : null}
-                <SpanTreeEdge {...leafNode.span} nestingLevel={nestingLevel} />
                 <SpanTreeItem
                   node={leafNode}
                   overallTimeRange={overallTimeRange}
@@ -327,129 +336,52 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   );
 }
 
+const spanNodeButtonCSS = css`
+  width: 100%;
+  cursor: pointer;
+`;
+
+const selectableRowCSS = css`
+  ${spanNodeWrapCSS}
+  &:hover {
+    background-color: var(--global-color-gray-75);
+  }
+  &.is-selected {
+    // Keep the fill translucent so the latency bar remains visible
+    background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
+    border-color: var(--global-color-gray-300);
+  }
+`;
+
 function SpanNodeWrap(
-  props: PropsWithChildren<{ isSelected: boolean; nestingLevel: number }>
+  props: PropsWithChildren<{
+    isSelected: boolean;
+    nestingLevel: number;
+    /** Status of this span; colors the elbow joining it to its parent. */
+    statusCode: SpanStatusCodeType;
+    /**
+     * Status of the first visible child, when there is one. Draws the line
+     * that drops from this row's icon to its children.
+     */
+    dropStatusCode?: SpanStatusCodeType;
+  }>
 ) {
+  const { isSelected, nestingLevel, statusCode, dropStatusCode, children } =
+    props;
   return (
     <div
       className={classNames("span-node-wrap", {
-        "is-selected": props.isSelected,
+        "is-selected": isSelected,
       })}
-      css={css`
-        width: 100%;
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        gap: var(--global-dimension-size-100);
-        padding-right: var(--global-dimension-size-100);
-        padding-top: var(--global-dimension-size-100);
-        padding-bottom: var(--global-dimension-size-100);
-        border-left: 4px solid transparent;
-        box-sizing: border-box;
-        &:hover {
-          background-color: var(--global-color-gray-75);
-        }
-        &.is-selected {
-          // Keep the fill translucent so the latency bar remains visible
-          background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
-          border-color: var(--global-color-gray-300);
-        }
-        & > *:first-of-type {
-          margin-left: calc(
-            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
-          );
-        }
-      `}
+      css={selectableRowCSS}
+      style={nestingLevelStyle(nestingLevel)}
     >
-      {props.children}
+      {nestingLevel > 0 ? <SpanTreeEdge statusCode={statusCode} /> : null}
+      {dropStatusCode ? <SpanTreeDrop statusCode={dropStatusCode} /> : null}
+      {children}
     </div>
   );
 }
-
-/**
- * The line that connects the parent node to the child node edge
- */
-function SpanTreeEdgeConnector({
-  statusCode,
-  nestingLevel,
-}: {
-  statusCode: SpanStatusCodeType;
-  nestingLevel: number;
-}) {
-  const isError = statusCode === "ERROR";
-  return (
-    <div
-      aria-hidden="true"
-      data-testid="span-tree-edge-connector"
-      className="span-tree-edge-connector"
-      data-status-code={statusCode}
-      css={css`
-        position: absolute;
-        border-left: 1px solid
-          ${isError
-            ? "var(--global-color-danger)"
-            : "var(--global-color-gray-300)"};
-        z-index: ${isError ? 1 : 0};
-        top: 0;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
-        width: 42px;
-        bottom: 0;
-        z-index: 1;
-      `}
-    ></div>
-  );
-}
-
-function SpanTreeEdge({
-  nestingLevel,
-  statusCode,
-}: {
-  statusCode: SpanStatusCodeType;
-  nestingLevel: number;
-}) {
-  const isError = statusCode === "ERROR";
-  const color = isError
-    ? "var(--global-color-danger)"
-    : "var(--global-color-gray-300)";
-  const zIndex = isError ? 1 : 0;
-  return (
-    <div
-      aria-hidden="true"
-      className="span-tree-edge"
-      css={css`
-        position: absolute;
-        border-left: 1px solid ${color};
-        border-bottom: 1px solid ${color};
-        z-index: ${zIndex};
-        border-radius: 0 0 0 11px;
-        top: -5px;
-        left: ${nestingLevel * NESTING_INDENT + 29}px;
-        width: 11px;
-        height: 22px;
-      `}
-    ></div>
-  );
-}
-
-const spanControlsCSS = css`
-  width: 20px;
-  flex: none;
-`;
-
-const spanTimingCSS = css`
-  gap: var(--global-dimension-size-100);
-  width: 150px;
-  flex: none;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  .latency-text {
-    justify-content: end !important;
-    min-width: 2.5rem;
-    float: right;
-    white-space: nowrap;
-  }
-`;
 
 const collapseButtonCSS = css`
   display: flex;

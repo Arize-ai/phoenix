@@ -13,6 +13,35 @@ export type TokenCostsDetailsProps = Omit<
   label?: string;
 };
 
+type CostDetailSummaryEntry = {
+  tokenType: string;
+  isPrompt: boolean;
+  value: { cost: number | null };
+};
+
+/**
+ * Splits per-token-type cost entries into the prompt and completion detail
+ * maps {@link TokenCostsDetails} draws. Mirrors
+ * `getTokenCountDetailsFromCostDetails` for the cost side of the same entries.
+ */
+export function getTokenCostDetailsFromCostDetails(
+  costDetails: ReadonlyArray<CostDetailSummaryEntry>
+): Pick<TokenCostsDetailsProps, "promptDetails" | "completionDetails"> {
+  const getDetails = (isPrompt: boolean) => {
+    const entries = costDetails.flatMap((detail) =>
+      detail.isPrompt === isPrompt && detail.value.cost != null
+        ? [[detail.tokenType, detail.value.cost] as const]
+        : []
+    );
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+  };
+
+  return {
+    promptDetails: getDetails(true),
+    completionDetails: getDetails(false),
+  };
+}
+
 export function TokenCostsDetails({
   total,
   prompt,
