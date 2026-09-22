@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ec1834e6c3108ec2f75d5ff1f8bb021>>
+ * @generated SignedSource<<389893d4204e98ec5df06f4edc9a1757>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorCompareContent_evaluator$data = {
   readonly id: string;
   readonly name: string;
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareMatrix_evaluator" | "ProjectEvaluatorCompareStats_evaluator">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareMatrix_evaluator" | "ProjectEvaluatorCompareStats_evaluator" | "ProjectEvaluatorCompareTargets_evaluator">;
   readonly " $fragmentType": "ProjectEvaluatorCompareContent_evaluator";
 };
 export type ProjectEvaluatorCompareContent_evaluator$key = {
@@ -49,12 +49,17 @@ const node: ReaderFragment = {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectEvaluatorCompareMatrix_evaluator"
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "ProjectEvaluatorCompareTargets_evaluator"
     }
   ],
   "type": "ProjectEvaluator",
   "abstractKey": null
 };
 
-(node as any).hash = "177698f60d1cf14fd060ce3b82469e9f";
+(node as any).hash = "aa005d8f0baa0b05c0164525eccf03dc";
 
 export default node;

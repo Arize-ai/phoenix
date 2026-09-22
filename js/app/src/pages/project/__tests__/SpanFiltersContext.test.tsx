@@ -80,6 +80,22 @@ describe("SpanFiltersProvider URL seeding", () => {
     });
   }
 
+  it("seeds from the fallback rather than the URL when not persisting to it", async () => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/spans?spanFilterCondition=from_url"]}>
+          <SpanFiltersProvider
+            persistToUrl={false}
+            fallbackFilterCondition="from_fallback"
+          >
+            <FilterConditionReader />
+          </SpanFiltersProvider>
+        </MemoryRouter>
+      );
+    });
+    expect(container.textContent).toBe("from_fallback");
+  });
+
   it("seeds from the URL by default", async () => {
     await renderAt("/spans?spanFilterCondition=span_kind%20%3D%3D%20'LLM'");
 

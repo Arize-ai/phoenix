@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { useParams } from "react-router";
 
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -139,10 +140,12 @@ function ProjectEvaluatorTracesTable({
       fetchKey: projectEvaluatorId,
     }
   );
+  const { traceId } = useParams();
   return (
     <SpansTable
       project={data.project}
       seed={seed}
+      selectedRowId={traceId}
       projectEvaluatorId={projectEvaluatorId}
       emptyState={<ProjectEvaluatorTracesEmpty hasEverRun={hasEverRun} />}
     />
