@@ -94,12 +94,18 @@ def test_resume_plan_stores_pending_call_and_submits_its_output() -> None:
     assert pending["state"] == "input-available"
     assert pending["type"] == "tool-search_browser_actions"
     assert "output" not in pending
-    client = plan["client"]
-    assert client["message"] is None
-    assert client["last_message_id"] == stored[1]["id"]
-    assert client["tool_outputs"][0]["state"] == "output-available"
-    assert client["tool_outputs"][0]["output"] == CATALOG
-    assert {c["type"] for c in client["contexts"]} == {
+    request = plan["request"]
+    assert "message" not in request
+    assert request["lastMessageId"] == stored[1]["id"]
+    assert request["toolOutputs"][0]["state"] == "output-available"
+    assert request["toolOutputs"][0]["output"] == CATALOG
+    assert request["model"] == {
+        "providerType": "builtin",
+        "provider": "OPENAI",
+        "modelName": "gpt-5.4",
+    }
+    assert request["headless"] is False
+    assert {c["type"] for c in request["contexts"]} == {
         "project",
         "app",
         "graphql",
@@ -119,12 +125,12 @@ def test_resume_plan_stores_pending_call_and_submits_its_output() -> None:
 def test_message_plan_posts_the_user_turn() -> None:
     plan = plan_seed(_message_example(), model="anthropic/claude-x", now=NOW)
     assert plan["stored_messages"] == []
-    client = plan["client"]
-    assert client["last_message_id"] is None
-    assert client["tool_outputs"] == []
-    assert client["message"]["parts"] == [{"type": "text", "text": "What is a trace?"}]
-    assert client["message"]["metadata"]["phoenix"]["type"] == "user"
-    assert plan["scoring"]["client_message_id"] == client["message"]["id"]
+    request = plan["request"]
+    assert "lastMessageId" not in request
+    assert "toolOutputs" not in request
+    assert request["message"]["parts"] == [{"type": "text", "text": "What is a trace?"}]
+    assert request["message"]["metadata"]["phoenix"]["type"] == "user"
+    assert plan["scoring"]["client_message_id"] == request["message"]["id"]
     assert plan["session"]["model_provider"] == "ANTHROPIC"
 
 
@@ -138,7 +144,7 @@ def test_message_ids_are_uuids_so_the_database_accepts_them() -> None:
 def test_every_dataset_example_plans(dataset: str) -> None:
     for example in load_example_records(dataset):
         plan = plan_seed(example, model="openai/gpt-5.4", now=NOW)
-        assert plan["stored_messages"] or plan["client"]["message"] is not None
+        assert plan["stored_messages"] or "message" in plan["request"]
         assert step_name(example["id"])
         assert user_instruction(example)
 
@@ -149,7 +155,7 @@ def test_scored_messages_drop_the_seeded_prefix() -> None:
     resumed = {
         **stored[1],
         "parts": [
-            plan["client"]["tool_outputs"][0],
+            plan["request"]["toolOutputs"][0],
             {
                 "type": "tool-execute_browser_action",
                 "toolCallId": "call-2",
@@ -174,7 +180,7 @@ def test_scored_messages_drop_the_seeded_prefix() -> None:
 
 def test_scored_messages_keep_only_new_messages_after_a_posted_user_turn() -> None:
     plan = plan_seed(_message_example(), model="openai/gpt-5.4", now=NOW)
-    posted = plan["client"]["message"]
+    posted = plan["request"]["message"]
     reply = {
         "id": "reply",
         "role": "assistant",

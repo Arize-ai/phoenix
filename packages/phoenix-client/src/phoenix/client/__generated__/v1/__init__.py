@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, Union
 
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypedDict
 
 
 class AgentSessionConflictError(TypedDict):

@@ -249,8 +249,10 @@ def transform_dataclass(code: str) -> ast.AST:
     # `prune_unused_imports`.
     for index, node in enumerate(parsed_ast.body):
         if isinstance(node, ast.ClassDef):
+            # `typing_extensions` rather than `typing`: pydantic refuses to build
+            # a schema from `typing.TypedDict` on Python < 3.12.
             import_typeddict = ast.ImportFrom(
-                module="typing",
+                module="typing_extensions",
                 names=[ast.alias(name="TypedDict", asname=None)],
                 level=0,
             )

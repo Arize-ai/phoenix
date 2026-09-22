@@ -5,15 +5,15 @@ import argparse
 import asyncio
 import json
 import sys
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 from uuid import uuid4
 
 import httpx
 from phoenix.client.__generated__ import v1
+from pydantic import TypeAdapter
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, DataChunk
 
 from phoenix.server.agents.ui_message_stream import iter_chunks_with_error_parts
@@ -21,14 +21,14 @@ from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_strea
 
 EditPermission = Literal["manual", "bypass"]
 Message = v1.PhoenixUIMessage
-ToolOutputPart = (
-    v1.PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputAvailablePart
-    | v1.PhoenixDbTypesDataStreamProtocolRequestTypesToolOutputErrorPart
-    | v1.PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputAvailablePart
-    | v1.PhoenixDbTypesDataStreamProtocolRequestTypesDynamicToolOutputErrorPart
-)
 ApprovalRequestedPart = v1.ToolApprovalRequestedPart | v1.DynamicToolApprovalRequestedPart
 ApprovalPolicy = Callable[[ApprovalRequestedPart], bool]
+
+
+_MESSAGE = TypeAdapter(Message)
+_MODEL_SELECTION = TypeAdapter(v1.BuiltInProviderModelSelection)
+_APPROVAL_REQUESTED_PART: TypeAdapter[ApprovalRequestedPart] = TypeAdapter(ApprovalRequestedPart)
+_CHAT_REQUEST_BODY = TypeAdapter(v1.ChatRequestBody)
 TurnSpan = dict[str, Any]
 
 _SSE_DATA_PREFIX = "data: "
@@ -84,7 +84,7 @@ async def accumulate_assistant_message(
             + (f": {'; '.join(errors)}" if errors else "")
         )
     dumped = latest.model_dump(mode="json", by_alias=True, exclude_none=True)
-    return cast(Message, dumped), errors
+    return _MESSAGE.validate_python(dumped), errors
 
 
 def builtin_model_selection(harbor_model_name: str) -> v1.BuiltInProviderModelSelection:
@@ -94,9 +94,8 @@ def builtin_model_selection(harbor_model_name: str) -> v1.BuiltInProviderModelSe
         raise ValueError(
             f"Expected a Harbor model name of the form provider/model, got {harbor_model_name!r}"
         )
-    return cast(
-        v1.BuiltInProviderModelSelection,
-        {"providerType": "builtin", "provider": provider.upper(), "modelName": model_name},
+    return _MODEL_SELECTION.validate_python(
+        {"providerType": "builtin", "provider": provider.upper(), "modelName": model_name}
     )
 
 
@@ -116,7 +115,7 @@ def chat_contexts(*, mutations_enabled: bool, now: datetime | None = None) -> li
 
 def pending_approvals(message: Message) -> list[ApprovalRequestedPart]:
     return [
-        cast(ApprovalRequestedPart, part)
+        _APPROVAL_REQUESTED_PART.validate_python(part)
         for part in message["parts"]
         if part.get("state") == "approval-requested"
     ]
@@ -153,15 +152,6 @@ class Turn:
         return [*prefix, *self.assistant_messages]
 
     @property
-    def final_message(self) -> Message:
-        return self.assistant_messages[-1]
-
-    @property
-    def usage(self) -> v1.AssistantMessageMetadataUsage | None:
-        metadata = _assistant_metadata(self.final_message)
-        return metadata.get("usage") if metadata is not None else None
-
-    @property
     def trace_contexts(self) -> list[v1.TurnTraceContext]:
         """The ``turnTraceContext`` of each assistant message: the trace PXI's own
         instrumentation wrote for that continuation, with its root span."""
@@ -188,13 +178,13 @@ class AgentSessionChatClient:
             transport=transport,
             timeout=httpx.Timeout(turn_timeout_seconds, connect=30.0),
         )
-        self._model = model
+        self.model = model
 
     async def aclose(self) -> None:
         await self._http.aclose()
 
     async def create_session(self) -> str:
-        body: v1.CreateAgentSessionRequestBody = {"model": self._model, "is_ephemeral": False}
+        body: v1.CreateAgentSessionRequestBody = {"model": self.model, "is_ephemeral": False}
         response = await self._http.post("/v1/agent_sessions", json=body)
         _raise_for_status(response)
         return str(response.json()["data"]["id"])
@@ -286,53 +276,33 @@ class AgentSessionChatClient:
         return transcript[-1]["id"] if transcript else None
 
     async def run_turn(
-        self,
-        session_id: str,
-        *,
-        message: Message | None = None,
-        tool_outputs: Sequence[ToolOutputPart] = (),
-        last_message_id: str | None,
-        edit_permission: EditPermission,
-        contexts: Sequence[v1.ChatContext],
-        headless: bool,
-        record_local_traces: bool,
-        approve: ApprovalPolicy | None,
+        self, request: v1.ChatRequestBody, *, approve: ApprovalPolicy | None
     ) -> Turn:
-        """Open a turn with a user message or with the outputs of the tool calls that end
-        the stored transcript, then answer approval requests with ``approve`` until the
-        model finishes. With ``approve=None`` the turn ends at the first approval request,
-        or when the model calls a client-executed tool, and the caller sees it pending.
+        """Post ``request`` to open a turn, then answer approval requests with ``approve``
+        until the model finishes. With ``approve=None`` the turn ends at the first approval
+        request, or when the model calls a client-executed tool, and the caller sees it
+        pending.
         """
-        if (message is None) == (not tool_outputs):
+        message = request.get("message")
+        if (message is None) == (not request.get("toolOutputs")):
             raise ValueError("A turn opens with either a user message or tool outputs")
-        base_body: v1.ChatRequestBody = {
-            "id": session_id,
-            "trigger": "submit-message",
-            "headless": headless,
-            "model": self._model,
-            "editPermission": edit_permission,
-            "contexts": contexts,
-            "recordLocalTraces": record_local_traces,
-        }
-        opening: v1.ChatRequestBody = {**base_body}
-        if last_message_id is not None:
-            opening["lastMessageId"] = last_message_id
-        if message is not None:
-            opening["message"] = message
-        else:
-            opening["toolOutputs"] = tool_outputs
+        session_id = request["id"]
         turn = Turn(user_message=message)
-        reply, errors = await self._chat(session_id, opening)
+        reply, errors = await self._chat(session_id, request)
         turn.assistant_messages.append(reply)
         turn.stream_errors.extend(errors)
         while approve is not None and not errors and (approvals := pending_approvals(reply)):
             tool_approvals: list[v1.ToolApproval] = [
                 {"toolCallId": part["toolCallId"], "approved": approve(part)} for part in approvals
             ]
-            reply, errors = await self._chat(
-                session_id,
-                {**base_body, "toolApprovals": tool_approvals, "lastMessageId": reply["id"]},
-            )
+            continuation: v1.ChatRequestBody = {
+                **request,
+                "toolApprovals": tool_approvals,
+                "lastMessageId": reply["id"],
+            }
+            continuation.pop("message", None)
+            continuation.pop("toolOutputs", None)
+            reply, errors = await self._chat(session_id, continuation)
             turn.assistant_messages.append(reply)
             turn.stream_errors.extend(errors)
         return turn
@@ -415,34 +385,6 @@ def _raise_for_status(response: httpx.Response) -> None:
     raise RuntimeError(message)
 
 
-def _dump_json(value: Any) -> str:
-    return json.dumps(value, indent=2) + "\n"
-
-
-async def _run_seeded_turn(client: AgentSessionChatClient, seed_file: Path) -> tuple[str, Turn]:
-    """Continue a session seeded by ``evals.harbor.pxi.insert_session_into_db`` as the
-    browser would: non-headless so the browser tools are available, without answering
-    approvals or client-executed tool calls, which the PXI evals score as they stand. The
-    turn's own traces are not recorded, so the trajectory carries token counts from the
-    message metadata but no per-call latencies.
-    """
-    seed = json.loads(seed_file.read_text())
-    session_id = str(seed["session_id"])
-    request = seed["client"]
-    turn = await client.run_turn(
-        session_id,
-        message=cast(Message | None, request["message"]),
-        tool_outputs=cast(list[ToolOutputPart], request["tool_outputs"]),
-        last_message_id=cast(str | None, request["last_message_id"]),
-        edit_permission=cast(EditPermission, request["edit_permission"]),
-        contexts=cast(list[v1.ChatContext], request["contexts"]),
-        headless=False,
-        record_local_traces=False,
-        approve=None,
-    )
-    return session_id, turn
-
-
 async def run(args: argparse.Namespace) -> None:
     edit_permission: EditPermission = "bypass" if args.allow_mutations else "manual"
     client = AgentSessionChatClient(
@@ -451,50 +393,56 @@ async def run(args: argparse.Namespace) -> None:
         turn_timeout_seconds=args.turn_timeout_seconds,
     )
     try:
-        if args.seed_file is not None:
-            session_id, turn = await _run_seeded_turn(client, args.seed_file)
+        if args.request is not None:
+            request = _CHAT_REQUEST_BODY.validate_json(args.request)
+            approve: ApprovalPolicy | None = None
         else:
-            if args.instruction_file is None:
-                raise ValueError("--instruction-file is required without --seed-file")
+            if args.instruction is None:
+                raise ValueError("--instruction is required without --request")
             session_id = args.session_id or await client.create_session()
-            turn = await client.run_turn(
-                session_id,
-                message=user_message(args.instruction_file.read_text()),
-                last_message_id=await client.last_message_id(session_id),
-                edit_permission=edit_permission,
-                contexts=chat_contexts(mutations_enabled=args.allow_mutations),
-                headless=True,
-                record_local_traces=True,
-                approve=lambda _part: args.approve_tool_calls,
-            )
-        transcript = await client.list_messages(session_id)
+            request = {
+                "id": session_id,
+                "trigger": "submit-message",
+                "headless": True,
+                "model": client.model,
+                "editPermission": edit_permission,
+                "contexts": chat_contexts(mutations_enabled=args.allow_mutations),
+                "recordLocalTraces": True,
+                "message": user_message(args.instruction),
+            }
+            if (last_message_id := await client.last_message_id(session_id)) is not None:
+                request["lastMessageId"] = last_message_id
+            approve = lambda _part: args.approve_tool_calls  # noqa: E731
+        session_id = request["id"]
+        turn = await client.run_turn(request, approve=approve)
         turn_spans = await client.fetch_turn_spans(turn.trace_contexts)
     finally:
         await client.aclose()
 
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    args.out_dir.joinpath("session_id").write_text(session_id + "\n")
-    args.out_dir.joinpath("turn_messages.json").write_text(_dump_json(turn.messages))
-    args.out_dir.joinpath("messages.json").write_text(_dump_json(transcript))
-    args.out_dir.joinpath("usage.json").write_text(_dump_json(turn.usage))
-    args.out_dir.joinpath("turn_spans.json").write_text(_dump_json(turn_spans))
-    args.out_dir.joinpath("stream_errors.json").write_text(_dump_json(turn.stream_errors))
     for error in turn.stream_errors:
         print(f"warning: the server ended the turn with an error: {error}", file=sys.stderr)
+    print(
+        json.dumps(
+            {
+                "session_id": session_id,
+                "turn_messages": turn.messages,
+                "turn_spans": turn_spans,
+                "stream_errors": turn.stream_errors,
+            }
+        )
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:6006")
     parser.add_argument("--model", required=True, help="Harbor provider/model name")
-    parser.add_argument("--instruction-file", type=Path, default=None)
+    parser.add_argument("--instruction", default=None, help="The user message that opens the turn")
     parser.add_argument(
-        "--seed-file",
-        type=Path,
+        "--request",
         default=None,
-        help="Continue the session seeded by evals.harbor.pxi.insert_session_into_db instead of a new one",
+        help="A ChatRequestBody JSON to post as the turn, leaving approval requests pending",
     )
-    parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument(
         "--session-id", default=None, help="Continue this session; omit to create one"
     )

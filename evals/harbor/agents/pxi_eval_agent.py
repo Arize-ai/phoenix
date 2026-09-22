@@ -11,12 +11,7 @@ from typing import Any
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
-from evals.harbor.agents.phoenix_chat_agent import (
-    _AGENT_DIR,
-    _CHAT_CLIENT,
-    _STEPS_DIR,
-    PhoenixChatAgent,
-)
+from evals.harbor.agents.phoenix_chat_agent import PhoenixChatAgent
 from evals.harbor.pxi.examples import parse_instruction
 
 _EXAMPLE_PATH = "/app/example.json"
@@ -44,8 +39,6 @@ class PxiEvalAgent(PhoenixChatAgent):
             raise ValueError(
                 "No model specified; pass one with the -m flag, e.g. -m openai/gpt-5.4."
             )
-        self._step += 1
-        out_dir = f"{_STEPS_DIR}/{self._step}"
         await self._upload_example(environment, parse_instruction(instruction))
         seed_command = (
             f"PYTHONPATH={_VERIFIER_PYTHONPATH} python -m evals.harbor.pxi.insert_session_into_db {_EXAMPLE_PATH}"
@@ -54,16 +47,8 @@ class PxiEvalAgent(PhoenixChatAgent):
         result = await environment.exec(seed_command, user="root")
         if result.return_code != 0:
             raise RuntimeError(result.stderr or result.stdout or "seeding the PXI session failed")
-        if (user := environment.default_user) is not None:
-            await environment.exec(f"chown {shlex.quote(str(user))} {_SEED_PATH}", user="root")
-        command = [
-            f"python {_AGENT_DIR}/{_CHAT_CLIENT.name}",
-            f"--model {shlex.quote(self.model_name)}",
-            f"--seed-file {_SEED_PATH}",
-            f"--out-dir {out_dir}",
-        ]
-        await self._exec(environment, " ".join(command))
-        self._session_id = (await self._exec(environment, f"cat {out_dir}/session_id")).strip()
+        request = (result.stdout or "").strip()
+        await self._run_chat_client(environment, [f"--request {shlex.quote(request)}"])
 
     async def _upload_example(self, environment: BaseEnvironment, example: dict[str, Any]) -> None:
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as file:

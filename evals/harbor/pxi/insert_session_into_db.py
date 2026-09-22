@@ -1,17 +1,20 @@
 """Seed a PXI agent session with an example's primed transcript.
 
-``plan_seed`` turns an example into the rows to store and the request the chat client
-sends to continue the turn. The command line writes the rows to the Phoenix database
-and the plan to a JSON file for the client and the verifier::
+``plan_seed`` turns an example into the rows to store and the ``ChatRequestBody`` that
+continues the turn. The command line writes the rows to the Phoenix database and the plan
+to a JSON file for the verifier, and prints the request for the chat client::
 
     PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.insert_session_into_db /app/example.json \
         --model openai/gpt-5.4 --out /app/seed.json
 
-The transcript ends either with a user message, which the client posts as the turn's
-message, or with an assistant message whose tool calls have completed outputs. In the
-second case the stored copy holds the calls as pending ``input-available`` parts and the
-client submits the outputs as ``toolOutputs``, the same way the browser answers a
+The transcript ends either with a user message, which becomes the request's ``message``,
+or with an assistant message whose tool calls have completed outputs. In the second case
+the stored copy holds the calls as pending ``input-available`` parts and the request
+submits the outputs as ``toolOutputs``, the same way the browser answers a
 client-executed tool. The server then resumes the turn from that point.
+
+The request is non-headless so the browser tools are offered as in the UI, and does not
+record local traces, so trajectories carry token counts but no per-call latencies.
 """
 
 from __future__ import annotations
@@ -278,14 +281,16 @@ def plan_seed(
     )
 
     last = renamed[-1]
-    client: dict[str, Any] = {
-        "edit_permission": edit_permission,
+    provider, model_name = _model_selection(model)
+    request: dict[str, Any] = {
+        "trigger": "submit-message",
+        "headless": False,
+        "recordLocalTraces": False,
+        "model": {"providerType": "builtin", "provider": provider, "modelName": model_name},
+        "editPermission": edit_permission,
         "contexts": _chat_contexts(
             raw_contexts, mutations_enabled=edit_permission == "bypass", now=now
         ),
-        "message": None,
-        "tool_outputs": [],
-        "last_message_id": None,
     }
     scoring: dict[str, Any] = {
         "client_message_id": None,
@@ -294,8 +299,9 @@ def plan_seed(
     }
     if last.role == "user":
         stored = [_dump(message) for message in renamed[:-1]]
-        client["message"] = _dump(last)
-        client["last_message_id"] = stored[-1]["id"] if stored else None
+        request["message"] = _dump(last)
+        if stored:
+            request["lastMessageId"] = stored[-1]["id"]
         scoring["client_message_id"] = last.id
     else:
         stored = [_dump(message) for message in renamed]
@@ -308,13 +314,12 @@ def plan_seed(
             for part in trailing["parts"]
         ]
         PhoenixUIMessage.model_validate(trailing)
-        client["tool_outputs"] = completed
-        client["last_message_id"] = trailing["id"]
+        request["toolOutputs"] = completed
+        request["lastMessageId"] = trailing["id"]
         scoring["resumed_message_id"] = trailing["id"]
         scoring["seeded_part_count"] = len(trailing["parts"])
     scoring["seeded_message_ids"] = [message["id"] for message in stored]
 
-    provider, model_name = _model_selection(model)
     return {
         "session": {
             "project_name": get_env_phoenix_agents_assistant_project_name(),
@@ -323,7 +328,7 @@ def plan_seed(
             "model_name": model_name,
         },
         "stored_messages": stored,
-        "client": client,
+        "request": request,
         "scoring": scoring,
     }
 
@@ -374,8 +379,9 @@ def main(argv: list[str] | None = None) -> None:
     plan = plan_seed(example, model=args.model)
     rowid = write_session(plan, database_url=args.database_url)
     plan["session_id"] = agent_session_global_id(rowid)
+    plan["request"]["id"] = plan["session_id"]
     args.out.write_text(json.dumps(plan, indent=2) + "\n")
-    print(json.dumps({"session_id": plan["session_id"], "stored": len(plan["stored_messages"])}))
+    print(json.dumps(plan["request"]))
 
 
 if __name__ == "__main__":
