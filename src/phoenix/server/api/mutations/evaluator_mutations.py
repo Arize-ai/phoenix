@@ -923,6 +923,15 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
+                # Tag moves and evaluator edits lock the evaluator row first, so each validates
+                # against the other's committed state.
+                evaluator_id = await session.scalar(
+                    select(models.ProjectEvaluator.evaluator_id).where(
+                        models.ProjectEvaluator.id == project_evaluator_id
+                    )
+                )
+                if evaluator_id is not None:
+                    await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
                 pair = (
                     await session.execute(
                         select(models.ProjectEvaluator, models.LLMEvaluator)
@@ -1684,6 +1693,15 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid DatasetEvaluator id: {input.dataset_evaluator_id}")
 
         async with info.context.db() as session:
+            # Tag moves and evaluator edits lock the evaluator row first, so each validates
+            # against the other's committed state.
+            evaluator_id = await session.scalar(
+                select(models.DatasetEvaluators.evaluator_id).where(
+                    models.DatasetEvaluators.id == dataset_evaluator_rowid
+                )
+            )
+            if evaluator_id is not None:
+                await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
             dataset_evaluator_row = await session.execute(
                 select(
                     models.DatasetEvaluators,
