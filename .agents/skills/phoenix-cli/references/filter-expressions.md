@@ -7,8 +7,8 @@ language. The vocabularies do not mix.
 | Language | Argument | Keeps | Accepted on |
 | --- | --- | --- | --- |
 | Span filter | `filterCondition` | individual spans | `Project.spans`, `Trace.spans`, project aggregates (`recordCount`, `tokenCountTotal`, `costSummary`, `latencyMsQuantile`, ...), `SpanQuery().where(...)` in the Python client, the UI spans filter bar |
-| Trace filter | `traceFilterCondition` | every span of a matching trace | `Project.spans`, the UI traces filter bar, the `filter` query param on `GET /v1/projects/{id}/traces` |
-| Session filter | `sessionFilterCondition` | sessions | `Project.sessions`, project aggregates, the UI sessions filter bar, the `filter` query param on `GET /v1/projects/{id}/sessions` |
+| Trace filter | `traceFilterCondition` | every span of a matching trace | `Project.spans`, the UI traces filter bar, the `filter` query param on `GET /v1/projects/{id}/traces` and the `filter` argument of `client.traces.get_traces(...)` (Python) and `getTraces({...})` (TypeScript) |
+| Session filter | `sessionFilterCondition` | sessions | `Project.sessions`, project aggregates, the UI sessions filter bar, the `filter` query param on `GET /v1/projects/{id}/sessions` and the `filter` argument of `client.sessions.list(...)` (Python) and `listSessions({...})` (TypeScript) |
 
 `filterCondition` and `traceFilterCondition` compose on `Project.spans`: matching spans inside
 matching traces. `filterCondition` and `sessionFilterCondition` are mutually exclusive on the

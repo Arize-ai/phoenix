@@ -99,25 +99,25 @@ traces = client.traces.get_traces(
     limit=50,
 )
 
-# Server-side error and latency filters (requires Phoenix server >= 20.8.0)
+# Server-side trace filter (requires Phoenix server >= 20.12.0)
 slow_failures = client.traces.get_traces(
     project_identifier="my-app",
-    error=True,             # only traces containing at least one errored span
-    min_latency_ms=1000,    # inclusive lower bound, milliseconds
+    filter="error_count > 0 and latency_ms >= 1000",
     limit=50,
 )
 
 # The clean, slow traces — the ones that are wrong without crashing
 quiet_and_slow = client.traces.get_traces(
     project_identifier="my-app",
-    error=False,            # only traces with no errored spans
-    min_latency_ms=5000,
-    max_latency_ms=30000,   # inclusive upper bound
+    filter="error_count == 0 and 5000 <= latency_ms <= 30000",
     limit=50,
 )
 ```
 
-`error=False` is a filter in its own right, not "unfiltered" — leave `error`
-unset to get every trace. Negative bounds, and a `min_latency_ms` above
-`max_latency_ms`, raise `ValueError` client-side instead of returning an empty
-page.
+`filter` is a trace filter expression: the same language as the UI's traces
+filter bar, with rollups like `error_count`, `latency_ms`, `num_spans`, and
+`total_cost` and comprehensions over `spans`. The vocabulary is in
+[filter-expressions.md](filter-expressions.md) under "Trace filter". It
+combines with `start_time`, `end_time`, and `session_id` using AND. Against an
+older server the client raises before sending the request rather than
+returning unfiltered traces.

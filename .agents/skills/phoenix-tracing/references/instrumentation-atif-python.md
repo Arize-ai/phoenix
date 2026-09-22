@@ -178,8 +178,8 @@ When an agent's context window fills up, Harbor splits the session across
 multiple files. Load them into the same batch: a `session_id` ending in
 `-cont-N` joins the original session's trace. The continuation root is named
 `<agent> (continuation N)` and carries `metadata.is_continuation = True` plus
-`metadata.continuation_index`. A continuation of a subagent stays beneath the
-same caller as the first document.
+`metadata.continuation_index`. The helper does not follow
+`continued_trajectory_ref` to other files; the Harbor plugin does that itself.
 
 ## Attribute Mapping
 

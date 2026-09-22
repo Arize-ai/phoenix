@@ -61,20 +61,21 @@ const faithfulnessEval = createFaithfulnessEvaluator({ model: openai("gpt-4o") }
   itself: `input` holds the full history the assistant saw, including tool
   calls and results, and there is no `context` field — use it for multi-turn
   agents and chat.
-- **Completeness scores finished work across the whole conversation.** It
-  enumerates every request the user made in any turn and labels the
-  conversation `incomplete` if any non-withdrawn request was never fulfilled,
-  so a single final turn is not enough input. A delivered answer, a delivered
-  artifact including its required parts, or an action whose success is visible
-  in the record counts as fulfilled; a refusal, a clarifying question, or a
-  blocker report does not, and a request the user withdrew is excluded from the
-  decision. Correctness and grounding are out of scope: a wrong-but-delivered
-  answer still counts as complete. For agent traces put tool calls and tool
-  results into the single `conversation` field so the judge can verify that an
-  action actually succeeded — with tools omitted it falls back to the visible
-  dialogue and will credit a claimed action. The `explanation` is an
-  `INTENTIONS:` block with one line per request and its state, which you can
-  parse to see which request was dropped.
+- **Completeness scores finished work across the whole conversation.** The
+  judge lists every request the user made in any turn, marks each one
+  `fulfilled`, `withdrawn`, or `unfulfilled`, and labels the conversation
+  `incomplete` if any non-withdrawn request is unfulfilled — so pass the full
+  history in `conversation`, not the final turn. Fulfilled means the
+  deliverable is visible in the record: an answer covering every part asked
+  for, an artifact with every required component, or an action whose success
+  shows up in a tool result. A refusal, an "I don't know", a clarifying
+  question, or a promise is unfulfilled. Correctness is out of scope, so a
+  wrong-but-delivered answer is still complete. For agent traces include tool
+  calls and results: matching tool evidence overrides the assistant's claim,
+  and without it the judge has to take the assistant's word. The
+  `explanation` is an `INTENTIONS:` block, one line per request with its
+  `state` and a `reason_code` (`pending`, `blocked`, `failed`, `ignored`) you
+  can parse to see which request was dropped and why.
 - **PII detection screens the whole record.** The single `conversation` field
   should include everything — system instructions, tool calls and results,
   retrieved documents — not just what the user saw. The judge's `explanation`

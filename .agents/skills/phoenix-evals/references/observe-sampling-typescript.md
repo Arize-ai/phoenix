@@ -114,27 +114,28 @@ const { traces: recentTraces } = await getTraces({
   includeSpans: true,
 });
 
-// Server-side error and latency filters (requires Phoenix server >= 20.8.0)
+// Server-side trace filter (requires Phoenix server >= 20.12.0)
 const { traces: slowFailures } = await getTraces({
   project: { projectName: "my-project" },
-  error: true, // only traces containing at least one errored span
-  minLatencyMs: 1000, // inclusive lower bound, milliseconds
+  filter: "error_count > 0 and latency_ms >= 1000",
   limit: 50,
 });
 
 // The clean, slow traces — the ones that are wrong without crashing
 const { traces: quietAndSlow } = await getTraces({
   project: { projectName: "my-project" },
-  error: false, // only traces with no errored spans
-  minLatencyMs: 5000,
-  maxLatencyMs: 30000, // inclusive upper bound
+  filter: "error_count == 0 and 5000 <= latency_ms <= 30000",
   limit: 50,
 });
 ```
 
-`error: false` is a filter in its own right, not "unfiltered" — omit `error` to
-get every trace. Negative bounds, and a `minLatencyMs` above `maxLatencyMs`,
-throw client-side instead of returning an empty page.
+`filter` is a trace filter expression: the same language as the UI's traces
+filter bar, with rollups like `error_count`, `latency_ms`, `num_spans`, and
+`total_cost` and comprehensions over `spans`. The vocabulary is in
+[filter-expressions.md](filter-expressions.md) under "Trace filter". It
+combines with `startTime`, `endTime`, and `sessionId` using AND. Against an
+older server the client throws before sending the request rather than
+returning unfiltered traces.
 
 ## Building a Review Queue
 
