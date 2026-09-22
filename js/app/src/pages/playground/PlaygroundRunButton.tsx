@@ -1,17 +1,26 @@
 import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useSearchParams } from "react-router";
 
 import {
   Button,
   Icon,
   Icons,
   Keyboard,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
   VisuallyHidden,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
+import { getPlaygroundTaskKind } from "@phoenix/store/playground";
 
+import { DisabledButtonTooltip } from "./DisabledButtonTooltip";
+import { resolvePlaygroundDatasetId } from "./playgroundURLSearchParamsUtils";
 import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
+
+const EVALUATORS_NEED_A_DATASET = "Select a dataset to run evaluators";
 
 export function PlaygroundRunButton() {
   const modifierKey = useModifierKey();
@@ -26,14 +35,32 @@ export function PlaygroundRunButton() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
+  const isEvaluatorKind = usePlaygroundContext(
+    (state) => getPlaygroundTaskKind(state.instances) === "evaluator"
+  );
+
+  const recordExperiments = usePlaygroundContext(
+    (state) => state.recordExperiments
+  );
+
+  const [searchParams] = useSearchParams();
+  const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
+
+  const hasDataset =
+    resolvePlaygroundDatasetId({ searchParams, storeDatasetId }) != null;
+
+  // Evaluators judge dataset examples; prompts can also run on manual input.
+  const canRun = !isEvaluatorKind || hasDataset;
+
   const toggleRunning = useCallback(() => {
     if (isRunning) {
       cancelPlaygroundRun({ instances, cancelPlaygroundInstances });
-    } else {
+    } else if (canRun) {
       runPlaygroundInstances();
     }
   }, [
     isRunning,
+    canRun,
     cancelPlaygroundInstances,
     cancelPlaygroundRun,
     runPlaygroundInstances,
@@ -52,7 +79,8 @@ export function PlaygroundRunButton() {
       preventDefault: true,
     }
   );
-  return (
+
+  const button = (
     <Button
       data-testid="playground-run-button"
       variant="primary"
@@ -60,6 +88,7 @@ export function PlaygroundRunButton() {
         <Icon svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />} />
       }
       size="S"
+      isDisabled={!isRunning && !canRun}
       onPress={() => {
         toggleRunning();
       }}
@@ -75,4 +104,45 @@ export function PlaygroundRunButton() {
       {isRunning ? "Stop" : "Run"}
     </Button>
   );
+
+  if (!canRun && !isRunning) {
+    return (
+      <DisabledButtonTooltip label="Run" reason={EVALUATORS_NEED_A_DATASET}>
+        {button}
+      </DisabledButtonTooltip>
+    );
+  }
+
+  return (
+    <TooltipTrigger>
+      {button}
+      <Tooltip>
+        <TooltipArrow />
+        {getRunTooltip({ isRunning, hasDataset, recordExperiments })}
+      </Tooltip>
+    </TooltipTrigger>
+  );
+}
+
+/** What pressing the button does right now, in a sentence or two. */
+function getRunTooltip({
+  isRunning,
+  hasDataset,
+  recordExperiments,
+}: {
+  isRunning: boolean;
+  hasDataset: boolean;
+  recordExperiments: boolean;
+}): string {
+  if (isRunning) {
+    return "Stop the running experiments.";
+  }
+
+  if (!hasDataset) {
+    return "Run every prompt on the inputs.";
+  }
+
+  return recordExperiments
+    ? "Run every task over the dataset. Recorded."
+    : "Run every task over the dataset. Not recorded.";
 }
