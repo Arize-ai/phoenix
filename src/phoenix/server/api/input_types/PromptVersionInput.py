@@ -59,6 +59,7 @@ def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
         return "aws"
     if (
         provider is ModelProvider.OPENAI
+        or provider is ModelProvider.OPENAI_CODEX
         or provider is ModelProvider.AZURE_OPENAI
         or provider is ModelProvider.DEEPSEEK
         or provider is ModelProvider.XAI
