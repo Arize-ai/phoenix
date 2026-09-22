@@ -6,6 +6,10 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
+from phoenix.db.types.evaluator_definition import InlineCodeEvaluatorDefinition
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -129,3 +133,133 @@ async def test_experiment_job_last_error_and_errors(
     assert messages == ["newest error", "middle error", "old error"]
     for edge in node["errors"]["edges"]:
         assert edge["node"]["level"] == "ERROR"
+
+
+TASK_CONFIG_QUERY = """
+  query ($jobId: ID!) {
+    node(id: $jobId) {
+      ... on ExperimentJob {
+        taskConfig {
+          id
+        }
+        evaluatorTaskConfig {
+          id
+          name
+          evaluatorKind
+          inputMapping {
+            literalMapping
+            pathMapping
+          }
+          outputConfigs {
+            ... on ContinuousAnnotationConfig {
+              name
+              lowerBound
+              upperBound
+            }
+          }
+          definition
+        }
+      }
+    }
+  }
+"""
+
+_ANSWER_LENGTH_SOURCE = "def evaluate(output):\n    return len(output)"
+
+
+@pytest.fixture
+async def evaluator_experiment_job_id(db: DbSessionFactory) -> int:
+    """An experiment whose task is an inline code evaluator."""
+    length_config = ContinuousOutputConfig(
+        type="CONTINUOUS",
+        name="length",
+        optimization_direction=OptimizationDirection.MAXIMIZE,
+        description=None,
+        lower_bound=0.0,
+        upper_bound=None,
+    )
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset).values(name="ds", metadata_={}).returning(models.Dataset.id)
+        )
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .values(dataset_id=dataset_id, metadata_={})
+            .returning(models.DatasetVersion.id)
+        )
+        experiment_id = await session.scalar(
+            insert(models.Experiment)
+            .values(
+                dataset_id=dataset_id,
+                dataset_version_id=version_id,
+                name="answer-length",
+                repetitions=1,
+                metadata_={},
+            )
+            .returning(models.Experiment.id)
+        )
+        assert experiment_id is not None
+        session.add(
+            models.ExperimentEvaluatorTask(
+                id=experiment_id,
+                name=Identifier("answer-length"),
+                evaluator_kind="CODE",
+                definition=InlineCodeEvaluatorDefinition(
+                    type="inline_code_evaluator",
+                    name="answer-length",
+                    description=None,
+                    language="PYTHON",
+                    source_code=_ANSWER_LENGTH_SOURCE,
+                    sandbox_config_id=7,
+                    output_configs=[length_config],
+                ),
+                input_mapping=InputMapping(
+                    literal_mapping={"case_sensitive": True},
+                    path_mapping={"output": "$.output"},
+                ),
+                output_configs=[length_config],
+            )
+        )
+        await session.commit()
+    return experiment_id
+
+
+async def test_evaluator_job_exposes_its_evaluator_task_config(
+    gql_client: AsyncGraphQLClient,
+    evaluator_experiment_job_id: int,
+) -> None:
+    job_id = str(
+        GlobalID(type_name=ExperimentJob.__name__, node_id=str(evaluator_experiment_job_id))
+    )
+    response = await gql_client.execute(query=TASK_CONFIG_QUERY, variables={"jobId": job_id})
+    assert not response.errors
+    assert response.data is not None
+    node = response.data["node"]
+
+    assert node["taskConfig"] is None
+    config = node["evaluatorTaskConfig"]
+    assert config["name"] == "answer-length"
+    assert config["evaluatorKind"] == "CODE"
+    assert config["inputMapping"] == {
+        "literalMapping": {"case_sensitive": True},
+        "pathMapping": {"output": "$.output"},
+    }
+    assert config["outputConfigs"] == [{"name": "length", "lowerBound": 0.0, "upperBound": None}]
+    definition = config["definition"]
+    assert definition["type"] == "inline_code_evaluator"
+    assert definition["source_code"] == _ANSWER_LENGTH_SOURCE
+    assert definition["sandbox_config_id"] == 7
+    assert [output["name"] for output in definition["output_configs"]] == ["length"]
+
+
+async def test_prompt_job_has_no_evaluator_task_config(
+    gql_client: AsyncGraphQLClient,
+    experiment_with_logs: ExperimentWithLogs,
+) -> None:
+    job_id = str(
+        GlobalID(type_name=ExperimentJob.__name__, node_id=str(experiment_with_logs.experiment_id))
+    )
+    response = await gql_client.execute(query=TASK_CONFIG_QUERY, variables={"jobId": job_id})
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["evaluatorTaskConfig"] is None
