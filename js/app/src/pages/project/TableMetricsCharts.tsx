@@ -72,7 +72,8 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
 /**
  * Lays out the metric charts strip above a table (filter bar + table) in a
  * vertically resizable panel group. When no charts are selected the table
- * content fills the space.
+ * content fills the space. Where the project store offers no metric charts
+ * at all, the table content renders on its own, outside any panel group.
  */
 export function TableMetricsChartsPanelGroup({
   view,
@@ -81,6 +82,7 @@ export function TableMetricsChartsPanelGroup({
   view: MetricChartTableView;
   children: ReactNode;
 }) {
+  const showMetricCharts = useProjectContext((state) => state.showMetricCharts);
   // The store guarantees keys are valid catalog keys, so any selection means
   // there are charts to show
   const hasCharts = useProjectContext(
@@ -90,6 +92,10 @@ export function TableMetricsChartsPanelGroup({
     id: `${view}-table-metrics-layout`,
     isChartsPanelShown: hasCharts,
   });
+  if (!showMetricCharts) {
+    return children;
+  }
+  // Keep the table panel mounted when the chart strip appears or disappears.
   return (
     <Group orientation="vertical" {...chartsLayout}>
       {hasCharts && (
