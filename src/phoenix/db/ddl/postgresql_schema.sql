@@ -906,7 +906,8 @@ CREATE TABLE public.experiment_jobs (
     CONSTRAINT "ck_experiment_jobs_`valid_type`"
         CHECK (((type)::text = ANY ((ARRAY[
             'PROMPT'::character varying,
-            'EVAL_ONLY'::character varying
+            'EVAL_ONLY'::character varying,
+            'EVALUATOR'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_jobs_id_experiments
         FOREIGN KEY (id)
@@ -933,6 +934,31 @@ CREATE TABLE public.experiment_dataset_evaluators (
 
 CREATE INDEX ix_experiment_dataset_evaluators_dataset_evaluator_id ON public.experiment_dataset_evaluators
     USING btree (dataset_evaluator_id);
+
+
+-- Table: experiment_evaluator_tasks
+-- ---------------------------------
+CREATE TABLE public.experiment_evaluator_tasks (
+    id BIGINT NOT NULL,
+    type VARCHAR NOT NULL DEFAULT 'EVALUATOR'::character varying,
+    name VARCHAR NOT NULL,
+    evaluator_kind VARCHAR NOT NULL,
+    definition JSONB NOT NULL,
+    input_mapping JSONB NOT NULL,
+    output_configs JSONB NOT NULL,
+    CONSTRAINT pk_experiment_evaluator_tasks PRIMARY KEY (id),
+    CONSTRAINT "ck_experiment_evaluator_tasks_`valid_evaluator_kind`"
+        CHECK (((evaluator_kind)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'CODE'::character varying,
+            'BUILTIN'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_experiment_evaluator_tasks_`valid_type`" CHECK (((type)::text = 'EVALUATOR'::text)),
+    CONSTRAINT fk_experiment_evaluator_tasks_type_experiment_jobs
+        FOREIGN KEY (type, id)
+        REFERENCES public.experiment_jobs (type, id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: experiment_logs
