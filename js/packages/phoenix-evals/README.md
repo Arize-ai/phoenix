@@ -89,21 +89,6 @@ console.log(result);
 
 See the complete example in [`examples/classifier_example.ts`](examples/classifier_example.ts).
 
-### Decision-Only Evaluation Models (TypeSafe Jev)
-
-Classification evaluators also accept an [AI SDK evaluation model](https://ai-sdk.dev/docs/ai-sdk-core/evaluation) such as TypeSafe's Jev. These models answer typed questions instead of generating text, which makes them much cheaper for single-label classification. The rendered prompt is sent as the evaluation `state` and the `choices` become the options of a single choice question. Because the model does not generate text, the result has a `label` and `score` but no `explanation`.
-
-```typescript
-import { typeSafeAi } from "@ai-sdk/typesafe-ai";
-import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
-
-const evaluator = createFaithfulnessEvaluator({
-  model: typeSafeAi.evaluationModel("jev-latest"),
-});
-```
-
-Tracing is not yet emitted for evaluation-model calls. See the complete example in [`examples/typesafe_jev_example.ts`](examples/typesafe_jev_example.ts).
-
 ### Pre-Built Evaluators
 
 The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
