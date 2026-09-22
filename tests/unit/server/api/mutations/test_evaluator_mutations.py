@@ -33,6 +33,7 @@ from phoenix.db.types.prompts import (
     PromptTools,
     TextContentPart,
 )
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -1846,6 +1847,137 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert len(prompt_versions.all()) == 1
+
+    async def test_update_with_only_custom_provider_changed_creates_new_version(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        """The custom provider is part of prompt version identity: content that matches the
+        current version except for the provider is a new version, not a reuse of the old one."""
+        dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        original_prompt_id = llm_evaluator.prompt_id
+
+        async with db() as session:
+            provider = models.GenerativeModelCustomProvider(
+                name=token_hex(16),
+                provider="openai",
+                sdk="openai",
+                config=EncryptionService().encrypt(b"{}"),
+            )
+            session.add(provider)
+            await session.flush()
+            current_prompt_version = await session.scalar(
+                select(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == original_prompt_id)
+                .order_by(models.PromptVersion.id.desc())
+                .limit(1)
+            )
+            assert current_prompt_version is not None
+            assert current_prompt_version.custom_provider_id is None
+            current_prompt_version_id = str(
+                GlobalID("PromptVersion", str(current_prompt_version.id))
+            )
+            dataset_evaluator = await session.scalar(
+                select(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.dataset_id == empty_dataset.id,
+                    models.DatasetEvaluators.evaluator_id == llm_evaluator.id,
+                )
+            )
+            assert dataset_evaluator is not None
+            dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
+        provider_global_id = str(GlobalID("GenerativeModelCustomProvider", str(provider.id)))
+
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "datasetId": dataset_id,
+                    "name": "updated-evaluator",
+                    "description": llm_evaluator.description,
+                    "promptVersionId": current_prompt_version_id,
+                    "promptVersion": dict(
+                        description=None,
+                        templateFormat="F_STRING",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Test evaluator: {input}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(openai=dict()),
+                        tools=dict(
+                            tools=[
+                                dict(
+                                    function=dict(
+                                        name="correctness",
+                                        description="test llm evaluator",
+                                        parameters={
+                                            "type": "object",
+                                            "properties": {
+                                                "label": {
+                                                    "type": "string",
+                                                    "enum": ["correct", "incorrect"],
+                                                    "description": "correctness",
+                                                }
+                                            },
+                                            "required": ["label"],
+                                        },
+                                    ),
+                                )
+                            ],
+                            toolChoice=dict(oneOrMore=True),
+                        ),
+                        responseFormat=None,
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
+                        customProviderId=provider_global_id,
+                    ),
+                    "outputConfigs": [
+                        dict(
+                            categorical=dict(
+                                name="correctness",
+                                description="description",
+                                optimizationDirection="MAXIMIZE",
+                                values=[
+                                    dict(label="correct", score=1),
+                                    dict(label="incorrect", score=0),
+                                ],
+                            )
+                        )
+                    ],
+                }
+            },
+        )
+        assert result.data and not result.errors
+
+        async with db() as session:
+            db_evaluator = await session.get(
+                models.LLMEvaluator,
+                llm_evaluator.id,
+                options=(selectinload(models.LLMEvaluator.prompt_version_tag),),
+            )
+            assert db_evaluator is not None
+            assert db_evaluator.prompt_id == original_prompt_id
+            assert db_evaluator.prompt_version_tag is not None
+            active_version = await session.get(
+                models.PromptVersion, db_evaluator.prompt_version_tag.prompt_version_id
+            )
+            assert active_version is not None
+            assert active_version.id != current_prompt_version.id
+            assert active_version.custom_provider_id == provider.id
+            prompt_versions = await session.scalars(
+                select(models.PromptVersion).where(
+                    models.PromptVersion.prompt_id == original_prompt_id
+                )
+            )
+            assert len(prompt_versions.all()) == 2
 
     async def test_update_preserves_description_and_owner_on_no_op_save(
         self,
