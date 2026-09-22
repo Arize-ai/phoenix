@@ -116,13 +116,13 @@ upload_atif_trajectories_as_spans(
 )
 ```
 
-The child's spans go into the parent's trace. The parent step that spawned the child points to it with a `subagent_trajectory_ref` in its result, and that decides where the child sits:
+The parent step that spawned the child points to it with a `subagent_trajectory_ref` in its result. That reference puts the child's spans into the parent's trace and decides where they sit:
 
 | The reference | Child sits under |
 | --- | --- |
 | has a `source_call_id` that matches one of the step's `tool_calls` | that TOOL span |
-| is on a step with a CHAIN span but matches no tool call | that CHAIN span |
-| is on a step with no CHAIN span (copied context, a bare message) | the parent's root AGENT span |
+| matches no tool call | the step's CHAIN span |
+| is on a step marked `is_copied_context: true` | nothing: the reference is ignored and the child becomes its own separate trace |
 
 ```
 AGENT parent
