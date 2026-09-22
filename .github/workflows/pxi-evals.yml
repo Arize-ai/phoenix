@@ -29,8 +29,8 @@ jobs:
               - "evals/harbor/**"
               - "src/phoenix/server/agents/**"
 
-  regression:
-    name: PXI Regression Evals (Daytona)
+  turn-evals:
+    name: PXI Turn Evals (Daytona)
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.pxi == 'true' || github.event_name == 'workflow_dispatch' }}
@@ -99,10 +99,10 @@ jobs:
           retention-days: 30
 
   ci-required:
-    name: PXI Regression Evals CI Required
+    name: PXI Turn Evals CI Required
     needs:
       - changes
-      - regression
+      - turn-evals
     if: always()
     runs-on: ubuntu-latest
     steps:
