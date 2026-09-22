@@ -914,7 +914,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     configs: {
       Platform: {
         docsHref:
-          "https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing",
+          "https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway",
       },
     },
   },

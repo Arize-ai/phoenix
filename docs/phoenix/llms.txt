@@ -401,6 +401,7 @@
 - [OpenAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openai): Pick an OpenAI tracing or evals path across Python, Node.js, Go, and Agents SDK
 - [OpenRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): Trace calls routed through OpenRouter's unified multi-model API
 - [OrcaRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): Trace calls through OrcaRouter's OpenAI-compatible gateway to 200+ models
+- [Cloudflare AI Gateway Integration](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway): Overview of sending Cloudflare AI Gateway traces to Phoenix
 - [Together AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/together): Trace Together AI's fast open-source model inference calls in Phoenix
 - [TypeSafe AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe): Pick a TypeSafe AI tracing path for Python or TypeScript
 - [VertexAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai): Trace and evaluate Google Cloud Vertex AI model calls in Phoenix

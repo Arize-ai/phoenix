@@ -606,6 +606,7 @@
               {
                 "group": "Cloudflare AI Gateway",
                 "pages": [
+                  "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway",
                   "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing"
                 ]
               },
