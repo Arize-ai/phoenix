@@ -5,13 +5,6 @@ permissions:
 on:
   pull_request:
   workflow_dispatch:
-    inputs:
-      splits:
-        description: >-
-          Dataset splits to run. The default matches PR CI; leave empty to run every
-          example in every dataset.
-        type: string
-        default: regression
 
 concurrency:
   group: pxi-evals-${{ github.ref }}
@@ -72,17 +65,9 @@ jobs:
         working-directory: js
         run: pnpm install --frozen-lockfile
 
-      # The job has no CLI agent, so the px archive is not built. Pull requests run the
-      # regression split; a manual run with an empty splits input runs every example.
+      # The job has no CLI agent, so the px archive is not built.
       - name: Build the Phoenix wheel and stage the PXI tasks
-        env:
-          SPLITS: ${{ github.event_name == 'pull_request' && 'regression' || inputs.splits }}
-        run: |
-          args=""
-          if [ -n "$SPLITS" ]; then
-            args="--splits $SPLITS"
-          fi
-          HARBOR_PXI_ARGS="$args" HARBOR_CLI=0 make harbor-stage
+        run: HARBOR_PXI_ARGS="--splits regression" HARBOR_CLI=0 make harbor-stage
 
       # The agent is nondeterministic and the regression split tolerates about one miss
       # per dataset. The bar is the mean step reward across tasks; tighten it once there
