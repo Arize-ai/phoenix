@@ -23,7 +23,8 @@ const breakdownBarsCSS = css`
   row-gap: var(--global-dimension-size-100);
   align-items: start;
 
-  /* A row is a group for assistive tech; its cells sit in the shared grid */
+  /* A row is a grouping in the markup only; its cells sit in the shared
+     grid, and an element with no box carries no role of its own */
   .breakdown-bars__row {
     display: contents;
   }
@@ -78,7 +79,7 @@ export function BreakdownBars({ segments, dimensions }: BreakdownBarsProps) {
             : [];
         });
         return (
-          <div key={dimension.key} className="breakdown-bars__row" role="group">
+          <div key={dimension.key} className="breakdown-bars__row">
             <div className="breakdown-bars__label">
               <Text size="S" color="text-700">
                 {dimension.label}
@@ -130,7 +131,7 @@ export function BreakdownBarsSkeleton({
   return (
     <div className="breakdown-bars" css={breakdownBarsCSS} aria-busy="true">
       {dimensions.map((dimension) => (
-        <div key={dimension.key} className="breakdown-bars__row" role="group">
+        <div key={dimension.key} className="breakdown-bars__row">
           <div className="breakdown-bars__label">
             <Text size="S" color="text-700">
               {dimension.label}

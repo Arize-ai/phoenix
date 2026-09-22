@@ -96,6 +96,28 @@ describe("buildTokenBreakdown", () => {
     expect(promptAudio.color).toBe(completionAudio.color);
   });
 
+  it("keeps one fallback color for a type without a color of its own on both sides", () => {
+    const { segments } = buildTokenBreakdown({
+      colors,
+      tokens: {
+        total: 5_600,
+        prompt: 3_400,
+        completion: 2_200,
+        promptDetails: { input: 3_000, image: 400 },
+        completionDetails: { output: 1_400, image: 800 },
+      },
+    });
+    const [promptImage, completionImage] = segments.filter((segment) =>
+      segment.key.endsWith(":image")
+    );
+    expect(promptImage.color).toBe(completionImage.color);
+    // And it is not the color of a type that does have one
+    const namedColors = segments
+      .filter((segment) => !segment.key.endsWith(":image"))
+      .map((segment) => segment.color);
+    expect(namedColors).not.toContain(promptImage.color);
+  });
+
   it("keeps a measure with only a total as an unsegmented dimension", () => {
     const { segments, dimensions } = buildTokenBreakdown({
       colors,

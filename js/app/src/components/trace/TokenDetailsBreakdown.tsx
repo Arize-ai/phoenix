@@ -260,10 +260,17 @@ export function buildTokenBreakdown({
   const promptTypes = layOutSide(true);
   const completionTypes = layOutSide(false);
 
+  // A type without a color of its own is colored by its place among the
+  // distinct types, not among the segments, so a type used on both sides
+  // keeps one color across them
+  const distinctTypes = [
+    ...promptTypes,
+    ...completionTypes.filter((tokenType) => !promptTypes.includes(tokenType)),
+  ];
   const segments: BreakdownSegment[] = [
     ...promptTypes.map((tokenType) => ({ isPrompt: true, tokenType })),
     ...completionTypes.map((tokenType) => ({ isPrompt: false, tokenType })),
-  ].map(({ isPrompt, tokenType }, index) => ({
+  ].map(({ isPrompt, tokenType }) => ({
     key: getSegmentKey({ isPrompt, tokenType }),
     label: getTokenDetailLabelForKind({
       tokenType,
@@ -271,7 +278,11 @@ export function buildTokenBreakdown({
       isUsedByBothKinds:
         promptTypes.includes(tokenType) && completionTypes.includes(tokenType),
     }),
-    color: getTokenDetailColor({ colors, index, tokenType }),
+    color: getTokenDetailColor({
+      colors,
+      index: distinctTypes.indexOf(tokenType),
+      tokenType,
+    }),
   }));
 
   const dimensions: BreakdownDimension[] = measures.map((measure) => {

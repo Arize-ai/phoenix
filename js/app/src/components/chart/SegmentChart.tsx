@@ -150,9 +150,9 @@ export const SegmentChart = ({
       </div>
       {markers.length > 0 || showMarkerLane ? (
         <div className="segment-chart__markers" aria-hidden="true">
-          {markers.map((value) => (
+          {markers.map((value, index) => (
             <div
-              key={value}
+              key={index}
               className="segment-chart__marker"
               style={{ left: `${(value / totalValue) * 100}%` }}
             />

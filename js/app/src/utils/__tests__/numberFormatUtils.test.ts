@@ -63,7 +63,9 @@ describe("formatPercentShort", () => {
     expect(formatPercentShort(0)).toEqual("0%");
     expect(formatPercentShort(0.04)).toEqual("<0.1%");
     expect(formatPercentShort(2.56)).toEqual("2.6%");
-    expect(formatPercentShort(9.99)).toEqual("10.0%");
+    expect(formatPercentShort(9.94)).toEqual("9.9%");
+    // Rounds up past the one-decimal range and is shown like 10 is
+    expect(formatPercentShort(9.99)).toEqual("10%");
     expect(formatPercentShort(23.4)).toEqual("23%");
     expect(formatPercentShort(100)).toEqual("100%");
   });
@@ -75,6 +77,8 @@ describe("formatCostPrecise", () => {
     expect(formatCostPrecise(0.00004)).toEqual("<$0.0001");
     expect(formatCostPrecise(0.0539)).toEqual("$0.0539");
     expect(formatCostPrecise(0.5)).toEqual("$0.5000");
+    // Rounds up to a dollar and is shown like a dollar is
+    expect(formatCostPrecise(0.99996)).toEqual("$1.00");
     expect(formatCostPrecise(27.09)).toEqual("$27.09");
   });
 });

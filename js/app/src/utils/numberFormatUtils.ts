@@ -88,7 +88,10 @@ export function formatPercent(float: number): string {
 export function formatPercentShort(float: number): string {
   if (float === 0) return "0%";
   if (Math.abs(float) < 0.1) return "<0.1%";
-  if (Math.abs(float) < 10) return oneDecimalFormat(float) + "%";
+  // Judged after rounding, so 9.96 reads "10%" like 10 does, not "10.0%"
+  if (Math.abs(Math.round(float * 10) / 10) < 10) {
+    return oneDecimalFormat(float) + "%";
+  }
   return integerFormat(float) + "%";
 }
 
@@ -137,7 +140,8 @@ export function formatCostPrecise(cost: number): string {
   if (cost < 0.0001) {
     return "<$0.0001";
   }
-  if (cost < 1) {
+  // Judged after rounding, so 0.99996 reads "$1.00" like 1 does, not "$1.0000"
+  if (Math.round(cost * 10_000) / 10_000 < 1) {
     return `$${fourDecimalFormat(cost)}`;
   }
   return formatCost(cost);
