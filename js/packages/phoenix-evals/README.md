@@ -102,7 +102,7 @@ const evaluator = createFaithfulnessEvaluator({
 });
 ```
 
-Tracing is not yet emitted for evaluation-model calls.
+Tracing is not yet emitted for evaluation-model calls. See the complete example in [`examples/typesafe_jev_example.ts`](examples/typesafe_jev_example.ts).
 
 ### Pre-Built Evaluators
 
