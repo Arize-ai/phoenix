@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3c6a999482a32e3e93337807def72da1>>
+ * @generated SignedSource<<0f0d9ccc38d30cc3517c55f0d0465202>>
  * @lightSyntaxTransform
  */
 
@@ -47,7 +47,7 @@ export type ProjectEvaluatorCompareContentQuery$data = {
         readonly totalInRange: number;
       };
       readonly evaluationTarget: EvaluationTarget;
-      readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareMatrix_comparison" | "ProjectEvaluatorCompareStats_comparison">;
+      readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorCompareMatrix_comparison" | "ProjectEvaluatorCompareStats_comparison" | "ProjectEvaluatorCompareTargets_comparison">;
     };
   } | {
     // This will never be '%other', but we need some
@@ -195,24 +195,37 @@ v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "meanScore",
+  "name": "annotationName",
   "storageKey": null
 },
 v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "labels",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "threshold",
   "storageKey": null
 },
-v16 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "annotationName",
-    "storageKey": null
-  },
+v17 = [
+  (v14/*:: as any*/),
+  (v15/*:: as any*/),
+  (v16/*:: as any*/)
+],
+v18 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "meanScore",
+  "storageKey": null
+},
+v19 = [
+  (v14/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -227,38 +240,32 @@ v16 = [
     "name": "flagRate",
     "storageKey": null
   },
-  (v14/*:: as any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "labels",
-    "storageKey": null
-  },
-  (v15/*:: as any*/)
+  (v18/*:: as any*/),
+  (v15/*:: as any*/),
+  (v16/*:: as any*/)
 ],
-v17 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v18 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v19 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "count",
   "storageKey": null
 },
-v20 = [
+v23 = [
   {
     "alias": null,
     "args": null,
@@ -267,9 +274,9 @@ v20 = [
     "storageKey": null
   }
 ],
-v21 = [
+v24 = [
   (v5/*:: as any*/),
-  (v17/*:: as any*/),
+  (v20/*:: as any*/),
   {
     "kind": "InlineFragment",
     "selections": [
@@ -289,7 +296,7 @@ v21 = [
         "name": "distribution",
         "plural": false,
         "selections": [
-          (v15/*:: as any*/),
+          (v16/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -297,7 +304,7 @@ v21 = [
             "name": "evaluatedCount",
             "storageKey": null
           },
-          (v14/*:: as any*/),
+          (v18/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -320,8 +327,8 @@ v21 = [
             "name": "scoreValueCounts",
             "plural": true,
             "selections": [
-              (v18/*:: as any*/),
-              (v19/*:: as any*/)
+              (v21/*:: as any*/),
+              (v22/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -340,7 +347,7 @@ v21 = [
                 "name": "label",
                 "storageKey": null
               },
-              (v18/*:: as any*/),
+              (v21/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -348,7 +355,7 @@ v21 = [
                 "name": "isOther",
                 "storageKey": null
               },
-              (v19/*:: as any*/)
+              (v22/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -375,26 +382,26 @@ v21 = [
               (v5/*:: as any*/),
               {
                 "kind": "InlineFragment",
-                "selections": (v20/*:: as any*/),
+                "selections": (v23/*:: as any*/),
                 "type": "CategoricalAnnotationConfig",
                 "abstractKey": null
               },
               {
                 "kind": "InlineFragment",
-                "selections": (v20/*:: as any*/),
+                "selections": (v23/*:: as any*/),
                 "type": "ContinuousAnnotationConfig",
                 "abstractKey": null
               },
               {
                 "kind": "InlineFragment",
-                "selections": (v20/*:: as any*/),
+                "selections": (v23/*:: as any*/),
                 "type": "FreeformAnnotationConfig",
                 "abstractKey": null
               },
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v17/*:: as any*/)
+                  (v20/*:: as any*/)
                 ],
                 "type": "Node",
                 "abstractKey": "__isNode"
@@ -402,7 +409,7 @@ v21 = [
             ],
             "storageKey": null
           },
-          (v17/*:: as any*/)
+          (v20/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -445,6 +452,11 @@ return {
                 "selections": [
                   (v8/*:: as any*/),
                   (v9/*:: as any*/),
+                  {
+                    "args": null,
+                    "kind": "FragmentSpread",
+                    "name": "ProjectEvaluatorCompareTargets_comparison"
+                  },
                   {
                     "args": null,
                     "kind": "FragmentSpread",
@@ -523,6 +535,26 @@ return {
                   (v8/*:: as any*/),
                   (v9/*:: as any*/),
                   {
+                    "alias": "sideA",
+                    "args": null,
+                    "concreteType": "EvaluatorComparisonSummary",
+                    "kind": "LinkedField",
+                    "name": "a",
+                    "plural": false,
+                    "selections": (v17/*:: as any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": "sideB",
+                    "args": null,
+                    "concreteType": "EvaluatorComparisonSummary",
+                    "kind": "LinkedField",
+                    "name": "b",
+                    "plural": false,
+                    "selections": (v17/*:: as any*/),
+                    "storageKey": null
+                  },
+                  {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
@@ -536,7 +568,7 @@ return {
                     "kind": "LinkedField",
                     "name": "a",
                     "plural": false,
-                    "selections": (v16/*:: as any*/),
+                    "selections": (v19/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -546,7 +578,7 @@ return {
                     "kind": "LinkedField",
                     "name": "b",
                     "plural": false,
-                    "selections": (v16/*:: as any*/),
+                    "selections": (v19/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -602,7 +634,7 @@ return {
             "type": "Project",
             "abstractKey": null
           },
-          (v17/*:: as any*/)
+          (v20/*:: as any*/)
         ],
         "storageKey": null
       },
@@ -613,7 +645,7 @@ return {
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v21/*:: as any*/),
+        "selections": (v24/*:: as any*/),
         "storageKey": null
       },
       {
@@ -623,22 +655,22 @@ return {
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v21/*:: as any*/),
+        "selections": (v24/*:: as any*/),
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "ab1bfc6cc249f54d0b12a15274aaed88",
+    "cacheID": "c7240e73edc2f12039455958c59ed9ac",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorCompareContentQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          totalInRange\n        }\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6 on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  distribution(timeRange: $timeRange) {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_side on EvaluatorDistribution {\n  threshold\n  evaluatedCount\n  meanScore\n  scoreBinEdges\n  scoreBinCounts\n  scoreValueCounts {\n    score\n    count\n  }\n  labelCounts {\n    label\n    score\n    isOther\n    count\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n  }\n  populationSize\n  a {\n    annotationName\n    labels\n    threshold\n  }\n  b {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    totalInRange\n  }\n  populationSize\n  a {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  b {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n"
+    "text": "query ProjectEvaluatorCompareContentQuery(\n  $projectId: ID!\n  $evaluatorAId: ID!\n  $evaluatorBId: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorComparison(evaluatorAId: $evaluatorAId, evaluatorBId: $evaluatorBId, timeRange: $timeRange) {\n        evaluationTarget\n        coverage {\n          evaluatedByBoth\n          onlyA\n          onlyB\n          totalInRange\n        }\n        ...ProjectEvaluatorCompareTargets_comparison\n        ...ProjectEvaluatorCompareStats_comparison\n        ...ProjectEvaluatorCompareMatrix_comparison\n      }\n    }\n    id\n  }\n  evaluatorA: node(id: $evaluatorAId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n  evaluatorB: node(id: $evaluatorBId) {\n    __typename\n    ... on ProjectEvaluator {\n      ...ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_evaluator_3E0ZE6 on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  distribution(timeRange: $timeRange) {\n    ...ProjectEvaluatorCompareDistributions_side\n  }\n  evaluator {\n    __typename\n    outputConfigs {\n      __typename\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorCompareDistributions_side on EvaluatorDistribution {\n  threshold\n  evaluatedCount\n  meanScore\n  scoreBinEdges\n  scoreBinCounts\n  scoreValueCounts {\n    score\n    count\n  }\n  labelCounts {\n    label\n    score\n    isOther\n    count\n  }\n}\n\nfragment ProjectEvaluatorCompareMatrix_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n  }\n  populationSize\n  a {\n    annotationName\n    labels\n    threshold\n  }\n  b {\n    annotationName\n    labels\n    threshold\n  }\n  confusionMatrix\n}\n\nfragment ProjectEvaluatorCompareStats_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  coverage {\n    evaluatedByBoth\n    onlyA\n    onlyB\n    totalInRange\n  }\n  populationSize\n  a {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  b {\n    annotationName\n    flaggedCount\n    flagRate\n    meanScore\n  }\n  statistics {\n    agreement\n    cohensKappa\n    spearmanRho\n    disagreementCount\n  }\n}\n\nfragment ProjectEvaluatorCompareTargets_comparison on ProjectEvaluatorComparison {\n  evaluationTarget\n  sideA: a {\n    annotationName\n    labels\n    threshold\n  }\n  sideB: b {\n    annotationName\n    labels\n    threshold\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7313bace8bfbf66efbe7eb2681f18529";
+(node as any).hash = "d7b39e8274166b149be675c52bac3bbd";
 
 export default node;
