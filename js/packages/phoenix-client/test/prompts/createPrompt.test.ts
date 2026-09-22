@@ -1,8 +1,18 @@
 import { createHttp } from "@arizeai/phoenix-testing";
 import { createMockServer, type Server } from "@arizeai/phoenix-testing/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
+import { CREATE_PROMPT_CUSTOM_PROVIDER } from "../../src/constants/serverRequirements";
 import { createPrompt, promptVersion } from "../../src/prompts";
+import { ensureServerCapability } from "../../src/utils/serverVersionUtils";
 import { createTestClient } from "../testUtils";
 
 const http = createHttp();
@@ -118,6 +128,67 @@ describe("createPrompt", () => {
     expect(prompt.id).toBe("mocked-prompt-id");
   });
 
+  it("should carry customProviderId through promptVersion", () => {
+    const version = promptVersion({
+      modelProvider: "OPENAI",
+      modelName: "my-hosted-model",
+      customProviderId: "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+      template: [{ role: "user", content: "{{ question }}" }],
+    });
+
+    expect(version.custom_provider_id).toBe(
+      "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ=="
+    );
+    expect(version.model_provider).toBe("OPENAI");
+    expect(version.invocation_parameters).toEqual({
+      type: "openai",
+      openai: {},
+    });
+  });
+  it("should omit custom_provider_id from promptVersion when not given", () => {
+    const version = promptVersion({
+      modelProvider: "ANTHROPIC",
+      modelName: "claude-sonnet-5",
+      template: [{ role: "user", content: "{{ question }}" }],
+      invocationParameters: { max_tokens: 1024 },
+    });
+
+    expect("custom_provider_id" in version).toBe(false);
+    expect(version.invocation_parameters).toEqual({
+      type: "anthropic",
+      anthropic: { max_tokens: 1024 },
+    });
+  });
+  it("checks the server version only when a custom provider is set", async () => {
+    stubPromptCreation();
+    const guard = vi.mocked(ensureServerCapability);
+    guard.mockClear();
+
+    await createPrompt({
+      client: createTestClient(),
+      name: "plain",
+      version: promptVersion({
+        modelProvider: "OPENAI",
+        modelName: "gpt-4o",
+        template: [{ role: "user", content: "hi" }],
+      }),
+    });
+    expect(guard).not.toHaveBeenCalled();
+
+    await createPrompt({
+      client: createTestClient(),
+      name: "custom",
+      version: promptVersion({
+        modelProvider: "OPENAI",
+        modelName: "my-hosted-model",
+        customProviderId: "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+        template: [{ role: "user", content: "hi" }],
+      }),
+    });
+    expect(guard).toHaveBeenCalledWith(
+      expect.objectContaining({ requirement: CREATE_PROMPT_CUSTOM_PROVIDER })
+    );
+  });
   it("should create a prompt with metadata", async () => {
     stubPromptCreation();
 
