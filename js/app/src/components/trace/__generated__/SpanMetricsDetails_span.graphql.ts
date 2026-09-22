@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1866669db9f8b5275ac41ee5f25a4c7>>
+ * @generated SignedSource<<2e5867fe6a04462c4a537fbd92929c80>>
  * @lightSyntaxTransform
  */
 
@@ -29,7 +29,6 @@ export type SpanMetricsDetails_span$data = {
       readonly cost: number | null;
     };
   } | null;
-  readonly latencyMs: number | null;
   readonly tokenCountCompletion: number | null;
   readonly tokenCountPrompt: number | null;
   readonly tokenCountTotal: number | null;
@@ -57,13 +56,6 @@ return {
   "metadata": null,
   "name": "SpanMetricsDetails_span",
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "latencyMs",
-      "storageKey": null
-    },
     {
       "alias": null,
       "args": null,
@@ -176,6 +168,6 @@ return {
 };
 })();
 
-(node as any).hash = "d09bb840461082d1035846c65ec015da";
+(node as any).hash = "e3954179ef2031a6a04ece8929f048ea";
 
 export default node;

@@ -22,7 +22,6 @@ import { getTokenCountDetailsFromCostDetails } from "./TokenCountDetails";
  */
 const SpanMetricsDetailsFragment = graphql`
   fragment SpanMetricsDetails_span on Span {
-    latencyMs
     tokenCountTotal
     tokenCountPrompt
     tokenCountCompletion
@@ -73,9 +72,9 @@ export function getSpanMetricsDetailsViewProps(
   const costDetails = span.costDetailSummaryEntries;
   const costTotal = span.costSummary?.total?.cost;
   return {
-    latencyMs: span.latencyMs ?? null,
+    // A span that used no tokens gets no token or cost section at all
     tokens:
-      span.tokenCountTotal != null
+      span.tokenCountTotal != null && span.tokenCountTotal > 0
         ? {
             total: span.tokenCountTotal,
             prompt: span.tokenCountPrompt,
@@ -84,7 +83,7 @@ export function getSpanMetricsDetailsViewProps(
           }
         : null,
     costs:
-      costTotal != null
+      costTotal != null && costTotal > 0
         ? {
             total: costTotal,
             prompt: span.costSummary?.prompt?.cost,
@@ -119,7 +118,7 @@ function SpanMetricsDetailsForNode({ node }: { node: SpanMetricsDetailsNode }) {
  * Metrics details fetched on render for one span by node id.
  *
  * @remarks
- * Suspends while loading, so mount it lazily (inside a tooltip) behind a
+ * Suspends while loading, so mount it lazily (inside a tooltip or preview) behind a
  * `Suspense` boundary. A tree of hundreds of spans then fetches details only
  * for the rows the user opens.
  */

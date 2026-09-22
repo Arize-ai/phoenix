@@ -34,6 +34,17 @@ export function hasSpanMetrics(metrics: SpanMetricsValues): boolean {
   );
 }
 
+/**
+ * Returns whether a span has metrics with a breakdown behind them: tokens or
+ * cost. Latency alone has nothing further to show.
+ */
+export function hasSpanMetricsDetails(metrics: SpanMetricsValues): boolean {
+  return (
+    hasPositiveValue(metrics.tokenCountTotal) ||
+    hasPositiveValue(metrics.costTotal)
+  );
+}
+
 function hasPositiveValue(value: number | null | undefined): value is number {
   return typeof value === "number" && value > 0;
 }

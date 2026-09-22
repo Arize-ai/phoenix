@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Flex, Text } from "@phoenix/components";
-import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
+import { Flex } from "@phoenix/components";
 
 import type { TokenCostsDetailsProps } from "./TokenCostsDetails";
 import { TokenCostsDetails } from "./TokenCostsDetails";
@@ -20,8 +19,6 @@ const sectionCSS = css`
 `;
 
 export type SpanMetricsDetailsViewProps = {
-  /** Wall-clock duration of the span. `null` when the span has not ended. */
-  latencyMs: number | null;
   /** Token totals and their breakdown. Omit for spans without LLM usage. */
   tokens?: TokenCountDetailsProps | null;
   /** Cost totals and their breakdown. Omit when no pricing applied. */
@@ -29,31 +26,24 @@ export type SpanMetricsDetailsViewProps = {
 };
 
 /**
- * Everything a span's metrics row summarizes, in full: latency, the token
- * breakdown, and the cost breakdown.
+ * The breakdowns behind a span's metrics row: tokens, then cost. Latency
+ * has nothing to break down, so the row or header that shows it is left to
+ * carry it alone.
  *
  * @remarks
  * Pure render over plain values, so any surface can draw it from whatever
- * data it already has. `SpanMetricsDetails` and its siblings supply the data
+ * data it already has. Renders nothing when neither breakdown applies. `SpanMetricsDetails` and its siblings supply the data
  * from a Relay fragment, a lazy query, or a preloaded query.
  */
 export function SpanMetricsDetailsView({
-  latencyMs,
   tokens,
   costs,
 }: SpanMetricsDetailsViewProps) {
+  if (!tokens && !costs) {
+    return null;
+  }
   return (
     <Flex direction="column">
-      <section css={sectionCSS}>
-        <Flex direction="row" justifyContent="space-between" gap="size-200">
-          <Text size="S" color="text-700">
-            Latency
-          </Text>
-          <Text size="S" fontFamily="mono">
-            {latencyMsFormatter(latencyMs)}
-          </Text>
-        </Flex>
-      </section>
       {tokens ? (
         <section css={sectionCSS}>
           <TokenCountDetails {...tokens} />

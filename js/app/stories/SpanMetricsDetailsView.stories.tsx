@@ -22,7 +22,6 @@ type Story = StoryObj<typeof SpanMetricsDetailsView>;
 /** An LLM span with cached prompt tokens and pricing applied. */
 export const Full: Story = {
   args: {
-    latencyMs: 2980,
     tokens: {
       total: 4821,
       prompt: 3471,
@@ -41,14 +40,6 @@ export const Full: Story = {
 /** A local model: tokens are counted but nothing is priced. */
 export const TokensWithoutCost: Story = {
   args: {
-    latencyMs: 2200,
     tokens: { total: 812, prompt: 600, completion: 212 },
-  },
-};
-
-/** A tool or chain span: latency is all there is. */
-export const LatencyOnly: Story = {
-  args: {
-    latencyMs: 640,
   },
 };

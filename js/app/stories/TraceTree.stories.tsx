@@ -269,7 +269,7 @@ const spansById = new Map(
 );
 
 /**
- * The details the metrics tooltip loads for one span. A span with tokens gets
+ * The details the preview loads for one span. A span with tokens gets
  * a prompt/completion split and a cache-read entry so the breakdown has
  * something to draw; other spans answer with latency alone.
  */
@@ -334,7 +334,7 @@ function buildSpanDetails(nodeId: string) {
 }
 
 /**
- * Answers the metrics tooltip's query from the fixtures above after a short
+ * Answers the preview's details query from the fixtures above after a short
  * delay so the lazy load is visible. No requests leave the story.
  */
 const mockRelayEnvironment = new Environment({
@@ -382,10 +382,13 @@ function TraceTreeFrame({
  * latency | tokens | cost. Metrics a span lacks are dropped from its footer,
  * so rows differ in height, and the tree edges end at each row's own center.
  *
- * The footer has no per-metric tooltips. Hovering the footer opens one rich
- * tooltip that lazily loads the span's full latency, token and cost
- * breakdown. In these stories a canned Relay environment answers it after a
- * short delay.
+ * Rows carry no tooltips of their own. Hovering or focusing any row opens
+ * one preview popover beside the tree that names the span and shows its
+ * latency, token and cost breakdown. It opens at once with the totals the
+ * row already knows and, once the pointer rests on a row, lazily loads the
+ * full breakdown. In these stories a canned Relay environment answers that
+ * load after a short delay. Scrub the pointer down a tree to see the
+ * preview follow it.
  */
 const meta: Meta<typeof TraceTree> = {
   title: "Trace/TraceTree",

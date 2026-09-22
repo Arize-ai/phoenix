@@ -17,7 +17,7 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { SpanKindIcon } from "./SpanKindIcon";
-import { SpanMetrics } from "./SpanMetrics";
+import { SpanMetricsRow } from "./SpanMetricsRow";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { useTraceTree } from "./TraceTreeContext";
 import {
@@ -25,6 +25,10 @@ import {
   SpanTreeEdge,
   SpanTreeEdgeConnector,
 } from "./TraceTreeEdges";
+import {
+  spanPreviewTargetProps,
+  TraceTreeSpanPreviewRegion,
+} from "./TraceTreeSpanPreview";
 import {
   nestingLevelStyle,
   spanControlsCSS,
@@ -76,36 +80,38 @@ export function TraceTree(props: TraceTreeProps) {
         container-type: inline-size;
       `}
     >
-      <ul
-        css={[
-          traceTreeListCSS,
-          css`
-            overflow: auto;
-          `,
-        ]}
-        data-testid="trace-tree"
-      >
-        {noSearchResults ? (
-          <li aria-live="polite">
-            <TraceTreeSearchEmpty searchQuery={searchQuery} />
-          </li>
-        ) : null}
-        {!rootSpan ? (
-          <li>
-            <Empty message="No spans" size="S" />
-          </li>
-        ) : null}
-        {filteredSpanTree.map((spanNode) => (
-          <SpanTreeItem
-            key={spanNode.span.id}
-            node={spanNode}
-            overallTimeRange={overallTimeRange}
-            onSpanClick={onSpanClick}
-            selectedSpanNodeId={selectedSpanNodeId}
-            scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
-          />
-        ))}
-      </ul>
+      <TraceTreeSpanPreviewRegion spans={spans}>
+        <ul
+          css={[
+            traceTreeListCSS,
+            css`
+              overflow: auto;
+            `,
+          ]}
+          data-testid="trace-tree"
+        >
+          {noSearchResults ? (
+            <li aria-live="polite">
+              <TraceTreeSearchEmpty searchQuery={searchQuery} />
+            </li>
+          ) : null}
+          {!rootSpan ? (
+            <li>
+              <Empty message="No spans" size="S" />
+            </li>
+          ) : null}
+          {filteredSpanTree.map((spanNode) => (
+            <SpanTreeItem
+              key={spanNode.span.id}
+              node={spanNode}
+              overallTimeRange={overallTimeRange}
+              onSpanClick={onSpanClick}
+              selectedSpanNodeId={selectedSpanNodeId}
+              scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+            />
+          ))}
+        </ul>
+      </TraceTreeSpanPreviewRegion>
     </div>
   );
 }
@@ -212,6 +218,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
         role="button"
         tabIndex={0}
         css={spanNodeButtonCSS}
+        {...spanPreviewTargetProps(node.span.id)}
         onClick={() => {
           startTransition(() => {
             if (onSpanClick) {
@@ -242,9 +249,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
               height="var(--trace-tree-heading-height)"
               className="span-node__heading"
             >
-              <span css={spanNameCSS} title={name}>
-                {name}
-              </span>
+              <span css={spanNameCSS}>{name}</span>
               {statusCode === "ERROR" ? (
                 <SpanStatusCodeIcon
                   statusCode="ERROR"
@@ -256,8 +261,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
               ) : null}
             </Flex>
             {showMetricsInTraceTree ? (
-              <SpanMetrics
-                spanNodeId={node.span.id}
+              <SpanMetricsRow
                 size="XS"
                 latencyMs={latencyMs}
                 tokenCountTotal={tokenCountTotal}

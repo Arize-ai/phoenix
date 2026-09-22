@@ -66,6 +66,27 @@ export function createFullTimeFormatter(
 }
 
 /**
+ * Creates a time-of-day formatter precise to the millisecond, for placing
+ * one moment against another within a trace, where spans are often shorter
+ * than a second. Carries no date: the surface that shows it says the day.
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A precise time formatter
+ */
+export function createPreciseTimeFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 3,
+    hour12: true,
+    timeZone,
+  });
+}
+
+/**
  * Creates a short time formatter
  * @param displayOptions - The display options to use for the formatter
  * @returns A short time formatter

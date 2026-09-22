@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3815e44f0773f5547abdca0cd4836f9e>>
+ * @generated SignedSource<<0358b74c586b98a9510c9cfe13318351>>
  * @lightSyntaxTransform
  */
 
@@ -112,13 +112,6 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "latencyMs",
-                "storageKey": null
-              },
               {
                 "alias": null,
                 "args": null,
@@ -242,12 +235,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "82c0f28eb1530434b6e3ef6b8a1dc7b8",
+    "cacheID": "5c00bf4cd6f92ca55a6cf3279a2df8e8",
     "id": null,
     "metadata": {},
     "name": "SpanMetricsDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanMetricsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      ...SpanMetricsDetails_span\n    }\n    id\n  }\n}\n\nfragment SpanMetricsDetails_span on Span {\n  latencyMs\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  costSummary {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      cost\n      tokens\n    }\n  }\n}\n"
+    "text": "query SpanMetricsDetailsQuery(\n  $nodeId: ID!\n) {\n  node(id: $nodeId) {\n    __typename\n    ... on Span {\n      ...SpanMetricsDetails_span\n    }\n    id\n  }\n}\n\nfragment SpanMetricsDetails_span on Span {\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  costSummary {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  costDetailSummaryEntries {\n    tokenType\n    isPrompt\n    value {\n      cost\n      tokens\n    }\n  }\n}\n"
   }
 };
 })();
