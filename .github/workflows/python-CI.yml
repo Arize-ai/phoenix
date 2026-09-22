@@ -39,6 +39,7 @@ jobs:
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
       mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
+      evaluator_bound_variables: ${{ steps.filter.outputs.evaluator_bound_variables }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -57,9 +58,6 @@ jobs:
               - "evals/**"
               - "src/**"
               - "tests/**"
-              # Mirrors the online-eval bound-variable vocabulary; a test here
-              # holds the two lists together, so edits to it must run this suite.
-              - "js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts"
               - "tutorials/**"
               - "pyproject.toml"
               - "tox.ini"
@@ -102,6 +100,10 @@ jobs:
               - "scripts/ci/skill_examples.py"
               - "scripts/ci/test_skill_graphql_examples.py"
               - "scripts/ci/test_skill_filter_dsl_examples.py"
+            evaluator_bound_variables:
+              - "js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts"
+              - "src/phoenix/server/online_eval/bound_variables.py"
+              - "scripts/ci/check_evaluator_bound_variables.py"
       - name: Print Filters
         env:
           IPYNB: ${{ steps.filter.outputs.ipynb }}
@@ -118,6 +120,7 @@ jobs:
           FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
           MCP_SKILLS: ${{ steps.filter.outputs.mcp_skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
+          EVALUATOR_BOUND_VARIABLES: ${{ steps.filter.outputs.evaluator_bound_variables }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -133,6 +136,7 @@ jobs:
           echo "filter_dsl: $FILTER_DSL"
           echo "mcp_skills: $MCP_SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
+          echo "evaluator_bound_variables: $EVALUATOR_BOUND_VARIABLES"
 
   phoenix-client:
     name: Phoenix Client
@@ -361,6 +365,38 @@ jobs:
         run: make check-skill-graphql-examples
       - name: Check skill filter conditions against the Python filters
         run: make check-skill-filter-examples
+
+  check-evaluator-bound-variables:
+    name: Check Evaluator Bound Variables
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.evaluator_bound_variables == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/ci/
+            requirements/
+            src/phoenix/
+            packages/
+            js/app/src/pages/project/evaluators/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+      - name: Check the evaluator editor's bound variables against the server
+        run: make check-evaluator-bound-variables
 
   doctests:
     name: Doctests
@@ -607,7 +643,6 @@ jobs:
             tests/conftest.py
             tests/__generated__/
             tests/__init__.py
-            js/app/src/pages/project/evaluators/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -821,6 +856,7 @@ jobs:
       - build-graphql-schema
       - check-filter-dsl-snippets
       - check-skill-graphql-examples
+      - check-evaluator-bound-variables
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
