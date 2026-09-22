@@ -1,14 +1,16 @@
 """
-GraphQL output types for ExperimentPromptTask.
+GraphQL output types for experiment task configurations.
 
-Converts the ORM model into typed GraphQL fields for frontend consumption
-(e.g., playground rehydration via ExperimentJob.taskConfig).
+Converts the ORM job rows (ExperimentPromptTask, ExperimentEvaluatorTask) into typed
+GraphQL fields for frontend consumption (e.g., playground rehydration via
+ExperimentJob.taskConfig and ExperimentJob.evaluatorTaskConfig).
 """
 
 from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import strawberry
 from strawberry.relay import Node, NodeID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -23,11 +25,18 @@ if TYPE_CHECKING:
 from strawberry import Private
 
 from phoenix.db.types import experiment_config as config_types
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluatorOutputConfig,
+    EvaluatorInputMapping,
+    EvaluatorKind,
+    _to_gql_output_config,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.PromptInvocationParameters import (
     PromptInvocationParameters,
@@ -253,3 +262,45 @@ class PromptTaskConfig(Node):
             if provider is None:
                 return None
             return GenerativeModelCustomProvider(id=provider.id, db_record=provider)
+
+
+# =============================================================================
+# Evaluator Task Config (maps from ORM ExperimentEvaluatorTask)
+# =============================================================================
+
+
+@strawberry.type
+class EvaluatorTaskConfig(Node):
+    """The evaluator an EVALUATOR experiment ran as its task, frozen as it was drafted."""
+
+    id: NodeID[int]
+    name: Identifier
+    evaluator_kind: EvaluatorKind
+    input_mapping: EvaluatorInputMapping
+    output_configs: list[BuiltInEvaluatorOutputConfig]
+    definition: JSON = strawberry.field(
+        description="The evaluator as it was run: an inline LLM judge prompt, inline code, "
+        "or a stored evaluator's id. Use to rehydrate the playground.",
+    )
+
+    @classmethod
+    def from_orm(cls, obj: models.ExperimentEvaluatorTask) -> "EvaluatorTaskConfig":
+        return cls(
+            id=obj.id,
+            name=obj.name,
+            evaluator_kind=EvaluatorKind(obj.evaluator_kind),
+            input_mapping=EvaluatorInputMapping(
+                literal_mapping=JSON(obj.input_mapping.literal_mapping),
+                path_mapping=JSON(obj.input_mapping.path_mapping),
+            ),
+            output_configs=[
+                _to_gql_output_config(
+                    config,
+                    config.name,
+                    id_prefix="EvaluatorTaskConfig",
+                    evaluator_id=obj.id,
+                )
+                for config in obj.output_configs
+            ],
+            definition=JSON(obj.definition.model_dump(mode="json")),
+        )

@@ -24,11 +24,7 @@ from phoenix.db.helpers import (
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
-    AnnotationType,
-    CategoricalAnnotationValue,
     CategoricalOutputConfig,
-    ContinuousOutputConfig,
-    FreeformOutputConfig,
     OutputConfigType,
     as_output_configs,
 )
@@ -94,37 +90,7 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConf
     Convert AnnotationConfigInput to pydantic for evaluator output configs.
     Always includes name.
     """
-    if input.categorical is not None and input.categorical is not UNSET:
-        cat = input.categorical
-        return CategoricalOutputConfig(
-            type=AnnotationType.CATEGORICAL.value,
-            name=cat.name,
-            description=cat.description,
-            optimization_direction=cat.optimization_direction,
-            values=[CategoricalAnnotationValue(label=v.label, score=v.score) for v in cat.values],
-        )
-    elif input.continuous is not None and input.continuous is not UNSET:
-        cont = input.continuous
-        return ContinuousOutputConfig(
-            type=AnnotationType.CONTINUOUS.value,
-            name=cont.name,
-            description=cont.description,
-            optimization_direction=cont.optimization_direction,
-            lower_bound=cont.lower_bound,
-            upper_bound=cont.upper_bound,
-        )
-    elif input.freeform is not None and input.freeform is not UNSET:
-        free = input.freeform
-        return FreeformOutputConfig(
-            type=AnnotationType.FREEFORM.value,
-            name=free.name,
-            description=free.description,
-            optimization_direction=free.optimization_direction,
-            thresholds=[free.threshold] if free.threshold is not None else None,
-            lower_bound=free.lower_bound,
-            upper_bound=free.upper_bound,
-        )
-    raise BadRequest("Invalid output config input")
+    return input.to_output_config()
 
 
 def _convert_output_config_inputs_to_pydantic(
