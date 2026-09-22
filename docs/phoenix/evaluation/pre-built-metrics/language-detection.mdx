@@ -153,6 +153,10 @@ For model and provider options, see
 
 ## Benchmarks
 
+On a 32-example synthetic benchmark using `gpt-4o-mini`, the default prompt achieves 0.97 accuracy, 0.96 macro precision, 0.99 macro recall, and 0.97 macro F1. See [language_detection.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/language_detection.eval.ts) for the categorized example set.
+
+On 50 passages sampled from [candradhipa/Language-Detection](https://huggingface.co/datasets/candradhipa/Language-Detection) — 10 each of English, French, Spanish, Hindi, and other languages — the same model and prompt achieve 1.00 accuracy, 1.00 macro precision, 1.00 macro recall, and 1.00 macro F1. That dataset has no Mandarin. See [language_detection_candradhipa.eval.ts](https://github.com/Arize-ai/phoenix/blob/main/js/benchmarks/evals-benchmarks/src/language_detection_candradhipa.eval.ts).
+
 ## API Reference
 
 - **Python:** [LanguageDetectionEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/api/evals.html#module-phoenix.evals.metrics)
