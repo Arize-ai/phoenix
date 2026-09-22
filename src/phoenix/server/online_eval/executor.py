@@ -51,7 +51,6 @@ from phoenix.server.api.evaluators import (
     CodeEvaluatorRunner,
     EvaluationResult,
     LLMEvaluator,
-    evaluator_annotation_names,
     get_builtin_evaluator_by_key,
 )
 from phoenix.server.api.helpers.dataset_helpers import (
@@ -1118,7 +1117,7 @@ class OnlineEvalExecutor:
                 **hydrated.context,
                 "metadata": without_own_annotations(
                     hydrated.context.get("metadata", {}),
-                    evaluator_annotation_names(hydrated.annotation_name, hydrated.output_configs),
+                    result_annotation_names(hydrated.annotation_name, hydrated.output_configs),
                 ),
             }
             results = await hydrated.evaluator.evaluate(

@@ -204,16 +204,6 @@ class EvaluationResult(TypedDict):
     error_exc: NotRequired[Optional[Exception]]
 
 
-def evaluator_annotation_name(
-    name: str, config: OutputConfigType, output_configs: Sequence[OutputConfigType]
-) -> str:
-    return f"{name}.{config.name}" if len(output_configs) > 1 else name
-
-
-def evaluator_annotation_names(name: str, output_configs: Sequence[OutputConfigType]) -> list[str]:
-    return [evaluator_annotation_name(name, config, output_configs) for config in output_configs]
-
-
 class BaseEvaluator(ABC):
     """
     Base interface for all evaluators that attach annotations to tasks.

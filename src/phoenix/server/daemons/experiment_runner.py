@@ -129,10 +129,10 @@ from phoenix.server.api.evaluators import (
     build_evaluator_from_definition,
     code_evaluator_sandbox_session_key,
     evaluation_result_to_model,
-    evaluator_annotation_names,
     get_evaluators,
 )
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
+from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import without_own_annotations
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
@@ -296,7 +296,7 @@ class EvaluatorRunSpec:
 
     @property
     def annotation_names(self) -> list[str]:
-        return evaluator_annotation_names(self.evaluation_name, self.output_configs)
+        return result_annotation_names(self.evaluation_name, self.output_configs)
 
 
 class TokenBucketRegistry(Protocol):
@@ -885,7 +885,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
 
     @cached_property
     def annotation_names(self) -> list[str]:
-        return evaluator_annotation_names(self._evaluator_task.name.root, self.output_configs)
+        return result_annotation_names(self._evaluator_task.name.root, self.output_configs)
 
     @cached_property
     def debug_identifier(self) -> str:
@@ -1275,7 +1275,7 @@ class EvalWorkItem(WorkItem):
 
     @cached_property
     def annotation_names(self) -> list[str]:
-        return evaluator_annotation_names(self._name, self._output_configs)
+        return result_annotation_names(self._name, self._output_configs)
 
     @cached_property
     def debug_identifier(self) -> str:
