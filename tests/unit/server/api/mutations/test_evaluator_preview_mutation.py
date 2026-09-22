@@ -330,7 +330,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         backend.close = AsyncMock(return_value=None)
 
         with patch(
-            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            "phoenix.server.api.evaluators.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(
@@ -368,7 +368,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         oversized_context = {"output": "o" * 4096}
 
         with patch(
-            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            "phoenix.server.api.evaluators.build_sandbox_backend",
             return_value=backend,
         ):
             unlimited = await self._preview_inline_code_evaluator(
@@ -402,7 +402,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         backend.execute_with_inputs = AsyncMock(side_effect=MontyBusy("internal capacity detail"))
 
         with patch(
-            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            "phoenix.server.api.evaluators.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(
@@ -450,7 +450,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         backend.execute_with_inputs = AsyncMock(side_effect=error)
 
         with patch(
-            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            "phoenix.server.api.evaluators.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(
@@ -567,7 +567,7 @@ class TestStoredCodeEvaluatorPreview:
 
         gid = str(GlobalID("CodeEvaluator", str(code_eval_id)))
         with patch(
-            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            "phoenix.server.api.evaluators.build_sandbox_backend",
             return_value=backend,
         ):
             result = await gql_client.execute(
