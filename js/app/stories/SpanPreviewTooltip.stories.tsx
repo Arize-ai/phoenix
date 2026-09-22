@@ -1,9 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { useRef } from "react";
 import { Focusable } from "react-aria";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
 import { Text, TooltipTrigger } from "@phoenix/components";
+import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { SpanPreviewTooltip } from "@phoenix/components/trace/SpanPreviewTooltip";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 
@@ -180,9 +182,12 @@ const pendingRelayEnvironment = new Environment({
 
 /**
  * A stand-in for a trace tree row, with the tooltip held open beside it as
- * it is in the tree. The row sits to the right so the tooltip has room.
+ * it is in the tree. The row sits to the right so the tooltip has room, and
+ * like a tree row its box starts well left of its icon, which the tooltip
+ * anchors to.
  */
 function OpenPreview({ span }: { span: ISpanItem }) {
+  const iconRef = useRef<HTMLDivElement>(null);
   return (
     <div style={{ display: "flex", justifyContent: "flex-end" }}>
       <TooltipTrigger isOpen>
@@ -191,15 +196,22 @@ function OpenPreview({ span }: { span: ISpanItem }) {
             role="button"
             tabIndex={0}
             style={{
-              padding: "8px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              width: 360,
+              padding: "8px 8px 8px 48px",
               border: "1px solid var(--global-border-color-default)",
               borderRadius: "var(--global-rounding-small)",
             }}
           >
+            <div ref={iconRef} style={{ display: "flex" }}>
+              <SpanKindIcon spanKind={span.spanKind} />
+            </div>
             <Text>{span.name}</Text>
           </div>
         </Focusable>
-        <SpanPreviewTooltip span={span} />
+        <SpanPreviewTooltip span={span} triggerRef={iconRef} />
       </TooltipTrigger>
     </div>
   );

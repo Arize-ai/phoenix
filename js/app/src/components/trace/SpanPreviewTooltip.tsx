@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { RefObject } from "react";
 import { Suspense } from "react";
 
 import {
@@ -83,6 +84,13 @@ const cardCSS = css`
 export type SpanPreviewTooltipProps = {
   /** The span as the trace tree holds it. */
   span: ISpanItem;
+  /**
+   * The element the tooltip sits beside and points at. Defaults to the
+   * trigger. The trace tree passes its row's icon: the row's own box runs to
+   * the panel edge, so a tooltip beside the box would float in the gutter
+   * where the nesting indent is, far from the node it describes.
+   */
+  triggerRef?: RefObject<Element | null>;
 };
 
 /**
@@ -91,16 +99,20 @@ export type SpanPreviewTooltipProps = {
  *
  * @remarks
  * Render it as the tooltip of a `TooltipTrigger` around the row, which
- * anchors it beside the row and wires the row's hover, focus, Escape and
- * `aria-describedby` for it. The identity, timing and totals render at
+ * wires the row's hover, focus, Escape and `aria-describedby` for it, and
+ * pass `triggerRef` to anchor it beside part of the row. The identity, timing and totals render at
  * once from what the row already holds. The breakdown is fetched only once
  * the tooltip has stayed open a moment, so a scrub down the tree fetches
  * details for the rows the pointer rests on and no others, and the totals
  * stand in until it arrives.
  */
-export function SpanPreviewTooltip({ span }: SpanPreviewTooltipProps) {
+export function SpanPreviewTooltip({
+  span,
+  triggerRef,
+}: SpanPreviewTooltipProps) {
   return (
     <RichTooltip
+      triggerRef={triggerRef}
       placement="left top"
       width={300}
       className="span-preview"

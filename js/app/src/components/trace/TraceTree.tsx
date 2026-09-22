@@ -190,6 +190,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   );
   const isSelected = selectedSpanNodeId === node.span.id;
   const itemRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLDivElement>(null);
 
   // Scroll into view when selected
   useEffect(() => {
@@ -238,7 +239,11 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                   : undefined
               }
             >
-              <div css={spanNodeIconCSS} className="span-node__icon">
+              <div
+                ref={iconRef}
+                css={spanNodeIconCSS}
+                className="span-node__icon"
+              >
                 <SpanKindIcon spanKind={node.span.spanKind} />
               </div>
               <div css={spanNodeContentCSS} className="span-node__content">
@@ -301,7 +306,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             </SpanNodeWrap>
           </div>
         </Focusable>
-        <SpanPreviewTooltip span={node.span} />
+        {/* Anchored to the icon, so the preview points at the node rather
+            than at the row's edge across the nesting gutter */}
+        <SpanPreviewTooltip span={node.span} triggerRef={iconRef} />
       </TooltipTrigger>
       {childNodes.length ? (
         <ul
@@ -355,14 +362,21 @@ const spanNodeButtonCSS = css`
   cursor: pointer;
 `;
 
+/*
+ * The tree sits on a gray-75 surface, so the fills step up from there: a
+ * hovered row reads clearly against the surface and the row its preview
+ * describes is unmistakable, and the selected row steps up once more so it
+ * still stands out from a hovered neighbor. Both stay translucent so the
+ * latency bar shows through.
+ */
 const selectableRowCSS = css`
   ${spanNodeWrapCSS}
-  &:hover {
-    background-color: var(--global-color-gray-75);
+  &:hover,
+  :focus-visible > & {
+    background-color: rgba(var(--global-color-gray-200-rgb), 0.6);
   }
   &.is-selected {
-    // Keep the fill translucent so the latency bar remains visible
-    background-color: rgba(var(--global-color-gray-200-rgb), 0.5);
+    background-color: rgba(var(--global-color-gray-300-rgb), 0.5);
     border-color: var(--global-color-gray-300);
   }
 `;
