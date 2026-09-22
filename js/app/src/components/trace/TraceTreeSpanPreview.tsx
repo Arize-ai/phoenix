@@ -257,11 +257,12 @@ function SpanTimingDetails({
  * stand in until it arrives, so the card never blanks out or shows a
  * spinner while the pointer moves.
  */
-function SpanPreviewCard({
+export function SpanPreviewCard({
   span,
   showDetails,
 }: {
   span: ISpanItem;
+  /** Whether to fetch and show the token and cost breakdown. */
   showDetails: boolean;
 }) {
   const tokenCountTotal = span.tokenCountTotal;
