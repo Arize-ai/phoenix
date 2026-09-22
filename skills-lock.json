@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "daytona": {
+      "source": "daytona/skills",
+      "sourceType": "github",
+      "skillPath": "skills/daytona/SKILL.md",
+      "computedHash": "893d8c92614e96751c8975289f63910418f2c837940496312ac7e0e34485d3e5"
+    },
     "gh-stack": {
       "source": "github/gh-stack",
       "sourceType": "github",
