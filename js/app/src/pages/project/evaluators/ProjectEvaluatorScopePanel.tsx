@@ -1461,15 +1461,25 @@ type BindingRow =
       typeHint?: string;
       value: unknown;
     })
-  | (BindingRowBase & {
-      variant: "error";
-      message: string;
-    });
+  | BindingMessageRow;
+
+/**
+ * A row with something to say where its value would be: an error when the path
+ * names nothing on this record, a warning when nothing here can say.
+ */
+type BindingMessageRow = BindingRowBase & {
+  variant: "error" | "warning";
+  message: string;
+};
+
+function isBindingMessageRow(row: BindingRow): row is BindingMessageRow {
+  return row.variant === "error" || row.variant === "warning";
+}
 
 /**
  * What one record binds, read off the shared materialization.
  *
- * @internal Exported for testing
+ * @internal Exported for testing and for the binding-preview story
  */
 export function BindingPreview({
   context,
@@ -1508,32 +1518,44 @@ export function BindingPreview({
         : {}),
       value: entry.value,
     })) ?? [];
-  const errorRows = new Map(
+  // A variable this side cannot check is a warning rather than an error — the
+  // path may well be right and only the run can say — but it stands in for a
+  // value, so it belongs in that value's place beside the variable it names
+  // rather than in a banner under the list.
+  const messageRows = new Map(
     diagnostics
-      .filter(({ status }) => status === "missing")
+      .filter(({ status }) => status === "missing" || status === "unverified")
       .map((diagnostic): [string, BindingRow] => [
         diagnostic.variable,
-        {
-          variant: "error",
-          keyword: diagnostic.variable,
-          message: formatMissingBindingMessage(diagnostic, grain),
-        },
+        diagnostic.status === "missing"
+          ? {
+              variant: "error",
+              keyword: diagnostic.variable,
+              message: formatMissingBindingMessage(diagnostic, grain),
+            }
+          : {
+              variant: "warning",
+              keyword: diagnostic.variable,
+              // Only paths reach `unverified`, so this is always a real
+              // authored path rather than a bare variable name.
+              message: `${diagnostic.path} is checked when the evaluator runs`,
+            },
       ])
   );
   const slotKeywords = new Set(slotRows.map(({ keyword }) => keyword));
   // Slots keep the order the mapping form lists them in, each replaced in
-  // place by its error when it fails to bind. Authored variables follow in the
-  // order they are declared, so a missing one sits where its name falls rather
-  // than in a cluster at the end.
+  // place by its message when it fails to bind or cannot be checked. Authored
+  // variables follow in the order they are declared, so a missing one sits
+  // where its name falls rather than in a cluster at the end.
   const rows: BindingRow[] = [
-    ...slotRows.map((row) => errorRows.get(row.keyword) ?? row),
+    ...slotRows.map((row) => messageRows.get(row.keyword) ?? row),
     ...diagnostics.flatMap((diagnostic): BindingRow[] => {
       if (slotKeywords.has(diagnostic.variable)) {
         return [];
       }
-      const errorRow = errorRows.get(diagnostic.variable);
-      if (errorRow) {
-        return [errorRow];
+      const messageRow = messageRows.get(diagnostic.variable);
+      if (messageRow) {
+        return [messageRow];
       }
       if (
         diagnostic.status !== "resolved" ||
@@ -1586,18 +1608,6 @@ export function BindingPreview({
             onToggleExpanded={() => toggle(row.keyword)}
           />
         )
-      )}
-
-      {diagnostics.map(({ variable, path, status }) =>
-        status === "unverified" ? (
-          <Alert
-            key={variable}
-            variant="warning"
-            title={`${variable} is unverified`}
-          >
-            {path} is checked when the evaluator runs.
-          </Alert>
-        ) : null
       )}
     </Flex>
   );
@@ -1703,11 +1713,11 @@ function BindingPreviewRow({
   /** Rendered in place of the raw value when the row opens onto a tree. */
   children?: ReactNode;
 }) {
-  // An error row has no value to show or open onto; it expands only when a
+  // A message row has no value to show or open onto; it expands only when a
   // caller hands it a tree, as the `metadata` slot does.
   const isExpandable =
     children != null ||
-    (row.variant !== "error" && isExpandableBindingValue(row.value));
+    (!isBindingMessageRow(row) && isExpandableBindingValue(row.value));
   const head = (
     <BindingRowHead row={row} showValue={!(isExpandable && isExpanded)} />
   );
@@ -1715,7 +1725,7 @@ function BindingPreviewRow({
     return (
       <div css={bindingRowCSS} data-variant={row.variant}>
         <div className="binding-row__toggle binding-row__toggle--static">
-          {row.variant === "error" ? null : (
+          {isBindingMessageRow(row) ? null : (
             <span className="binding-row__chevron-spacer" />
           )}
           {head}
@@ -1743,7 +1753,7 @@ function BindingPreviewRow({
       {isExpanded ? (
         <div className="binding-row__detail">
           {children ??
-            (row.variant === "error" ? null : (
+            (isBindingMessageRow(row) ? null : (
               <BoundValueDetail value={row.value} />
             ))}
         </div>
@@ -1752,7 +1762,7 @@ function BindingPreviewRow({
   );
 }
 
-/** The row's one-line summary: keyword, origin, and value or error. */
+/** The row's one-line summary: keyword, origin, and value or message. */
 function BindingRowHead({
   row,
   showValue,
@@ -1761,12 +1771,17 @@ function BindingRowHead({
   /** False while the row is open onto its detail, where the value lives. */
   showValue: boolean;
 }) {
-  if (row.variant === "error") {
+  if (isBindingMessageRow(row)) {
+    const isError = row.variant === "error";
     return (
       <>
-        <Icon svg={<Icons.CloseCircle />} color="danger" aria-label="error" />
+        <Icon
+          svg={isError ? <Icons.CloseCircle /> : <Icons.AlertTriangle />}
+          color={isError ? "danger" : "warning"}
+          aria-label={row.variant}
+        />
         <code className="binding-row__keyword">{row.keyword}</code>
-        <span className="binding-row__error-message" title={row.message}>
+        <span className="binding-row__message" title={row.message}>
           {row.message}
         </span>
       </>
@@ -1870,8 +1885,14 @@ const bindingRowCSS = css`
     .binding-row__keyword {
       color: var(--global-text-color-300);
     }
+    .binding-row__message {
+      color: var(--global-color-danger);
+    }
   }
-  .binding-row__error-message {
+  &[data-variant="warning"] .binding-row__message {
+    color: var(--global-color-warning);
+  }
+  .binding-row__message {
     margin-left: auto;
     text-align: right;
     flex: 1 1 auto;
@@ -1880,7 +1901,6 @@ const bindingRowCSS = css`
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: var(--global-font-size-xs);
-    color: var(--global-color-danger);
   }
   .binding-row__detail {
     border-top: 1px solid var(--global-border-color-default);

@@ -102,7 +102,7 @@ describe("the binding preview", () => {
     const errorRows = [...container.querySelectorAll('[data-variant="error"]')];
     expect(
       errorRows.map(
-        (row) => row.querySelector(".binding-row__error-message")?.textContent
+        (row) => row.querySelector(".binding-row__message")?.textContent
       )
     ).toEqual([
       "missing.key does not exist on this trace, so evaluation fails",
@@ -116,6 +116,69 @@ describe("the binding preview", () => {
       errorRows[1]?.querySelector('button[aria-expanded="false"]')
     ).not.toBeNull();
     expect(errorRows[2]?.querySelector("button")).toBeNull();
+  });
+
+  it("replaces an unverified path with a warning in place, not a banner", async () => {
+    await act(async () => {
+      root.render(
+        <EvaluatorInputVariablesContext.Provider
+          value={["input", "output", "metadata", "citations"]}
+        >
+          <BindingPreview
+            context={getSampleSpanEvaluationContext().context}
+            grain="span"
+            inputMapping={{
+              pathMapping: {
+                // A wildcard is the server's to resolve, so this side can only
+                // defer — unlike `nope`, which is checked and wrong.
+                input: "metadata.attributes.llm.input_messages[*].message",
+                output: "nope",
+                citations: "metadata.annotations[*]",
+              },
+              literalMapping: {},
+            }}
+            requiredVariables={["input", "output", "metadata", "citations"]}
+            isSampleContext={false}
+          />
+        </EvaluatorInputVariablesContext.Provider>
+      );
+    });
+
+    // Slot order holds: each deferred path replaces its own row rather than
+    // stacking in a banner after the list.
+    expect(
+      [...container.querySelectorAll(".binding-row__keyword")].map(
+        (node) => node.textContent
+      )
+    ).toEqual(["input", "output", "metadata", "citations"]);
+    const warningRows = [
+      ...container.querySelectorAll('[data-variant="warning"]'),
+    ];
+    expect(
+      warningRows.map(
+        (row) => row.querySelector(".binding-row__keyword")?.textContent
+      )
+    ).toEqual(["input", "citations"]);
+    // A path that is checked and wrong stays an error beside them.
+    expect(
+      [...container.querySelectorAll('[data-variant="error"]')].map(
+        (row) => row.querySelector(".binding-row__keyword")?.textContent
+      )
+    ).toEqual(["output"]);
+    expect(
+      warningRows.map(
+        (row) => row.querySelector(".binding-row__message")?.textContent
+      )
+    ).toEqual([
+      "metadata.attributes.llm.input_messages[*].message is checked when the evaluator runs",
+      "metadata.annotations[*] is checked when the evaluator runs",
+    ]);
+    expect(
+      warningRows[0]?.querySelector('[aria-label="warning"]')
+    ).not.toBeNull();
+    // Nothing is left to open onto, and no banner follows the rows.
+    expect(warningRows[1]?.querySelector("button")).toBeNull();
+    expect(container.querySelector(".alert__icon-title-wrap")).toBeNull();
   });
 
   it("counts mapping errors on the collapsed row and names each on hover", async () => {
