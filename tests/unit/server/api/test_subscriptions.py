@@ -3276,6 +3276,22 @@ class TestExperimentsOverDatasetSubscription:
         with pytest.raises(RuntimeError, match="evaluators"):
             await self._collect(gql_client, variables)
 
+    async def test_a_built_in_evaluator_task_rejects_a_source(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+    ) -> None:
+        task = {
+            "evaluator": {
+                "evaluator": {"builtInEvaluatorId": str(GlobalID("BuiltInEvaluator", "1"))},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "source": {"datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "1"))},
+            }
+        }
+
+        with pytest.raises(RuntimeError, match="built-in evaluator task does not take a source"):
+            await self._collect(gql_client, self._input([task]))
+
     async def test_ephemeral_experiments_are_stopped_when_the_stream_closes(
         self,
         db: DbSessionFactory,
