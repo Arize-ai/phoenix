@@ -275,11 +275,28 @@ class EvaluatorRunSpec:
     """Resolved evaluator inputs for one dataset evaluator at experiment start."""
 
     dataset_evaluator_id: int
+    # DatasetEvaluators.name
+    name: str
     evaluator: BaseEvaluator
     input_mapping: InputMapping
     output_configs: Sequence[OutputConfigType]
     # DatasetEvaluators.project_id — traces for this eval are recorded under this project
     evaluator_project_id: int
+
+    @property
+    def evaluation_name(self) -> str:
+        """The name the evaluator runs under.
+
+        A lone output config keeps writing under its own name; several are each written
+        under ``<binding name>.<config name>``.
+        """
+        if len(self.output_configs) == 1:
+            return self.output_configs[0].name
+        return self.name
+
+    @property
+    def annotation_names(self) -> list[str]:
+        return evaluator_annotation_names(self.evaluation_name, self.output_configs)
 
 
 class TokenBucketRegistry(Protocol):
@@ -1200,6 +1217,7 @@ class EvalWorkItem(WorkItem):
         dataset_example_revision: models.DatasetExampleRevision,
         dataset_evaluator_id: int,
         # Evaluator config
+        name: str,
         evaluator: BaseEvaluator,
         # Execution context
         db: DbSessionFactory,
@@ -1220,6 +1238,7 @@ class EvalWorkItem(WorkItem):
         self._dataset_evaluator_id = dataset_evaluator_id
 
         # Evaluator config
+        self._name = name
         self._evaluator = evaluator
         self._input_mapping = input_mapping
         self._output_configs = output_configs
@@ -1250,6 +1269,10 @@ class EvalWorkItem(WorkItem):
     @cached_property
     def evaluator(self) -> BaseEvaluator:
         return self._evaluator
+
+    @cached_property
+    def annotation_names(self) -> list[str]:
+        return evaluator_annotation_names(self._name, self._output_configs)
 
     @cached_property
     def debug_identifier(self) -> str:
@@ -1293,13 +1316,12 @@ class EvalWorkItem(WorkItem):
                     "metadata": self._dataset_example_revision.metadata_,
                 }
                 context_dict["metadata"] = without_own_annotations(
-                    context_dict["metadata"],
-                    evaluator_annotation_names(self._output_configs[0].name, self._output_configs),
+                    context_dict["metadata"], self.annotation_names
                 )
                 eval_results = await self._evaluator.evaluate(
                     context=context_dict,
                     input_mapping=self._input_mapping,
-                    name=self._output_configs[0].name,
+                    name=self._name,
                     output_configs=self._output_configs,
                     tracer=tracer,
                 )
@@ -1352,11 +1374,11 @@ class EvalWorkItem(WorkItem):
                 error_end_time = datetime.now(timezone.utc)
                 annotator_kind = "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
                 error_annotations: list[models.ExperimentRunAnnotation] = []
-                for config in self._output_configs:
+                for annotation_name in self.annotation_names:
                     error_annotations.append(
                         models.ExperimentRunAnnotation(
                             experiment_run_id=self._experiment_run.id,
-                            name=config.name,
+                            name=annotation_name,
                             annotator_kind=annotator_kind,
                             label=None,
                             score=None,
@@ -2085,7 +2107,7 @@ class RunningExperiment:
         # are executed once even when multiple outputs are missing.
         spec_output_names: list[tuple[EvaluatorRunSpec, set[str]]] = []
         for spec in self._evaluator_run_specs:
-            output_names = {oc.name for oc in spec.output_configs if oc.name}
+            output_names = set(spec.annotation_names)
             if output_names:
                 spec_output_names.append((spec, output_names))
         eval_names = sorted(
@@ -2154,6 +2176,7 @@ class RunningExperiment:
                         experiment_run=run,
                         dataset_example_revision=revision,
                         dataset_evaluator_id=spec.dataset_evaluator_id,
+                        name=spec.evaluation_name,
                         evaluator=spec.evaluator,
                         input_mapping=spec.input_mapping,
                         output_configs=spec.output_configs,
@@ -2249,6 +2272,7 @@ class RunningExperiment:
         experiment_run: models.ExperimentRun,
         dataset_example_revision: models.DatasetExampleRevision,
         dataset_evaluator_id: int,
+        name: str,
         evaluator: BaseEvaluator,
         input_mapping: InputMapping,
         output_configs: Sequence[OutputConfigType],
@@ -2260,6 +2284,7 @@ class RunningExperiment:
             experiment_run=experiment_run,
             dataset_example_revision=dataset_example_revision,
             dataset_evaluator_id=dataset_evaluator_id,
+            name=name,
             evaluator=evaluator,
             input_mapping=input_mapping,
             output_configs=output_configs,
@@ -2304,6 +2329,7 @@ class RunningExperiment:
                     experiment_run=experiment_run,
                     dataset_example_revision=work_item.dataset_example_revision,
                     dataset_evaluator_id=spec.dataset_evaluator_id,
+                    name=spec.evaluation_name,
                     evaluator=spec.evaluator,
                     input_mapping=spec.input_mapping,
                     output_configs=spec.output_configs,
@@ -2486,10 +2512,10 @@ class RunningExperiment:
                 DatasetExample.__name__,
                 str(work_item.dataset_example_revision.dataset_example_id),
             )
-            for config in work_item._output_configs:
+            for annotation_name in work_item.annotation_names:
                 self._broadcast(
                     EvaluationChunk(
-                        evaluator_name=config.name,
+                        evaluator_name=annotation_name,
                         experiment_run_evaluation=None,
                         dataset_example_id=dataset_example_id,
                         repetition_number=work_item.experiment_run.repetition_number,
@@ -2538,7 +2564,7 @@ class RunningExperiment:
                 error_annotations = [
                     models.ExperimentRunAnnotation(
                         experiment_run_id=work_item.experiment_run.id,
-                        name=config.name,
+                        name=annotation_name,
                         annotator_kind=annotator_kind,
                         label=None,
                         score=None,
@@ -2549,7 +2575,7 @@ class RunningExperiment:
                         start_time=now,
                         end_time=now,
                     )
-                    for config in work_item._output_configs
+                    for annotation_name in work_item.annotation_names
                 ]
                 await work_item._persist_eval_results(error_annotations, [])
         except Exception:
@@ -3200,6 +3226,7 @@ class ExperimentRunner(DaemonTask):
             evaluator_run_specs = [
                 EvaluatorRunSpec(
                     dataset_evaluator_id=de.id,
+                    name=de.name.root,
                     evaluator=ev,
                     input_mapping=de.input_mapping,
                     output_configs=_output_configs_for_eval_run(de, ev),
