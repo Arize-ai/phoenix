@@ -3,7 +3,7 @@ GraphQL output types for experiment task configurations.
 
 Converts the ORM job rows (ExperimentPromptTask, ExperimentEvaluatorTask) into typed
 GraphQL fields for frontend consumption (e.g., playground rehydration via
-ExperimentJob.taskConfig and ExperimentJob.evaluatorTaskConfig).
+ExperimentJob.taskConfig).
 """
 
 from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
@@ -304,3 +304,9 @@ class EvaluatorTaskConfig(Node):
             ],
             definition=JSON(obj.definition.model_dump(mode="json")),
         )
+
+
+ExperimentTaskConfig = Annotated[
+    Union[PromptTaskConfig, EvaluatorTaskConfig],
+    strawberry.union(name="ExperimentTaskConfig"),
+]

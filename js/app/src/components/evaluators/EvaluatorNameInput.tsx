@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
 import { FieldError, Input, Label, Text } from "@phoenix/components";
-import { TextField, type TextFieldProps } from "@phoenix/components/core/field";
-import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
+import {
+  TextField,
+  type TextFieldProps,
+  transformInputValue,
+} from "@phoenix/components/core/field";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -80,10 +83,12 @@ const useEvaluatorNameInputForm = () => {
 
 export const EvaluatorNameInput = ({
   placeholder = "e.g. code_eval",
+  description,
   onValueChange,
   ...props
 }: Partial<TextFieldProps> & {
   placeholder?: string;
+  description?: string;
   onValueChange?: () => void;
 }) => {
   const form = useEvaluatorNameInputForm();
@@ -146,34 +151,11 @@ export const EvaluatorNameInput = ({
             transformValue={transformIdentifierInput}
             finalizeValue={trimIdentifierSeparators}
           >
-            {(transformingInput) => (
-              <TextField
-                {...field}
-                value={transformingInput.displayValue}
-                onChange={transformingInput.handleValueChange}
-                onFocus={handleFocus}
-                onBlur={() => {
-                  transformingInput.handleBlur();
-                  hasBlurredRef.current = true;
-                  field.onBlur();
-                  // Re-trigger validation to include blur-only rules
-                  trigger("name");
-                }}
-                autoComplete="off"
-                isInvalid={!!displayedError}
-                autoFocus
-                {...props}
-              >
-                <Label>Name</Label>
-                <Input
-                  {...transformingInput.inputProps}
-                  placeholder={placeholder}
-                />
-                <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
-                <FieldError>{displayedError}</FieldError>
-              </TextField>
-            )}
-          </TransformingInputController>
+            <Label>Name</Label>
+            <Input placeholder={placeholder} />
+            {description ? <Text slot="description">{description}</Text> : null}
+            <FieldError>{displayedError}</FieldError>
+          </TextField>
         );
       }}
     />

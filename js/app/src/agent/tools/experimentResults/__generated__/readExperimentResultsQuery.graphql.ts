@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<479f05f96a87e710cf217d93e2832288>>
+ * @generated SignedSource<<1cfa67b67ade6384727039f7ec8b941c>>
  * @lightSyntaxTransform
  */
 
@@ -54,7 +54,7 @@ export type readExperimentResultsQuery$data = {
           readonly example: {
             readonly id: string;
             readonly revision: {
-              readonly calibrationLabels: ReadonlyArray<{
+              readonly expectedOutputs: ReadonlyArray<{
                 readonly annotationName: string;
                 readonly explanation: string | null;
                 readonly label: string | null;
@@ -326,9 +326,9 @@ v20 = {
         {
           "alias": null,
           "args": null,
-          "concreteType": "DatasetExampleCalibrationLabel",
+          "concreteType": "DatasetExampleExpectedOutput",
           "kind": "LinkedField",
-          "name": "calibrationLabels",
+          "name": "expectedOutputs",
           "plural": true,
           "selections": [
             (v11/*:: as any*/),
@@ -594,16 +594,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1fb7a044bef9f19e0132e9bf54aa69d9",
+    "cacheID": "da737d313562394e045808cd03d03597",
     "id": null,
     "metadata": {},
     "name": "readExperimentResultsQuery",
     "operationKind": "query",
-    "text": "query readExperimentResultsQuery(\n  $experimentId: ID!\n  $first: Int!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      runCount\n      expectedRunCount\n      errorRate\n      averageRunLatencyMs\n      job {\n        status\n        id\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n      }\n      annotationSummaries {\n        annotationName\n        meanScore\n        count\n        errorCount\n      }\n      runs(first: $first) {\n        edges {\n          node {\n            id\n            output\n            latencyMs\n            error\n            annotations {\n              edges {\n                node {\n                  name\n                  label\n                  score\n                  explanation\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                revisionId\n                input\n                output\n                metadata\n                calibrationLabels {\n                  annotationName\n                  label\n                  score\n                  explanation\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query readExperimentResultsQuery(\n  $experimentId: ID!\n  $first: Int!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      runCount\n      expectedRunCount\n      errorRate\n      averageRunLatencyMs\n      job {\n        status\n        id\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n      }\n      annotationSummaries {\n        annotationName\n        meanScore\n        count\n        errorCount\n      }\n      runs(first: $first) {\n        edges {\n          node {\n            id\n            output\n            latencyMs\n            error\n            annotations {\n              edges {\n                node {\n                  name\n                  label\n                  score\n                  explanation\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                revisionId\n                input\n                output\n                metadata\n                expectedOutputs {\n                  annotationName\n                  label\n                  score\n                  explanation\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "04087b57322bffdb8dc46df8d807bf5d";
+(node as any).hash = "1e08357e4c71538b0632afbec853d3da";
 
 export default node;

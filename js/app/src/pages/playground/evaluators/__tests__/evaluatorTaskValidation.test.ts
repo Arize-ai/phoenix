@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { getEvaluatorOutputConfigValidationErrors } from "@phoenix/components/evaluators/utils";
+import { createPlaygroundEvaluatorTask } from "@phoenix/store/playground";
 
 import {
   getCodeEvaluatorValidationError,
   getDefaultSandboxConfigId,
+  getEvaluatorTaskValidationError,
 } from "../evaluatorTaskValidation";
 
 const pythonDraft = {
@@ -125,5 +127,31 @@ describe("output config kind rule", () => {
         configs: [continuous],
       })
     ).toEqual([]);
+  });
+});
+
+describe("task name rule", () => {
+  const validate = (name: string) =>
+    getEvaluatorTaskValidationError({
+      evaluator: createPlaygroundEvaluatorTask({
+        kind: "CODE",
+        name,
+        code: {
+          language: "PYTHON",
+          sourceCode: pythonDraft.sourceCode,
+          sandboxConfigId: "python",
+        },
+      }),
+      sandboxConfigs: pythonDraft.sandboxConfigs,
+      buildPreview: () => {
+        throw new Error("not reached for code evaluators");
+      },
+    });
+
+  it("accepts an identifier or no name and rejects anything else first", () => {
+    expect(validate("correctness")).toBeNull();
+    expect(validate("")).toBeNull();
+    expect(validate("My Evaluator")).toContain("Evaluator name");
+    expect(validate("correctness-")).toContain("start and end");
   });
 });
