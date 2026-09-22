@@ -1332,6 +1332,28 @@ type DatasetExample implements Node {
   datasetSplits: [DatasetSplit!]!
 }
 
+type DatasetExampleCalibrationLabel {
+  annotationName: String!
+  label: String
+  score: Float
+  explanation: String
+}
+
+input DatasetExampleCalibrationLabelInput {
+  exampleId: ID!
+  expectedRevisionId: ID!
+  annotationName: String!
+  label: String
+  score: Float = null
+  explanation: String = null
+}
+
+type DatasetExampleCalibrationLabelsPayload {
+  dataset: Dataset!
+  version: DatasetVersion!
+  examples: [DatasetExample!]!
+}
+
 """A connection to a list of items."""
 type DatasetExampleConnection {
   """Pagination data for this connection"""
@@ -1378,8 +1400,10 @@ type DatasetExampleRevision implements ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!
+  revisionId: ID!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+  calibrationLabels: [DatasetExampleCalibrationLabel!]!
 }
 
 """
@@ -2897,6 +2921,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
+  setDatasetExampleCalibrationLabels(input: SetDatasetExampleCalibrationLabelsInput!): DatasetExampleCalibrationLabelsPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
@@ -4623,6 +4648,11 @@ input SetAgentSessionRetentionInput {
 input SetAgentTraceRecordingInput {
   allowLocalTraces: Boolean!
   allowRemoteExport: Boolean!
+}
+
+input SetDatasetExampleCalibrationLabelsInput {
+  datasetId: ID!
+  labels: [DatasetExampleCalibrationLabelInput!]!
 }
 
 input SetDatasetExampleSplitsInput {
