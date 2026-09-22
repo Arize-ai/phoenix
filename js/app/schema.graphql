@@ -1355,6 +1355,7 @@ type DatasetExampleRevision implements ExampleRevision {
   revisionId: ID!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+  evaluationContext: JSON!
   calibrationLabels: [DatasetExampleCalibrationLabel!]!
 }
 
