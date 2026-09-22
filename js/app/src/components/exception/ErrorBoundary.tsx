@@ -17,15 +17,13 @@ type ErrorBoundaryProps = {
    */
   fallback?: ErrorBoundaryFallbackComponent;
   /**
-   * Clears a caught error when it changes, so the children render again
-   * without being remounted while there is no error.
+   * Clears a caught error when changed without remounting healthy children.
    */
   resetKey?: string;
 };
 type ErrorBoundaryState = {
   hasError: boolean;
   error: unknown;
-  /** The reset key the error state belongs to */
   resetKey: string | undefined;
 };
 export class ErrorBoundary extends Component<
@@ -45,10 +43,11 @@ export class ErrorBoundary extends Component<
   static getDerivedStateFromProps(
     props: ErrorBoundaryProps,
     state: ErrorBoundaryState
-  ): ErrorBoundaryState | null {
-    return props.resetKey === state.resetKey
-      ? null
-      : { hasError: false, error: null, resetKey: props.resetKey };
+  ): Partial<ErrorBoundaryState> | null {
+    if (props.resetKey === state.resetKey) {
+      return null;
+    }
+    return { hasError: false, error: null, resetKey: props.resetKey };
   }
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {

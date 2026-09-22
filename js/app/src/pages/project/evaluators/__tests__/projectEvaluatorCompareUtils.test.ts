@@ -1,6 +1,7 @@
 import {
   formatMatrixSubtitle,
   getComparedOutputName,
+  getFlagThresholdOperators,
   getKappaGloss,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
@@ -70,6 +71,20 @@ describe("project evaluator compare utils", () => {
         annotationName: "legacy-relevance",
       })
     ).toBe("legacy-relevance");
+  });
+
+  it("flags the pivot on the non-positive side of the direction", () => {
+    expect(getFlagThresholdOperators("MAXIMIZE")).toEqual({
+      flagged: "<=",
+      unflagged: ">",
+    });
+    expect(getFlagThresholdOperators("MINIMIZE")).toEqual({
+      flagged: ">=",
+      unflagged: "<",
+    });
+    expect(getFlagThresholdOperators(null)).toEqual(
+      getFlagThresholdOperators("MINIMIZE")
+    );
   });
 
   it("formats matrix thresholds", () => {
