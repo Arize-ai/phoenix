@@ -19,7 +19,6 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.eval_work import SESSION_CONTENT_INCOMPLETE_ERROR
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import (
     _add_live_session_work_unit,
@@ -349,7 +348,7 @@ async def test_delete_trace_by_trace_id(
         assert deleted_trace is None, f"Trace {trace_row_id} should be deleted from database"
 
 
-async def test_delete_trace_stands_down_the_sessions_evaluations(
+async def test_delete_trace_preserves_the_sessions_evaluations(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -369,11 +368,11 @@ async def test_delete_trace_stands_down_the_sessions_evaluations(
     async with db() as session:
         remaining_session = await session.get(models.ProjectSession, project_session_id)
         assert remaining_session is not None
-        assert remaining_session.content_complete is False
         work_unit = await session.get(models.EvalSessionWorkUnit, work_unit_id)
         assert work_unit is not None
-        assert work_unit.status == "CONTENT_LOST"
-        assert work_unit.error == SESSION_CONTENT_INCOMPLETE_ERROR
+        assert work_unit.status == "RUNNING"
+        assert work_unit.error is None
+        assert work_unit.claimed_by == "consumer"
 
 
 async def test_delete_trace_not_found(

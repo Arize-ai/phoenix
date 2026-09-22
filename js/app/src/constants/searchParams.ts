@@ -68,3 +68,9 @@ export const EVALUATOR_FILTER_PARAM = "evaluatorsFilter";
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
+
+/** Ordered ProjectEvaluator Relay ids selected on the compare page. */
+export const PROJECT_EVALUATOR_COMPARE_PARAM = "evaluatorId";
+
+/** The matrix cell whose matching targets the compare page lists. */
+export const PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM = "compareSelection";

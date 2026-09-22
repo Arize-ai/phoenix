@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { usePreloadedQuery } from "react-relay";
-import { Outlet } from "react-router";
+import { Outlet, useParams } from "react-router";
 
 import { Loading } from "@phoenix/components/core/loading/Loading";
 import { TraceFiltersProvider } from "@phoenix/pages/project/TraceFiltersContext";
@@ -25,6 +25,7 @@ const TracesTabContent = ({
     ProjectPageQueriesTracesQuery,
     tracesQueryReference
   );
+  const { traceId } = useParams();
 
   if (!data.project.hasTraces) {
     return (
@@ -32,7 +33,7 @@ const TracesTabContent = ({
     );
   }
 
-  return <TracesTable project={data.project} />;
+  return <TracesTable project={data.project} selectedRowId={traceId} />;
 };
 
 export const ProjectTracesPage = () => {

@@ -2,7 +2,7 @@ import asyncio
 import zlib
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Annotated, Literal, Optional, Sequence, Union
 
 import sqlalchemy as sa
 import strawberry
@@ -32,6 +32,10 @@ from phoenix.server.api.evaluators import (
     infer_input_schema_from_prompt_template,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.evaluator_comparison import make_side_binning
+from phoenix.server.api.helpers.evaluator_distribution import get_evaluator_distribution
+from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
+from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import (
@@ -41,6 +45,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -1270,21 +1275,6 @@ _ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
 }
 
 
-def _result_annotation_names(
-    project_evaluator_name: str,
-    output_configs: Sequence[Any],
-) -> list[str]:
-    """The names this evaluator's runs persist annotations under.
-
-    Mirrors `BaseEvaluator.evaluate`: a lone output config (or none declared)
-    writes under the project evaluator's own name; multiple configs each write
-    under `"{name}.{config_name}"`.
-    """
-    if len(output_configs) > 1:
-        return [f"{project_evaluator_name}.{config.name}" for config in output_configs]
-    return [project_evaluator_name]
-
-
 @strawberry.type
 class ProjectEvaluator(Node):
     """An evaluator and its project-specific online evaluation policy."""
@@ -1357,6 +1347,42 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
+            "Distribution of this evaluator's primary output over all annotated targets in range. "
+            "Spans and traces filter on trace start time; sessions on session start time. "
+            "Uses the latest annotation per target and name across annotation identifiers."
+        )
+    )
+    async def distribution(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+    ) -> EvaluatorDistribution:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+        record = await self._get_record(info)
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        annotation_name, config = primary_result_annotation(record, evaluator)
+        summary = await get_evaluator_distribution(
+            db=info.context.db,
+            project_rowid=record.project_id,
+            evaluation_target=record.evaluation_target,
+            annotation_name=annotation_name,
+            config=config,
+            time_range=time_range,
+        )
+        binning = make_side_binning(annotation_name, config, None)
+        return EvaluatorDistribution(
+            evaluated_count=summary.evaluated_count,
+            threshold=binning.threshold if binning.is_thresholded else None,
+            mean_score=summary.mean_score,
+            score_bin_edges=summary.score_bin_edges,
+            score_bin_counts=summary.score_bin_counts,
+            score_value_counts=summary.score_value_counts,
+            label_counts=summary.label_counts,
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
             "Score aggregates for each annotation this evaluator writes on the evaluated "
             "project: totals over the requested time range, totals over the equal-length "
             "window immediately before it, and a binned mean-score series. Loading is "
@@ -1379,7 +1405,7 @@ class ProjectEvaluator(Node):
             return []
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
-        annotation_names = _result_annotation_names(record.name.root, output_configs)
+        annotation_names = result_annotation_names(record.name.root, output_configs)
         stride: Literal["minute", "hour", "day", "week", "month", "year"]
         if isinstance(time_bin_config, TimeBinConfig):
             stride = time_bin_config.scale.value

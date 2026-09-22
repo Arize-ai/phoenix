@@ -1,7 +1,12 @@
 import { useMemo } from "react";
 import { useLocation } from "react-router";
 
+import {
+  PROJECT_EVALUATOR_COMPARE_PARAM,
+  PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 const projectEvaluatorsPath = (projectRootPath: string) =>
   `${projectRootPath}/evaluators`;
@@ -42,7 +47,12 @@ export function useProjectEvaluatorPaths() {
   const { search } = useLocation();
   return useMemo(() => {
     const list = projectEvaluatorsPath(rootPath);
-    const withCurrentSearch = (path: string) => `${path}${search}`;
+    const searchWithoutComparison = withSearchParams(search, (searchParams) => {
+      searchParams.delete(PROJECT_EVALUATOR_COMPARE_PARAM);
+      searchParams.delete(PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM);
+    });
+    const withCurrentSearch = (path: string) =>
+      `${path}${searchWithoutComparison}`;
     const buildCreationPaths = (
       parentPath: string
     ): ProjectEvaluatorCreationPaths => ({
@@ -63,6 +73,14 @@ export function useProjectEvaluatorPaths() {
     });
     return {
       list: withCurrentSearch(list),
+      compare: ({ a, b }: { a: string; b: string }) =>
+        `${list}/compare${withSearchParams(
+          searchWithoutComparison,
+          (searchParams) => {
+            searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, a);
+            searchParams.append(PROJECT_EVALUATOR_COMPARE_PARAM, b);
+          }
+        )}`,
       creation: buildCreationPaths(list),
       newLlmFromTemplate: (templateName: string) =>
         withCurrentSearch(

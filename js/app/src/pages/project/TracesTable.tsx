@@ -14,7 +14,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import React, {
   Fragment,
   Suspense,
@@ -26,7 +26,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -82,6 +82,7 @@ import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { useLoadMoreSentinel } from "@phoenix/hooks/useLoadMoreSentinel";
 import { TraceSpanAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
@@ -121,6 +122,8 @@ import {
 import { useTraceFilters } from "./TraceFiltersContext";
 
 type TracesTableProps = {
+  selectedRowId?: string;
+  emptyState?: ReactNode;
   project: TracesTable_spans$key;
 };
 
@@ -200,17 +203,18 @@ const TableBody = <
     IAdditionalSpansRow,
 >({
   table,
+  selectedRowId,
 }: {
   table: Table<T>;
+  selectedRowId?: string;
 }) => {
   "use no memo";
   const navigate = useNavigate();
-  const { traceId } = useParams();
   const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === traceId;
+        const isSelected = row.original.trace.traceId === selectedRowId;
         return (
           <tr
             key={row.id}
@@ -302,14 +306,14 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
+  const { filterCondition: initialFilterCondition } = useTraceFilters();
   const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validTraceFilterCondition, setValidTraceFilterCondition] =
-    useState<string>("");
+    useState<string>(initialFilterCondition);
   const { fetchKey } = useStreamState();
   // Source the time range directly here (rather than only via the preloaded
   // parent query) so a live window sliding forward refetches with the filter
@@ -960,22 +964,13 @@ export function TracesTable(props: TracesTableProps) {
     timeRangeISOStrings,
   ]);
 
-  const fetchMoreOnBottomReached = useCallback(
-    (containerRefElement?: HTMLDivElement | null) => {
-      if (containerRefElement) {
-        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
-        if (
-          scrollHeight - scrollTop - clientHeight < 300 &&
-          !isLoadingNext &&
-          hasNext
-        ) {
-          loadNext(PAGE_SIZE);
-        }
-      }
-    },
-    [hasNext, isLoadingNext, loadNext]
-  );
+  const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
+    hasNext,
+    isLoadingNext,
+    loadNext,
+    pageSize: PAGE_SIZE,
+    rows: data.rootSpans.edges,
+  });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -1143,8 +1138,6 @@ export function TracesTable(props: TracesTableProps) {
             flex: 1 1 auto;
             overflow: auto;
           `}
-          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-          ref={tableContainerRef}
         >
           <ColumnOrderingProvider
             columnOrder={visibleColumnOrder}
@@ -1240,7 +1233,7 @@ export function TracesTable(props: TracesTableProps) {
                   ))}
               </thead>
               {isEmpty ? (
-                <ProjectTableEmpty />
+                (props.emptyState ?? <ProjectTableEmpty />)
               ) : columnSizingInfo.isResizingColumn ? (
                 <MemoizedTableBody
                   table={
@@ -1253,6 +1246,7 @@ export function TracesTable(props: TracesTableProps) {
                 />
               ) : (
                 <TableBody
+                  selectedRowId={props.selectedRowId}
                   table={
                     // We can't access the internal TableRowType in the TableBody component
                     // so we cast to unknown and then to the correct type
@@ -1264,6 +1258,7 @@ export function TracesTable(props: TracesTableProps) {
               )}
             </table>
           </ColumnOrderingProvider>
+          <div ref={loadMoreSentinelRef} />
         </div>
         {selectedRows.length ? (
           <SpanSelectionToolbar

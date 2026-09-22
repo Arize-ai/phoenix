@@ -5,21 +5,16 @@ import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 
 const rowCSS = css`
   position: relative;
+  height: var(--global-dimension-size-600) !important;
 `;
 const tdCSS = css`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
 `;
 
-/**
- * A table row that is used to load more data.
- * @returns A table row that is used to load more data.
- */
 export function LoadMoreRow({
   onLoadMore,
   isLoadingNext,

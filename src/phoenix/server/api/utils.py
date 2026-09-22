@@ -8,7 +8,6 @@ from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     delete_projects_and_evaluator_trace_projects,
-    mark_session_content_incomplete,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -47,21 +46,6 @@ async def delete_traces_and_orphan_sessions(
         trace_delete = trace_delete.where(models.Trace.start_time >= start_time)
     if end_time is not None:
         trace_delete = trace_delete.where(models.Trace.start_time < end_time)
-    affected_session_rowids = (
-        select(models.Trace.project_session_rowid)
-        .where(
-            models.Trace.project_rowid == project_rowid,
-            models.Trace.project_session_rowid.is_not(None),
-        )
-        .distinct()
-    )
-    if start_time is not None:
-        affected_session_rowids = affected_session_rowids.where(
-            models.Trace.start_time >= start_time
-        )
-    if end_time is not None:
-        affected_session_rowids = affected_session_rowids.where(models.Trace.start_time < end_time)
-    await mark_session_content_incomplete(session, affected_session_rowids)
     result = await session.execute(trace_delete)
     deleted_trace_count: int = result.rowcount  # type: ignore[attr-defined]
 

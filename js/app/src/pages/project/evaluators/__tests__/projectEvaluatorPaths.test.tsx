@@ -33,6 +33,10 @@ function TestProjectEvaluatorPaths() {
       data-copy-code={paths.creation.copyCode("Evaluator:code/source")}
       data-attach-code={paths.creation.attachCode("Evaluator:code/source")}
       data-edit={paths.edit("ProjectEvaluator:1")}
+      data-compare={paths.compare({
+        a: "ProjectEvaluator:a/source",
+        b: "ProjectEvaluator:b/source",
+      })}
     />
   );
 }
@@ -83,6 +87,36 @@ describe("useProjectEvaluatorPaths", () => {
     );
     expect(path("edit")).toBe(
       "/projects/project-1/evaluators/ProjectEvaluator%3A1/edit?timeRangeKey=7d&proof=preserved"
+    );
+    expect(path("compare")).toBe(
+      "/projects/project-1/evaluators/compare?timeRangeKey=7d&proof=preserved&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"
+    );
+  });
+
+  it("removes stale compare ids from non-compare destinations", () => {
+    act(() => {
+      root.render(
+        <MemoryRouter
+          initialEntries={[
+            "/projects/project-1/evaluators/compare?timeRangeKey=7d&evaluatorId=old-a&evaluatorId=old-b&compareSelection=stale",
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/projects/:projectId/evaluators/compare"
+              element={<TestProjectEvaluatorPaths />}
+            />
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+
+    const output = container.querySelector("output");
+    expect(output?.getAttribute("data-new-llm")).toBe(
+      "/projects/project-1/evaluators/new/llm?timeRangeKey=7d"
+    );
+    expect(output?.getAttribute("data-compare")).toContain(
+      "?timeRangeKey=7d&evaluatorId=ProjectEvaluator%3Aa%2Fsource&evaluatorId=ProjectEvaluator%3Ab%2Fsource"
     );
   });
 });
