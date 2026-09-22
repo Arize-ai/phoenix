@@ -18,7 +18,7 @@ Read the relevant reference(s) based on the task:
 
 | Task | Reference |
 |------|-----------|
-| Layout stability, scroll behavior, interaction patterns, tree connector lines | `references/layout.md` |
+| Layout stability, scroll behavior, interaction patterns | `references/layout.md` |
 | Alert and form dialog usage, footer button styling, content writing | `references/dialogs.md` |
 | Error scoping, inline alerts, input validation | `references/error-display.md` |
 | Naming CSS classes | `references/bem.md` |
