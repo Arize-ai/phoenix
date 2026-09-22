@@ -1,39 +1,38 @@
 ---
 title: "Cloudflare AI Gateway"
 description: "Trace Cloudflare AI Gateway with Phoenix, either by exporting the gateway's OpenTelemetry spans or by instrumenting your app with OpenInference."
-sidebarTitle: "Cloudflare AI Gateway"
+sidebarTitle: "Tracing"
 ---
 
 import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
 
 [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) proxies requests to your LLM
-provider. Send traces to Phoenix by exporting spans from the gateway or by tracing your application:
-
-- **Export gateway spans** ([Option 1](#option-1-export-gateway-spans)): the gateway emits an
-  OpenTelemetry span for every request it proxies, with no code in your application.
-- **Instrument your app** ([Option 2](#option-2-instrument-your-app-with-openinference)): trace the
-  OpenAI client in your application with OpenInference. Phoenix captures the full input and output
-  messages while your app still routes requests through the gateway.
+provider. Send traces to Phoenix by exporting spans from the gateway (no application code) or by
+tracing your application with OpenInference (full input and output messages). Choose one of the tabs
+below.
 
 ## Prerequisites
 
 - A [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/). Create one in the
   Cloudflare dashboard under **AI → AI Gateway**.
-- A running Phoenix instance (see [Launch Phoenix](#launch-phoenix)). For Option 1, Cloudflare must
-  be able to reach your Phoenix collector.
-- Python 3.10+ (only for Option 2).
+- A running Phoenix instance (see [Launch Phoenix](#launch-phoenix)). To export gateway spans,
+  Cloudflare must be able to reach your Phoenix collector.
+- Python 3.10+ (only to instrument your application).
 
 ## Launch Phoenix
 
 <StartPhoenix />
 
 <Note>
-  For Option 1, AI Gateway sends spans from Cloudflare's edge, so Cloudflare must be able to reach
-  your Phoenix collector. A deployed Phoenix endpoint can receive spans directly. To use a local
-  endpoint, expose it with a tunnel such as [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
+  To export gateway spans, AI Gateway sends them from Cloudflare's edge, so Cloudflare must be able
+  to reach your Phoenix collector. A deployed Phoenix endpoint can receive spans directly. To use a
+  local endpoint, expose it with a tunnel such as [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/).
 </Note>
 
-## Option 1: export gateway spans
+## Set up tracing
+
+<Tabs>
+<Tab title="Export gateway spans">
 
 This option does not require application code. The gateway exports a span for each request it
 proxies.
@@ -70,7 +69,8 @@ curl "https://gateway.ai.cloudflare.com/v1/<account-id>/<gateway-name>/openai/ch
   --data '{"model":"gpt-5-mini","messages":[{"role":"user","content":"Hello from Cloudflare AI Gateway"}]}'
 ```
 
-## Option 2: instrument your app with OpenInference
+</Tab>
+<Tab title="Instrument your app">
 
 Trace the OpenAI client in your application, and route requests through the gateway's
 OpenAI-compatible endpoint. Phoenix captures full input and output messages, so prompts and
@@ -129,10 +129,13 @@ local Phoenix instance, no other Phoenix configuration is needed.
   `OpenAI(...)` call.
 </Note>
 
+</Tab>
+</Tabs>
+
 ## Link gateway spans to your app's traces
 
-With Option 1, you can nest the gateway span under an existing application span instead of starting a
-new trace. Pass the parent context to the gateway request with these headers:
+When you export gateway spans, you can nest the gateway span under an existing application span
+instead of starting a new trace. Pass the parent context to the gateway request with these headers:
 
 | Header | Value |
 | --- | --- |
@@ -162,18 +165,18 @@ attributes visible to anyone with access to the project.
 
 ## What renders in Phoenix
 
-- **Option 1 (gateway export):** each proxied request is an **LLM span** with the model name and
-  token counts populated. The provider, cost, and full prompt and response are stored under the
-  span's **Attributes**.
-- **Option 2 (OpenInference):** spans include the model, token counts, and the prompt and response
-  rendered in the formatted message view.
+- **Gateway export:** each proxied request is an **LLM span** with the model name and token counts
+  populated. The provider, cost, and full prompt and response are stored under the span's
+  **Attributes**.
+- **App instrumentation (OpenInference):** spans include the model, token counts, and the prompt and
+  response rendered in the formatted message view.
 
 ## Troubleshooting
 
-- **No spans arriving (Option 1):** confirm **Content Type** is **Protobuf** (JSON is rejected), the
-  endpoint ends in `/v1/traces`, and Cloudflare can reach your Phoenix collector.
-- **Spans in the wrong project:** set the `x-project-name` header (Option 1) or `project_name` in
-  `register()` (Option 2).
+- **No spans arriving (gateway export):** confirm **Content Type** is **Protobuf** (JSON is
+  rejected), the endpoint ends in `/v1/traces`, and Cloudflare can reach your Phoenix collector.
+- **Spans in the wrong project:** set the `x-project-name` header (gateway export) or `project_name`
+  in `register()` (app instrumentation).
 - **Nothing yet:** Cloudflare exports in batches, so send a few requests and wait a minute or two.
 
 ## Resources

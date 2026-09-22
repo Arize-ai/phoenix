@@ -603,7 +603,12 @@
                   "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing"
                 ]
               },
-              "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing",
+              {
+                "group": "Cloudflare AI Gateway",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing"
+                ]
+              },
               {
                 "group": "Together AI",
                 "pages": [
