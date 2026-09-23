@@ -1,11 +1,23 @@
 import { formatTemplate } from "../template";
 import type {
   ClassificationChoices,
+  ClassificationChoicesMap,
   CreateClassifierArgs,
   EvaluationResult,
   EvaluatorFn,
 } from "../types/evals";
 import { generateClassification } from "./generateClassification";
+
+/**
+ * Whether the choices are a label-to-score map rather than a bare list of
+ * labels. Custom guard so a `readonly string[]` is narrowed out correctly,
+ * which `Array.isArray` does not do.
+ */
+function isChoicesMap(
+  choices: ClassificationChoices
+): choices is ClassificationChoicesMap {
+  return !Array.isArray(choices);
+}
 
 /**
  * Convert choices to the labels the classifier may return.
@@ -14,7 +26,7 @@ import { generateClassification } from "./generateClassification";
 function choicesToLabels(
   choices: ClassificationChoices
 ): [string, ...string[]] {
-  const labels = Array.isArray(choices) ? [...choices] : Object.keys(choices);
+  const labels = isChoicesMap(choices) ? Object.keys(choices) : [...choices];
   if (labels.length < 1) {
     throw new Error("No choices provided");
   }
@@ -46,7 +58,7 @@ export function createClassifierFn<
       ...rest,
     });
 
-    if (Array.isArray(choices)) {
+    if (!isChoicesMap(choices)) {
       return classification;
     }
 
