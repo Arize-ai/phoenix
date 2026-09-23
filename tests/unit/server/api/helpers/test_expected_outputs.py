@@ -26,3 +26,11 @@ def test_is_the_identity_without_matching_names_or_annotations() -> None:
     assert without_own_annotations({"source": "unit"}, ["length"]) == {"source": "unit"}
     # A malformed annotations value is passed through rather than guessed at.
     assert without_own_annotations({"annotations": [1, 2]}, ["length"]) == {"annotations": [1, 2]}
+
+
+def test_removes_the_named_trace_annotations() -> None:
+    metadata = {"trace_annotations": {"length": [_LLM], "tone": [_HUMAN]}, "events": []}
+    assert without_own_annotations(metadata, ["length"]) == {
+        "trace_annotations": {"tone": [_HUMAN]},
+        "events": [],
+    }

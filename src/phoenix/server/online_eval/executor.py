@@ -51,7 +51,6 @@ from phoenix.server.api.evaluators import (
     CodeEvaluatorRunner,
     EvaluationResult,
     LLMEvaluator,
-    evaluator_annotation_names,
     get_builtin_evaluator_by_key,
 )
 from phoenix.server.api.helpers.dataset_helpers import (
@@ -60,7 +59,10 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_output,
 )
 from phoenix.server.api.helpers.evaluators import result_annotation_names
-from phoenix.server.api.helpers.expected_outputs import without_own_annotations
+from phoenix.server.api.helpers.expected_outputs import (
+    TRACE_ANNOTATIONS_METADATA_KEY,
+    without_own_annotations,
+)
 from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.dml_event import (
     DmlEvent,
@@ -424,7 +426,7 @@ def trace_eval_context(
             },
             "attributes": attributes,
             "events": events,
-            "trace_annotations": _trace_annotations_by_name(annotations),
+            TRACE_ANNOTATIONS_METADATA_KEY: _trace_annotations_by_name(annotations),
         },
     }
 
@@ -1118,7 +1120,7 @@ class OnlineEvalExecutor:
                 **hydrated.context,
                 "metadata": without_own_annotations(
                     hydrated.context.get("metadata", {}),
-                    evaluator_annotation_names(hydrated.annotation_name, hydrated.output_configs),
+                    result_annotation_names(hydrated.annotation_name, hydrated.output_configs),
                 ),
             }
             results = await hydrated.evaluator.evaluate(
