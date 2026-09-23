@@ -69,13 +69,10 @@
               {
                 "group": "Arize Phoenix for Agents",
                 "pages": [
-                  "docs/phoenix/agent-assisted-setup",
                   "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/integrations/developer-tools/skills",
+                  "docs/phoenix/integrations/developer-tools/cli",
                   "docs/phoenix/integrations/mcp",
-                  "docs/phoenix/integrations/remote-mcp",
-                  "docs/phoenix/integrations/docs-mcp",
-                  "docs/phoenix/integrations/phoenix-mcp-server"
+                  "docs/phoenix/integrations/developer-tools/skills"
                 ]
               },
               "docs/phoenix/phoenix-demo"
@@ -471,17 +468,10 @@
           {
             "group": "Developer Tools",
             "pages": [
-              "docs/phoenix/integrations/developer-tools/skills",
-              "docs/phoenix/integrations/developer-tools/coding-agents"
-            ]
-          },
-          {
-            "group": "MCP",
-            "pages": [
+              "docs/phoenix/integrations/developer-tools/coding-agents",
+              "docs/phoenix/integrations/developer-tools/cli",
               "docs/phoenix/integrations/mcp",
-              "docs/phoenix/integrations/remote-mcp",
-              "docs/phoenix/integrations/docs-mcp",
-              "docs/phoenix/integrations/phoenix-mcp-server"
+              "docs/phoenix/integrations/developer-tools/skills"
             ]
           },
           {
@@ -1677,6 +1667,22 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/agent-assisted-setup",
+      "destination": "/docs/phoenix/integrations/developer-tools/cli"
+    },
+    {
+      "source": "/docs/phoenix/integrations/remote-mcp",
+      "destination": "/docs/phoenix/integrations/mcp"
+    },
+    {
+      "source": "/docs/phoenix/integrations/docs-mcp",
+      "destination": "/docs/phoenix/integrations/mcp"
+    },
+    {
+      "source": "/docs/phoenix/integrations/phoenix-mcp-server",
+      "destination": "/docs/phoenix/integrations/mcp"
+    },
     {
       "source": "/docs/phoenix/get-started/get-started-improve-your-agent",
       "destination": "/docs/phoenix/get-started/get-started-evaluations"
