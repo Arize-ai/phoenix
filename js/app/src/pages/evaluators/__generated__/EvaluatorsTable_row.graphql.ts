@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43ddfb3c12ddda3311e035b20dd4febb>>
+ * @generated SignedSource<<facefa990dad31ac53ebee529ddbd8fb>>
  * @lightSyntaxTransform
  */
 
@@ -19,6 +19,9 @@ export type EvaluatorsTable_row$data = {
       readonly name: string;
     };
     readonly description: string | null;
+    readonly evaluator: {
+      readonly kind: EvaluatorKind;
+    };
     readonly id: string;
     readonly name: string;
     readonly updatedAt: string;
@@ -39,6 +42,16 @@ export type EvaluatorsTable_row$data = {
   readonly id: string;
   readonly kind: EvaluatorKind;
   readonly name: string;
+  readonly projects: {
+    readonly edges: ReadonlyArray<{
+      readonly node: {
+        readonly gradientEndColor: string;
+        readonly gradientStartColor: string;
+        readonly id: string;
+        readonly name: string;
+      };
+    }>;
+  };
   readonly prompt?: {
     readonly id: string;
     readonly name: string;
@@ -67,6 +80,6 @@ const node: ReaderInlineDataFragment = {
   "name": "EvaluatorsTable_row"
 };
 
-(node as any).hash = "d6cb203c1f400edc5472e768c8255fdd";
+(node as any).hash = "f354a35aaba4addcc82ffe1329768138";
 
 export default node;
