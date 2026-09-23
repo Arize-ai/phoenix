@@ -96,12 +96,13 @@ export const readExperimentResultsOperation = defineUIOperation({
   name: "playground.experiment.readResults",
   description:
     "Read the scored results of an experiment. Pass one of the `experimentIds` " +
-    "returned by `playground.run`. Returns the experiment's status and metrics " +
+    "returned by `playground.run`. Returns the experiment's status, `taskKind` " +
+    "(`prompt` or `evaluator`) and metrics " +
     "(run counts, error rate, latency, cost), per-evaluator annotation summaries " +
     "(mean score, count, errors), and every run with its dataset example (input, " +
     "reference output, metadata, the example's current `revisionId`, and its " +
-    "`expectedOutputs` — the expected outputs recorded on the example, by " +
-    "`annotationName`), actual output, error, and annotation " +
+    "`expectedOutputs` by `annotationName`, which are authoritative over the same " +
+    "records in `metadata`), actual output, error, and annotation " +
     "labels/scores/explanations. For an evaluator task's experiment the " +
     "evaluator's verdict is both the run's `output` and an annotation named after " +
     "the task's `annotationName`; compare it with `expectedOutputs`, and record " +

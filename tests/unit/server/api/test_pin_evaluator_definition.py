@@ -12,14 +12,16 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.types import DbSessionFactory
 
 
-async def _insert_code_evaluator(db: DbSessionFactory, *, versions: int) -> tuple[int, list[int]]:
+async def _insert_code_evaluator(
+    db: DbSessionFactory, *, versions: int, sandbox_config_id: int | None = None
+) -> tuple[int, list[int]]:
     async with db() as session:
         code_eval = models.CodeEvaluator(
             name=Identifier("pinned"),
             input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
             output_configs=[],
             language="PYTHON",
-            sandbox_config_id=None,
+            sandbox_config_id=sandbox_config_id,
         )
         session.add(code_eval)
         await session.flush()
@@ -36,10 +38,12 @@ async def _insert_code_evaluator(db: DbSessionFactory, *, versions: int) -> tupl
 
 
 class TestPinEvaluatorDefinition:
-    async def test_pins_a_stored_code_evaluator_to_its_current_version(
-        self, db: DbSessionFactory, seed_languages: None
+    async def test_pins_a_stored_code_evaluator_to_its_current_version_and_sandbox(
+        self, db: DbSessionFactory, sandbox_config: models.SandboxConfig
     ) -> None:
-        code_eval_id, version_ids = await _insert_code_evaluator(db, versions=2)
+        code_eval_id, version_ids = await _insert_code_evaluator(
+            db, versions=2, sandbox_config_id=sandbox_config.id
+        )
         definition = StoredCodeEvaluatorDefinition(
             type="code_evaluator", code_evaluator_id=code_eval_id
         )
@@ -48,6 +52,8 @@ class TestPinEvaluatorDefinition:
         assert isinstance(pinned, StoredCodeEvaluatorDefinition)
         assert pinned.code_evaluator_id == code_eval_id
         assert pinned.code_evaluator_version_id == version_ids[-1]
+        assert pinned.sandbox_config_id == sandbox_config.id
+        assert pinned.language == "PYTHON"
 
     async def test_keeps_a_version_already_pinned(
         self, db: DbSessionFactory, seed_languages: None
@@ -60,7 +66,8 @@ class TestPinEvaluatorDefinition:
         )
         async with db() as session:
             pinned = await pin_evaluator_definition(definition, session=session)
-        assert pinned is definition
+        assert isinstance(pinned, StoredCodeEvaluatorDefinition)
+        assert pinned.code_evaluator_version_id == version_ids[0]
 
     async def test_rejects_an_evaluator_without_a_version(
         self, db: DbSessionFactory, seed_languages: None
