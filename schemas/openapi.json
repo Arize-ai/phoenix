@@ -5599,10 +5599,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Span Global ID)",
+              "description": "Pagination cursor: the next_cursor of a previous response with the same sort",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Span Global ID)"
+            "description": "Pagination cursor: the next_cursor of a previous response with the same sort"
           },
           {
             "name": "limit",
@@ -5617,6 +5617,38 @@
               "title": "Limit"
             },
             "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "id",
+                "start_time"
+              ],
+              "type": "string",
+              "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id.",
+              "default": "id",
+              "title": "Sort"
+            },
+            "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction",
+              "default": "desc",
+              "title": "Order"
+            },
+            "description": "Sort direction"
           },
           {
             "name": "start_time",
