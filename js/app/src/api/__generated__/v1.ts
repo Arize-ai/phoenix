@@ -10609,7 +10609,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                /** @description The project identifier, either project node ID or the project name. */
                 project_identifier: string;
             };
             cookie?: never;
@@ -10659,7 +10659,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                /** @description The project identifier, either project node ID or the project name. */
                 project_identifier: string;
             };
             cookie?: never;

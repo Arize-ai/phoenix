@@ -1107,13 +1107,12 @@ async def test_span_search_accepts_percent_encoded_project_name(
     assert [span["context"]["span_id"] for span in resp.json()["data"]] == ["path-characters-span"]
 
 
-async def test_span_search_accepts_raw_slash_in_project_name(
+async def test_span_search_returns_404_for_unknown_project_name_with_raw_slash(
     httpx_client: httpx.AsyncClient, project_named_with_path_characters: None
 ) -> None:
-    name_with_slash = _PROJECT_NAME_WITH_PATH_CHARACTERS.split("?")[0]
-    resp = await httpx_client.get(f"v1/projects/{name_with_slash}/spans")
+    resp = await httpx_client.get("v1/projects/team/alpha/spans")
     assert resp.status_code == 404, "the slash reaches the handler and names a missing project"
-    assert name_with_slash in resp.text
+    assert "team/alpha" in resp.text
 
 
 async def test_span_search_still_resolves_project_id_in_path(

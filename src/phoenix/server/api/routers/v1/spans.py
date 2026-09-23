@@ -992,7 +992,7 @@ def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
 async def span_search(
     request: Request,
     project_identifier: str = Path(
-        description="The project identifier: either project ID or project name.",
+        description="The project identifier, either project node ID or the project name.",
     ),
     cursor: Optional[str] = Query(
         default=None,
@@ -1430,7 +1430,7 @@ async def create_spans(
     request: Request,
     request_body: CreateSpansRequestBody,
     project_identifier: str = Path(
-        description="The project identifier: either project ID or project name.",
+        description="The project identifier, either project node ID or the project name.",
     ),
 ) -> CreateSpansResponseBody:
     def convert_api_span_for_insertion(api_span: Span) -> SpanForInsertion:
