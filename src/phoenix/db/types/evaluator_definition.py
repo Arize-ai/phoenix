@@ -89,8 +89,10 @@ class StoredCodeEvaluatorDefinition(DBBaseModel):
     """A stored code evaluator.
 
     Without ``code_evaluator_version_id`` the evaluator runs at its current version, which
-    is what a preview wants. An experiment pins the version before freezing the definition,
-    so the evaluator rebuilt on a resume runs the same code as the one that started.
+    is what a preview wants. An experiment pins the version, sandbox configuration and
+    language before freezing the definition, so the evaluator rebuilt on a resume runs the
+    same code in the same environment as the one that started. Any of the three left unset
+    is read from the evaluator's current row.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -98,6 +100,8 @@ class StoredCodeEvaluatorDefinition(DBBaseModel):
     type: Literal["code_evaluator"]
     code_evaluator_id: int
     code_evaluator_version_id: int | None = None
+    sandbox_config_id: int | None = None
+    language: str | None = None
     source: EvaluatorSource | None = None
 
 
