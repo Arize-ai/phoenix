@@ -38,176 +38,6 @@ const STORIES_DIR = "stories";
 const PREVIEW_FILE = join(".storybook", "preview.tsx");
 const HEALTH_FILE = join(STORIES_DIR, "_meta", "health.generated.json");
 
-/**
- * Story files still sitting flat in `stories/`, from before the taxonomy
- * existed. They are exempt from the title, path and tag rules; everything
- * else is enforced.
- *
- * This list is a countdown, not an escape hatch. Stack layer L2 relocates and
- * retitles all of these and empties the array. Until then the linter fails if
- * a flat file appears that is not listed here, so the count can only go down.
- *
- * @see _work/storybook-reorganization/plan.md
- */
-const LEGACY_FLAT_FILES: readonly string[] = [
-  "AIOutline.stories.tsx",
-  "AIQuerySettingsCard.stories.tsx",
-  "AgentChatWidgetButton.stories.tsx",
-  "Alert.stories.tsx",
-  "AnnotationInputs.stories.tsx",
-  "AnnotationMetricsChart.stories.tsx",
-  "AnnotationSummaryTokens.stories.tsx",
-  "AnnotationTargetTypeToken.stories.tsx",
-  "Attachments.stories.tsx",
-  "Badge.stories.tsx",
-  "BaselineExperimentBadge.stories.tsx",
-  "BorderAndDividerLines.mdx",
-  "BorderAndDividerLines.stories.tsx",
-  "Breadcrumbs.stories.tsx",
-  "Breakdown.stories.tsx",
-  "BrowserModelCard.stories.tsx",
-  "Button.stories.tsx",
-  "Calendar.stories.tsx",
-  "Card.stories.tsx",
-  "CategoricalChartColors.stories.tsx",
-  "ChartEmptyStateOverlay.stories.tsx",
-  "ChartPanel.stories.tsx",
-  "ChartSkeleton.stories.tsx",
-  "ChartTooltip.stories.tsx",
-  "ChartTypeIcon.stories.tsx",
-  "ChatTokenUsage.stories.tsx",
-  "Checkbox.stories.tsx",
-  "CodeBlockTheme.stories.tsx",
-  "CodeBlockWithCopy.stories.tsx",
-  "Colors.stories.tsx",
-  "ComboBox.stories.tsx",
-  "CommandPalette.stories.tsx",
-  "ConfusionMatrix.stories.tsx",
-  "CopyActionMenu.stories.tsx",
-  "CopyField.stories.tsx",
-  "CopyableTextCell.stories.tsx",
-  "Counter.stories.tsx",
-  "CredentialField.stories.tsx",
-  "DSLFilterConditionField.stories.tsx",
-  "DateField.stories.tsx",
-  "DeferredChartPanel.stories.tsx",
-  "Dialog.stories.tsx",
-  "Disclosure.stories.tsx",
-  "DisclosureArrow.stories.tsx",
-  "DocumentationHelp.stories.tsx",
-  "DragHandle.stories.tsx",
-  "Drawer.stories.tsx",
-  "EmptyState.stories.tsx",
-  "EmptyStateGraphic.stories.tsx",
-  "EmptyStateInContext.stories.tsx",
-  "ExpandableContent.stories.tsx",
-  "ExperimentItem.stories.tsx",
-  "ExperimentMetricsCharts.stories.tsx",
-  "ExperimentRunAnnotations.stories.tsx",
-  "ExperimentRunOutputs.stories.tsx",
-  "ExperimentTable.stories.tsx",
-  "ExtraBodyModelConfigFormField.stories.tsx",
-  "FileDropZone.stories.tsx",
-  "FormatRelativeShort.stories.tsx",
-  "Gallery.stories.tsx",
-  "GenerativeUI.stories.tsx",
-  "GridList.stories.tsx",
-  "Group.stories.tsx",
-  "Heading.stories.tsx",
-  "IDBadge.stories.tsx",
-  "IconButton.stories.tsx",
-  "Icons.stories.tsx",
-  "JSONTable.stories.tsx",
-  "JSONView.stories.tsx",
-  "KeyboardToken.stories.tsx",
-  "LatencyText.stories.tsx",
-  "Levels.stories.tsx",
-  "LinkButton.stories.tsx",
-  "List.stories.tsx",
-  "ListBox.stories.tsx",
-  "Loading.stories.tsx",
-  "MarkdownBlock.stories.tsx",
-  "Menu.stories.tsx",
-  "Message.stories.tsx",
-  "MetricsChartSelector.stories.tsx",
-  "Modal.stories.tsx",
-  "ModelMenu.stories.tsx",
-  "NumberField.stories.tsx",
-  "OAuth2ConsentCard.stories.tsx",
-  "OverflowRow.stories.tsx",
-  "OverlayStacking.mdx",
-  "OverlayStacking.stories.tsx",
-  "PackageManagerCommandBlock.stories.tsx",
-  "PageHeader.stories.tsx",
-  "PlaygroundOutputHeader.stories.tsx",
-  "Popover.stories.tsx",
-  "ProgressBar.stories.tsx",
-  "ProgressCircle.stories.tsx",
-  "ProjectSelectionMenu.stories.tsx",
-  "ProjectToken.stories.tsx",
-  "PromptInput.stories.tsx",
-  "PromptMenu.stories.tsx",
-  "ProviderAndIntegrationIcons.stories.tsx",
-  "PxiButton.stories.tsx",
-  "RadioGroup.stories.tsx",
-  "RangeCalendar.stories.tsx",
-  "ReasoningMessageContent.stories.tsx",
-  "RecordIcon.stories.tsx",
-  "RichTooltip.stories.tsx",
-  "SandboxProviderIcon.stories.tsx",
-  "SearchButton.stories.tsx",
-  "SearchField.stories.tsx",
-  "SegmentChart.stories.tsx",
-  "SegmentedControl.stories.tsx",
-  "Select.stories.tsx",
-  "SemanticChartColors.stories.tsx",
-  "Shimmer.stories.tsx",
-  "Skeleton.stories.tsx",
-  "SlashCommandMenu.stories.tsx",
-  "Slider.stories.tsx",
-  "SolveWithPxiCompositions.stories.tsx",
-  "SpanInfo.stories.tsx",
-  "SpanKindIcon.stories.tsx",
-  "SpanPreviewTooltip.stories.tsx",
-  "StackedTimeSeriesBarChart.stories.tsx",
-  "StorybookFrameAPI.mdx",
-  "Switch.stories.tsx",
-  "Table.stories.tsx",
-  "TableColumnOrdering.stories.tsx",
-  "Tabs.stories.tsx",
-  "TagGroup.stories.tsx",
-  "Text.stories.tsx",
-  "TextField.stories.tsx",
-  "ThemeToggle.stories.tsx",
-  "TimeField.stories.tsx",
-  "TimeRangeControls.stories.tsx",
-  "TimeRangeForm.stories.tsx",
-  "TimeRangeSelector.stories.tsx",
-  "Timer.stories.tsx",
-  "TimezonePreferences.stories.tsx",
-  "TitledPanel.stories.tsx",
-  "Toast.stories.tsx",
-  "ToastRegion.stories.tsx",
-  "ToggleButton.stories.tsx",
-  "ToggleButtonGroup.stories.tsx",
-  "Token.stories.tsx",
-  "TokenCosts.stories.tsx",
-  "TokenCount.stories.tsx",
-  "TokenDetailsBreakdown.stories.tsx",
-  "ToolAndSkillIcons.stories.tsx",
-  "ToolExecutionSummary.mdx",
-  "ToolPart.stories.tsx",
-  "Toolbar.stories.tsx",
-  "Tooltip.stories.tsx",
-  "TopNavActions.stories.tsx",
-  "TraceTree.stories.tsx",
-  "TraceTreeSkeleton.stories.tsx",
-  "UserDisplay.stories.tsx",
-  "VersionUpdateNotice.stories.tsx",
-  "Video.stories.tsx",
-  "chartColors.stories.tsx",
-];
-
 type StoryFile = {
   /** Path relative to `stories/`. */
   rel: string;
@@ -217,7 +47,8 @@ type StoryFile = {
   /** True for MDX attached to a CSF file via `<Meta of={...} />`. */
   attachedMdx: boolean;
   tags: string[];
-  isLegacyFlat: boolean;
+  /** True for a file sitting directly in `stories/`, outside the taxonomy. */
+  isFlat: boolean;
 };
 
 const problems: string[] = [];
@@ -266,7 +97,7 @@ function collect(): StoryFile[] {
       title: parseTitle(src, isMdx),
       attachedMdx: isMdx && /<Meta[^>]*\sof=\{/.test(src),
       tags: parseTags(src),
-      isLegacyFlat: segments.length === 1,
+      isFlat: segments.length === 1,
     };
   });
 }
@@ -424,19 +255,14 @@ function checkTags(file: StoryFile) {
 function main() {
   const files = collect();
 
-  // Flat legacy files: the allowlist may shrink, never grow.
-  const allowed = new Set(LEGACY_FLAT_FILES);
-  const flat = files.filter((f) => f.isLegacyFlat);
-  for (const file of flat) {
-    if (!allowed.has(file.base)) {
-      fail(
-        file.rel,
-        "new story files must live in a taxonomy directory under stories/, not flat in stories/"
-      );
-    }
+  for (const file of files.filter((f) => f.isFlat)) {
+    fail(
+      file.rel,
+      "story files must live in a taxonomy directory under stories/, not flat in stories/"
+    );
   }
 
-  const managed = files.filter((f) => !f.isLegacyFlat);
+  const managed = files.filter((f) => !f.isFlat);
   for (const file of managed) {
     checkPathAndTitle(file);
     // Tags are a CSF concept. An MDX docs page cannot declare them through
@@ -446,7 +272,7 @@ function main() {
     }
   }
 
-  // Duplicate titles are checked across the whole set, legacy included: two
+  // Duplicate titles are checked across the whole set, flat files included: two
   // files claiming one title is a defect wherever it happens.
   const byTitle = new Map<string, string[]>();
   for (const file of files) {
@@ -493,7 +319,8 @@ function main() {
     process.exit(1);
   }
   process.stdout.write(
-    `lint:stories — ok. ${managed.length} in taxonomy, ${flat.length} legacy flat file(s) remaining.\n`
+    `lint:stories — ok. ${managed.length} file(s) in the taxonomy.
+`
   );
 }
 
@@ -527,8 +354,6 @@ function writeHealth(files: StoryFile[]) {
         generatedBy: "pnpm lint:stories",
         totals: {
           files: stories.length,
-          legacyFlat: stories.filter((f) => f.isLegacyFlat).length,
-          inTaxonomy: stories.filter((f) => !f.isLegacyFlat).length,
         },
         tags: {
           legacy: count(provenance.legacy),

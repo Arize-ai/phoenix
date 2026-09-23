@@ -84,43 +84,6 @@ export const STORYBOOK_PAGES = [
 ] as const;
 
 /**
- * Roots that existed before the reorganization.
- *
- * Kept in `storySort` for one layer only, so that L1 does not scramble the
- * sidebar while every story still carries its old title. L2 relocates and
- * retitles everything and deletes this list.
- *
- * @see _work/storybook-reorganization/plan.md
- */
-export const LEGACY_ROOTS = [
-  "Reference",
-  "Core",
-  "Charting",
-  "Chart",
-  "Charts",
-  "Code",
-  "DateTime",
-  "Table",
-  "Tokens",
-  "Annotation",
-  "AI",
-  "Agent",
-  "Trace",
-  "Experiment",
-  "Prompt",
-  "Playground",
-  "Generative",
-  "Filter",
-  "Project",
-  "Nav",
-  "User",
-  "Auth",
-  "Sandbox",
-  "DnD",
-  "Empty States",
-] as const;
-
-/**
  * NOTE: there is deliberately no `STORY_SORT_ORDER` export here.
  *
  * Storybook requires `options.storySort` to be an **inline literal** — it
