@@ -57,7 +57,14 @@ class EvaluatorTaskSourceInput:
     dataset_evaluator_id: Optional[GlobalID] = None
     project_evaluator_id: Optional[GlobalID] = None
 
-    def to_source(self) -> EvaluatorSource:
+    def to_source(self) -> Optional[EvaluatorSource]:
+        if (
+            self.evaluator_id is None
+            and self.prompt_version_id is None
+            and self.dataset_evaluator_id is None
+            and self.project_evaluator_id is None
+        ):
+            return None
         return EvaluatorSource(
             evaluator_id=_optional_node_id(self.evaluator_id, ("LLMEvaluator", "CodeEvaluator")),
             prompt_version_id=_optional_node_id(self.prompt_version_id, ("PromptVersion",)),

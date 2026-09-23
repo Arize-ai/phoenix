@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1cfa67b67ade6384727039f7ec8b941c>>
+ * @generated SignedSource<<2aef30d9fee261b885f243750b17f24f>>
  * @lightSyntaxTransform
  */
 
@@ -34,6 +34,9 @@ export type readExperimentResultsQuery$data = {
     readonly id: string;
     readonly job: {
       readonly status: ExperimentJobStatus;
+      readonly taskConfig: {
+        readonly __typename: string;
+      } | null;
     } | null;
     readonly name: string;
     readonly runCount: number;
@@ -377,7 +380,19 @@ return {
                 "name": "job",
                 "plural": false,
                 "selections": [
-                  (v9/*:: as any*/)
+                  (v9/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "taskConfig",
+                    "plural": false,
+                    "selections": [
+                      (v2/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               },
@@ -502,6 +517,26 @@ return {
                 "plural": false,
                 "selections": [
                   (v9/*:: as any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "taskConfig",
+                    "plural": false,
+                    "selections": [
+                      (v2/*:: as any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v3/*:: as any*/)
+                        ],
+                        "type": "Node",
+                        "abstractKey": "__isNode"
+                      }
+                    ],
+                    "storageKey": null
+                  },
                   (v3/*:: as any*/)
                 ],
                 "storageKey": null
@@ -594,16 +629,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "da737d313562394e045808cd03d03597",
+    "cacheID": "3b16f6d8d98a59b866f4b48c5ce909bf",
     "id": null,
     "metadata": {},
     "name": "readExperimentResultsQuery",
     "operationKind": "query",
-    "text": "query readExperimentResultsQuery(\n  $experimentId: ID!\n  $first: Int!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      runCount\n      expectedRunCount\n      errorRate\n      averageRunLatencyMs\n      job {\n        status\n        id\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n      }\n      annotationSummaries {\n        annotationName\n        meanScore\n        count\n        errorCount\n      }\n      runs(first: $first) {\n        edges {\n          node {\n            id\n            output\n            latencyMs\n            error\n            annotations {\n              edges {\n                node {\n                  name\n                  label\n                  score\n                  explanation\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                revisionId\n                input\n                output\n                metadata\n                expectedOutputs {\n                  annotationName\n                  label\n                  score\n                  explanation\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query readExperimentResultsQuery(\n  $experimentId: ID!\n  $first: Int!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      runCount\n      expectedRunCount\n      errorRate\n      averageRunLatencyMs\n      job {\n        status\n        taskConfig {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n      costSummary {\n        total {\n          cost\n          tokens\n        }\n      }\n      annotationSummaries {\n        annotationName\n        meanScore\n        count\n        errorCount\n      }\n      runs(first: $first) {\n        edges {\n          node {\n            id\n            output\n            latencyMs\n            error\n            annotations {\n              edges {\n                node {\n                  name\n                  label\n                  score\n                  explanation\n                  id\n                }\n              }\n            }\n            example {\n              id\n              revision {\n                revisionId\n                input\n                output\n                metadata\n                expectedOutputs {\n                  annotationName\n                  label\n                  score\n                  explanation\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1e08357e4c71538b0632afbec853d3da";
+(node as any).hash = "bfa1796028fc5bcf3d43fd5b17881227";
 
 export default node;

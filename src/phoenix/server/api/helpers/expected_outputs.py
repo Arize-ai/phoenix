@@ -12,6 +12,7 @@ from typing import Any, Iterable, Mapping, Optional
 from phoenix.server.api.helpers.dataset_helpers import build_annotation_record
 
 ANNOTATIONS_METADATA_KEY = "annotations"
+TRACE_ANNOTATIONS_METADATA_KEY = "trace_annotations"
 HUMAN_ANNOTATOR_KIND = "HUMAN"
 
 
@@ -54,14 +55,17 @@ def without_own_annotations(
 
     An evaluator binds the whole ``metadata``, so a record under a name it is about to
     write would reach it as context: a human's expected output, or its own verdict from
-    an earlier evaluation of the same example.
+    an earlier evaluation of the same example or trace.
     """
-    annotations = metadata.get(ANNOTATIONS_METADATA_KEY)
     names = set(annotation_names)
-    if not isinstance(annotations, Mapping) or not names & set(annotations):
-        return dict(metadata)
-    kept = {name: records for name, records in annotations.items() if name not in names}
-    return {**metadata, ANNOTATIONS_METADATA_KEY: kept}
+    masked = dict(metadata)
+    for key in (ANNOTATIONS_METADATA_KEY, TRACE_ANNOTATIONS_METADATA_KEY):
+        annotations = metadata.get(key)
+        if isinstance(annotations, Mapping) and names & set(annotations):
+            masked[key] = {
+                name: records for name, records in annotations.items() if name not in names
+            }
+    return masked
 
 
 def set_expected_output(

@@ -14,7 +14,7 @@ from openinference.semconv.trace import (
 from strawberry.relay.types import GlobalID
 from typing_extensions import NotRequired
 
-from phoenix.db.models import DatasetExampleRevision, Span, SpanAnnotation, User
+from phoenix.db.models import Span, SpanAnnotation, User
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -112,11 +112,11 @@ def get_dataset_example_metadata(
     }
 
 
-def dataset_example_eval_context(revision: DatasetExampleRevision) -> dict[str, Any]:
+def dataset_example_eval_context(*, input: Any, output: Any, metadata: Any) -> dict[str, Any]:
     return {
-        "input": revision.input,
-        "output": revision.output,
-        "metadata": revision.metadata_,
+        "input": input,
+        "output": output,
+        "metadata": metadata,
     }
 
 

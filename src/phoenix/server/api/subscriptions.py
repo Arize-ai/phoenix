@@ -593,8 +593,11 @@ async def _resolve_evaluator_task(
     # Pin what the experiment freezes: a stored evaluator's current version, not a
     # pointer its owner can edit while the experiment is paused.
     definition = await pin_evaluator_definition(task.evaluator.to_definition(), session=session)
-    if task.source is not None and not isinstance(definition, BuiltInEvaluatorDefinition):
-        definition = definition.model_copy(update={"source": task.source.to_source()})
+    source = task.source.to_source() if task.source is not None else None
+    if source is not None:
+        if isinstance(definition, BuiltInEvaluatorDefinition):
+            raise BadRequest("A built-in evaluator task does not take a source")
+        definition = definition.model_copy(update={"source": source})
     evaluator = await build_evaluator_from_definition(
         definition=definition,
         session=session,
