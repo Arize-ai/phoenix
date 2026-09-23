@@ -264,10 +264,8 @@ const mockExperiments: MockExperiment[] = [
 
 function SimpleExperimentTable({
   experiments = mockExperiments,
-  displayFullText = false,
 }: {
   experiments?: MockExperiment[];
-  displayFullText?: boolean;
 }) {
   "use no memo";
   const [columnSizing, setColumnSizing] = useState({});
@@ -306,11 +304,7 @@ function SimpleExperimentTable({
 
               <PaddedCell>
                 <LargeTextWrap>
-                  <JSONText
-                    json={row.original.input}
-                    disableTitle
-                    space={displayFullText ? 2 : 0}
-                  />
+                  <JSONText json={row.original.input} disableTitle />
                 </LargeTextWrap>
               </PaddedCell>
             </>
@@ -329,18 +323,14 @@ function SimpleExperimentTable({
             </CellTop>
             <PaddedCell>
               <LargeTextWrap>
-                <JSONText
-                  json={getValue()}
-                  disableTitle
-                  space={displayFullText ? 2 : 0}
-                />
+                <JSONText json={getValue()} disableTitle />
               </LargeTextWrap>
             </PaddedCell>
           </>
         ),
       },
     ],
-    [displayFullText]
+    []
   );
 
   const experimentColumns: ColumnDef<MockExperiment>[] = useMemo(() => {
@@ -442,11 +432,7 @@ function SimpleExperimentTable({
                 justifyContent="space-between"
               >
                 <LargeTextWrap>
-                  <JSONText
-                    json={currentExperiment.output}
-                    disableTitle
-                    space={displayFullText ? 2 : 0}
-                  />
+                  <JSONText json={currentExperiment.output} disableTitle />
                 </LargeTextWrap>
                 <ul
                   css={css`
@@ -469,7 +455,7 @@ function SimpleExperimentTable({
         );
       },
     }));
-  }, [displayFullText]);
+  }, []);
 
   const columns = useMemo(() => {
     return [...baseColumns, ...experimentColumns];
@@ -630,12 +616,6 @@ including performance metrics, cost tracking, and quality annotations.
       },
     },
   },
-  argTypes: {
-    displayFullText: {
-      control: { type: "boolean" },
-      description: "Whether to display full JSON formatting or compact version",
-    },
-  },
 };
 
 export default meta;
@@ -648,9 +628,6 @@ type Story = StoryObj<typeof SimpleExperimentTable>;
  */
 export const Default: Story = {
   tags: ["!dev"],
-  args: {
-    displayFullText: false,
-  },
 };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
