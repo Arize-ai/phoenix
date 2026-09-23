@@ -23,7 +23,7 @@ class LanguageDetectionEvaluator(ClassificationEvaluator):
         - Classifies the language that carries the majority of substantive content.
         - Labels are ``english``, ``mandarin_chinese``, ``hindi``, ``spanish``,
           ``french``, or ``other``.
-        - Every label scores ``1.0``. The result is the label; no language is better
+        - ``score`` is ``None``. The result is the label; no language is better
           than another.
         - This metric is descriptive: it does not judge whether the language used
           was correct or expected.
@@ -45,7 +45,7 @@ class LanguageDetectionEvaluator(ClassificationEvaluator):
         }
         scores = language_eval.evaluate(eval_input)
         print(scores)
-        [Score(name='language_detection', score=1.0, label='english',
+        [Score(name='language_detection', score=None, label='english',
             explanation='Both turns are substantive English.',
             metadata={'model': 'gpt-4o-mini'},
             kind="llm", direction="neutral")]
@@ -63,9 +63,7 @@ class LanguageDetectionEvaluator(ClassificationEvaluator):
 
     class LanguageDetectionInputSchema(BaseModel):
         session: str = Field(
-            description=(
-                "User and assistant turns, in chronological order. Do not include tool results."
-            )
+            description="User and assistant turns, in chronological order. Do not include tool results."
         )
 
     def __init__(

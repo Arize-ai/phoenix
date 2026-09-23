@@ -38,12 +38,12 @@ The evaluator returns a `Score` with one label:
 | Property | Value | Description |
 |----------|-------|-------------|
 | `label` | `"english"`, `"mandarin_chinese"`, `"hindi"`, `"spanish"`, `"french"`, or `"other"` | Primary language of the session |
-| `score` | `1.0` | Every label uses the same score |
+| `score` | `None` | The result is the label; there is no score |
 | `explanation` | `string` | Judge reasoning |
 | `direction` | `"neutral"` | Neither higher nor lower scores are better |
 
 
-Read `label`. The score does not rank languages.
+Read `label`. `score` is `None`.
 
 ## Usage Examples
 
@@ -66,7 +66,7 @@ Read `label`. The score does not rank languages.
     })
 
     print(scores[0])
-    # Score(name='language_detection', score=1.0, label='english', ...)
+    # Score(name='language_detection', score=None, label='english', ...)
     ```
   </Tab>
 
@@ -109,14 +109,14 @@ The default prompt is maintained in the
         name="language_detection",
         prompt_template=evaluator.prompt_template,
         llm=llm,
-        choices={
-            "english": 1.0,
-            "mandarin_chinese": 1.0,
-            "hindi": 1.0,
-            "spanish": 1.0,
-            "french": 1.0,
-            "other": 1.0,
-        },
+        choices=[
+            "english",
+            "mandarin_chinese",
+            "hindi",
+            "spanish",
+            "french",
+            "other",
+        ],
         direction="neutral",
     )
     ```

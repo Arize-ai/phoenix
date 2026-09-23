@@ -44,7 +44,7 @@ describe("createLanguageDetectionEvaluator", () => {
       })
     );
     expect(result.label).toBe("english");
-    expect(result.score).toBe(1);
+    expect(result.score).toBeUndefined();
     expect(result.explanation).toBe("The session is English throughout.");
     expect(evaluator.optimizationDirection).toBe("NEUTRAL");
   });

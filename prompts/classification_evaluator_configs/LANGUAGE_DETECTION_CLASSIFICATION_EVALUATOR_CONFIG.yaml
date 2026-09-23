@@ -53,9 +53,9 @@ messages:
 
       In the explanation, go through the source text and note the language of each substantive piece of content, then say which language carries the majority of that content. Then set the label to exactly one of: english, mandarin_chinese, hindi, spanish, french, other.
 choices:
-  english: 1.0
-  mandarin_chinese: 1.0
-  hindi: 1.0
-  spanish: 1.0
-  french: 1.0
-  other: 1.0
+  - english
+  - mandarin_chinese
+  - hindi
+  - spanish
+  - french
+  - other

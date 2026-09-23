@@ -84,7 +84,6 @@ px.describe(
         px.logAnnotation({
           name: "language_detection",
           label: result.label,
-          score: result.score,
           explanation: result.explanation,
           annotatorKind: "LLM",
         });

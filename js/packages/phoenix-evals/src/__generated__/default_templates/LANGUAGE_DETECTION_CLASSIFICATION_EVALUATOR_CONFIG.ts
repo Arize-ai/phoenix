@@ -57,12 +57,12 @@ In the explanation, go through the source text and note the language of each sub
 `,
     },
   ],
-  choices: {
-  "english": 1,
-  "mandarin_chinese": 1,
-  "hindi": 1,
-  "spanish": 1,
-  "french": 1,
-  "other": 1
-},
+  choices: [
+  "english",
+  "mandarin_chinese",
+  "hindi",
+  "spanish",
+  "french",
+  "other"
+],
 };
