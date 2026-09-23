@@ -3,6 +3,7 @@ import { DocsContainer } from "@storybook/addon-docs/blocks";
 import type { Preview } from "@storybook/react";
 import React, { useEffect, useMemo, useState } from "react";
 import { MemoryRouter } from "react-router";
+import { GLOBALS_UPDATED, SET_GLOBALS } from "storybook/internal/core-events";
 import { addons as previewAddons } from "storybook/preview-api";
 import { CacheProvider, createCache, themes } from "storybook/theming";
 import { create } from "storybook/theming/create";
@@ -12,7 +13,6 @@ import { PreferencesProvider, ThemeProvider } from "../src/contexts";
 import { GlobalStyles } from "../src/GlobalStyles";
 
 export const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
-export const THEME_MODE_CHANGE_EVENT = "phoenix:theme-mode-change";
 
 /**
  * Phoenix design system background colors (gray-75)
@@ -309,15 +309,57 @@ function getDocsTheme(themeMode: string, systemTheme: ProviderTheme) {
   return systemTheme === "dark" ? darkDocsTheme : lightDocsTheme;
 }
 
+type GlobalsPayload = { globals?: { theme?: unknown } } | undefined;
+
+function getThemeModeFromGlobals(payload: GlobalsPayload): string | undefined {
+  const theme = payload?.globals?.theme;
+  return typeof theme === "string" ? theme : undefined;
+}
+
+/**
+ * The toolbar theme mode, read from Storybook's own globals events.
+ *
+ * `useGlobals` only works inside decorators, and a docs page renders a
+ * decorator only when it embeds a story — an MDX page such as a subject
+ * Overview embeds none. The preview emits `GLOBALS_UPDATED` before every docs
+ * render and on every toolbar change regardless, and `channel.last` returns
+ * the payload sent before this container mounted.
+ */
+function useDocsThemeMode(): string {
+  const [themeMode, setThemeMode] = useState(() => {
+    const channel = previewAddons.getChannel();
+    return (
+      getThemeModeFromGlobals(channel.last(GLOBALS_UPDATED)?.[0]) ??
+      getThemeModeFromGlobals(channel.last(SET_GLOBALS)?.[0]) ??
+      "auto"
+    );
+  });
+
+  useEffect(() => {
+    const channel = previewAddons.getChannel();
+    const handler = (payload: GlobalsPayload) => {
+      const next = getThemeModeFromGlobals(payload);
+      if (next) {
+        setThemeMode(next);
+      }
+    };
+    channel.on(GLOBALS_UPDATED, handler);
+    channel.on(SET_GLOBALS, handler);
+    return () => {
+      channel.off(GLOBALS_UPDATED, handler);
+      channel.off(SET_GLOBALS, handler);
+    };
+  }, []);
+
+  return themeMode;
+}
+
 /**
  * Custom DocsContainer that respects the toolbar theme selector while also
  * responding to system theme changes when "auto" or "both" is selected.
- *
- * Since useGlobals can't be used outside decorators, we listen for theme mode
- * changes via the Storybook channel (emitted by the decorator).
  */
 function ThemedDocsContainer(props: DocsContainerProps) {
-  const [themeMode, setThemeMode] = useState("auto");
+  const themeMode = useDocsThemeMode();
   const systemTheme = useSystemTheme();
   const effectiveTheme = getEffectiveTheme(themeMode, systemTheme);
   const docsTheme = getDocsTheme(themeMode, systemTheme);
@@ -325,13 +367,6 @@ function ThemedDocsContainer(props: DocsContainerProps) {
     () => createDocsEmotionCache(effectiveTheme),
     [effectiveTheme]
   );
-
-  useEffect(() => {
-    const channel = previewAddons.getChannel();
-    const handler = (mode: string) => setThemeMode(mode);
-    channel.on(THEME_MODE_CHANGE_EVENT, handler);
-    return () => channel.off(THEME_MODE_CHANGE_EVENT, handler);
-  }, []);
 
   // Directly set background color on body to bypass Storybook theme caching
   useEffect(() => {
@@ -393,19 +428,11 @@ function ThemedStory({
 }
 
 /**
- * Hook that resolves the toolbar theme selection to concrete theme(s),
- * emits theme mode to the channel, and tracks system theme.
+ * Hook that resolves the toolbar theme selection to concrete theme(s) and
+ * tracks system theme.
  */
 function useResolvedThemes(themeMode: string) {
   const systemTheme = useSystemTheme(true);
-
-  useEffect(() => {
-    try {
-      previewAddons.getChannel().emit(THEME_MODE_CHANGE_EVENT, themeMode);
-    } catch {
-      // Channel may not be ready yet
-    }
-  }, [themeMode]);
 
   if (themeMode === "both") {
     return {
@@ -450,42 +477,68 @@ const preview: Preview = {
           "Design System",
           [
             "Color",
+            ["Overview"],
             "Typography",
+            ["Overview"],
             "Layout",
+            ["Overview"],
             "Icons",
+            ["Overview"],
             "Actions",
+            ["Overview"],
             "Forms",
+            ["Overview"],
             "Overlays",
+            ["Overview"],
             "Badges",
+            ["Overview"],
             "Feedback",
             [
+              "Overview",
               "*",
               "Empty states",
-              ["Empty State", "Empty State Graphic", "In Context"],
+              ["Overview", "Empty State", "Empty State Graphic", "In Context"],
             ],
             "Errors",
             "Navigation",
+            ["Overview"],
             "Tables",
+            ["Overview"],
             "Data visualization",
+            ["Overview"],
             "Dates and times",
+            ["Overview"],
             "Code",
+            ["Overview"],
             "Media",
+            ["Overview"],
             "Drag and resize",
+            ["Overview"],
           ],
           "Domains",
           [
             "Tracing",
+            ["Overview"],
             "Experiments",
+            ["Overview"],
             "Datasets",
             "Evaluators",
             "Annotations",
+            ["Overview"],
             "Playground",
+            ["Overview"],
             "Prompts",
+            ["Overview"],
             "PXI",
+            ["Overview"],
             "Cost",
+            ["Overview"],
             "App shell",
+            ["Overview"],
             "Auth",
+            ["Overview"],
             "Settings",
+            ["Overview"],
           ],
           "Storybook",
           ["Writing a story", "Tags", "Storybook frames", "Storybook health"],

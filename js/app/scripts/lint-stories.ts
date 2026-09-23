@@ -44,6 +44,8 @@ type StoryFile = {
   dir: string;
   base: string;
   title: string | null;
+  /** An MDX page's `<Meta name>`, which Storybook uses as its entry name. */
+  metaName: string | null;
   /** True for MDX attached to a CSF file via `<Meta of={...} />`. */
   attachedMdx: boolean;
   tags: string[];
@@ -77,6 +79,11 @@ function parseTitle(src: string, isMdx: boolean): string | null {
   return m ? m[1] : null;
 }
 
+function parseMetaName(src: string): string | null {
+  const m = src.match(/<Meta[^>]*\sname=["']([^"']+)["']/);
+  return m ? m[1] : null;
+}
+
 function parseTags(src: string): string[] {
   const m = src.match(/^\s{0,2}tags:\s*\[([^\]]*)\]/m);
   if (!m) return [];
@@ -95,6 +102,7 @@ function collect(): StoryFile[] {
       dir: segments.slice(0, -1).join("/"),
       base,
       title: parseTitle(src, isMdx),
+      metaName: isMdx ? parseMetaName(src) : null,
       attachedMdx: isMdx && /<Meta[^>]*\sof=\{/.test(src),
       tags: parseTags(src),
       isFlat: segments.length === 1,
@@ -196,6 +204,24 @@ function checkPathAndTitle(file: StoryFile) {
   }
 }
 
+/**
+ * A subject's `Overview` page must be named after its subject. Without a
+ * name Storybook calls it "Docs", which is what search lists it as, and the
+ * sidebar's Overview folders (`.storybook/sidebar/subjectOverviews.ts`) derive
+ * the page's id from the folder name.
+ */
+function checkOverviewName(file: StoryFile) {
+  if (file.base !== "Overview.mdx" || !file.title) return;
+  const segments = file.title.split("/").map((s) => s.trim());
+  const subject = segments[segments.length - 2];
+  if (file.metaName !== subject) {
+    fail(
+      file.rel,
+      `an Overview page must be named after its subject: add name="${subject}" to its <Meta>`
+    );
+  }
+}
+
 function checkTags(file: StoryFile) {
   const known = new Set<string>([
     ...ALL_PHOENIX_TAGS,
@@ -265,6 +291,7 @@ function main() {
   const managed = files.filter((f) => !f.isFlat);
   for (const file of managed) {
     checkPathAndTitle(file);
+    checkOverviewName(file);
     // Tags are a CSF concept. An MDX docs page cannot declare them through
     // `<Meta>`, and it carries no per-story axis state, so it is not tagged.
     if (!file.rel.endsWith(".mdx")) {
@@ -333,9 +360,12 @@ function main() {
  * computable and a derivable tag invites the tag and the facts to disagree.
  */
 function writeHealth(files: StoryFile[]) {
-  const stories = files.filter((f) => !f.attachedMdx);
+  // A subject's `Overview` page is navigation generated from the index, not
+  // documentation or a story, so it counts toward neither.
+  const content = files.filter((f) => f.base !== "Overview.mdx");
+  const stories = content.filter((f) => !f.attachedMdx);
   const docs = new Set(
-    files.filter((f) => f.rel.endsWith(".mdx")).map((f) => f.dir)
+    content.filter((f) => f.rel.endsWith(".mdx")).map((f) => f.dir)
   );
   const count = (tag: string) =>
     stories.filter((f) => f.tags.includes(tag)).length;

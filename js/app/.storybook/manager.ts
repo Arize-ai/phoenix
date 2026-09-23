@@ -11,6 +11,8 @@ import { create } from "storybook/theming/create";
 
 import { completeness, provenance, review } from "../stories/_meta/tags";
 import { installRootHeadings } from "./sidebar/rootHeadings";
+import { installSearchDocsTitles } from "./sidebar/searchDocsTitles";
+import { installSubjectOverviews } from "./sidebar/subjectOverviews";
 
 const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
 
@@ -337,12 +339,15 @@ installRootHeadings({
   textColor: { light: lightTheme.textColor, dark: darkTheme.textColor },
 });
 applySidebarTheme("auto");
+installSearchDocsTitles();
 
 addons.setConfig({
   sidebar: {
     renderLabel: renderSidebarLabel,
   },
 });
+
+addons.register("phoenix-subject-overviews", installSubjectOverviews);
 
 addons.register("phoenix-manager-options", (api) => {
   const mode = api.getGlobals()?.theme ?? "auto";
