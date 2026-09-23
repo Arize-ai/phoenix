@@ -1,18 +1,32 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import { useState } from "react";
 
 import {
+  type DisclosureArrowProps,
   type DisclosureProps,
   type DisclosureTriggerProps,
   Card,
   Disclosure,
+  DisclosureArrow,
   DisclosureGroup,
   type DisclosureGroupProps,
   DisclosurePanel,
   DisclosureTrigger,
+  Flex,
   Text,
   View,
 } from "@phoenix/components";
 
+/**
+ * A disclosure shows and hides a section of content under a trigger.
+ * `DisclosureGroup` coordinates several disclosures as an accordion, and
+ * `Disclosure`, `DisclosureTrigger` and `DisclosurePanel` build each item.
+ *
+ * Every disclosure surface in Phoenix — cards, accordions, table row
+ * expanders, trees, collapsible panels — marks its state with the same part,
+ * `DisclosureArrow`, a rotating chevron. The `Arrow` stories document that
+ * part on its own for surfaces that render it outside a `DisclosureTrigger`.
+ */
 const meta: Meta = {
   title: "Design System/Layout/Disclosure",
   tags: ["legacy", "unreviewed"],
@@ -126,6 +140,69 @@ export const ExtraTitleContent = ExtraTitleContentStory.bind({
     },
   },
 });
+
+const ArrowTemplate: StoryFn<DisclosureArrowProps> = (args) => (
+  <View padding="size-200">
+    <Flex direction="row" gap="size-100" alignItems="center">
+      <DisclosureArrow {...args} />
+      <Text>Section Title</Text>
+    </Flex>
+  </View>
+);
+
+type ArrowStory = StoryObj<typeof DisclosureArrow>;
+
+const arrowArgTypes: ArrowStory["argTypes"] = {
+  position: {
+    control: { type: "radio" },
+    options: ["start", "end"],
+  },
+};
+
+/**
+ * `DisclosureArrow`, the canonical collapse / expand affordance. Rotates
+ * right → down when placed at the start of a label.
+ */
+export const ArrowStartPosition: ArrowStory = {
+  name: "Arrow",
+  render: ArrowTemplate,
+  args: { isExpanded: false, position: "start" },
+  argTypes: arrowArgTypes,
+};
+
+/**
+ * End-positioned arrows (right side of a trigger) rotate down → up.
+ */
+export const ArrowEndPosition: ArrowStory = {
+  name: "Arrow End Position",
+  render: ArrowTemplate,
+  args: { isExpanded: false, position: "end" },
+  argTypes: arrowArgTypes,
+};
+
+const ArrowInteractiveStory: StoryFn<DisclosureArrowProps> = (args) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <button
+      className="button--reset"
+      onClick={() => setIsExpanded(!isExpanded)}
+      style={{ cursor: "pointer" }}
+      aria-expanded={isExpanded}
+    >
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <DisclosureArrow {...args} isExpanded={isExpanded} />
+        <Text>Click to toggle</Text>
+      </Flex>
+    </button>
+  );
+};
+
+export const ArrowInteractive: ArrowStory = {
+  name: "Arrow Interactive",
+  render: ArrowInteractiveStory,
+  args: { position: "start" },
+  argTypes: arrowArgTypes,
+};
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {

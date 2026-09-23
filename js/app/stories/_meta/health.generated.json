@@ -1,15 +1,15 @@
 {
   "generatedBy": "pnpm lint:stories",
   "totals": {
-    "files": 157
+    "files": 141
   },
   "tags": {
-    "legacy": 152,
-    "updated": 0,
-    "complete": 0,
-    "incomplete": 0,
+    "legacy": 132,
+    "updated": 4,
+    "complete": 1,
+    "incomplete": 3,
     "reviewed": 0,
-    "unreviewed": 152
+    "unreviewed": 136
   },
   "sectionsWithDocsPage": [
     "design-system/layout",
@@ -18,20 +18,20 @@
     "storybook"
   ],
   "storiesBySection": {
-    "Design System/Actions": 9,
+    "Design System/Actions": 8,
     "Design System/Badges": 5,
-    "Design System/Code": 5,
+    "Design System/Code": 4,
     "Design System/Color": 2,
-    "Design System/Data visualization": 12,
-    "Design System/Dates and times": 8,
+    "Design System/Data visualization": 8,
+    "Design System/Dates and times": 7,
     "Design System/Drag and resize": 1,
-    "Design System/Feedback": 11,
-    "Design System/Forms": 13,
-    "Design System/Icons": 5,
-    "Design System/Layout": 9,
+    "Design System/Feedback": 10,
+    "Design System/Forms": 12,
+    "Design System/Icons": 4,
+    "Design System/Layout": 8,
     "Design System/Media": 2,
     "Design System/Navigation": 6,
-    "Design System/Overlays": 8,
+    "Design System/Overlays": 7,
     "Design System/Tables": 3,
     "Design System/Typography": 3,
     "Domains/Annotations": 4,
@@ -41,10 +41,9 @@
     "Domains/Experiments": 6,
     "Domains/Playground": 2,
     "Domains/Prompts": 1,
-    "Domains/PXI": 15,
-    "Domains/Settings": 3,
-    "Domains/Tracing": 9,
-    "Storybook/Gallery": 1,
+    "Domains/PXI": 14,
+    "Domains/Settings": 2,
+    "Domains/Tracing": 8,
     "Storybook/Storybook frames": 1,
     "Storybook/Storybook health": 1,
     "Storybook/Tags": 1,

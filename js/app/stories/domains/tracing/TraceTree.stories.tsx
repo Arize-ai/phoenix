@@ -1,13 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useState } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 
+import { Text } from "@phoenix/components";
 import {
   TraceTree,
   TraceTreeProvider,
 } from "@phoenix/components/trace/TraceTree";
+import {
+  TraceTreeNodeSkeleton,
+  TraceTreeSkeleton,
+} from "@phoenix/components/trace/TraceTreeSkeleton";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import { PreferencesProvider } from "@phoenix/contexts";
 
@@ -402,10 +407,18 @@ function TraceTreeFrame({
  * already knows standing in until it arrives. In these stories a canned
  * Relay environment answers that load after a short delay. Scrub the
  * pointer down a tree: after the first tooltip, each row's opens at once.
+ *
+ * While a trace loads, `TraceTreeSkeleton` stands in for the tree. Its rows
+ * share the tree's layout styles and edges, so it responds to the same width
+ * breakpoints and the same "show metrics" preference; the two "Skeleton"
+ * stories show it across those states.
+ *
+ * Not yet covered: the tree-wide collapse and the search filter that the
+ * trace toolbar drives through `TraceTreeProvider`.
  */
 const meta: Meta<typeof TraceTree> = {
   title: "Domains/Tracing/Trace Tree",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: TraceTree,
   decorators: [
     (Story) => (
@@ -482,6 +495,138 @@ export const SideBySide: Story = {
           <TraceTreeFrame spans={ragSpans} width={width} />
         </div>
       ))}
+    </div>
+  ),
+};
+
+/**
+ * The frame a skeleton renders into: the same box as the tree's, since the
+ * skeleton is the tree's Suspense fallback in the same slot.
+ */
+function SkeletonFrame({
+  width,
+  children,
+}: {
+  width: CSSProperties["width"];
+  children?: ReactNode;
+}) {
+  return (
+    <div style={{ ...frameStyle, width }}>
+      <TraceTreeSkeleton>{children}</TraceTreeSkeleton>
+    </div>
+  );
+}
+
+/**
+ * The loading skeleton exactly as production renders it (the default body,
+ * no children), at each width breakpoint the tree responds to, and with the
+ * "show metrics" preference off:
+ *
+ * - **Extra wide** (over 800px): the timing column widens to a third of the tree.
+ * - **Wide**: rows, metrics footers, and timing bars.
+ * - **Medium** (under 500px): the timing column is dropped.
+ * - **Compact** (under 300px): edges, indentation, metrics, and controls are
+ *   dropped, leaving a flat list of names.
+ * - **Metrics hidden**: footers and timing bars are gone, one line per row.
+ */
+export const Skeleton: Story = {
+  parameters: { width: "fill" },
+  render: () => (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 16,
+        alignItems: "flex-start",
+      }}
+    >
+      {[
+        { label: "Extra wide (900px)", width: 900 },
+        { label: "Wide (640px)", width: 640 },
+        { label: "Medium (420px)", width: 420 },
+        { label: "Compact (260px)", width: 260 },
+      ].map(({ label, width }) => (
+        <div key={label}>
+          <Text size="XS" color="text-700">
+            {label}
+          </Text>
+          <SkeletonFrame width={width} />
+        </div>
+      ))}
+      <div>
+        <Text size="XS" color="text-700">
+          Metrics hidden (640px)
+        </Text>
+        <PreferencesProvider showMetricsInTraceTree={false}>
+          <SkeletonFrame width={640} />
+        </PreferencesProvider>
+      </div>
+    </div>
+  ),
+};
+
+/**
+ * `TraceTreeSkeleton` also takes `TraceTreeNodeSkeleton` children to shape
+ * the placeholder like a known tree. Each node draws its own edges from its
+ * position, so a flat list, a branching tree, and a deep chain all connect
+ * the same way the real tree does.
+ */
+export const SkeletonShapes: Story = {
+  name: "Skeleton Shapes",
+  parameters: { width: "fill" },
+  render: () => (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 16,
+        alignItems: "flex-start",
+      }}
+    >
+      <div>
+        <Text size="XS" color="text-700">
+          Flat
+        </Text>
+        <SkeletonFrame width={420}>
+          <TraceTreeNodeSkeleton nameWidth={200} />
+          <TraceTreeNodeSkeleton nameWidth={180} />
+          <TraceTreeNodeSkeleton nameWidth={220} />
+          <TraceTreeNodeSkeleton nameWidth={160} />
+          <TraceTreeNodeSkeleton nameWidth={240} />
+        </SkeletonFrame>
+      </div>
+      <div>
+        <Text size="XS" color="text-700">
+          Branching
+        </Text>
+        <SkeletonFrame width={420}>
+          <TraceTreeNodeSkeleton nameWidth={240}>
+            <TraceTreeNodeSkeleton nameWidth={200}>
+              <TraceTreeNodeSkeleton nameWidth={160} />
+              <TraceTreeNodeSkeleton nameWidth={140} />
+            </TraceTreeNodeSkeleton>
+            <TraceTreeNodeSkeleton nameWidth={180} />
+          </TraceTreeNodeSkeleton>
+        </SkeletonFrame>
+      </div>
+      <div>
+        <Text size="XS" color="text-700">
+          Deep
+        </Text>
+        <SkeletonFrame width={420}>
+          <TraceTreeNodeSkeleton nameWidth={220}>
+            <TraceTreeNodeSkeleton nameWidth={200}>
+              <TraceTreeNodeSkeleton nameWidth={180}>
+                <TraceTreeNodeSkeleton nameWidth={160}>
+                  <TraceTreeNodeSkeleton nameWidth={140}>
+                    <TraceTreeNodeSkeleton nameWidth={120} />
+                  </TraceTreeNodeSkeleton>
+                </TraceTreeNodeSkeleton>
+              </TraceTreeNodeSkeleton>
+            </TraceTreeNodeSkeleton>
+          </TraceTreeNodeSkeleton>
+        </SkeletonFrame>
+      </div>
     </div>
   ),
 };

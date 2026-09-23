@@ -1,9 +1,18 @@
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import type { Meta, StoryFn } from "@storybook/react";
 
-import type { CalendarProps, DateValue } from "@phoenix/components";
-import { Calendar } from "@phoenix/components";
+import type {
+  CalendarProps,
+  DateValue,
+  RangeCalendarProps,
+} from "@phoenix/components";
+import { Calendar, RangeCalendar } from "@phoenix/components";
 
+/**
+ * Calendar picks a single date from a month grid. `RangeCalendar` is its
+ * range counterpart: the same grid, selecting a start and an end date. The
+ * `Range…` stories below render it.
+ */
 const meta: Meta = {
   title: "Design System/Dates and times/Calendar",
   tags: ["legacy", "unreviewed"],
@@ -43,6 +52,36 @@ export const WithMinAndMaxValues = {
   args: {
     minValue: today(getLocalTimeZone()).subtract({ days: 7 }),
     maxValue: today(getLocalTimeZone()),
+  },
+};
+
+const RangeTemplate: StoryFn<RangeCalendarProps<DateValue>> = (args) => (
+  <RangeCalendar aria-label="Date range" {...args} />
+);
+
+export const RangeDefault = {
+  render: RangeTemplate,
+  args: {},
+};
+
+export const RangeWithDefaultValue = {
+  render: RangeTemplate,
+  args: {
+    defaultValue: {
+      start: today(getLocalTimeZone()).subtract({ days: 7 }),
+      end: today(getLocalTimeZone()),
+    },
+  },
+};
+
+export const RangeTwoMonths = {
+  render: RangeTemplate,
+  args: {
+    visibleDuration: { months: 2 },
+    defaultValue: {
+      start: today(getLocalTimeZone()).subtract({ days: 20 }),
+      end: today(getLocalTimeZone()),
+    },
   },
 };
 

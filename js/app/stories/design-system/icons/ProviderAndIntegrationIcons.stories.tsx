@@ -2,8 +2,14 @@ import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { INTEGRATION_ICONS } from "@phoenix/components/project/IntegrationIcons";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 
+/**
+ * Brand marks for the third-party services Phoenix connects to: generative
+ * model providers, tracing integrations, and code-execution sandbox
+ * providers. Each section lists every mark its component knows.
+ */
 const meta: Meta = {
   title: "Design System/Icons/Provider and Integration Icons",
   tags: ["legacy", "unreviewed"],
@@ -13,6 +19,15 @@ export default meta;
 const providers = Object.entries(ModelProviders)
   .map(([key, name]) => ({ key: key as ModelProvider, name }))
   .sort((a, b) => a.name.localeCompare(b.name));
+
+const SANDBOX_PROVIDER_KINDS = [
+  "DAYTONA",
+  "MODAL",
+  "WASM",
+  "DENO",
+  "VERCEL",
+  "E2B",
+] as const;
 
 const listStyle: React.CSSProperties = {
   listStyle: "none",
@@ -62,6 +77,38 @@ export const Integrations: StoryFn = () => (
             <span>{key.replace(/SVG$/, "")}</span>
           </li>
         ))}
+    </ul>
+  </div>
+);
+
+export const SandboxProviders: StoryFn = () => (
+  <div>
+    <h3 style={headingStyle}>Sandbox Provider Icons</h3>
+    <ul
+      style={{
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 24,
+      }}
+    >
+      {SANDBOX_PROVIDER_KINDS.map((kind) => (
+        <li
+          key={kind}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8,
+            minWidth: 96,
+          }}
+        >
+          <SandboxProviderIcon backendType={kind} height={48} />
+          <span style={{ fontSize: 12 }}>{kind}</span>
+        </li>
+      ))}
     </ul>
   </div>
 );

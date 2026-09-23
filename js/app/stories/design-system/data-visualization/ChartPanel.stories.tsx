@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { Suspense, useState } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import {
   Bar,
@@ -12,6 +13,8 @@ import {
 
 import {
   ChartPanel,
+  ChartSkeleton,
+  DeferredChartPanel,
   defaultCartesianGridProps,
   defaultXAxisProps,
   defaultYAxisProps,
@@ -48,10 +51,50 @@ function ExampleChart() {
   );
 }
 
+/**
+ * Simulates a chart that fetches on mount: suspends for a moment the first
+ * time it renders, like a Relay query would.
+ */
+function SlowExampleChartPanel({ title }: { title: string }) {
+  const [promise] = useState(
+    () => new Promise((resolve) => setTimeout(resolve, 1500))
+  );
+  return (
+    <ChartPanel title={title} subtitle="Loads when scrolled into view">
+      <Suspense fallback={<ChartSkeleton />}>
+        <SuspendOnce promise={promise}>
+          <ExampleChart />
+        </SuspendOnce>
+      </Suspense>
+    </ChartPanel>
+  );
+}
+
+function SuspendOnce({
+  promise,
+  children,
+}: {
+  promise: Promise<unknown>;
+  children: React.ReactNode;
+}) {
+  const [isResolved, setIsResolved] = useState(false);
+  if (!isResolved) {
+    throw promise.then(() => setIsResolved(true));
+  }
+  return children;
+}
+
+/**
+ * `ChartPanel` frames a chart with a title and subtitle. `DeferredChartPanel`
+ * wraps it for long pages of charts: until the panel has been scrolled into
+ * view it renders the same title and subtitle over a `ChartSkeleton`, and only
+ * then mounts (and fetches) the real chart.
+ */
 const meta: Meta<typeof ChartPanel> = {
   title: "Design System/Data visualization/Chart Panel",
   tags: ["legacy", "unreviewed"],
   component: ChartPanel,
+  subcomponents: { DeferredChartPanel },
   parameters: {
     layout: "padded",
   },
@@ -109,6 +152,43 @@ export const FillHeightInResizablePanel: Story = {
     title: "Experiments Analysis",
     subtitle: "Annotation scores and latency by experiment",
   },
+};
+
+/**
+ * Deferred loading: a long scrolling column of `DeferredChartPanel`s. Each
+ * shows its skeleton placeholder until scrolled into view, then mounts (and
+ * "loads") its chart.
+ */
+export const DeferredScrollToLoad: Story = {
+  render: () => (
+    <div style={{ height: 480, overflow: "auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {Array.from({ length: 12 }, (_, index) => (
+          <DeferredChartPanel
+            key={index}
+            title={`Chart ${index + 1}`}
+            subtitle="Loads when scrolled into view"
+          >
+            <SlowExampleChartPanel title={`Chart ${index + 1}`} />
+          </DeferredChartPanel>
+        ))}
+      </div>
+    </div>
+  ),
+};
+
+/**
+ * The placeholder a `DeferredChartPanel` shows before it has ever been
+ * visible: the real title and subtitle over a skeleton chart body.
+ */
+export const DeferredPlaceholder: Story = {
+  render: () => (
+    <div style={{ width: 480 }}>
+      <ChartPanel title="Traffic" subtitle="Spans by status">
+        <ChartSkeleton />
+      </ChartPanel>
+    </div>
+  ),
 };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
