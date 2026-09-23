@@ -108,16 +108,16 @@ export function getTokenDetailLabelForKind({
 }
 
 /**
- * The token type that absorbs value a group's details do not account for.
+ * The token type that absorbs value a side's details do not account for.
  *
  * Details refine the authoritative prompt and completion totals but may be
  * incomplete for spans recorded before a token type was tracked; the leftover
  * is plain input or output usage.
  *
- * @param isPrompt - Whether the group holds prompt rather than completion usage.
+ * @param isPrompt - Whether the side holds prompt rather than completion usage.
  * @returns The token type to attribute the remainder to.
  */
-export function getRemainderTokenType(isPrompt: boolean) {
+function getRemainderTokenType(isPrompt: boolean) {
   return isPrompt ? "input" : "output";
 }
 
@@ -208,6 +208,46 @@ export function getTokenDetailColor({
   return colors[
     TOKEN_DETAIL_FALLBACK_COLORS[index % TOKEN_DETAIL_FALLBACK_COLORS.length]
   ];
+}
+
+/**
+ * Assigns every series in a token-detail chart or legend a distinct color.
+ *
+ * A token type carries one semantic color, but when its prompt and
+ * completion usage are separate series the second has to give up the
+ * semantic color; sharing it would draw the two as one continuous block with
+ * indistinguishable legend swatches. A series whose preferred color is taken
+ * gets the first free fallback color instead.
+ *
+ * @param params - Color assignment context.
+ * @param params.colors - Theme-aware categorical chart colors.
+ * @param params.series - Every series, in drawing order, each with a key to
+ *   look its color up by and the token type it draws.
+ * @returns A color for each series, keyed by the series key.
+ */
+export function getTokenDetailSeriesColors<Key>({
+  colors,
+  series,
+}: {
+  colors: CategoryChartColors;
+  series: ReadonlyArray<{ key: Key; tokenType: string }>;
+}): Map<Key, string> {
+  const fallbackColors = getTokenDetailFallbackColors(colors);
+  const takenColors = new Set<string>();
+  const claimColor = (preferredColor: string) => {
+    const color = takenColors.has(preferredColor)
+      ? (fallbackColors.find((candidate) => !takenColors.has(candidate)) ??
+        preferredColor)
+      : preferredColor;
+    takenColors.add(color);
+    return color;
+  };
+  return new Map(
+    series.map(({ key, tokenType }, index) => [
+      key,
+      claimColor(getTokenDetailColor({ colors, index, tokenType })),
+    ])
+  );
 }
 
 /**

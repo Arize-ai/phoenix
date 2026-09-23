@@ -64,7 +64,9 @@ export type BreakdownBarsProps = {
  *
  * A dimension none of whose segments carry a value is still drawn, as a
  * single neutral bar of its total, so a whole that has yet to be broken down
- * has the same shape as one that has.
+ * has the same shape as one that has. Every bar keeps the lane its markers
+ * go in, whether or not it has any, so the bars are all one height and the
+ * skeleton that stands in for them is too.
  */
 export function BreakdownBars({ segments, dimensions }: BreakdownBarsProps) {
   // A whole whose parts are not known is drawn in the charts' neutral
@@ -91,6 +93,7 @@ export function BreakdownBars({ segments, dimensions }: BreakdownBarsProps) {
               minimumSegmentPercentage={3}
               totalValue={dimension.total}
               markerValues={dimension.markerValues}
+              showMarkerLane
               segments={
                 barSegments.length > 0
                   ? barSegments

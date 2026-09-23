@@ -7,6 +7,17 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { ChatTokenUsage, ChatTokenUsageDetails } from "../ChatTokenUsage";
 
+/**
+ * The share of the bar a segment takes, read from the `calc()` its width is
+ * set to: the bar less its gaps, times the share.
+ */
+function getSegmentFraction(segment: HTMLElement) {
+  const match = segment.style.width.match(
+    /(\d*\.?\d+)\s*\*|\*\s*(\d*\.?\d+)\)?$/
+  );
+  return Number(match?.[1] ?? match?.[2]);
+}
+
 describe("ChatTokenUsage", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -101,9 +112,9 @@ describe("ChatTokenUsage", () => {
     const completionSegment = chartSegments[1] as HTMLElement;
 
     expect(chartSegments).toHaveLength(2);
-    expect(promptSegment.style.minWidth).toBe("1%");
-    expect(completionSegment.style.width).toBe(`${(1 / 16_567) * 100}%`);
-    expect(completionSegment.style.minWidth).toBe("1%");
+    // The sliver is widened to the minimum, and the prompt gives up the same
+    expect(getSegmentFraction(completionSegment)).toBeCloseTo(0.01);
+    expect(getSegmentFraction(promptSegment)).toBeCloseTo(0.99);
   });
 
   it("does not render a slice or gap for a zero-value segment", () => {
@@ -126,7 +137,7 @@ describe("ChatTokenUsage", () => {
     const promptSegment = chartSegments[0] as HTMLElement;
 
     expect(chartSegments).toHaveLength(1);
-    expect(promptSegment.style.width).toBe("100%");
+    expect(getSegmentFraction(promptSegment)).toBe(1);
   });
 
   it("toggles the breakdown from the keyboard", async () => {

@@ -106,7 +106,8 @@ export const IncompleteDetails: Story = {
 
 /**
  * A token type used on both sides, such as audio heard and audio spoken, is
- * told apart by the side it was used on.
+ * told apart by the side it was used on, and the second side gives up the
+ * type's color so the two rows and segments cannot be confused.
  */
 export const TypeOnBothSides: Story = {
   args: {
@@ -153,9 +154,9 @@ export const Loading: Story = {
 
 /**
  * The skeleton over the breakdown it stands in for, at the same width. The
- * header, bars, rule and table columns line up; only the number of table
- * rows can differ, since the skeleton cannot know how many token types the
- * span used.
+ * header, bars, rule and table columns line up; the number of table rows is
+ * a guess, since the skeleton cannot know how many token types the span
+ * used.
  */
 export const LoadingAndLoaded: Story = {
   render: (args) => (
@@ -172,13 +173,23 @@ export const LoadingAndLoaded: Story = {
 };
 
 /**
- * A single measure loading, as the token count tooltips in tables show it,
- * with the tooltip's default width.
+ * A single measure loading over what it loads into, at the content width of
+ * a tooltip left at its default cap, as the token count tooltips in tables
+ * are. The header wraps in neither or in both.
  */
-export const LoadingTokensOnly: Story = {
-  render: (args) => <TokenDetailsBreakdownSkeleton {...args} />,
-  args: { tokens: { total: 812 } },
-  parameters: { width: 300 },
+export const LoadingAndLoadedTokensOnly: Story = {
+  render: (args) => (
+    <Flex direction="column" gap="size-400">
+      <TokenDetailsBreakdownSkeleton
+        tokens={{ total: args.tokens?.total }}
+        rows={2}
+      />
+      <TokenDetailsBreakdown {...args} />
+    </Flex>
+  ),
+  args: TokensOnly.args,
+  // The default tooltip cap less its padding
+  parameters: { width: 268 },
 };
 
 /**

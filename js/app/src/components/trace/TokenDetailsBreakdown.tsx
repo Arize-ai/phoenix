@@ -19,8 +19,8 @@ import {
 import { isPositiveNumber } from "@phoenix/utils/numberUtils";
 import {
   compareTokenTypes,
-  getTokenDetailColor,
   getTokenDetailLabelForKind,
+  getTokenDetailSeriesColors,
   getTokenDetailValuesWithRemainder,
   getTokenKind,
   getTokenKindLabel,
@@ -97,23 +97,16 @@ export interface TokenDetailsBreakdownProps {
 /**
  * The tooltip width that fits the breakdown with both measures: the table's
  * rows carry a value and a share for each of the two beside the type's name.
- * Pass it to the `RichTooltip` that hosts the breakdown, since the tooltip's
- * default cap is narrower.
+ * Pass it to the `RichTooltip` of a host that shows tokens and cost together;
+ * a single measure fits the tooltip's default cap.
  */
 export const TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH = 380;
 
 /**
- * The width of the split summary's skeleton: about what
- * "48,210 prompt → 1,284 completion" takes in the summary's small mono type,
- * so the header wraps where the loaded one will.
+ * The characters of the split summary around its two numbers:
+ * " prompt → " and " completion".
  */
-const SPLIT_SKELETON_WIDTH = 220;
-
-/**
- * The token types the skeleton leaves room for: a modern LLM call breaks
- * down into input, cache read and output.
- */
-const DEFAULT_SKELETON_ROWS = 3;
+const SPLIT_SUMMARY_FIXED_CHARS = " prompt → ".length + " completion".length;
 
 const tokenDetailsBreakdownCSS = css`
   display: flex;
@@ -131,6 +124,9 @@ const tokenDetailsBreakdownCSS = css`
   }
   .token-details-breakdown__split {
     margin-left: auto;
+    /* The summary is set in mono, and so is its skeleton, whose width is
+       given in the summary's characters */
+    font-family: var(--global-font-family-mono);
   }
 `;
 
@@ -208,8 +204,10 @@ function getSegmentKey({
  * canonical token-type order. Any value a side's details do not account for
  * is attributed to that side's plain type, input or output, so every bar adds
  * up to the total it is drawn against; a side with no details at all is one
- * plain segment. Each dimension marks where its prompt ends and its
- * completion begins.
+ * plain segment. A type a measure reported as exactly zero, where another
+ * measure has usage for it, is kept as a measured zero rather than dropped as
+ * unmeasured. Each dimension marks where its prompt ends and its completion
+ * begins.
  *
  * @param params - The usage to lay out.
  * @param params.tokens - Token counts, if counted.
@@ -241,11 +239,12 @@ export function buildTokenBreakdown({
    */
   const layOutSide = (isPrompt: boolean): string[] => {
     const tokenTypes = new Set<string>();
-    measures.forEach((measure) => {
+    const sides = measures.map((measure) => {
+      const details = isPrompt
+        ? measure.data.promptDetails
+        : measure.data.completionDetails;
       const values = getTokenDetailValuesWithRemainder({
-        details: isPrompt
-          ? measure.data.promptDetails
-          : measure.data.completionDetails,
+        details,
         sideTotal: isPrompt ? measure.data.prompt : measure.data.completion,
         isPrompt,
       });
@@ -254,36 +253,47 @@ export function buildTokenBreakdown({
           value;
         tokenTypes.add(tokenType);
       });
+      return { measure, details };
+    });
+    // A type another measure has usage for, that this one reported as
+    // exactly zero, was measured as zero, not left unmeasured: cache reads
+    // that were counted but cost nothing
+    sides.forEach(({ measure, details }) => {
+      tokenTypes.forEach((tokenType) => {
+        const key = getSegmentKey({ isPrompt, tokenType });
+        if (
+          valuesByMeasure[measure.key][key] == null &&
+          details?.[tokenType] === 0
+        ) {
+          valuesByMeasure[measure.key][key] = 0;
+        }
+      });
     });
     return [...tokenTypes].sort(compareTokenTypes);
   };
   const promptTypes = layOutSide(true);
   const completionTypes = layOutSide(false);
 
-  // A type without a color of its own is colored by its place among the
-  // distinct types, not among the segments, so a type used on both sides
-  // keeps one color across them
-  const distinctTypes = [
-    ...promptTypes,
-    ...completionTypes.filter((tokenType) => !promptTypes.includes(tokenType)),
-  ];
-  const segments: BreakdownSegment[] = [
+  const sides = [
     ...promptTypes.map((tokenType) => ({ isPrompt: true, tokenType })),
     ...completionTypes.map((tokenType) => ({ isPrompt: false, tokenType })),
-  ].map(({ isPrompt, tokenType }) => ({
-    key: getSegmentKey({ isPrompt, tokenType }),
-    label: getTokenDetailLabelForKind({
-      tokenType,
-      isPrompt,
-      isUsedByBothKinds:
-        promptTypes.includes(tokenType) && completionTypes.includes(tokenType),
-    }),
-    color: getTokenDetailColor({
-      colors,
-      index: distinctTypes.indexOf(tokenType),
-      tokenType,
-    }),
-  }));
+  ].map((side) => ({ ...side, key: getSegmentKey(side) }));
+  // A type used on both sides is two segments, so the second gives up the
+  // type's color, as it does in the metrics charts
+  const colorByKey = getTokenDetailSeriesColors({ colors, series: sides });
+  const segments: BreakdownSegment[] = sides.map(
+    ({ key, isPrompt, tokenType }) => ({
+      key,
+      label: getTokenDetailLabelForKind({
+        tokenType,
+        isPrompt,
+        isUsedByBothKinds:
+          promptTypes.includes(tokenType) &&
+          completionTypes.includes(tokenType),
+      }),
+      color: colorByKey.get(key) ?? "",
+    })
+  );
 
   const dimensions: BreakdownDimension[] = measures.map((measure) => {
     const values = valuesByMeasure[measure.key];
@@ -397,10 +407,23 @@ export function TokenDetailsBreakdown({
 
 export interface TokenDetailsBreakdownSkeletonProps extends TokenDetailsBreakdownProps {
   /**
-   * How many token-type rows to leave room for in the table.
+   * How many token-type rows to leave room for in the table. The default
+   * suits a modern LLM call, which breaks down into input, cache read and
+   * output.
    * @default 3
    */
   rows?: number;
+}
+
+/**
+ * The width of the split summary's skeleton, in the summary's characters:
+ * two numbers and the words around them. The prompt is about as long as the
+ * total it is most of, and the completion a good deal shorter, so the header
+ * wraps where the loaded one will.
+ */
+function getSplitSkeletonWidth(total: string | undefined) {
+  const totalChars = total?.length ?? 6;
+  return `${Math.ceil(totalChars * 1.5) + SPLIT_SUMMARY_FIXED_CHARS}ch`;
 }
 
 /**
@@ -410,8 +433,9 @@ export interface TokenDetailsBreakdownSkeletonProps extends TokenDetailsBreakdow
  * The heading and each measure's label and total are drawn from what the
  * caller passes, since they are known before the fetch; the split summary,
  * the bars and the table rows are drawn as skeletons in their places, on the
- * same grid as the loaded breakdown, so nothing moves when the details land
- * apart from the number of rows in the table.
+ * same grid as the loaded breakdown. The header, bars and table columns then
+ * hold still when the details land; the table's rows are a guess at how
+ * many token types the usage has, and are all that can change.
  *
  * Pass the totals the loaded breakdown will get, and it renders nothing when
  * they hold no usage, just as the breakdown itself would.
@@ -420,7 +444,7 @@ export function TokenDetailsBreakdownSkeleton({
   tokens,
   costs,
   totalLabel,
-  rows = DEFAULT_SKELETON_ROWS,
+  rows,
 }: TokenDetailsBreakdownSkeletonProps) {
   const measures = getMeasures({ tokens, costs });
   if (measures.length === 0) {
@@ -444,7 +468,7 @@ export function TokenDetailsBreakdownSkeleton({
         <TextSkeleton
           className="token-details-breakdown__split"
           size="XS"
-          width={SPLIT_SKELETON_WIDTH}
+          width={getSplitSkeletonWidth(dimensions[0].total)}
         />
       </header>
       <BreakdownBarsSkeleton dimensions={dimensions} />

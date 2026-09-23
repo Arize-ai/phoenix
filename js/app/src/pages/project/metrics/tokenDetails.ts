@@ -6,9 +6,8 @@
 import type { useCategoryChartColors } from "@phoenix/components/chart";
 import {
   compareTokenTypes,
-  getTokenDetailColor,
-  getTokenDetailFallbackColors,
   getTokenDetailLabelForKind,
+  getTokenDetailSeriesColors,
   getTokenDetailValuesWithRemainder,
   getTokenKind,
   TOKEN_DETAIL_EPSILON,
@@ -126,12 +125,10 @@ export function getModelTokenDetailLabel({
 }
 
 /**
- * Assigns every series in a model chart a distinct color.
- *
- * A token type carries one semantic color, but prompt and completion usage of
- * that type are separate series here, so the second one has to give up the
- * semantic color; sharing it would render the two as a single continuous block
- * with indistinguishable legend swatches.
+ * Assigns every series in a model chart a distinct color, keyed by data key.
+ * Prompt and completion usage of one token type are separate series here, so
+ * the second gives up the type's semantic color; see
+ * `getTokenDetailSeriesColors`.
  *
  * @param params - Color assignment context.
  * @param params.colors - Theme-aware categorical chart colors.
@@ -145,25 +142,13 @@ export function getModelTokenDetailColors({
   colors: ReturnType<typeof useCategoryChartColors>;
   series: ReadonlyArray<ModelTokenDetailSeries>;
 }) {
-  const fallbackColors = getTokenDetailFallbackColors(colors);
-  const takenColors = new Set<string>();
-  const claimColor = (preferredColor: string) => {
-    const color = takenColors.has(preferredColor)
-      ? (fallbackColors.find((candidate) => !takenColors.has(candidate)) ??
-        preferredColor)
-      : preferredColor;
-    takenColors.add(color);
-    return color;
-  };
-
-  return new Map(
-    series.map((candidate, index) => [
-      candidate.dataKey,
-      claimColor(
-        getTokenDetailColor({ colors, index, tokenType: candidate.tokenType })
-      ),
-    ])
-  );
+  return getTokenDetailSeriesColors({
+    colors,
+    series: series.map(({ dataKey, tokenType }) => ({
+      key: dataKey,
+      tokenType,
+    })),
+  });
 }
 
 /**

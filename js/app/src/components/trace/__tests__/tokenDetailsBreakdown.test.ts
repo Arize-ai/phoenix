@@ -91,31 +91,36 @@ describe("buildTokenBreakdown", () => {
       "Output",
       "Completion audio",
     ]);
-    // The same type keeps its color on both sides
+    // The two are separate segments, so each has its own color, as in the
+    // metrics charts; the first keeps the type's color
     const [, promptAudio, , completionAudio] = segments;
-    expect(promptAudio.color).toBe(completionAudio.color);
+    expect(promptAudio.color).toBe(colors.category3);
+    expect(new Set(segments.map((segment) => segment.color)).size).toBe(
+      segments.length
+    );
+    expect(completionAudio.color).not.toBe(promptAudio.color);
   });
 
-  it("keeps one fallback color for a type without a color of its own on both sides", () => {
-    const { segments } = buildTokenBreakdown({
+  it("keeps a type one measure reports as zero as a measured zero", () => {
+    const { dimensions } = buildTokenBreakdown({
       colors,
       tokens: {
-        total: 5_600,
-        prompt: 3_400,
-        completion: 2_200,
-        promptDetails: { input: 3_000, image: 400 },
-        completionDetails: { output: 1_400, image: 800 },
+        total: 4_200,
+        prompt: 4_000,
+        completion: 200,
+        promptDetails: { input: 2_800, cache_read: 1_200 },
+      },
+      costs: {
+        total: 0.03,
+        prompt: 0.028,
+        completion: 0.002,
+        // Counted, but priced at nothing
+        promptDetails: { input: 0.028, cache_read: 0 },
       },
     });
-    const [promptImage, completionImage] = segments.filter((segment) =>
-      segment.key.endsWith(":image")
-    );
-    expect(promptImage.color).toBe(completionImage.color);
-    // And it is not the color of a type that does have one
-    const namedColors = segments
-      .filter((segment) => !segment.key.endsWith(":image"))
-      .map((segment) => segment.color);
-    expect(namedColors).not.toContain(promptImage.color);
+    const [tokens, cost] = dimensions;
+    expect(tokens.values["prompt:cache_read"]).toBe(1_200);
+    expect(cost.values["prompt:cache_read"]).toBe(0);
   });
 
   it("keeps a measure with only a total as an unsegmented dimension", () => {

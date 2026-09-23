@@ -47,8 +47,13 @@ const breakdownTableCSS = css`
     display: grid;
     /* The value column is never narrower than its text, which is what sizes
        the table column, and stretches to fill the cell beyond that, so the
-       bar under it spans the same width in every row and reads as one scale */
-    grid-template-columns: minmax(max-content, 1fr) auto;
+       bar under it spans the same width in every row and reads as one scale.
+       The share is a fixed column, five characters of the values' mono type
+       at about 0.6em each, so the values beside it line up down the rows
+       whatever their share reads, and the heading sits over them */
+    grid-template-columns: minmax(max-content, 1fr) calc(
+        var(--global-font-size-s) * 3
+      );
     column-gap: var(--global-dimension-size-100);
     row-gap: var(--global-dimension-size-50);
     padding-left: var(--global-dimension-size-200);
@@ -57,11 +62,6 @@ const breakdownTableCSS = css`
   .breakdown-table__share {
     text-align: right;
     white-space: nowrap;
-  }
-  /* The share is a fixed column so the values beside it line up down the
-     rows whatever their share reads */
-  .breakdown-table__share {
-    width: 5ch;
   }
   .breakdown-table__bar {
     grid-column: 1 / -1;
