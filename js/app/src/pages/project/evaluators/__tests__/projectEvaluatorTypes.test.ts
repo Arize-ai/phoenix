@@ -2,6 +2,7 @@ import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilter
 
 import {
   dropOtherGrainEntityPathMappings,
+  formatMissingBindingMessage,
   formatProjectEvaluatorRunCounts,
   getDefaultProjectEvaluatorFilterCondition,
   getProjectEvaluatorMappingDiagnostics,
@@ -295,5 +296,37 @@ describe("isSameInputMapping", () => {
         loaded
       )
     ).toBe(false);
+  });
+});
+
+describe("formatMissingBindingMessage", () => {
+  it("names the path an authored mapping reads", () => {
+    expect(
+      formatMissingBindingMessage(
+        {
+          variable: "tool_call",
+          path: "attributes.llm.tool_calls",
+          status: "missing",
+          source: "path",
+        },
+        "trace"
+      )
+    ).toBe(
+      "attributes.llm.tool_calls does not exist on this trace, so evaluation fails"
+    );
+  });
+
+  it("names the variable when it binds from the top of the context", () => {
+    expect(
+      formatMissingBindingMessage(
+        {
+          variable: "tool_call",
+          path: "tool_call",
+          status: "missing",
+          source: "context",
+        },
+        "span"
+      )
+    ).toBe("tool_call does not exist on this span, so evaluation fails");
   });
 });
