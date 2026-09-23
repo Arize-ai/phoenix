@@ -58,7 +58,14 @@
             "pages": [
               "docs/phoenix/get-started/get-started-tracing",
               "docs/phoenix/get-started/get-started-evaluations",
-              "docs/phoenix/pxi",
+              {
+                "group": "PXI",
+                "tag": "BETA",
+                "pages": [
+                  "docs/phoenix/pxi",
+                  "docs/phoenix/pxi-learn-more"
+                ]
+              },
               {
                 "group": "Arize Phoenix for Agents",
                 "pages": [
