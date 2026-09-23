@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0876a6eb6d55e31f8c0a7c4e57e1cad4>>
+ * @generated SignedSource<<e84c8fb3ae24b29173ebd327a0e1a98c>>
  * @lightSyntaxTransform
  */
 
@@ -79,14 +79,14 @@ v6 = {
       "alias": "rootSpans",
       "args": [
         {
+          "kind": "Literal",
+          "name": "filterCondition",
+          "value": "parent_span is None"
+        },
+        {
           "kind": "Variable",
           "name": "first",
           "variableName": "first"
-        },
-        {
-          "kind": "Literal",
-          "name": "rootSpansOnly",
-          "value": true
         },
         {
           "kind": "Literal",
@@ -222,16 +222,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "87adb79f1defa8df2a7c4811587f2a50",
+    "cacheID": "529bbbc1481193e5d9a9cc00589b09be",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelTraceCountQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelTraceCountQuery(\n  $projectId: ID!\n  $timeRange: TimeRange\n  $traceFilterCondition: String\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      rootSpans: spans(first: $first, rootSpansOnly: true, sort: {col: startTime, dir: desc}, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelTraceCountQuery(\n  $projectId: ID!\n  $timeRange: TimeRange\n  $traceFilterCondition: String\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      rootSpans: spans(first: $first, filterCondition: \"parent_span is None\", sort: {col: startTime, dir: desc}, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0536a1a08777003d810b4fb98e343933";
+(node as any).hash = "719c527048645f78726409e80b624a39";
 
 export default node;
