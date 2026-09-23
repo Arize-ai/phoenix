@@ -37,7 +37,7 @@ Use this path when you want to build the dataset, task, evaluator, and experimen
   <Step title={<span className="step-title">Create a dataset from your traces</span>}>
     A dataset is a fixed set of examples you test every change against. Ten to twenty is enough to start: a few typical requests plus the failures you want future variants to handle.
 
-    To find the failures, filter the spans table with a [filter expression](/docs/phoenix/tracing/how-to-tracing/filter-expressions) such as `status_code == 'ERROR'` or `latency_ms > 1000`, or ask [PXI](/docs/phoenix/pxi) to walk your failing traces and propose root causes.
+    To find the failures, filter the spans table with a [filter expression](/docs/phoenix/tracing/how-to-tracing/filter-expressions) such as `status_code == 'ERROR'` or `latency_ms > 1000`, or ask [PXI](/docs/phoenix/pxi) to identify traces with issues.
 
     1. Navigate to your project in Phoenix.
     2. Open the **Traces** view.
