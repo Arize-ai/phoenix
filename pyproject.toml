@@ -376,6 +376,7 @@ module = [
   "authlib.*",
   "google.*",
   "harbor.*",
+  "rewardkit",
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",

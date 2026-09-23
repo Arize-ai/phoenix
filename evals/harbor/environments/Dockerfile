@@ -19,10 +19,16 @@ RUN npm install -g "@openai/codex@${CODEX_VERSION}"
 # Harbor runs the agent and the reference solution from the image's working directory.
 WORKDIR /app
 RUN chown agent:agent /app
+# requirements.txt locks Reward Kit and its dependencies with hashes; it runs the verifiers
+# of the tasks `harbor exec` compiles, and the sandbox has no route to PyPI at verify time.
+# --no-deps installs the locked set as is instead of re-resolving it. The Phoenix wheel is
+# constrained to the same versions so the two installs cannot drift.
+COPY requirements.txt /requirements.txt
 COPY wheels/ /wheels/
-RUN uv pip install --system --no-cache /wheels/*.whl
+RUN uv pip install --system --no-cache --require-hashes --no-deps -r /requirements.txt \
+  && uv pip install --system --no-cache --constraint /requirements.txt /wheels/*.whl
 COPY verifier/ /opt/verifier/
 COPY container_assets/ /opt/phoenix-eval/
 COPY data/ /data/
-# Root-only: the agent phase runs as `agent` and reaches the data only through Phoenix.
+# The agent runs as a non-root user and should not be able to read the database directly
 RUN chmod 700 /data && chmod 600 /data/phoenix.db

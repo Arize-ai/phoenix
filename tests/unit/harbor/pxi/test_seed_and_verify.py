@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from evals.harbor.pxi.compile_tasks import DATASETS_DIR, generate, load_example_records
+from evals.harbor.pxi.criteria import evaluator_output, run_evaluators, scored_messages
 from evals.harbor.pxi.examples import (
     parse_instruction,
     render_instruction,
@@ -14,12 +15,6 @@ from evals.harbor.pxi.examples import (
     user_instruction,
 )
 from evals.harbor.pxi.insert_session_into_db import plan_seed
-from evals.harbor.pxi.verify import (
-    evaluator_output,
-    reward_from_results,
-    run_evaluators,
-    scored_messages,
-)
 
 DATASETS = sorted(path.stem for path in DATASETS_DIR.glob("*.yaml"))
 NOW = datetime(2026, 9, 21, tzinfo=timezone.utc)
@@ -175,7 +170,6 @@ def test_scored_messages_drop_the_seeded_prefix() -> None:
         "correct_tools_called": 1.0,
         "tool_call_args_match": 1.0,
     }
-    assert reward_from_results(results) == 1.0
 
 
 def test_scored_messages_keep_only_new_messages_after_a_posted_user_turn() -> None:
@@ -189,7 +183,7 @@ def test_scored_messages_keep_only_new_messages_after_a_posted_user_turn() -> No
     output = evaluator_output(scored_messages([posted, reply], plan["scoring"]))
     assert output["assistant_text"] == "A trace is a tree of spans."
     results = run_evaluators(_message_example(), output)
-    assert reward_from_results(results) == 1.0
+    assert all(r["score"] == 1.0 for r in results.values())
 
 
 def test_evaluator_output_reads_dynamic_tool_parts() -> None:
@@ -221,6 +215,7 @@ def test_evaluator_output_reads_dynamic_tool_parts() -> None:
 
 
 def test_generate_writes_one_task_per_example(tmp_path: Path) -> None:
+    pytest.importorskip("harbor", reason="the compiler comes from Harbor, which needs Python 3.12")
     written = generate(
         out_dir=tmp_path,
         datasets=["in_app_links"],
@@ -243,6 +238,7 @@ def test_generate_writes_one_task_per_example(tmp_path: Path) -> None:
     assert example["id"] == "route-info-agent-settings-link"
     assert example["evaluators"] == ["in_app_links_valid", "correct_tools_called"]
     assert (task / "tests" / "test.sh").stat().st_mode & 0o111
+    assert (task / "tests" / "correct_tools_called" / "check.py").exists()
     # A second run for another dataset removes the first tasks.
     generate(
         out_dir=tmp_path, datasets=["set_time_range"], splits=None, limit=1, agent_timeout_sec=1.0

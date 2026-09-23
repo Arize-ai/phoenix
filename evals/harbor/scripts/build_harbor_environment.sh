@@ -13,6 +13,7 @@ rm -f "$ROOT"/dist/arize_phoenix-*.whl
 rm -rf "$CONTEXT"
 mkdir -p "$CONTEXT/wheels" "$CONTEXT/verifier/evals/harbor"
 cp "$ENVIRONMENTS/Dockerfile" "$CONTEXT/Dockerfile"
+cp "$ENVIRONMENTS/requirements.txt" "$CONTEXT/requirements.txt"
 cp "$ROOT"/dist/arize_phoenix-*.whl "$CONTEXT/wheels/"
 cp "$ROOT/evals/__init__.py" "$CONTEXT/verifier/evals/"
 cp "$HERE/__init__.py" "$CONTEXT/verifier/evals/harbor/"

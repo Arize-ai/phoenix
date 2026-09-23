@@ -530,7 +530,8 @@ endef
 
 harbor-prepare: ## Build the Phoenix wheel, produce each fixture, prepare each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Preparing Harbor tasks...$(NC)"
-	./evals/harbor/scripts/prepare_harbor_environments.sh
+	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+		./evals/harbor/scripts/prepare_harbor_environments.sh
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
 	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
