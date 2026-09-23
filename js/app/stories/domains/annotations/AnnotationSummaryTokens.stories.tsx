@@ -57,8 +57,11 @@ const meta = {
   title: "Domains/Annotations/Annotation Summary Tokens",
   tags: ["legacy", "unreviewed"],
   component: AnnotationSummaryTokens,
+  // No controls: these args are the story's fixtures, not choices a reader
+  // makes, so the docs page should not list them as a props table.
   parameters: {
     layout: "centered",
+    controls: { disable: true },
   },
   args: {
     annotationTargetType: "span",

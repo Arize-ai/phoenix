@@ -100,8 +100,11 @@ const meta = {
       </div>
     ),
   ],
+  // No controls: these args are the story's fixtures, not choices a reader
+  // makes, so the docs page should not list them as a props table.
   parameters: {
     layout: "centered",
+    controls: { disable: true },
   },
 } satisfies Meta<typeof MarkdownBlock>;
 

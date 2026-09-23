@@ -7,6 +7,9 @@ const meta: Meta = {
   title: "Design System/Navigation/List Box",
   tags: ["legacy", "unreviewed"],
   component: ListBox,
+  // No controls: these args are the story's fixtures, not choices a reader
+  // makes, so the docs page should not list them as a props table.
+  parameters: { controls: { disable: true } },
 };
 
 export default meta;

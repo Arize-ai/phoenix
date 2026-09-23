@@ -7,6 +7,7 @@ import {
   Stories,
   Subtitle,
   Title,
+  useOf,
 } from "@storybook/addon-docs/blocks";
 import type { Preview } from "@storybook/react";
 import React, { useEffect, useMemo, useState } from "react";
@@ -376,20 +377,27 @@ function useDocsThemeMode(): string {
  * responding to system theme changes when "auto" or "both" is selected.
  */
 /**
- * Storybook's default autodocs page with one change: the Stories list leaves
+ * Storybook's default autodocs page with two changes. The Stories list leaves
  * out the primary story. The default includes it, so every docs page drew its
  * first story twice, once as the primary canvas and again at the head of the
  * list. With it excluded, a single-story file's docs page shows that story
  * once and a multi-story page lists only the stories below the primary one.
+ * And the props table is omitted when the file sets
+ * `parameters.controls.disable`.
  */
 function DocsPage() {
+  // Storybook's Controls block ignores `parameters.controls.disable`, which
+  // only hides the canvas panel. Honor it here too, so a file whose args are
+  // fixtures rather than reader choices shows no props table.
+  const { preparedMeta } = useOf("meta", ["meta"]);
+  const controlsDisabled = preparedMeta.parameters.controls?.disable === true;
   return (
     <>
       <Title />
       <Subtitle />
       <Description />
       <Primary />
-      <Controls />
+      {controlsDisabled ? null : <Controls />}
       <Stories includePrimary={false} />
     </>
   );
