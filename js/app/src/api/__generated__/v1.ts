@@ -11684,8 +11684,10 @@ export interface operations {
                 trace_id?: string[] | null;
                 /** @description Filter by one or more span IDs */
                 span_id?: string[] | null;
-                /** @description Filter by parent span ID. Use "null" to get root spans only. */
+                /** @description Filter by parent span ID. Use "null" for spans with no parent ID; see `root_spans_only` to also include orphans. */
                 parent_id?: string | null;
+                /** @description Return only root spans: spans with no parent ID, plus orphan spans whose parent is not in the database. Equivalent to `filter=parent_span is None`. */
+                root_spans_only?: boolean;
                 /** @description Filter by span name(s) */
                 name?: string[] | null;
                 /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN */

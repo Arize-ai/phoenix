@@ -930,6 +930,9 @@ SpanSort = Literal["id", "start_time"]
 SortOrder = Literal["asc", "desc"]
 
 
+_ROOT_SPANS_ONLY_CONDITION = "parent_span is None"
+
+
 def _apply_span_filter(stmt: Select[Any], condition: str) -> Select[Any]:
     try:
         return SpanFilter(condition=condition)(stmt)
@@ -1029,7 +1032,17 @@ async def span_search(
     ),
     parent_id: Optional[str] = Query(
         default=None,
-        description='Filter by parent span ID. Use "null" to get root spans only.',
+        description=(
+            'Filter by parent span ID. Use "null" for spans with no parent ID; '
+            "see `root_spans_only` to also include orphans."
+        ),
+    ),
+    root_spans_only: bool = Query(
+        default=False,
+        description=(
+            "Return only root spans: spans with no parent ID, plus orphan spans whose "
+            "parent is not in the database. Equivalent to `filter=parent_span is None`."
+        ),
     ),
     name: Optional[list[str]] = Query(
         default=None,
@@ -1089,6 +1102,8 @@ async def span_search(
             stmt = stmt.where(models.Span.parent_id.is_(None))
         else:
             stmt = stmt.where(models.Span.parent_id == parent_id)
+    if root_spans_only:
+        stmt = _apply_span_filter(stmt, _ROOT_SPANS_ONLY_CONDITION)
     if name:
         stmt = stmt.where(models.Span.name.in_(name))
     if span_kind:

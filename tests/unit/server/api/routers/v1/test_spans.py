@@ -1113,6 +1113,81 @@ async def test_span_search_rejects_invalid_filter_expression(
     assert "invalid span filter expression" in resp.text
 
 
+@pytest.fixture
+async def project_with_root_child_and_orphan_spans(db: DbSessionFactory) -> None:
+    """One root span, one child of that root, and one orphan whose parent does not exist."""
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = models.Project(name="root-spans")
+        session.add(project)
+        await session.flush()
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="root-spans-trace",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=1),
+        )
+        session.add(trace)
+        await session.flush()
+        for span_id, parent_id in [("root", None), ("child", "root"), ("orphan", "missing")]:
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=span_id,
+                    parent_id=parent_id,
+                    name=span_id,
+                    span_kind="CHAIN",
+                    start_time=base_time,
+                    end_time=base_time + timedelta(seconds=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+
+async def test_span_search_root_spans_only_includes_orphans(
+    httpx_client: httpx.AsyncClient, project_with_root_child_and_orphan_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/root-spans/spans", params={"root_spans_only": "true"}
+    )
+    assert resp.is_success
+    assert sorted(span["name"] for span in resp.json()["data"]) == ["orphan", "root"]
+
+
+async def test_span_search_parent_id_null_excludes_orphans(
+    httpx_client: httpx.AsyncClient, project_with_root_child_and_orphan_spans: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/root-spans/spans", params={"parent_id": "null"})
+    assert resp.is_success
+    assert [span["name"] for span in resp.json()["data"]] == ["root"]
+
+
+async def test_span_search_root_spans_only_defaults_off(
+    httpx_client: httpx.AsyncClient, project_with_root_child_and_orphan_spans: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/root-spans/spans")
+    assert resp.is_success
+    assert len(resp.json()["data"]) == 3
+
+
+async def test_span_search_root_spans_only_combines_with_filter_expression(
+    httpx_client: httpx.AsyncClient, project_with_root_child_and_orphan_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/root-spans/spans",
+        params={"root_spans_only": "true", "filter": "name == 'orphan'"},
+    )
+    assert resp.is_success
+    assert [span["name"] for span in resp.json()["data"]] == ["orphan"]
+
+
 _PROJECT_NAME_WITH_PATH_CHARACTERS = "team/alpha?beta#gamma"
 
 
