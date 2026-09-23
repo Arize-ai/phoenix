@@ -1,7 +1,6 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { snippetCompletion } from "@codemirror/autocomplete";
 import { Suspense, useCallback, useMemo } from "react";
-import { useCallback, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -466,7 +465,6 @@ export function TraceFilterConditionFieldCore(
     />
   );
 }
-
 
 type TraceFilterConditionFieldWithVocabularyProps = Omit<
   TraceFilterConditionFieldProps,
