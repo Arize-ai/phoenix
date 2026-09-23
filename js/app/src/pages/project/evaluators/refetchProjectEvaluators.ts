@@ -21,6 +21,8 @@ const query = graphql`
             node {
               ...ProjectEvaluatorsTable_row
               ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorsTable_failures
+                @arguments(timeRange: $timeRange)
             }
           }
           pageInfo {

@@ -162,3 +162,58 @@ def _last_error_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
         .label("row_num"),
     ).subquery()
     return sa.select(ranked.c.project_evaluator_id, ranked.c.error).where(ranked.c.row_num == 1)
+
+
+FailedRunCountKey: TypeAlias = tuple[ProjectEvaluatorId, Optional[datetime], Optional[datetime]]
+
+
+class ProjectEvaluatorFailedRunCountDataLoader(DataLoader[FailedRunCountKey, int]):
+    """Counts the evaluations each project evaluator gave up on within a time range.
+
+    Keys are ``(project_evaluator_id, start, end)``; the range is start-inclusive and
+    end-exclusive, and an open bound is unbounded on that side. A failure is placed in
+    time by when it was given up on. Failures older than the online-eval retention
+    window have been reaped, so a longer range counts no further back than that.
+    """
+
+    def __init__(self, db: DbSessionFactory) -> None:
+        super().__init__(load_fn=self._load_fn)
+        self._db = db
+
+    async def _load_fn(self, keys: Iterable[FailedRunCountKey]) -> list[int]:
+        keys = list(keys)
+        ids_by_interval: dict[tuple[Optional[datetime], Optional[datetime]], set[Key]] = {}
+        for project_evaluator_id, start, end in keys:
+            ids_by_interval.setdefault((start, end), set()).add(project_evaluator_id)
+        counts: dict[FailedRunCountKey, int] = {}
+        async with self._db.read() as session:
+            for (start, end), project_evaluator_ids in ids_by_interval.items():
+                stmt = _failed_count_stmt(list(project_evaluator_ids), start, end)
+                async for project_evaluator_id, count in await session.stream(stmt):
+                    counts[(project_evaluator_id, start, end)] = count
+        return [counts.get(key, 0) for key in keys]
+
+
+def _failed_count_stmt(
+    project_evaluator_ids: list[Key],
+    start: Optional[datetime],
+    end: Optional[datetime],
+) -> sa.Select[Any]:
+    def grain(model: _WorkUnitModel) -> sa.Select[Any]:
+        conditions = [model.project_evaluator_id.in_(project_evaluator_ids), _failed(model)]
+        if start is not None:
+            conditions.append(model.updated_at >= start)
+        if end is not None:
+            conditions.append(model.updated_at < end)
+        return sa.select(model.project_evaluator_id.label("project_evaluator_id")).where(
+            *conditions
+        )
+
+    grains = sa.union_all(
+        grain(models.EvalWorkUnit),
+        grain(models.EvalSessionWorkUnit),
+        grain(models.EvalTraceWorkUnit),
+    ).subquery()
+    return sa.select(grains.c.project_evaluator_id, sa.func.count()).group_by(
+        grains.c.project_evaluator_id
+    )
