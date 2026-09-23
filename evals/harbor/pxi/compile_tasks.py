@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import stat
 from pathlib import Path
 from typing import Any
 
@@ -213,11 +212,8 @@ timeout_sec = {agent_timeout}
 timeout_sec = 120.0
 """
 
-TEST_SH = """\
-#!/bin/sh
-set -eu
-PYTHONPATH=/opt/verifier exec python -m evals.harbor.pxi.verify
-"""
+# Every task shares the Reward Kit verifier; see evals/harbor/pxi/criteria.py.
+TESTS_DIR = Path(__file__).resolve().parent / "tests"
 
 GITIGNORE = """\
 # Staging writes the image, wheel, and fixture to environment/. Ignore these generated
@@ -247,11 +243,9 @@ def write_task(
         for child in task_dir.iterdir():
             if child != environment:
                 shutil.rmtree(child) if child.is_dir() else child.unlink()
-    (task_dir / "tests").mkdir(parents=True, exist_ok=True)
+    task_dir.mkdir(parents=True, exist_ok=True)
     (task_dir / ".gitignore").write_text(GITIGNORE)
-    test_sh = task_dir / "tests" / "test.sh"
-    test_sh.write_text(TEST_SH)
-    test_sh.chmod(test_sh.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    shutil.copytree(TESTS_DIR, task_dir / "tests", ignore=shutil.ignore_patterns("__pycache__"))
     (task_dir / "instruction.md").write_text(render_instruction(example))
     (task_dir / "task.toml").write_text(
         TASK_TOML.format(
@@ -266,6 +260,24 @@ def write_task(
     return task_dir
 
 
+def select_examples(
+    datasets: list[str] | None, splits: list[str] | None, limit: int | None
+) -> list[tuple[dict[str, Any], str]]:
+    """The selected example records, each with its dataset's description."""
+    names = datasets or sorted(path.stem for path in DATASETS_DIR.glob("*.yaml"))
+    selected: list[tuple[dict[str, Any], str]] = []
+    for name in names:
+        dataset = load_dataset(name)
+        examples = example_records(dataset)
+        if splits:
+            examples = [e for e in examples if any(s in splits for s in e["splits"])]
+        if limit is not None:
+            examples = examples[:limit]
+        description = dataset.description or f"PXI eval dataset {name}"
+        selected.extend((example, description) for example in examples)
+    return selected
+
+
 def generate(
     *,
     out_dir: Path,
@@ -275,25 +287,16 @@ def generate(
     agent_timeout_sec: float,
 ) -> list[Path]:
     """Write one task per selected example and remove task directories for any others."""
-    names = datasets or sorted(path.stem for path in DATASETS_DIR.glob("*.yaml"))
     written: list[Path] = []
-    for name in names:
-        dataset = load_dataset(name)
-        examples = example_records(dataset)
-        if splits:
-            examples = [e for e in examples if any(s in splits for s in e["splits"])]
-        if limit is not None:
-            examples = examples[:limit]
-        description = dataset.description or f"PXI eval dataset {name}"
-        for example in examples:
-            written.append(
-                write_task(
-                    example,
-                    out_dir=out_dir,
-                    description=f"{example['id']}: {description}",
-                    agent_timeout_sec=agent_timeout_sec,
-                )
+    for example, description in select_examples(datasets, splits, limit):
+        written.append(
+            write_task(
+                example,
+                out_dir=out_dir,
+                description=f"{example['id']}: {description}",
+                agent_timeout_sec=agent_timeout_sec,
             )
+        )
     if out_dir.exists():
         for child in out_dir.iterdir():
             if child.is_dir() and child not in written:

@@ -10,5 +10,6 @@ CONTEXT="$HARBOR/.cache/pxi-environment"
 (cd "$ROOT" && uv run python -m evals.harbor.pxi.compile_tasks --out "$HARBOR/tasks/pxi" ${HARBOR_PXI_ARGS:-})
 
 rsync -a --delete --link-dest="$HARBOR/.cache/environment/" "$HARBOR/.cache/environment/" "$CONTEXT/"
-rsync -a --exclude __pycache__ --exclude datasets --exclude prepare_tasks.sh "$HERE/" "$CONTEXT/verifier/evals/harbor/pxi/"
+rsync -a --exclude __pycache__ --exclude datasets --exclude tests --exclude task_template \
+  --exclude '*.sh' "$HERE/" "$CONTEXT/verifier/evals/harbor/pxi/"
 "$HARBOR/scripts/lib/prepare_tasks.sh" "$CONTEXT" "$HARBOR/tasks/pxi"/*/task.toml

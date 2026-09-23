@@ -23,7 +23,14 @@ from typing import Any
 
 import yaml
 
-STAGED = ("Dockerfile", "wheels", "verifier", "container_assets", "data/phoenix.db")
+STAGED = (
+    "Dockerfile",
+    "requirements.txt",
+    "wheels",
+    "verifier",
+    "container_assets",
+    "data/phoenix.db",
+)
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
 
 

@@ -1,0 +1,4 @@
+# Each evaluator directory is one reward dimension; the turn passes only when all pass.
+[[reward]]
+name = "reward"
+aggregation = "all-pass"

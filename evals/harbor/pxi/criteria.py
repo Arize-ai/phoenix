@@ -1,30 +1,36 @@
-"""Score the turn a seeded PXI session produced and write Harbor's ``reward.json``.
+"""Reward Kit criteria for the PXI turn evaluators.
 
-Usage inside a task verifier::
+A PXI task's ``tests/`` directory holds ``test.sh``, ``reward.toml``, and one subdirectory
+per evaluator name whose ``check.py`` calls :func:`declare`. The criterion registers only
+when the task's example declares that evaluator, and Reward Kit skips directories that
+register nothing, so ``reward.json`` carries exactly the declared evaluators as dimensions
+and ``reward.toml`` combines them into ``reward``. The Phoenix Harbor plugin records each
+key as a named experiment evaluation.
 
-    PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.verify
-
-The verifier takes the session id, the example, and the seeding record from the agent's
-ATIF trajectory at ``/logs/agent/trajectory.json``, reads the session transcript back
-from the running Phoenix server, drops the seeded prefix, converts the new assistant
-parts to the message shape the PXI evaluators score, and runs the evaluators the dataset
-declares. The reward is 1 when every evaluator passes. Each evaluator's own score is
-written alongside it.
+The verifier reads the seed the agent stored in the trajectory's ``extra`` at
+``/logs/agent/trajectory.json``, fetches the session transcript once from the Phoenix
+server the healthcheck started, drops the seeded prefix, converts the new assistant parts
+to the message shape the PXI evaluators score, and runs the evaluators the dataset declares.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
+import threading
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import httpx
 
 from evals.harbor.pxi.evaluators import EVALUATORS_BY_NAME
-from evals.harbor.verifiers.verify import TRAJECTORY_PATH, write_reward
+
+TRAJECTORY_PATH = Path("/logs/agent/trajectory.json")
+BASE_URL = "http://127.0.0.1:6006"
 
 _TOOL_PREFIX = "tool-"
+_lock = threading.Lock()
+_factory_registered = False
 
 
 def scored_messages(
@@ -108,10 +114,6 @@ def run_evaluators(example: dict[str, Any], output: dict[str, Any]) -> dict[str,
     return results
 
 
-def reward_from_results(results: dict[str, dict[str, Any]]) -> float:
-    return 1.0 if results and all(r["score"] >= 1.0 for r in results.values()) else 0.0
-
-
 def fetch_session_messages(base_url: str, session_id: str) -> list[dict[str, Any]]:
     messages: list[dict[str, Any]] = []
     cursor: str | None = None
@@ -129,43 +131,69 @@ def fetch_session_messages(base_url: str, session_id: str) -> list[dict[str, Any
                 return messages
 
 
-def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--trajectory", type=Path, default=TRAJECTORY_PATH)
-    parser.add_argument("--base-url", default="http://127.0.0.1:6006")
-    parser.add_argument("--reward-file", type=Path, default=None)
-    args = parser.parse_args(argv)
-    trajectory = json.loads(args.trajectory.read_text())
+def read_seed(trajectory_path: Path | None = None) -> dict[str, Any]:
+    """The session id, example, and scoring record the agent left in the trajectory."""
+    path = TRAJECTORY_PATH if trajectory_path is None else trajectory_path
+    try:
+        trajectory = json.loads(path.read_text())
+    except OSError as exc:
+        raise FileNotFoundError(
+            f"No agent trajectory at {path}; the PXI verifier needs the seed it carries"
+        ) from exc
     seed = trajectory["extra"]["pxi"]
-    example = seed["example"]
-    transcript = fetch_session_messages(args.base_url, trajectory["session_id"])
-    turn_messages = scored_messages(transcript, seed["scoring"])
-    output = evaluator_output(turn_messages)
-    results = run_evaluators(example, output)
-    reward = reward_from_results(results)
-    extra = {name: result["score"] for name, result in results.items()}
-    if args.reward_file is not None:
-        scores = write_reward(reward, reward_path=args.reward_file, **extra)
-    else:
-        scores = write_reward(reward, **extra)
-    print(
-        json.dumps(
-            {
-                "example": f"{example['dataset']}/{example['id']}",
-                "scores": scores,
-                "results": results,
-                "tool_calls": [
-                    {"tool_name": part["tool_name"], "args": part["args"]}
-                    for message in output["messages"]
-                    for part in message["parts"]
-                    if part["part_kind"] == "tool-call"
-                ],
-                "assistant_text": (output["assistant_text"] or "")[:500],
-            },
-            indent=2,
+    return {"session_id": trajectory["session_id"], **seed}
+
+
+def declared_evaluators(trajectory_path: Path | None = None) -> list[str]:
+    example = read_seed(trajectory_path)["example"]
+    return [str(name) for name in example.get("evaluators") or []]
+
+
+@lru_cache(maxsize=None)
+def _turn_results(trajectory_path: Path, base_url: str) -> dict[str, dict[str, Any]]:
+    seed = read_seed(trajectory_path)
+    transcript = fetch_session_messages(base_url, seed["session_id"])
+    output = evaluator_output(scored_messages(transcript, seed["scoring"]))
+    return run_evaluators(seed["example"], output)
+
+
+def evaluator_score(
+    evaluator: str, trajectory_path: Path | None = None, base_url: str | None = None
+) -> float:
+    """Score one declared evaluator against the turn; the transcript is fetched once."""
+    path = TRAJECTORY_PATH if trajectory_path is None else trajectory_path
+    with _lock:
+        results = _turn_results(path, BASE_URL if base_url is None else base_url)
+    result = results.get(evaluator)
+    if result is None:
+        raise KeyError(f"the example does not declare evaluator {evaluator!r}")
+    if result.get("error"):
+        raise RuntimeError(str(result["error"]))
+    return float(result["score"])
+
+
+def _register_factory() -> None:
+    global _factory_registered
+    if _factory_registered:
+        return
+    from rewardkit import criterion
+
+    @criterion(description="PXI evaluator {evaluator} passes", shared=True)  # type: ignore[untyped-decorator]
+    def pxi_evaluator(workspace: Path, evaluator: str) -> float:
+        return evaluator_score(evaluator)
+
+    _factory_registered = True
+
+
+def declare(evaluator: str) -> None:
+    """Register the Reward Kit criterion for ``evaluator`` if the example declares it."""
+    if evaluator not in EVALUATORS_BY_NAME:
+        raise ValueError(
+            f"unknown evaluator {evaluator!r}; see evals/harbor/pxi/evaluators/__init__.py"
         )
-    )
+    if evaluator not in declared_evaluators():
+        return
+    _register_factory()
+    import rewardkit as rk
 
-
-if __name__ == "__main__":
-    main()
+    rk.pxi_evaluator(evaluator, name=evaluator)
