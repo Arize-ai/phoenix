@@ -207,20 +207,29 @@ px.describe("text-to-sql scorecard", () => {
 | Field | Description |
 |-------|-------------|
 | `annotationName` | Annotation to aggregate. If a run logs the same annotation more than once, the last one counts. |
-| `metric` | `"average"` checks the mean of all numeric/boolean scores against `threshold` (tolerates weak runs if the mean holds); `"passRate"` counts runs whose `passFn` returns `true` and requires that **fraction** to reach `minPassRate`. |
+| `metric` | `"average"` checks the mean of the numeric/boolean scores logged for `annotationName` against `threshold` (tolerates weak runs if the mean holds); `"passRate"` counts the annotated runs whose `passFn` returns `true` and requires that **fraction** to reach `minPassRate`. |
 | `threshold` | **`average` only.** The bar the mean must clear (in `direction`). |
 | `direction` | **`average` only.** `"maximize"` (default; higher mean is better, clears `threshold` when `>=`) or `"minimize"` (lower is better, clears when `<=`). Use `"minimize"` for cost, latency, or error rates. |
 | `passFn` | **`passRate` only.** `(annotation) => boolean` predicate deciding whether a single run passes, given its last annotation for `annotationName` (`score`, `label`, `explanation`, `metadata`, …). |
-| `minPassRate` | **`passRate` only.** Minimum fraction of runs (`0`–`1`) that must pass for the suite to pass (`1` = all). The suite passes when `passRate >= minPassRate`. |
+| `minPassRate` | **`passRate` only.** Minimum fraction of annotated runs (`0`–`1`) that must pass for the suite to pass (`1` = all). The suite passes when `passRate >= minPassRate`. |
+
+**Which runs count.** A criterion is computed over the runs that logged its
+annotation. Tests don't all have to log the same annotations, so a run without
+it is outside that criterion rather than a failure. A test that throws before
+logging is already a failed Vitest test, so it isn't counted again. Skipped
+tests are excluded; dry-run tests are included because they still execute
+locally.
 
 **Edge cases.** An `average` criterion with no numeric/boolean scores — or a
 `passRate` criterion whose annotation was never logged — fails rather than
-passing vacuously. Skipped tests are excluded from the aggregate; dry-run tests
-are included because they still execute locally.
+passing vacuously.
 
 In the reporter's `Acceptance Criteria` block the reported value is the **mean**
-for `average` and the **fraction of runs that passed** for `passRate` (so a
-fully-passing `passRate` criterion reads `1.000`).
+for `average` and the **fraction of annotated runs that passed** for `passRate`
+(so a fully-passing `passRate` criterion reads `1.000`). Each line ends with its
+coverage, e.g. `70 of 100 runs`: the runs the criterion covered out of all
+non-skipped runs in the suite. If every test is meant to log the annotation, a
+gap there means some runs didn't.
 
 ## Reporter Output
 

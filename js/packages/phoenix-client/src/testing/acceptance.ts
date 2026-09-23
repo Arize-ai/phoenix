@@ -50,7 +50,7 @@ export function createAcceptanceFailureError(
 export function formatAcceptanceResult(result: AcceptanceResult): string {
   const status = result.passed ? "PASS" : "FAIL";
   const value = result.value === null ? "n/a" : result.value.toFixed(3);
-  const sampleLabel = result.sampleCount === 1 ? "sample" : "samples";
+  const runLabel = result.eligibleRunCount === 1 ? "run" : "runs";
   let requirement: string;
   if (result.metric === "average") {
     const cmp = (result.direction ?? "maximize") === "minimize" ? "<=" : ">=";
@@ -59,7 +59,7 @@ export function formatAcceptanceResult(result: AcceptanceResult): string {
     requirement = `pass rate >= ${result.minPassRate.toFixed(3)}`;
   }
   const reason = result.failureReason ? ` - ${result.failureReason}` : "";
-  return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} ${sampleLabel})${reason}`;
+  return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} of ${result.eligibleRunCount} ${runLabel})${reason}`;
 }
 
 function evaluateAcceptanceCriterion({
@@ -69,10 +69,17 @@ function evaluateAcceptanceCriterion({
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
 }): AcceptanceResult {
-  const { annotations, eligibleCount } = collectAnnotations({
+  const runAnnotations = collectLastAnnotationPerEligibleRun({
     criterion,
     results,
   });
+  const eligibleRunCount = runAnnotations.length;
+  // Runs that did not log the annotation are outside this criterion's
+  // population: suites may log different annotations on different tests, and
+  // a run that errored is already a failed test in the host framework.
+  const annotations = runAnnotations.filter(
+    (annotation): annotation is Annotation => annotation !== undefined
+  );
 
   if (criterion.metric === "average") {
     // Only numeric / boolean scores can be averaged.
@@ -84,84 +91,81 @@ function evaluateAcceptanceCriterion({
         ...criterion,
         value: null,
         sampleCount: 0,
+        eligibleRunCount,
         passed: false,
         failureReason: "no numeric or boolean scores found",
       };
     }
     const direction = criterion.direction ?? "maximize";
-    const value = calculateAverage(scores, eligibleCount);
+    const value = calculateAverage({ scores });
     return {
       ...criterion,
       value,
-      sampleCount: eligibleCount,
-      passed: meetsBar(value, criterion.threshold, direction),
+      sampleCount: scores.length,
+      eligibleRunCount,
+      passed: meetsBar({ value, threshold: criterion.threshold, direction }),
     };
   }
 
   // passRate: each run passes when `passFn` returns true for its annotation;
   // the suite passes when the fraction of passing runs is at least
   // `minPassRate`. The reported value is that fraction.
-  if (eligibleCount === 0 || annotations.length === 0) {
+  if (annotations.length === 0) {
     return {
       ...criterion,
       value: null,
       sampleCount: 0,
+      eligibleRunCount,
       passed: false,
       failureReason: "no matching annotations found",
     };
   }
-  const passed = annotations.filter((annotation) =>
+  const passingRunCount = annotations.filter((annotation) =>
     criterion.passFn(annotation)
   ).length;
-  const value = passed / eligibleCount;
+  const value = passingRunCount / annotations.length;
   return {
     ...criterion,
     value,
-    sampleCount: eligibleCount,
+    sampleCount: annotations.length,
+    eligibleRunCount,
     passed: value >= criterion.minPassRate,
   };
 }
 
-/** Whether `value` clears `bar` in the given optimization direction. */
-function meetsBar(
-  value: number,
-  bar: number,
-  direction: OptimizationDirection
-): boolean {
-  return direction === "minimize" ? value <= bar : value >= bar;
+/** Whether `value` clears `threshold` in the given optimization direction. */
+function meetsBar({
+  value,
+  threshold,
+  direction,
+}: {
+  value: number;
+  threshold: number;
+  direction: OptimizationDirection;
+}): boolean {
+  return direction === "minimize" ? value <= threshold : value >= threshold;
 }
 
 /**
- * Collect the last annotation matching `annotationName` from each eligible
- * (non-skipped) run, alongside the count of eligible runs. Runs that never
- * logged the annotation are not dropped: they count as non-passing for
- * `passRate` and as a zero score for `average`, so callers divide by
- * `eligibleCount`, not by `annotations.length`.
+ * The last annotation matching `annotationName` from each eligible
+ * (non-skipped) run, one entry per run. Runs that never logged the annotation
+ * yield `undefined`, so the array length is the eligible-run count.
  */
-function collectAnnotations({
+function collectLastAnnotationPerEligibleRun({
   criterion,
   results,
 }: {
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
-}): {
-  annotations: Annotation[];
-  eligibleCount: number;
-} {
-  const eligible = results.filter((result) => result.status !== "skipped");
-  return {
-    eligibleCount: eligible.length,
-    annotations: eligible
-      .map((result) =>
-        findLastAnnotation({
-          annotations: result.annotations,
-          annotationName: criterion.annotationName,
-        })
-      )
-      .filter(
-        (annotation): annotation is Annotation => annotation !== undefined
-      ),
-  };
+}): (Annotation | undefined)[] {
+  return results
+    .filter((result) => result.status !== "skipped")
+    .map((result) =>
+      findLastAnnotation({
+        annotations: result.annotations,
+        annotationName: criterion.annotationName,
+      })
+    );
 }
 
 function findLastAnnotation({
@@ -191,14 +195,15 @@ function isValidScore(score: Annotation["score"]): score is number | boolean {
   );
 }
 
-function calculateAverage(
-  scores: readonly (number | boolean)[],
-  eligibleCount: number
-): number {
+function calculateAverage({
+  scores,
+}: {
+  scores: readonly (number | boolean)[];
+}): number {
   const total = scores
     .map(scoreToNumber)
     .reduce((sum, score) => sum + score, 0);
-  return total / eligibleCount;
+  return total / scores.length;
 }
 
 function scoreToNumber(score: number | boolean): number {
