@@ -1,0 +1,260 @@
+---
+title: "Evaluate a Prompt Change in Code"
+description: >-
+  Build the dataset, task, evaluator, and experiment with the SDK, then compare
+  a baseline prompt against an edited one.
+---
+
+This is the code version of [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations), which runs the same flow from the Phoenix UI. It uses the support agent from [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), so the scenario carries across both guides.
+
+You define two tasks, a baseline and an edited prompt, score both with one deterministic evaluator, and read the difference. Choose Python or TypeScript.
+
+<Tabs>
+<Tab title="Python">
+
+<Steps>
+<Step title={<span className="step-title">Install experiment packages</span>}>
+  Install the Phoenix client package.
+
+  ```bash
+  pip install -U arize-phoenix-client
+  ```
+</Step>
+
+<Step title={<span className="step-title">Create an experiment file</span>}>
+  Create a file named `experiment.py`. The dataset uses two billing support examples; replace them with selected traces or examples from your agent when you are ready.
+
+  ```python
+  from phoenix.client import Client
+
+  client = Client()
+
+  dataset = client.datasets.create_dataset(
+      name="support-quickstart",
+      dataset_description="Support reply examples from the Phoenix quickstart.",
+      examples=[
+          {
+              "id": "invoice-change",
+              "input": {"text": "Draft a short reply about why an invoice changed."},
+              "output": {
+                  "text": "Explain that invoice totals can change when usage, taxes, or plan adjustments are applied."
+              },
+              "metadata": {"kind": "billing"},
+          },
+          {
+              "id": "renewal-plan-change",
+              "input": {
+                  "text": "A customer says their renewal invoice is higher after changing plans."
+              },
+              "output": {
+                  "text": "Explain that plan changes can cause prorated usage charges and updated taxes."
+              },
+              "metadata": {"kind": "billing"},
+          },
+      ],
+  )
+
+
+  def baseline_task(input):
+      if "renewal" in input["text"]:
+          return "Renewal amounts can change after account updates."
+      return "Invoice totals can change when billing settings change."
+
+
+  def edited_task(input):
+      if "renewal" in input["text"]:
+          return "Plan changes can create prorated usage charges and updated taxes on a renewal invoice."
+      return "Invoice totals can change when usage, taxes, or plan adjustments are applied."
+
+
+  def covers_billing_context(output):
+      text = output.lower()
+      has_usage = "usage" in text or "prorat" in text
+      has_taxes = "tax" in text
+      has_plan = "plan" in text
+      return has_usage and has_taxes and has_plan
+
+  client.experiments.run_experiment(
+      dataset=dataset,
+      task=baseline_task,
+      evaluators=[covers_billing_context],
+      experiment_name="support-response-baseline-docs-run",
+  )
+
+  client.experiments.run_experiment(
+      dataset=dataset,
+      task=edited_task,
+      evaluators=[covers_billing_context],
+      experiment_name="support-response-edited-docs-run",
+  )
+  ```
+
+  Each task takes one dataset input and returns an agent output. Swap in your agent's entry point. The evaluator is intentionally deterministic: it checks for the billing context the response must include before you add broader LLM-as-a-judge evals.
+</Step>
+
+<Step title={<span className="step-title">Run the experiment</span>}>
+  Run the file.
+
+  ```bash
+  python experiment.py
+  ```
+
+  If you already created a dataset from traces in the UI, replace the `create_dataset` call with:
+
+  ```python
+  dataset = client.datasets.get_dataset(dataset="<YOUR DATASET NAME>")
+  ```
+</Step>
+
+<Step title={<span className="step-title">Review the scores</span>}>
+  Head back to Phoenix and open the dataset's **Experiments** tab. You can compare outputs, evaluator labels, scores, and explanations for each example.
+
+  <Frame caption="Side-by-side experiment comparison">
+    <img
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-compare-score-delta.png"
+      alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
+    />
+  </Frame>
+</Step>
+</Steps>
+
+</Tab>
+<Tab title="TypeScript">
+
+<Steps>
+<Step title={<span className="step-title">Install experiment packages</span>}>
+  Install the Phoenix client package and `tsx` for running the TypeScript file.
+
+  ```bash
+  npm install @arizeai/phoenix-client tsx
+  ```
+</Step>
+
+<Step title={<span className="step-title">Create an experiment file</span>}>
+  Create a file named `experiment.ts`. The dataset uses two billing support examples; replace them with selected traces or examples from your agent when you are ready.
+
+  ```typescript
+  import { createClient } from "@arizeai/phoenix-client";
+  import { createDataset } from "@arizeai/phoenix-client/datasets";
+  import {
+    asExperimentEvaluator,
+    runExperiment,
+  } from "@arizeai/phoenix-client/experiments";
+  import type { Example } from "@arizeai/phoenix-client/types/datasets";
+
+  const client = createClient();
+  const datasetName = "support-quickstart";
+
+  const baselineTask = async (example: Example): Promise<string> => {
+    const input = example.input as { text: string };
+
+    if (input.text.includes("renewal")) {
+      return "Renewal amounts can change after account updates.";
+    }
+    return "Invoice totals can change when billing settings change.";
+  };
+
+
+  const editedTask = async (example: Example): Promise<string> => {
+    const input = example.input as { text: string };
+
+    if (input.text.includes("renewal")) {
+      return "Plan changes can create prorated usage charges and updated taxes on a renewal invoice.";
+    }
+    return "Invoice totals can change when usage, taxes, or plan adjustments are applied.";
+  };
+
+
+  const coversBillingContext = asExperimentEvaluator({
+    name: "covers_billing_context",
+    kind: "CODE",
+    evaluate: async ({ output }) => {
+      const text = String(output).toLowerCase();
+      const hasUsage = text.includes("usage") || text.includes("prorat");
+      const hasTaxes = text.includes("tax");
+      const hasPlan = text.includes("plan");
+      const passes = hasUsage && hasTaxes && hasPlan;
+      return {
+        label: passes ? "True" : "False",
+        score: passes ? 1 : 0,
+      };
+    },
+  });
+
+  async function main() {
+    await createDataset({
+      client,
+      name: datasetName,
+      description: "Support reply examples from the Phoenix quickstart.",
+      examples: [
+        {
+          id: "invoice-change",
+          input: { text: "Draft a short reply about why an invoice changed." },
+          output: {
+            text: "Explain that invoice totals can change when usage, taxes, or plan adjustments are applied.",
+          },
+          metadata: { kind: "billing" },
+        },
+        {
+          id: "renewal-plan-change",
+          input: {
+            text: "A customer says their renewal invoice is higher after changing plans.",
+          },
+          output: {
+            text: "Explain that plan changes can cause prorated usage charges and updated taxes.",
+          },
+          metadata: { kind: "billing" },
+        },
+      ],
+    });
+
+    await runExperiment({
+      client,
+      dataset: { datasetName },
+      task: baselineTask,
+      evaluators: [coversBillingContext],
+      experimentName: "support-response-baseline-docs-run",
+    });
+
+    await runExperiment({
+      client,
+      dataset: { datasetName },
+      task: editedTask,
+      evaluators: [coversBillingContext],
+      experimentName: "support-response-edited-docs-run",
+    });
+  }
+
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+  ```
+
+  Each task takes one dataset example and returns an agent output. Swap in your agent's entry point. The evaluator is intentionally deterministic: it checks for the billing context the response must include before you add broader LLM-as-a-judge evals.
+</Step>
+
+<Step title={<span className="step-title">Run the experiment</span>}>
+  Run the file.
+
+  ```bash
+  npx tsx experiment.ts
+  ```
+
+  If you already created a dataset from traces in the UI, keep `datasetName` set to that dataset name and remove the `createDataset` call.
+</Step>
+
+<Step title={<span className="step-title">Review the scores</span>}>
+  Head back to Phoenix and open the dataset's **Experiments** tab. You can compare outputs, evaluator labels, scores, and explanations for each example.
+
+  <Frame caption="Side-by-side experiment comparison">
+    <img
+      src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-compare-score-delta.png"
+      alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
+    />
+  </Frame>
+</Step>
+</Steps>
+
+</Tab>
+</Tabs>
