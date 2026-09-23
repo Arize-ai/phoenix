@@ -116,3 +116,18 @@ export const ThinkingWithoutId: Story = {
     },
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...WithSummary,
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.5 } },
+  decorators: [
+    // Top-aligned, so the frame clips the end of the thinking, not its start.
+    (Story) => (
+      <div style={{ alignSelf: "flex-start", width: "100%" }}>
+        <Story />
+      </div>
+    ),
+  ],
+};

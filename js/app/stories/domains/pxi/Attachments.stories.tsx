@@ -317,3 +317,18 @@ export const Gallery: Story = {
     </Flex>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Attachments variant="inline">
+      {CONTEXT_DATA.map((data) => (
+        <Attachment key={data.id} data={data}>
+          <AttachmentPreview />
+          <AttachmentInfo />
+        </Attachment>
+      ))}
+    </Attachments>
+  ),
+};

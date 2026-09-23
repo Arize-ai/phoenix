@@ -110,3 +110,29 @@ export const AtSelectionLimit: Story = {
     />
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // At 1:1, so the menu opens where it belongs, below the trigger; the frame
+  // clips the end of the catalog.
+  render: () => (
+    <div style={{ alignSelf: "flex-start", width: "100%" }}>
+      <MenuTrigger defaultOpen>
+        <Button aria-label="Select metric charts">
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <Icon svg={<Icons.BarChart />} />
+            Charts
+          </Flex>
+        </Button>
+        <MenuContainer placement="bottom start">
+          <MetricsChartSelector
+            options={PROJECT_METRIC_CHARTS}
+            selectedKeys={["traces", "latency"]}
+            onSelectionChange={() => {}}
+          />
+        </MenuContainer>
+      </MenuTrigger>
+    </div>
+  ),
+};

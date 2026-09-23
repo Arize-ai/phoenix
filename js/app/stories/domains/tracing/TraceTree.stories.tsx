@@ -364,16 +364,19 @@ function TraceTreeFrame({
   spans,
   initialSelectedSpanId,
   width = 640,
+  height,
 }: {
   spans: ISpanItem[];
   initialSelectedSpanId?: string;
-  width?: number;
+  width?: CSSProperties["width"];
+  /** Overrides the frame's height, e.g. to fill the thumbnail frame. */
+  height?: CSSProperties["height"];
 }) {
   const [selectedSpanNodeId, setSelectedSpanNodeId] = useState(
     initialSelectedSpanId ?? spans[0].id
   );
   return (
-    <div style={{ ...frameStyle, width }}>
+    <div style={{ ...frameStyle, width, height: height ?? frameStyle.height }}>
       <TraceTreeProvider>
         <TraceTree
           spans={spans}
@@ -480,5 +483,15 @@ export const SideBySide: Story = {
         </div>
       ))}
     </div>
+  ),
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // Wide enough for the metrics footers and timeline bars.
+  parameters: { thumbnail: { scale: 0.5 } },
+  render: () => (
+    <TraceTreeFrame spans={gameRoundSpans} width="100%" height="100%" />
   ),
 };

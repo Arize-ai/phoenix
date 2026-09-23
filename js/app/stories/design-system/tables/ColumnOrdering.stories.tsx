@@ -456,3 +456,11 @@ export const SelectorMenu: Story = {
     );
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Default,
+  tags: ["!dev", "!autodocs"],
+  // The table is page width.
+  parameters: { thumbnail: { scale: 0.5 } },
+};

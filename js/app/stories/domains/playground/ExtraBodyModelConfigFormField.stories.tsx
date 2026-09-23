@@ -109,3 +109,11 @@ export const Prefilled: Story = {
     ),
   ],
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Prefilled,
+  tags: ["!dev", "!autodocs"],
+  // The field host is wider than the frame at 1:1.
+  parameters: { ...Prefilled.parameters, thumbnail: { scale: 0.5 } },
+};

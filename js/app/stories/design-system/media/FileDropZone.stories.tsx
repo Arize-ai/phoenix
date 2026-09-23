@@ -586,3 +586,18 @@ export const DropZoneWithOverlay: StoryObj = {
 
   name: "DropZone / With Overlay",
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<FileDropZoneProps> = {
+  tags: ["!dev", "!autodocs"],
+  render: (args) => (
+    <View width="100%">
+      <FileDropZone {...args} />
+    </View>
+  ),
+  args: {
+    label: "Upload your dataset",
+    description: "Supports CSV and JSON formats up to 10MB",
+    acceptedFileTypes: [".csv", ".json"],
+  },
+};

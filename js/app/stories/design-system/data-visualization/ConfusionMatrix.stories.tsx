@@ -225,3 +225,14 @@ export const SharedLegend: Story = {
     );
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.6 } },
+  args: {
+    data: binaryData,
+    size: "M",
+    positiveLabel: "hallucinated",
+  },
+};

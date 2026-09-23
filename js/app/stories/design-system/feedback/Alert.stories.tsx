@@ -112,3 +112,23 @@ export const WithoutIcon: Story = {
     showIcon: false,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        width: "100%",
+      }}
+    >
+      <Alert variant="info" title="Alert Title">
+        This is an alert with a title
+      </Alert>
+      <Alert variant="danger">This is a danger alert</Alert>
+    </div>
+  ),
+};

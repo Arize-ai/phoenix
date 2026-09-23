@@ -1,9 +1,10 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
+import { useEffect } from "react";
 
 import { Button, Flex } from "@phoenix/components";
 import { ToastRegion } from "@phoenix/components/core/toast/ToastRegion";
-import { useNotify, useNotifySuccess } from "@phoenix/contexts";
+import { toastQueue, useNotify, useNotifySuccess } from "@phoenix/contexts";
 
 /**
  * ToastRegion manages the display of one or more queued toasts
@@ -101,3 +102,36 @@ export const Template: StoryFn<ComponentProps<typeof ToastRegion>> = () => (
     <TriggerToasts />
   </>
 );
+
+/** Queues a stack of toasts on mount, as the app does after an action. */
+const QueuedToasts = () => {
+  const notify = useNotify();
+  const notifySuccess = useNotifySuccess();
+  useEffect(() => {
+    const keys = [
+      notify({
+        title: "Error Toast",
+        message: "This is an error toast message.",
+        expireMs: null,
+      }),
+      notifySuccess({
+        title: "Success Toast",
+        message: "This is a success toast message.",
+        expireMs: null,
+      }),
+    ];
+    return () => keys.forEach((key) => toastQueue.close(key));
+  }, [notify, notifySuccess]);
+  return null;
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <>
+      <ToastRegion />
+      <QueuedToasts />
+    </>
+  ),
+};

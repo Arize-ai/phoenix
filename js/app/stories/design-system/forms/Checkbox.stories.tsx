@@ -1,6 +1,6 @@
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
-import { Checkbox } from "@phoenix/components";
+import { Checkbox, Flex } from "@phoenix/components";
 
 const meta: Meta = {
   title: "Design System/Forms/Checkbox",
@@ -58,4 +58,15 @@ export const NoLabel = {
   args: {
     children: null,
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="column" gap="size-100">
+      <Checkbox defaultSelected>Checked checkbox</Checkbox>
+      <Checkbox>Checkbox label</Checkbox>
+    </Flex>
+  ),
 };

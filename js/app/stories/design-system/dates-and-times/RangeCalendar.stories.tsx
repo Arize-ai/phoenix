@@ -1,4 +1,4 @@
-import { getLocalTimeZone, today } from "@internationalized/date";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import type { Meta, StoryFn } from "@storybook/react";
 
 import type { DateValue, RangeCalendarProps } from "@phoenix/components";
@@ -41,6 +41,21 @@ export const TwoMonths = {
     defaultValue: {
       start: today(getLocalTimeZone()).subtract({ days: 20 }),
       end: today(getLocalTimeZone()),
+    },
+  },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  // A month grid is taller than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.8 } },
+  render: Template,
+  // A fixed range, so regenerating the image does not follow the clock.
+  args: {
+    defaultValue: {
+      start: parseDate("2026-03-17"),
+      end: parseDate("2026-03-24"),
     },
   },
 };

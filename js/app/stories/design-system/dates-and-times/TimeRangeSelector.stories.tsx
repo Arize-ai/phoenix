@@ -95,3 +95,24 @@ export const Disabled = {
     },
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  // A written-out range is wider than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.7 } },
+  // A closed range: a preset's end reads as the current time, which would
+  // change the image every time it is regenerated.
+  render: () => (
+    <PreferencesProvider>
+      <TimeRangeSelector
+        value={{
+          timeRangeKey: "custom",
+          start: new Date("2024-01-15T10:00:00Z"),
+          end: new Date("2024-01-22T18:30:00Z"),
+        }}
+        onChange={() => {}}
+      />
+    </PreferencesProvider>
+  ),
+};

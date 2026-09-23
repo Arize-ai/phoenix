@@ -1,4 +1,4 @@
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import type { SwitchProps } from "@phoenix/components";
@@ -70,3 +70,14 @@ export const Gallery = () => (
     <Switch labelPlacement="start">Label start placement</Switch>
   </Flex>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<SwitchProps> = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="column" gap="size-100">
+      <Switch defaultSelected>Enable notifications</Switch>
+      <Switch>Email digest</Switch>
+    </Flex>
+  ),
+};

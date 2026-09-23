@@ -126,3 +126,42 @@ export const QuietActionCluster = {
     />
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  // Anchored at the top left, the menu opens down and right into the frame.
+  render: () => (
+    <div style={{ alignSelf: "flex-start", marginRight: "auto" }}>
+      <MenuTrigger defaultOpen>
+        <Button>Open span actions</Button>
+        <Popover>
+          <Menu aria-label="Span actions">
+            <MenuItem
+              textValue="View trace"
+              leadingContent={<Icon svg={<Icons.List />} />}
+            >
+              View trace
+            </MenuItem>
+            <MenuItem
+              textValue="Copy span ID"
+              leadingContent={<Icon svg={<Icons.Duplicate />} />}
+            >
+              Copy span ID
+            </MenuItem>
+            <MenuItem
+              textValue="Solve with PXI"
+              leadingContent={
+                <span css={pxiMenuGlyphCSS} aria-hidden="true">
+                  <PxiGlyph size={15} />
+                </span>
+              }
+            >
+              Solve with PXI
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+    </div>
+  ),
+};

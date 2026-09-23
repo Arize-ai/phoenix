@@ -177,3 +177,15 @@ export const CustomSize: Story = {
     height: 180,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    src: EXAMPLE_VIDEO,
+    width: 288,
+    height: 162,
+    // Load ahead so the player settles on its first frame, not a spinner.
+    preload: "auto",
+  },
+};

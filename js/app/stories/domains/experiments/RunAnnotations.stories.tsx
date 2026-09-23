@@ -16,6 +16,8 @@ type AnnotationSummaries = NonNullable<
 type StoryArgs = {
   experimentRun: ExperimentRun;
   annotationSummaries?: AnnotationSummaries;
+  /** The container's width. Defaults to 600px. */
+  width?: string;
 };
 
 const mockExperimentRunWithAnnotations: ExperimentRun = {
@@ -181,7 +183,7 @@ const Template: Story = (args) => {
 
   return (
     <View
-      width="600px"
+      width={args.width ?? "600px"}
       borderColor="default"
       borderWidth="thin"
       borderRadius="medium"
@@ -539,4 +541,13 @@ export const NoTraces = {
       },
     },
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  ...Default,
+  tags: ["!dev", "!autodocs"],
+  args: { ...Default.args, width: "100%" },
+  // Wide enough that the annotation names and scores are not truncated.
+  parameters: { thumbnail: { scale: 0.6 } },
 };

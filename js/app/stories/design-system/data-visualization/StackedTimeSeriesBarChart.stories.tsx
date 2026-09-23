@@ -454,3 +454,18 @@ export const WithTimezonePreferences: Story = {
     height: 400,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.6 } },
+  render: (args) => (
+    <div style={{ width: "100%" }}>
+      <StackedBarChart {...args} />
+    </div>
+  ),
+  args: {
+    data: chartData,
+    height: 300,
+  },
+};

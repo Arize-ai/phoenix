@@ -291,3 +291,10 @@ export const EmptyStates: Story = {
     dataState: "empty",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...AnnotationScores,
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.5 } },
+};

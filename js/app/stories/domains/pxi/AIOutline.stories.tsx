@@ -214,3 +214,11 @@ function ClippedRowExample() {
     </Flex>
   );
 }
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...States,
+  tags: ["!dev", "!autodocs"],
+  // The three stacked states are taller than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.75 } },
+};

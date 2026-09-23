@@ -142,3 +142,15 @@ export const AllLanguages: Story = {
     </Flex>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // A little more stage so the first lines are not clipped.
+  parameters: { thumbnail: { scale: 0.75 } },
+  render: () => (
+    <View width="100%">
+      <PythonBlock value={PYTHON_SAMPLE.split("\n").slice(0, 7).join("\n")} />
+    </View>
+  ),
+};

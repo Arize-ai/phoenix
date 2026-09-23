@@ -134,3 +134,16 @@ export const Disabled = {
     },
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: Template,
+  // A fixed start, so the story does not depend on the clock.
+  args: {
+    initialValue: {
+      timeRangeKey: "1h",
+      start: new Date("2024-01-15T10:00:00Z"),
+    },
+  },
+};

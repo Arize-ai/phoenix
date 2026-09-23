@@ -651,3 +651,18 @@ export const Default: Story = {
     displayFullText: false,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Default,
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.5 } },
+  decorators: [
+    // Top-aligned, so the frame clips the last rows, not the header.
+    (Story) => (
+      <div style={{ alignSelf: "flex-start", width: "100%" }}>
+        <Story />
+      </div>
+    ),
+  ],
+};

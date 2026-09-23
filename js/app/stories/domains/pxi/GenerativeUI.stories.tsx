@@ -259,3 +259,9 @@ export const PlaceholderError: StoryObj<typeof GenerativeUIPlaceholder> = {
     <GenerativeUIPlaceholder message="Generative UI could not be rendered due to invalid data." />
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<typeof BarChart> = {
+  ...BarChartBasic,
+  tags: ["!dev", "!autodocs"],
+};

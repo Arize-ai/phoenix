@@ -59,3 +59,20 @@ export const Python: Story = {
     );
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    language: "Python",
+    packages: ["arize-phoenix-otel"],
+  },
+  render: (args) => (
+    <View width="100%">
+      <PackageManagerCommandBlock
+        language={args.language ?? "Python"}
+        packages={args.packages ?? ["arize-phoenix-otel"]}
+      />
+    </View>
+  ),
+};

@@ -1,3 +1,4 @@
+import { Time } from "@internationalized/date";
 import type { Meta, StoryFn } from "@storybook/react";
 
 import type { TimeFieldProps, TimeValue } from "@phoenix/components";
@@ -24,4 +25,13 @@ const Template: StoryFn<TimeFieldProps<TimeValue>> = (args) => (
 export const Default = {
   render: Template,
   args: {},
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: Template,
+  args: {
+    defaultValue: new Time(14, 30),
+  },
 };

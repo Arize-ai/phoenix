@@ -53,3 +53,34 @@ export const TrailingInRow: Story = {
     </View>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <View
+      borderColor="default"
+      borderWidth="thin"
+      borderRadius="medium"
+      width="240px"
+    >
+      {["Latency", "Tokens", "Status"].map((label) => (
+        <View
+          key={label}
+          paddingStart="size-200"
+          paddingEnd="size-100"
+          paddingY="size-100"
+        >
+          <Flex
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Text>{label}</Text>
+            <DragHandle aria-label={`Reorder ${label}`} />
+          </Flex>
+        </View>
+      ))}
+    </View>
+  ),
+};

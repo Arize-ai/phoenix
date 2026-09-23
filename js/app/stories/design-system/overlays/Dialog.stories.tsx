@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useRef, useState } from "react";
 
 import {
@@ -159,4 +159,31 @@ const ControlledTemplate: StoryFn<StoryArgs> = ({
 
 export const ControlledNestedDialogs = {
   render: ControlledTemplate,
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ alignSelf: "flex-start" }}>
+      <DialogTrigger defaultOpen>
+        <Button size="S">Open</Button>
+        <Popover placement="bottom">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Dialog</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text>Focused content over the page.</Text>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+    </div>
+  ),
 };

@@ -260,3 +260,11 @@ export const SpanAnnotations: Story = {
     />
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: TableTraces.render,
+  // The table header needs a page-width stage to read as a table.
+  parameters: { thumbnail: { scale: 0.6 } },
+};

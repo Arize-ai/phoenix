@@ -29,3 +29,13 @@ export const Compact: Story = {
     </div>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: (args) => (
+    <div style={{ width: 288, height: 168 }}>
+      <ChartSkeleton {...args} />
+    </div>
+  ),
+};

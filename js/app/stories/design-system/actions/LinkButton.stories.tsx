@@ -1,4 +1,4 @@
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
 import { LinkButton } from "@phoenix/components";
 
@@ -23,5 +23,13 @@ export const Danger = {
   args: {
     children: "Danger",
     variant: "danger",
+  },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    children: "View details",
   },
 };

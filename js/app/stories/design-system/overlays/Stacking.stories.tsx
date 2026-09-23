@@ -505,3 +505,34 @@ export const DrawerMenuSubmenu: Story = {
     docs: { story: { autoplay: true } },
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+const stackedLayerCSS = css`
+  position: absolute;
+  width: 150px;
+  height: 80px;
+  padding: var(--global-dimension-size-100);
+  box-sizing: border-box;
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  background: var(--global-background-color-default);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: var(--global-dimension-font-size-75);
+`;
+
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ position: "relative", width: 250, height: 150 }}>
+      {["App", "Floating", "Overlay"].map((band, index) => (
+        <div
+          key={band}
+          css={stackedLayerCSS}
+          style={{ left: index * 50, top: index * 35 }}
+        >
+          {band}
+        </div>
+      ))}
+    </div>
+  ),
+};

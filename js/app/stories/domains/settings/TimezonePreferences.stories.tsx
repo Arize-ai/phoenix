@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import type { OpenTimeRangeWithKey } from "@phoenix/components";
@@ -97,3 +97,19 @@ function FormattedTimeDisplay({
     </Card>
   );
 }
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  // A full-width settings form, shown from its top.
+  parameters: { thumbnail: { scale: 0.5 } },
+  render: () => (
+    <PreferencesProvider>
+      <div style={{ alignSelf: "flex-start" }}>
+        <View width="600px">
+          <ViewerPreferences />
+        </View>
+      </div>
+    </PreferencesProvider>
+  ),
+};

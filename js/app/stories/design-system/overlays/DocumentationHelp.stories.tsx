@@ -20,3 +20,19 @@ export const Default: Story = {
     children: "Create credentials for automated access to Phoenix.",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    topic: "apiKeys",
+    children: "Create credentials for automated access.",
+  },
+  render: (args) => (
+    <div style={{ alignSelf: "flex-start" }}>
+      <DocumentationHelp {...args} />
+    </div>
+  ),
+  // There is no open prop; its tooltip opens on hover of the link.
+  parameters: { thumbnail: { hover: "link" } },
+};

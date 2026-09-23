@@ -423,3 +423,29 @@ export const CostComparison: Story = {
     size: "M",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // Top-aligned, so the breakdown has room to open below the value.
+  render: (args) => (
+    <div style={{ alignSelf: "flex-start" }}>
+      <TooltipTrigger isOpen>
+        <Pressable>
+          <TokenCosts {...args} />
+        </Pressable>
+        <RichTooltip>
+          <TokenCostsDetails
+            total={0.0342}
+            prompt={0.023}
+            completion={0.0112}
+          />
+        </RichTooltip>
+      </TooltipTrigger>
+    </div>
+  ),
+  args: {
+    children: 0.0342,
+    size: "M",
+  },
+};

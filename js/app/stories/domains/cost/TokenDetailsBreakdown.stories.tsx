@@ -215,3 +215,10 @@ export const InTooltip: Story = {
   ),
   args: TokensAndCost.args,
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...TokensAndCost,
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.55 } },
+};

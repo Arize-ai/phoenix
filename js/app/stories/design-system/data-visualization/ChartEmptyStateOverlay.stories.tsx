@@ -113,3 +113,15 @@ export const CostChartMissingPricing: Story = {
     message: getCostChartEmptyStateMessage({ modelCount: 0, tokenCount: 4200 }),
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // The example chart is 280px tall.
+  parameters: { thumbnail: { scale: 0.6 } },
+  render: () => (
+    <div style={{ width: "100%" }}>
+      <ExampleChart isEmpty />
+    </div>
+  ),
+};

@@ -1,4 +1,4 @@
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import { useMemo, useState } from "react";
 import {
   Autocomplete,
@@ -510,4 +510,23 @@ export const MenuHeaderTitleWithSearch = () => {
       </MenuTrigger>
     </Flex>
   );
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ alignSelf: "flex-start", width: "100%" }}>
+      <MenuTrigger defaultOpen>
+        <Button size="S">Open Menu</Button>
+        <Popover placement="bottom start">
+          <Menu aria-label="Menu">
+            <MenuItem trailingContent={<Text>⌘1</Text>}>Item 1</MenuItem>
+            <MenuItem trailingContent={<Text>⌘2</Text>}>Item 2</MenuItem>
+            <MenuItem trailingContent={<Text>⌘3</Text>}>Item 3</MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+    </div>
+  ),
 };

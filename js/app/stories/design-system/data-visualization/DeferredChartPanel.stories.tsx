@@ -128,3 +128,16 @@ export const Placeholder: Story = {
     </div>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.75 } },
+  render: () => (
+    <div style={{ width: "100%" }}>
+      <ChartPanel title="Traffic" subtitle="Spans by status">
+        <ChartSkeleton />
+      </ChartPanel>
+    </div>
+  ),
+};

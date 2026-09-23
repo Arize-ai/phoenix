@@ -1748,3 +1748,11 @@ export const BatchSpanAnnotateAwaitingApproval: Story = {
     }),
   ],
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...BashCompleted,
+  tags: ["!dev", "!autodocs"],
+  // An expanded tool call at the chat panel's width, shrunk.
+  parameters: { thumbnail: { scale: 0.5 } },
+};

@@ -155,3 +155,15 @@ export const AlongsideCopyField: Story = {
     </Flex>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // A little more stage so the copy button clears the code.
+  parameters: { thumbnail: { scale: 0.75 } },
+  render: () => (
+    <Flex direction="column" width="100%">
+      <PythonBlockWithCopy value={PYTHON_SAMPLE} />
+    </Flex>
+  ),
+};

@@ -253,3 +253,32 @@ export const MultipleTokenCounts: Story = {
     size: "S",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // Top-aligned, so the breakdown has room to open below the value.
+  render: (args) => (
+    <div style={{ alignSelf: "flex-start" }}>
+      <TooltipTrigger isOpen>
+        <Pressable>
+          <TokenCount {...args} />
+        </Pressable>
+        <RichTooltip>
+          <TokenCountDetails
+            total={1699}
+            prompt={691}
+            completion={1008}
+            promptDetails={{
+              tool: 461,
+            }}
+          />
+        </RichTooltip>
+      </TooltipTrigger>
+    </div>
+  ),
+  args: {
+    children: 1699,
+    size: "M",
+  },
+};

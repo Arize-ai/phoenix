@@ -64,3 +64,9 @@ export const SingleItem: Story = {
     </Breadcrumbs>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...WithoutAction,
+  tags: ["!dev", "!autodocs"],
+};

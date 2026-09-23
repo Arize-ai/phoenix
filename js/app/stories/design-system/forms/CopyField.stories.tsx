@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import type { CopyFieldProps } from "@phoenix/components";
 import { CopyField, CopyInput, Flex, Label, Text } from "@phoenix/components";
@@ -107,3 +107,14 @@ export const DifferentSizes: StoryFn = () => (
     </CopyField>
   </Flex>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<CopyFieldProps> = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <CopyField value="https://phoenix.example.com">
+      <Label>Hostname</Label>
+      <CopyInput />
+    </CopyField>
+  ),
+};

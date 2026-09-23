@@ -139,3 +139,11 @@ export const Empty: Story = {
     emptyMessage: "No matching keys or values",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Filtered,
+  tags: ["!dev", "!autodocs"],
+  // Dotted keys fill the frame's width, leaving no room for values at 1:1.
+  parameters: { thumbnail: { scale: 0.6 } },
+};

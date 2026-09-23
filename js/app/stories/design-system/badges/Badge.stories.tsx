@@ -232,3 +232,22 @@ export const SizesByVariant: Story = {
     );
   },
 };
+
+/** Five badges do not fit one row of the card; center the wrapped rows. */
+const thumbnailRowCSS = css`
+  justify-content: center;
+`;
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div css={[rowCSS, thumbnailRowCSS]}>
+      <Badge variant="default">Archived</Badge>
+      <Badge variant="info">Active</Badge>
+      <Badge variant="success">Approved</Badge>
+      <Badge variant="warning">Pending</Badge>
+      <Badge variant="danger">Failed</Badge>
+    </div>
+  ),
+};

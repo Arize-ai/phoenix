@@ -103,3 +103,9 @@ export const TokenList: Story = {
     </ul>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Sizes,
+  tags: ["!dev", "!autodocs"],
+};

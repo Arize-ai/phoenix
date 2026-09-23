@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import { Flex, View } from "@phoenix/components";
 import {
@@ -54,4 +54,33 @@ const Template: StoryFn = () => {
 
 export const Default = {
   render: Template,
+};
+
+/** The families shown in the Overview card picture: a sample, not the catalog. */
+const THUMBNAIL_FAMILIES = [
+  "gray",
+  "blue",
+  "green",
+  "yellow",
+  "orange",
+  "red",
+  "purple",
+];
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="column" gap="size-50" width="100%">
+      {THUMBNAIL_FAMILIES.map((family) => (
+        <Flex key={family} direction="row">
+          {GLOBAL_COLORS.filter((color) => color.startsWith(`${family}-`)).map(
+            (color) => (
+              <View key={color} backgroundColor={color} height={20} flex={1} />
+            )
+          )}
+        </Flex>
+      ))}
+    </Flex>
+  ),
 };

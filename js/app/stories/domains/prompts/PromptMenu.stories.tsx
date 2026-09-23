@@ -48,8 +48,8 @@ const meta: Meta = {
     },
   },
   decorators: [
-    (Story) => (
-      <div style={{ width: "600px" }}>
+    (Story, { parameters }) => (
+      <div style={{ width: "600px", ...parameters.containerStyle }}>
         <Story />
       </div>
     ),
@@ -664,5 +664,23 @@ export const MaxTagWidth: PresetStory = {
     await userEvent.click(versionButton);
     const tagsTab = canvas.getByRole("tab", { name: /Tags/i });
     await userEvent.click(tagsTab);
+  },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: PresetStory = {
+  ...LoadedWithTag,
+  tags: ["!dev", "!autodocs"],
+  parameters: {
+    ...presetParameters,
+    // Pinned to the top of the frame so the menu opens down into it.
+    containerStyle: { width: "288px", alignSelf: "flex-start" },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // There is no open prop; open the prompt menu as a user would.
+    await userEvent.click(
+      canvas.getByRole("button", { name: /Customer Support Agent/i })
+    );
   },
 };

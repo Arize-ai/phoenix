@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import type { NumberFieldProps } from "@phoenix/components";
 import {
@@ -74,3 +74,21 @@ export const Formatting = () => (
     </NumberField>
   </View>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<NumberFieldProps> = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <NumberField
+      defaultValue={2.5}
+      formatOptions={{
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+      }}
+    >
+      <Label>Cost per 1M tokens</Label>
+      <Input />
+    </NumberField>
+  ),
+};

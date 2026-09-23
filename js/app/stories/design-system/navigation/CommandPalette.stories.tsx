@@ -251,3 +251,47 @@ const CustomFooterTemplate: StoryFn<typeof CommandPalette> = () => {
 export const WithCustomFooter = {
   render: CustomFooterTemplate,
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+const ThumbnailTemplate: StoryFn<typeof CommandPalette> = () => {
+  const { contains } = useFilter({ sensitivity: "base" });
+  return (
+    <CommandPalette
+      isOpen
+      onOpenChange={() => {}}
+      placeholder="Type a command…"
+      filter={(textValue, inputValue) => contains(textValue, inputValue)}
+    >
+      <CommandPaletteSection title="Navigation">
+        <CommandPaletteItem
+          textValue="Go to projects"
+          icon={<Icon svg={<Icons.Grid />} />}
+          description="View all tracing projects"
+        >
+          Go to projects
+        </CommandPaletteItem>
+        <CommandPaletteItem
+          textValue="Go to datasets"
+          icon={<Icon svg={<Icons.Database />} />}
+          description="Datasets and experiments"
+        >
+          Go to datasets
+        </CommandPaletteItem>
+        <CommandPaletteItem
+          textValue="Go to prompts"
+          icon={<Icon svg={<Icons.MessageSquare />} />}
+          description="Prompt management"
+        >
+          Go to prompts
+        </CommandPaletteItem>
+      </CommandPaletteSection>
+    </CommandPalette>
+  );
+};
+
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  // The palette is a 750px medium modal, over twice the frame's width.
+  parameters: { thumbnail: { scale: 0.4 } },
+  render: ThumbnailTemplate,
+};

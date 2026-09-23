@@ -94,3 +94,9 @@ export const AsSpan: Story = {
     </p>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...AsHeading,
+  tags: ["!dev", "!autodocs"],
+};

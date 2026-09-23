@@ -312,3 +312,20 @@ export const AllPlacementsWithArrows: Story = {
     </div>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: (args: TooltipProps) => (
+    <TooltipTrigger defaultOpen>
+      <Button>Hover me</Button>
+      <Tooltip {...args}>
+        <TooltipArrow />
+        Helpful context
+      </Tooltip>
+    </TooltipTrigger>
+  ),
+  args: {
+    placement: "top",
+  },
+};

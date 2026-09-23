@@ -174,3 +174,9 @@ function ClickToCycleRender(args: AgentChatWidgetButtonProps) {
 export const ClickToCycleStates: Story = {
   render: (args) => <ClickToCycleRender {...args} />,
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...GlyphStates,
+  tags: ["!dev", "!autodocs"],
+};

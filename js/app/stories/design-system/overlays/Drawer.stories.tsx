@@ -1,8 +1,17 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
-import { Button, Dialog, Drawer, Flex, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Dialog,
+  Drawer,
+  DrawerPlane,
+  Flex,
+  OverlayFrameProvider,
+  Text,
+  View,
+} from "@phoenix/components";
 import { Heading } from "@phoenix/components/core/content";
 import {
   DialogCloseButton,
@@ -208,4 +217,33 @@ const MasterDetailTemplate: StoryFn = () => {
 
 export const MasterDetail = {
   render: MasterDetailTemplate,
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  // A drawer is at least 320px wide, the whole frame at 1:1.
+  parameters: { thumbnail: { scale: 0.5 } },
+  // Hosted the way the app hosts it, through the overlay frame's drawer
+  // plane, so it sizes against the page rather than the window.
+  render: () => (
+    <OverlayFrameProvider>
+      <div style={{ alignSelf: "stretch", flex: 1, position: "relative" }}>
+        <Text>Page content</Text>
+        <DrawerPlane style={{ inset: 0, position: "absolute" }} />
+        <Drawer isOpen onClose={() => {}}>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Drawer</DialogTitle>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text>Details beside the page.</Text>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Drawer>
+      </div>
+    </OverlayFrameProvider>
+  ),
 };

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { userEvent, within } from "storybook/test";
 
 import {
   Button,
@@ -167,5 +168,25 @@ export const WithLongOptions: Story = {
         </ListBox>
       </Popover>
     </Select>
+  ),
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    defaultSelectedKey: "1",
+  },
+  // Opened by a pointer press rather than `defaultOpen`, which puts a
+  // keyboard focus ring on the selected option.
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole("button"));
+  },
+  render: (args) => (
+    <div style={{ alignSelf: "flex-start" }}>
+      <Select {...args}>
+        <SelectContent />
+      </Select>
+    </div>
   ),
 };

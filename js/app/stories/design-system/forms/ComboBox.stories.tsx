@@ -1,4 +1,5 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import { userEvent, within } from "storybook/test";
 
 import { Flex, Input, Label, TextField, View } from "@phoenix/components";
 import type { ComboBoxProps } from "@phoenix/components/core/combobox/ComboBox";
@@ -167,3 +168,30 @@ export function Gallery() {
     </Flex>
   );
 }
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<ComboBoxProps<object>> = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    label: "Ice cream flavor",
+  },
+  render: (args) => (
+    <View width="240px" alignSelf="start">
+      <ComboBox {...args}>
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+      </ComboBox>
+    </View>
+  ),
+  // There is no open prop; press the field's button, as a pointer would.
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole("button"));
+  },
+};

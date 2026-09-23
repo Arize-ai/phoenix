@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import type { DialogTriggerProps } from "@phoenix/components";
 import {
@@ -35,4 +35,22 @@ const Template: StoryFn<DialogTriggerProps> = (args) => (
 
 export const Default = {
   render: Template,
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ alignSelf: "flex-start" }}>
+      <DialogTrigger defaultOpen>
+        <Button size="S">Settings</Button>
+        <Popover placement="bottom">
+          <PopoverArrow />
+          <Dialog>
+            <View padding="size-200">Popover content</View>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+    </div>
+  ),
 };

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
 import type { TextProps } from "@phoenix/components";
 import { Flex, Text } from "@phoenix/components";
@@ -116,3 +116,23 @@ function GalleryComponent() {
     </div>
   );
 }
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="column" gap="size-50">
+      {sizes.map((size) => (
+        <Text key={size} size={size}>
+          {`I will not waste chalk`}
+        </Text>
+      ))}
+      <Text size="L" weight="heavy">
+        {`I will not waste chalk`}
+      </Text>
+      <Text size="L" fontFamily="mono">
+        {`I will not waste chalk`}
+      </Text>
+    </Flex>
+  ),
+};

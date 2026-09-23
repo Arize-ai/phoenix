@@ -724,3 +724,15 @@ export const ShiftClickRangeSelection: Story = {
     }
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    enableResizing: true,
+    enableSorting: true,
+    data: mockPeople.slice(0, 5),
+  },
+  // The table is page width.
+  parameters: { thumbnail: { scale: 0.5 } },
+};

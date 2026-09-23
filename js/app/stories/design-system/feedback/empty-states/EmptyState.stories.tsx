@@ -302,3 +302,26 @@ export const GraphicSixCardsTwoColumnsVertical: Story = {
     orientation: "vertical",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // The graphic alone is most of the frame's height at 1:1.
+  parameters: { thumbnail: { scale: 0.6 } },
+  args: {
+    graphic: <EmptyStateGraphic variant="experiment" />,
+    title: "No experiments yet",
+    description: "Run an experiment to compare prompt variations.",
+    action: {
+      type: "strip",
+      items: [
+        {
+          kind: "button",
+          variant: "primary",
+          children: "Create Experiment",
+          onPress: () => {},
+        },
+      ],
+    },
+  },
+};

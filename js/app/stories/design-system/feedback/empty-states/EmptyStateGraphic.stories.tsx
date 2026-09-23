@@ -88,3 +88,16 @@ export const Large: Story = {
 export const Small: Story = {
   render: () => renderGallery(SMALL_VARIANTS),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
+      <EmptyStateGraphic variant="trace" />
+      <EmptyStateGraphic variant="annotation" />
+    </div>
+  ),
+  // A large graphic is most of the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.7 } },
+};

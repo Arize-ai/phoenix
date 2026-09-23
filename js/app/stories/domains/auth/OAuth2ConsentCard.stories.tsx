@@ -100,3 +100,11 @@ export const Submitting: Story = {
     isSubmitting: true,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Default,
+  tags: ["!dev", "!autodocs"],
+  // The auth card is a full page surface.
+  parameters: { thumbnail: { scale: 0.33 } },
+};

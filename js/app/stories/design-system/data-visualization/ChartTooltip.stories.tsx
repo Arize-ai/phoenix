@@ -166,3 +166,9 @@ export const LongLabelNames: Story = {
     </ChartTooltip>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Default,
+  tags: ["!dev", "!autodocs"],
+};

@@ -110,3 +110,16 @@ export const FillHeightInResizablePanel: Story = {
     subtitle: "Annotation scores and latency by experiment",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.75 } },
+  render: () => (
+    <div style={{ width: "100%", height: "100%" }}>
+      <ChartPanel title="Traffic" subtitle="Spans by status" fillHeight>
+        <ExampleChart />
+      </ChartPanel>
+    </div>
+  ),
+};

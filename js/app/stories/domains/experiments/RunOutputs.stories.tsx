@@ -1,4 +1,5 @@
 import type { Meta, StoryFn } from "@storybook/react";
+import type { ComponentType } from "react";
 
 import { View } from "@phoenix/components";
 import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
@@ -1060,4 +1061,20 @@ export const WithoutReferenceOutput = {
     annotationSummaries: mockAnnotationSummaries,
     referenceOutput: null,
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  ...Default,
+  tags: ["!dev", "!autodocs"],
+  // The sidebar needs a wide view: narrower, its rows overflow into the runs.
+  parameters: { thumbnail: { scale: 0.3 } },
+  decorators: [
+    // Top-aligned, so the frame clips the end of the outputs, not the header.
+    (Story: ComponentType) => (
+      <div style={{ alignSelf: "flex-start", width: "100%" }}>
+        <Story />
+      </div>
+    ),
+  ],
 };

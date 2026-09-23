@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import {
@@ -120,4 +120,54 @@ const Template: StoryFn = () => <IconsGallery />;
 export const Default = {
   render: Template,
   args: {},
+};
+
+/** A sample of the set for the Overview card, not the whole catalog. */
+const THUMBNAIL_ICONS: (keyof typeof Icons)[] = [
+  "Person",
+  "Key",
+  "Grid",
+  "Trace",
+  "Workflow",
+  "Funnel",
+  "Book",
+  "FileText",
+  "Image",
+  "Database",
+  "Search",
+  "Clock",
+  "Play",
+  "Pause",
+  "Options",
+  "Info",
+  "Globe",
+  "Cube",
+];
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <ul
+      style={{
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        display: "grid",
+        gridTemplateColumns: "repeat(6, auto)",
+        gap: 4,
+      }}
+    >
+      {THUMBNAIL_ICONS.map((name) => {
+        const Svg = Icons[name];
+        return (
+          <li key={name}>
+            <IconButton aria-label={name}>
+              <Icon svg={<Svg />} />
+            </IconButton>
+          </li>
+        );
+      })}
+    </ul>
+  ),
 };

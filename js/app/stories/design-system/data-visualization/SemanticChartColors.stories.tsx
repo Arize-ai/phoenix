@@ -44,3 +44,25 @@ const Template: StoryFn = () => {
 export const Default = {
   render: Template,
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: function SemanticChartColorsThumbnail() {
+    const colors = useSemanticChartColors();
+    return (
+      <Flex direction="row" gap="size-100">
+        {SEMANTIC_CHART_COLORS.map((colorKey) => (
+          <div
+            key={colorKey}
+            style={{
+              backgroundColor: colors[colorKey],
+              height: "40px",
+              width: "40px",
+            }}
+          />
+        ))}
+      </Flex>
+    );
+  },
+};

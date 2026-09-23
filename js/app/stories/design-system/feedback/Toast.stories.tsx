@@ -1,4 +1,4 @@
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 import type { QueuedToast } from "react-aria-components";
 
 import { Toast } from "@phoenix/components";
@@ -105,4 +105,12 @@ export const WithAction = {
       },
     },
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  ...Success,
+  tags: ["!dev", "!autodocs"],
+  // The meta decorator hosts the toast at the region's 400px width.
+  parameters: { thumbnail: { scale: 0.75 } },
 };

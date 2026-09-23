@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import type { QueuedToast } from "react-aria-components";
 
 import { Alert, Badge, Flex, Text, Token, View } from "@phoenix/components";
@@ -193,4 +193,28 @@ const Template: StoryFn = () => {
 
 export const Default = {
   render: Template,
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="column" gap="size-150" width="100%">
+      {levels.map((level) => (
+        <Flex
+          key={level.name}
+          direction="row"
+          gap="size-150"
+          alignItems="center"
+        >
+          <div css={swatchCSS} style={{ backgroundColor: level.cssVar }} />
+          <View width="size-900">
+            <p css={sectionTitleCSS}>{level.name}</p>
+          </View>
+          <Badge variant={level.badge.variant}>{level.badge.label}</Badge>
+          <Token color={level.token.color}>{level.token.label}</Token>
+        </Flex>
+      ))}
+    </Flex>
+  ),
 };

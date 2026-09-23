@@ -93,3 +93,22 @@ export const Loading: Story = {
     <SegmentChartSkeleton height={args.height} showMarkerLane />
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: (args) => (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--global-dimension-size-300)",
+        width: "100%",
+      }}
+    >
+      <SegmentChart {...args} />
+      <SegmentChart {...args} {...WithMarker.args} />
+      <SegmentChart {...args} {...WithTrack.args} />
+    </div>
+  ),
+};

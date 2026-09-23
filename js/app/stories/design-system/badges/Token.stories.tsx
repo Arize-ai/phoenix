@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import {
   Card,
@@ -204,4 +204,19 @@ export const Truncated: Meta<typeof Token> = {
   args: {
     isDisabled: false,
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex gap="size-100" wrap justifyContent="center">
+      <Token>Default</Token>
+      <Token color="var(--global-color-info)">Info</Token>
+      <Token color="var(--global-color-success)">Success</Token>
+      <Token color="var(--global-color-warning)">Warning</Token>
+      <Token color="var(--global-color-danger)">Danger</Token>
+      <Token onRemove={() => {}}>Removable</Token>
+    </Flex>
+  ),
 };

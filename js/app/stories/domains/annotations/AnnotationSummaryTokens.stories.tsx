@@ -140,3 +140,8 @@ export const UnifiedHoverPreview: Story = {
     ).toBeInTheDocument();
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+};

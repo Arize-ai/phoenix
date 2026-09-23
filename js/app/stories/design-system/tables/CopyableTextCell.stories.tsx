@@ -71,3 +71,31 @@ export const Empty: Story = {
     value: null,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <table css={narrowTableCSS} data-rows="collapsed">
+      <thead>
+        <tr>
+          <th>id</th>
+        </tr>
+      </thead>
+      <tbody>
+        {[
+          "8ba22f7b2ee5d0f4",
+          "user-3f7b2ee5d0f48ba2-very-long-identifier-that-truncates",
+        ].map((value) => (
+          <tr key={value}>
+            <td>
+              <CopyableTextCell value={value} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
+  // The copy control appears on hover of the cell.
+  parameters: { thumbnail: { hover: "cell" } },
+};

@@ -140,3 +140,14 @@ export const Vertical: Story = {
     orientation: "vertical",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // Seven controls in a row are wider than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.7 } },
+  render: Template,
+  args: {
+    orientation: "horizontal",
+  },
+};

@@ -130,3 +130,15 @@ export const Loading: Story = {
     );
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // The bars and the table together are taller than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.65 } },
+  render: () => (
+    <div style={{ width: "100%" }}>
+      <Example dimensions={[count, size]} />
+    </div>
+  ),
+};

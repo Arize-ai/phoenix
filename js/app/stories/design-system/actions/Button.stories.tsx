@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
-import { Button } from "@phoenix/components";
+import { Button, Flex } from "@phoenix/components";
 import { Keyboard, VisuallyHidden } from "@phoenix/components/core/content";
 const meta: Meta = {
   title: "Design System/Actions/Button",
@@ -61,4 +61,15 @@ export const WithKeyboard = {
       </Keyboard>
     ),
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="row" gap="size-100">
+      <Button>Cancel</Button>
+      <Button variant="primary">Save</Button>
+    </Flex>
+  ),
 };

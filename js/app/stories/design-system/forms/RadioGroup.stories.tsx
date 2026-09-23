@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import {
   Card,
@@ -75,4 +75,16 @@ export const AsIcon: Meta<typeof RadioGroup> = {
       control: { type: "select", options: ["S", "M", "L"] },
     },
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<RadioGroupProps> = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <RadioGroup aria-label="RadioGroup" defaultValue="1">
+      <Radio value="1">Option 1</Radio>
+      <Radio value="2">Option 2</Radio>
+      <Radio value="3">Option 3</Radio>
+    </RadioGroup>
+  ),
 };

@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import type { TagGroupProps } from "@phoenix/components";
 import { Label, Tag, TagGroup, TagList } from "@phoenix/components";
@@ -40,4 +40,20 @@ export const Default = {
   args: {
     selectionMode: "multiple",
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<TagGroupProps> = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <TagGroup selectionMode="multiple" defaultSelectedKeys={["news", "gaming"]}>
+      <Label>Categories</Label>
+      <TagList>
+        <Tag id="news">News</Tag>
+        <Tag id="travel">Travel</Tag>
+        <Tag id="gaming">Gaming</Tag>
+        <Tag id="shopping">Shopping</Tag>
+      </TagList>
+    </TagGroup>
+  ),
 };

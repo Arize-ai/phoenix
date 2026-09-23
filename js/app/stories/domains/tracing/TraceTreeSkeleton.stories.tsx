@@ -136,3 +136,15 @@ export const SideBySide: Story = {
     </div>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // Wide enough for the timing column the tree shows beside its rows.
+  parameters: { thumbnail: { scale: 0.5 } },
+  render: () => (
+    <div style={{ ...frameCSS, height: "100%", width: "100%" }}>
+      <TraceTreeSkeleton />
+    </div>
+  ),
+};

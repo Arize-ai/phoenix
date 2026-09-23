@@ -83,3 +83,15 @@ export const InToolbar: StoryObj<SearchButtonProps> = {
     </Flex>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<SearchButtonProps> = {
+  ...InToolbar,
+  tags: ["!dev", "!autodocs"],
+  // Expanded beside its neighbors, the row is a little wider than the frame.
+  parameters: { thumbnail: { scale: 0.9 } },
+  args: {
+    ...InToolbar.args,
+    defaultValue: "temperature",
+  },
+};

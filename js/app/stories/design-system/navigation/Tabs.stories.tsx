@@ -219,3 +219,28 @@ export const WithExtra = {
   render: ExtraTemplate,
   args: {},
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <View width="100%">
+      <Tabs>
+        <TabList>
+          <Tab id="details">Details</Tab>
+          <Tab id="settings">Settings</Tab>
+          <Tab id="advanced">Advanced</Tab>
+        </TabList>
+        <TabPanel padded id="details">
+          Content for Details
+        </TabPanel>
+        <TabPanel padded id="settings">
+          Content for Settings
+        </TabPanel>
+        <TabPanel padded id="advanced">
+          Content for Advanced
+        </TabPanel>
+      </Tabs>
+    </View>
+  ),
+};

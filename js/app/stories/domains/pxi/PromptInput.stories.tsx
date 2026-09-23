@@ -411,3 +411,11 @@ export const Gallery: Story = {
     );
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...WithToolbar,
+  tags: ["!dev", "!autodocs"],
+  // The input is laid out at the chat panel's width, then shrunk.
+  parameters: { thumbnail: { scale: 0.5 } },
+};

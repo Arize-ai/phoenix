@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import type { ReactNode } from "react";
 
 import type { ModalProps, ViewportModalProps } from "@phoenix/components";
@@ -236,4 +236,33 @@ const NoOverlayTemplate: StoryFn<ModalProps> = (args) => (
 
 export const NoOverlay = {
   render: NoOverlayTemplate,
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  // Even the smallest modal is wider than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.5 } },
+  render: () => (
+    <DialogTrigger defaultOpen>
+      <Button>Open Modal</Button>
+      <ModalOverlay>
+        <Modal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Modal</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text>Blocks the page until resolved.</Text>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
+  ),
 };

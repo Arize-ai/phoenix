@@ -201,3 +201,12 @@ export const InCardCollapsed: Story = {
     indexNotation: "dot",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: stacked,
+  args: { value: ObjectValue.args?.value, defaultMode: "table" },
+  // The toolbar alone is wider than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.6 } },
+};

@@ -109,3 +109,31 @@ function getRuleName(offsetMs: number): string {
   if (offsetMs < ONE_DAY_MS) return "6–24h → hours";
   return "> 24h → days";
 }
+
+/** One sample from each formatting tier. */
+const THUMBNAIL_SAMPLES = SAMPLES.filter(({ label }) =>
+  ["5 minutes ago", "8 hours ago", "2 days ago", "45 days ago"].includes(label)
+);
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <table>
+      <tbody>
+        {THUMBNAIL_SAMPLES.map(({ label, offsetMs }) => (
+          <tr key={label}>
+            <td>
+              <Text size="S">{label}</Text>
+            </td>
+            <td>
+              <Text size="S" weight="heavy">
+                {formatRelativeShort(NOW - offsetMs, NOW)}
+              </Text>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
+};

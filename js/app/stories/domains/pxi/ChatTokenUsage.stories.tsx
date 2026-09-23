@@ -171,3 +171,18 @@ function TokenUsageScenario({
     </section>
   );
 }
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Expanded,
+  tags: ["!dev", "!autodocs"],
+  // The footer is laid out at the chat panel's width, then shrunk.
+  parameters: { thumbnail: { scale: 0.66 } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole("button", { name: "33,200 total tokens" });
+    await userEvent.click(trigger);
+    // Photograph the expanded breakdown, not the trigger's focus ring.
+    trigger.blur();
+  },
+};

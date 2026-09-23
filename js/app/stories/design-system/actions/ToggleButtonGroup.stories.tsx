@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import {
   Card,
@@ -93,4 +93,20 @@ export const AsIcon: Meta<typeof ToggleButtonGroup> = {
       options: ["single", "multiple"],
     },
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <ToggleButtonGroup
+      aria-label="ToggleButtonGroup"
+      selectionMode="multiple"
+      defaultSelectedKeys={["1", "3"]}
+    >
+      <ToggleButton id="1">Option 1</ToggleButton>
+      <ToggleButton id="2">Option 2</ToggleButton>
+      <ToggleButton id="3">Option 3</ToggleButton>
+    </ToggleButtonGroup>
+  ),
 };

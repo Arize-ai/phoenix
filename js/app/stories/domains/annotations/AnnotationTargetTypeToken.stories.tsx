@@ -29,3 +29,9 @@ export const AllTargetTypes: Story = {
     </Flex>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...AllTargetTypes,
+  tags: ["!dev", "!autodocs"],
+};

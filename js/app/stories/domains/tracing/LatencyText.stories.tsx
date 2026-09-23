@@ -75,3 +75,9 @@ export const ColorRanges: StoryFn = () => (
     />
   </div>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: ColorRanges,
+};

@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import { Icon, Icons, ToggleButton } from "@phoenix/components";
@@ -60,4 +60,15 @@ export const Disabled = {
     isDisabled: true,
     onPress: () => {},
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<typeof ToggleButton> = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ display: "flex", gap: "var(--global-dimension-size-100)" }}>
+      <ToggleButton defaultSelected>Selected</ToggleButton>
+      <ToggleButton>Unselected</ToggleButton>
+    </div>
+  ),
 };

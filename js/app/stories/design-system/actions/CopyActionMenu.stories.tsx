@@ -1,4 +1,5 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import { userEvent, within } from "storybook/test";
 
 import { CopyActionMenu, View } from "@phoenix/components";
 
@@ -53,3 +54,20 @@ export const ManyItems: StoryFn = () => (
     />
   </View>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  args: Default.args,
+  render: (args) => (
+    <div style={{ alignSelf: "flex-start", marginInlineStart: 120 }}>
+      <CopyActionMenu items={args.items} />
+    </div>
+  ),
+  // There is no open prop; press the trigger, as a pointer would.
+  play: async ({ canvasElement }) => {
+    await userEvent.click(
+      within(canvasElement).getByRole("button", { name: "Copy" })
+    );
+  },
+};

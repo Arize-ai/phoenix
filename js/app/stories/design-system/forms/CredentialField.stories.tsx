@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import type { CredentialFieldProps } from "@phoenix/components";
 import {
@@ -158,3 +158,16 @@ export const DifferentSizes: StoryFn = () => (
     </CredentialField>
   </Flex>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<CredentialFieldProps> = {
+  tags: ["!dev", "!autodocs"],
+  // The value goes on the field: the field's state overrides the input's.
+  render: () => (
+    <CredentialField defaultValue="sk-1234567890abcdef">
+      <Label>API Key</Label>
+      <CredentialInput />
+      <Text slot="description">Your secret API key</Text>
+    </CredentialField>
+  ),
+};

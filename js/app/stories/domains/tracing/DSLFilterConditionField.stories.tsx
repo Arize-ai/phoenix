@@ -385,3 +385,20 @@ export const FieldsOnly: StoryFn<DSLFilterConditionFieldProps> = (args) => {
     </View>
   );
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: (args: DSLFilterConditionFieldProps) => (
+    <View width="100%">
+      <DSLFilterConditionField
+        {...args}
+        value="latency_ms >= 10_000"
+        onChange={() => {}}
+        completions={completions}
+        snippets={snippets}
+        validateCondition={validateCondition}
+      />
+    </View>
+  ),
+};

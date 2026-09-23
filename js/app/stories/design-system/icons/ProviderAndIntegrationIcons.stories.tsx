@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { INTEGRATION_ICONS } from "@phoenix/components/project/IntegrationIcons";
@@ -65,3 +65,25 @@ export const Integrations: StoryFn = () => (
     </ul>
   </div>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <ul
+      style={{
+        ...listStyle,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        gap: 16,
+      }}
+    >
+      {providers.map(({ key }) => (
+        <li key={key}>
+          <GenerativeProviderIcon provider={key} height={24} />
+        </li>
+      ))}
+    </ul>
+  ),
+};

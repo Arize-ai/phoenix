@@ -316,3 +316,11 @@ export const LongNames: Story = {
     width: 360,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...LabelDistribution,
+  tags: ["!dev", "!autodocs"],
+  args: { ...LabelDistribution.args, width: 608 },
+  parameters: { thumbnail: { scale: 0.5 } },
+};

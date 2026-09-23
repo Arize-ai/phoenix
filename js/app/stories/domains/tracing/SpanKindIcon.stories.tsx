@@ -77,3 +77,35 @@ export const Default = {
   render: Template,
   args: {},
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  // The kinds as the trace tree draws them: the fill variant, beside its name.
+  render: () => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: "12px 16px",
+      }}
+    >
+      {SPAN_KINDS.map((spanKind) => (
+        <div
+          key={spanKind}
+          style={{ display: "flex", alignItems: "center", gap: "8px" }}
+        >
+          <SpanKindIcon spanKind={spanKind} variant="fill" />
+          <span
+            style={{
+              fontSize: "13px",
+              color: "var(--global-text-color-900)",
+            }}
+          >
+            {spanKind}
+          </span>
+        </div>
+      ))}
+    </div>
+  ),
+};

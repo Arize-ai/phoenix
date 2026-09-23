@@ -57,3 +57,12 @@ export const ProgressBarWithCustomColor: Story = {
     value: 60,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    value: 60,
+    width: "240px",
+  },
+};

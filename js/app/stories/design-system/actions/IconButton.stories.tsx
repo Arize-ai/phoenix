@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
 import { Button } from "@phoenix/components/core/button/Button";
 import { IconButton } from "@phoenix/components/core/button/IconButton";
@@ -283,3 +283,30 @@ export const SizeComparison = () => (
     </div>
   </div>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div
+      css={css`
+        display: flex;
+        align-items: center;
+        gap: var(--global-dimension-size-100);
+      `}
+    >
+      <IconButton aria-label="Search">
+        <Icon svg={<Search />} />
+      </IconButton>
+      <IconButton aria-label="Settings">
+        <Icon svg={<Settings />} />
+      </IconButton>
+      <IconButton aria-label="Edit">
+        <Icon svg={<Edit />} />
+      </IconButton>
+      <IconButton aria-label="Delete">
+        <Icon svg={<Trash />} />
+      </IconButton>
+    </div>
+  ),
+};

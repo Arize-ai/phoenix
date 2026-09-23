@@ -47,3 +47,24 @@ export const Quiet: Story = {
     variant: "quiet",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    id: "c5b943dba87507a2",
+  },
+  render: (args) => (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 16,
+      }}
+    >
+      <IDBadge {...args} />
+      <IDBadge {...args} variant="quiet" />
+    </div>
+  ),
+};

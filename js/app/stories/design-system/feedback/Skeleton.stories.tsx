@@ -84,3 +84,15 @@ export const TextLine: Story = {
     </Flex>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="column" gap="size-100" width="240px">
+      <Skeleton height={80} borderRadius={8} />
+      <Skeleton height={20} width="80%" />
+      <Skeleton height={14} width="60%" />
+    </Flex>
+  ),
+};

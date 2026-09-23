@@ -319,3 +319,17 @@ export const ToolAndSkillIcons: Story = {
     </div>
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // Collapsed tool rows at the chat panel's width, shrunk.
+  parameters: { thumbnail: { scale: 0.5 } },
+  render: () => (
+    <div>
+      {toolIconItems.slice(0, 8).map(({ label, part }) => (
+        <ToolPart key={label} part={part} defaultOpen={false} />
+      ))}
+    </div>
+  ),
+};

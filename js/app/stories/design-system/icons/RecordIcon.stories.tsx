@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import { Button } from "@phoenix/components/core/button/Button";
@@ -37,4 +37,15 @@ export const InButton: StoryFn = () => {
       {isActive ? "Recording" : "Record"}
     </Button>
   );
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ display: "flex", gap: 16 }}>
+      <Button leadingVisual={<RecordIcon isActive={false} />}>Record</Button>
+      <Button leadingVisual={<RecordIcon isActive />}>Recording</Button>
+    </div>
+  ),
 };

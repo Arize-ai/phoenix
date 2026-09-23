@@ -60,3 +60,19 @@ export const InAPopOver = () => {
     </DialogTrigger>
   );
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.75 } },
+  render: () => (
+    <TimeRangeForm
+      initialValue={{
+        start: new Date("2024-01-15T10:00:00Z"),
+        end: new Date("2024-01-22T18:30:00Z"),
+      }}
+      timeZone="UTC"
+      onSubmit={() => {}}
+    />
+  ),
+};

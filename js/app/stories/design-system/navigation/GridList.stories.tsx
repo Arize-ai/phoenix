@@ -167,3 +167,29 @@ export const WithSections: StoryObj<Omit<GridListProps<object>, "children">> = {
     selectionBehavior: "toggle",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div
+      css={css`
+        width: 240px;
+        border: 1px solid var(--global-color-gray-300);
+        border-radius: var(--global-rounding-small);
+      `}
+    >
+      <GridList
+        aria-label="Example grid list"
+        selectionMode="multiple"
+        selectionBehavior="toggle"
+        defaultSelectedKeys={["2"]}
+      >
+        <GridListItem id="1">Item 1</GridListItem>
+        <GridListItem id="2">Item 2</GridListItem>
+        <GridListItem id="3">Item 3</GridListItem>
+        <GridListItem id="4">Item 4</GridListItem>
+      </GridList>
+    </div>
+  ),
+};

@@ -365,3 +365,25 @@ export const CostBreakdown: Story = {
     placement: "top",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: (args: RichTooltipProps) => (
+    <div style={{ alignSelf: "flex-end" }}>
+      <TooltipTrigger defaultOpen>
+        <Button size="S">Rich tooltip</Button>
+        <RichTooltip {...args}>
+          <TooltipArrow />
+          <RichTooltipTitle>Rich tooltip</RichTooltipTitle>
+          <RichTooltipDescription>
+            Structured context for a feature.
+          </RichTooltipDescription>
+        </RichTooltip>
+      </TooltipTrigger>
+    </div>
+  ),
+  args: {
+    placement: "top",
+  },
+};

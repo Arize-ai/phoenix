@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import { Card, Slider, SliderNumberField, View } from "@phoenix/components";
@@ -132,5 +132,24 @@ export const Controlled = {
     label: "Controlled Slider",
     minValue: 0,
     maxValue: 100,
+  },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj<typeof Slider> = {
+  tags: ["!dev", "!autodocs"],
+  render: (args) => (
+    <View width="100%">
+      <Slider {...args}>
+        <SliderNumberField />
+      </Slider>
+    </View>
+  ),
+  args: {
+    label: "Temperature",
+    defaultValue: 0.7,
+    minValue: 0,
+    maxValue: 1,
+    step: 0.1,
   },
 };

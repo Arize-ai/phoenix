@@ -91,3 +91,11 @@ export const InPopover: Story = {
     projects: PROJECTS,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...Default,
+  tags: ["!dev", "!autodocs"],
+  // The search field and full project list are taller than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.8 } },
+};

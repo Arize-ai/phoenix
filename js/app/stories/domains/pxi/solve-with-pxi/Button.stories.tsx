@@ -117,3 +117,11 @@ export const GlowEffect: Story = {
   name: "Glow effect",
   render: () => <GlowEffectExample />,
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...SizesAndVariants,
+  tags: ["!dev", "!autodocs"],
+  // The row of sizes is slightly wider than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.7 } },
+};

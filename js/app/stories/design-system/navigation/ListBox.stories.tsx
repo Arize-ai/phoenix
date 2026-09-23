@@ -29,3 +29,21 @@ export const Default = {
     selectionMode: "single",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <ListBox
+      aria-label="Favorite animal"
+      selectionMode="single"
+      defaultSelectedKeys={["cat"]}
+      style={{ width: 200 }}
+    >
+      <ListBoxItem id="aardvark">Aardvark</ListBoxItem>
+      <ListBoxItem id="cat">Cat</ListBoxItem>
+      <ListBoxItem id="dog">Dog</ListBoxItem>
+      <ListBoxItem id="kangaroo">Kangaroo</ListBoxItem>
+    </ListBox>
+  ),
+};

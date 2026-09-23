@@ -60,3 +60,9 @@ export const NoMessage: Story = {
     message: undefined,
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...WithMessage,
+  tags: ["!dev", "!autodocs"],
+};

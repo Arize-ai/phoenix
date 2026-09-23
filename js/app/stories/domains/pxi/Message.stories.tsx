@@ -406,3 +406,11 @@ TypeScript is essentially JavaScript with guardrails.`}
 export const Gallery: Story = {
   render: () => <GalleryRender />,
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...WithActions,
+  tags: ["!dev", "!autodocs"],
+  // The thread is laid out at the chat panel's width, then shrunk.
+  parameters: { thumbnail: { scale: 0.42 } },
+};

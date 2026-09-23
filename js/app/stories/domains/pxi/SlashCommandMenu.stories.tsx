@@ -80,3 +80,23 @@ export const CommandsOnly: Story = {
     <Demo items={ITEMS.filter((item) => item.kind === "command")} />
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // The menu is laid out at the prompt input's width, then shrunk.
+  parameters: { thumbnail: { scale: 0.66 } },
+  // The menu rises above its anchor, so the anchor sits at the bottom.
+  render: () => (
+    <div style={{ position: "relative", alignSelf: "flex-end", width: 420 }}>
+      <SlashCommandMenu
+        items={ITEMS}
+        activeIndex={0}
+        onActiveIndexChange={() => {}}
+        onSelect={() => {}}
+        listboxId="thumbnail-slash-command-menu"
+        getOptionId={(index) => `thumbnail-slash-command-menu-option-${index}`}
+      />
+    </div>
+  ),
+};

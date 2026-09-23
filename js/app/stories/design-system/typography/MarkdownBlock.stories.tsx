@@ -153,3 +153,22 @@ export const TextMode: Story = {
     </Flex>
   ),
 };
+
+/** An excerpt of `complexMarkdown` small enough for the Overview card. */
+const thumbnailMarkdown = [
+  "## Mixed content",
+  "",
+  "- Supports unordered lists",
+  "- Preserves **bold text**, _emphasis_, and ~~strikethrough~~",
+  "- Keeps inline code like `pnpm storybook`",
+].join("\n");
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    children: thumbnailMarkdown,
+    mode: "markdown",
+    margin: "none",
+  },
+};

@@ -287,3 +287,29 @@ export const DetailsPending: Story = {
   ],
   render: () => <OpenPreview span={llmSpan} />,
 };
+
+/**
+ * Answers the details query at once, so the thumbnail photographs the loaded
+ * breakdown rather than the skeleton the delayed environment shows first.
+ */
+const immediateRelayEnvironment = new Environment({
+  network: Network.create(async (_request, variables) => ({
+    data: { node: buildSpanDetails(String(variables.nodeId)) },
+  })),
+  store: new Store(new RecordSource()),
+});
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // The row and the tooltip beside it are wider than the frame at 1:1.
+  parameters: { thumbnail: { scale: 0.4 } },
+  decorators: [
+    (Story) => (
+      <RelayEnvironmentProvider environment={immediateRelayEnvironment}>
+        <Story />
+      </RelayEnvironmentProvider>
+    ),
+  ],
+  render: () => <OpenPreview span={llmSpan} />,
+};

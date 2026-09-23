@@ -309,3 +309,17 @@ export const WithLeadingItem: Story = {
     />
   ),
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // The provider menu is wider than the frame at 1:1. Anchored overlays
+  // are placed in unscaled coordinates, so the trigger sits at the stage's
+  // top-left corner, where that error is smallest.
+  parameters: { thumbnail: { scale: 0.85 } },
+  render: () => (
+    <div style={{ alignSelf: "flex-start", marginRight: "auto" }}>
+      <ModelMenuDemo providers={PROVISIONED_PROVIDERS} />
+    </div>
+  ),
+};

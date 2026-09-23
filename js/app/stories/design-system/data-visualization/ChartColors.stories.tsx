@@ -226,3 +226,43 @@ export const PrimaryColors: Story = {
     showOnlyPrimary: true,
   },
 };
+
+const THUMBNAIL_RAMPS = [
+  "blue",
+  "orange",
+  "purple",
+  "magenta",
+  "red",
+  "gray",
+] as const;
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: function ChartColorsThumbnail() {
+    const colors = useSequentialChartColors();
+    const entries = Object.entries(colors).sort(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true })
+    );
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--global-dimension-size-75)",
+          width: "100%",
+        }}
+      >
+        {THUMBNAIL_RAMPS.map((ramp) => (
+          <div key={ramp} style={{ display: "flex", height: "20px" }}>
+            {entries
+              .filter(([name]) => new RegExp(`^${ramp}\\d+$`).test(name))
+              .map(([name, color]) => (
+                <div key={name} style={{ flex: 1, backgroundColor: color }} />
+              ))}
+          </div>
+        ))}
+      </div>
+    );
+  },
+};

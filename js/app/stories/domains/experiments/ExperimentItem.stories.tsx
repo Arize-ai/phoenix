@@ -1,4 +1,5 @@
 import type { Meta, StoryFn } from "@storybook/react";
+import type { ComponentType } from "react";
 
 import { View } from "@phoenix/components";
 import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
@@ -386,4 +387,19 @@ export const NoTrace = {
     },
     experimentIndex: 0,
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail = {
+  ...WithSuccessfulRun,
+  tags: ["!dev", "!autodocs"],
+  parameters: { thumbnail: { scale: 0.5 } },
+  decorators: [
+    // Top-aligned, so the frame clips the end of the card, not its header.
+    (Story: ComponentType) => (
+      <div style={{ alignSelf: "flex-start" }}>
+        <Story />
+      </div>
+    ),
+  ],
 };

@@ -1,4 +1,4 @@
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
 import { Counter } from "@phoenix/components";
 const meta: Meta = {
@@ -30,4 +30,16 @@ export const Quiet = {
     children: "1.2k",
     variant: "quiet",
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+      <Counter>9</Counter>
+      <Counter variant="danger">12,000</Counter>
+      <Counter variant="quiet">1.2k</Counter>
+    </div>
+  ),
 };

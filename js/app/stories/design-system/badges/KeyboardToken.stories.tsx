@@ -85,3 +85,9 @@ export const InlineWithText: Story = {
     children: "Ctrl + S",
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  ...InlineWithText,
+  tags: ["!dev", "!autodocs"],
+};
