@@ -1,21 +1,47 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
 } from "@phoenix/agent/shared/pendingDatasetWrite";
+import {
+  DATASET_SPLIT_CONNECTION_KEYS,
+  getRootConnectionIds,
+} from "@phoenix/agent/shared/relayConnections";
 import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
 
 import type { deleteDatasetSplitsToolMutation } from "./__generated__/deleteDatasetSplitsToolMutation.graphql";
 import { fetchSplitsByNames } from "./listSplits";
 import type { DeleteDatasetSplitsInput } from "./types";
 
+/**
+ * Removes the deleted splits from the manage-splits list and re-reads the
+ * root `datasetSplits` list. Example rows that carried a deleted split are
+ * refreshed through the agent data-change bridge; the records are not
+ * `@deleteRecord`-ed because `DatasetExample.datasetSplits` is a non-null
+ * list and a deleted node would read back as `null` inside it.
+ */
 const mutation = graphql`
-  mutation deleteDatasetSplitsToolMutation($input: DeleteDatasetSplitInput!) {
+  mutation deleteDatasetSplitsToolMutation(
+    $input: DeleteDatasetSplitInput!
+    $connections: [ID!]!
+  ) {
     deleteDatasetSplits(input: $input) {
       datasetSplits {
-        id
+        id @deleteEdge(connections: $connections)
         name
+      }
+      query {
+        datasetSplits {
+          edges {
+            node {
+              id
+              name
+              color
+            }
+          }
+        }
       }
     }
   }
@@ -46,7 +72,13 @@ export async function commitDeleteDatasetSplits({
 
   return runDatasetMutation<deleteDatasetSplitsToolMutation>({
     mutation,
-    variables: { input: { datasetSplitIds: ids } },
-    onSuccess: () => `Deleted split(s): ${splitNames.join(", ")}.`,
+    variables: {
+      input: { datasetSplitIds: ids },
+      connections: getRootConnectionIds(DATASET_SPLIT_CONNECTION_KEYS),
+    },
+    onSuccess: () => {
+      emitAgentDataChange({ entity: "datasetSplits" });
+      return `Deleted split(s): ${splitNames.join(", ")}.`;
+    },
   });
 }

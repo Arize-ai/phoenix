@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
+import { useAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import { DebouncedSearch, Flex, Loading, View } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { DatasetLabelFilterButton } from "@phoenix/components/dataset/DatasetLabelFilterButton";
@@ -82,6 +83,18 @@ export function DatasetsPageContent() {
   const onDatasetCreated = useCallback(() => {
     setFetchKey((prev) => prev + 1);
   }, [setFetchKey]);
+  // PXI creates, edits, and deletes datasets from outside this page's own
+  // dialogs. Refetch the table for those the same way the dialogs do.
+  useAgentDataChange(
+    useCallback(
+      (change) => {
+        if (change.entity === "datasets" || change.entity === "datasetLabels") {
+          setFetchKey((prev) => prev + 1);
+        }
+      },
+      [setFetchKey]
+    )
+  );
 
   const [filter, setFilter] = useState<string>("");
   // The label filter is persisted to the URL so it can be shared and survive

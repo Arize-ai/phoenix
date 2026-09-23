@@ -47,6 +47,9 @@ export function commitUpdateAnnotationConfig(
                 name
               }
             }
+            query {
+              ...AnnotationConfigTableFragment
+            }
           }
         }
       `,

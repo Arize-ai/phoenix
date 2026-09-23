@@ -17,6 +17,10 @@ function commitCreateAnnotationConfigMutation(
 ): Promise<CreatedConfig> {
   return new Promise((resolve) => {
     commitMutation<createAnnotationConfigToolMutation>(RelayEnvironment, {
+      // `query { ...AnnotationConfigTableFragment }` re-reads the root
+      // `annotationConfigs` list, which is what the settings table and the
+      // span annotation config list render from, so the new config appears
+      // there without a refetch (the settings page's own create refetches).
       mutation: graphql`
         mutation createAnnotationConfigToolMutation(
           $input: CreateAnnotationConfigInput!
@@ -36,6 +40,9 @@ function commitCreateAnnotationConfigMutation(
                 id
                 name
               }
+            }
+            query {
+              ...AnnotationConfigTableFragment
             }
           }
         }
@@ -67,18 +74,29 @@ function commitAssociateAnnotationConfigToProjectMutation(
 ): Promise<{ ok: true } | { error: string }> {
   return new Promise((resolve) => {
     commitMutation<createAnnotationConfigAssociateMutation>(RelayEnvironment, {
+      // Mirrors the UI's associate mutations: return the project's
+      // `annotationConfigs` through the fragments the span annotation list
+      // and the project settings card render, so the association shows up
+      // in both without a refetch.
       mutation: graphql`
         mutation createAnnotationConfigAssociateMutation(
           $input: [AddAnnotationConfigToProjectInput!]!
+          $projectId: ID!
         ) {
           addAnnotationConfigToProject(input: $input) {
-            project {
-              id
+            query {
+              projectNode: node(id: $projectId) {
+                ... on Project {
+                  id
+                  ...AnnotationConfigListProjectAnnotationConfigFragment
+                  ...ProjectAnnotationConfigCardContent_project_annotations
+                }
+              }
             }
           }
         }
       `,
-      variables: { input: [{ projectId, annotationConfigId }] },
+      variables: { input: [{ projectId, annotationConfigId }], projectId },
       onCompleted: (_response, errors) => {
         const message = errors?.find((error) => error.message)?.message;
         resolve(message ? { error: message } : { ok: true });

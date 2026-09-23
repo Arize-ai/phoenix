@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f9ca463d6421f93ed839fe3890a92d5>>
+ * @generated SignedSource<<6e2441b8ebdfc13eafa2318b6a9dc6a2>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,7 @@ export type DeleteDatasetLabelsInput = {
   datasetLabelIds: ReadonlyArray<string>;
 };
 export type deleteDatasetLabelsToolMutation$variables = {
+  connections: ReadonlyArray<string>;
   input: DeleteDatasetLabelsInput;
 };
 export type deleteDatasetLabelsToolMutation$data = {
@@ -28,73 +29,125 @@ export type deleteDatasetLabelsToolMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connections"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
   }
 ],
-v1 = [
-  {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "input",
-        "variableName": "input"
-      }
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
+return {
+  "fragment": {
+    "argumentDefinitions": [
+      (v0/*:: as any*/),
+      (v1/*:: as any*/)
     ],
-    "concreteType": "DeleteDatasetLabelsMutationPayload",
-    "kind": "LinkedField",
-    "name": "deleteDatasetLabels",
-    "plural": false,
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "deleteDatasetLabelsToolMutation",
     "selections": [
       {
         "alias": null,
-        "args": null,
-        "concreteType": "DatasetLabel",
+        "args": (v2/*:: as any*/),
+        "concreteType": "DeleteDatasetLabelsMutationPayload",
         "kind": "LinkedField",
-        "name": "datasetLabels",
-        "plural": true,
+        "name": "deleteDatasetLabels",
+        "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
+            "concreteType": "DatasetLabel",
+            "kind": "LinkedField",
+            "name": "datasetLabels",
+            "plural": true,
+            "selections": [
+              (v3/*:: as any*/),
+              (v4/*:: as any*/)
+            ],
             "storageKey": null
           }
         ],
         "storageKey": null
       }
     ],
-    "storageKey": null
-  }
-];
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "deleteDatasetLabelsToolMutation",
-    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [
+      (v1/*:: as any*/),
+      (v0/*:: as any*/)
+    ],
     "kind": "Operation",
     "name": "deleteDatasetLabelsToolMutation",
-    "selections": (v1/*:: as any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*:: as any*/),
+        "concreteType": "DeleteDatasetLabelsMutationPayload",
+        "kind": "LinkedField",
+        "name": "deleteDatasetLabels",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetLabel",
+            "kind": "LinkedField",
+            "name": "datasetLabels",
+            "plural": true,
+            "selections": [
+              (v3/*:: as any*/),
+              {
+                "alias": null,
+                "args": null,
+                "filters": null,
+                "handle": "deleteEdge",
+                "key": "",
+                "kind": "ScalarHandle",
+                "name": "id",
+                "handleArgs": [
+                  {
+                    "kind": "Variable",
+                    "name": "connections",
+                    "variableName": "connections"
+                  }
+                ]
+              },
+              (v4/*:: as any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
     "cacheID": "07079e3bb26c8fdb68b60ddaf0f93916",
@@ -107,6 +160,6 @@ return {
 };
 })();
 
-(node as any).hash = "4795e04a55f86206270c6bc584214aff";
+(node as any).hash = "7adeb8cb7df8bb1411a9fc70ce9fc104";
 
 export default node;

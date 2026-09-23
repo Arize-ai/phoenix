@@ -1,20 +1,34 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
 } from "@phoenix/agent/shared/pendingDatasetWrite";
+import {
+  DATASET_LABEL_CONNECTION_KEYS,
+  getRootConnectionIds,
+} from "@phoenix/agent/shared/relayConnections";
 import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
 
 import type { deleteDatasetLabelsToolMutation } from "./__generated__/deleteDatasetLabelsToolMutation.graphql";
 import { fetchLabelsByNames } from "./listLabels";
 import type { DeleteDatasetLabelsInput } from "./types";
 
+/**
+ * Mirrors `DeleteDatasetLabelButton`: the deleted labels' edges are removed
+ * from every mounted label list. The payload carries no datasets, so the
+ * label chips on datasets that wore the label are refreshed through the
+ * agent data-change bridge instead.
+ */
 const mutation = graphql`
-  mutation deleteDatasetLabelsToolMutation($input: DeleteDatasetLabelsInput!) {
+  mutation deleteDatasetLabelsToolMutation(
+    $input: DeleteDatasetLabelsInput!
+    $connections: [ID!]!
+  ) {
     deleteDatasetLabels(input: $input) {
       datasetLabels {
-        id
+        id @deleteEdge(connections: $connections)
         name
       }
     }
@@ -45,7 +59,13 @@ export async function commitDeleteDatasetLabels({
 
   return runDatasetMutation<deleteDatasetLabelsToolMutation>({
     mutation,
-    variables: { input: { datasetLabelIds: ids } },
-    onSuccess: () => `Deleted label(s): ${labelNames.join(", ")}.`,
+    variables: {
+      input: { datasetLabelIds: ids },
+      connections: getRootConnectionIds(DATASET_LABEL_CONNECTION_KEYS),
+    },
+    onSuccess: () => {
+      emitAgentDataChange({ entity: "datasetLabels" });
+      return `Deleted label(s): ${labelNames.join(", ")}.`;
+    },
   });
 }

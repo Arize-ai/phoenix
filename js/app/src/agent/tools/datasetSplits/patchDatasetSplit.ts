@@ -9,12 +9,18 @@ import type { patchDatasetSplitToolMutation } from "./__generated__/patchDataset
 import { fetchSplitsByNames } from "./listSplits";
 import type { PatchDatasetSplitInput } from "./types";
 
+/**
+ * Returns every split field a chip or list renders, so renamed or recolored
+ * splits update wherever they appear from the normalized store.
+ */
 const mutation = graphql`
   mutation patchDatasetSplitToolMutation($input: PatchDatasetSplitInput!) {
     patchDatasetSplit(input: $input) {
       datasetSplit {
         id
         name
+        description
+        color
       }
     }
   }
