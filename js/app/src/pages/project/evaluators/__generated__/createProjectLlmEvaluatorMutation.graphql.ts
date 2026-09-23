@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5cf82ac324a6de8ed2334b9067078c9e>>
+ * @generated SignedSource<<5f117e121705281fef25cb459cfc68b8>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "X
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
 export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
@@ -36,6 +36,7 @@ export type ChatPromptVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
   invocationParameters: PromptInvocationParametersInput;
+  metadata?: any | null;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   responseFormat?: PromptResponseFormatJSONSchemaInput | null;
