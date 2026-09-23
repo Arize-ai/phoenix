@@ -449,3 +449,29 @@ async def test_job_without_a_task_has_no_task_config(
     assert not response.errors
     assert response.data is not None
     assert response.data["node"]["taskConfig"] is None
+
+
+async def test_a_job_loaded_through_its_experiment_resolves_its_task_config(
+    gql_client: AsyncGraphQLClient,
+    llm_evaluator_experiment_job_id: int,
+) -> None:
+    experiment_id = str(GlobalID("Experiment", str(llm_evaluator_experiment_job_id)))
+    response = await gql_client.execute(
+        query="""
+          query ($experimentId: ID!) {
+            node(id: $experimentId) {
+              ... on Experiment {
+                job {
+                  taskConfig {
+                    __typename
+                  }
+                }
+              }
+            }
+          }
+        """,
+        variables={"experimentId": experiment_id},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["job"]["taskConfig"] == {"__typename": "EvaluatorTaskConfig"}
