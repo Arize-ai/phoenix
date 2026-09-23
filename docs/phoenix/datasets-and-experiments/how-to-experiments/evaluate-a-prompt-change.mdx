@@ -7,7 +7,11 @@ description: >-
 
 This is the code version of [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations), which runs the same flow from the Phoenix UI. It uses the support agent from [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), so the scenario carries across both guides.
 
-You define two tasks, a baseline and an edited prompt, score both with one deterministic evaluator, and read the difference. Choose Python or TypeScript.
+You define two tasks, a baseline and an edited prompt, score both with one deterministic evaluator, and read the difference.
+
+## Build and run the experiment
+
+The script creates its own dataset, so you can run it without traces in Phoenix. Choose Python or TypeScript.
 
 <Tabs>
 <Tab title="Python">
@@ -258,3 +262,7 @@ You define two tasks, a baseline and an edited prompt, score both with one deter
 
 </Tab>
 </Tabs>
+
+## Mark a persistent baseline
+
+The comparison above is transient. To pin one experiment as the reference point that later comparisons measure against, see [Set a Baseline Experiment](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments#set-a-baseline-experiment).
