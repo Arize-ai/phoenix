@@ -65,3 +65,20 @@ export type ThumbnailTheme = (typeof THUMBNAIL_THEMES)[number];
 
 /** A thumbnail story's tags must include both, so it is never browsed. */
 export const THUMBNAIL_REQUIRED_TAGS = ["!dev", "!autodocs"] as const;
+
+/** The exact pixel size of every written image: `THUMBNAIL_SIZE` × `THUMBNAIL_SCALE`. */
+export function thumbnailPixelSize() {
+  return {
+    width: THUMBNAIL_SIZE.width * THUMBNAIL_SCALE,
+    height: THUMBNAIL_SIZE.height * THUMBNAIL_SCALE,
+  };
+}
+
+/**
+ * A PNG's pixel size, read from its IHDR chunk: the width and height are the
+ * big-endian 32-bit integers at bytes 16 and 20 of every PNG.
+ */
+export function pngSize(png: Uint8Array): { width: number; height: number } {
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}

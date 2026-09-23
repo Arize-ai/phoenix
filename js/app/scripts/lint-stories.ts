@@ -37,6 +37,8 @@ import {
   THUMBNAIL_REQUIRED_TAGS,
   THUMBNAIL_STORY_NAME,
   THUMBNAIL_THEMES,
+  pngSize,
+  thumbnailPixelSize,
 } from "../stories/_meta/thumbnail";
 
 const STORIES_DIR = "stories";
@@ -350,6 +352,14 @@ function checkThumbnails(files: StoryFile[]) {
       fail(
         rel,
         `no ${THUMBNAIL_STORY_NAME} story in a story file beside it shares its name; it cannot be regenerated`
+      );
+    }
+    const size = pngSize(readFileSync(join(STORIES_DIR, rel)));
+    const want = thumbnailPixelSize();
+    if (size.width !== want.width || size.height !== want.height) {
+      fail(
+        rel,
+        `is ${size.width}×${size.height}, not ${want.width}×${want.height}; regenerate with \`pnpm storybook:thumbnails\``
       );
     }
     const other = THUMBNAIL_THEMES.find((t) => t !== theme);

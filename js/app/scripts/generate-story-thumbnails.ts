@@ -17,7 +17,7 @@
  *
  * @see app/stories/_meta/thumbnail.ts for the contract
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
@@ -30,6 +30,8 @@ import {
   THUMBNAIL_SIZE,
   THUMBNAIL_STORY_NAME,
   THUMBNAIL_THEMES,
+  pngSize,
+  thumbnailPixelSize,
 } from "../stories/_meta/thumbnail";
 import type { ThumbnailTheme } from "../stories/_meta/thumbnail";
 
@@ -148,14 +150,45 @@ async function capture(
         `the frame measured ${box ? `${box.width}×${box.height}` : "nothing"}, expected ${expected.width}×${expected.height}`
       );
     }
-    // A clip of the page region rather than an element screenshot, so the
-    // capture is exactly what the frame covers.
-    await page.screenshot({
-      path,
-      clip: box,
+    // Capture the whole viewport, whose image starts at device pixel 0, then
+    // crop the frame out of it at exactly the contract's pixel size. A clip
+    // cannot do this: Chromium keeps only the device pixels a clip fully
+    // encloses, and the frame's box is fractional whenever `1 / scale` is
+    // not a whole number (0.55 lays it out 581.8px wide), so a clip of it
+    // comes out 639 or 399 pixels.
+    const deviceScale = THUMBNAIL_SCALE * scale;
+    const viewport = await page.screenshot({
       animations: "disabled",
       caret: "hide",
     });
+    const size = thumbnailPixelSize();
+    const cropped = await page.evaluate(
+      async ({ png, x, y, width, height }) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${png}`;
+        await image.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas
+          .getContext("2d")!
+          .drawImage(image, x, y, width, height, 0, 0, width, height);
+        return canvas.toDataURL("image/png").split(",")[1];
+      },
+      {
+        png: viewport.toString("base64"),
+        x: Math.round(box.x * deviceScale),
+        y: Math.round(box.y * deviceScale),
+        ...size,
+      }
+    );
+    writeFileSync(path, Buffer.from(cropped, "base64"));
+    const written = pngSize(readFileSync(path));
+    if (written.width !== size.width || written.height !== size.height) {
+      throw new Error(
+        `wrote ${written.width}×${written.height}, expected ${size.width}×${size.height}`
+      );
+    }
   } finally {
     await opened.context.close();
   }
