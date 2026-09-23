@@ -1,15 +1,13 @@
 ---
 title: "Evaluate Your Agent"
 description: >-
-  Turn traced examples into a dataset, run experiments, and score each output
-  with evaluators.
+  Add traces to a dataset, run experiments, and score each output with offline
+  evaluators.
 ---
 
-Use this guide to turn Phoenix traces into a dataset, run an experiment, and score the outputs.
+Evaluations in Phoenix run offline: an evaluator scores the output of an experiment. Continuous scoring of live production traffic is not available yet.
 
 Start from traces when you want experiments to use real inputs, outputs, and failure cases from your agent. A dataset stores the examples. An experiment runs your agent or prompt over those examples. Evaluators score each result so you can compare variants.
-
-Choose the Prompt Playground path if you want to test a saved prompt in the UI. Choose the code path if you want to run your agent over the dataset programmatically.
 
 <Note>
   This is the second part of the Phoenix quickstart. Start with [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) if you do not have traces flowing yet.
