@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<833395c8796d8e150bafb6899ac84a3e>>
+ * @generated SignedSource<<0f3cda4298c88c361d878b69bf491c90>>
  * @lightSyntaxTransform
  */
 
@@ -831,6 +831,7 @@ return {
                 "filters": [
                   "sort",
                   "filterCondition",
+                  "projectEvaluatorId",
                   "timeRange"
                 ],
                 "handle": "connection",
