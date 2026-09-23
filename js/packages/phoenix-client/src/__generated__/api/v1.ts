@@ -1234,7 +1234,7 @@ export interface paths {
         };
         /**
          * List spans
-         * @description Return spans within a project filtered by time range, simple field filters, or a filter expression. Supports cursor-based pagination.
+         * @description Return spans within a project filtered by time range and filters. Supports cursor-based pagination.
          */
         get: operations["getSpans"];
         put?: never;

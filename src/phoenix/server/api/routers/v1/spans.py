@@ -41,7 +41,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten, unflatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
-from phoenix.trace.dsl.filter import SpanFilter
+from phoenix.trace.dsl.filter import SpanFilter, SpanFilterError
 from phoenix.trace.schemas import (
     Span as SpanForInsertion,
 )
@@ -930,22 +930,10 @@ SpanSort = Literal["id", "start_time"]
 SortOrder = Literal["asc", "desc"]
 
 
-_INVALID_FILTER_EXPRESSION_ERRORS = (
-    AttributeError,
-    IndexError,
-    KeyError,
-    NameError,
-    SyntaxError,
-    TypeError,
-    ValueError,
-)
-
-
 def _apply_span_filter(stmt: Select[Any], condition: str) -> Select[Any]:
-    """Narrow ``stmt`` by a filter expression, reporting an unusable one as a 400."""
     try:
         return SpanFilter(condition=condition)(stmt)
-    except _INVALID_FILTER_EXPRESSION_ERRORS as error:
+    except SpanFilterError as error:
         raise HTTPException(
             status_code=400, detail=f"invalid span filter expression: {error}"
         ) from error
@@ -1007,8 +995,8 @@ def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
     "/projects/{project_identifier:path}/spans",
     operation_id="getSpans",
     summary="List spans",
-    description="Return spans within a project filtered by time range, simple field filters, "
-    "or a filter expression. Supports cursor-based pagination.",
+    description="Return spans within a project filtered by time range and filters. "
+    "Supports cursor-based pagination.",
     responses=add_errors_to_responses([400, 404, 422]),
 )
 async def span_search(
