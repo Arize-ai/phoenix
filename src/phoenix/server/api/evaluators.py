@@ -204,16 +204,6 @@ class EvaluationResult(TypedDict):
     error_exc: NotRequired[Optional[Exception]]
 
 
-def evaluator_annotation_name(
-    name: str, config: OutputConfigType, output_configs: Sequence[OutputConfigType]
-) -> str:
-    return f"{name}.{config.name}" if len(output_configs) > 1 else name
-
-
-def evaluator_annotation_names(name: str, output_configs: Sequence[OutputConfigType]) -> list[str]:
-    return [evaluator_annotation_name(name, config, output_configs) for config in output_configs]
-
-
 class BaseEvaluator(ABC):
     """
     Base interface for all evaluators that attach annotations to tasks.
@@ -1287,24 +1277,36 @@ async def pin_evaluator_definition(
 ) -> EvaluatorDefinition:
     """The definition with every mutable reference resolved to a version.
 
-    A stored code evaluator names a pointer that its owner can edit; before an experiment
-    freezes the definition the current version is pinned, so every start and resume of
-    the experiment runs the same code.
+    A stored code evaluator names a row that its owner can edit; before an experiment
+    freezes the definition its current version, sandbox configuration and language are
+    pinned, so every start and resume of the experiment runs the same code in the same
+    environment.
     """
-    if (
-        isinstance(definition, StoredCodeEvaluatorDefinition)
-        and definition.code_evaluator_version_id is None
+    if not isinstance(definition, StoredCodeEvaluatorDefinition) or (
+        definition.code_evaluator_version_id is not None
+        and definition.sandbox_config_id is not None
+        and definition.language is not None
     ):
-        latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
-            [definition.code_evaluator_id], session
-        )
-        version = latest_versions.get(definition.code_evaluator_id)
+        return definition
+    record = await session.get(models.CodeEvaluator, definition.code_evaluator_id)
+    if record is None:
+        raise BadRequest(f"Code evaluator with id {definition.code_evaluator_id} not found")
+    version_id = definition.code_evaluator_version_id
+    if version_id is None:
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id([record.id], session)
+        version = latest_versions.get(record.id)
         if version is None:
             raise BadRequest(
                 f"Code evaluator with id {definition.code_evaluator_id} has no current version"
             )
-        return definition.model_copy(update={"code_evaluator_version_id": version.id})
-    return definition
+        version_id = version.id
+    return definition.model_copy(
+        update={
+            "code_evaluator_version_id": version_id,
+            "sandbox_config_id": definition.sandbox_config_id or record.sandbox_config_id,
+            "language": definition.language or record.language,
+        }
+    )
 
 
 async def build_evaluator_from_definition(
@@ -1470,16 +1472,18 @@ async def _build_stored_code_evaluator(
             )
         version = latest
     evaluator_name = record.name.root
-    if record.sandbox_config_id is None:
+    language = definition.language or record.language
+    sandbox_config_id = definition.sandbox_config_id or record.sandbox_config_id
+    if sandbox_config_id is None:
         raise BadRequest(
             f"Code evaluator '{evaluator_name}' has no sandbox backend configured"
-            f" for language '{record.language}'. "
+            f" for language '{language}'. "
             "Please configure a sandbox provider at /settings/sandboxes."
         )
     sandbox_backend, sandbox_timeout = await _resolve_sandbox_backend(
         session=session,
-        sandbox_config_id=record.sandbox_config_id,
-        language=record.language,
+        sandbox_config_id=sandbox_config_id,
+        language=language,
         decrypt=decrypt,
         sandbox_runtime=sandbox_runtime,
     )
@@ -1489,7 +1493,7 @@ async def _build_stored_code_evaluator(
         source_code=version.source_code,
         stored_output_configs=as_output_configs(record.output_configs),
         sandbox_backend=sandbox_backend,
-        language=record.language,
+        language=language,
         timeout=sandbox_timeout,
         evaluator_version_id=str(GlobalID("CodeEvaluatorVersion", str(version.id))),
         sandbox_session_manager=sandbox_session_manager,
