@@ -1134,7 +1134,7 @@ async def test_span_search_sort_by_start_time_paginates_across_ties(
     assert names == ["span-2", "span-3", "span-0", "span-1"]
 
 
-async def test_span_search_sort_by_start_time_limits_to_latest_spans(
+async def test_span_search_sort_by_start_time_limit_keeps_newest_spans(
     httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     resp = await httpx_client.get(

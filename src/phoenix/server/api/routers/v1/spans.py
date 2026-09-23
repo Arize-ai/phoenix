@@ -930,12 +930,14 @@ SortOrder = Literal["asc", "desc"]
 
 
 def _span_sort_columns(sort: SpanSort) -> list[sa.orm.InstrumentedAttribute[Any]]:
+    """Columns that order a span page; ``id`` breaks ties on ``start_time``."""
     if sort == "start_time":
         return [models.Span.start_time, models.Span.id]
     return [models.Span.id]
 
 
 def _span_sort_order(sort: SpanSort, order: SortOrder) -> list[sa.ColumnElement[Any]]:
+    """The sort columns as ORDER BY expressions in the requested direction."""
     columns = _span_sort_columns(sort)
     return (
         [column.asc() for column in columns]
@@ -945,7 +947,7 @@ def _span_sort_order(sort: SpanSort, order: SortOrder) -> list[sa.ColumnElement[
 
 
 def _span_cursor_position(cursor: str, sort: SpanSort) -> tuple[Any, ...]:
-    """The sort-column values of the row a cursor points at, in `_span_sort_columns` order."""
+    """Decode a page cursor into the sort-key values of the span it points at."""
     if sort == "start_time":
         position = Cursor.from_string(cursor)
         if (
@@ -959,13 +961,14 @@ def _span_cursor_position(cursor: str, sort: SpanSort) -> tuple[Any, ...]:
 
 
 def _span_page_boundary(cursor: str, sort: SpanSort, order: SortOrder) -> sa.ColumnElement[bool]:
-    """Rows at or after the cursor's position in the given sort order."""
+    """Row-value filter that keeps spans at or beyond the cursor in sort order."""
     key = tuple_(*_span_sort_columns(sort))
     bound = _span_cursor_position(cursor, sort)
     return key >= bound if order == "asc" else key <= bound
 
 
 def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
+    """Encode ``span`` as the cursor a client sends to fetch the following page."""
     if sort == "start_time":
         return str(
             Cursor(
