@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ce8171b469bbef2303982d68845085a7>>
+ * @generated SignedSource<<cfbaff4e1887b9ac82ad93ad0c87c15c>>
  * @lightSyntaxTransform
  */
 
@@ -35,17 +35,6 @@ export type createDatasetSplitToolWithExamplesMutation$data = {
       }>;
       readonly id: string;
     }>;
-    readonly query: {
-      readonly datasetSplits: {
-        readonly edges: ReadonlyArray<{
-          readonly node: {
-            readonly color: string;
-            readonly id: string;
-            readonly name: string;
-          };
-        }>;
-      };
-    };
   };
 };
 export type createDatasetSplitToolWithExamplesMutation = {
@@ -113,12 +102,7 @@ v6 = {
   ],
   "storageKey": null
 },
-v7 = [
-  (v3/*:: as any*/),
-  (v4/*:: as any*/),
-  (v5/*:: as any*/)
-],
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "DatasetExample",
@@ -134,49 +118,10 @@ v8 = {
       "kind": "LinkedField",
       "name": "datasetSplits",
       "plural": true,
-      "selections": (v7/*:: as any*/),
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Query",
-  "kind": "LinkedField",
-  "name": "query",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DatasetSplitConnection",
-      "kind": "LinkedField",
-      "name": "datasetSplits",
-      "plural": false,
       "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "DatasetSplitEdge",
-          "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "DatasetSplit",
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": (v7/*:: as any*/),
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
+        (v3/*:: as any*/),
+        (v4/*:: as any*/),
+        (v5/*:: as any*/)
       ],
       "storageKey": null
     }
@@ -202,8 +147,7 @@ return {
         "plural": false,
         "selections": [
           (v6/*:: as any*/),
-          (v8/*:: as any*/),
-          (v9/*:: as any*/)
+          (v7/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -250,24 +194,23 @@ return {
               }
             ]
           },
-          (v8/*:: as any*/),
-          (v9/*:: as any*/)
+          (v7/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "2d6c3679f8a65e72f3d50d1ad6f72f95",
+    "cacheID": "9dd6a8d2e25de16870fdead1ebedcb0a",
     "id": null,
     "metadata": {},
     "name": "createDatasetSplitToolWithExamplesMutation",
     "operationKind": "mutation",
-    "text": "mutation createDatasetSplitToolWithExamplesMutation(\n  $input: CreateDatasetSplitWithExamplesInput!\n) {\n  createDatasetSplitWithExamples(input: $input) {\n    datasetSplit {\n      id\n      name\n      description\n      color\n    }\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n    query {\n      datasetSplits {\n        edges {\n          node {\n            id\n            name\n            color\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation createDatasetSplitToolWithExamplesMutation(\n  $input: CreateDatasetSplitWithExamplesInput!\n) {\n  createDatasetSplitWithExamples(input: $input) {\n    datasetSplit {\n      id\n      name\n      description\n      color\n    }\n    examples {\n      id\n      datasetSplits {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "223f5420058c3cdc7c9374a28bda1ad9";
+(node as any).hash = "43c87835c6fcb88a09c6eccc0ecbeaf5";
 
 export default node;

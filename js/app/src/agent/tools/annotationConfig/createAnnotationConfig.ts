@@ -5,6 +5,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { createAnnotationConfigAssociateMutation } from "./__generated__/createAnnotationConfigAssociateMutation.graphql";
 import type { createAnnotationConfigToolMutation } from "./__generated__/createAnnotationConfigToolMutation.graphql";
 import { buildAnnotationConfigInput } from "./buildAnnotationConfigInput";
+import { refreshAnnotationConfigs } from "./refreshAnnotationConfigs";
 import type {
   AnnotationConfigDraft,
   AnnotationConfigWriteApplyResult,
@@ -17,10 +18,6 @@ function commitCreateAnnotationConfigMutation(
 ): Promise<CreatedConfig> {
   return new Promise((resolve) => {
     commitMutation<createAnnotationConfigToolMutation>(RelayEnvironment, {
-      // `query { ...AnnotationConfigTableFragment }` re-reads the root
-      // `annotationConfigs` list, which is what the settings table and the
-      // span annotation config list render from, so the new config appears
-      // there without a refetch (the settings page's own create refetches).
       mutation: graphql`
         mutation createAnnotationConfigToolMutation(
           $input: CreateAnnotationConfigInput!
@@ -40,9 +37,6 @@ function commitCreateAnnotationConfigMutation(
                 id
                 name
               }
-            }
-            query {
-              ...AnnotationConfigTableFragment
             }
           }
         }
@@ -109,9 +103,12 @@ function commitAssociateAnnotationConfigToProjectMutation(
 /**
  * Create an annotation config and, when a projectId is supplied, associate it
  * with that project. Runs outside React, so it uses the singleton Relay
- * environment. If the config is created but the association fails, report
- * success with a caveat so the model does not recreate the (now existing)
- * config — it should associate it separately instead.
+ * environment. The root `annotationConfigs` list (settings table, project
+ * config card, span annotation editor) is refetched once the config exists;
+ * see {@link refreshAnnotationConfigs}. If the config is created but the
+ * association fails, report success with a caveat so the model does not
+ * recreate the (now existing) config — it should associate it separately
+ * instead.
  */
 export async function commitCreateAnnotationConfig(
   draft: AnnotationConfigDraft,
@@ -128,6 +125,7 @@ export async function commitCreateAnnotationConfig(
   if ("error" in created) {
     return { ok: false, error: created.error };
   }
+  await refreshAnnotationConfigs();
   if (projectId) {
     const associated = await commitAssociateAnnotationConfigToProjectMutation(
       projectId,

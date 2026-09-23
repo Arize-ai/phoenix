@@ -13,11 +13,13 @@ import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
 
 import type { deleteDatasetSplitsToolMutation } from "./__generated__/deleteDatasetSplitsToolMutation.graphql";
 import { fetchSplitsByNames } from "./listSplits";
+import { refreshDatasetSplits } from "./refreshDatasetSplits";
 import type { DeleteDatasetSplitsInput } from "./types";
 
 /**
- * Removes the deleted splits from the manage-splits list and re-reads the
- * root `datasetSplits` list. Example rows that carried a deleted split are
+ * Removes the deleted splits from the manage-splits list. The root
+ * `datasetSplits` list is refetched separately on success (see
+ * {@link refreshDatasetSplits}). Example rows that carried a deleted split are
  * refreshed through the agent data-change bridge; the records are not
  * `@deleteRecord`-ed because `DatasetExample.datasetSplits` is a non-null
  * list and a deleted node would read back as `null` inside it.
@@ -31,17 +33,6 @@ const mutation = graphql`
       datasetSplits {
         id @deleteEdge(connections: $connections)
         name
-      }
-      query {
-        datasetSplits {
-          edges {
-            node {
-              id
-              name
-              color
-            }
-          }
-        }
       }
     }
   }
@@ -76,7 +67,8 @@ export async function commitDeleteDatasetSplits({
       input: { datasetSplitIds: ids },
       connections: getRootConnectionIds(DATASET_SPLIT_CONNECTION_KEYS),
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refreshDatasetSplits();
       emitAgentDataChange({ entity: "datasetSplits" });
       return `Deleted split(s): ${splitNames.join(", ")}.`;
     },

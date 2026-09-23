@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09f4960d55be8d993cee20a04a755841>>
+ * @generated SignedSource<<47188819db6082e3b691e0908a79ec4c>>
  * @lightSyntaxTransform
  */
 
@@ -21,17 +21,6 @@ export type deleteDatasetSplitsToolMutation$data = {
       readonly id: string;
       readonly name: string;
     }>;
-    readonly query: {
-      readonly datasetSplits: {
-        readonly edges: ReadonlyArray<{
-          readonly node: {
-            readonly color: string;
-            readonly id: string;
-            readonly name: string;
-          };
-        }>;
-      };
-    };
   };
 };
 export type deleteDatasetSplitsToolMutation = {
@@ -70,59 +59,6 @@ v4 = {
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Query",
-  "kind": "LinkedField",
-  "name": "query",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DatasetSplitConnection",
-      "kind": "LinkedField",
-      "name": "datasetSplits",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "DatasetSplitEdge",
-          "kind": "LinkedField",
-          "name": "edges",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "DatasetSplit",
-              "kind": "LinkedField",
-              "name": "node",
-              "plural": false,
-              "selections": [
-                (v3/*:: as any*/),
-                (v4/*:: as any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "color",
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -154,8 +90,7 @@ return {
               (v4/*:: as any*/)
             ],
             "storageKey": null
-          },
-          (v5/*:: as any*/)
+          }
         ],
         "storageKey": null
       }
@@ -208,24 +143,23 @@ return {
               (v4/*:: as any*/)
             ],
             "storageKey": null
-          },
-          (v5/*:: as any*/)
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "ce365b008f35047c1303102deaa05cc4",
+    "cacheID": "f98fcc6edeb866847b0116928f9c2cfe",
     "id": null,
     "metadata": {},
     "name": "deleteDatasetSplitsToolMutation",
     "operationKind": "mutation",
-    "text": "mutation deleteDatasetSplitsToolMutation(\n  $input: DeleteDatasetSplitInput!\n) {\n  deleteDatasetSplits(input: $input) {\n    datasetSplits {\n      id\n      name\n    }\n    query {\n      datasetSplits {\n        edges {\n          node {\n            id\n            name\n            color\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation deleteDatasetSplitsToolMutation(\n  $input: DeleteDatasetSplitInput!\n) {\n  deleteDatasetSplits(input: $input) {\n    datasetSplits {\n      id\n      name\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e857526cd7527b4e687eccafc07d1abf";
+(node as any).hash = "2c11806f077bdefbeb1dad0731345b45";
 
 export default node;

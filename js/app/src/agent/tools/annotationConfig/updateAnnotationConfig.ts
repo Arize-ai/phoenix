@@ -4,6 +4,7 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { updateAnnotationConfigToolMutation } from "./__generated__/updateAnnotationConfigToolMutation.graphql";
 import { buildAnnotationConfigInput } from "./buildAnnotationConfigInput";
+import { refreshAnnotationConfigs } from "./refreshAnnotationConfigs";
 import type {
   AnnotationConfigDraft,
   AnnotationConfigWriteApplyResult,
@@ -12,7 +13,10 @@ import type {
 /**
  * Replace an existing annotation config in full (the server `updateAnnotationConfig`
  * mutation overwrites the whole config). Runs outside React, so it uses the
- * singleton Relay environment.
+ * singleton Relay environment. The config's own record updates from the
+ * payload; the root `annotationConfigs` list is refetched afterwards so every
+ * field the settings table and project config card render is current (see
+ * {@link refreshAnnotationConfigs}).
  */
 export function commitUpdateAnnotationConfig(
   configId: string,
@@ -47,9 +51,6 @@ export function commitUpdateAnnotationConfig(
                 name
               }
             }
-            query {
-              ...AnnotationConfigTableFragment
-            }
           }
         }
       `,
@@ -67,7 +68,9 @@ export function commitUpdateAnnotationConfig(
         }
         const config = response.updateAnnotationConfig.annotationConfig;
         const name = config.__typename === "%other" ? draft.name : config.name;
-        resolve({ ok: true, output: `Updated annotation config "${name}".` });
+        void refreshAnnotationConfigs().then(() =>
+          resolve({ ok: true, output: `Updated annotation config "${name}".` })
+        );
       },
       onError: (error) => resolve({ ok: false, error: error.message }),
     });

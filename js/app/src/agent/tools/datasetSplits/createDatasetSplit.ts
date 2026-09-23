@@ -11,14 +11,16 @@ import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { createDatasetSplitToolMutation } from "./__generated__/createDatasetSplitToolMutation.graphql";
 import type { createDatasetSplitToolWithExamplesMutation } from "./__generated__/createDatasetSplitToolWithExamplesMutation.graphql";
 import { DEFAULT_DATASET_SPLIT_COLOR } from "./constants";
+import { refreshDatasetSplits } from "./refreshDatasetSplits";
 import type { CreateDatasetSplitInput } from "./types";
 
 /**
  * Both mutations mirror `useDatasetSplitMutations`: the new split is
- * prepended to the manage-splits dialog list and the root `datasetSplits`
- * list (the assign-to-split menu) is re-read. The with-examples variant also
+ * prepended to the manage-splits dialog list. The with-examples variant also
  * returns each seeded example's `datasetSplits`, which is what the examples
- * table renders as split chips.
+ * table renders as split chips. The root `datasetSplits` list (the Splits
+ * filter and assign-to-split menus) is refetched separately on success; see
+ * {@link refreshDatasetSplits} for why a payload-level `query { }` cannot do it.
  */
 const createMutation = graphql`
   mutation createDatasetSplitToolMutation(
@@ -35,17 +37,6 @@ const createMutation = graphql`
         name
         description
         color
-      }
-      query {
-        datasetSplits {
-          edges {
-            node {
-              id
-              name
-              color
-            }
-          }
-        }
       }
     }
   }
@@ -75,17 +66,6 @@ const createWithExamplesMutation = graphql`
           color
         }
       }
-      query {
-        datasetSplits {
-          edges {
-            node {
-              id
-              name
-              color
-            }
-          }
-        }
-      }
     }
   }
 `;
@@ -107,7 +87,7 @@ export function commitCreateDatasetSplit({
   const seedCount = exampleIds?.length ?? 0;
   const connections = getRootConnectionIds(DATASET_SPLIT_CONNECTION_KEYS);
   return new Promise((resolve) => {
-    const onCompleted = (
+    const onCompleted = async (
       datasetSplitName: string | undefined,
       errors: readonly { message?: string }[] | null | undefined
     ) => {
@@ -116,6 +96,7 @@ export function commitCreateDatasetSplit({
         resolve({ ok: false, error: message });
         return;
       }
+      await refreshDatasetSplits();
       emitAgentDataChange({ entity: "datasetSplits" });
       resolve({
         ok: true,
@@ -140,7 +121,7 @@ export function commitCreateDatasetSplit({
             connections,
           },
           onCompleted: (response, errors) =>
-            onCompleted(
+            void onCompleted(
               response.createDatasetSplitWithExamples.datasetSplit.name,
               errors
             ),
@@ -156,7 +137,7 @@ export function commitCreateDatasetSplit({
         connections,
       },
       onCompleted: (response, errors) =>
-        onCompleted(response.createDatasetSplit.datasetSplit.name, errors),
+        void onCompleted(response.createDatasetSplit.datasetSplit.name, errors),
       onError: (error) => resolve({ ok: false, error: error.message }),
     });
   });
