@@ -1,7 +1,6 @@
 import type { Completion, CompletionSection } from "@codemirror/autocomplete";
 import { snippetCompletion } from "@codemirror/autocomplete";
 import { Suspense, useCallback, useMemo } from "react";
-import { useCallback, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -391,7 +390,6 @@ export function SessionFilterConditionFieldCore(
     />
   );
 }
-
 
 type SessionFilterConditionFieldWithVocabularyProps = Omit<
   SessionFilterConditionFieldProps,
