@@ -3,7 +3,7 @@ title: "Retrieve traces with the CLI"
 description: Fetch trace data from Phoenix using the command-line interface for debugging, analysis, and integration with AI coding assistants.
 ---
 
-Phoenix CLI (`@arizeai/phoenix-cli`) is a command-line interface tool for retrieving trace data from your Phoenix projects. It allows you to use Phoenix's tracing and debugging features directly in your terminal and development workflows.
+Phoenix CLI (`@arizeai/phoenix-cli`) retrieves trace data from your Phoenix projects. Use it when you want to inspect traces from your terminal or pass trace data into another tool.
 
 You can use Phoenix CLI for the following use cases:
 
@@ -56,7 +56,7 @@ export PHOENIX_API_KEY=your-api-key
 If your Phoenix instance has authentication enabled, you'll need to set the `PHOENIX_API_KEY` environment variable or use the `--api-key` flag.
 </Note>
 
-## Use with AI Coding Assistants
+## Use with AI coding assistants
 
 The Phoenix CLI pairs well with AI coding assistants like **Claude Code**, **Cursor**, **Windsurf**, and others. There are two ways to wire it up.
 
@@ -64,8 +64,8 @@ The Phoenix CLI pairs well with AI coding assistants like **Claude Code**, **Cur
 
 Rather than pasting CLI output into a chat, connect the assistant to Phoenix once and let it query on its own:
 
-- **MCP** — register the Phoenix MCP server with your agent using `px setup mcp --agent cursor` (swap in `claude`, `codex`, and so on). The agent then reaches your traces, projects, and docs through the [remote MCP server](/docs/phoenix/integrations/remote-mcp) built into Phoenix, without you copying anything by hand.
-- **Skills** — `px setup skills` installs Phoenix skills so agents that support them know how to call the CLI. See [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents).
+- **MCP**: Register the Phoenix MCP server with your agent using `px setup mcp --agent cursor`. Swap in `claude`, `codex`, and so on. The agent can then reach your traces, projects, and docs through the [remote MCP server](/docs/phoenix/integrations/remote-mcp) built into Phoenix.
+- **Skills**: `px setup skills` installs Phoenix skills so agents that support them know how to call the CLI. See [Coding agents](/docs/phoenix/integrations/developer-tools/coding-agents).
 
 ### Ask the assistant to run the CLI
 
@@ -77,12 +77,12 @@ Use px to fetch the last 3 traces from my Phoenix project and analyze them for p
 
 It discovers the available commands through `px --help` and fetches the traces itself. For an assistant without terminal access, run a command such as `px trace list --limit 5 --format json` yourself and paste the output into the chat.
 
-## Find Project and Trace IDs
+## Find project and trace IDs
 
 In most cases, you won't need to find IDs manually (the CLI uses your environment's project name and latest traces by default). However, if you want to fetch a specific item by ID, you can find the IDs in the Phoenix UI:
 
-* **Project Name/ID**: Each project has a unique name and ID. You can find it in the project selector dropdown or in the project's URL.
-* **Trace ID**: Every trace has an ID. In the traces view, click on a specific trace to see its Trace ID (copyable from the trace details panel). You can use `px trace get <trace-id>` to retrieve that exact trace.
+* **Project name or ID**: Each project has a unique name and ID. You can find it in the project selector dropdown or in the project's URL.
+* **Trace ID**: Every trace has an ID. In the traces view, click a trace to see its trace ID in the trace details panel. You can use `px trace get <trace-id>` to retrieve that exact trace.
 
 ## Usage
 
@@ -153,7 +153,7 @@ The `--format` option controls how the fetched data is displayed:
   px trace get <trace-id> --format raw | jq '.spans[] | select(.span_kind == "LLM")'
   ```
 
-## Fetch a Single Trace
+## Fetch a single trace
 
 You can fetch a single trace with its ID. The command will output to the terminal by default:
 
@@ -179,7 +179,7 @@ To fetch a trace from a different project than the one configured:
 px trace get <trace-id> --project different-project
 ```
 
-## Fetch Multiple Traces
+## Fetch multiple traces
 
 <Tip>
 For bulk fetches of traces, we recommend specifying a target directory path. Each fetched trace will be saved as a separate JSON file in that folder, making it easy to browse or process them later.
@@ -217,7 +217,7 @@ px trace list ./my-traces --limit 50 --last-n-minutes 30
 px trace list ./my-traces --since 2026-01-15T00:00:00Z
 ```
 
-## Export to Files
+## Export to files
 
 You can fetch traces and export them for offline analysis or building datasets:
 
@@ -235,14 +235,14 @@ This command retrieves traces that occurred since January 1, 2026, saving each a
 
 Sessions group multiple traces into a single multi-turn conversation. Use the `session list` and `session get` commands to explore them.
 
-### List Sessions
+### List sessions
 
 ```bash
 px session list --limit 10
 px session list --format raw --no-progress | jq '.[].session_id'
 ```
 
-### View a Session
+### View a session
 
 ```bash
 px session get my-chat-session-001
@@ -252,7 +252,7 @@ px session get my-chat-session-001 --format raw | jq '.traces[].trace_id'
 
 To drill into a specific turn's input/output, use `px trace get <trace-id>` with the trace ID from the session output.
 
-## Trace Output Structure
+## Trace output structure
 
 When using `json` or `raw` format, traces are output with the following structure:
 
@@ -299,7 +299,7 @@ When using `json` or `raw` format, traces are output with the following structur
 }
 ```
 
-### OpenInference Semantic Attributes
+### OpenInference semantic attributes
 
 Each span includes [OpenInference](https://github.com/Arize-ai/openinference) semantic attributes in the `attributes` field:
 
@@ -309,9 +309,9 @@ Each span includes [OpenInference](https://github.com/Arize-ai/openinference) se
 - **Retrieval**: `retrieval.documents`
 - **Errors**: `exception.type`, `exception.message`, `exception.stacktrace`
 
-## AI Coding Assistant Examples
+## AI coding assistant examples
 
-### Debug a Failed Agent Run
+### Debug a failed agent run
 
 ```bash
 # Fetch recent traces and find errors
@@ -324,7 +324,7 @@ Then ask your AI assistant:
 Here's a failed trace from my agent. Can you identify what went wrong and suggest a fix?
 ```
 
-### Analyze Agent Performance
+### Analyze agent performance
 
 ```bash
 # Get traces sorted by duration
@@ -337,7 +337,7 @@ Ask your AI assistant:
 Analyze these slow traces and suggest optimizations for my agent workflow
 ```
 
-### Review Token Usage
+### Review token usage
 
 ```bash
 # Extract LLM spans with token counts
@@ -345,9 +345,9 @@ px trace list --limit 50 --format raw --no-progress | \
   jq '[.[].spans[] | select(.span_kind == "LLM") | {name, model: .attributes["llm.model_name"], tokens: .attributes["llm.token_count.total"]}]'
 ```
 
-## Pipeline Examples
+## Pipeline examples
 
-The CLI is designed to work seamlessly in shell pipelines:
+The CLI works in shell pipelines:
 
 ```bash
 # Count traces with errors

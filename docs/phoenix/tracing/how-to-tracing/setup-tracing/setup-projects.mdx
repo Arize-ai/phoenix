@@ -1,45 +1,40 @@
 ---
 title: "Set up projects"
 sidebarTitle: "Set up projects"
+description: "Route traces to a Phoenix project."
 ---
 
-# Log to a specific project
-
-Phoenix uses projects to group traces. If left unspecified, all traces are sent to a default project.
+Phoenix uses projects to group traces. If you do not set a project, Phoenix sends traces to the `default` project.
 
 <Tabs>
 
-  <Tab title="Using Phoenix Wrappers">
+  <Tab title="Phoenix OTEL">
 
-    In the notebook, you can set the `PHOENIX_PROJECT_NAME` environment variable **before** adding instrumentation or running any of your code.
+    Set `PHOENIX_PROJECT` before you initialize tracing. `PHOENIX_PROJECT_NAME` is still supported as an alias, but `PHOENIX_PROJECT` takes precedence when both are set.
 
-    In python this would look like:
-
-    ```javascript
+    ```python
     import os
 
-    os.environ['PHOENIX_PROJECT_NAME'] = "<your-project-name>"
+    os.environ["PHOENIX_PROJECT"] = "my-project-name"
     ```
 
     <Warning>
-    Note that setting a project via an environment variable only works in a notebook and must be done **BEFORE** instrumentation is initialized. If you are using OpenInference Instrumentation, see the Server tab for how to set the project name in the Resource attributes.
-
+    Set the project before instrumentation is initialized. If your app already created a tracer provider, changing the environment variable will not move existing spans to another project.
     </Warning>
 
-    Alternatively, you can set the project name in your `register` function call:
+    You can also set the project name in `register()`:
 
-    ```javascript
+    ```python
     from phoenix.otel import register
 
     tracer_provider = register(
         project_name="my-project-name",
-        ....
     )
     ```
 
   </Tab>
 
-  <Tab title="Using OTEL Directly">
+  <Tab title="OpenTelemetry directly">
 
     If you are using Phoenix as a collector and running your application separately, you can set the project name in the `Resource` attributes for the trace provider.
 
@@ -66,7 +61,7 @@ Phoenix uses projects to group traces. If left unspecified, all traces are sent 
 
   </Tab>
 
-  <Tab title="Via HTTP Header">
+  <Tab title="HTTP header">
 
     If you are using a configuration-based OTEL tool (such as an OTEL Collector, OpenClaw, or any framework that does not let you set resource attributes in code), you can route traces to a specific Phoenix project by setting the `x-project-name` HTTP header on OTLP HTTP exports.
 
@@ -108,11 +103,11 @@ Phoenix uses projects to group traces. If left unspecified, all traces are sent 
 
 </Tabs>
 
-Projects work by setting something called the **Resource** attributes (as seen in the OTEL example above). The phoenix server uses the project name attribute to group traces into the appropriate project. Alternatively, the `x-project-name` HTTP header can be used to override the project name for all spans in an OTLP HTTP request.
+Projects work by setting the OpenInference project resource attribute. The Phoenix server uses that project name to group traces. For OTLP over HTTP, the `x-project-name` header can override the project name for every span in the request.
 
-# Switching projects in a notebook
+## Switching projects in a notebook
 
-Typically you want traces for an LLM app to all be grouped in one project. However, while working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects. You can use this to trace things like evaluations.
+Most applications should send their traces to one project. In a notebook, you can temporarily associate spans with another project. This is useful when you want evaluation traces to go to a separate project.
 
 <Tabs>
 
@@ -123,7 +118,7 @@ Typically you want traces for an LLM app to all be grouped in one project. Howev
 
     # Switch project to run evals
     with dangerously_using_project("my-eval-project"):
-        # all spans created within this context will be associated with
+        # All spans created within this context will be associated with
         # the "my-eval-project" project.
         # Run evaluations here...
     ```

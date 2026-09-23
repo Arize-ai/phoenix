@@ -3,15 +3,9 @@ title: "Export annotated spans"
 description: "Use the Phoenix client to export spans with their annotations."
 ---
 
-This information can be used to:
+Export annotated spans when you want to analyze feedback or evaluation results outside the Phoenix UI. The exported data can help you build datasets, tune evaluators, or find examples to inspect.
 
-* build new LLM judges
-
-* form the basis for new datasets
-
-* help identify ideas for improving your application
-
-### Pulling Spans
+## Pull spans
 
 ```python
 from phoenix.client import Client
@@ -73,7 +67,7 @@ spans = client.spans.get_spans_dataframe(
 )
 ```
 
-This spans dataframe can be used to pull associated annotations.
+Use the spans dataframe to pull the associated annotations.
 
 ```python
 annotations = client.spans.get_span_annotations_dataframe(
@@ -82,7 +76,7 @@ annotations = client.spans.get_span_annotations_dataframe(
 )
 ```
 
-Instead of an input dataframe, you can also pass in a list of ids:
+You can also pass a list of span IDs instead of an input dataframe.
 
 ```python
 annotations = client.spans.get_span_annotations_dataframe(
@@ -91,9 +85,8 @@ annotations = client.spans.get_span_annotations_dataframe(
 )
 ```
 
-The annotations and spans dataframes can be easily joined to produce a one-row-per-annotation dataframe that can be used to analyze the annotations!
+Join the annotations dataframe with the spans dataframe when you want one row per annotation.
 
 ```python
 annotations.join(spans, how="left")
 ```
-

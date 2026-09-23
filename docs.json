@@ -107,15 +107,7 @@
             "icon": "telescope",
             "pages": [
               "docs/phoenix/tracing/llm-traces",
-              {
-                "group": "Tracing concepts",
-                "pages": [
-                  "docs/phoenix/tracing/concepts-tracing/what-are-traces",
-                  "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
-                  "docs/phoenix/tracing/concepts-tracing/translating-conventions",
-                  "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
-                ]
-              },
+              "docs/phoenix/tracing/concepts-tracing/what-are-traces",
               "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
               "docs/phoenix/integrations",
               "docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument",
@@ -126,6 +118,7 @@
                 "pages": [
                   "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
                   "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions",
+                  "docs/phoenix/tracing/concepts-tracing/translating-conventions",
                   {
                     "group": "Import and export traces",
                     "pages": [
@@ -1710,6 +1703,14 @@
       "destination": "/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans"
     },
     {
+      "source": "/docs/phoenix/tracing/concepts-tracing/how-tracing-works",
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
+    },
+    {
+      "source": "/docs/phoenix/tracing/concepts-tracing/faqs-tracing",
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
+    },
+    {
       "source": "/docs/phoenix/tracing/how-to-tracing/add-metadata/instrumenting-prompt-templates-and-prompt-variables",
       "destination": "/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans"
     },
@@ -2163,7 +2164,7 @@
     },
     {
       "source": "/docs/phoenix/learn/tracing/how-tracing-works",
-      "destination": "/docs/phoenix/tracing/concepts-tracing/how-tracing-works"
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
     },
     {
       "source": "/docs/phoenix/tracing/concepts-tracing/concepts-annotations",
@@ -2171,7 +2172,7 @@
     },
     {
       "source": "/docs/phoenix/learn/tracing/faqs-tracing",
-      "destination": "/docs/phoenix/tracing/concepts-tracing/faqs-tracing"
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
     },
     {
       "source": "/docs/phoenix/learn/datasets-and-experiments/datasets-concepts",

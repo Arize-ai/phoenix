@@ -4,51 +4,38 @@ sidebarTitle: "Capture multimodal traces"
 description: "Phoenix supports displaying images that are included in LLM traces."
 ---
 
-
-
 <Frame>
-      <img src="https://arize.com/wp-content/uploads/2024/08/multimodal_gallery.gif"/>
+  <img src="https://arize.com/wp-content/uploads/2024/08/multimodal_gallery.gif" alt="Phoenix trace view showing image content inside a multimodal LLM trace" />
 </Frame>
 
-## To view images in Phoenix
+## View images in Phoenix
 
-1. [Connect to a Phoenix instance](/docs/phoenix/get-started)
+1. [Connect to a Phoenix instance](/docs/phoenix/get-started).
 
-2. Instrument your application
+2. Instrument your application.
 
-3. Include either a base64 UTF-8 encoded image or an image url in the call made to your LLM
+3. Include a base64 UTF-8 encoded image or an image URL in the LLM request.
 
 ## Example
 
 ```bash
-pip install -q "arize-phoenix>=4.29.0" openinference-instrumentation-openai openai
+pip install -q arize-phoenix arize-phoenix-otel openinference-instrumentation-openai openai
 ```
 
 ```python
-# Check if PHOENIX_API_KEY is present in the environment variables.
-# If it is, we'll connect to that remote instance. If it's not, we'll start a local one.
-# See /docs/phoenix/environments for more information.
-
-# Launch Phoenix
 import os
-if "PHOENIX_API_KEY" in os.environ:
-    os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.environ['PHOENIX_API_KEY']}"
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://your-phoenix.example.com"
 
-else:
+if "PHOENIX_COLLECTOR_ENDPOINT" not in os.environ:
     import phoenix as px
 
     px.launch_app().view()
 
-# Connect to Phoenix
 from phoenix.otel import register
-tracer_provider = register()
+tracer_provider = register(project_name="multimodal-tracing")
 
-# Instrument OpenAI calls in your application
 from openinference.instrumentation.openai import OpenAIInstrumentor
-OpenAIInstrumentor().instrument(tracer_provider=tracer_provider, skip_dep_check=True)
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 
-# Make a call to OpenAI with an image provided
 from openai import OpenAI
 
 client = OpenAI()
@@ -59,7 +46,7 @@ response = client.chat.completions.create(
     {
       "role": "user",
       "content": [
-        {"type": "text", "text": "What’s in this image?"},
+        {"type": "text", "text": "What's in this image?"},
         {
           "type": "image_url",
           "image_url": {
@@ -76,5 +63,5 @@ response = client.chat.completions.create(
 You should see your image appear in Phoenix:
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cd6e069b-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cd6e069b-image.jpeg" alt="Phoenix span details showing an image in the LLM input" />
 </Frame>

@@ -6,7 +6,7 @@ description: "Connect your application to Phoenix and choose an instrumentation 
 
 import AgentAssistedOnboarding from "../../../../snippets/agent-assisted-onboarding.mdx";
 
-Start sending traces to Phoenix by configuring OpenTelemetry and choosing an instrumentation method. The Phoenix OTEL SDK provides a lightweight wrapper around OpenTelemetry with Phoenix defaults.
+Start sending traces to Phoenix by configuring OpenTelemetry and choosing an instrumentation method. The Phoenix OTEL SDK wraps OpenTelemetry with Phoenix defaults.
 
 <Note>
 **Go users:** Phoenix does not ship a branded `phoenix-otel` SDK wrapper for Go. Configure the standard [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/) directly and point an OTLP/HTTP exporter at Phoenix. End-to-end examples live in the Go integration pages: [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk), [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go), and [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
@@ -19,8 +19,8 @@ Start sending traces to Phoenix by configuring OpenTelemetry and choosing an ins
 Choose the approach that fits your codebase.
 
 <CardGroup cols={2}>
-  <Card title="Auto-instrument a framework" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
-    Capture traces from supported frameworks and LLM providers without manual span code
+  <Card title="Choose an integration" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
+    Pick a supported framework, provider, or tool to trace
   </Card>
   <Card title="Manual instrumentation" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
     Use decorators and helpers to trace specific methods or code blocks in Python
@@ -100,7 +100,7 @@ For manual instrumentation, `arize-phoenix-otel` (>=0.16.0) and `@arizeai/phoeni
     <Accordion title="Configuration options">
       | Parameter | Description |
       |-----------|-------------|
-      | `project_name` | Project name in Phoenix (or `PHOENIX_PROJECT_NAME` env var) |
+      | `project_name` | Project name in Phoenix, from this argument or the `PHOENIX_PROJECT` environment variable. `PHOENIX_PROJECT_NAME` is also supported as an alias. |
       | `auto_instrument` | Automatically instrument all supported libraries |
       | `batch` | Process spans in batch (default: `False`) |
       | `endpoint` | Custom collector endpoint URL |
@@ -151,7 +151,7 @@ Add instrumentation to capture traces from your LLM calls:
     Just `pip install` the instrumentation packages you need and set `auto_instrument=True`. Phoenix handles the rest.
     </Tip>
 
-    See [Integrations](/docs/phoenix/integrations) for all available packages, or use [Tracing Helpers](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for manual instrumentation.
+    See [Choose an integration](/docs/phoenix/integrations) for supported packages, or use [manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for custom spans.
   </Tab>
 
   <Tab title="TypeScript" icon="js">
@@ -184,7 +184,7 @@ Add instrumentation to capture traces from your LLM calls:
     For manual spans, import the helpers from `@arizeai/phoenix-otel`. Phoenix's wrappers resolve the active global tracer when they execute, so the same traced function keeps working inside experiment runs and other provider swaps.
     </Tip>
 
-    See [Integrations](/docs/phoenix/integrations) for all available packages.
+    See [Choose an integration](/docs/phoenix/integrations) for supported packages.
   </Tab>
 </Tabs>
 
@@ -214,8 +214,8 @@ For more control over tracing behavior, see the SDK reference documentation:
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Integrations" icon="puzzle-piece" href="/docs/phoenix/integrations">
-    Browse auto-instrumentation packages
+  <Card title="Choose an integration" icon="puzzle-piece" href="/docs/phoenix/integrations">
+    Pick a framework, provider, or tool to trace
   </Card>
   <Card title="Tracing Helpers" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
     Manual instrumentation with decorators

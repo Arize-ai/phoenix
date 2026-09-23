@@ -5,10 +5,10 @@ sidebarTitle: "Choose an integration"
 ---
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/integration-intro.jpg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/integration-intro.jpg" alt="Phoenix integrations overview" />
 </Frame>
 
-Phoenix integrates with the leading AI frameworks, LLM providers, and tools to provide seamless observability, evaluation, and debugging for your AI applications. Whether you're building with Python, TypeScript, or Java, Phoenix has you covered.
+Phoenix connects to AI frameworks, LLM providers, developer tools, evaluation tools, span processors, and sandbox providers. Use this page to find the integration for your stack.
 
 <Check>
 Don't see an integration you need? We'd love to [hear from you!](https://github.com/Arize-ai/openinference/issues/new/choose)
@@ -16,24 +16,24 @@ Don't see an integration you need? We'd love to [hear from you!](https://github.
 
 ---
 
-## Integration Types
+## Integration types
 
-Phoenix offers several types of integrations to support your AI development workflow:
+Phoenix has several types of integrations for AI application development.
 
 <CardGroup cols={2}>
-  <Card title="Developer Tools" icon="code" href="#developer-tools">
+  <Card title="Developer tools" icon="code" href="#developer-tools">
     Integrate Phoenix with AI coding assistants like Claude Code and Cursor for debugging and analysis.
   </Card>
-  <Card title="Tracing Integrations" icon="route" href="#tracing-integrations">
+  <Card title="Tracing integrations" icon="route" href="#tracing-integrations">
     Automatically capture traces from your AI applications built with popular frameworks and LLM providers.
   </Card>
-  <Card title="Eval Model Integrations" icon="brain" href="#eval-model-integrations">
+  <Card title="Eval model integrations" icon="brain" href="#eval-model-integrations">
     Use any LLM provider to power Phoenix's evaluation capabilities for scoring and classifying your traces.
   </Card>
-  <Card title="Evaluation Integrations" icon="clipboard-check" href="#evaluation-integrations">
+  <Card title="Evaluation integrations" icon="clipboard-check" href="#evaluation-integrations">
     Record results from evaluation frameworks and libraries such as Harbor, Ragas, Cleanlab, and MLflow.
   </Card>
-  <Card title="Span Processors" icon="arrows-rotate" href="#span-processors">
+  <Card title="Span processors" icon="arrows-rotate" href="#span-processors">
     Convert traces from other instrumentation libraries to the OpenInference format.
   </Card>
   <Card title="Sandboxes" icon="cube" href="#sandboxes">
@@ -43,7 +43,7 @@ Phoenix offers several types of integrations to support your AI development work
 
 ---
 
-## Developer Tools
+## Developer tools
 
 Integrate Phoenix with AI coding assistants to debug and analyze your LLM applications directly from your development environment.
 
@@ -58,9 +58,9 @@ Integrate Phoenix with AI coding assistants to debug and analyze your LLM applic
 
 ---
 
-## Coding Agents
+## Coding agents
 
-Trace your sessions with a coding agent — turns, tool calls, and token costs — in Phoenix, no application code changes required. Install the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit and pick your agent:
+Trace coding agent sessions in Phoenix, including turns, tool calls, and token costs. Install the [coding-harness-tracing](https://github.com/Arize-ai/coding-harness-tracing) toolkit and pick your agent.
 
 <CardGroup cols={3}>
   <Card title="Claude Code" icon="terminal" href="/docs/phoenix/integrations/coding-agents/claude-code" />
@@ -75,11 +75,11 @@ Trace your sessions with a coding agent — turns, tool calls, and token costs �
 
 ---
 
-## Tracing Integrations
+## Tracing integrations
 
-Phoenix captures detailed traces from your AI applications, giving you visibility into every step of your LLM pipeline.
+Phoenix can capture traces from AI applications built with supported frameworks and LLM providers.
 
-### By Language
+### By language
 
 <Tabs>
   <Tab title="Python" icon="python">

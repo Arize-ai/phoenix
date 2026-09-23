@@ -625,10 +625,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/how-tracing-works</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/annotations-concepts</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -691,10 +687,6 @@
   <url>
     <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector</loc>
     <lastmod>2026-06-12T00:32:16+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts</loc>

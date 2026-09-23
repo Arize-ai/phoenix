@@ -6,16 +6,16 @@ sidebarTitle: "Get started"
 
 import AgentAssistedOnboardingPrereq from "../../snippets/agent-assisted-onboarding-prereq.mdx";
 
-Phoenix collects traces from AI applications over OpenTelemetry. It also has integrations with LlamaIndex, LangChain, OpenAI, and others.
+Phoenix collects traces from AI applications over OpenTelemetry. You can send traces with Phoenix OTEL, an OpenInference integration, or manual spans.
 
 <AgentAssistedOnboardingPrereq />
 
-LLM tracing records the paths taken by requests as they propagate through multiple steps or components of an LLM application. For example, when a user interacts with an LLM application, tracing can capture the sequence of operations, such as document retrieval, embedding generation, language model invocation, and response generation to provide a detailed timeline of the request's execution.
+LLM tracing records the path a request takes through your application. For example, a single user request can include document retrieval, embedding generation, a model call, tool calls, and response generation.
 
-Tracing helps you understand how your LLM application works. Phoenix accepts traces over the OpenTelemetry protocol (OTLP), and it works with many frameworks, SDKs, and languages, including [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), [LangChain](/docs/phoenix/integrations/python/langchain), [DSPy](/docs/phoenix/integrations/python/dspy/dspy-tracing), [OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Bedrock](/docs/phoenix/integrations/llm-providers/amazon-bedrock), [Mistral](/docs/phoenix/integrations/llm-providers/mistralai), [Vertex](/docs/phoenix/integrations/llm-providers/vertexai), [Python](/docs/phoenix/integrations/python/agno), and [TypeScript](/docs/phoenix/integrations/typescript/beeai).
+Tracing helps you understand what happened inside an LLM application. Phoenix accepts traces over the OpenTelemetry protocol (OTLP), and it works with many frameworks, SDKs, and languages, including [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), [LangChain](/docs/phoenix/integrations/python/langchain), [DSPy](/docs/phoenix/integrations/python/dspy/dspy-tracing), [OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Bedrock](/docs/phoenix/integrations/llm-providers/amazon-bedrock), [Mistral](/docs/phoenix/integrations/llm-providers/mistralai), and [Vertex](/docs/phoenix/integrations/llm-providers/vertexai).
 
 <Frame caption="View the execution path for your LLM application">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" alt="Phoenix trace details view showing spans in an LLM application trace" />
 </Frame>
 
 Trace data helps you find performance and reliability issues in your application. After Phoenix receives traces, use [Observe](/docs/phoenix/observe/explore-traces) to inspect projects, sessions, filters, metrics, and dashboards.
@@ -42,8 +42,8 @@ Phoenix stores span details that help you debug LLM application behavior:
   <Card title="Set up tracing" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
     Configure Phoenix OTEL and connect your app
   </Card>
-  <Card title="Auto-instrument a framework" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
-    Connect LangChain, LlamaIndex, Anthropic, and other frameworks
+  <Card title="Choose an integration" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
+    Pick the framework, provider, or tool you want to trace
   </Card>
   <Card title="Manual instrumentation" icon="code" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
     Add custom spans with decorators and wrappers

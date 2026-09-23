@@ -1,40 +1,67 @@
 ---
 title: "Import existing traces"
-description: "Phoenix supports loading data that contains [OpenInference traces](/docs/phoenix/resources/openinference). This allows you to load an existing dataframe of traces into your Phoenix instance."
+description: "Load existing OpenInference trace data into Phoenix."
 ---
 
 import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
 
+Phoenix can load existing trace data when the data follows the [OpenInference](/docs/phoenix/resources/openinference) trace format. Use the client when you want to add spans to an existing Phoenix project. Use `TraceDataset` when you want to inspect a saved trace dataframe in a local notebook.
 
-
-
-Usually these will be traces you've previously saved using [Save All Traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#save-all-traces).
-
-### Connect to Phoenix
+## Connect to Phoenix
 
 <ConnectToPhoenixPython />
 
-### Importing Traces to an Existing Phoenix Instance
+## Upload spans to an existing Phoenix project
+
+Use `log_spans_dataframe` when you have a dataframe of spans and want to write those spans to a Phoenix project.
+
+```python
+from phoenix.client import Client
+from phoenix.client.exceptions import SpanCreationError
+
+client = Client()
+
+try:
+    client.spans.log_spans_dataframe(
+        project_identifier="my-project",
+        spans_dataframe=df,
+    )
+except SpanCreationError as error:
+    print(error)
+```
+
+The dataframe must contain the span fields Phoenix needs, including span context, timing, status, and OpenInference attributes.
+
+## Launch a local Phoenix instance with saved traces
+
+Use `TraceDataset` when you want to open a local Phoenix instance from a dataframe or from a trace dataset you saved earlier.
 
 ```python
 import phoenix as px
 
-# Re-launch the app using trace data
+# Launch Phoenix from a dataframe of spans
 px.launch_app(trace=px.TraceDataset(df))
 
-# Load traces into an existing Phoenix instance from a local file
-px.launch_app(trace=px.TraceDataset.load('f7733fda-6ad6-4427-a803-55ad2182b662', directory="/my_saved_traces/"))
+# Launch Phoenix from a saved trace dataset
+trace_dataset = px.TraceDataset.load(
+    "f7733fda-6ad6-4427-a803-55ad2182b662",
+    directory="/my_saved_traces/",
+)
+px.launch_app(trace=trace_dataset)
 ```
 
-### Launching a new Phoenix Instance with Saved Traces
+The local Phoenix instance runs only while your notebook or Python process is running.
 
-You can also launch a temporary version of Phoenix in your local notebook to quickly view the traces. But be warned, this Phoenix instance will only last as long as your notebook environment is running
+## Save and reload a trace dataset
+
+`TraceDataset.save` writes the trace dataset to disk and returns the dataset ID. Pass that ID to `TraceDataset.load` when you want to open it again.
 
 ```python
-# Load traces from a dataframe
-px.launch_app(trace=px.TraceDataset.load(my_traces))
+import phoenix as px
 
-# Load traces from a local file
-px.launch_app(trace=px.TraceDataset.load('f7733fda-6ad6-4427-a803-55ad2182b662', directory="/my_saved_traces/"))
+trace_dataset = px.TraceDataset(df)
+dataset_id = trace_dataset.save(directory="/my_saved_traces/")
+
+reloaded = px.TraceDataset.load(dataset_id, directory="/my_saved_traces/")
+px.launch_app(trace=reloaded)
 ```
-

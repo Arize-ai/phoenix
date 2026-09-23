@@ -5,168 +5,146 @@ sidebarTitle: "Set up sessions"
 ---
 
 <Info>
-If you are using LangChain, you can use LangChain's native threads to track sessions! See [https://docs.smith.langchain.com/old/monitoring/faq/threads](https://docs.smith.langchain.com/old/monitoring/faq/threads)
-
+If you use LangChain, Phoenix can read LangChain thread metadata as session metadata. Use `thread_id`, `session_id`, or `conversation_id`.
 </Info>
 
-<Frame caption="Evals in the Phoenix UI">
-  <iframe src="https://cdn.iframe.ly/NJZJ9td" allowFullScreen width={1000} height={400} allow="encrypted-media *;"></iframe>
+<Frame caption="Sessions in the Phoenix UI">
+  <iframe src="https://cdn.iframe.ly/NJZJ9td" title="Phoenix sessions walkthrough" allowFullScreen width={1000} height={400} allow="encrypted-media *;"></iframe>
 </Frame>
 
-A `Session` is a sequence of traces representing a single session (e.g. a session or a thread). Each response is represented as its own trace, but these traces are linked together by being part of the same session.
+A session is a group of traces that belong to the same conversation or thread. Each response can be its own trace, and Phoenix links those traces with the same `session.id`.
 
-To associate traces together, you need to pass in a special metadata key where the value is the unique identifier for that thread.
+To associate traces together, set a stable session ID before the spans are created.
 
-## Example Notebooks
+## Example notebooks
 
 
 | Use Case                         | Language | Links                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | :-------------------------------- | :------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenAI tracing with Sessions     | Python   | [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/213b0a4a-v1.svg"/>](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb) [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a1e76274-v1.svg"/>](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb)                  |
-| LlamaIndex tracing with Sessions | Python   | [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/213b0a4a-v1.svg" />](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb) [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a1e76274-v1.svg" />](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/project_sessions_llama_index_query_engine.ipynb) |
-| OpenAI tracing with Sessions     | TS/JS    | [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a1e76274-v1.svg" />](https://github.com/Arize-ai/phoenix/blob/main/js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb)                                                                                                                                                                                                                    |
+| OpenAI tracing with sessions     | Python   | [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/213b0a4a-v1.svg" alt="Open in Colab" />](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb) [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a1e76274-v1.svg" alt="View on GitHub" />](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb)                  |
+| LlamaIndex tracing with sessions | Python   | [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/213b0a4a-v1.svg" alt="Open in Colab" />](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/project_sessions_llama_index_query_engine.ipynb) [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a1e76274-v1.svg" alt="View on GitHub" />](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/project_sessions_llama_index_query_engine.ipynb) |
+| OpenAI tracing with sessions     | TS/JS    | [<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a1e76274-v1.svg" alt="View on GitHub" />](https://github.com/Arize-ai/phoenix/blob/main/js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb)                                                                                                                                                                                                                    |
 
 
-## Logging Conversations
+## Logging conversations
 
-Below is an example of logging conversations:
+The examples below show how to attach the same session ID to multiple model calls.
 
 <Tabs>
 
   <Tab title="Python" icon="python">
 
-    First make sure you have the required dependencies installed
+    Install Phoenix OTEL and the OpenAI instrumentor:
 
     ```bash
-    pip install "arize-phoenix-otel>=0.16.0"
+    pip install "arize-phoenix-otel>=0.16.0" openai openinference-instrumentation-openai
     ```
 
     <Note>
-    Requires `arize-phoenix-otel` **0.16.0 or later** for `using_session` and `SpanAttributes` to be importable directly from `phoenix.otel`. On older versions, import them from `openinference.instrumentation` and `openinference.semconv.trace`.
+    Requires `arize-phoenix-otel` **0.16.0 or later** for `using_session` to be importable directly from `phoenix.otel`. On older versions, import it from `openinference.instrumentation`.
     </Note>
 
-    Below is an example of how to propagate session IDs to auto-instrumented spans.
+    Register tracing with auto-instrumentation, then wrap each model call with `using_session`.
 
     ```python
     import uuid
 
-    import openai
-    from phoenix.otel import SpanAttributes, using_session
-    from opentelemetry import trace
+    from openai import OpenAI
+    from phoenix.otel import register, using_session
 
-    client = openai.Client()
+    register(project_name="chatbot", auto_instrument=True)
+
+    client = OpenAI()
     session_id = str(uuid.uuid4())
 
-    tracer = trace.get_tracer(__name__)
-
-    @tracer.start_as_current_span(name="agent", attributes={SpanAttributes.OPENINFERENCE_SPAN_KIND: "agent"})
-    def assistant(
-      messages: list[dict],
-      session_id: str = str,
-    ):
-      current_span = trace.get_current_span()
-      current_span.set_attribute(SpanAttributes.SESSION_ID, session_id)
-      current_span.set_attribute(SpanAttributes.INPUT_VALUE, messages[-1].get('content'))
-
-      # Propagate the session_id down to spans crated by the OpenAI instrumentation
-      # This is not strictly necessary, but it helps to correlate the spans to the same session
-      with using_session(session_id):
-          response = client.chat.completions.create(
-          model="gpt-4o-mini",
-          messages=[{"role": "system", "content": "You are a helpful assistant."}] + messages,
-      ).choices[0].message
-
-      current_span.set_attribute(SpanAttributes.OUTPUT_VALUE, response.content)
-      return response
+    def assistant(messages: list[dict], session_id: str):
+        with using_session(session_id=session_id):
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    *messages,
+                ],
+            )
+        return response.choices[0].message
 
     messages = [
-      {"role": "user", "content": "hi! im bob"}
+        {"role": "user", "content": "Hi, I'm Bob."}
     ]
-    response = assistant(
-      messages,
-      session_id=session_id,
-    )
+    response = assistant(messages, session_id=session_id)
     messages = messages + [
-      response,
-      {"role": "user", "content": "what's my name?"}
+        {"role": "assistant", "content": response.content or ""},
+        {"role": "user", "content": "What's my name?"},
     ]
-    response = assistant(
-      messages,
-      session_id=session_id,
-    )
+    response = assistant(messages, session_id=session_id)
     ```
 
   </Tab>
 
   <Tab title="TypeScript" icon="js">
 
-    The easiest way to add sessions to your application is to install `@arizeai/phoenix-otel`
+    Install Phoenix OTEL and the OpenAI instrumentor:
 
-    ```javascript
-    npm install @arizeai/phoenix-otel
+    ```bash
+    npm install @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai openai
     ```
 
-    You now can use either the `session.id` semantic attribute or the `setSession` utility function from `phoenix-otel` to associate traces with a particular session:
+    Register tracing and add the session ID to the active OpenTelemetry context.
 
-    ```javascript
+    ```typescript
     import OpenAI from "openai";
-    import { context, trace, setSession } from "@arizeai/phoenix-otel";
+    import {
+      context,
+      register,
+      registerInstrumentations,
+      setSession,
+    } from "@arizeai/phoenix-otel";
+    import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-    const tracer = trace.getTracer("agent");
+    register({ projectName: "chatbot" });
 
-    const client = new OpenAI({
-      apiKey: process.env["OPENAI_API_KEY"], // This is the default and can be omitted
-    });
+    const instrumentation = new OpenAIInstrumentation();
+    instrumentation.manuallyInstrument(OpenAI);
+    registerInstrumentations({ instrumentations: [instrumentation] });
+
+    const client = new OpenAI();
+
+    type Message = { role: "user" | "assistant" | "system"; content: string };
 
     async function assistant(params: {
-      messages: { role: string; content: string }[];
+      messages: Message[];
       sessionId: string;
     }) {
-      return tracer.startActiveSpan("agent", async (span) => {
-        span.setAttribute("openinference.span.kind", "agent");
-        span.setAttribute("session.id", params.sessionId);
-        span.setAttribute(
-          "input.value",
-          params.messages[params.messages.length - 1].content,
-        );
-        try {
-          // This is not strictly necessary but it helps propagate the session ID
-          // to all child spans
-          return context.with(
-            setSession(context.active(), { sessionId: params.sessionId }),
-            async () => {
-              // Calls within this block will generate spans with the session ID set
-              const chatCompletion = await client.chat.completions.create({
-                messages: params.messages,
-                model: "gpt-4o-mini",
-              });
-              const response = chatCompletion.choices[0].message;
-              span.setAttribute("output.value", response.content);
-              span.end();
-              return response;
-            },
-          );
-        } catch (error) {
-          span.recordException(error as Error);
-          throw error;
+      return context.with(
+        setSession(context.active(), { sessionId: params.sessionId }),
+        async () => {
+          const chatCompletion = await client.chat.completions.create({
+            messages: params.messages,
+            model: "gpt-4o-mini",
+          });
+          return chatCompletion.choices[0].message;
         }
-      });
+      );
     }
 
     const sessionId = crypto.randomUUID();
 
-    let messages = [{ role: "user", content: "hi! im Tim" }];
+    let messages: Message[] = [{ role: "user", content: "Hi, I'm Tim." }];
 
-    const res = await assistant({
+    const response = await assistant({
       messages,
-      sessionId: sessionId,
+      sessionId,
     });
 
-    messages = [res, { role: "assistant", content: "What is my name?" }];
+    messages = [
+      ...messages,
+      { role: "assistant", content: response.content ?? "" },
+      { role: "user", content: "What's my name?" },
+    ];
 
     await assistant({
       messages,
-      sessionId: sessionId,
+      sessionId,
     });
     ```
 
@@ -174,23 +152,23 @@ Below is an example of logging conversations:
 
 </Tabs>
 
-## Viewing Sessions
+## Viewing sessions
 
-You can view the sessions for a given project by clicking on the "Sessions" tab in the project. You will see a list of all the recent sessions as well as some analytics. You can search the content of the messages to narrow down the list.
+You can view sessions for a project from the **Sessions** tab. Phoenix shows recent sessions and session-level analytics, and you can search message content to narrow the list.
 
 <Frame caption="View all the sessions under a project">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ca93711f-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ca93711f-image.jpeg" alt="Phoenix sessions table showing sessions within a project" />
 </Frame>
 
-You can then click into a given session. This will open the history of a particular session. If the sessions contain input / output, you will see a chatbot-like UI where you can see the a history of inputs and outputs.
+Open a session to inspect its trace history. If the traces contain input and output attributes, Phoenix shows the conversation history.
 
 <Frame caption="Session details view">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/8afa6160-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/8afa6160-image.jpeg" alt="Phoenix session details view showing trace history for a session" />
 </Frame>
 
 ## How to track sessions with LangChain
 
-For LangChain, in order to log runs as part of the same thread you need to pass a special metadata key to the run. The key value is the unique identifier for that conversation. The key name should be one of:
+For LangChain, pass a session key in run metadata. The value should be the unique identifier for that conversation. Use one of these key names:
 
 * `session_id`
 

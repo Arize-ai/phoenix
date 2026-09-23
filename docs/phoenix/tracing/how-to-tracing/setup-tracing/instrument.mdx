@@ -66,7 +66,7 @@ The `semconv` package provides typed constants for the wire-format-stable attrib
 ```python
 from phoenix.otel import register
 
-tracer_provider = register(protocol="http/protobuf", project_name="your project name")
+tracer_provider = register(protocol="http/protobuf", project_name="my-app")
 tracer = tracer_provider.get_tracer(__name__)
 ```
 </Tab>

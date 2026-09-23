@@ -420,11 +420,9 @@
 
 ### Tracing
 
-- [What Are Traces](https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces): Understand how traces model request paths and spans model units of work
-- [How Tracing Works](https://arize.com/docs/phoenix/tracing/concepts-tracing/how-tracing-works): Learn how Phoenix collects traces via OpenTelemetry and processes them
+- [Tracing Concepts](https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces): Understand traces, spans, span kinds, attributes, and common tracing setup questions
 - [Annotations Concepts](https://arize.com/docs/phoenix/tracing/concepts-tracing/annotations-concepts): Understand how scores, labels, and feedback attach to traces as quality signals
 - [Translating Conventions](https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions): Map framework-specific conventions to Phoenix's trace structure
-- [Tracing FAQs](https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing): Troubleshoot trace collection, local vs remote setup, and common configuration issues
 
 ### OpenTelemetry & OpenInference
 

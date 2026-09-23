@@ -1,17 +1,23 @@
 ---
 title: "Import and export traces"
 sidebarTitle: "Overview"
+description: "Import existing traces, export spans, and move trace data in and out of Phoenix."
 ---
+
+Use these pages when trace data already exists outside Phoenix, or when you need to export spans for analysis, migration, or debugging.
 
 <Columns cols={2}>
 <Card title="Import existing traces" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces" icon="file-import" horizontal>
-Learn how to load a file of traces into Phoenix
+Load an OpenInference span dataframe into Phoenix
 </Card>
 <Card title="Import ATIF trajectories" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories" icon="robot" horizontal>
 Upload agent trajectories from Harbor, Claude Code, OpenHands, and other ATIF-compatible frameworks
 </Card>
 <Card title="Export data and query spans" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans" icon="file-export" horizontal>
-Learn how to export trace data from Phoenix
+Export spans to a dataframe or query spans with the SDK
+</Card>
+<Card title="Export annotated spans" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans" icon="tags" horizontal>
+Export spans together with annotation data
 </Card>
 <Card title="Retrieve traces with the CLI" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli" icon="terminal" horizontal>
 Fetch traces from the command line for debugging and analysis

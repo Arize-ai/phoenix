@@ -4,11 +4,11 @@ sidebarTitle: "Mask span attributes"
 description: "Hide sensitive span data or limit large attributes before Phoenix receives them."
 ---
 
+Use OpenInference trace configuration to hide sensitive inputs, outputs, prompts, tool definitions, images, and embedding vectors before Phoenix receives spans. You can set the configuration with environment variables or in code.
 
+The OpenInference instrumentors read the environment variables below. They also accept a `TraceConfig` object when you want the setting to live in code.
 
-The OpenInference Specification defines a set of environment variables you can configure to suit your observability needs. In addition, the OpenInference auto-instrumentors accept a trace config which allows you to set these value in code without having to set environment variables, if that's what you prefer
-
-The possible settings are:
+The available settings are:
 
 | Environment Variable Name                        | Effect                                                       | Type | Default |
 | :------------------------------------------------ | :------------------------------------------------------------ | :---- | :------- |
@@ -27,23 +27,23 @@ The possible settings are:
 
 Note: `OPENINFERENCE_HIDE_LLM_TOOLS` is also applied when `OPENINFERENCE_HIDE_INPUTS` is enabled, consistent with how `OPENINFERENCE_HIDE_INPUT_MESSAGES` and `OPENINFERENCE_HIDE_LLM_PROMPTS` behave.
 
-To set up this configuration you can either:
+You can set this configuration in three ways:
 
-* Set environment variables as specified above
+* Set environment variables.
 
-* Define the configuration in code as shown below
+* Define the configuration in code.
 
-* Do nothing and fall back to the default values
+* Do nothing and use the default values.
 
-* Use a combination of the three, the order of precedence is:
+If you use both environment variables and code, Phoenix applies the settings in this order:
 
   * Values set in the `TraceConfig` in code
 
   * Environment variables
 
-  * default values
+  * Default values
 
-Below is an example of how to set these values in code using our OpenAI Python and JavaScript instrumentors, however, the config is respected by all of our auto-instrumentors.
+The examples below set these values in code for OpenAI instrumentation. OpenInference applies the same config shape across supported instrumentors.
 
 <Tabs>
 
@@ -94,7 +94,7 @@ Below is an example of how to set these values in code using our OpenAI Python a
 
   <Tab title="Go" icon="golang">
 
-    Use `instrumentation.TraceConfig` and pass it to the provider instrumentor via `WithTraceConfig`. Setting a value in code fully replaces the env-derived config for that instrumentor — matching the Python and JS precedence rules.
+    Use `instrumentation.TraceConfig` and pass it to the provider instrumentor with `WithTraceConfig`. A value set in code replaces the value from the environment for that instrumentor, which matches the Python and JavaScript precedence rules.
 
     ```go
     import (
