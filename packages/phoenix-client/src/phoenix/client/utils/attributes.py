@@ -46,6 +46,28 @@ def nest_span_attributes(attributes: Mapping[str, Any]) -> dict[str, Any]:
     return _unflatten(_load_json_strings(attributes.items()))
 
 
+def get_attribute_value(attributes: Mapping[str, Any], key: str) -> Any:
+    """Look up a dotted ``key`` in nested attributes.
+
+    Works on both the fully nested shape and the one :func:`nest_span_attributes`
+    produces, where a semantic-convention key such as ``document.content`` is a single
+    dotted key: at each level the longest dotted prefix present is followed first.
+    """
+    if key in attributes:
+        return attributes[key]
+    segments = key.split(_SEPARATOR)
+    for split in range(len(segments) - 1, 0, -1):
+        prefix = _SEPARATOR.join(segments[:split])
+        child = attributes.get(prefix)
+        if isinstance(child, Mapping):
+            value = get_attribute_value(
+                cast(Mapping[str, Any], child), _SEPARATOR.join(segments[split:])
+            )
+            if value is not None:
+                return value
+    return None
+
+
 def _load_json_strings(key_values: Iterable[tuple[str, Any]]) -> Iterator[tuple[str, Any]]:
     for key, value in key_values:
         if key.endswith(_JSON_STRING_ATTRIBUTES):
@@ -137,4 +159,4 @@ def _walk(trie: _Trie, *, prefix: str = "") -> Iterator[tuple[str, Any]]:
         yield from _walk(trie[branch], prefix=new_prefix)
 
 
-__all__ = ["nest_span_attributes"]
+__all__ = ["get_attribute_value", "nest_span_attributes"]
