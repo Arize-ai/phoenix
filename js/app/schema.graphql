@@ -590,6 +590,10 @@ type BuiltInEvaluator implements Evaluator & Node {
   user: User
 }
 
+type BuiltInEvaluatorDefinition {
+  builtInEvaluatorId: ID!
+}
+
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
 
 type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
@@ -2152,8 +2156,10 @@ type EvaluatorTaskConfig implements Node {
   """
   The evaluator as it was run: an inline LLM judge prompt, inline code, or a stored evaluator's id. Use to rehydrate the playground.
   """
-  definition: JSON!
+  definition: EvaluatorTaskDefinition!
 }
+
+union EvaluatorTaskDefinition = InlineLLMEvaluatorDefinition | InlineCodeEvaluatorDefinition | StoredCodeEvaluatorDefinition | BuiltInEvaluatorDefinition
 
 input EvaluatorTaskInput {
   """The evaluator, inline or stored, in the shape the evaluator test uses"""
@@ -2164,6 +2170,13 @@ input EvaluatorTaskInput {
   The saved evaluator, prompt version and dataset or project binding the task was opened from, kept on the experiment so its calibration can be traced back.
   """
   source: EvaluatorTaskSourceInput = null
+}
+
+type EvaluatorTaskSource {
+  evaluatorId: ID
+  promptVersionId: ID
+  datasetEvaluatorId: ID
+  projectEvaluatorId: ID
 }
 
 input EvaluatorTaskSourceInput {
@@ -2850,6 +2863,16 @@ enum GoogleThinkingLevel {
 
 scalar Identifier
 
+type InlineCodeEvaluatorDefinition {
+  name: String!
+  description: String
+  language: Language!
+  sourceCode: String!
+  sandboxConfigId: ID!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  source: EvaluatorTaskSource
+}
+
 input InlineCodeEvaluatorInput {
   name: String!
   language: Language!
@@ -2857,6 +2880,21 @@ input InlineCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]!
   sandboxConfigId: ID = null
   description: String = null
+}
+
+type InlineLLMEvaluatorDefinition {
+  name: String!
+  description: String
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  tools: PromptTools
+  responseFormat: PromptResponseFormatJSONSchema
+  invocationParameters: PromptInvocationParameters!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  source: EvaluatorTaskSource
+  customProvider: GenerativeModelCustomProvider
 }
 
 input InlineLLMEvaluatorInput {
@@ -5145,6 +5183,12 @@ enum SpanStatusCode {
 
 type StopExperimentPayload {
   job: ExperimentJob!
+}
+
+type StoredCodeEvaluatorDefinition {
+  codeEvaluatorId: ID!
+  codeEvaluatorVersionId: ID
+  source: EvaluatorTaskSource
 }
 
 type Subscription {
