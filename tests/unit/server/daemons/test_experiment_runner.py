@@ -235,6 +235,7 @@ def _make_eval_work_item(
     *,
     run_id: int = 1,
     dataset_evaluator_id: int = 10,
+    name: str = "test-evaluator",
     output_names: Sequence[str] = ("test-output",),
     retry_count: int = 0,
 ) -> EvalWorkItem:
@@ -245,16 +246,25 @@ def _make_eval_work_item(
         output_config = MagicMock()
         output_config.name = output_name
         output_configs.append(output_config)
+    spec = EvaluatorRunSpec(
+        dataset_evaluator_id=dataset_evaluator_id,
+        name=name,
+        evaluator=evaluator,
+        input_mapping=MagicMock(),
+        output_configs=output_configs,
+        evaluator_project_id=1,
+    )
     return EvalWorkItem(
         running_experiment=running_experiment,
         experiment_run=_make_experiment_run(run_id=run_id),
         dataset_example_revision=_make_dataset_example_revision(),
-        dataset_evaluator_id=dataset_evaluator_id,
+        dataset_evaluator_id=spec.dataset_evaluator_id,
+        name=spec.evaluation_name,
         evaluator=evaluator,
         db=running_experiment._db,
         tracer_factory=running_experiment._tracer_factory,
         project_id=1,
-        input_mapping=MagicMock(),
+        input_mapping=spec.input_mapping,
         output_configs=output_configs,
         retry_count=retry_count,
     )
@@ -443,6 +453,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=91,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -472,6 +483,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=92,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -703,7 +715,10 @@ class TestRunningExperimentQueueLogic:
         assert mock_broadcast.call_count == 2
         emitted = [call.args[0] for call in mock_broadcast.call_args_list]
         assert all(isinstance(chunk, EvaluationChunk) for chunk in emitted)
-        assert [chunk.evaluator_name for chunk in emitted] == ["accuracy", "conciseness"]
+        assert [chunk.evaluator_name for chunk in emitted] == [
+            "test-evaluator.accuracy",
+            "test-evaluator.conciseness",
+        ]
         assert all(chunk.error == "timeout after 1 retries" for chunk in emitted)
 
     @pytest.mark.anyio
@@ -717,6 +732,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=42,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config_a, output_config_b],
@@ -752,6 +768,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=77,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -786,6 +803,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=88,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -823,6 +841,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=89,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -865,6 +884,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=95,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -918,6 +938,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=90,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -1115,6 +1136,32 @@ class TestEvalWorkItemContext:
         assert evaluate.await_args.kwargs["context"]["metadata"] == {
             "annotations": {"tone": [{"label": "warm", "annotator_kind": "HUMAN"}]},
             "source": "unit",
+        }
+
+    async def test_a_multi_output_evaluator_writes_and_hides_names_under_its_binding(
+        self,
+    ) -> None:
+        experiment = _make_running_experiment()
+        work_item = _make_eval_work_item(experiment, name="judge", output_names=("quality", "tone"))
+        work_item.dataset_example_revision.metadata_ = {
+            "annotations": {
+                "judge.quality": [{"label": "good", "annotator_kind": "HUMAN"}],
+                "judge.tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+                "quality": [{"label": "bad", "annotator_kind": "HUMAN"}],
+            },
+        }
+        with (
+            patch.object(work_item.evaluator, "evaluate", new_callable=AsyncMock) as evaluate,
+            patch.object(work_item, "_persist_eval_results", new_callable=AsyncMock),
+        ):
+            evaluate.return_value = []
+            await work_item.execute()
+
+        assert work_item.annotation_names == ["judge.quality", "judge.tone"]
+        assert evaluate.await_args is not None
+        assert evaluate.await_args.kwargs["name"] == "judge"
+        assert evaluate.await_args.kwargs["context"]["metadata"] == {
+            "annotations": {"quality": [{"label": "bad", "annotator_kind": "HUMAN"}]},
         }
 
 

@@ -37,11 +37,15 @@ type ExperimentRunResult = {
   expectedOutputs: ExperimentRunExpectedOutput[];
 };
 
+type ExperimentTaskKind = "prompt" | "evaluator";
+
 export type ExperimentResults = {
   experiment: {
     id: string;
     name: string;
     status: string | null;
+    /** Null for an experiment with no task, such as one only scoring existing runs. */
+    taskKind: ExperimentTaskKind | null;
     runCount: number;
     expectedRunCount: number;
     errorRate: number | null;
@@ -78,6 +82,17 @@ function isFailingRun(run: ExperimentRunResult): boolean {
 }
 
 type ExperimentResultsQueryData = readExperimentResultsQuery["response"];
+
+function toTaskKind(typename: string | undefined): ExperimentTaskKind | null {
+  switch (typename) {
+    case "PromptTaskConfig":
+      return "prompt";
+    case "EvaluatorTaskConfig":
+      return "evaluator";
+    default:
+      return null;
+  }
+}
 
 /**
  * Shape the raw query payload into the operation output. Pure — unit tested
@@ -127,6 +142,7 @@ export function toExperimentResults({
       id: experiment.id,
       name: experiment.name,
       status: experiment.job?.status ?? null,
+      taskKind: toTaskKind(experiment.job?.taskConfig?.__typename),
       runCount: experiment.runCount,
       expectedRunCount: experiment.expectedRunCount,
       errorRate: experiment.errorRate ?? null,
@@ -170,6 +186,9 @@ export async function readExperimentResults({
             averageRunLatencyMs
             job {
               status
+              taskConfig {
+                __typename
+              }
             }
             costSummary {
               total {
