@@ -35,10 +35,10 @@ export interface SparklineProps {
    * When there are more bins than the rendered width can resolve, runs of
    * adjacent bins are merged into one drawn point (a weighted mean, see
    * `weights`) so the line keeps a few pixels per point instead of collapsing
-   * into noise. The line breaks at empty drawn points, bridging a gap of a
-   * single point faintly; an isolated value draws as a dot over a one-point
-   * column. Every run is shaded down to the baseline, so a sparse series
-   * still reads as a chart rather than as scattered marks.
+   * into noise. The line breaks at every empty drawn point rather than
+   * interpolating across it; an isolated value draws as a dot over a
+   * one-point column. Every run is shaded down to the baseline, so a sparse
+   * series still reads as a chart rather than as scattered marks.
    */
   values: ReadonlyArray<number | null>;
   /**
@@ -94,18 +94,12 @@ const ISOLATED_DOT_WIDTH = 2.5;
 /** The most recent value, anchoring where the series ends. */
 const END_DOT_WIDTH = 3;
 const HOVER_DOT_WIDTH = 5;
-/** A bridge across a single empty point: present, but visibly interpolated. */
-const BRIDGE_OPACITY = 0.4;
-/** The widest gap (in drawn points) the line bridges instead of breaking at. */
-const MAX_BRIDGED_GAP = 1;
 /**
  * The shading under the line at its highest point; it fades to nothing at
  * the baseline. Faint enough to stay ink, not a bar: it anchors the line to
  * the box so the eye reads a chart, and gives an isolated value some mass.
  */
 const FILL_TOP_OPACITY = 0.3;
-/** A bridge's shading relative to a run's: as tentative as its faint stroke. */
-const BRIDGE_FILL_OPACITY = 0.5;
 
 /** A drawn point: one source bin, or several merged to fit the width. */
 type SparklineBin = {
@@ -212,23 +206,13 @@ function getPoints({
   });
 }
 
-/** A contiguous run of populated points, and the point it is bridged from. */
-type SparklineRun = {
-  segment: SparklinePoint[];
-  /**
-   * The last point of the previous run when the gap between them is short
-   * enough to bridge; null at the first run or across a wider gap.
-   */
-  bridgeFrom: SparklinePoint | null;
-};
-
 /**
- * Points split into one run per contiguous stretch of populated bins, so the
- * line breaks at gaps instead of drawing through them. A run of one is a
- * gap-isolated point, rendered as a dot. Runs separated by no more than
- * `MAX_BRIDGED_GAP` empty points are marked as bridged.
+ * Points split into one polyline per contiguous run of populated bins, so
+ * the line breaks at gaps instead of drawing through them: an empty bin is
+ * absent data, never interpolated. A run of one is a gap-isolated point,
+ * rendered as a dot over a column.
  */
-function getRuns(points: SparklinePoint[]): SparklineRun[] {
+function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
   const segments: SparklinePoint[][] = [];
   let segment: SparklinePoint[] = [];
   for (const point of points) {
@@ -242,15 +226,7 @@ function getRuns(points: SparklinePoint[]): SparklineRun[] {
     segment.push(point);
   }
   segments.push(segment);
-  return segments.map((segment, index) => {
-    const previous = segments[index - 1];
-    if (previous == null) {
-      return { segment, bridgeFrom: null };
-    }
-    const last = previous[previous.length - 1];
-    const gap = segment[0].bin.position - last.bin.position - 1;
-    return { segment, bridgeFrom: gap <= MAX_BRIDGED_GAP ? last : null };
-  });
+  return segments;
 }
 
 function toPathData(points: SparklinePoint[]): string {
@@ -310,9 +286,9 @@ function toColumnPathData({
  * Bins keep their position on the axis, so sparklines sharing a time axis
  * align across rows, and a series ending early visibly stops short. When the
  * width can't give every bin a few pixels, adjacent bins merge into weighted
- * means so the line stays legible at any size. The line breaks at empty
- * points, bridging single-point gaps faintly, and marks its most recent
- * value. With `renderPointDetail`, hovering marks the nearest point and
+ * means so the line stays legible at any size. The line breaks at every
+ * empty point, never interpolating across missing data, and marks its most
+ * recent value. With `renderPointDetail`, hovering marks the nearest point and
  * shows its detail in a tooltip; further detail belongs to the surrounding
  * component. Every run is shaded down to the baseline with a gradient that
  * fades from the line, and an isolated value stands on a column of the same
@@ -385,7 +361,7 @@ export function Sparkline({
           );
           setHoveredPosition(nearest.bin.position);
         };
-  const runs = getRuns(points);
+  const segments = getSegments(points);
   // The shading is a single vertical gradient in drawing coordinates, from
   // the series' highest point to the baseline, shared by every run and
   // column: equal heights shade equally across the whole line, and a flat
@@ -423,51 +399,29 @@ export function Sparkline({
           </linearGradient>
         </defs>
         {/* The shading goes down first so every stroke sits on top of it */}
-        {runs.map(({ segment, bridgeFrom }) => {
+        {segments.map((segment) => {
           const first = segment[0];
           return (
-            <g key={first.bin.position}>
-              {bridgeFrom != null ? (
-                <path
-                  d={toAreaPathData([bridgeFrom, first], height)}
-                  fill={fill}
-                  fillOpacity={BRIDGE_FILL_OPACITY}
-                  stroke="none"
-                />
-              ) : null}
-              <path
-                d={
-                  segment.length === 1
-                    ? toColumnPathData({
-                        point: first,
-                        binCount: values.length,
-                        height,
-                      })
-                    : toAreaPathData(segment, height)
-                }
-                fill={fill}
-                stroke="none"
-              />
-            </g>
+            <path
+              key={first.bin.position}
+              d={
+                segment.length === 1
+                  ? toColumnPathData({
+                      point: first,
+                      binCount: values.length,
+                      height,
+                    })
+                  : toAreaPathData(segment, height)
+              }
+              fill={fill}
+              stroke="none"
+            />
           );
         })}
-        {runs.map(({ segment, bridgeFrom }) => {
+        {segments.map((segment) => {
           const first = segment[0];
           return (
             <g key={first.bin.position}>
-              {bridgeFrom != null ? (
-                // A short gap: span it faintly so the trend reads through
-                // a momentary lapse instead of shattering into fragments
-                <path
-                  d={toPathData([bridgeFrom, first])}
-                  fill="none"
-                  stroke={color}
-                  strokeOpacity={BRIDGE_OPACITY}
-                  strokeWidth={LINE_WIDTH}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ) : null}
               {segment.length === 1 ? (
                 // A gap-isolated value has no line to join, so it draws
                 // as a dot of the line's weight

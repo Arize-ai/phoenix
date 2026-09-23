@@ -30,7 +30,7 @@ describe("Sparkline", () => {
     });
   };
 
-  /** The rendered stroked paths (lines, bridges, dots), in document order. */
+  /** The rendered stroked paths (lines and dots), in document order. */
   const getStrokes = () => [
     ...container.querySelectorAll<SVGPathElement>('path[fill="none"]'),
   ];
@@ -62,18 +62,15 @@ describe("Sparkline", () => {
     ]);
   });
 
-  it("bridges a single empty bin faintly, keeping every bin's x position", () => {
+  it("breaks the line at a single empty bin, keeping every bin's x position", () => {
     render([0, 1, null, 1, 0]);
     // The empty middle bin still occupies x=32, so the runs around it keep
-    // their positions on the shared axis; a faint bridge spans the lapse.
+    // their positions on the shared axis; nothing is drawn across the gap.
     expect(getPaths()).toEqual([
       "M 0.00 18.00 L 16.00 2.00",
-      "M 16.00 2.00 L 48.00 2.00",
       "M 48.00 2.00 L 64.00 18.00",
       "M 64.00 18.00 l 0.01 0",
     ]);
-    const bridge = getStrokes()[1];
-    expect(bridge.getAttribute("stroke-opacity")).toBe("0.4");
   });
 
   it("breaks the line at a gap wider than one bin", () => {
@@ -89,13 +86,11 @@ describe("Sparkline", () => {
     render([0.2, 0.4, null, 0.9]);
     expect(getPaths()).toEqual([
       "M 0.00 18.00 L 21.33 13.43",
-      // The single-bin gap is bridged to the isolated value
-      "M 21.33 13.43 L 64.00 2.00",
       "M 64.00 2.00 l 0.01 0",
       "M 64.00 2.00 l 0.01 0",
     ]);
-    // Line, bridge, isolated dot, end dot
-    expect(getStrokeWidths()).toEqual([1.5, 1.5, 2.5, 3]);
+    // Line, isolated dot, end dot
+    expect(getStrokeWidths()).toEqual([1.5, 2.5, 3]);
   });
 
   it("keeps values in their bins when the series starts or ends empty", () => {
@@ -148,16 +143,14 @@ describe("Sparkline", () => {
     }
   });
 
-  it("shades a bridged gap more faintly than the runs it joins", () => {
+  it("leaves the region under a gap unshaded", () => {
     render([0, 1, null, 1, 0]);
+    // Two shaded runs with an open notch over the empty bin: the shading
+    // only ever covers bins that carry data
     expect(getFillPaths()).toEqual([
       "M 0.00 18.00 L 16.00 2.00 L 16.00 20.00 L 0.00 20.00 Z",
-      "M 16.00 2.00 L 48.00 2.00 L 48.00 20.00 L 16.00 20.00 Z",
       "M 48.00 2.00 L 64.00 18.00 L 64.00 20.00 L 48.00 20.00 Z",
     ]);
-    expect(getFills().map((fill) => fill.getAttribute("fill-opacity"))).toEqual(
-      [null, "0.5", null]
-    );
   });
 
   it("stands a gap-isolated value on a column one bin wide", () => {
@@ -235,7 +228,7 @@ describe("Sparkline", () => {
 
   it("leaves a merged bin empty when none of its bins carry a value", () => {
     render([1, 1, null, null, null, null, 0, 0], { maxWidth: 16 });
-    // Two empty merged bins in the middle: too wide a gap to bridge
+    // Two empty merged bins in the middle: a break in the line
     expect(getPaths()).toEqual([
       "M 4.57 2.00 l 0.01 0",
       "M 59.43 18.00 l 0.01 0",
