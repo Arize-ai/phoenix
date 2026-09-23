@@ -40,7 +40,7 @@ export function ExperimentAverageRunTokenCount(
           {props.averageRunTokenCountTotal}
         </TokenCount>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

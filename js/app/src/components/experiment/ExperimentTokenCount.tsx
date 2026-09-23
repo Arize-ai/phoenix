@@ -38,7 +38,7 @@ export function ExperimentTokenCount(props: ExperimentTokenCountProps) {
           {props.tokenCountTotal}
         </TokenCount>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

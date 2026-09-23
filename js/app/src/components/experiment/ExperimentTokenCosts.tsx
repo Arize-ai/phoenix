@@ -34,7 +34,7 @@ export function ExperimentTokenCosts(props: ExperimentTokenCostsProps) {
           {props.totalCost}
         </TokenCosts>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

@@ -34,7 +34,7 @@ export function TraceTokenCosts(props: TraceTokenCostsProps) {
           {props.totalCost}
         </TokenCosts>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

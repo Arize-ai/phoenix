@@ -34,7 +34,7 @@ export function TraceTokenCount(props: TraceTokenCountProps) {
           {props.tokenCountTotal}
         </TokenCount>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

@@ -34,7 +34,7 @@ export function SpanCumulativeTokenCount(props: SpanCumulativeTokenCountProps) {
           {props.tokenCountTotal}
         </TokenCount>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

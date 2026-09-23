@@ -36,7 +36,7 @@ export function ExperimentRepeatedRunGroupTokenCosts(
           {props.costTotal}
         </TokenCosts>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

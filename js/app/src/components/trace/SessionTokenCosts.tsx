@@ -34,7 +34,7 @@ export function SessionTokenCosts(props: SessionTokenCostsProps) {
           {props.totalCost}
         </TokenCosts>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={

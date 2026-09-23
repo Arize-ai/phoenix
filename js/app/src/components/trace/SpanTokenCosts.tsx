@@ -43,7 +43,7 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
           {props.totalCost}
         </TokenCosts>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
           fallback={
