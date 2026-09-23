@@ -1,22 +1,22 @@
 ---
-title: "Observe Your App"
+title: "Observe Your Agent"
 description: >-
-  Instrument your LLM app and send traces to Phoenix for visibility into every
+  Instrument your AI agent and send traces to Phoenix for visibility into every
   request: retrieval, tool calls, LLM calls, inputs, outputs, and latency.
 ---
 
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
 import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
 
-Use this guide to send your first traces to Phoenix from an app that calls OpenAI.
+Use this guide to send your first traces to Phoenix from an agent that calls OpenAI.
 
-Tracing records each request as a timeline of spans. A span can represent retrieval, a tool call, an LLM call, or app logic, along with inputs, outputs, timing, token counts, and errors.
+Tracing records each request as a timeline of spans. A span can represent retrieval, a tool call, an LLM call, or your own logic, along with inputs, outputs, timing, token counts, and errors.
 
-After traces are flowing, you can turn useful requests into datasets and experiments to test app changes against the same examples.
+After traces are flowing, you can turn useful requests into datasets and experiments to test agent changes against the same examples.
 
 ## Agent-assisted setup
 
-Use this path when you already have an app and want agent-assisted instrumentation. `px setup` connects the current app directory to a Phoenix endpoint, writes `.env.phoenix`, offers a supported-agent handoff or copy/manual fallback, and verifies instrumentation by watching for a new trace.
+Use this path when you already have an agent and want agent-assisted instrumentation. `px setup` connects the current project directory to a Phoenix endpoint, writes `.env.phoenix`, offers a supported-agent handoff or copy/manual fallback, and verifies instrumentation by watching for a new trace.
 
 <Card>
   <Tabs>
@@ -27,25 +27,25 @@ Use this path when you already have an app and want agent-assisted instrumentati
       uvx arize-phoenix serve
       ```
 
-      In another terminal, run this from your app's root directory.
+      In another terminal, run this from your project root.
 
       ```bash
       npx -y @arizeai/phoenix-cli setup
       ```
 
-      Follow the prompts. `px setup` probes the Phoenix endpoint, asks for a project name and API key if needed, writes `.env.phoenix`, then offers to hand instrumentation to Claude Code, Codex, Cursor, or OpenCode. After instrumentation runs, setup polls Phoenix until a trace from this app arrives.
+      Follow the prompts. `px setup` probes the Phoenix endpoint, asks for a project name and API key if needed, writes `.env.phoenix`, then offers to hand instrumentation to Claude Code, Codex, Cursor, or OpenCode. After instrumentation runs, setup polls Phoenix until a trace from this agent arrives.
 
       If you prefer a global install, run `npm i -g @arizeai/phoenix-cli` once, then use `px setup`. See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) for supported agents, CI flags, and troubleshooting.
     </Tab>
 
     <Tab title="Ask your coding agent">
-      If your agent is not supported by `px setup`, install the Phoenix tracing skills, then ask it to instrument your app.
+      If your agent is not supported by `px setup`, install the Phoenix tracing skills, then ask it to instrument your agent.
 
       ```bash
       npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
       ```
 
-      Then paste this from your app's root directory. Start Phoenix first if you are using a local instance.
+      Then paste this from your project root. Start Phoenix first if you are using a local instance.
 
       ```text
       Use the Phoenix tracing skill to instrument this application.
@@ -64,7 +64,7 @@ Use this path when you already have an app and want agent-assisted instrumentati
 
 ## Manual setup
 
-Use this path when you want to add the tracing code yourself. Choose Python or TypeScript. Both paths start Phoenix, add OpenAI instrumentation, run your app, and show the trace in Phoenix.
+Use this path when you want to add the tracing code yourself. Choose Python or TypeScript. Both paths start Phoenix, add OpenAI instrumentation, run your agent, and show the trace in Phoenix.
 
 ## Before you start
 
@@ -88,7 +88,7 @@ To follow along, you'll need an [OpenAI API key](https://platform.openai.com/api
     ```
   </Step>
 
-  <Step title={<span className="step-title">Connect your app</span>}>
+  <Step title={<span className="step-title">Connect your agent</span>}>
     Create a file named `quickstart.py`. Set your OpenAI key and point tracing at your local Phoenix instance.
 
     ```python
@@ -158,7 +158,7 @@ To follow along, you'll need an [OpenAI API key](https://platform.openai.com/api
     python quickstart.py
     ```
 
-    Replace the support assistant with your app's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
+    Replace the support assistant with your agent's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
   </Step>
 
   <Step title={<span className="step-title">Look at the trace in Phoenix</span>}>
@@ -181,7 +181,7 @@ To follow along, you'll need an [OpenAI API key](https://platform.openai.com/api
 
 <Steps>
   <Step title={<span className="step-title">Start Phoenix</span>}>
-    Phoenix has to be running before anything can send traces to it. Phoenix ships as a Python package, so `uvx` is the quickest local option even for a TypeScript app.
+    Phoenix has to be running before anything can send traces to it. Phoenix ships as a Python package, so `uvx` is the quickest local option even for a TypeScript agent.
 
     <StartPhoenix />
   </Step>
@@ -194,7 +194,7 @@ To follow along, you'll need an [OpenAI API key](https://platform.openai.com/api
     ```
   </Step>
 
-  <Step title={<span className="step-title">Connect your app</span>}>
+  <Step title={<span className="step-title">Connect your agent</span>}>
     Add these environment variables to `.env`.
 
     ```bash
@@ -206,7 +206,7 @@ To follow along, you'll need an [OpenAI API key](https://platform.openai.com/api
 
     <PhoenixAuthNote />
 
-    Create an instrumentation file named `instrumentation.ts`, and import it before your app makes OpenAI calls.
+    Create an instrumentation file named `instrumentation.ts`, and import it before your agent makes OpenAI calls.
 
     ```typescript
     import "dotenv/config";
@@ -292,7 +292,7 @@ To follow along, you'll need an [OpenAI API key](https://platform.openai.com/api
     npx tsx app.ts
     ```
 
-    Replace the support assistant with your app's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
+    Replace the support assistant with your agent's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
   </Step>
 
   <Step title={<span className="step-title">Look at the trace in Phoenix</span>}>
@@ -314,6 +314,6 @@ To follow along, you'll need an [OpenAI API key](https://platform.openai.com/api
 
 ## Learn more about traces
 
-Next, convert selected traces into a dataset and run experiments to compare app or prompt changes. See the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations).
+Next, convert selected traces into a dataset and run experiments to compare agent or prompt changes. See the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations).
 
-To go deeper on tracing, the [Tracing Tutorial](/docs/phoenix/tracing/tutorial) covers how to read spans, understand timing, and use trace data to debug and analyze your app.
+To go deeper on tracing, the [Tracing Tutorial](/docs/phoenix/tracing/tutorial) covers how to read spans, understand timing, and use trace data to debug and analyze your agent.
