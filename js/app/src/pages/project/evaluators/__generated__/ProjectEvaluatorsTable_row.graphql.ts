@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c73fb43e2deadaafeab068c4be9c999>>
+ * @generated SignedSource<<7348ac9787c3fa0f78ab680bcb7c7708>>
  * @lightSyntaxTransform
  */
 
@@ -12,17 +12,16 @@ export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
-export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type ProjectEvaluatorRunStatus = "FAILING" | "HEALTHY" | "NEVER_RUN" | "QUEUED";
-export type ProjectEvaluatorSchedulabilityReason = "DISABLED" | "TRACE_TARGET_UNSUPPORTED";
-export type ProjectEvaluatorSchedulabilityStatus = "NOT_SCHEDULABLE" | "SCHEDULABLE";
+export type ProjectEvaluatorRunStatus = "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_row$data = {
   readonly enabled: boolean;
   readonly evaluationTarget: EvaluationTarget;
   readonly evaluator: {
+    readonly id: string;
     readonly kind: EvaluatorKind;
     readonly language?: Language;
     readonly outputConfigs: ReadonlyArray<{
@@ -60,6 +59,7 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly id: string;
   readonly name: string;
   readonly runSummary: {
+    readonly droppedCount: number;
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastRunAt: string | null;
@@ -67,8 +67,6 @@ export type ProjectEvaluatorsTable_row$data = {
     readonly status: ProjectEvaluatorRunStatus;
   };
   readonly samplingRate: number;
-  readonly schedulabilityReason: ProjectEvaluatorSchedulabilityReason | null;
-  readonly schedulabilityStatus: ProjectEvaluatorSchedulabilityStatus;
   readonly updatedAt: string;
   readonly " $fragmentType": "ProjectEvaluatorsTable_row";
 };
@@ -82,6 +80,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "4077d339eee46a54c24d51345d464b8b";
+(node as any).hash = "59c1291da76c538e8fc6ca162c55b56f";
 
 export default node;
