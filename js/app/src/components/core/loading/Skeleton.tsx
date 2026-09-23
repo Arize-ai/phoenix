@@ -60,9 +60,17 @@ const waveKeyframes = keyframes`
   }
 `;
 
+/**
+ * The skeletons' fill. Exported so a placeholder drawn by another component
+ * is the same gray as a `Skeleton` beside it.
+ */
+export const skeletonFillCSS = css`
+  background-color: var(--global-color-gray-200);
+`;
+
 const skeletonStyles = css`
   display: block;
-  background-color: var(--global-color-gray-200);
+  ${skeletonFillCSS}
 `;
 
 /**

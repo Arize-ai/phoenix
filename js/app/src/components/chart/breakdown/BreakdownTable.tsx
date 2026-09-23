@@ -5,7 +5,7 @@ import { Text, VisuallyHidden } from "@phoenix/components/core/content";
 import { Skeleton, TextSkeleton } from "@phoenix/components/core/loading";
 import { formatPercentShort } from "@phoenix/utils/numberFormatUtils";
 
-import { SegmentChart } from "../SegmentChart";
+import { SegmentChart, SegmentChartSkeleton } from "../SegmentChart";
 import type {
   BreakdownDimension,
   BreakdownSegment,
@@ -13,6 +13,9 @@ import type {
 } from "./types";
 
 const breakdownTableCSS = css`
+  /* Five characters of the values' mono type, at about 0.6em each */
+  --breakdown-table-share-width: calc(var(--global-font-size-s) * 3);
+  --segment-chart-height: 3px;
   width: 100%;
   border-collapse: collapse;
   border-spacing: 0;
@@ -41,18 +44,13 @@ const breakdownTableCSS = css`
     padding-right: var(--global-dimension-size-200);
     white-space: nowrap;
   }
-  /* Each measure is a value and its share side by side, with a bar of that
-     share running under both */
+  /* A value and its share side by side, with a bar of the share under both.
+     The value column stretches to the cell so the bars read as one scale;
+     the share column is fixed so the values line up down the rows */
   .breakdown-table__measure {
     display: grid;
-    /* The value column is never narrower than its text, which is what sizes
-       the table column, and stretches to fill the cell beyond that, so the
-       bar under it spans the same width in every row and reads as one scale.
-       The share is a fixed column, five characters of the values' mono type
-       at about 0.6em each, so the values beside it line up down the rows
-       whatever their share reads, and the heading sits over them */
-    grid-template-columns: minmax(max-content, 1fr) calc(
-        var(--global-font-size-s) * 3
+    grid-template-columns: minmax(max-content, 1fr) var(
+        --breakdown-table-share-width
       );
     column-gap: var(--global-dimension-size-100);
     row-gap: var(--global-dimension-size-50);
@@ -74,36 +72,26 @@ const breakdownTableCSS = css`
 `;
 
 const breakdownTableSkeletonCSS = css`
-  /* Skeletons have no baseline; the loaded rows' baselines all sit on their
-     first line, which top alignment reproduces */
+  /* Skeletons have no baseline; top alignment matches the loaded rows */
   th,
   td {
     vertical-align: top;
   }
-  /* The pills are right-aligned like the values, and sized in characters of
-     the mono type the values are set in, so the columns come out as wide as
-     the loaded ones. The headings above them are real text and keep theirs. */
   tbody .breakdown-table__value,
   tbody .breakdown-table__share {
     justify-content: end;
-    font-family: var(--global-font-family-mono);
   }
 `;
 
 /** What a cell shows for a segment the dimension did not measure. */
 const UNMEASURED = "--";
 
-/** Segment names of a few lengths, so the rows read as a list, not a grid */
+/** Segment names of a few lengths, so the rows read as a list */
 const SEGMENT_LABEL_SKELETON_WIDTHS = [72, 96, 64, 88];
-/**
- * The value pills' width in characters when the dimension's total is not
- * known: a value of five digits, or a cost to the cent.
- */
-const DEFAULT_VALUE_SKELETON_CHARS = 6;
+/** A value of five digits, or a cost to the cent */
+const DEFAULT_VALUE_SKELETON_WIDTH = "6ch";
 /** A share of two digits and a sign, "84%" */
-const SHARE_SKELETON_WIDTH = 24;
-/** The height of the share bar under each measure */
-const SHARE_BAR_HEIGHT = 3;
+const SHARE_SKELETON_WIDTH = "3ch";
 
 export type BreakdownTableProps = {
   segments: BreakdownSegment[];
@@ -225,7 +213,6 @@ function BreakdownMeasure({
       </Text>
       <div className="breakdown-table__bar" aria-hidden="true">
         <SegmentChart
-          height={SHARE_BAR_HEIGHT}
           showTrack
           totalValue={dimension.total}
           segments={[
@@ -246,19 +233,16 @@ export type BreakdownTableSkeletonProps = {
   rows?: number;
 };
 
-/**
- * The width of a dimension's value pills. No value is longer than the total
- * it is part of, so the total's length is what the loaded column will need.
- */
+/** No value is longer than the total it is part of. */
 function getValueSkeletonWidth(dimension: BreakdownSkeletonDimension) {
-  return `${dimension.total?.length ?? DEFAULT_VALUE_SKELETON_CHARS}ch`;
+  return dimension.total != null
+    ? `${dimension.total.length}ch`
+    : DEFAULT_VALUE_SKELETON_WIDTH;
 }
 
 /**
  * {@link BreakdownTable} before the segments are known: the real column
- * headings over rows of skeleton swatches, names, values, shares and share
- * bars, laid out on the table's own grid. The loaded table lands on the same
- * columns and row heights; only the number of rows can differ.
+ * headings over skeleton rows on the table's own grid.
  */
 export function BreakdownTableSkeleton({
   dimensions,
@@ -293,18 +277,17 @@ export function BreakdownTableSkeleton({
                   <TextSkeleton
                     className="breakdown-table__value"
                     size="S"
+                    fontFamily="mono"
                     width={getValueSkeletonWidth(dimension)}
                   />
                   <TextSkeleton
                     className="breakdown-table__share"
                     size="S"
+                    fontFamily="mono"
                     width={SHARE_SKELETON_WIDTH}
                   />
                   <div className="breakdown-table__bar">
-                    <Skeleton
-                      height={SHARE_BAR_HEIGHT}
-                      borderRadius="var(--global-rounding-full)"
-                    />
+                    <SegmentChartSkeleton />
                   </div>
                 </div>
               </td>

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { SegmentChart } from "@phoenix/components/chart";
+import { SegmentChart, SegmentChartSkeleton } from "@phoenix/components/chart";
 
 /**
  * A single bar split proportionally into colored segments. The building
@@ -72,4 +72,14 @@ export const EmptyTrack: Story = {
     totalValue: 49_494,
     segments: [{ ...meta.args.segments[0], value: 0 }],
   },
+};
+
+/**
+ * The chart before its segments load: one skeleton segment on the chart's
+ * own geometry, here with the marker lane held open.
+ */
+export const Loading: Story = {
+  render: (args) => (
+    <SegmentChartSkeleton height={args.height} showMarkerLane />
+  ),
 };

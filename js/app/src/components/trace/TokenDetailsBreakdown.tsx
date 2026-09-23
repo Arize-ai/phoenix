@@ -124,9 +124,6 @@ const tokenDetailsBreakdownCSS = css`
   }
   .token-details-breakdown__split {
     margin-left: auto;
-    /* The summary is set in mono, and so is its skeleton, whose width is
-       given in the summary's characters */
-    font-family: var(--global-font-family-mono);
   }
 `;
 
@@ -416,10 +413,9 @@ export interface TokenDetailsBreakdownSkeletonProps extends TokenDetailsBreakdow
 }
 
 /**
- * The width of the split summary's skeleton, in the summary's characters:
- * two numbers and the words around them. The prompt is about as long as the
- * total it is most of, and the completion a good deal shorter, so the header
- * wraps where the loaded one will.
+ * The split summary's width in its own characters: the words around two
+ * numbers, of which the prompt is about as long as the total and the
+ * completion a good deal shorter.
  */
 function getSplitSkeletonWidth(total: string | undefined) {
   const totalChars = total?.length ?? 6;
@@ -468,6 +464,7 @@ export function TokenDetailsBreakdownSkeleton({
         <TextSkeleton
           className="token-details-breakdown__split"
           size="XS"
+          fontFamily="mono"
           width={getSplitSkeletonWidth(dimensions[0].total)}
         />
       </header>

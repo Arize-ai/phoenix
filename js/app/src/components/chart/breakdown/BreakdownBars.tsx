@@ -1,55 +1,43 @@
 import { css } from "@emotion/react";
 
 import { Text } from "@phoenix/components/core/content";
-import { pulseAnimation, TextSkeleton } from "@phoenix/components/core/loading";
+import { TextSkeleton } from "@phoenix/components/core/loading";
 import { isPositiveNumber } from "@phoenix/utils/numberUtils";
 
 import { useSequentialChartColors } from "../colors";
-import { SegmentChart } from "../SegmentChart";
+import { SegmentChart, SegmentChartSkeleton } from "../SegmentChart";
 import type {
   BreakdownDimension,
   BreakdownSegment,
   BreakdownSkeletonDimension,
 } from "./types";
 
-/** The height of each bar in pixels. */
-const BAR_HEIGHT = 10;
-
 const breakdownBarsCSS = css`
-  --breakdown-bar-height: ${BAR_HEIGHT}px;
+  --segment-chart-height: 10px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   column-gap: var(--global-dimension-size-150);
   row-gap: var(--global-dimension-size-100);
   align-items: start;
 
-  /* A row is a grouping in the markup only; its cells sit in the shared
-     grid, and an element with no box carries no role of its own */
   .breakdown-bars__row {
     display: contents;
   }
-  /* Centered on the bar, not on the bar plus the marker lane beneath it */
+  /* Centered on the bar, not on the bar plus its marker lane */
   .breakdown-bars__label,
   .breakdown-bars__total {
     display: flex;
     align-items: center;
-    height: var(--breakdown-bar-height);
+    height: var(--segment-chart-height);
     white-space: nowrap;
   }
   .breakdown-bars__total {
     justify-content: end;
   }
-  /* Pulses the bar alone; its label and total are real and stay steady */
-  .breakdown-bars__bar-skeleton {
-    ${pulseAnimation}
-  }
 `;
 
-/** The fill of a bar whose segments have yet to load; the skeletons' gray */
-const SKELETON_FILL = "var(--global-color-gray-200)";
-
-/** Wide enough for a total of five or six digits or a cost to the cent */
-const TOTAL_SKELETON_WIDTH = 48;
+/** A total of five digits, or a cost to the cent */
+const TOTAL_SKELETON_WIDTH = "6ch";
 
 export type BreakdownBarsProps = {
   segments: BreakdownSegment[];
@@ -62,14 +50,11 @@ export type BreakdownBarsProps = {
  * bars show how a segment's share shifts from one dimension to the next:
  * cache reads that are most of the tokens but little of the cost.
  *
- * A dimension none of whose segments carry a value is still drawn, as a
- * single neutral bar of its total, so a whole that has yet to be broken down
- * has the same shape as one that has. Every bar keeps the lane its markers
- * go in, whether or not it has any, so the bars are all one height and the
- * skeleton that stands in for them is too.
+ * A dimension none of whose segments carry a value is drawn as one neutral
+ * bar of its total. Every bar keeps its marker lane, with or without a
+ * marker, so the bars are one height and so is the skeleton.
  */
 export function BreakdownBars({ segments, dimensions }: BreakdownBarsProps) {
-  // A whole whose parts are not known is drawn in the charts' neutral
   const unsegmentedColor = useSequentialChartColors().gray500;
   return (
     <div className="breakdown-bars" css={breakdownBarsCSS}>
@@ -88,8 +73,7 @@ export function BreakdownBars({ segments, dimensions }: BreakdownBarsProps) {
               </Text>
             </div>
             <SegmentChart
-              height={BAR_HEIGHT}
-              // Wide enough that a sliver clears the bar's rounded end
+              // Keeps a sliver visible
               minimumSegmentPercentage={3}
               totalValue={dimension.total}
               markerValues={dimension.markerValues}
@@ -123,10 +107,8 @@ export type BreakdownBarsSkeletonProps = {
 };
 
 /**
- * {@link BreakdownBars} before the segments are known. Each dimension keeps
- * its label and, when given, its total, and its bar is drawn as one skeleton
- * bar with the marker lane held under it, so the loaded bars take exactly
- * the room the skeleton did.
+ * {@link BreakdownBars} before the segments are known: each dimension keeps
+ * its label and, when given, its total, over a skeleton bar.
  */
 export function BreakdownBarsSkeleton({
   dimensions,
@@ -140,22 +122,18 @@ export function BreakdownBarsSkeleton({
               {dimension.label}
             </Text>
           </div>
-          <div className="breakdown-bars__bar-skeleton" aria-hidden="true">
-            <SegmentChart
-              height={BAR_HEIGHT}
-              showMarkerLane
-              segments={[
-                { name: dimension.key, value: 1, color: SKELETON_FILL },
-              ]}
-            />
-          </div>
+          <SegmentChartSkeleton showMarkerLane />
           <div className="breakdown-bars__total">
             {dimension.total != null ? (
               <Text size="S" fontFamily="mono">
                 {dimension.total}
               </Text>
             ) : (
-              <TextSkeleton size="S" width={TOTAL_SKELETON_WIDTH} />
+              <TextSkeleton
+                size="S"
+                fontFamily="mono"
+                width={TOTAL_SKELETON_WIDTH}
+              />
             )}
           </div>
         </div>

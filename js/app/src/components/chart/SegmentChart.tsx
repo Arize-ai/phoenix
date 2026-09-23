@@ -1,17 +1,25 @@
 import { css } from "@emotion/react";
+import type { CSSProperties } from "react";
+
+import {
+  pulseAnimation,
+  skeletonFillCSS,
+} from "@phoenix/components/core/loading";
+import { classNames } from "@phoenix/utils/classNames";
 
 /** The space between neighboring segments, in pixels. */
 const SEGMENT_GAP = 2;
 
-/**
- * How close a marker has to be to a segment boundary, as a fraction of the
- * total, to be drawn in the gap between the two segments rather than inside
- * one of them.
- */
+/** How near a boundary a marker must fall, as a share of the total, to sit in the gap. */
 const BOUNDARY_EPSILON = 1e-9;
 
+/**
+ * Bar height when neither the `height` prop nor `--segment-chart-height` on
+ * an ancestor sets one.
+ */
+const DEFAULT_HEIGHT = 6;
+
 const segmentChartCSS = css`
-  /* Half the marker's width, and its height: a low, wide tick */
   --segment-chart-marker-size: 4px;
   width: 100%;
   display: flex;
@@ -21,9 +29,8 @@ const segmentChartCSS = css`
   .segment-chart__bar {
     display: flex;
     flex-direction: row;
+    height: var(--segment-chart-height, ${DEFAULT_HEIGHT}px);
     overflow: hidden;
-    /* Corners eased, not rounded off, so the bar reads as a bar and its
-       ends as ends at any height */
     border-radius: var(--global-rounding-xsmall);
     gap: ${SEGMENT_GAP}px;
   }
@@ -34,8 +41,7 @@ const segmentChartCSS = css`
     height: 100%;
     flex: none;
   }
-  /* A lane under the bar for the markers, so they take room in the layout
-     rather than spilling into whatever sits below */
+  /* In flow, so the markers take room rather than spilling into what follows */
   .segment-chart__markers {
     position: relative;
     height: var(--segment-chart-marker-size);
@@ -51,14 +57,37 @@ const segmentChartCSS = css`
     border-bottom: var(--segment-chart-marker-size) solid
       var(--global-text-color-900);
   }
+
+  &.segment-chart--skeleton {
+    ${pulseAnimation}
+    .segment-chart__segment {
+      ${skeletonFillCSS}
+      width: 100%;
+    }
+  }
 `;
 
-export type SegmentChartProps = {
+type SegmentChartSizingProps = {
   /**
-   * The height of the chart in pixels.
-   * @default 6
+   * The height of the bar in pixels. Overrides `--segment-chart-height` set
+   * on an ancestor; when neither is given the bar is 6px.
    */
   height?: number;
+  /**
+   * Keeps the lane under the bar even when there is no marker to draw in it,
+   * so a bar whose markers are not yet known stands as tall as one whose are.
+   * @default false
+   */
+  showMarkerLane?: boolean;
+  /**
+   * Draws the bar's background so that segments adding up to less than the
+   * total read as a fraction of a whole rather than as a short bar.
+   * @default false
+   */
+  showTrack?: boolean;
+};
+
+export type SegmentChartProps = SegmentChartSizingProps & {
   /**
    * The total value of the chart
    */
@@ -69,23 +98,11 @@ export type SegmentChartProps = {
    */
   minimumSegmentPercentage?: number;
   /**
-   * Draws the bar's background so that segments adding up to less than the
-   * total read as a fraction of a whole rather than as a short bar.
-   * @default false
-   */
-  showTrack?: boolean;
-  /**
    * Values at which to draw a tick under the bar, e.g. where one half of a
    * total ends and the other begins. Ticks at or beyond either end are left
    * out, since there is nothing to separate there.
    */
   markerValues?: number[];
-  /**
-   * Keeps the lane under the bar even when there is no marker to draw in it,
-   * so a bar whose markers are not yet known stands as tall as one whose are.
-   * @default false
-   */
-  showMarkerLane?: boolean;
   /**
    * The segments to display in the chart
    */
@@ -106,10 +123,9 @@ export type SegmentChartProps = {
 };
 
 /**
- * Each segment's share of the bar's fillable width, its value's share of the
- * total with slivers widened to the minimum. What the slivers gain is taken
- * from the segments above the minimum in proportion to their size, so the
- * shares still add up to what the values did.
+ * Each segment's share of the bar's fillable width: its value's share of the
+ * total, with slivers widened to the minimum at the expense of the segments
+ * above it, in proportion to their size.
  */
 function getSegmentFractions({
   values,
@@ -147,10 +163,9 @@ function getSegmentFractions({
 }
 
 /**
- * Where along the bar a value falls once the segments are laid out: how far
- * across the fillable width, and how many gaps lie before that point. A value
- * on the boundary between two segments falls in the middle of the gap between
- * them, so a tick there points at the seam itself.
+ * Where a value falls along the laid-out bar: how far across the fillable
+ * width, and how many gaps lie before it. A value on the boundary between two
+ * segments falls in the middle of the gap between them.
  */
 function getMarkerPosition({
   value,
@@ -171,7 +186,7 @@ function getMarkerPosition({
     if (Math.abs(value - segmentEnd) <= BOUNDARY_EPSILON * totalValue) {
       return {
         fraction: fraction + fractions[index],
-        gaps: index + (isLast ? 0 : 0.5),
+        gaps: isLast ? index : index + 0.5,
       };
     }
     if (value < segmentEnd) {
@@ -182,13 +197,18 @@ function getMarkerPosition({
     fraction += fractions[index];
     segmentStart = segmentEnd;
   }
-  // Past every segment, on the track: the rest of the way at the raw scale
   const rest = totalValue > 0 ? (value - segmentStart) / totalValue : 0;
   return { fraction: fraction + rest, gaps: Math.max(values.length - 1, 0) };
 }
 
+function getSizingStyle(height: number | undefined): CSSProperties | undefined {
+  return height != null
+    ? ({ "--segment-chart-height": `${height}px` } as CSSProperties)
+    : undefined;
+}
+
 export const SegmentChart = ({
-  height = 6,
+  height,
   minimumSegmentPercentage = 0,
   showTrack = false,
   markerValues,
@@ -196,17 +216,12 @@ export const SegmentChart = ({
   segments,
   totalValue: _totalValue,
 }: SegmentChartProps) => {
-  // if the total value is not provided, we calculate it from the segments
-  // this is useful for cases where the total value is not known ahead of time
   const totalValue =
     _totalValue ?? segments.reduce((acc, segment) => acc + segment.value, 0);
-  // A segment with nothing in it takes no room, and no gap either
   const visibleSegments = segments.filter((segment) => segment.value > 0);
-  const hasSegments = visibleSegments.length > 0;
-  // An all-zero breakdown has nothing to draw, and a bar of pure background
-  // reads as a rendering failure rather than as an empty total. A track is
-  // the exception: an empty track is how a zero share of a whole looks.
-  if (!hasSegments && !showTrack) {
+  // Nothing to draw, and a bar of pure background reads as a rendering
+  // failure. A track is the exception: an empty track is how zero looks.
+  if (visibleSegments.length === 0 && !showTrack) {
     return null;
   }
   const values = visibleSegments.map((segment) => segment.value);
@@ -215,8 +230,6 @@ export const SegmentChart = ({
     totalValue,
     minimumFraction: minimumSegmentPercentage / 100,
   });
-  // The gaps are laid out in pixels and the segments share what is left, so
-  // a segment's width is its share of the bar less the gaps
   const totalGap = SEGMENT_GAP * Math.max(visibleSegments.length - 1, 0);
   const fillableWidth = `(100% - ${totalGap}px)`;
   const markers = (markerValues ?? []).filter(
@@ -224,8 +237,13 @@ export const SegmentChart = ({
   );
 
   return (
-    <div className="segment-chart" css={segmentChartCSS} data-track={showTrack}>
-      <div className="segment-chart__bar" style={{ height: `${height}px` }}>
+    <div
+      className="segment-chart"
+      css={segmentChartCSS}
+      style={getSizingStyle(height)}
+      data-track={showTrack}
+    >
+      <div className="segment-chart__bar">
         {visibleSegments.map((segment, index) => (
           <div
             key={segment.name}
@@ -261,3 +279,38 @@ export const SegmentChart = ({
     </div>
   );
 };
+
+export type SegmentChartSkeletonProps = SegmentChartSizingProps & {
+  className?: string;
+};
+
+/**
+ * A {@link SegmentChart} whose segments have yet to load: one full-width
+ * skeleton segment in the bar, on the chart's own geometry, so the loaded
+ * chart takes exactly the room this did.
+ */
+export function SegmentChartSkeleton({
+  height,
+  showMarkerLane = false,
+  showTrack = false,
+  className,
+}: SegmentChartSkeletonProps) {
+  return (
+    <div
+      className={classNames(
+        "segment-chart",
+        "segment-chart--skeleton",
+        className
+      )}
+      css={segmentChartCSS}
+      style={getSizingStyle(height)}
+      data-track={showTrack}
+      aria-hidden="true"
+    >
+      <div className="segment-chart__bar">
+        <div className="segment-chart__segment" />
+      </div>
+      {showMarkerLane ? <div className="segment-chart__markers" /> : null}
+    </div>
+  );
+}
