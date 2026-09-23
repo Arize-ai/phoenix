@@ -56,7 +56,6 @@ const OTHER_COLOR = "var(--global-color-gray-500)";
 const MEAN_SCORE_SERIES_NAME = "mean score";
 const DISTRIBUTION_STACK_ID = "distribution";
 const BAR_SIZE = 10;
-const UNIT_DOMAIN: [number, number] = [0, 1];
 // Only the topmost segment of a stack is rounded, so the stack reads as one bar.
 const STACK_TOP_RADIUS: [number, number, number, number] = [2, 2, 0, 0];
 const SQUARE_RADIUS = 0;
@@ -75,20 +74,6 @@ const formatAnnotationFraction = (fraction: number) =>
 
 function getLabelDataKey(index: number): string {
   return `${LABEL_DATA_KEY_PREFIX}${index}`;
-}
-
-/**
- * The score axis domain: the unit domain when every score fits inside it,
- * otherwise undefined so recharts auto-scales rather than clipping.
- */
-function getScoreDomain(
-  points: ReadonlyArray<AnnotationMetricsChartPoint | undefined>
-): [number, number] | undefined {
-  const fitsUnitDomain = points.every(
-    (point) =>
-      point?.meanScore == null || (point.meanScore >= 0 && point.meanScore <= 1)
-  );
-  return fitsUnitDomain ? UNIT_DOMAIN : undefined;
 }
 
 function AnnotationMetricsTooltip({

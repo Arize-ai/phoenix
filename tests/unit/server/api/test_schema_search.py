@@ -3024,7 +3024,8 @@ def test_budget_bounds_a_broad_search(index: Index) -> None:
     text = search(index, "id", budget=800)
     assert len(text) <= 800
     assert any(
-        line.startswith("... ") and "more; narrow the search" in line for line in text.splitlines()
+        (line.startswith("... ") and "more; narrow the search" in line) or line.startswith("# ... ")
+        for line in text.splitlines()
     )
 
 

@@ -25,8 +25,6 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { useNavigate, useSearchParams } from "react-router";
 
 import {

@@ -18,6 +18,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
@@ -174,7 +175,6 @@ export function SessionsTable(props: SessionsTableProps) {
   const { filterCondition: providerFilterCondition } = useSessionFilters();
   const ownsUrl = props.seed !== undefined;
   // we need a reference to the scrolling element for pagination logic down below
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [validSessionFilterCondition, setValidSessionFilterCondition] =

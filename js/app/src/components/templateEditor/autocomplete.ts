@@ -6,6 +6,7 @@ import type {
 import { autocompletion, startCompletion } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+
 import { closeCompletionOnEscape } from "@phoenix/components/evaluators/completionKeys";
 import type { MaterializedEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import { toEvaluatorCompletionClass } from "@phoenix/components/evaluators/evaluatorContextCompletions";
@@ -381,7 +382,6 @@ function templateVariableCompletions(
     ? null
     : { from: match.from, options, validFor: /^[\w.[\]#^]*$/ };
 }
-
 
 function getContextualTemplatePaths({
   availablePaths,

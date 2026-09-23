@@ -617,7 +617,7 @@ function MatchedTraceCountLine({
           ... on Project {
             rootSpans: spans(
               first: $first
-              rootSpansOnly: true
+              filterCondition: "parent_span is None"
               sort: { col: startTime, dir: desc }
               traceFilterCondition: $traceFilterCondition
               timeRange: $timeRange
@@ -690,7 +690,7 @@ function TraceRunList({
           ... on Project {
             rootSpans: spans(
               first: $first
-              rootSpansOnly: true
+              filterCondition: "parent_span is None"
               sort: { col: startTime, dir: desc }
               traceFilterCondition: $traceFilterCondition
               timeRange: $timeRange

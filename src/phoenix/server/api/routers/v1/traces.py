@@ -12,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select, tuple_, update
+from sqlalchemy import insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
