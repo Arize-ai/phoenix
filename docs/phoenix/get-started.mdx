@@ -4,41 +4,41 @@ title: "Overview"
 
 import AgentAssistedOnboarding from "../snippets/agent-assisted-onboarding.mdx";
 
-Use this series to instrument an LLM app, turn traces into a dataset, run experiments, and score outputs in Phoenix.
+Use this series to instrument an AI agent, turn traces into a dataset, run experiments, and score outputs in Phoenix.
 
-You will start with request-level traces, then reuse selected traces as test examples for prompt and app changes.
+You will start with request-level traces, then reuse selected traces as test examples for prompt and agent changes.
 
 ## **What you'll build**
 
 By the end of this series, you will have:
 
-- Traces that show how app requests execute
+- Traces that show how agent requests execute
 - A dataset built from traced inputs, outputs, and metadata
-- Experiments that run app or prompt variants over the same examples
+- Experiments that run agent or prompt variants over the same examples
 - Evaluator scores for comparing variants per example
 
 That gives you a repeatable loop: inspect traces, select examples, run variants, and compare evaluator results.
 
 ## **How the guides fit together**
 
-### **Observe your app**
+### **Observe your agent**
 
-Tracing shows how one app request executed.
+Tracing shows how one agent request executed.
 
-A trace is a record of a single app request, broken down into spans that show how LLM calls, data lookups, tool calls, and other steps executed. In this guide, you instrument an app and send trace data to Phoenix.
+A trace is a record of a single agent request, broken down into spans that show how LLM calls, data lookups, tool calls, and other steps executed. In this guide, you instrument an agent and send trace data to Phoenix.
 
 Selected traces become dataset examples for the evaluation guide.
 
-### **Evaluate your app**
+### **Evaluate your agent**
 
 After traces are flowing, evaluate whether outputs satisfy your criteria.
 
-In the evaluation guide, you turn traces into a dataset, run an experiment, and score outputs with evaluators. You can use the Prompt Playground to test prompt edits in the UI, or run your app over the dataset in code.
+In the evaluation guide, you turn traces into a dataset, run an experiment, and score outputs with evaluators. You can use the Prompt Playground to test prompt edits in the UI, or run your agent over the dataset in code.
 
 ## **Where to start**
 
 <AgentAssistedOnboarding />
 
-For manual setup, start with [Observe Your App](/docs/phoenix/get-started/get-started-tracing), pick the Python or TypeScript tab, and follow the guides in order. Each step assumes the previous one is in place.
+For manual setup, start with [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), pick the Python or TypeScript tab, and follow the guides in order. Each step assumes the previous one is in place.
 
 The flow is: trace requests, create a dataset, run experiments, attach evaluators, and compare variants.
