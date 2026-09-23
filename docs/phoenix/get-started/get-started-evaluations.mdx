@@ -37,7 +37,9 @@ Use this path when you want to build the dataset, task, evaluator, and experimen
 
 <Steps>
   <Step title={<span className="step-title">Create a dataset from your traces</span>}>
-    A dataset is a fixed set of examples you test every change against. Build one from selected traces: typical requests, edge cases, and failure cases you want future variants to handle.
+    A dataset is a fixed set of examples you test every change against. Ten to twenty is enough to start: a few typical requests plus the failures you want future variants to handle.
+
+    To find the failures, filter the spans table with a [filter expression](/docs/phoenix/tracing/how-to-tracing/filter-expressions) such as `status_code == 'ERROR'` or `latency_ms > 1000`, or ask [PXI](/docs/phoenix/pxi) to walk your failing traces and propose root causes.
 
     1. Navigate to your project in Phoenix.
     2. Open the **Traces** view.
@@ -56,6 +58,8 @@ Use this path when you want to build the dataset, task, evaluator, and experimen
 
   <Step title={<span className="step-title">Attach an evaluator</span>}>
     An evaluator scores each experiment output. Attach one to the dataset and Phoenix runs it whenever you launch an experiment from the Playground.
+
+    Score one error pattern you have already seen in your traces: an incomplete answer, a tool called with bad arguments, a refusal, or a response that ignores the retrieved context. One narrow question gives a clearer signal than a general quality rating.
 
     1. Open the dataset and click the **Evaluators** tab.
     2. Click **Add evaluator**.
@@ -76,7 +80,7 @@ Use this path when you want to build the dataset, task, evaluator, and experimen
   </Step>
 
   <Step title={<span className="step-title">Save a prompt from a trace</span>}>
-    Traces capture the prompts your agent sent to the model. Save one to the Prompt Hub so you can test edits against the dataset.
+    An experiment needs something to run over the dataset. Traces capture the prompts your agent sent to the model, so saving one gives you the exact prompt running in production today. That becomes the version every later edit is measured against.
 
     1. Open a trace from the dataset.
     2. Find the LLM span you want to edit or benchmark.
@@ -113,7 +117,7 @@ Use this path when you want to build the dataset, task, evaluator, and experimen
       />
     </Frame>
 
-    That run is your baseline, scored by the evaluator you attached.
+    That first run is your baseline. Every later edit is scored on the same dataset with the same evaluator, so the comparison isolates your change.
 
   </Step>
 
@@ -131,6 +135,8 @@ Use this path when you want to build the dataset, task, evaluator, and experimen
         alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
       />
     </Frame>
+
+    A higher score on the same dataset and evaluator means the edit helped. If the score drops, open a failing run and read the evaluator's explanation before your next edit.
   </Step>
 </Steps>
 
