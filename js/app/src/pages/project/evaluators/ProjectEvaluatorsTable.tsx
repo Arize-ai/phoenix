@@ -98,16 +98,18 @@ const COLUMN_LABELS: Partial<Record<string, string>> = {
   meanScore: "mean score",
   meanScoreStep: "mean score (step)",
   meanScoreCoverage: "mean score (coverage)",
+  meanScoreStepCoverage: "mean score (step + coverage)",
 };
 
 /**
- * The mean score column ids. Three render the same data with different
+ * The mean score column ids. Four render the same data with different
  * sparkline marks while the mark is under design review; one will remain.
  */
 const MEAN_SCORE_COLUMN_IDS = [
   "meanScore",
   "meanScoreStep",
   "meanScoreCoverage",
+  "meanScoreStepCoverage",
 ] as const;
 
 const scrollableAreaCSS = css`
@@ -535,6 +537,23 @@ export function ProjectEvaluatorsTable({
             })}
             scoreMetrics={row.original.annotationScoreMetrics}
             sparklineVariant="coverage"
+          />
+        ),
+      },
+      {
+        id: "meanScoreStepCoverage",
+        header: () => (
+          <ProjectEvaluatorMeanScoreHeader label="mean score (step + coverage)" />
+        ),
+        size: 280,
+        cell: ({ row }) => (
+          <ProjectEvaluatorMeanScoreCell
+            annotations={getProjectEvaluatorResultAnnotations({
+              name: row.original.name,
+              outputConfigs: row.original.evaluator.outputConfigs,
+            })}
+            scoreMetrics={row.original.annotationScoreMetrics}
+            sparklineVariant="step-coverage"
           />
         ),
       },

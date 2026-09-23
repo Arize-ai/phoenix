@@ -34,8 +34,9 @@ export type SparklineBinRange = {
  * - `coverage`: the `line` marks without shading, over a strip along the
  *   baseline with one cell per bin: filled where data exists, faint where it
  *   doesn't.
+ * - `step-coverage`: the `step` marks without shading, over the same strip.
  */
-export type SparklineVariant = "line" | "step" | "coverage";
+export type SparklineVariant = "line" | "step" | "coverage" | "step-coverage";
 
 export interface SparklineProps {
   /**
@@ -117,6 +118,22 @@ const FILL_TOP_OPACITY = 0.3;
 /** The coverage strip's height, and the room between it and the marks. */
 const COVERAGE_STRIP_HEIGHT = 3;
 const COVERAGE_STRIP_GAP = 2;
+/** The vertical room the coverage strip takes from the marks. */
+const COVERAGE_STRIP_INSET = COVERAGE_STRIP_HEIGHT + COVERAGE_STRIP_GAP;
+
+/**
+ * A variant is a mark (line or step) plus, optionally, the coverage strip.
+ * With the strip, presence lives there and the marks go unshaded.
+ */
+const VARIANT_SPECS: Record<
+  SparklineVariant,
+  { mark: "line" | "step"; hasCoverage: boolean }
+> = {
+  line: { mark: "line", hasCoverage: false },
+  step: { mark: "step", hasCoverage: false },
+  coverage: { mark: "line", hasCoverage: true },
+  "step-coverage": { mark: "step", hasCoverage: true },
+};
 /** A coverage cell with data, and one without. */
 const COVERAGE_PRESENT_OPACITY = 0.85;
 const COVERAGE_EMPTY_OPACITY = 0.15;
@@ -359,6 +376,132 @@ function toStepAreaPathData({
   return `${toStepPathData({ points, binCount })} L ${last.right.toFixed(2)} ${baseline} L ${first.left.toFixed(2)} ${baseline} Z`;
 }
 
+/** The shaded regions under each run, drawn first so strokes sit on top. */
+function Shading({
+  segments,
+  mark,
+  binCount,
+  height,
+  fill,
+}: {
+  segments: SparklinePoint[][];
+  mark: "line" | "step";
+  binCount: number;
+  height: number;
+  fill: string;
+}) {
+  return segments.map((segment) => {
+    const first = segment[0];
+    return (
+      <path
+        key={first.bin.position}
+        d={
+          mark === "step"
+            ? toStepAreaPathData({ points: segment, binCount, height })
+            : segment.length === 1
+              ? toColumnPathData({ point: first, binCount, height })
+              : toAreaPathData(segment, height)
+        }
+        fill={fill}
+        stroke="none"
+      />
+    );
+  });
+}
+
+/**
+ * One cell per drawn bin along the baseline: filled where the bin carries a
+ * value, faint where it doesn't, so presence reads separately from level.
+ */
+function CoverageStrip({
+  bins,
+  binCount,
+  height,
+  color,
+}: {
+  bins: SparklineBin[];
+  binCount: number;
+  height: number;
+  color: string;
+}) {
+  return bins.map((bin) => {
+    const { left, right } = getBinExtent({ range: bin.range, binCount });
+    return (
+      <rect
+        key={bin.position}
+        x={(left + COVERAGE_CELL_INSET).toFixed(2)}
+        y={height - COVERAGE_STRIP_HEIGHT}
+        width={Math.max(0, right - left - 2 * COVERAGE_CELL_INSET).toFixed(2)}
+        height={COVERAGE_STRIP_HEIGHT}
+        fill={color}
+        fillOpacity={
+          bin.value == null ? COVERAGE_EMPTY_OPACITY : COVERAGE_PRESENT_OPACITY
+        }
+      />
+    );
+  });
+}
+
+/** The strokes: a step or polyline per run, a dot for a lone line value. */
+function Marks({
+  segments,
+  mark,
+  binCount,
+  color,
+}: {
+  segments: SparklinePoint[][];
+  mark: "line" | "step";
+  binCount: number;
+  color: string;
+}) {
+  return segments.map((segment) => {
+    const first = segment[0];
+    if (mark === "step") {
+      // Every step, even a lone one, spans its bin, so there is no
+      // dot case: a single flat segment already has the line's weight
+      return (
+        <path
+          key={first.bin.position}
+          d={toStepPathData({ points: segment, binCount })}
+          fill="none"
+          stroke={color}
+          strokeWidth={LINE_WIDTH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      );
+    }
+    return (
+      <g key={first.bin.position}>
+        {segment.length === 1 ? (
+          // A gap-isolated value has no line to join, so it draws
+          // as a dot of the line's weight
+          <path
+            d={toDotPathData(first)}
+            fill="none"
+            stroke={color}
+            strokeWidth={ISOLATED_DOT_WIDTH}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : (
+          <path
+            d={toPathData(segment)}
+            fill="none"
+            stroke={color}
+            strokeWidth={LINE_WIDTH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            // The svg stretches horizontally; keep the stroke width uniform
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+      </g>
+    );
+  });
+}
+
 /**
  * A small inline line chart for table cells and stat tiles: a single series
  * stretching to fill the width its container gives it, up to `maxWidth`.
@@ -407,12 +550,10 @@ export function Sparkline({
     weights,
     maxPoints: Math.max(1, Math.floor(width / MIN_PIXELS_PER_POINT)),
   });
+  const { mark, hasCoverage } = VARIANT_SPECS[variant];
   // The coverage strip takes its room from the bottom of the box; the marks
   // plot into what remains
-  const plotHeight =
-    variant === "coverage"
-      ? height - COVERAGE_STRIP_HEIGHT - COVERAGE_STRIP_GAP
-      : height;
+  const plotHeight = height - (hasCoverage ? COVERAGE_STRIP_INSET : 0);
   const points = getPoints({
     bins,
     binCount: values.length,
@@ -484,110 +625,30 @@ export function Sparkline({
             <stop offset="1" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        {/* The shading goes down first so every stroke sits on top of it.
-            The coverage variant carries presence in its strip instead. */}
-        {variant === "coverage"
-          ? null
-          : segments.map((segment) => {
-              const first = segment[0];
-              return (
-                <path
-                  key={first.bin.position}
-                  d={
-                    variant === "step"
-                      ? toStepAreaPathData({
-                          points: segment,
-                          binCount: values.length,
-                          height: plotHeight,
-                        })
-                      : segment.length === 1
-                        ? toColumnPathData({
-                            point: first,
-                            binCount: values.length,
-                            height: plotHeight,
-                          })
-                        : toAreaPathData(segment, plotHeight)
-                  }
-                  fill={fill}
-                  stroke="none"
-                />
-              );
-            })}
-        {variant === "coverage"
-          ? bins.map((bin) => {
-              const { left, right } = getBinExtent({
-                range: bin.range,
-                binCount: values.length,
-              });
-              return (
-                <rect
-                  key={bin.position}
-                  x={(left + COVERAGE_CELL_INSET).toFixed(2)}
-                  y={height - COVERAGE_STRIP_HEIGHT}
-                  width={Math.max(
-                    0,
-                    right - left - 2 * COVERAGE_CELL_INSET
-                  ).toFixed(2)}
-                  height={COVERAGE_STRIP_HEIGHT}
-                  fill={color}
-                  fillOpacity={
-                    bin.value == null
-                      ? COVERAGE_EMPTY_OPACITY
-                      : COVERAGE_PRESENT_OPACITY
-                  }
-                />
-              );
-            })
-          : null}
-        {segments.map((segment) => {
-          const first = segment[0];
-          if (variant === "step") {
-            // Every step, even a lone one, spans its bin, so there is no
-            // dot case: a single flat segment already has the line's weight
-            return (
-              <path
-                key={first.bin.position}
-                d={toStepPathData({
-                  points: segment,
-                  binCount: values.length,
-                })}
-                fill="none"
-                stroke={color}
-                strokeWidth={LINE_WIDTH}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-              />
-            );
-          }
-          return (
-            <g key={first.bin.position}>
-              {segment.length === 1 ? (
-                // A gap-isolated value has no line to join, so it draws
-                // as a dot of the line's weight
-                <path
-                  d={toDotPathData(first)}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={ISOLATED_DOT_WIDTH}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ) : (
-                <path
-                  d={toPathData(segment)}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={LINE_WIDTH}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  // The svg stretches horizontally; keep the stroke width uniform
-                  vectorEffect="non-scaling-stroke"
-                />
-              )}
-            </g>
-          );
-        })}
+        {/* Shading goes down first so every stroke sits on top of it; with a
+            coverage strip, presence lives in the strip and the marks go bare */}
+        {hasCoverage ? (
+          <CoverageStrip
+            bins={bins}
+            binCount={values.length}
+            height={height}
+            color={color}
+          />
+        ) : (
+          <Shading
+            segments={segments}
+            mark={mark}
+            binCount={values.length}
+            height={plotHeight}
+            fill={fill}
+          />
+        )}
+        <Marks
+          segments={segments}
+          mark={mark}
+          binCount={values.length}
+          color={color}
+        />
         {/* The most recent value: where the series stands now, and where
             it stops if the axis runs on past it */}
         <path

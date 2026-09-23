@@ -243,6 +243,24 @@ describe("Sparkline", () => {
     });
   });
 
+  describe("step-coverage variant", () => {
+    it("draws unshaded steps above the coverage strip", () => {
+      render([0, 1, null, 0.5], { variant: "step-coverage" });
+      // Steps plot into the 15px above the strip; no shading, one cell per bin
+      expect(getPaths()).toEqual([
+        "M 0.00 13.00 L 10.67 13.00 L 10.67 2.00 L 32.00 2.00",
+        "M 53.33 7.50 L 64.00 7.50",
+        "M 64.00 7.50 l 0.01 0",
+      ]);
+      expect(getFillPaths()).toEqual([]);
+      expect(
+        [...container.querySelectorAll("rect")].map((cell) =>
+          cell.getAttribute("fill-opacity")
+        )
+      ).toEqual(["0.85", "0.85", "0.15", "0.85"]);
+    });
+  });
+
   it("renders nothing when every value is null", () => {
     render([null, null]);
     expect(container.querySelector("svg")).toBeNull();

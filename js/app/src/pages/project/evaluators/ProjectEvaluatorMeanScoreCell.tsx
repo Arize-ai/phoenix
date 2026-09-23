@@ -149,7 +149,7 @@ export function ProjectEvaluatorMeanScoreCell({
     | ReadonlyArray<EvaluatorAnnotationScoreMetricsData>
     | null
     | undefined;
-  /** The sparkline's mark style; under design review across three columns. */
+  /** The sparkline's mark style; under design review across four columns. */
   sparklineVariant?: SparklineVariant;
 }) {
   const scoreWindow = useEvaluatorScoreWindow();

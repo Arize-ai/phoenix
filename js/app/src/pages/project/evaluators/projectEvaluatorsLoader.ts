@@ -108,9 +108,12 @@ function getStoredIncludeMeanScore(): boolean {
     const visibility = persisted
       ? JSON.parse(persisted)?.state?.columnVisibility
       : null;
-    return ["meanScore", "meanScoreStep", "meanScoreCoverage"].some(
-      (id) => visibility?.[id] !== false
-    );
+    return [
+      "meanScore",
+      "meanScoreStep",
+      "meanScoreCoverage",
+      "meanScoreStepCoverage",
+    ].some((id) => visibility?.[id] !== false);
   } catch {
     return true;
   }
