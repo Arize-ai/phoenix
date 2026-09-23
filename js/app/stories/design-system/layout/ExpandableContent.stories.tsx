@@ -50,10 +50,10 @@ A content wrapper that handles overflowing content with an expandable interface.
     },
   },
   decorators: [
-    (Story) => (
+    (Story, { parameters }) => (
       <div
         css={css`
-          width: 400px;
+          width: ${parameters.containerWidth ?? 400}px;
           border: 1px solid var(--global-border-color-default);
           border-radius: var(--global-rounding-small);
           background: var(--global-background-color-default);
@@ -310,5 +310,16 @@ export const InitiallyExpanded: Story = {
           "When `isExpanded` is set to `true`, the content starts in its expanded state showing all content.",
       },
     },
+  },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  // The thumbnail frame's content box, so the bordered container fits.
+  parameters: { containerWidth: 288 },
+  args: {
+    height: 100,
+    children: <Text>{longContent}</Text>,
   },
 };

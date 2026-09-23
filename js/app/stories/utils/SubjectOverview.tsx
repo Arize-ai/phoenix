@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import { SELECT_STORY } from "storybook/internal/core-events";
 import { addons } from "storybook/preview-api";
-import { styled } from "storybook/theming";
+import { styled, useTheme } from "storybook/theming";
 
 import { OVERVIEW_STORY_NAME } from "../_meta/taxonomy";
+import { THUMBNAIL_STORY_NAME } from "../_meta/thumbnail";
+import type { ThumbnailTheme } from "../_meta/thumbnail";
 
 /** The subset of a Storybook `index.json` entry this page reads. */
 type IndexEntry = {
@@ -12,6 +14,8 @@ type IndexEntry = {
   title: string;
   name: string;
   type: "story" | "docs";
+  /** The file the entry comes from, relative to the Storybook config. */
+  importPath: string;
 };
 
 type StoryIndex = { entries: Record<string, IndexEntry> };
@@ -24,7 +28,59 @@ type OverviewChild = {
   storyCount: number;
   /** A folder's own children, by name; empty for a component or docs page. */
   entryNames: Set<string>;
+  /**
+   * Files behind the child, in sidebar order. A folder has no file of its
+   * own, so its card shows the first thumbnail among the entries inside it.
+   */
+  importPaths: Set<string>;
 };
+
+/**
+ * Every committed thumbnail, keyed by its path beneath `stories/`.
+ *
+ * A thumbnail sits beside the story file whose `Thumbnail` story it was
+ * photographed from, as `<Name>.thumbnail.<theme>.png`, so it moves and
+ * renames with the story. `pnpm storybook:thumbnails` writes them;
+ * `pnpm lint:stories` rejects one with no `Thumbnail` story behind it.
+ *
+ * @see app/stories/_meta/thumbnail.ts
+ */
+const THUMBNAILS: Record<string, string> = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>("../**/*.thumbnail.{light,dark}.png", {
+      eager: true,
+      query: "?url",
+      import: "default",
+    })
+  ).map(([path, url]) => [path.replace(/^\.\.\//, ""), url])
+);
+
+/**
+ * An index `importPath`, reduced to its path beneath `stories/`.
+ *
+ * Index paths are relative to the config directory, which is not always
+ * `.storybook/` (the px launcher relocates it), so only the part from
+ * `stories/` on is stable.
+ */
+function storiesRelativePath(importPath: string): string | null {
+  const match = importPath.match(/(?:^|\/)stories\/(.+)$/);
+  return match ? match[1] : null;
+}
+
+function thumbnailFor(
+  importPaths: Iterable<string>,
+  theme: ThumbnailTheme
+): string | undefined {
+  for (const importPath of importPaths) {
+    const path = storiesRelativePath(importPath);
+    const base = path?.replace(/\.(stories\.[jt]sx?|mdx)$/, "");
+    const url = base && THUMBNAILS[`${base}.thumbnail.${theme}.png`];
+    if (url) {
+      return url;
+    }
+  }
+  return undefined;
+}
 
 /**
  * Groups every index entry beneath `title` by the sidebar child it belongs to.
@@ -37,7 +93,11 @@ function childrenOf(index: StoryIndex, title: string): OverviewChild[] {
   const prefix = `${title}/`;
   const byName = new Map<string, OverviewChild>();
   for (const entry of Object.values(index.entries)) {
-    if (!entry.title.startsWith(prefix)) {
+    // The `Thumbnail` story is the card's picture, not one of its stories.
+    if (
+      !entry.title.startsWith(prefix) ||
+      (entry.type === "story" && entry.name === THUMBNAIL_STORY_NAME)
+    ) {
       continue;
     }
     const [name, entryName] = entry.title.slice(prefix.length).split("/");
@@ -53,10 +113,12 @@ function childrenOf(index: StoryIndex, title: string): OverviewChild[] {
         target: entry,
         storyCount: entry.type === "story" ? 1 : 0,
         entryNames: new Set(nestedEntry),
+        importPaths: new Set([entry.importPath]),
       });
       continue;
     }
     nestedEntry.forEach((nested) => child.entryNames.add(nested));
+    child.importPaths.add(entry.importPath);
     if (entry.type === "story") {
       child.storyCount += 1;
     } else if (
@@ -151,6 +213,18 @@ const CardLink = styled.a(({ theme }) => ({
   },
 }));
 
+const Thumbnail = styled.div(({ theme }) => ({
+  aspectRatio: "16 / 10",
+  background: theme.background.app,
+  borderBottom: `1px solid ${theme.appBorderColor}`,
+  "& img": {
+    display: "block",
+    height: "100%",
+    objectFit: "cover",
+    width: "100%",
+  },
+}));
+
 const Caption = styled.div(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
@@ -170,9 +244,11 @@ const Caption = styled.div(({ theme }) => ({
 /**
  * The card grid on a subject's `Overview` page: every component and page
  * beneath `title`, each opening its docs page or, failing that, its first
- * story.
+ * story. A card shows the child's thumbnail for the docs theme when one is
+ * committed, and an empty frame otherwise, so the grid stays aligned.
  */
 export function SubjectOverview({ title }: { title: string }) {
+  const theme: ThumbnailTheme = useTheme().base === "dark" ? "dark" : "light";
   const [children, setChildren] = useState<OverviewChild[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -211,20 +287,29 @@ export function SubjectOverview({ title }: { title: string }) {
     <GridContainer>
       {/* `sb-unstyled` opts the grid out of the docs page's prose typography. */}
       <Grid className="sb-unstyled">
-        {children.map((child) => (
-          <li key={child.name}>
-            <CardLink
-              href={`./?path=/${child.target.type}/${child.target.id}`}
-              target="_top"
-              onClick={(event) => onLinkClick(event, child.target.id)}
-            >
-              <Caption>
-                <span>{child.name}</span>
-                {countLabel(child) && <span>{countLabel(child)}</span>}
-              </Caption>
-            </CardLink>
-          </li>
-        ))}
+        {children.map((child) => {
+          const { name, target, importPaths } = child;
+          const thumbnail = thumbnailFor(importPaths, theme);
+          const count = countLabel(child);
+          return (
+            <li key={name}>
+              <CardLink
+                href={`./?path=/${target.type}/${target.id}`}
+                target="_top"
+                onClick={(event) => onLinkClick(event, target.id)}
+              >
+                <Thumbnail>
+                  {/* Decorative: the caption names the card. */}
+                  {thumbnail && <img src={thumbnail} alt="" loading="lazy" />}
+                </Thumbnail>
+                <Caption>
+                  <span>{name}</span>
+                  {count && <span>{count}</span>}
+                </Caption>
+              </CardLink>
+            </li>
+          );
+        })}
       </Grid>
     </GridContainer>
   );

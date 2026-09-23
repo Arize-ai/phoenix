@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import {
   type DisclosureProps,
@@ -126,3 +126,26 @@ export const ExtraTitleContent = ExtraTitleContentStory.bind({
     },
   },
 });
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <View width="100%">
+      <DisclosureGroup defaultExpandedKeys={["first"]}>
+        <Disclosure id="first">
+          <DisclosureTrigger>First section</DisclosureTrigger>
+          <DisclosurePanel>
+            <Text>Expanded content</Text>
+          </DisclosurePanel>
+        </Disclosure>
+        <Disclosure id="second">
+          <DisclosureTrigger>Second section</DisclosureTrigger>
+          <DisclosurePanel>
+            <Text>Collapsed content</Text>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
+    </View>
+  ),
+};

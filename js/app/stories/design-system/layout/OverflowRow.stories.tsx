@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { Fragment, type ReactNode, useState } from "react";
 
 import { Flex, OverflowRow, Switch, Token, View } from "@phoenix/components";
@@ -101,3 +101,21 @@ export const BoxlessItemWrappers: StoryFn = () => (
     <Tokens boxless />
   </Template>
 );
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <View
+      borderWidth="thin"
+      borderColor="default"
+      borderRadius="medium"
+      padding="size-100"
+      width="288px"
+    >
+      <OverflowRow>
+        <Tokens />
+      </OverflowRow>
+    </View>
+  ),
+};

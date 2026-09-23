@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import {
   Divider,
@@ -284,3 +284,9 @@ export const DividerSizes: StoryFn = () => (
   </Flex>
 );
 DividerSizes.tags = ["!dev"];
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => <BorderVsDivider />,
+};

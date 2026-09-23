@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
 import type { DisclosureArrowProps } from "@phoenix/components";
@@ -67,4 +67,21 @@ const InteractiveStory: StoryFn<DisclosureArrowProps> = (args) => {
 export const Interactive: Meta<typeof DisclosureArrow> = {
   render: InteractiveStory,
   args: { position: "start" },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Flex direction="column" gap="size-200">
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <DisclosureArrow isExpanded={false} />
+        <Text>Collapsed</Text>
+      </Flex>
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <DisclosureArrow isExpanded />
+        <Text>Expanded</Text>
+      </Flex>
+    </Flex>
+  ),
 };

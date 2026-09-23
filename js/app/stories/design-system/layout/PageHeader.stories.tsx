@@ -1,4 +1,4 @@
-import type { Meta } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react";
 
 import {
   Button,
@@ -107,4 +107,18 @@ export const CustomTitleContent = {
       },
     },
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ width: "100%" }}>
+      <PageHeader
+        title="Datasets"
+        subTitle="Curated examples"
+        extra={<Button variant="primary">New</Button>}
+      />
+    </div>
+  ),
 };

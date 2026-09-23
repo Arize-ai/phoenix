@@ -2,6 +2,7 @@ import type { DocsContainerProps } from "@storybook/addon-docs/blocks";
 import { DocsContainer } from "@storybook/addon-docs/blocks";
 import type { Preview } from "@storybook/react";
 import React, { useEffect, useMemo, useState } from "react";
+import { UNSAFE_PortalProvider } from "react-aria/PortalProvider";
 import { MemoryRouter } from "react-router";
 import { GLOBALS_UPDATED, SET_GLOBALS } from "storybook/internal/core-events";
 import { addons as previewAddons } from "storybook/preview-api";
@@ -11,6 +12,14 @@ import { create } from "storybook/theming/create";
 import type { ProviderTheme } from "../src/contexts";
 import { PreferencesProvider, ThemeProvider } from "../src/contexts";
 import { GlobalStyles } from "../src/GlobalStyles";
+import {
+  THUMBNAIL_FRAME_TEST_ID,
+  THUMBNAIL_HOVER_ATTRIBUTE,
+  THUMBNAIL_SCALE_ATTRIBUTE,
+  THUMBNAIL_SIZE,
+  THUMBNAIL_STORY_NAME,
+  type ThumbnailParameters,
+} from "../stories/_meta/thumbnail";
 
 export const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
 
@@ -428,6 +437,66 @@ function ThemedStory({
 }
 
 /**
+ * The frame a `Thumbnail` story renders in, so its screenshot always has the
+ * Overview card's aspect ratio. Content that overflows is clipped: the story
+ * is authored to fit, and the frame is what gets photographed.
+ *
+ * `scale` never transforms anything. A scaled frame is laid out at
+ * `1 / scale` times the thumbnail size in real CSS pixels, and the generator
+ * photographs it at a proportionally lower pixel density, so the image is
+ * always the same size. A CSS `transform` would shrink what the story
+ * renders but not what it measures: React Aria would anchor overlays and
+ * Recharts would size axes from scaled rectangles applied in unscaled units.
+ *
+ * The frame is also where overlays go. React Aria portals are re-homed into
+ * it, and its (identity) `transform` makes it the containing block for their
+ * fixed positioning, so an open popover, modal, or tooltip renders inside the
+ * frame (and inside the story's theme) instead of against the window.
+ * Children mount once the frame exists, so the first portal already has its
+ * home.
+ *
+ * @see app/stories/_meta/thumbnail.ts
+ */
+function ThumbnailFrame({
+  children,
+  scale = 1,
+  hover,
+}: {
+  children: React.ReactNode;
+} & ThumbnailParameters) {
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null);
+  return (
+    <div
+      ref={setFrame}
+      data-testid={THUMBNAIL_FRAME_TEST_ID}
+      {...{
+        [THUMBNAIL_HOVER_ATTRIBUTE]: hover,
+        [THUMBNAIL_SCALE_ATTRIBUTE]: scale,
+      }}
+      style={{
+        alignItems: "center",
+        backgroundColor: "var(--global-background-color-default)",
+        boxSizing: "border-box",
+        display: "flex",
+        height: THUMBNAIL_SIZE.height / scale,
+        justifyContent: "center",
+        overflow: "hidden",
+        padding: "var(--global-dimension-size-200)",
+        position: "relative",
+        transform: "translateZ(0)",
+        width: THUMBNAIL_SIZE.width / scale,
+      }}
+    >
+      {frame && (
+        <UNSAFE_PortalProvider getContainer={() => frame}>
+          {children}
+        </UNSAFE_PortalProvider>
+      )}
+    </div>
+  );
+}
+
+/**
  * Hook that resolves the toolbar theme selection to concrete theme(s) and
  * tracks system theme.
  */
@@ -557,11 +626,23 @@ const preview: Preview = {
     theme: "auto",
   },
   decorators: [
-    (Story, { globals, parameters }) => {
+    (Story, { globals, parameters, name }) => {
       const themeMode = globals.theme ?? "auto";
       const { resolvedThemes, systemTheme } = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
-      const frame = getStoryFrame(parameters);
+      const isThumbnail = name === THUMBNAIL_STORY_NAME;
+      // A thumbnail owns its framing: no inset, no width mode, just the frame.
+      const frame: ResolvedStoryFrame = isThumbnail
+        ? { hasInset: false, width: "intrinsic" }
+        : getStoryFrame(parameters);
+      const thumbnail: ThumbnailParameters = parameters.thumbnail ?? {};
+      const content = isThumbnail ? (
+        <ThumbnailFrame {...thumbnail}>
+          <Story />
+        </ThumbnailFrame>
+      ) : (
+        <Story />
+      );
       const themeLayout =
         parameters.themeLayout === "column" ? "column" : "row";
 
@@ -572,7 +653,7 @@ const preview: Preview = {
             style={{ display: "flex", minHeight: "100%", width: "100%" }}
           >
             <ThemedStory theme={resolvedThemes[0]} frame={frame}>
-              <Story />
+              {content}
             </ThemedStory>
           </div>
         );
@@ -596,7 +677,7 @@ const preview: Preview = {
               style={{ display: "flex", flex: 1, minHeight: 0, minWidth: 0 }}
             >
               <ThemedStory theme={theme} frame={frame}>
-                <Story />
+                {content}
               </ThemedStory>
             </div>
           ))}

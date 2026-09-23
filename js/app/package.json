@@ -36,6 +36,7 @@
     "prod": "pnpm run build:static && pnpm run build && pnpm run prod:server",
     "prod:server": "set -a && source ./.env && set +a && uv run phoenix serve",
     "storybook": "storybook dev -p 6007",
+    "storybook:thumbnails": "tsx scripts/generate-story-thumbnails.ts",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:app-frame": "playwright test --project=app-frame --reporter=list",

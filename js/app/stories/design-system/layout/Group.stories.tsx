@@ -80,3 +80,18 @@ export const Small: Story = {
     },
   },
 };
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  args: {
+    size: "M",
+    children: (
+      <>
+        <Button>Left</Button>
+        <Button>Middle</Button>
+        <Button>Right</Button>
+      </>
+    ),
+  },
+};

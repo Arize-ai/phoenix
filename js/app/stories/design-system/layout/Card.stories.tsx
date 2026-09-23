@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import {
   Button,
@@ -234,4 +234,16 @@ export const DefaultClosed = {
     defaultOpen: false,
     width: "400px",
   },
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <Card title="Card" width="100%">
+      <View padding="size-200">
+        <Text>A titled surface for grouping related content.</Text>
+      </View>
+    </Card>
+  ),
 };

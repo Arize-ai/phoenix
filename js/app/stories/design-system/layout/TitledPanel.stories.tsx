@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { Group, Panel } from "react-resizable-panels";
 
 import { Button, Card, Text, Token, View } from "@phoenix/components";
@@ -170,4 +170,31 @@ const WithActionsTemplate: StoryFn = (args) => (
 export const WithActions: Meta<typeof TitledPanel> = {
   render: WithActionsTemplate,
   args: {},
+};
+
+/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+export const Thumbnail: StoryObj = {
+  tags: ["!dev", "!autodocs"],
+  render: () => (
+    <View
+      width="288px"
+      height="168px"
+      borderWidth="thin"
+      borderColor="default"
+      borderRadius="medium"
+    >
+      <Group orientation="vertical">
+        <TitledPanel title="Inputs">
+          <View padding="size-100">
+            <Text>Panel content</Text>
+          </View>
+        </TitledPanel>
+        <TitledPanel title="Outputs" resizable>
+          <View padding="size-100">
+            <Text>Resizable panel</Text>
+          </View>
+        </TitledPanel>
+      </Group>
+    </View>
+  ),
 };

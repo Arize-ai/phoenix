@@ -76,3 +76,32 @@ overflow, and an atypically large but valid count.
 **Compose for both themes.** Pick `themeLayout: "row"` or `"column"`
 deliberately so the story stays legible when the `Both` toolbar mode renders
 light and dark at once.
+
+## Give it a thumbnail
+
+A subject's `Overview` page shows each component as a card. The card's
+picture comes from a story named exactly `Thumbnail`, which renders inside a
+fixed 320×200 frame:
+
+```tsx
+export const Thumbnail: Story = {
+  tags: ["!dev", "!autodocs"],
+  render: () => <Card title="Card">…</Card>,
+};
+```
+
+- **Author it to fit the frame.** It is a picture, not a demo: one
+  representative state, compact content, overlays opened on mount.
+- **Tag it `!dev` and `!autodocs`.** It stays out of the sidebar and the docs
+  page; `pnpm lint:stories` enforces both.
+- **Wrong size at 1:1?** `parameters: { thumbnail: { scale: 0.5 } }` lays the
+  frame out twice as large and photographs it at half the pixel density, so a
+  drawer or table fits; a scale above 1 enlarges a small component.
+- **Show overlays open.** Prefer the component's `defaultOpen` or `isOpen`.
+  Without one, a `play` function that clicks the trigger works. For a
+  hover-only surface, `thumbnail: { hover: "link" }` names the role the
+  generator hovers with a real pointer; a `play` hover does not open React
+  Aria tooltips.
+- **Regenerate, never edit, the images.** With this worktree's Storybook
+  running, `pnpm storybook:thumbnails [title-prefix]` writes
+  `<Name>.thumbnail.light.png` and `.dark.png` beside the story file.

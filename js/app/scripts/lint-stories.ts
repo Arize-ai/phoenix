@@ -33,6 +33,11 @@ import {
   nameKey,
   ROOTS,
 } from "../stories/_meta/taxonomy";
+import {
+  THUMBNAIL_REQUIRED_TAGS,
+  THUMBNAIL_STORY_NAME,
+  THUMBNAIL_THEMES,
+} from "../stories/_meta/thumbnail";
 
 const STORIES_DIR = "stories";
 const PREVIEW_FILE = join(".storybook", "preview.tsx");
@@ -278,6 +283,85 @@ function checkTags(file: StoryFile) {
   }
 }
 
+/**
+ * The tags of a file's `Thumbnail` story, or null if it has none. Reads both
+ * CSF styles in use: `tags` inside the story object, or `Thumbnail.tags = […]`
+ * after a `StoryFn`.
+ */
+function thumbnailStoryTags(src: string): string[] | null {
+  const name = THUMBNAIL_STORY_NAME;
+  if (!new RegExp(`^export const ${name}\\b`, "m").test(src)) return null;
+  const list =
+    src.match(
+      new RegExp(
+        `^export const ${name}\\b[^=]*=\\s*\\{[\\s\\S]*?^\\s*tags:\\s*\\[([^\\]]*)\\][\\s\\S]*?^\\};`,
+        "m"
+      )
+    )?.[1] ??
+    src.match(new RegExp(`^${name}\\.tags\\s*=\\s*\\[([^\\]]*)\\]`, "m"))?.[1];
+  return list
+    ? [...list.matchAll(/["'`]([^"'`]+)["'`]/g)].map((x) => x[1])
+    : [];
+}
+
+/**
+ * Thumbnails are photographs of a `Thumbnail` story, written beside its file
+ * as `<Name>.thumbnail.<theme>.png`, one per docs theme, and found by that
+ * shared base name. So each image needs the story it is regenerated from,
+ * and each such story must stay out of the sidebar and the docs page.
+ *
+ * @see app/stories/_meta/thumbnail.ts
+ */
+function checkThumbnails(files: StoryFile[]) {
+  const thumbnailStories = new Set<string>();
+  for (const file of files) {
+    if (!/\.stories\.[jt]sx?$/.test(file.base)) continue;
+    const tags = thumbnailStoryTags(
+      readFileSync(join(STORIES_DIR, file.rel), "utf8")
+    );
+    if (tags === null) continue;
+    thumbnailStories.add(file.rel.replace(/\.stories\.[jt]sx?$/, ""));
+    const missing = THUMBNAIL_REQUIRED_TAGS.filter((t) => !tags.includes(t));
+    if (missing.length > 0) {
+      fail(
+        file.rel,
+        `the ${THUMBNAIL_STORY_NAME} story must be tagged ${missing.map((t) => `"${t}"`).join(" and ")}; it is photographed, not browsed`
+      );
+    }
+  }
+
+  const walkAll = (dir: string): string[] =>
+    readdirSync(dir).flatMap((entry) => {
+      const full = join(dir, entry);
+      return statSync(full).isDirectory() ? walkAll(full) : [full];
+    });
+  const images = walkAll(STORIES_DIR)
+    .map((f) => relative(STORIES_DIR, f))
+    .filter((f) => f.includes(".thumbnail."));
+  const imageSet = new Set(images);
+  for (const rel of images) {
+    const m = rel.match(/^(.+)\.thumbnail\.(light|dark)\.png$/);
+    if (!m) {
+      fail(rel, "thumbnails are named `<Name>.thumbnail.<light|dark>.png`");
+      continue;
+    }
+    const [, base, theme] = m;
+    if (!thumbnailStories.has(base)) {
+      fail(
+        rel,
+        `no ${THUMBNAIL_STORY_NAME} story in a story file beside it shares its name; it cannot be regenerated`
+      );
+    }
+    const other = THUMBNAIL_THEMES.find((t) => t !== theme);
+    if (!imageSet.has(`${base}.thumbnail.${other}.png`)) {
+      fail(
+        rel,
+        `missing its ${other} counterpart; regenerate with \`pnpm storybook:thumbnails\``
+      );
+    }
+  }
+}
+
 function main() {
   const files = collect();
 
@@ -334,6 +418,8 @@ function main() {
       }
     }
   }
+
+  checkThumbnails(managed);
 
   writeHealth(files);
 
