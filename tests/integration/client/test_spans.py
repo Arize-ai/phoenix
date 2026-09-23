@@ -2473,3 +2473,84 @@ class TestClientGetSpansAttributeFilters:
             )
             assert resp.status_code == 200, resp.text
             assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+
+class TestClientGetSpansSort:
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_sort_by_start_time_orders_spans_logged_out_of_order(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+        trace_id = f"trace_sort_{token_hex(16)}"
+        now = datetime.now(timezone.utc)
+        # Logged oldest-in-the-middle so that insertion order differs from start time.
+        start_offsets_in_insertion_order = [
+            timedelta(minutes=5),
+            timedelta(),
+            timedelta(minutes=10),
+        ]
+        spans = [
+            v1.Span(
+                name=f"span_{index}",
+                context={"trace_id": trace_id, "span_id": f"span_sort_{token_hex(8)}"},
+                span_kind="CHAIN",
+                start_time=(now - timedelta(minutes=30) + offset).isoformat(),
+                end_time=(now - timedelta(minutes=30) + offset + timedelta(seconds=1)).isoformat(),
+                status_code="OK",
+            )
+            for index, offset in enumerate(start_offsets_in_insertion_order)
+        ]
+        span_ids = [span["context"]["span_id"] for span in spans]
+        newest_first = [span_ids[2], span_ids[0], span_ids[1]]
+
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=spans,
+            )
+        )
+        assert create_result["total_queued"] == len(spans)
+        await _until_spans_exist(_app, span_ids)
+
+        by_insertion = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+            )
+        )
+        assert [s["context"]["span_id"] for s in by_insertion] == list(reversed(span_ids))
+
+        by_start_time = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                sort="start_time",
+            )
+        )
+        assert [s["context"]["span_id"] for s in by_start_time] == newest_first
+
+        ascending = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                sort="start_time",
+                order="asc",
+            )
+        )
+        assert [s["context"]["span_id"] for s in ascending] == list(reversed(newest_first))
+
+        latest_two = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                sort="start_time",
+                limit=2,
+            )
+        )
+        assert [s["context"]["span_id"] for s in latest_two] == newest_first[:2]

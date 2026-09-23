@@ -135,3 +135,17 @@ DELETE_PROMPT = RouteRequirement(
     path="/v1/prompts/{prompt_identifier}",
     min_server_version=Version(13, 20, 0),
 )
+
+GET_SPANS_SORT = ParameterRequirement(
+    parameter_name="sort",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(20, 16, 0),
+)
+
+GET_SPANS_ORDER = ParameterRequirement(
+    parameter_name="order",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(20, 16, 0),
+)
