@@ -22,6 +22,7 @@ const PULL_REQUESTS_QUERY = `
           title
           url
           isDraft
+          isCrossRepository
           createdAt
           updatedAt
           authorAssociation
@@ -56,7 +57,9 @@ const PULL_REQUESTS_QUERY = `
   }
 `;
 
-// Author associations that identify a team member who can shepherd their own PR
+// Author associations that identify a team member who can shepherd their own
+// PR. The Actions token does not see private org membership, so this is only
+// a fallback for isTeamAuthor's primary signal: a head branch in this repo.
 const TEAM_AUTHOR_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 // The order in which a person's PRs are listed: things to review come first
@@ -141,6 +144,15 @@ function getReviewStatus(pullRequest) {
   );
 }
 
+// Only people with push access can open a PR from a branch in this repo, so a
+// non-fork head is a reliable membership signal even for the Actions token
+function isTeamMember(pullRequest) {
+  return (
+    !pullRequest.isCrossRepository ||
+    TEAM_AUTHOR_ASSOCIATIONS.has(pullRequest.authorAssociation)
+  );
+}
+
 // Determine who needs to act on a PR and in which capacity
 function getOwners(pullRequest) {
   const authorLogin = pullRequest.author.login;
@@ -168,9 +180,7 @@ function getOwners(pullRequest) {
 
   // A team member's own PR lands on their plate when nobody else owns it or
   // when reviewers have already spoken and the next move is theirs
-  const isTeamAuthor = TEAM_AUTHOR_ASSOCIATIONS.has(
-    pullRequest.authorAssociation
-  );
+  const isTeamAuthor = isTeamMember(pullRequest);
   const reviewStatus = getReviewStatus(pullRequest);
   const ballIsWithAuthor = reviewStatus !== REVIEW_STATUS.REVIEW_REQUIRED;
   if (isTeamAuthor && (owners.length === 0 || ballIsWithAuthor)) {
