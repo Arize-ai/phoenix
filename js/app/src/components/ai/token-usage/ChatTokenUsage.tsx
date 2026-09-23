@@ -9,7 +9,13 @@ import { DisclosureArrow } from "@phoenix/components/core/icon";
 import { RichTooltip, TooltipTrigger } from "@phoenix/components/core/tooltip";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { formatInt, formatIntShort } from "@phoenix/utils/numberFormatUtils";
-import { getTokenDetailColor } from "@phoenix/utils/tokenDetailUtils";
+import {
+  compareTokenTypes,
+  getTokenDetailColor,
+  getTokenDetailLabel,
+  getTokenDetailValuesWithRemainder,
+  getTokenKindLabel,
+} from "@phoenix/utils/tokenDetailUtils";
 
 const chatTokenUsageCSS = css`
   display: contents;
@@ -207,6 +213,7 @@ function PromptTokenLegendItem({
   promptSegment: TokenSegment;
   promptDetailsSegments: TokenSegment[];
 }) {
+  const promptLabel = getTokenKindLabel({ isPrompt: true });
   return (
     <li className="chat-token-usage-details__segment">
       <TooltipTrigger delay={0} closeDelay={0}>
@@ -215,7 +222,7 @@ function PromptTokenLegendItem({
           css={promptLegendTriggerCSS}
           size="S"
           variant="quiet"
-          aria-label={`${formatInt(promptSegment.value)} prompt tokens. Show cache details`}
+          aria-label={`${formatInt(promptSegment.value)} ${promptLabel.toLowerCase()} tokens. Show cache details`}
         >
           <TokenSegmentContent segment={promptSegment} />
         </Button>
@@ -226,11 +233,11 @@ function PromptTokenLegendItem({
             color="text-700"
             weight="heavy"
           >
-            Prompt details
+            {promptLabel} details
           </Text>
           <ul
             className="chat-token-usage-details__tooltip-segments"
-            aria-label="Prompt token types"
+            aria-label={`${promptLabel} token types`}
           >
             {promptDetailsSegments.map((segment) => (
               <li
@@ -262,31 +269,33 @@ export function ChatTokenUsageDetails({
     value: promptDetails?.cacheWrite ?? 0,
     maximum: Math.max(prompt - cacheRead, 0),
   });
-  const uncachedPrompt = Math.max(prompt - cacheRead - cacheWrite, 0);
   const hasPromptDetails = prompt > 0 && (cacheRead > 0 || cacheWrite > 0);
-  const defaultSegments: TokenSegment[] = [
-    { name: "Prompt", value: prompt, color: colors.category1 },
-    { name: "Completion", value: completion, color: colors.category2 },
-  ];
-  // Colored by token type, so the cache reads here match the cache reads in
-  // the metrics charts and the cost tooltips.
-  const promptSegments: TokenSegment[] = [
-    {
-      name: "Uncached",
-      value: uncachedPrompt,
-      color: getTokenDetailColor({ colors, tokenType: "input" }),
-    },
-    {
-      name: "Cache read",
-      value: cacheRead,
-      color: getTokenDetailColor({ colors, tokenType: "cache_read" }),
-    },
-    {
-      name: "Cache write",
-      value: cacheWrite,
-      color: getTokenDetailColor({ colors, tokenType: "cache_write" }),
-    },
-  ].filter((segment) => segment.value > 0);
+  const promptSegment: TokenSegment = {
+    name: getTokenKindLabel({ isPrompt: true }),
+    value: prompt,
+    color: colors.category1,
+  };
+  const completionSegment: TokenSegment = {
+    name: getTokenKindLabel({ isPrompt: false }),
+    value: completion,
+    color: colors.category2,
+  };
+  // Named and colored by token type, so the cache reads here read and look
+  // like the cache reads in the metrics charts and the cost tooltips. What
+  // the cache did not cover is attributed to plain input the same way.
+  const promptSegments: TokenSegment[] = Object.entries(
+    getTokenDetailValuesWithRemainder({
+      details: { cache_read: cacheRead, cache_write: cacheWrite },
+      sideTotal: prompt,
+      isPrompt: true,
+    })
+  )
+    .sort(([left], [right]) => compareTokenTypes(left, right))
+    .map(([tokenType, value]) => ({
+      name: getTokenDetailLabel(tokenType),
+      value,
+      color: getTokenDetailColor({ colors, tokenType }),
+    }));
 
   return (
     <div
@@ -300,7 +309,7 @@ export function ChatTokenUsageDetails({
           height={6}
           minimumSegmentPercentage={1}
           totalValue={total}
-          segments={defaultSegments}
+          segments={[promptSegment, completionSegment]}
         />
       </div>
       <div className="chat-token-usage-details__legend">
@@ -311,22 +320,19 @@ export function ChatTokenUsageDetails({
           className="chat-token-usage-details__segments"
           aria-label="Token types"
         >
-          {defaultSegments.map((segment) =>
-            segment.name === "Prompt" && hasPromptDetails ? (
-              <PromptTokenLegendItem
-                key={segment.name}
-                promptSegment={segment}
-                promptDetailsSegments={promptSegments}
-              />
-            ) : (
-              <li
-                className="chat-token-usage-details__segment"
-                key={segment.name}
-              >
-                <TokenSegmentContent segment={segment} />
-              </li>
-            )
+          {hasPromptDetails ? (
+            <PromptTokenLegendItem
+              promptSegment={promptSegment}
+              promptDetailsSegments={promptSegments}
+            />
+          ) : (
+            <li className="chat-token-usage-details__segment">
+              <TokenSegmentContent segment={promptSegment} />
+            </li>
           )}
+          <li className="chat-token-usage-details__segment">
+            <TokenSegmentContent segment={completionSegment} />
+          </li>
         </ul>
       </div>
     </div>

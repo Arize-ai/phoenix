@@ -11,10 +11,10 @@ import type {
   SpanMetricsDetails_span$key,
 } from "./__generated__/SpanMetricsDetails_span.graphql";
 import type { SpanMetricsDetailsQuery as SpanMetricsDetailsQueryType } from "./__generated__/SpanMetricsDetailsQuery.graphql";
-import type { SpanMetricsDetailsViewProps } from "./SpanMetricsDetailsView";
-import { SpanMetricsDetailsView } from "./SpanMetricsDetailsView";
 import { getTokenCostDetailsFromCostDetails } from "./TokenCostsDetails";
 import { getTokenCountDetailsFromCostDetails } from "./TokenCountDetails";
+import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
+import { TokenDetailsBreakdown } from "./TokenDetailsBreakdown";
 
 /**
  * The span fields the metrics details draw. Spread it into any query that
@@ -64,33 +64,26 @@ export const SpanMetricsDetailsQuery = graphql`
 `;
 
 /**
- * Maps a span's fragment data onto the plain values the view draws.
+ * Maps a span's fragment data onto the plain values the breakdown draws. The
+ * breakdown drops a measure with no usage itself, so nothing is filtered here.
  */
-export function getSpanMetricsDetailsViewProps(
+function getSpanMetricsDetailsProps(
   span: SpanMetricsDetails_span$data
-): SpanMetricsDetailsViewProps {
+): TokenDetailsBreakdownProps {
   const costDetails = span.costDetailSummaryEntries;
-  const costTotal = span.costSummary?.total?.cost;
   return {
-    // A span that used no tokens gets no token or cost section at all
-    tokens:
-      span.tokenCountTotal != null && span.tokenCountTotal > 0
-        ? {
-            total: span.tokenCountTotal,
-            prompt: span.tokenCountPrompt,
-            completion: span.tokenCountCompletion,
-            ...getTokenCountDetailsFromCostDetails(costDetails),
-          }
-        : null,
-    costs:
-      costTotal != null && costTotal > 0
-        ? {
-            total: costTotal,
-            prompt: span.costSummary?.prompt?.cost,
-            completion: span.costSummary?.completion?.cost,
-            ...getTokenCostDetailsFromCostDetails(costDetails),
-          }
-        : null,
+    tokens: {
+      total: span.tokenCountTotal,
+      prompt: span.tokenCountPrompt,
+      completion: span.tokenCountCompletion,
+      ...getTokenCountDetailsFromCostDetails(costDetails),
+    },
+    costs: {
+      total: span.costSummary?.total?.cost,
+      prompt: span.costSummary?.prompt?.cost,
+      completion: span.costSummary?.completion?.cost,
+      ...getTokenCostDetailsFromCostDetails(costDetails),
+    },
   };
 }
 
@@ -102,7 +95,7 @@ export function SpanMetricsDetails(props: {
   span: SpanMetricsDetails_span$key;
 }) {
   const span = useFragment(SpanMetricsDetailsFragment, props.span);
-  return <SpanMetricsDetailsView {...getSpanMetricsDetailsViewProps(span)} />;
+  return <TokenDetailsBreakdown {...getSpanMetricsDetailsProps(span)} />;
 }
 
 type SpanMetricsDetailsNode = SpanMetricsDetailsQueryType["response"]["node"];

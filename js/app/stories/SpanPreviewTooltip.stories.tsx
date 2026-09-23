@@ -173,7 +173,7 @@ const mockRelayEnvironment = new Environment({
   store: new Store(new RecordSource()),
 });
 
-/** Never answers, so the tooltip keeps showing the totals it opened with. */
+/** Never answers, so the tooltip keeps showing the skeleton it opened with. */
 const pendingRelayEnvironment = new Environment({
   network: Network.create(() => new Promise(() => {})),
   store: new Store(new RecordSource()),
@@ -216,8 +216,9 @@ function OpenPreview({ span }: { span: ISpanItem }) {
 /**
  * The tooltip each trace tree row opens on hover or focus. It names the
  * span and shows when it ran, which every span has, and for spans with
- * usage lazily loads the token and cost breakdown, showing the totals the
- * row already knows until it arrives. A canned Relay environment answers
+ * usage lazily loads the token and cost breakdown, holding its place with a
+ * skeleton around the totals the row already knows until it arrives. A
+ * canned Relay environment answers
  * the breakdown after a short delay; no requests leave the story.
  */
 const meta: Meta<typeof SpanPreviewTooltip> = {
@@ -231,7 +232,7 @@ const meta: Meta<typeof SpanPreviewTooltip> = {
     ),
   ],
   parameters: {
-    width: 720,
+    width: 800,
     controls: { disable: true },
   },
 };
@@ -270,9 +271,10 @@ export const LongName: Story = {
 };
 
 /**
- * While the breakdown is in flight the row's totals stand in, so the
- * tooltip never blanks or shows a spinner. This story's request never
- * completes.
+ * While the breakdown is in flight a skeleton of it holds its place, with
+ * the row's totals real inside it, so the tooltip never blanks or shows a
+ * spinner and does not grow when the breakdown lands. This story's request
+ * never completes.
  */
 export const DetailsPending: Story = {
   decorators: [
