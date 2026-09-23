@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2a5c7428315ad6bc28a468f8603ddb4>>
+ * @generated SignedSource<<f53b4f8519327375c756d764c0499fc3>>
  * @lightSyntaxTransform
  */
 
@@ -213,6 +213,52 @@ return {
                                 "kind": "ScalarField",
                                 "name": "metadata",
                                 "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "revisionId",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "DatasetExampleExpectedOutput",
+                                "kind": "LinkedField",
+                                "name": "expectedOutputs",
+                                "plural": true,
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "annotationName",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "label",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "score",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "explanation",
+                                    "storageKey": null
+                                  }
+                                ],
+                                "storageKey": null
                               }
                             ],
                             "storageKey": null
@@ -293,16 +339,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "69c8d2a0a041d2ab69e50208a2061d6f",
+    "cacheID": "aa5b34b128e11de60121a07dbd684a1f",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableRefetchQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 20\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1eo2vI\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1eo2vI on Dataset {\n  examples(datasetVersionId: $datasetVersionId, splitIds: $splitIds, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableRefetchQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $first: Int = 20\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment_1eo2vI\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment_1eo2vI on Dataset {\n  examples(datasetVersionId: $datasetVersionId, splitIds: $splitIds, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        externalId\n        revision {\n          input\n          output\n          metadata\n          revisionId\n          expectedOutputs {\n            annotationName\n            label\n            score\n            explanation\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3450a92fbd4052c269ea6281ce624b03";
+(node as any).hash = "da5d96c0569bcf9b1fd73d782004db1c";
 
 export default node;

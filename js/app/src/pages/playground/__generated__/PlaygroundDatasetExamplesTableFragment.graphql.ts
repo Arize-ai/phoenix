@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ea11385b04ad2558d0255f7e7f77245b>>
+ * @generated SignedSource<<e143209fc93691431e5f5940d6c1d5cb>>
  * @lightSyntaxTransform
  */
 
@@ -16,9 +16,16 @@ export type PlaygroundDatasetExamplesTableFragment$data = {
         readonly externalId: string | null;
         readonly id: string;
         readonly revision: {
+          readonly expectedOutputs: ReadonlyArray<{
+            readonly annotationName: string;
+            readonly explanation: string | null;
+            readonly label: string | null;
+            readonly score: number | null;
+          }>;
           readonly input: any;
           readonly metadata: any;
           readonly output: any;
+          readonly revisionId: string;
         };
       };
     }>;
@@ -169,6 +176,52 @@ return {
                       "kind": "ScalarField",
                       "name": "metadata",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "revisionId",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DatasetExampleExpectedOutput",
+                      "kind": "LinkedField",
+                      "name": "expectedOutputs",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "annotationName",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "label",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "score",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "explanation",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -239,6 +292,6 @@ return {
 };
 })();
 
-(node as any).hash = "3450a92fbd4052c269ea6281ce624b03";
+(node as any).hash = "da5d96c0569bcf9b1fd73d782004db1c";
 
 export default node;
