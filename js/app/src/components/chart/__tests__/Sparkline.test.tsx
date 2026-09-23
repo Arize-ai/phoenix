@@ -30,20 +30,27 @@ describe("Sparkline", () => {
     });
   };
 
+  /** The rendered stroked paths (lines, bridges, dots), in document order. */
+  const getStrokes = () => [
+    ...container.querySelectorAll<SVGPathElement>('path[fill="none"]'),
+  ];
+
   /**
-   * All rendered path `d` strings in document order: the marks, then the
+   * The stroked paths' `d` strings in document order: the marks, then the
    * end-of-series dot on the last value.
    */
-  const getPaths = () =>
-    [...container.querySelectorAll("path")].map((path) =>
-      path.getAttribute("d")
-    );
+  const getPaths = () => getStrokes().map((path) => path.getAttribute("d"));
 
-  /** The stroke widths of the rendered paths, in document order. */
+  /** The stroke widths of the stroked paths, in document order. */
   const getStrokeWidths = () =>
-    [...container.querySelectorAll("path")].map((path) =>
-      Number(path.getAttribute("stroke-width"))
-    );
+    getStrokes().map((path) => Number(path.getAttribute("stroke-width")));
+
+  /** The shaded regions under the line, in document order. */
+  const getFills = () => [
+    ...container.querySelectorAll<SVGPathElement>('path[stroke="none"]'),
+  ];
+
+  const getFillPaths = () => getFills().map((path) => path.getAttribute("d"));
 
   it("draws one line through the values, spanning the full width", () => {
     render([0, 0.5, 1]);
@@ -65,7 +72,7 @@ describe("Sparkline", () => {
       "M 48.00 2.00 L 64.00 18.00",
       "M 64.00 18.00 l 0.01 0",
     ]);
-    const bridge = container.querySelectorAll("path")[1];
+    const bridge = getStrokes()[1];
     expect(bridge.getAttribute("stroke-opacity")).toBe("0.4");
   });
 
@@ -116,6 +123,77 @@ describe("Sparkline", () => {
       "M 32.00 10.00 l 0.01 0",
       "M 32.00 10.00 l 0.01 0",
     ]);
+  });
+
+  it("shades the region under a run down to the baseline with one shared gradient", () => {
+    render([0, 0.5, 1]);
+    expect(getFillPaths()).toEqual([
+      "M 0.00 18.00 L 32.00 10.00 L 64.00 2.00 L 64.00 20.00 L 0.00 20.00 Z",
+    ]);
+    const gradient = container.querySelector("linearGradient");
+    expect(gradient).not.toBeNull();
+    // Drawn in drawing coordinates from the series' highest point to the
+    // baseline, so every shaded region fades on the same vertical scale
+    expect(gradient?.getAttribute("gradientUnits")).toBe("userSpaceOnUse");
+    expect(gradient?.getAttribute("y1")).toBe("2.00");
+    expect(gradient?.getAttribute("y2")).toBe("20");
+    const stops = [...(gradient?.querySelectorAll("stop") ?? [])].map((stop) =>
+      stop.getAttribute("stop-opacity")
+    );
+    expect(stops).toEqual(["0.3", "0"]);
+    for (const fill of getFills()) {
+      expect(fill.getAttribute("fill")).toBe(
+        `url(#${gradient?.getAttribute("id")})`
+      );
+    }
+  });
+
+  it("shades a bridged gap more faintly than the runs it joins", () => {
+    render([0, 1, null, 1, 0]);
+    expect(getFillPaths()).toEqual([
+      "M 0.00 18.00 L 16.00 2.00 L 16.00 20.00 L 0.00 20.00 Z",
+      "M 16.00 2.00 L 48.00 2.00 L 48.00 20.00 L 16.00 20.00 Z",
+      "M 48.00 2.00 L 64.00 18.00 L 64.00 20.00 L 48.00 20.00 Z",
+    ]);
+    expect(getFills().map((fill) => fill.getAttribute("fill-opacity"))).toEqual(
+      [null, "0.5", null]
+    );
+  });
+
+  it("stands a gap-isolated value on a column one bin wide", () => {
+    render([null, 0.5, null, null, 1, null]);
+    // Each value's column spans its own bin, half a bin to either side
+    expect(getFillPaths()).toEqual([
+      "M 6.40 18.00 L 19.20 18.00 L 19.20 20.00 L 6.40 20.00 Z",
+      "M 44.80 2.00 L 57.60 2.00 L 57.60 20.00 L 44.80 20.00 Z",
+    ]);
+  });
+
+  it("clips an edge value's column to the drawing box", () => {
+    render([0.5, null, null, 1]);
+    expect(getFillPaths()).toEqual([
+      "M 0.00 18.00 L 10.67 18.00 L 10.67 20.00 L 0.00 20.00 Z",
+      "M 53.33 2.00 L 64.00 2.00 L 64.00 20.00 L 53.33 20.00 Z",
+    ]);
+  });
+
+  it("widens an isolated merged point's column to the bins it covers", () => {
+    render([1, 1, null, null, null, null, 0, 0], { maxWidth: 16 });
+    // Each end pair merges into one point covering two of eight bins
+    expect(getFillPaths()).toEqual([
+      "M 0.00 2.00 L 13.71 2.00 L 13.71 20.00 L 0.00 20.00 Z",
+      "M 50.29 18.00 L 64.00 18.00 L 64.00 20.00 L 50.29 20.00 Z",
+    ]);
+  });
+
+  it("shades a flat series from its midline", () => {
+    render([0.7, 0.7, 0.7]);
+    expect(getFillPaths()).toEqual([
+      "M 0.00 10.00 L 32.00 10.00 L 64.00 10.00 L 64.00 20.00 L 0.00 20.00 Z",
+    ]);
+    expect(container.querySelector("linearGradient")?.getAttribute("y1")).toBe(
+      "10.00"
+    );
   });
 
   it("renders nothing when every value is null", () => {
