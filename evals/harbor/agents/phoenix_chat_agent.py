@@ -1,6 +1,7 @@
 import json
 import shlex
 from pathlib import Path
+from typing import Any
 
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
@@ -80,6 +81,7 @@ class PhoenixChatAgent(BaseAgent):
             agent_version=self.version() or "unknown",
             model_name=self.model_name,
             spans=spans,
+            extra=self._trajectory_extra(),
         )
         self.logs_dir.joinpath("trajectory.json").write_text(
             json.dumps(trajectory.to_json_dict(), indent=2, ensure_ascii=False)
@@ -90,6 +92,10 @@ class PhoenixChatAgent(BaseAgent):
             context.n_output_tokens = metrics.total_completion_tokens
         if (latencies := llm_latencies_ms(trajectory)) is not None:
             context.metadata = {**(context.metadata or {}), "api_request_times_msec": latencies}
+
+    def _trajectory_extra(self) -> dict[str, Any] | None:
+        """Root-level ``extra`` for the trajectory; subclasses add what their verifier reads."""
+        return None
 
     @staticmethod
     async def _exec(environment: BaseEnvironment, command: str) -> str:

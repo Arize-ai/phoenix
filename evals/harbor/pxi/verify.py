@@ -2,12 +2,14 @@
 
 Usage inside a task verifier::
 
-    PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.verify --seed /app/seed.json
+    PYTHONPATH=/opt/verifier python -m evals.harbor.pxi.verify
 
-The verifier reads the session transcript back from the running Phoenix server, drops
-the seeded prefix, converts the new assistant parts to the message shape the PXI
-evaluators score, and runs the evaluators the dataset declares. The reward is 1 when
-every evaluator passes. Each evaluator's own score is written alongside it.
+The verifier takes the session id, the example, and the seeding record from the agent's
+ATIF trajectory at ``/logs/agent/trajectory.json``, reads the session transcript back
+from the running Phoenix server, drops the seeded prefix, converts the new assistant
+parts to the message shape the PXI evaluators score, and runs the evaluators the dataset
+declares. The reward is 1 when every evaluator passes. Each evaluator's own score is
+written alongside it.
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ from typing import Any
 import httpx
 
 from evals.harbor.pxi.evaluators import EVALUATORS_BY_NAME
-from evals.harbor.verifiers.verify import write_reward
+from evals.harbor.verifiers.verify import TRAJECTORY_PATH, write_reward
 
 _TOOL_PREFIX = "tool-"
 
@@ -129,13 +131,14 @@ def fetch_session_messages(base_url: str, session_id: str) -> list[dict[str, Any
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seed", type=Path, default=Path("/app/seed.json"))
+    parser.add_argument("--trajectory", type=Path, default=TRAJECTORY_PATH)
     parser.add_argument("--base-url", default="http://127.0.0.1:6006")
     parser.add_argument("--reward-file", type=Path, default=None)
     args = parser.parse_args(argv)
-    seed = json.loads(args.seed.read_text())
+    trajectory = json.loads(args.trajectory.read_text())
+    seed = trajectory["extra"]["pxi"]
     example = seed["example"]
-    transcript = fetch_session_messages(args.base_url, seed["session_id"])
+    transcript = fetch_session_messages(args.base_url, trajectory["session_id"])
     turn_messages = scored_messages(transcript, seed["scoring"])
     output = evaluator_output(turn_messages)
     results = run_evaluators(example, output)

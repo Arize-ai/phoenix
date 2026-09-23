@@ -216,7 +216,7 @@ timeout_sec = 120.0
 TEST_SH = """\
 #!/bin/sh
 set -eu
-PYTHONPATH=/opt/verifier exec python -m evals.harbor.pxi.verify --seed /app/seed.json
+PYTHONPATH=/opt/verifier exec python -m evals.harbor.pxi.verify
 """
 
 GITIGNORE = """\
