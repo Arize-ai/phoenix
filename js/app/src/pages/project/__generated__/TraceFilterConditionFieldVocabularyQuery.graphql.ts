@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<34fee6eb935464d0310dede31ae7e267>>
+ * @generated SignedSource<<94affd4406a901a4c72f9935705644d6>>
  * @lightSyntaxTransform
  */
 
@@ -14,7 +14,7 @@ export type TimeRange = {
 };
 export type TraceFilterConditionFieldVocabularyQuery$variables = {
   id: string;
-  timeRange: TimeRange;
+  timeRange?: TimeRange | null;
 };
 export type TraceFilterConditionFieldVocabularyQuery$data = {
   readonly project: {
@@ -169,16 +169,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b1e3f47ec1c8ff023e1e6e8bcbcf71cb",
+    "cacheID": "3f2d1c0587b778301bc11f98a8327bf5",
     "id": null,
     "metadata": {},
     "name": "TraceFilterConditionFieldVocabularyQuery",
     "operationKind": "query",
-    "text": "query TraceFilterConditionFieldVocabularyQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceFilterVocabulary(timeRange: $timeRange) {\n        name\n        type\n        description\n        category\n        iterableName\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceFilterConditionFieldVocabularyQuery(\n  $id: ID!\n  $timeRange: TimeRange\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      traceFilterVocabulary(timeRange: $timeRange) {\n        name\n        type\n        description\n        category\n        iterableName\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "83c927b26c0fe3d7c175189a8df05f5f";
+(node as any).hash = "9083afa07291efc784f5d427a97ed09f";
 
 export default node;
