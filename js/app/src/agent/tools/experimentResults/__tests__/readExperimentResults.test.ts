@@ -71,7 +71,10 @@ function experimentData(
       expectedRunCount: runCount,
       errorRate: 0,
       averageRunLatencyMs: 1345.6,
-      job: { status: "COMPLETED" },
+      job: {
+        status: "COMPLETED",
+        taskConfig: { __typename: "EvaluatorTaskConfig" },
+      },
       costSummary: { total: { cost: 0.0089, tokens: 51000 } },
       annotationSummaries: [
         {
@@ -98,6 +101,7 @@ describe("toExperimentResults", () => {
       id: "RXhwZXJpbWVudDoxOA==",
       name: "generic_sql_guardrails_v1",
       status: "COMPLETED",
+      taskKind: "evaluator",
       runCount: 1,
       expectedRunCount: 1,
       errorRate: 0,

@@ -122,10 +122,18 @@ class ExperimentJob(Node):
         "Null for eval-only experiments.",
     )
     async def task_config(self, info: Info[Context, None]) -> ExperimentTaskConfig | None:
+        # A loaded job knows its kind but not its subclass columns, which load separately.
+        record = self.db_record
+        if isinstance(record, models.ExperimentEvalOnlyConfig):
+            return None
         async with info.context.db.read() as session:
-            if prompt_task := await session.get(models.ExperimentPromptTask, self.id):
+            if not isinstance(record, models.ExperimentEvaluatorTask) and (
+                prompt_task := await session.get(models.ExperimentPromptTask, self.id)
+            ):
                 return PromptTaskConfig.from_orm(prompt_task)
-            if evaluator_task := await session.get(models.ExperimentEvaluatorTask, self.id):
+            if not isinstance(record, models.ExperimentPromptTask) and (
+                evaluator_task := await session.get(models.ExperimentEvaluatorTask, self.id)
+            ):
                 return EvaluatorTaskConfig.from_orm(evaluator_task)
         return None
 
