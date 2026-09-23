@@ -10,6 +10,7 @@ import { themes } from "storybook/theming";
 import { create } from "storybook/theming/create";
 
 import { completeness, provenance, review } from "../stories/_meta/tags";
+import { installRootHeadings } from "./sidebar/rootHeadings";
 
 const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
 
@@ -89,7 +90,7 @@ const CHIP_TAG_ORDER: readonly string[] = [
 ];
 
 const CHIP_STYLE_ELEMENT_ID = "phoenix-sidebar-chip-styles";
-const CHIP_THEME_ATTRIBUTE = "data-phoenix-chip-theme";
+const SIDEBAR_THEME_ATTRIBUTE = "data-phoenix-sidebar-theme";
 
 /**
  * Chips are styled by class, not by inline style, so a theme change repaints
@@ -104,7 +105,7 @@ function ensureChipStyles() {
   const rules = (Object.keys(CHIP_COLORS) as ChipRole[]).flatMap((role) =>
     (["light", "dark"] as const).flatMap((mode) => [
       `
-        [${CHIP_THEME_ATTRIBUTE}="${mode}"] .phoenix-chip--${role} {
+        [${SIDEBAR_THEME_ATTRIBUTE}="${mode}"] .phoenix-chip--${role} {
           color: rgb(${CHIP_COLORS[role][mode]});
           background: rgba(${CHIP_COLORS[role][mode]}, 0.16);
         }`,
@@ -118,7 +119,7 @@ function ensureChipStyles() {
        * chips and near-black over dark-theme ones.
        */
       `
-        [${CHIP_THEME_ATTRIBUTE}="${mode}"]
+        [${SIDEBAR_THEME_ATTRIBUTE}="${mode}"]
         .sidebar-item[data-selected="true"] .phoenix-chip--${role} {
           color: ${CHIP_ON_SOLID[mode]};
           background: rgb(${CHIP_COLORS[role][mode]});
@@ -149,10 +150,10 @@ function ensureChipStyles() {
   document.head.appendChild(style);
 }
 
-function applyChipTheme(mode: string) {
+function applySidebarTheme(mode: string) {
   const resolved =
     mode === "light" || mode === "dark" ? mode : getSystemTheme();
-  document.documentElement.setAttribute(CHIP_THEME_ATTRIBUTE, resolved);
+  document.documentElement.setAttribute(SIDEBAR_THEME_ATTRIBUTE, resolved);
 }
 
 /**
@@ -244,7 +245,7 @@ function ThemeToolbar() {
 
   const applyManagerTheme = useCallback(
     (mode: string) => {
-      applyChipTheme(mode);
+      applySidebarTheme(mode);
       api.setOptions({ theme: getThemeForMode(mode) });
     },
     [api]
@@ -331,7 +332,11 @@ addons.register("phoenix-theme-toolbar", () => {
  * no effect on entries already created.
  */
 ensureChipStyles();
-applyChipTheme("auto");
+installRootHeadings({
+  themeAttribute: SIDEBAR_THEME_ATTRIBUTE,
+  textColor: { light: lightTheme.textColor, dark: darkTheme.textColor },
+});
+applySidebarTheme("auto");
 
 addons.setConfig({
   sidebar: {
@@ -341,7 +346,7 @@ addons.setConfig({
 
 addons.register("phoenix-manager-options", (api) => {
   const mode = api.getGlobals()?.theme ?? "auto";
-  applyChipTheme(mode);
+  applySidebarTheme(mode);
   api.setOptions({
     enableShortcuts: false,
     theme: getThemeForMode(mode),
@@ -357,7 +362,7 @@ addons.register("phoenix-auto-theme", (api) => {
   channel.on(THEME_CHANGE_EVENT, (scheme: string) => {
     const mode = getThemeMode();
     if (mode === "auto" || mode === "both") {
-      document.documentElement.setAttribute(CHIP_THEME_ATTRIBUTE, scheme);
+      document.documentElement.setAttribute(SIDEBAR_THEME_ATTRIBUTE, scheme);
       api.setOptions({ theme: getThemeForScheme(scheme) });
     }
   });
@@ -367,7 +372,7 @@ addons.register("phoenix-auto-theme", (api) => {
     mq.addEventListener("change", () => {
       const mode = getThemeMode();
       if (mode === "auto" || mode === "both") {
-        applyChipTheme(mode);
+        applySidebarTheme(mode);
         api.setOptions({ theme: getThemeForScheme(getSystemTheme()) });
       }
     });
