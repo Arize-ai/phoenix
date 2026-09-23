@@ -772,7 +772,7 @@ openai_client.chat.completions.create(
 )
 ```
 
-The snippets above produce LLM spans with input and output values, but they do not add rich UI support for messages, tools, invocation parameters, and related fields. To manually instrument LLM spans with these features, define functions that convert the input and output of your LLM calls into OpenInference format. These richer LLM attribute helpers are not re-exported from `phoenix.otel`. Install `openinference-instrumentation` to access them:
+The snippets above produce LLM spans with input and output values, but they do not add Phoenix UI fields for messages, tools, invocation parameters, and related fields. To manually instrument LLM spans with these fields, define functions that convert the input and output of your LLM calls into OpenInference format. The LLM attribute helpers are not re-exported from `phoenix.otel`. Install `openinference-instrumentation` to access them:
 
 * `get_llm_attributes`
 * `get_input_attributes`
@@ -1204,7 +1204,7 @@ const invokeLLM = withSpan(
 await invokeLLM([{ role: "user", content: "Hello, world!" }]);
 ```
 
-The snippets above produce LLM spans with input and output values, but they do not add rich UI support for messages, tools, invocation parameters, and related fields. To manually instrument LLM spans with these features, use helper functions from `@arizeai/phoenix-otel` that produce valid OpenInference attributes for LLM spans:
+The snippets above produce LLM spans with input and output values, but they do not add Phoenix UI fields for messages, tools, invocation parameters, and related fields. To manually instrument LLM spans with these fields, use helper functions from `@arizeai/phoenix-otel` that produce valid OpenInference attributes for LLM spans:
 
 * `getLLMAttributes`
 * `defaultProcessInput`

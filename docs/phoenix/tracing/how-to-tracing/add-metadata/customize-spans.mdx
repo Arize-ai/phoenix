@@ -70,7 +70,7 @@ Supported context attributes include:
 
   <Tab title="Python" icon="python">
 
-    We provide a `using_session` context manager to add session a ID to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the session ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the session ID, must be a non-empty string.
+    Use `using_session` to add a session ID to the current OpenTelemetry context. OpenInference [auto-instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) read the context and pass the session ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The session ID must be a non-empty string.
 
     ```python
     from phoenix.otel import using_session
@@ -95,7 +95,7 @@ Supported context attributes include:
 
   <Tab title="TypeScript" icon="js">
 
-    We provide a `setSession` function which allows you to set a sessionId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback.
+    Use `setSession` to add a `sessionId` to an OpenTelemetry context. Use it with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto-instrumentations read the active context and add the session ID to spans created inside the callback.
 
     ```javascript
     import { context, setSession } from "@arizeai/phoenix-otel"
@@ -133,7 +133,7 @@ Supported context attributes include:
 
   <Tab title="Python" icon="python">
 
-    We provide a `using_user` context manager to add user ID to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the user ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the user ID, must be a non-empty string.
+    Use `using_user` to add a user ID to the current OpenTelemetry context. OpenInference [auto-instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) read the context and pass the user ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The user ID must be a non-empty string.
 
     ```python
     from phoenix.otel import using_user
@@ -157,7 +157,7 @@ Supported context attributes include:
 
   <Tab title="TypeScript" icon="js">
 
-    We provide a `setUser` function which allows you to set a userId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback.
+    Use `setUser` to add a `userId` to an OpenTelemetry context. Use it with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto-instrumentations read the active context and add the user ID to spans created inside the callback.
 
     ```javascript
     import { context, setUser } from "@arizeai/phoenix-otel"
@@ -195,7 +195,7 @@ Supported context attributes include:
 
   <Tab title="Python" icon="python">
 
-    We provide a `using_metadata` context manager to add metadata to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the metadata as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the metadata, must be a dictionary with string keys. This dictionary will be serialized to JSON when saved to the OTEL Context and remain a JSON string when sent as a span attribute.
+    Use `using_metadata` to add metadata to the current OpenTelemetry context. OpenInference [auto-instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) read the context and pass the metadata as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The metadata must be a dictionary with string keys. Phoenix serializes the dictionary to JSON before saving it to the OpenTelemetry context, and the span attribute remains a JSON string.
 
     ```python
     from phoenix.otel import using_metadata
@@ -224,7 +224,7 @@ Supported context attributes include:
 
   <Tab title="TypeScript" icon="js">
 
-    We provide a `setMetadata` function which allows you to set a metadata attributes on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Metadata attributes will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
+    Use `setMetadata` to add metadata to an OpenTelemetry context. Use it with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto-instrumentations read the active context and add the metadata to spans created inside the callback. Metadata is serialized to a JSON string when it is stored on the context.
 
     ```javascript
     import { context, setMetadata } from "@arizeai/phoenix-otel"
@@ -269,7 +269,7 @@ Supported context attributes include:
 
   <Tab title="Python" icon="python">
 
-    We provide a `using_tags` context manager to add tags to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the tags as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The input, the tag list, must be a list of strings.
+    Use `using_tags` to add tags to the current OpenTelemetry context. OpenInference [auto-instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) read the context and pass the tags as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The tag list must contain strings.
 
     ```python
     from phoenix.otel import using_tags
@@ -294,7 +294,7 @@ Supported context attributes include:
 
   <Tab title="TypeScript" icon="js">
 
-    We provide a `setTags` function which allows you to set a list of string tags on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Tags, like metadata, will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
+    Use `setTags` to add a list of string tags to an OpenTelemetry context. Use it with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto-instrumentations read the active context and add the tags to spans created inside the callback. Tags are serialized to a JSON string when they are stored on the context.
 
     ```javascript
     import { context, setTags } from "@arizeai/phoenix-otel"
@@ -342,6 +342,8 @@ Prompt-template attributes let you track which prompt template, version, and var
     * `version`: Non-empty string
     * `variables`: Dictionary with string keys. The dictionary is serialized to JSON before it is saved to the OpenTelemetry context.
 
+    Wrap the LLM call with this context when you want Phoenix to show the prompt template and variables on the generated span.
+
     ```python
     from phoenix.otel import using_prompt_template
 
@@ -384,6 +386,8 @@ Prompt-template attributes let you track which prompt template, version, and var
     * `template`: A string with templated variables, for example `"hello {{name}}"`
     * `variables`: An object with variable names and values, for example `{ name: "world" }`
     * `version`: A string version, for example `"v1.0"`
+
+    All three fields are optional. Your application usually applies variables before calling the LLM, so auto-instrumentation may not capture the original template unless you set it on the active context.
 
     ```typescript
     import { context, setPromptTemplate } from "@arizeai/phoenix-otel"
@@ -441,7 +445,7 @@ Prompt-template attributes let you track which prompt template, version, and var
 
   <Tab title="Python" icon="python">
 
-    We provide a `using_attributes` context manager to add attributes to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the attributes fields as span attributes, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). This is a convenient context manager to use if you find yourself using many of the previous ones in conjunction.
+    Use `using_attributes` to add session, user, metadata, tags, and prompt-template fields to the current OpenTelemetry context. OpenInference [auto-instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) read the context and pass the fields as span attributes, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Use the helper when one block needs several context attributes.
 
     ```python expandable
     from phoenix.otel import using_attributes
@@ -527,7 +531,7 @@ Prompt-template attributes let you track which prompt template, version, and var
 
   <Tab title="TypeScript" icon="js">
 
-    We provide a `setAttributes` function which allows you to add a set of attributes to context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Attributes set on context using `setAttributes` must be valid span [attribute values](https://opentelemetry.io/docs/specs/otel/common/#attribute).
+    Use `setAttributes` to add several context attributes at the same time. Use it with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto-instrumentations read the active context and add the attributes to spans created inside the callback. Attributes set with `setAttributes` must be valid span [attribute values](https://opentelemetry.io/docs/specs/otel/common/#attribute).
 
     ```javascript
     import { context, setAttributes } from "@arizeai/phoenix-otel"

@@ -30,7 +30,7 @@ Throughout the tutorial we will include key code snippets, but to see the full i
 
 # 2.1 Human Annotations in the UI
 
-Before automating anything, we need to know what a good answer looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? These depend on our users, our brand, and our use case.
+Before automating anything, we need to know what a good answer looks like. Is a one-sentence answer better than a detailed paragraph? Should the agent apologize when it can't help? The answer depends on our users, our brand, and our use case.
 
 Human annotation is how we build that understanding. By manually reviewing traces and marking them as good, bad, or somewhere in between, we create **ground truth**, the reference data that everything else gets measured against. We'll also start noticing patterns: maybe the agent struggles with multi-part questions, or gets confused when users reference previous messages.
 
@@ -506,7 +506,7 @@ Congratulations! You now have a complete quality feedback loop:
 | **3. Analysis**         | Click into unhelpful traces              | Root cause (missing order, FAQ not in KB)      |
 | **4. Fix**              | Update prompts, knowledge base, or tools | Improve the agent                              |
 
-This workflow scales because you do not have to manually review every trace. Instead, you:
+The workflow scales because you do not have to manually review every trace. Instead, you:
 
 - Use feedback to identify failures
 - Use automated evaluation to diagnose them

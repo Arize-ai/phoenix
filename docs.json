@@ -108,14 +108,37 @@
             "pages": [
               "docs/phoenix/tracing/llm-traces",
               {
-                "group": "Learn the concepts",
+                "group": "Tracing concepts",
                 "pages": [
                   "docs/phoenix/tracing/concepts-tracing/what-are-traces",
                   "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
                   "docs/phoenix/tracing/concepts-tracing/translating-conventions",
-                  "docs/phoenix/tracing/concepts-tracing/faqs-tracing",
+                  "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
+                ]
+              },
+              "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
+              "docs/phoenix/integrations",
+              "docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument",
+              "docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans",
+              "docs/phoenix/tracing/how-to-tracing/cost-tracking",
+              {
+                "group": "Go deeper",
+                "pages": [
+                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
+                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions",
                   {
-                    "group": "OpenTelemetry & OpenInference",
+                    "group": "Import and export traces",
+                    "pages": [
+                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
+                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
+                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
+                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
+                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
+                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli"
+                    ]
+                  },
+                  {
+                    "group": "OpenTelemetry and OpenInference",
                     "pages": [
                       "docs/phoenix/tracing/concepts-tracing/otel-openinference/overview",
                       "docs/phoenix/tracing/concepts-tracing/otel-openinference/signals",
@@ -132,35 +155,7 @@
                       "docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling",
                       "docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector"
                     ]
-                  }
-                ]
-              },
-              {
-                "group": "Set up tracing",
-                "pages": [
-                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
-                  "docs/phoenix/integrations",
-                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument",
-                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
-                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions"
-                ]
-              },
-              "docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans",
-              "docs/phoenix/tracing/how-to-tracing/cost-tracking",
-              {
-                "group": "Import & export traces",
-                "pages": [
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli"
-                ]
-              },
-              {
-                "group": "Go deeper",
-                "pages": [
+                  },
                   "docs/phoenix/tracing/how-to-tracing/advanced",
                   "docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes",
                   "docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing"

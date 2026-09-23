@@ -81,7 +81,7 @@ Use a custom `SpanProcessor` when you need to filter or modify spans before Phoe
     )
     ```
 
-    This example filters out spans named `secret_span` by skipping the `on_start` and `on_end` hooks on the inherited `BatchSpanProcessor`. You can extend the same pattern to redact sensitive values when you want to keep the span.
+    The example filters out spans named `secret_span` by skipping the `on_start` and `on_end` hooks on the inherited `BatchSpanProcessor`. You can extend the same pattern to redact sensitive values when you want to keep the span.
 
   </Tab>
 </Tabs>
