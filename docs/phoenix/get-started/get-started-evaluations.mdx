@@ -1,486 +1,390 @@
 ---
-title: "Evaluate Your Agent"
+title: "Evaluate Your App"
 description: >-
-  Run an experiment over a dataset and score every output with an evaluator.
+  Turn traced examples into a dataset, run experiments, and score each output
+  with evaluators.
 ---
 
-Evaluations in Phoenix run **offline**. An evaluator scores the output of an experiment. Continuous scoring of live production traffic is not available yet.
+Use this guide to turn Phoenix traces into a dataset, run an experiment, and score the outputs.
 
-A dataset of examples feeds a task, which is your prompt, agent, or app. The evaluator scores each output, using the example's input, its reference output, and any metadata as context.
+Start from traces when you want experiments to use real inputs, outputs, and failure cases from your app. A dataset stores the examples. An experiment runs your app or prompt over those examples. Evaluators score each result so you can compare variants.
 
-## **Before We Start**
+Choose the Prompt Playground path if you want to test a saved prompt in the UI. Choose the code path if you want to run your app over the dataset programmatically.
 
-After completing [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), you should have:
+<Note>
+  This is the second part of the Phoenix quickstart. Start with [Observe Your App](/docs/phoenix/get-started/get-started-tracing) if you do not have traces flowing yet.
+</Note>
 
-- Traces flowing into Phoenix
+## Agent-assisted evaluation
+
+Use this path when traces are already flowing and you want a coding agent to turn them into a repeatable experiment. If you do not have traces yet, start with [Observe Your App](/docs/phoenix/get-started/get-started-tracing) and run `px setup` there first.
+
+The agent should inspect real traces, choose one behavior to measure, create or load a dataset, write a task and evaluator, run the experiment, and summarize the failures.
+
+<Card>
+  Install the Phoenix skills that let your coding agent query traces and build evaluations.
+
+  ```bash
+  npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-evals
+  ```
+
+  After installation, ask your coding agent to inspect your Phoenix traces, choose one narrow behavior to measure, create or load a dataset, write a task and evaluator, run the experiment, and summarize the failures.
+</Card>
+
+## Manual evaluation
+
+Use this path when you want to build the dataset, task, evaluator, and experiment yourself.
 
 <Tabs>
-  <Tab title="In the Prompt Playground">
+  <Tab title="Prompt Playground">
 
 <Steps>
-  <Step title={<span className="step-title">Create a Dataset from Your Traces</span>}>
-    A dataset is a fixed set of examples you test every change against. Each example holds the input your agent received, optionally a reference output to compare against, and any metadata.
-
-    Build one from the runs you want to improve: typical interactions, edge cases, and the flagged or failed runs in your traces. See [Defining the Dataset](/docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset) for what makes a good one, or the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets) to do it in code.
-
-    ### **Create a Dataset in the UI**
+  <Step title={<span className="step-title">Create a dataset from your traces</span>}>
+    A dataset is a fixed set of examples you test every change against. Build one from selected traces: typical requests, edge cases, and failure cases you want future variants to handle.
 
     1. Navigate to your project in Phoenix.
-    2. Filter the spans table to the runs you want to test against.
-    3. Select the spans you want to include.
+    2. Open the **Traces** view.
+    3. Select the spans you want to test against. For most apps, select the root app span or the LLM span that contains the user request and final response.
     4. Click **Add to Dataset**.
     5. Pick an existing dataset, or click **+** to create one, name it, and click **Create Dataset**.
 
-    <Frame caption="Create a New Dataset & add Examples">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/make%20dataset%20python%20quickstart.mp4"
-    />
+    <Frame caption="Selected spans ready to add to a dataset">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-create-dataset-from-traces.png"
+        alt="Phoenix traces table with three selected support_reply spans and the Add to Dataset action visible"
+      />
     </Frame>
+
   </Step>
 
-  <Step title={<span className="step-title">Attach an Evaluator to the Dataset</span>}>
-    An experiment needs an evaluator to produce a score. Attach one to the dataset and it runs on every experiment you launch from the Playground, with no code.
+  <Step title={<span className="step-title">Attach an evaluator</span>}>
+    An evaluator scores each experiment output. Attach one to the dataset and Phoenix runs it whenever you launch an experiment from the Playground.
 
     1. Open the dataset and click the **Evaluators** tab.
-    2. Click **Add evaluator** and choose an **LLM evaluator** to have a model judge the output, or a **built-in code evaluator** for a deterministic check such as exact match or contains.
-    3. Configure the input mapping so the evaluator knows which fields to read. It can use the example's `input`, the task's `output`, the `reference` expected output, and the example's `metadata`.
-    4. Click **Test** to try it against one of your examples, then click **Create**.
+    2. Click **Add evaluator**.
+    3. Choose an **LLM evaluator** for judgment-based checks, or a **built-in code evaluator** for deterministic checks.
+    4. Map the evaluator inputs to your dataset fields and task output.
+    5. Click **Test** on one example, then click **Create**.
 
-    See [Dataset Evaluators](/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators) for the evaluator types and [Input Mapping](/docs/phoenix/evaluation/server-evals/input-mapping) for the field paths.
+    <Frame caption="Built-in evaluator configured for experiment outputs">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-attach-evaluator-config.png"
+        alt="Phoenix built-in code evaluator form configured with output.text and billing-related words"
+      />
+    </Frame>
 
     <Note>
-      Attached evaluators run automatically for experiments launched from the Phoenix UI. Programmatic experiments pass their evaluators to `run_experiment` instead, which is what the **In code** tab does.
+      Attached evaluators run automatically for experiments launched from the Phoenix UI. Programmatic experiments pass evaluators to `run_experiment` or `runExperiment`.
     </Note>
   </Step>
 
-  <Step title={<span className="step-title">Save a Prompt from a Trace</span>}>
-    The prompt is the task the experiment runs. Traces capture the exact prompts sent to the model, along with their context and outputs, so saving one from a trace gives you a real starting point.
+  <Step title={<span className="step-title">Save a prompt from a trace</span>}>
+    Traces capture the prompts your app sent to the model. Save one to the Prompt Hub so you can test edits against the dataset.
 
-    1. Navigate to your project in Phoenix.
-    2. Open the Traces view and click into a trace.
-    3. Find an LLM span, then open it in the Playground and save the prompt to the Prompt Hub.
+    1. Open a trace from the dataset.
+    2. Find the LLM span you want to edit or benchmark.
+    3. Open it in the Playground.
+    4. Save the prompt to the Prompt Hub.
 
-    <Frame caption="Save the Financial Research Agent Prompt">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/save_a_prompt.mp4"
-    />
-    </Frame>
   </Step>
 
-  <Step title={<span className="step-title">Run the Prompt Over the Dataset</span>}>
-    Running a prompt across a dataset is an experiment: each example's input becomes a task run, and the attached evaluators score each output. The playground substitutes your dataset's input keys into the prompt, using Mustache format by default, so reference them with double braces.
+  <Step title={<span className="step-title">Run the prompt over the dataset</span>}>
+    Running a prompt across a dataset creates an experiment. The Playground fills prompt variables from each dataset example.
 
     1. Navigate to the **Prompt Playground**.
-    2. Select the prompt you just saved from the Prompt Hub.
-    3. Click **Test over a dataset** and choose the dataset you created.
-    4. Set the User prompt to reference your dataset's input keys. Which keys you have depends on the agent you traced: `{{tickers}}` and `{{focus}}` if you followed the Python guide, `{{input}}` if you followed TypeScript.
+    2. Select the prompt you saved.
+    3. Click **Test over a dataset** and choose your dataset.
+    4. Use prompt variables that match the keys inside each dataset example's `input` object. Phoenix uses `input` as the default variable path for dataset runs, so the quickstart dataset's `input.text` field becomes:
 
-       Following the Python guide, the start of the User prompt should look like this:
-
+       ```text
+       {{text}}
        ```
-       Current Task:
-       Research: {{tickers}}
-       Focus on: {{focus}}
+
+       If your examples have structured fields such as `question` and `context`, use those keys instead:
+
+       ```text
+       Question: {{question}}
+       Context: {{context}}
        ```
 
     5. Click **Run**.
 
+    <Frame caption="Prompt variables matched to a selected dataset">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-run-prompt-saved-dataset.png"
+        alt="Phoenix Prompt Playground with a saved support prompt selected, the text prompt variable, the Run button, evaluator controls, and the support quickstart dataset selected"
+      />
+    </Frame>
+
     That run is your baseline, scored by the evaluator you attached.
 
-    <Frame caption="Run the Saved Prompt on your Dataset of Failed Traces">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first%20prompt%20run.mp4"
-    />
-    </Frame>
-
-    ### **Score a Change Against the Baseline**
-
-    With a baseline in place, edit the prompt and run it again. The same evaluator scores both, so the comparison is like for like.
-
-    1. Update the prompt directly in the playground. Add this line in:
-
-       > Make sure to include more than 1 financial ratio (such as P/E or P/B).
-
-    2. Run it to preview how outputs change.
-    3. Save the new version as a separate prompt in the Prompt Hub.
-
-    <Frame caption="Update Prompt & Run a Comparison in Prompt Playground">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/iterate%20on%20prompt.mp4"
-    />
-    </Frame>
   </Step>
 
-  <Step title={<span className="step-title">Review the Scores</span>}>
-    Every playground run against the dataset is logged as an experiment, with the evaluator's score on each run.
+  <Step title={<span className="step-title">Compare changes</span>}>
+    Edit the prompt, run it over the same dataset again, and compare the scores.
 
-    1. Navigate to the Datasets page and open the dataset you made earlier.
-    2. The **Experiments** tab lists a run for each time you ran the prompt, with its score.
-    3. Open one, then use the **comparisons** selector at the top to add another and see them side by side.
+    1. Update the prompt in the Playground.
+    2. Run it over the same dataset.
+    3. Open the dataset's **Experiments** tab.
+    4. Compare the baseline and edited prompt runs side by side.
 
-    <Frame caption="View Prompt Playground Runs through Experiment View">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/prompt%20playground%20experiment%20view.mp4"
-    />
+    <Frame caption="Side-by-side experiment comparison">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-compare-score-delta.png"
+        alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
+      />
     </Frame>
-
-    **Congratulations!** You’ve built a dataset, scored an experiment with an evaluator, and measured the effect of a change.
   </Step>
 </Steps>
 
   </Tab>
 
-  <Tab title="In code">
+  <Tab title="Code">
 
   <Tabs>
   <Tab title="Python">
 
-<Info>
-  **Follow along with code**: This guide has a companion notebook with runnable
-  code examples. Find it
-  [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/python_quickstart.ipynb).
-</Info>
-
 <Steps>
-  <Step title={<span className="step-title">Create a Dataset from Your Traces</span>}>
-    A dataset is a fixed set of examples you test every change against. Each example holds the input your agent received, optionally a reference output to compare against, and any metadata. Build one from the runs you want to improve: typical interactions, edge cases, and the flagged or failed runs in your traces.
+  <Step title={<span className="step-title">Install experiment packages</span>}>
+    Install the Phoenix client package.
 
-    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
-
-    ### **Create a Dataset in the UI**
-
-    1. Navigate to your project in Phoenix.
-    2. Filter the spans table to the runs you want to test against.
-    3. Select the spans you want to include.
-    4. Click **Add to Dataset**.
-    5. Pick an existing dataset, or click **+** to create one, name it, and click **Create Dataset**.
-
-    <Frame caption="Create a New Dataset & add Examples">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/make%20dataset%20python%20quickstart.mp4"
-    />
-    </Frame>
+    ```bash
+    pip install -U arize-phoenix-client
+    ```
   </Step>
 
-  <Step title={<span className="step-title">Define and Run the Experiment</span>}>
-    ### **Update the Agent Instructions**
-
-    This example strengthens the agents' backstory instructions, giving the model clearer guidance on what a good response looks like.
-
-    Below is an example of tightening the agent backstory to be more explicit about the expected output.
-
-    ```python
-    researcher = Agent(
-            role="Financial Research Analyst",
-            goal="""Gather up-to-date financial data, trends, and news for the target companies/markets.
-            Make sure to include more than 1 financial ratios (such as P/E or P/B), news from the last 6 months, and current stock price or performance data.""",
-            backstory="""
-                You are a Senior Financial Research Analyst.
-            """,
-            verbose=True,
-            allow_delegation=False,
-            max_iter=2,
-            tools=[search_tool],
-            )
-
-    writer = Agent(
-        role="Financial Report Writer",
-        goal="Compile and summarize financial research into clear, actionable insights. If there are multiple tickers, make sure to include a dedicated comparison section.",
-        backstory="""
-            You are an experienced financial content writer.
-        """,
-        verbose=True,
-        allow_delegation=True,
-        max_iter=1
-    )
-    ```
-
-    Create an updated crew with these new, updated agents.
-
-    ```python
-    updated_crew = Crew(
-    	agents=[researcher, writer],
-        tasks=[task1, task2],
-        verbose=True,
-        process=Process.sequential,
-    )
-    ```
-
-    That is a targeted change, driven by the explanations for why these traces were classified as real failures.
-
-    ### **Define an Experiment**
-
-    With the agent updated, run the new flow to test whether the change improves quality.
-
-    An experiment needs two things:
-
-    - **The experiment task**
-
-      A task takes each example from the dataset and produces an output, usually by running your agent on the input.
-
-    - **The experiment evaluation**
-
-      An experiment evaluation works like any other evaluation, but scores a task's output, often against an expected result or a scoring metric.
-
-    Here the task reruns the agent with the updated instructions. That produces new outputs for the same inputs, so rerun the same evaluation to compare the two directly.
-
-    ```python
-    def my_task(example):
-        result = updated_crew.kickoff(inputs=example.input)
-        return result
-    ```
-
-    ```python
-    from phoenix.evals import ClassificationEvaluator
-
-    completeness_evaluator = ClassificationEvaluator(
-        name="completeness",
-        prompt_template=financial_completeness_template,
-        llm=llm,
-        choices={"complete": 1.0, "incomplete": 0.0},
-    )
-
-    completeness_evaluator.bind(
-        {
-            "attributes.input.value": "input",
-            "attributes.output.value": "output",
-        }
-    )
-
-    evaluators = [completeness_evaluator]
-    ```
-
-    ### **Run the Experiment on the Dataset**
-
-    Pull down the dataset you created earlier.
-
-    That tests the new version of the agent against the exact inputs that previously failed.
+  <Step title={<span className="step-title">Create an experiment file</span>}>
+    Create a file named `experiment.py`. The dataset uses two billing support examples; replace them with selected traces or examples from your app when you are ready.
 
     ```python
     from phoenix.client import Client
 
     client = Client()
-    dataset = client.datasets.get_dataset(dataset="python quickstart fails")
+
+    dataset = client.datasets.create_dataset(
+        name="support-quickstart",
+        dataset_description="Support reply examples from the Phoenix quickstart.",
+        examples=[
+            {
+                "id": "invoice-change",
+                "input": {"text": "Draft a short reply about why an invoice changed."},
+                "output": {
+                    "text": "Explain that invoice totals can change when usage, taxes, or plan adjustments are applied."
+                },
+                "metadata": {"kind": "billing"},
+            },
+            {
+                "id": "renewal-plan-change",
+                "input": {
+                    "text": "A customer says their renewal invoice is higher after changing plans."
+                },
+                "output": {
+                    "text": "Explain that plan changes can cause prorated usage charges and updated taxes."
+                },
+                "metadata": {"kind": "billing"},
+            },
+        ],
+    )
+
+
+    def baseline_task(input):
+        if "renewal" in input["text"]:
+            return "Renewal amounts can change after account updates."
+        return "Invoice totals can change when billing settings change."
+
+
+    def edited_task(input):
+        if "renewal" in input["text"]:
+            return "Plan changes can create prorated usage charges and updated taxes on a renewal invoice."
+        return "Invoice totals can change when usage, taxes, or plan adjustments are applied."
+
+
+    def covers_billing_context(output):
+        text = output.lower()
+        has_usage = "usage" in text or "prorat" in text
+        has_taxes = "tax" in text
+        has_plan = "plan" in text
+        return has_usage and has_taxes and has_plan
+
+    client.experiments.run_experiment(
+        dataset=dataset,
+        task=baseline_task,
+        evaluators=[covers_billing_context],
+        experiment_name="support-response-baseline-docs-run",
+    )
+
+    client.experiments.run_experiment(
+        dataset=dataset,
+        task=edited_task,
+        evaluators=[covers_billing_context],
+        experiment_name="support-response-edited-docs-run",
+    )
     ```
 
-    Then run the experiment:
-
-    ```python
-    experiment = client.experiments.run_experiment(dataset=dataset, task=my_task, evaluators=evaluators)
-    ```
-
-    Once this completes, Phoenix logs the experiment results automatically.
+    Each task takes one dataset input and returns an app output. Swap in your app's entry point. The evaluator is intentionally deterministic: it checks for the billing context the response must include before you add broader LLM-as-a-judge evals.
   </Step>
 
-  <Step title={<span className="step-title">Review the Scores</span>}>
-    Head back to Phoenix and open the **Experiments** view.
+  <Step title={<span className="step-title">Run the experiment</span>}>
+    Run the file.
 
-    Here, you can see:
+    ```bash
+    python experiment.py
+    ```
 
-    - The original runs compared against the new ones under 'reference output'
-    - New agent runs produced by your task
-    - Evaluation results for each version
+    If you already created a dataset from traces in the UI, replace the `create_dataset` call with:
 
-    <Frame caption="View Experiment Results">
-      <video
-        controls
-        className="w-full aspect-video rounded-xl"
-        src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_experiment.mp4"
+    ```python
+    dataset = client.datasets.get_dataset(dataset="<YOUR DATASET NAME>")
+    ```
+  </Step>
+
+  <Step title={<span className="step-title">Review the scores</span>}>
+    Head back to Phoenix and open the dataset's **Experiments** tab. You can compare outputs, evaluator labels, scores, and explanations for each example.
+
+    <Frame caption="Side-by-side experiment comparison">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-compare-score-delta.png"
+        alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
       />
     </Frame>
-
-    You should see more traces receiving a **complete** label, indicating the change improved performance.
-
-    **Congratulations!** You’ve built a dataset, scored an experiment with an evaluator, and measured the effect of a change.
   </Step>
 </Steps>
 
   </Tab>
   <Tab title="TypeScript">
 
-<Info>
-  **Follow along with code**: This guide has a companion codebase with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/mastra-quickstart).
-</Info>
-
 <Steps>
-  <Step title={<span className="step-title">Create a Dataset from Your Traces</span>}>
-    A dataset is a fixed set of examples you test every change against. Each example holds the input your agent received, optionally a reference output to compare against, and any metadata. Build one from the runs you want to improve: typical interactions, edge cases, and the flagged or failed runs in your traces.
+  <Step title={<span className="step-title">Install experiment packages</span>}>
+    Install the Phoenix client package and `tsx` for running the TypeScript file.
 
-    This walkthrough uses the Phoenix UI. To create datasets in code instead, see the [Create Datasets guide](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets).
-
-    ### **Create a Dataset in the UI**
-
-    1. Navigate to your project in Phoenix.
-    2. Filter the spans table to the runs you want to test against.
-    3. Select the spans you want to include.
-    4. Click **Add to Dataset**.
-    5. Pick an existing dataset, or click **+** to create one, name it, and click **Create Dataset**.
-
-    <Frame caption="Create a New Dataset & add Examples">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-dataset.mp4"
-    />
-    </Frame>
+    ```bash
+    npm install @arizeai/phoenix-client tsx
+    ```
   </Step>
 
-  <Step title={<span className="step-title">Define and Run the Experiment</span>}>
-    ### **Update the Agent Instructions**
-
-    This example strengthens the agent's instructions, giving the model clearer guidance on what a good response looks like.
-
-    Start with the imports:
+  <Step title={<span className="step-title">Create an experiment file</span>}>
+    Create a file named `experiment.ts`. The dataset uses two billing support examples; replace them with selected traces or examples from your app when you are ready.
 
     ```typescript
-    import "dotenv/config";
+    import { createClient } from "@arizeai/phoenix-client";
+    import { createDataset } from "@arizeai/phoenix-client/datasets";
+    import {
+      asExperimentEvaluator,
+      runExperiment,
+    } from "@arizeai/phoenix-client/experiments";
     import type { Example } from "@arizeai/phoenix-client/types/datasets";
-    import { runExperiment } from "@arizeai/phoenix-client/experiments";
-    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
-    import { openai } from "@ai-sdk/openai";
-    import { Agent } from "@mastra/core/agent";
-    import { Mastra } from "@mastra/core/mastra";
-    import { financialSearchTool } from "../tools/financial-search-tool";
-    import { financialOrchestratorAgent } from "../agents/financial-orchestrator-agent";
-    import { financialWriterAgent } from "../agents/financial-writer-agent";
-    import { financialCompletenessTemplate } from "../evals/evals";
-    ```
 
-    Below is an example of tightening the agent instructions to be more explicit about the expected output.
+    const client = createClient();
+    const datasetName = "support-quickstart";
 
-    ```typescript
-    const financialResearcherAgent = new Agent({
-      id: "financial-researcher-agent",
-      name: "Financial Research Analyst",
-      instructions: `You are a Senior Financial Research Analyst. Your job is to collect accurate, up-to-date financial information so a report writer can turn it into a polished analysis.
+    const baselineTask = async (example: Example): Promise<string> => {
+      const input = example.input as { text: string };
 
-    What to do:
-    - Use the financialSearch tool to look up each company or ticker mentioned in the request.
-    - For every ticker, pull: current or recent prices, key ratios (P/E, P/B, debt-to-equity, ROE), revenue and earnings, and notable news or events from the last 6 months.
-    - If the user asks for a specific focus (e.g. valuation, growth, dividends), prioritize that in your search and summary.
-    - For multiple tickers, run research per ticker and then summarize in one coherent research brief.
+      if (input.text.includes("renewal")) {
+        return "Renewal amounts can change after account updates.";
+      }
+      return "Invoice totals can change when billing settings change.";
+    };
 
-    Output:
-    - Produce a single research summary that covers all requested tickers and focus areas.
-    - Be specific: use numbers and sources, not vague statements.
-    - Write so the Financial Report Writer can use this summary directly to draft the final report.
 
-    Make sure to report financial data for all tickers mentioned in the request. Use that financial data for the specific focus area mentioned in the request.`,
-      model: "openai/gpt-4o",
-      tools: { financialSearchTool },
+    const editedTask = async (example: Example): Promise<string> => {
+      const input = example.input as { text: string };
+
+      if (input.text.includes("renewal")) {
+        return "Plan changes can create prorated usage charges and updated taxes on a renewal invoice.";
+      }
+      return "Invoice totals can change when usage, taxes, or plan adjustments are applied.";
+    };
+
+
+    const coversBillingContext = asExperimentEvaluator({
+      name: "covers_billing_context",
+      kind: "CODE",
+      evaluate: async ({ output }) => {
+        const text = String(output).toLowerCase();
+        const hasUsage = text.includes("usage") || text.includes("prorat");
+        const hasTaxes = text.includes("tax");
+        const hasPlan = text.includes("plan");
+        const passes = hasUsage && hasTaxes && hasPlan;
+        return {
+          label: passes ? "True" : "False",
+          score: passes ? 1 : 0,
+        };
+      },
+    });
+
+    async function main() {
+      await createDataset({
+        client,
+        name: datasetName,
+        description: "Support reply examples from the Phoenix quickstart.",
+        examples: [
+          {
+            id: "invoice-change",
+            input: { text: "Draft a short reply about why an invoice changed." },
+            output: {
+              text: "Explain that invoice totals can change when usage, taxes, or plan adjustments are applied.",
+            },
+            metadata: { kind: "billing" },
+          },
+          {
+            id: "renewal-plan-change",
+            input: {
+              text: "A customer says their renewal invoice is higher after changing plans.",
+            },
+            output: {
+              text: "Explain that plan changes can cause prorated usage charges and updated taxes.",
+            },
+            metadata: { kind: "billing" },
+          },
+        ],
+      });
+
+      await runExperiment({
+        client,
+        dataset: { datasetName },
+        task: baselineTask,
+        evaluators: [coversBillingContext],
+        experimentName: "support-response-baseline-docs-run",
+      });
+
+      await runExperiment({
+        client,
+        dataset: { datasetName },
+        task: editedTask,
+        evaluators: [coversBillingContext],
+        experimentName: "support-response-edited-docs-run",
+      });
+    }
+
+    main().catch((error) => {
+      console.error(error);
+      process.exit(1);
     });
     ```
 
-    Create an updated Mastra instance with this new, modified agent:
-
-    ```typescript
-    async function main() {
-      const mastra = new Mastra({
-        agents: {
-          financialResearcherAgent,
-          financialWriterAgent,
-          financialOrchestratorAgent,
-        },
-      });
-    ```
-
-    That is a targeted change, driven by the explanations for why these traces were classified as failures.
-
-    ### **Define an Experiment**
-
-    With the agent updated, run the new flow to test whether the change improves quality.
-
-    An experiment needs two things:
-
-    - **The experiment task**
-
-      A task takes each example from the dataset and produces an output, usually by running your agent on the input.
-
-    - **The experiment evaluation**
-
-      An experiment evaluation works like any other evaluation, but scores a task's output, often against an expected result or a scoring metric.
-
-    Here the task reruns the agent with the updated instructions. That produces new outputs for the same inputs, so rerun the same evaluation to compare the two directly.
-
-    #### **Define the Task**
-
-    ```typescript
-      const task = async (example: Example): Promise<string> => {
-        const raw = example.input as unknown as
-          | { role: "user"; content: string }[]
-          | { input: { role: "user"; content: string }[] };
-        const messages = Array.isArray(raw) ? raw : raw.input;
-        const response = await mastra
-          .getAgent("financialOrchestratorAgent")
-          .generate(messages);
-        return response.text ?? "";
-      };
-    ```
-
-    #### **Define the Evaluator**
-
-    ```typescript
-      const completenessEvaluator = createClassificationEvaluator({
-        model: openai("gpt-4o-mini"),
-        promptTemplate: financialCompletenessTemplate,
-        choices: { complete: 1, incomplete: 0 },
-        name: "completeness",
-      });
-    ```
-
-    ### **Run the Experiment on the Dataset**
-
-    Specify the dataset you created earlier.
-
-    That tests the new version of the agent against the exact inputs that previously failed.
-
-    ```typescript
-      const datasetSelector = { datasetName: "ts quickstart fails" };
-
-      await runExperiment({
-        dataset: datasetSelector,
-        task,
-        evaluators: [completenessEvaluator],
-        experimentName: "new-experiment",
-      });
-    }
-    ```
-
-    Once this completes, Phoenix logs the experiment results automatically.
+    Each task takes one dataset example and returns an app output. Swap in your app's entry point. The evaluator is intentionally deterministic: it checks for the billing context the response must include before you add broader LLM-as-a-judge evals.
   </Step>
 
-  <Step title={<span className="step-title">Review the Scores</span>}>
-    Head back to Phoenix and open the **Experiments** view.
+  <Step title={<span className="step-title">Run the experiment</span>}>
+    Run the file.
 
-    Here, you can see:
+    ```bash
+    npx tsx experiment.ts
+    ```
 
-    - The original runs compared against the new ones under 'reference output'
-    - New agent runs produced by your task
-    - Evaluation results for each version
+    If you already created a dataset from traces in the UI, keep `datasetName` set to that dataset name and remove the `createDataset` call.
+  </Step>
 
-    <Frame caption="View Experiment Results">
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/ts-first-experiment.mp4"
-    />
+  <Step title={<span className="step-title">Review the scores</span>}>
+    Head back to Phoenix and open the dataset's **Experiments** tab. You can compare outputs, evaluator labels, scores, and explanations for each example.
+
+    <Frame caption="Side-by-side experiment comparison">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/evaluations-compare-score-delta.png"
+        alt="Phoenix experiment comparison view showing a baseline support response scoring 0 and an edited response scoring 1"
+      />
     </Frame>
-
-    You should see more traces receiving a **complete** label, indicating the change improved performance.
-
-    **Congratulations!** You’ve built a dataset, scored an experiment with an evaluator, and measured the effect of a change.
   </Step>
 </Steps>
 
@@ -489,12 +393,8 @@ After completing [Observe Your Agent](/docs/phoenix/get-started/get-started-trac
   </Tab>
 </Tabs>
 
-## **Learn More**
+## Learn more
 
-[Datasets and Experiments](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets) covers building datasets for specific user segments or edge cases, comparing multiple prompt or model variants, and tracking quality over time.
+[Datasets and Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) covers building datasets, comparing variants, and tracking quality over time.
 
-For evaluators themselves, [Server Evals](/docs/phoenix/evaluation/server-evals/overview) covers the LLM and built-in code evaluators you can attach to a dataset, and the [Evaluation](/docs/phoenix/evaluation/evals) section covers writing your own.
-
-The [Prompt Playground and Prompt Hub guides](https://arize.com/docs/phoenix/prompt-engineering/tutorial) go deeper on prompt iteration and versioning.
-
-To score traces you have already collected rather than an experiment, see [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces), which runs an evaluator over spans and logs the results back as annotations. The [Python](/docs/phoenix/evaluation/python-quickstart) and [TypeScript](/docs/phoenix/evaluation/typescript-quickstart) eval quickstarts cover the same flow in code.
+For evaluators, [Server Evals](/docs/phoenix/evaluation/server-evals/overview) covers UI-managed evaluators, and the [Evaluation](/docs/phoenix/evaluation/evals) section covers writing your own.
