@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 
 import { validationBadgeGrowIn } from "@phoenix/components/core/alert";
 import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
+
 /**
  * The popover surface shared by every floating element the filter field
  * shows — the typeahead menu, its info panel, and the error popover — so
@@ -37,6 +38,7 @@ export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
     padding: var(--global-dimension-size-50);
+    z-index: ${APP_PORTALED_OVERLAY_Z_INDEX};
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
