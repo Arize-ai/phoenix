@@ -41,6 +41,7 @@ from tests.unit.conftest import (
     TestBulkInserter,
     patch_dml_event_handler,
     patch_grpc_server,
+    patch_online_eval_daemons,
 )
 
 
@@ -474,6 +475,7 @@ class TestBoundPrincipalAgainstRealV1Auth:
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_online_eval_daemons())
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
                 db=db,
@@ -568,6 +570,7 @@ class TestLifespanStateReachesV1:
 
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(patch_dml_event_handler())
+            await stack.enter_async_context(patch_online_eval_daemons())
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
                 db=db,

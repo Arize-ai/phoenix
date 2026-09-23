@@ -26,7 +26,7 @@ from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -114,7 +114,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = _create_app(db)
         producer = app.state.online_eval_producer
