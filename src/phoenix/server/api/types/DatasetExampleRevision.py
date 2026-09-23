@@ -49,12 +49,14 @@ class DatasetExampleRevision(ExampleRevision):
     revision_id: GlobalID
     revision_kind: RevisionKind
     created_at: datetime
-    db_record: strawberry.Private[models.DatasetExampleRevision | None] = None
 
     @strawberry.field
     def evaluation_context(self) -> JSON:
-        assert self.db_record is not None
-        return JSON(dataset_example_eval_context(self.db_record))
+        return JSON(
+            dataset_example_eval_context(
+                input=self.input, output=self.output, metadata=self.metadata
+            )
+        )
 
     @strawberry.field
     def expected_outputs(self) -> list[DatasetExampleExpectedOutput]:
@@ -69,5 +71,4 @@ class DatasetExampleRevision(ExampleRevision):
             metadata=JSON(revision.metadata_),
             revision_kind=RevisionKind(revision.revision_kind),
             created_at=revision.created_at,
-            db_record=revision,
         )
