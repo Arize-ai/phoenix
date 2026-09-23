@@ -6,7 +6,7 @@ import { DateInput, DateSegment, Label, TimeField } from "@phoenix/components";
 
 const meta: Meta = {
   title: "Design System/Dates and times/Time Field",
-  tags: ["legacy", "unreviewed"],
+  tags: ["unused", "legacy", "unreviewed"],
   component: TimeField,
   parameters: {
     layout: "centered",

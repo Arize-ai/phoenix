@@ -1,7 +1,7 @@
 /**
  * Storybook tag vocabulary for the Phoenix story set.
  *
- * Three independent axes. Every story declares exactly one value from each
+ * Three independent axes, plus one flag (`unused`). Every story declares exactly one value from each
  * required axis; both sides are tagged explicitly so that "nobody set this"
  * and "this is the negative case" never look alike.
  *
@@ -59,10 +59,30 @@ export const review = {
   unreviewed: "unreviewed",
 } as const;
 
+/**
+ * Does production render this entry's component anywhere?
+ *
+ * A flag, not an axis: `unused` is present when no production code calls the
+ * component, and absent otherwise. It is the one exception to tagging both
+ * sides, because "used" is the normal case for every component and a
+ * `used` chip on nearly every entry would be noise. The absence is still
+ * never ambiguous: `pnpm lint:stories` derives callers from `src/` for every
+ * file whose `meta.component` it can resolve, and fails when the tag and the
+ * code disagree in either direction.
+ */
+export const usage = {
+  unused: "unused",
+} as const;
+
 export type ProvenanceTag = (typeof provenance)[keyof typeof provenance];
 export type CompletenessTag = (typeof completeness)[keyof typeof completeness];
 export type ReviewTag = (typeof review)[keyof typeof review];
-export type PhoenixStoryTag = ProvenanceTag | CompletenessTag | ReviewTag;
+export type UsageTag = (typeof usage)[keyof typeof usage];
+export type PhoenixStoryTag =
+  | ProvenanceTag
+  | CompletenessTag
+  | ReviewTag
+  | UsageTag;
 
 /** The three axes, as data, for the linter and the sidebar chips. */
 export const TAG_AXES = [
@@ -75,6 +95,7 @@ export const ALL_PHOENIX_TAGS: readonly PhoenixStoryTag[] = [
   ...Object.values(provenance),
   ...Object.values(completeness),
   ...Object.values(review),
+  ...Object.values(usage),
 ];
 
 /**

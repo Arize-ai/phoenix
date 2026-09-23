@@ -11,7 +11,7 @@ import { Flex, Label, Tag, TagGroup, TagList, Text } from "@phoenix/components";
  */
 const meta: Meta = {
   title: "Design System/Forms/Tag Group",
-  tags: ["updated", "unreviewed", "incomplete"],
+  tags: ["unused", "updated", "unreviewed", "incomplete"],
   component: TagGroup,
 };
 

@@ -9,7 +9,7 @@ import {
 import { themes } from "storybook/theming";
 import { create } from "storybook/theming/create";
 
-import { completeness, provenance, review } from "../stories/_meta/tags";
+import { completeness, provenance, review, usage } from "../stories/_meta/tags";
 import { installRootHeadings } from "./sidebar/rootHeadings";
 import { installSearchDocsTitles } from "./sidebar/searchDocsTitles";
 import { installSubjectOverviews } from "./sidebar/subjectOverviews";
@@ -50,6 +50,8 @@ const CHIP_COLORS = {
   success: { light: "0, 101, 62", dark: "75, 205, 149" },
   // --global-color-orange-1000 (light #953d00)
   warning: { light: "149, 61, 0", dark: "255, 162, 59" },
+  // --global-color-red-1000 (light #b40000)
+  danger: { light: "180, 0, 0", dark: "255, 158, 140" },
 } as const;
 
 type ChipRole = keyof typeof CHIP_COLORS;
@@ -79,10 +81,15 @@ const CHIP_ROLE_BY_TAG: Readonly<Record<string, ChipRole>> = {
   [completeness.incomplete]: "warning",
   [review.reviewed]: "success",
   [review.unreviewed]: "warning",
+  [usage.unused]: "danger",
 };
 
-/** Axis order, so chips always appear in the same sequence. */
+/**
+ * Axis order, so chips always appear in the same sequence. `unused` leads:
+ * it is the one flag that questions whether the entry belongs here at all.
+ */
 const CHIP_TAG_ORDER: readonly string[] = [
+  usage.unused,
   provenance.legacy,
   provenance.updated,
   completeness.complete,

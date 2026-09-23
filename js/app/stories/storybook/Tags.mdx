@@ -4,8 +4,9 @@ import { Meta } from "@storybook/addon-docs/blocks";
 
 # Tags
 
-Every story declares where it stands on three independent axes. The chips
-beside each entry in the sidebar show all three, and each value is a single tag,
+Every story declares where it stands on three independent axes, and one flag
+marks components production never renders. The chips beside each entry in the
+sidebar show all of them, and each value is a single tag,
 so the **Tag filters** menu in the sidebar toolbar can narrow the tree by any
 one of them.
 
@@ -41,12 +42,30 @@ Whether a human has verified the story is correct.
 wrote the story, not a passing lint run, not a careful self-review. Everything
 starts `unreviewed`, including work its author believes is correct.
 
+## Usage — `unused`
+
+A red `unused` chip means no production code renders the entry's component.
+It is a presence question: a story for a component nothing uses documents
+nothing a reader will meet in the app, and it may not belong in Storybook at
+all. Treat it as a prompt to adopt the component, delete it, or retire the
+story.
+
+Unlike the three axes, `unused` is a flag with no opposite. "Used" is the
+normal case for nearly every component, so a chip saying so on every entry
+would be noise.
+
 ## Both sides are always tagged
 
-There is no implicit default. A missing axis is a lint failure rather than a
-silent negative, because "nobody set this" and "this is the negative case" must
+There is no implicit default on the three axes. A missing axis is a lint
+failure rather than a silent negative, because "nobody set this" and "this is the negative case" must
 not look alike — you cannot act on the first without knowing which one you are
 looking at.
+
+The `unused` flag gets the same guarantee a different way: its absence is
+never a guess, because `pnpm lint:stories` works it out from `src/`. For every
+file whose `meta.component` is an imported Phoenix component, the lint fails
+when the flag is missing from an unrendered component or present on a
+rendered one.
 
 ## What tags are not
 
@@ -62,5 +81,6 @@ repeated per file.
 ## Where this is enforced
 
 `pnpm lint:stories` checks that each story carries exactly one value from each
-required axis, that no unknown tag has crept in, and that no axis contradicts
-itself. The vocabulary itself lives in `stories/_meta/tags.ts`.
+required axis, that no unknown tag has crept in, that no axis contradicts
+itself, and that `unused` agrees with the code. The vocabulary itself lives in
+`stories/_meta/tags.ts`.

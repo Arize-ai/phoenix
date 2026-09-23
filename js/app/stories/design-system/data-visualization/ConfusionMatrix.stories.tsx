@@ -60,7 +60,7 @@ const multiclassData = [
 
 const meta: Meta<typeof ConfusionMatrix> = {
   title: "Design System/Data visualization/Confusion Matrix",
-  tags: ["legacy", "unreviewed"],
+  tags: ["unused", "legacy", "unreviewed"],
   component: ConfusionMatrix,
   parameters: {
     layout: "padded",

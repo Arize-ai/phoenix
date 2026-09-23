@@ -42,7 +42,7 @@ const meta: Meta<typeof Video> = {
       },
     },
   },
-  tags: ["legacy", "unreviewed"],
+  tags: ["unused", "legacy", "unreviewed"],
   argTypes: {
     src: {
       control: "text",

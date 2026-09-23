@@ -9,7 +9,8 @@
     "complete": 1,
     "incomplete": 4,
     "reviewed": 0,
-    "unreviewed": 136
+    "unreviewed": 136,
+    "unused": 5
   },
   "sectionsWithDocsPage": [
     "design-system/layout",

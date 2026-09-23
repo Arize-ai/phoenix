@@ -23,6 +23,7 @@ import {
   provenance,
   review,
   STORYBOOK_BUILTIN_TAGS,
+  usage,
 } from "../stories/_meta/tags";
 import {
   STORYBOOK_PAGES,
@@ -43,6 +44,7 @@ import {
 } from "../stories/_meta/thumbnail";
 
 const STORIES_DIR = "stories";
+const SRC_DIR = "src";
 const PREVIEW_FILE = join(".storybook", "preview.tsx");
 const HEALTH_FILE = join(STORIES_DIR, "_meta", "health.generated.json");
 
@@ -286,6 +288,86 @@ function checkTags(file: StoryFile) {
   }
 }
 
+/** Production source, read once: every `.ts`/`.tsx` under `src/` except tests and generated code. */
+let productionSources: { path: string; lines: string[] }[] | null = null;
+function productionSource() {
+  if (productionSources) return productionSources;
+  const out: { path: string; lines: string[] }[] = [];
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry !== "__generated__" && entry !== "__tests__") visit(full);
+      } else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+        out.push({ path: full, lines: readFileSync(full, "utf8").split("\n") });
+      }
+    }
+  };
+  visit(SRC_DIR);
+  productionSources = out;
+  return out;
+}
+
+/**
+ * Whether production code refers to `name` anywhere other than where it is
+ * declared, imported or re-exported. Includes the declaring file, so a
+ * component rendered only by its own module's parent (`ExperimentRunOutputs`
+ * inside `ExperimentCompareDetails.tsx`) still counts as used.
+ */
+function hasProductionCallers(name: string): boolean {
+  const word = new RegExp(`\\b${name}\\b`);
+  const declaration = new RegExp(
+    `\\b(function|const|let|class)\\s+${name}\\b|\\b${name}\\.displayName\\b`
+  );
+  return productionSource().some(({ lines }) =>
+    lines.some((line) => {
+      const l = line.trim();
+      return (
+        word.test(l) &&
+        !declaration.test(l) &&
+        !/^(import|export|\/\/|\*|\/\*|\} from)/.test(l) &&
+        // A bare identifier list is the inside of a multi-line import/export.
+        !/^[\w\s,{}]+$/.test(l)
+      );
+    })
+  );
+}
+
+/**
+ * `unused` must match the code. For every file whose `meta.component` is a
+ * production component imported through `@phoenix/…`, the flag is derived
+ * from `src/`: present exactly when nothing in production renders it. Files
+ * whose subject is not one resolvable component (palettes, reference pages,
+ * story-local compositions) are not checked, and carry the flag by hand.
+ */
+function checkUsage(files: StoryFile[]) {
+  for (const file of files) {
+    if (!/\.stories\.[jt]sx?$/.test(file.base)) continue;
+    const src = readFileSync(join(STORIES_DIR, file.rel), "utf8");
+    const component = src.match(
+      /^\s{0,2}component:\s*([A-Za-z_]\w*)\s*,/m
+    )?.[1];
+    if (!component) continue;
+    const imported = new RegExp(
+      `import\\s*\\{[^}]*\\b${component}\\b[^}]*\\}\\s*from\\s*["']@phoenix/`
+    ).test(src);
+    if (!imported) continue;
+    const tagged = file.tags.includes(usage.unused);
+    const used = hasProductionCallers(component);
+    if (used && tagged) {
+      fail(
+        file.rel,
+        `tagged "${usage.unused}" but production code renders ${component}; remove the tag`
+      );
+    } else if (!used && !tagged) {
+      fail(
+        file.rel,
+        `nothing in src/ renders ${component}; tag the file "${usage.unused}"`
+      );
+    }
+  }
+}
+
 /**
  * Every sidebar entry must show something no other entry shows.
  *
@@ -466,6 +548,7 @@ function main() {
 
   checkThumbnails(managed);
   checkSingleSidebarEntry(managed);
+  checkUsage(managed);
 
   writeHealth(files);
 
@@ -524,6 +607,7 @@ function writeHealth(files: StoryFile[]) {
           incomplete: count(completeness.incomplete),
           reviewed: count(review.reviewed),
           unreviewed: count(review.unreviewed),
+          unused: count(usage.unused),
         },
         sectionsWithDocsPage: [...docs].filter(Boolean).sort(),
         storiesBySection: Object.fromEntries(
