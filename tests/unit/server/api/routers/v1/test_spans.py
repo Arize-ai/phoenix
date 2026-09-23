@@ -1057,6 +1057,158 @@ async def test_span_search_pagination(
             assert isinstance(span.status_code, str)
 
 
+@pytest.fixture
+async def spans_inserted_out_of_start_time_order(db: DbSessionFactory) -> None:
+    """Four spans whose insertion order differs from their start times, with one tie."""
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+    start_offsets_in_insertion_order = [5, 0, 10, 5]
+    async with db() as session:
+        project = models.Project(name="out-of-order")
+        session.add(project)
+        await session.flush()
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="out-of-order-trace",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=11),
+        )
+        session.add(trace)
+        await session.flush()
+        for index, offset in enumerate(start_offsets_in_insertion_order):
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"span{index}",
+                    parent_id=None,
+                    name=f"span-{index}",
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(minutes=offset),
+                    end_time=base_time + timedelta(minutes=offset, seconds=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+            await session.flush()
+
+
+async def test_span_search_default_sort_is_insertion_order(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/out-of-order/spans")
+
+    assert resp.is_success
+    assert [s["name"] for s in resp.json()["data"]] == ["span-3", "span-2", "span-1", "span-0"]
+
+
+async def test_span_search_sort_by_start_time_breaks_ties_by_id(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/out-of-order/spans", params={"sort": "start_time"})
+
+    assert resp.is_success
+    assert [s["name"] for s in resp.json()["data"]] == ["span-2", "span-3", "span-0", "span-1"]
+
+
+async def test_span_search_sort_by_start_time_paginates_across_ties(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    names: list[str] = []
+    cursor: Optional[str] = None
+    for _ in range(10):
+        params: dict[str, Any] = {"sort": "start_time", "limit": 1}
+        if cursor:
+            params["cursor"] = cursor
+        resp = await httpx_client.get("v1/projects/out-of-order/spans", params=params)
+        assert resp.is_success
+        body = resp.json()
+        names.extend(s["name"] for s in body["data"])
+        cursor = body["next_cursor"]
+        if not cursor:
+            break
+
+    assert names == ["span-2", "span-3", "span-0", "span-1"]
+
+
+async def test_span_search_sort_by_start_time_limits_to_latest_spans(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/out-of-order/spans", params={"sort": "start_time", "limit": 2}
+    )
+
+    assert resp.is_success
+    assert [s["name"] for s in resp.json()["data"]] == ["span-2", "span-3"]
+
+
+async def test_span_search_ascending_by_start_time(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/out-of-order/spans", params={"sort": "start_time", "order": "asc"}
+    )
+
+    assert resp.is_success
+    assert [s["name"] for s in resp.json()["data"]] == ["span-1", "span-0", "span-3", "span-2"]
+
+
+async def test_span_search_ascending_by_id_paginates(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    names: list[str] = []
+    cursor: Optional[str] = None
+    for _ in range(10):
+        params: dict[str, Any] = {"order": "asc", "limit": 3}
+        if cursor:
+            params["cursor"] = cursor
+        resp = await httpx_client.get("v1/projects/out-of-order/spans", params=params)
+        assert resp.is_success
+        body = resp.json()
+        names.extend(s["name"] for s in body["data"])
+        cursor = body["next_cursor"]
+        if not cursor:
+            break
+
+    assert names == ["span-0", "span-1", "span-2", "span-3"]
+
+
+async def test_span_search_ascending_by_start_time_paginates_across_ties(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    names: list[str] = []
+    cursor: Optional[str] = None
+    for _ in range(10):
+        params: dict[str, Any] = {"sort": "start_time", "order": "asc", "limit": 1}
+        if cursor:
+            params["cursor"] = cursor
+        resp = await httpx_client.get("v1/projects/out-of-order/spans", params=params)
+        assert resp.is_success
+        body = resp.json()
+        names.extend(s["name"] for s in body["data"])
+        cursor = body["next_cursor"]
+        if not cursor:
+            break
+
+    assert names == ["span-1", "span-0", "span-3", "span-2"]
+
+
+async def test_span_search_rejects_cursor_from_a_different_sort(
+    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+) -> None:
+    first_page = await httpx_client.get("v1/projects/out-of-order/spans", params={"limit": 1})
+    id_cursor = first_page.json()["next_cursor"]
+
+    resp = await httpx_client.get(
+        "v1/projects/out-of-order/spans", params={"sort": "start_time", "cursor": id_cursor}
+    )
+
+    assert resp.status_code == 422
+
+
 async def test_span_attributes_conversion(
     httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
 ) -> None:
