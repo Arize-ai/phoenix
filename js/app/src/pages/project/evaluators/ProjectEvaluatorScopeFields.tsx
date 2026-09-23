@@ -309,9 +309,7 @@ const ProjectEvaluatorFilterField = ({
             projectId={projectId}
             filterCondition={draft}
             onFilterConditionChange={setDraft}
-            onValidCondition={({ condition }) =>
-              applyValidCondition(condition)
-            }
+            onValidCondition={({ condition }) => applyValidCondition(condition)}
             onValidityChange={onValidityChange}
             placeholder={placeholder}
           />
@@ -322,9 +320,7 @@ const ProjectEvaluatorFilterField = ({
             projectId={projectId}
             filterCondition={draft}
             onFilterConditionChange={setDraft}
-            onValidCondition={({ condition }) =>
-              applyValidCondition(condition)
-            }
+            onValidCondition={({ condition }) => applyValidCondition(condition)}
             onValidityChange={onValidityChange}
             placeholder={placeholder}
           />

@@ -3342,6 +3342,7 @@ class TestExperimentsOverDatasetSubscription:
         info.context.decrypt = lambda b: b
         info.context.sandbox_runtime = None
         info.context.experiment_runner = runner
+        info.context.user_id = None
         prompt_task = ExperimentTaskInput(
             prompt=PromptTaskInput(
                 prompt_version=ChatPromptVersionInput(
