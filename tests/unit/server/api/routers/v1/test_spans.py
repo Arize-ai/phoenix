@@ -1,6 +1,7 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
 from typing import Any, Callable, Optional
+from urllib.parse import quote
 from uuid import UUID
 
 import httpx
@@ -1055,6 +1056,107 @@ async def test_span_search_pagination(
             assert isinstance(span.end_time, datetime)
             assert isinstance(span.attributes, dict)
             assert isinstance(span.status_code, str)
+
+
+_PROJECT_NAME_WITH_PATH_CHARACTERS = "team/alpha?beta#gamma"
+
+
+@pytest.fixture
+async def project_named_with_path_characters(db: DbSessionFactory) -> None:
+    """A project whose name contains every character a URL path treats specially."""
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = models.Project(name=_PROJECT_NAME_WITH_PATH_CHARACTERS)
+        session.add(project)
+        await session.flush()
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="path-characters-trace",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=1),
+        )
+        session.add(trace)
+        await session.flush()
+        session.add(
+            models.Span(
+                trace_rowid=trace.id,
+                span_id="path-characters-span",
+                parent_id=None,
+                name="root",
+                span_kind="CHAIN",
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=30),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+        await session.flush()
+
+
+async def test_span_search_accepts_percent_encoded_project_name(
+    httpx_client: httpx.AsyncClient, project_named_with_path_characters: None
+) -> None:
+    encoded_name = quote(_PROJECT_NAME_WITH_PATH_CHARACTERS, safe="")
+    resp = await httpx_client.get(f"v1/projects/{encoded_name}/spans")
+    assert resp.is_success
+    assert [span["context"]["span_id"] for span in resp.json()["data"]] == ["path-characters-span"]
+
+
+async def test_span_search_accepts_raw_slash_in_project_name(
+    httpx_client: httpx.AsyncClient, project_named_with_path_characters: None
+) -> None:
+    name_with_slash = _PROJECT_NAME_WITH_PATH_CHARACTERS.split("?")[0]
+    resp = await httpx_client.get(f"v1/projects/{name_with_slash}/spans")
+    assert resp.status_code == 404, "the slash reaches the handler and names a missing project"
+    assert name_with_slash in resp.text
+
+
+async def test_span_search_still_resolves_project_id_in_path(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    project_named_with_path_characters: None,
+) -> None:
+    async with db() as session:
+        project = await session.scalar(
+            select(models.Project).filter_by(name=_PROJECT_NAME_WITH_PATH_CHARACTERS)
+        )
+        assert project is not None
+        project_id = str(GlobalID("Project", str(project.id)))
+    resp = await httpx_client.get(f"v1/projects/{project_id}/spans")
+    assert resp.is_success
+    assert len(resp.json()["data"]) == 1
+
+
+async def test_create_spans_accepts_percent_encoded_project_name(
+    httpx_client: httpx.AsyncClient, project_named_with_path_characters: None
+) -> None:
+    encoded_name = quote(_PROJECT_NAME_WITH_PATH_CHARACTERS, safe="")
+    resp = await httpx_client.post(
+        f"v1/projects/{encoded_name}/spans",
+        json={
+            "data": [
+                {
+                    "name": "created",
+                    "context": {"trace_id": "created-trace", "span_id": "created-span"},
+                    "span_kind": "CHAIN",
+                    "parent_id": None,
+                    "start_time": "2021-01-01T00:00:00+00:00",
+                    "end_time": "2021-01-01T00:00:30+00:00",
+                    "status_code": "OK",
+                    "status_message": "",
+                    "attributes": {},
+                    "events": [],
+                }
+            ]
+        },
+    )
+    assert resp.status_code == 202, resp.text
+    assert resp.json()["total_queued"] == 1
 
 
 @pytest.fixture

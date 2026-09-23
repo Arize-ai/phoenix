@@ -982,7 +982,7 @@ def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
 
 
 @router.get(
-    "/projects/{project_identifier}/spans",
+    "/projects/{project_identifier:path}/spans",
     operation_id="getSpans",
     summary="List spans with simple filters (no DSL)",
     description="Return spans within a project filtered by time range. "
@@ -992,10 +992,7 @@ def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
 async def span_search(
     request: Request,
     project_identifier: str = Path(
-        description=(
-            "The project identifier: either project ID or project name. If using a project name, "
-            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-        )
+        description="The project identifier: either project ID or project name.",
     ),
     cursor: Optional[str] = Query(
         default=None,
@@ -1418,7 +1415,7 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
 
 
 @router.post(
-    "/projects/{project_identifier}/spans",
+    "/projects/{project_identifier:path}/spans",
     dependencies=[Depends(is_not_locked)],
     operation_id="createSpans",
     summary="Create spans",
@@ -1433,10 +1430,7 @@ async def create_spans(
     request: Request,
     request_body: CreateSpansRequestBody,
     project_identifier: str = Path(
-        description=(
-            "The project identifier: either project ID or project name. If using a project name, "
-            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-        )
+        description="The project identifier: either project ID or project name.",
     ),
 ) -> CreateSpansResponseBody:
     def convert_api_span_for_insertion(api_span: Span) -> SpanForInsertion:
