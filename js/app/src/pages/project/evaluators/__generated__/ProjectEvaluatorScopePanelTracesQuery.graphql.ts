@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9bf54dd1a09e59a3cdec021d73ca127a>>
+ * @generated SignedSource<<4ab156542c3ac41ed6c1fcfd83d5b7cf>>
  * @lightSyntaxTransform
  */
 
@@ -90,14 +90,14 @@ v6 = {
       "alias": "rootSpans",
       "args": [
         {
+          "kind": "Literal",
+          "name": "filterCondition",
+          "value": "parent_span is None"
+        },
+        {
           "kind": "Variable",
           "name": "first",
           "variableName": "first"
-        },
-        {
-          "kind": "Literal",
-          "name": "rootSpansOnly",
-          "value": true
         },
         {
           "kind": "Literal",
@@ -295,16 +295,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d58d153acc16bdd6a67760848f290090",
+    "cacheID": "32dbbcb5f272b4b7c0b03d5a14f5c8c8",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorScopePanelTracesQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorScopePanelTracesQuery(\n  $projectId: ID!\n  $traceFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      rootSpans: spans(first: $first, rootSpansOnly: true, sort: {col: startTime, dir: desc}, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            trace {\n              id\n              traceId\n              numSpans\n              evaluationContext\n              costSummary {\n                total {\n                  tokens\n                }\n              }\n            }\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorScopePanelTracesQuery(\n  $projectId: ID!\n  $traceFilterCondition: String\n  $timeRange: TimeRange\n  $first: Int!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      rootSpans: spans(first: $first, filterCondition: \"parent_span is None\", sort: {col: startTime, dir: desc}, traceFilterCondition: $traceFilterCondition, timeRange: $timeRange) {\n        edges {\n          span: node {\n            id\n            trace {\n              id\n              traceId\n              numSpans\n              evaluationContext\n              costSummary {\n                total {\n                  tokens\n                }\n              }\n            }\n          }\n        }\n        pageInfo {\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d6d46b058fa970537afb8fd58f90e2d7";
+(node as any).hash = "0c5d7ce5b1a49394164b8b2ba7c7b032";
 
 export default node;
