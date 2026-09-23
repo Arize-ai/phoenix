@@ -71,3 +71,25 @@ export const revealOnHoverCSS = css`
     opacity: 1;
   }
 `;
+
+/**
+ * A row of items separated by middle dots. Every direct child is an item.
+ * Used for compact meta rows such as a span's id · time · latency · tokens.
+ */
+export const dotSeparatedRowCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+
+  & > * {
+    display: inline-flex;
+    align-items: center;
+  }
+  & > * + *::before {
+    content: "·";
+    color: var(--global-text-color-300);
+    margin-right: var(--global-dimension-size-100);
+  }
+`;

@@ -1,0 +1,23 @@
+---
+title: "Cloudflare AI Gateway"
+sidebarTitle: "Overview"
+description: "Send traces from Cloudflare AI Gateway to Phoenix by exporting the gateway's OpenTelemetry spans or by instrumenting your app with OpenInference."
+---
+
+<img noZoom width="400px" style={{margin: "0 auto", borderRadius: "10px"}} src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cloudflare-ai-gateway-card.avif" />
+
+<Card title="Cloudflare AI Gateway" href="https://developers.cloudflare.com/ai-gateway/" icon="globe" horizontal>
+**Website**: [](https://developers.cloudflare.com/ai-gateway/)
+</Card>
+
+[Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/) proxies requests to your LLM
+provider. You can send its traces to Phoenix two ways:
+
+- **Export gateway spans**: the gateway emits an OpenTelemetry span for every request it proxies,
+  with no code in your application.
+- **Instrument your app**: trace the OpenAI client with OpenInference so Phoenix captures the full
+  input and output messages, while your app still routes requests through the gateway.
+
+<Columns cols={2}>
+  <Card img="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cloudflare-ai-gateway-card.avif" title="Cloudflare AI Gateway Tracing" href="/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing" />
+</Columns>

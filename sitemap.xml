@@ -937,6 +937,14 @@
     <lastmod>2026-07-08T22:09:50+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway</loc>
+    <lastmod>2026-09-22T23:33:20+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing</loc>
+    <lastmod>2026-09-22T23:33:20+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/together</loc>
     <lastmod>2026-08-07T22:40:57+00:00</lastmod>
   </url>
