@@ -95,10 +95,10 @@ function getPageTimeRange(searchParams: URLSearchParams) {
 }
 
 /**
- * Whether the mean score column is visible in the persisted table
+ * Whether any mean score column is visible in the persisted table
  * preferences, and its data should be fetched with the rows. Mirrors the
- * table's `columnVisibility["meanScore"] !== false` read; unreadable or
- * missing storage means the default (visible).
+ * table's read over its mean score column ids; unreadable or missing
+ * storage means the default (visible).
  */
 function getStoredIncludeMeanScore(): boolean {
   try {
@@ -108,7 +108,9 @@ function getStoredIncludeMeanScore(): boolean {
     const visibility = persisted
       ? JSON.parse(persisted)?.state?.columnVisibility
       : null;
-    return visibility?.meanScore !== false;
+    return ["meanScore", "meanScoreStep", "meanScoreCoverage"].some(
+      (id) => visibility?.[id] !== false
+    );
   } catch {
     return true;
   }

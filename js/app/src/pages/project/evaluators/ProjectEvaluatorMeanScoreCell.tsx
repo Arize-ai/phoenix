@@ -15,7 +15,11 @@ import {
   getPositiveOptimizationFromConfig,
 } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
+import {
+  Sparkline,
+  type SparklineVariant,
+  useBinTimeTickFormatter,
+} from "@phoenix/components/chart";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
 import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
@@ -108,12 +112,16 @@ function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
 }
 
 /** The mean score column's header: the label plus the window it covers. */
-export function ProjectEvaluatorMeanScoreHeader() {
+export function ProjectEvaluatorMeanScoreHeader({
+  label = "mean score",
+}: {
+  label?: string;
+}) {
   const scoreWindow = useEvaluatorScoreWindow();
   return (
     <Flex direction="row" gap="size-50" alignItems="baseline">
       <span title="Mean score of the annotations this evaluator produced in the selected time range (at most the last 30 days), with the change vs. the previous window.">
-        mean score
+        {label}
       </span>
       <Text size="XS" fontFamily="mono" color="text-500">
         {scoreWindow.windowKey}
@@ -132,6 +140,7 @@ export function ProjectEvaluatorMeanScoreHeader() {
 export function ProjectEvaluatorMeanScoreCell({
   annotations,
   scoreMetrics,
+  sparklineVariant = "line",
 }: {
   /** The annotations the evaluator writes, named the way its runs persist them. */
   annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
@@ -140,6 +149,8 @@ export function ProjectEvaluatorMeanScoreCell({
     | ReadonlyArray<EvaluatorAnnotationScoreMetricsData>
     | null
     | undefined;
+  /** The sparkline's mark style; under design review across three columns. */
+  sparklineVariant?: SparklineVariant;
 }) {
   const scoreWindow = useEvaluatorScoreWindow();
   return (
@@ -149,6 +160,7 @@ export function ProjectEvaluatorMeanScoreCell({
           key={annotation.name}
           annotation={annotation}
           scoreWindow={scoreWindow}
+          sparklineVariant={sparklineVariant}
           metrics={scoreMetrics?.find(
             (entry) => entry.annotationName === annotation.name
           )}
@@ -162,10 +174,12 @@ export function ProjectEvaluatorMeanScoreCell({
 function AnnotationMeanScoreView({
   annotation,
   scoreWindow,
+  sparklineVariant,
   metrics,
 }: {
   annotation: ProjectEvaluatorResultAnnotation;
   scoreWindow: EvaluatorScoreWindow;
+  sparklineVariant: SparklineVariant;
   metrics: EvaluatorAnnotationScoreMetricsData | undefined;
 }) {
   const { windowKey } = scoreWindow;
@@ -273,6 +287,7 @@ function AnnotationMeanScoreView({
         minRange={sparkMinRange}
         maxWidth={SPARKLINE_MAX_WIDTH}
         color={SPARKLINE_COLOR}
+        variant={sparklineVariant}
         aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
         renderPointDetail={({ start, end }) => {
           // The point may cover several bins merged to fit the width: the

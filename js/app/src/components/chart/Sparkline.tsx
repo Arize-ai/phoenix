@@ -25,6 +25,18 @@ export type SparklineBinRange = {
   end: number;
 };
 
+/**
+ * How the drawn points are marked on the shared bin axis.
+ * - `line`: a polyline through the bin centers, shaded to the baseline; an
+ *   isolated value is a dot over a one-bin column.
+ * - `step`: a flat segment across each bin, joined vertically within a run
+ *   and shaded to the baseline. A daily mean reads as the whole day's level.
+ * - `coverage`: the `line` marks without shading, over a strip along the
+ *   baseline with one cell per bin: filled where data exists, faint where it
+ *   doesn't.
+ */
+export type SparklineVariant = "line" | "step" | "coverage";
+
 export interface SparklineProps {
   /**
    * One value per time bin, in time order. Every bin occupies its own x
@@ -55,6 +67,8 @@ export interface SparklineProps {
   minRange?: number;
   /** Stroke color, e.g. a design token var. */
   color: string;
+  /** The mark style. @default "line" */
+  variant?: SparklineVariant;
   /** Rendered height in pixels. @default 20 */
   height?: number;
   /**
@@ -100,6 +114,14 @@ const HOVER_DOT_WIDTH = 5;
  * the box so the eye reads a chart, and gives an isolated value some mass.
  */
 const FILL_TOP_OPACITY = 0.3;
+/** The coverage strip's height, and the room between it and the marks. */
+const COVERAGE_STRIP_HEIGHT = 3;
+const COVERAGE_STRIP_GAP = 2;
+/** A coverage cell with data, and one without. */
+const COVERAGE_PRESENT_OPACITY = 0.85;
+const COVERAGE_EMPTY_OPACITY = 0.15;
+/** The gap between adjacent coverage cells, in drawing units. */
+const COVERAGE_CELL_INSET = 0.4;
 
 /** A drawn point: one source bin, or several merged to fit the width. */
 type SparklineBin = {
@@ -255,6 +277,27 @@ function toAreaPathData(points: SparklinePoint[], height: number): string {
 }
 
 /**
+ * The horizontal extent of a drawn bin on the axis: half a source bin to
+ * either side of the bins it covers, clipped to the drawing box.
+ */
+function getBinExtent({
+  range,
+  binCount,
+}: {
+  range: SparklineBinRange;
+  binCount: number;
+}): { left: number; right: number } {
+  if (binCount === 1) {
+    return { left: 0, right: DRAWING_WIDTH };
+  }
+  const scale = DRAWING_WIDTH / (binCount - 1);
+  return {
+    left: Math.max(0, (range.start - 0.5) * scale),
+    right: Math.min(DRAWING_WIDTH, (range.end + 0.5) * scale),
+  };
+}
+
+/**
  * The region under an isolated point: a column as wide as the point's share
  * of the axis, clipped to the drawing box. It gives a value with no
  * neighbors to join the same footing on the baseline as a run.
@@ -268,16 +311,52 @@ function toColumnPathData({
   binCount: number;
   height: number;
 }): string {
-  const { start, end } = point.bin.range;
-  const halfWidth =
-    binCount === 1
-      ? DRAWING_WIDTH / 2
-      : ((end - start + 1) / (binCount - 1) / 2) * DRAWING_WIDTH;
-  const left = Math.max(0, point.x - halfWidth);
-  const right = Math.min(DRAWING_WIDTH, point.x + halfWidth);
+  const { left, right } = getBinExtent({ range: point.bin.range, binCount });
   const y = point.y.toFixed(2);
   const baseline = height.toFixed(2);
   return `M ${left.toFixed(2)} ${y} L ${right.toFixed(2)} ${y} L ${right.toFixed(2)} ${baseline} L ${left.toFixed(2)} ${baseline} Z`;
+}
+
+/**
+ * A run of points as steps: a flat segment across each point's bins, with a
+ * vertical riser between neighbors. Open, for stroking.
+ */
+function toStepPathData({
+  points,
+  binCount,
+}: {
+  points: SparklinePoint[];
+  binCount: number;
+}): string {
+  return points
+    .map((point, index) => {
+      const { left, right } = getBinExtent({
+        range: point.bin.range,
+        binCount,
+      });
+      const y = point.y.toFixed(2);
+      return `${index === 0 ? "M" : "L"} ${left.toFixed(2)} ${y} L ${right.toFixed(2)} ${y}`;
+    })
+    .join(" ");
+}
+
+/** The region between a run of steps and the baseline at `height`. */
+function toStepAreaPathData({
+  points,
+  binCount,
+  height,
+}: {
+  points: SparklinePoint[];
+  binCount: number;
+  height: number;
+}): string {
+  const first = getBinExtent({ range: points[0].bin.range, binCount });
+  const last = getBinExtent({
+    range: points[points.length - 1].bin.range,
+    binCount,
+  });
+  const baseline = height.toFixed(2);
+  return `${toStepPathData({ points, binCount })} L ${last.right.toFixed(2)} ${baseline} L ${first.left.toFixed(2)} ${baseline} Z`;
 }
 
 /**
@@ -300,6 +379,7 @@ export function Sparkline({
   weights,
   minRange,
   color,
+  variant = "line",
   height = 20,
   maxWidth,
   renderPointDetail,
@@ -327,10 +407,16 @@ export function Sparkline({
     weights,
     maxPoints: Math.max(1, Math.floor(width / MIN_PIXELS_PER_POINT)),
   });
+  // The coverage strip takes its room from the bottom of the box; the marks
+  // plot into what remains
+  const plotHeight =
+    variant === "coverage"
+      ? height - COVERAGE_STRIP_HEIGHT - COVERAGE_STRIP_GAP
+      : height;
   const points = getPoints({
     bins,
     binCount: values.length,
-    height,
+    height: plotHeight,
     minRange,
   });
   if (points == null) {
@@ -392,34 +478,88 @@ export function Sparkline({
             x1="0"
             y1={top.toFixed(2)}
             x2="0"
-            y2={height}
+            y2={plotHeight}
           >
             <stop offset="0" stopColor={color} stopOpacity={FILL_TOP_OPACITY} />
             <stop offset="1" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        {/* The shading goes down first so every stroke sits on top of it */}
+        {/* The shading goes down first so every stroke sits on top of it.
+            The coverage variant carries presence in its strip instead. */}
+        {variant === "coverage"
+          ? null
+          : segments.map((segment) => {
+              const first = segment[0];
+              return (
+                <path
+                  key={first.bin.position}
+                  d={
+                    variant === "step"
+                      ? toStepAreaPathData({
+                          points: segment,
+                          binCount: values.length,
+                          height: plotHeight,
+                        })
+                      : segment.length === 1
+                        ? toColumnPathData({
+                            point: first,
+                            binCount: values.length,
+                            height: plotHeight,
+                          })
+                        : toAreaPathData(segment, plotHeight)
+                  }
+                  fill={fill}
+                  stroke="none"
+                />
+              );
+            })}
+        {variant === "coverage"
+          ? bins.map((bin) => {
+              const { left, right } = getBinExtent({
+                range: bin.range,
+                binCount: values.length,
+              });
+              return (
+                <rect
+                  key={bin.position}
+                  x={(left + COVERAGE_CELL_INSET).toFixed(2)}
+                  y={height - COVERAGE_STRIP_HEIGHT}
+                  width={Math.max(
+                    0,
+                    right - left - 2 * COVERAGE_CELL_INSET
+                  ).toFixed(2)}
+                  height={COVERAGE_STRIP_HEIGHT}
+                  fill={color}
+                  fillOpacity={
+                    bin.value == null
+                      ? COVERAGE_EMPTY_OPACITY
+                      : COVERAGE_PRESENT_OPACITY
+                  }
+                />
+              );
+            })
+          : null}
         {segments.map((segment) => {
           const first = segment[0];
-          return (
-            <path
-              key={first.bin.position}
-              d={
-                segment.length === 1
-                  ? toColumnPathData({
-                      point: first,
-                      binCount: values.length,
-                      height,
-                    })
-                  : toAreaPathData(segment, height)
-              }
-              fill={fill}
-              stroke="none"
-            />
-          );
-        })}
-        {segments.map((segment) => {
-          const first = segment[0];
+          if (variant === "step") {
+            // Every step, even a lone one, spans its bin, so there is no
+            // dot case: a single flat segment already has the line's weight
+            return (
+              <path
+                key={first.bin.position}
+                d={toStepPathData({
+                  points: segment,
+                  binCount: values.length,
+                })}
+                fill="none"
+                stroke={color}
+                strokeWidth={LINE_WIDTH}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          }
           return (
             <g key={first.bin.position}>
               {segment.length === 1 ? (

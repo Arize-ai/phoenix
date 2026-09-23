@@ -189,6 +189,60 @@ describe("Sparkline", () => {
     );
   });
 
+  describe("step variant", () => {
+    it("draws a flat segment across each bin with a riser between neighbors", () => {
+      render([0, 1, null, 0.5], { variant: "step" });
+      // Bins are 21.33 wide; the first step is clipped at the left edge, the
+      // last at the right. No dot case: a lone value is a full-width step.
+      expect(getPaths()).toEqual([
+        "M 0.00 18.00 L 10.67 18.00 L 10.67 2.00 L 32.00 2.00",
+        "M 53.33 10.00 L 64.00 10.00",
+        "M 64.00 10.00 l 0.01 0",
+      ]);
+    });
+
+    it("shades under the steps of each run, leaving gaps open", () => {
+      render([0, 1, null, 0.5], { variant: "step" });
+      expect(getFillPaths()).toEqual([
+        "M 0.00 18.00 L 10.67 18.00 L 10.67 2.00 L 32.00 2.00 L 32.00 20.00 L 0.00 20.00 Z",
+        "M 53.33 10.00 L 64.00 10.00 L 64.00 20.00 L 53.33 20.00 Z",
+      ]);
+    });
+  });
+
+  describe("coverage variant", () => {
+    it("plots the line above a strip with one cell per bin, filled where data exists", () => {
+      render([0, 1, null, 0.5], { variant: "coverage" });
+      // The strip (3px) and its gap (2px) leave 15px for the marks
+      expect(getPaths()).toEqual([
+        "M 0.00 13.00 L 21.33 2.00",
+        "M 64.00 7.50 l 0.01 0",
+        "M 64.00 7.50 l 0.01 0",
+      ]);
+      // No shading: presence lives in the strip
+      expect(getFillPaths()).toEqual([]);
+      const cells = [...container.querySelectorAll("rect")];
+      expect(cells.map((cell) => cell.getAttribute("x"))).toEqual([
+        "0.40",
+        "11.07",
+        "32.40",
+        "53.73",
+      ]);
+      expect(cells.map((cell) => cell.getAttribute("y"))).toEqual([
+        "17",
+        "17",
+        "17",
+        "17",
+      ]);
+      expect(cells.map((cell) => cell.getAttribute("fill-opacity"))).toEqual([
+        "0.85",
+        "0.85",
+        "0.15",
+        "0.85",
+      ]);
+    });
+  });
+
   it("renders nothing when every value is null", () => {
     render([null, null]);
     expect(container.querySelector("svg")).toBeNull();
