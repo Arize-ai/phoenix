@@ -99,6 +99,8 @@ function FormattedTimeDisplay({
 }
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+TimezoneDemo.tags = ["!dev"];
+
 export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
   // A full-width settings form, shown from its top.

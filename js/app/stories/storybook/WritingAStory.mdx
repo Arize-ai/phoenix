@@ -64,6 +64,11 @@ collapse a large set of small like items into one labeled gallery. The limit:
 this groups like items of one kind — a kitchen-sink page of unrelated
 components duplicates every component's own story and rots.
 
+**Every sidebar entry shows something no other entry shows.** A file's Docs
+page renders all of its stories, so a file with a single story would show it
+twice. Tag a lone story `!dev`: the Docs page becomes the file's one entry, and
+the sidebar draws it as a single leaf. `pnpm lint:stories` enforces this.
+
 **Open layered content and keep it open.** A tooltip, popover, menu, or dialog
 story is about the content, not the launch. Hold it open through the
 component's real controlled state, and put dismissal behavior in a separate

@@ -15,6 +15,7 @@
  */
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { loadCsf } from "storybook/internal/csf-tools";
 
 import {
   ALL_PHOENIX_TAGS,
@@ -286,6 +287,40 @@ function checkTags(file: StoryFile) {
 }
 
 /**
+ * Every sidebar entry must show something no other entry shows.
+ *
+ * Autodocs gives each file a Docs page that renders all of its stories, so a
+ * file with exactly one story in the sidebar shows that story twice: as the
+ * story and as the Docs page. Such a file must hide its lone story with
+ * `!dev`, leaving the Docs page as its only entry (Storybook then draws it as
+ * a single leaf). A file with two or more visible stories is fine: the Docs
+ * page is their one-scroll overview and each story is an isolated canvas.
+ *
+ * Stories are read with Storybook's own CSF parser, not a regex, because
+ * story files also export fixtures and helpers.
+ */
+function checkSingleSidebarEntry(files: StoryFile[]) {
+  for (const file of files) {
+    if (!/\.stories\.[jt]sx?$/.test(file.base)) continue;
+    const csf = loadCsf(readFileSync(join(STORIES_DIR, file.rel), "utf8"), {
+      fileName: file.rel,
+      makeTitle: (title) => title ?? file.rel,
+    }).parse();
+    const metaTags = csf.meta.tags ?? [];
+    if (metaTags.includes("!autodocs")) continue;
+    const visible = csf.stories.filter(
+      (story) => !metaTags.includes("!dev") && !story.tags?.includes("!dev")
+    );
+    if (visible.length === 1) {
+      fail(
+        file.rel,
+        `"${visible[0].name}" is the only story in the sidebar, so it repeats the Docs page; tag it "!dev" so the Docs page is this file's one entry`
+      );
+    }
+  }
+}
+
+/**
  * The tags of a file's `Thumbnail` story, or null if it has none. Reads both
  * CSF styles in use: `tags` inside the story object, or `Thumbnail.tags = […]`
  * after a `StoryFn`.
@@ -430,6 +465,7 @@ function main() {
   }
 
   checkThumbnails(managed);
+  checkSingleSidebarEntry(managed);
 
   writeHealth(files);
 

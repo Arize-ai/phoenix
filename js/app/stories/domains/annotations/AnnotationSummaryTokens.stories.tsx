@@ -91,6 +91,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const UnifiedHoverPreview: Story = {
+  tags: ["!dev"],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const body = within(canvasElement.ownerDocument.body);

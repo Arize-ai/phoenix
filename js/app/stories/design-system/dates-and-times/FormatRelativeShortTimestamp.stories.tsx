@@ -116,6 +116,8 @@ const THUMBNAIL_SAMPLES = SAMPLES.filter(({ label }) =>
 );
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+FormattingRules.tags = ["!dev"];
+
 export const Thumbnail = {
   tags: ["!dev", "!autodocs"],
   render: () => (

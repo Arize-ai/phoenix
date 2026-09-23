@@ -26,7 +26,9 @@ const meta: Meta<typeof ThemeToggle> = {
 export default meta;
 type Story = StoryObj<typeof ThemeToggle>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  tags: ["!dev"],
+};
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: Story = {

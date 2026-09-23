@@ -118,6 +118,7 @@ function IconsGallery() {
 const Template: StoryFn = () => <IconsGallery />;
 
 export const Default = {
+  tags: ["!dev"],
   render: Template,
   args: {},
 };

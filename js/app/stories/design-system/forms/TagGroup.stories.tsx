@@ -35,6 +35,7 @@ const Template: StoryFn<TagGroupProps> = (args) => (
 );
 
 export const Default = {
+  tags: ["!dev"],
   render: Template,
 
   args: {

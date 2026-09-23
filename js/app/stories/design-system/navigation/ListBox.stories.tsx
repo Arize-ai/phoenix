@@ -23,6 +23,7 @@ const Template: StoryFn<Omit<ListBoxProps<object>, "children">> = (props) => (
 );
 
 export const Default = {
+  tags: ["!dev"],
   render: Template,
 
   args: {

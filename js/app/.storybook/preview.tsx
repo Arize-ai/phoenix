@@ -1,5 +1,13 @@
 import type { DocsContainerProps } from "@storybook/addon-docs/blocks";
-import { DocsContainer } from "@storybook/addon-docs/blocks";
+import {
+  Controls,
+  Description,
+  DocsContainer,
+  Primary,
+  Stories,
+  Subtitle,
+  Title,
+} from "@storybook/addon-docs/blocks";
 import type { Preview } from "@storybook/react";
 import React, { useEffect, useMemo, useState } from "react";
 import { UNSAFE_PortalProvider } from "react-aria/PortalProvider";
@@ -367,6 +375,26 @@ function useDocsThemeMode(): string {
  * Custom DocsContainer that respects the toolbar theme selector while also
  * responding to system theme changes when "auto" or "both" is selected.
  */
+/**
+ * Storybook's default autodocs page with one change: the Stories list leaves
+ * out the primary story. The default includes it, so every docs page drew its
+ * first story twice, once as the primary canvas and again at the head of the
+ * list. With it excluded, a single-story file's docs page shows that story
+ * once and a multi-story page lists only the stories below the primary one.
+ */
+function DocsPage() {
+  return (
+    <>
+      <Title />
+      <Subtitle />
+      <Description />
+      <Primary />
+      <Controls />
+      <Stories includePrimary={false} />
+    </>
+  );
+}
+
 function ThemedDocsContainer(props: DocsContainerProps) {
   const themeMode = useDocsThemeMode();
   const systemTheme = useSystemTheme();
@@ -531,6 +559,7 @@ const preview: Preview = {
     },
     docs: {
       container: ThemedDocsContainer,
+      page: DocsPage,
       canvas: {
         withToolbar: false,
       },

@@ -34,6 +34,7 @@ const Template: StoryFn<DialogTriggerProps> = (args) => (
 );
 
 export const Default = {
+  tags: ["!dev"],
   render: Template,
 };
 

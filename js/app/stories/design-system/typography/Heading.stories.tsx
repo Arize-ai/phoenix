@@ -30,6 +30,8 @@ export const Gallery = () => {
 };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
+Gallery.tags = ["!dev"];
+
 export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
   render: () => (

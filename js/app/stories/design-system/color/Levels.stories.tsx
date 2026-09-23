@@ -192,6 +192,7 @@ const Template: StoryFn = () => {
 };
 
 export const Default = {
+  tags: ["!dev"],
   render: Template,
 };
 

@@ -647,6 +647,7 @@ type Story = StoryObj<typeof SimpleExperimentTable>;
  * costs, annotations, and generated SQL queries with results.
  */
 export const Default: Story = {
+  tags: ["!dev"],
   args: {
     displayFullText: false,
   },

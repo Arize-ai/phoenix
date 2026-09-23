@@ -74,6 +74,7 @@ function SpanKindIconList() {
 const Template: StoryFn = () => <SpanKindIconList />;
 
 export const Default = {
+  tags: ["!dev"],
   render: Template,
   args: {},
 };
