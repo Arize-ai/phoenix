@@ -1,0 +1,66 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Storybook/Tags" />
+
+# Tags
+
+Every story declares where it stands on three independent axes. The chips
+beside each entry in the sidebar show all three, and each value is a single tag,
+so the **Tag filters** menu in the sidebar toolbar can narrow the tree by any
+one of them.
+
+The axes are independent: a `legacy` story can be `complete`, and an `updated`
+one can still be `unreviewed`.
+
+## Provenance — `legacy` / `updated`
+
+Whether the story predates the Storybook reorganization.
+
+A story stays `legacy` after being moved or renamed. Relocating a file changes
+where it lives, not whether its content has been brought up to current
+standards, so a mechanical move never promotes it to `updated`.
+
+## Completeness — `complete` / `incomplete`
+
+Whether the stories cover every state the component exposes.
+
+This is a claim about **parity with the component**, not about polish. A short,
+plain story that shows everything the component does is `complete`; an elaborate
+one that omits the disabled and error states is not.
+
+`incomplete` asserts that somebody compared the stories against the component,
+so the axis is required on `updated` stories and optional on `legacy` ones. An
+untagged legacy story is making no claim in either direction, which is the
+honest position for content nobody has assessed yet.
+
+## Review — `reviewed` / `unreviewed`
+
+Whether a human has verified the story is correct.
+
+`reviewed` means Rick checked it. Nothing else sets it — not an agent that
+wrote the story, not a passing lint run, not a careful self-review. Everything
+starts `unreviewed`, including work its author believes is correct.
+
+## Both sides are always tagged
+
+There is no implicit default. A missing axis is a lint failure rather than a
+silent negative, because "nobody set this" and "this is the negative case" must
+not look alike — you cannot act on the first without knowing which one you are
+looking at.
+
+## What tags are not
+
+Tags describe the story's state in this system. They are not a place for
+fixture data: a tag array like `["prod", "us-east-1"]` or
+`["llm", "agent", "production"]` belongs in the component's props, because
+anything in Storybook's tag namespace shows up in the sidebar filter menu for
+everyone.
+
+`autodocs` is set globally in `.storybook/preview.tsx` and should not be
+repeated per file.
+
+## Where this is enforced
+
+`pnpm lint:stories` checks that each story carries exactly one value from each
+required axis, that no unknown tag has crept in, and that no axis contradicts
+itself. The vocabulary itself lives in `stories/_meta/tags.ts`.

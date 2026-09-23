@@ -3,7 +3,14 @@ import type { StorybookConfig } from "@storybook/react-vite";
 import { mergeConfig } from "vite";
 
 const config: StorybookConfig = {
-  stories: ["../stories/*.mdx", "../stories/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  // Recursive: stories live in directories mirroring their title.
+  // `stories/_meta` and `stories/constants|utils` hold helpers, not stories,
+  // and are not matched because they contain no `*.stories.*` or `*.mdx`.
+  // @see app/stories/_meta/taxonomy.ts
+  stories: [
+    "../stories/**/*.mdx",
+    "../stories/**/*.stories.@(js|jsx|mjs|ts|tsx)",
+  ],
   core: {
     disableWhatsNewNotifications: true,
   },

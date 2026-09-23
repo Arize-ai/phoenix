@@ -269,9 +269,11 @@ const builtInSkillIconItems = [
 }));
 
 const meta = {
-  title: "Agent/ToolPart",
+  // Distinct from `Agent/ToolPart` (ToolPart.stories.tsx), which documents the
+  // component itself. This file is the tool and skill icon set.
+  title: "Agent/ToolAndSkillIcons",
   component: ToolPart,
-  tags: ["!autodocs"],
+  tags: ["!autodocs", "legacy", "unreviewed"],
   args: { part: toolIconItems[0].part, defaultOpen: false },
   decorators: [
     (Story) => (
