@@ -207,6 +207,30 @@ function getSizingStyle(height: number | undefined): CSSProperties | undefined {
     : undefined;
 }
 
+/**
+ * One whole, drawn as a bar split into its parts.
+ *
+ * Answers "how does this quantity divide?" for a single quantity: a span's
+ * tokens into prompt and completion, a message's usage by token type, a
+ * share of a total as a thin bar under a number. It is a building block. It
+ * draws no label, legend or number of its own, so the caller places those
+ * beside it and chooses the colors.
+ *
+ * When the same parts are measured more than one way, tokens and cost, say,
+ * and the point is to compare one measure's split with another's, use
+ * {@link BreakdownBars}, which lines up one of these per measure with a
+ * label and total each and keeps the segments aligned across them.
+ *
+ * - `segments` are the parts, in order; each has a color, and slivers can be
+ *   held to a minimum width so they stay visible.
+ * - `totalValue` is the whole. When the parts add up to less, `showTrack`
+ *   draws the remainder as a track, so the parts read as a share of the
+ *   whole rather than as a short bar.
+ * - `markerValues` put a tick under the bar at a value worth pointing at,
+ *   such as where the prompt ends and the completion begins.
+ * - Height comes from `--segment-chart-height` on an ancestor, so a parent
+ *   sizes every bar it holds at once, or from the `height` prop.
+ */
 export const SegmentChart = ({
   height,
   minimumSegmentPercentage = 0,

@@ -99,12 +99,16 @@ export type BreakdownTableProps = {
 };
 
 /**
- * A legend of the segments as a table: one row per segment, and for each
- * dimension its value, its share of that dimension's total, and a bar of
- * that share drawn under both. The same segment reads across the row, so a
- * cache read's tokens sit beside what those tokens cost.
+ * The legend of a breakdown, as a table: one row per segment, with its
+ * swatch and name, and for each dimension its value, its share of that
+ * dimension's total, and a bar of that share under both. The same segment
+ * reads across the row, so a cache read's tokens sit beside what those
+ * tokens cost.
  *
- * Renders nothing without segments; a whole with no parts has no legend.
+ * It takes the same `segments` and `dimensions` as {@link BreakdownBars}
+ * and is meant to sit under it; the bars show the shape, the table gives
+ * the numbers. Renders nothing without segments; a whole with no parts has
+ * no legend.
  */
 export function BreakdownTable({ segments, dimensions }: BreakdownTableProps) {
   if (segments.length === 0) {

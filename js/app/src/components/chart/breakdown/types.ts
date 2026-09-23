@@ -1,4 +1,12 @@
 /**
+ * A breakdown is one whole measured in several dimensions and split, in
+ * each, into the same segments. Tokens and cost are two dimensions of an
+ * LLM call; its token types are the segments. `BreakdownBars` draws the
+ * dimensions as bars and `BreakdownTable` lists the segments with their
+ * values in each.
+ */
+
+/**
  * One part of a whole, shared by every dimension the whole is measured in.
  * A token type is a segment: it has a count of tokens and a cost, and keeps
  * one color across both.

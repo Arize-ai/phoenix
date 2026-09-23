@@ -3,9 +3,19 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { SegmentChart, SegmentChartSkeleton } from "@phoenix/components/chart";
 
 /**
- * A single bar split proportionally into colored segments. The building
- * block of every breakdown bar in the app: the token and cost tooltips, the
- * chat token usage, and the breakdown primitives.
+ * One whole, drawn as a bar split into its parts. It answers "how does this
+ * quantity divide?" for a single quantity, and nothing more: no label,
+ * legend or number is drawn, so the surface that uses it places those
+ * beside it. It is the building block under the chat token usage, the
+ * breakdown bars and the share bars in the breakdown table.
+ *
+ * **SegmentChart or BreakdownBars?**
+ *
+ * | You have | Use |
+ * |---|---|
+ * | One quantity and its parts: a span's tokens as prompt and completion | `SegmentChart`, with your own label |
+ * | The same parts measured several ways: tokens *and* cost by token type | `BreakdownBars`, with `BreakdownTable` under it |
+ * | A share of a total as a thin bar under a number | `SegmentChart` with `showTrack` |
  */
 const meta = {
   title: "Charts/SegmentChart",

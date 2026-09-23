@@ -17,13 +17,20 @@ import { formatInt } from "@phoenix/utils/numberFormatUtils";
 const formatGigabytes = (bytes: number) => `${(bytes / 1e9).toFixed(1)} GB`;
 
 /**
- * A whole split into segments and measured in one or more dimensions. The
- * bars show each dimension's split at a glance; the table gives each
- * segment's value and share in every dimension. Both draw the same
+ * A breakdown is one whole measured in several dimensions and split, in
+ * each, into the same segments. `BreakdownBars` draws one bar per
+ * dimension, so a segment's share can be read down the bars and compared
+ * from one measure to the next. `BreakdownTable` is its legend: one row per
+ * segment with its value and share in every dimension. Both draw the same
  * segments in the same colors, so a segment can be followed from bar to bar
  * and from bar to row.
  *
- * The token and cost tooltips compose these with a heading; this story
+ * Each bar is a `SegmentChart`. Reach for a `SegmentChart` on its own when
+ * there is one quantity to divide and nothing to compare it against; reach
+ * for the breakdown when there are two or more dimensions and the point is
+ * how the split differs between them.
+ *
+ * The token and cost tooltips compose these under a heading. This story
  * breaks a dataset's attachments down by kind, to show the primitives are
  * indifferent to what is being measured.
  */

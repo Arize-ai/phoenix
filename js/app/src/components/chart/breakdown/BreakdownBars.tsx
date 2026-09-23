@@ -45,10 +45,20 @@ export type BreakdownBarsProps = {
 };
 
 /**
- * One labeled bar per dimension, each split into the same segments in the
- * same colors, with the dimension's total at its end. Lined up this way, the
- * bars show how a segment's share shifts from one dimension to the next:
- * cache reads that are most of the tokens but little of the cost.
+ * The same parts measured several ways: one bar per dimension, every bar
+ * split into the same segments in the same colors, each with its label and
+ * total.
+ *
+ * Where a {@link SegmentChart} answers "how does this whole divide?",
+ * BreakdownBars answers "how does the division change from one measure to
+ * the next?" The bars are stacked so a segment can be read down them: cache
+ * reads that are most of the tokens but little of the cost. Pair it with
+ * {@link BreakdownTable} beneath, which is its legend and gives the numbers
+ * behind each segment.
+ *
+ * Use it when there are two or more dimensions to compare. A single
+ * dimension does not need it: one SegmentChart beside a label of the
+ * caller's own says the same thing with less.
  *
  * A dimension none of whose segments carry a value is drawn as one neutral
  * bar of its total. Every bar keeps its marker lane, with or without a
