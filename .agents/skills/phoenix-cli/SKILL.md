@@ -309,6 +309,23 @@ px span add-note <span-id> --text "verified by agent" --identifier "<coding-anno
 px span-annotations delete --identifier "<coding-annotation-id>" --all -y           # nuke every annotation tied to this coding annotation identifier
 ```
 
+`span list` pages the project in ingestion order, newest row first, so `--limit`
+keeps the most recently received spans rather than the ones with the latest
+`start_time`. The two orders agree for a live app and diverge when spans arrive
+late — a backfill, a replayed export, a long-running root span flushed after its
+children. To order by when spans actually started, call the REST route directly
+with `sort=start_time` (`order` is `asc` or `desc`, default `desc`; requires a
+Phoenix server >= 20.16.0):
+
+```bash
+curl -s -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  "$PHOENIX_ENDPOINT/v1/projects/my-project/spans?sort=start_time&order=desc&limit=20" \
+  | jq '.data[] | {name, start_time}'
+```
+
+A `next_cursor` belongs to the sort that produced it: keep `sort` and `order`
+identical on every page of a walk.
+
 ### Span JSON shape
 
 ```
