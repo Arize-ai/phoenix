@@ -63,7 +63,9 @@ class LanguageDetectionEvaluator(ClassificationEvaluator):
 
     class LanguageDetectionInputSchema(BaseModel):
         session: str = Field(
-            description="User and assistant turns, in chronological order. Do not include tool results."
+            description=(
+                "User and assistant turns, in chronological order. Do not include tool results."
+            )
         )
 
     def __init__(
