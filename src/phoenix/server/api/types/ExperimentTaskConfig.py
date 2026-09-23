@@ -37,6 +37,10 @@ from phoenix.server.api.types.Evaluator import (
     EvaluatorKind,
     _to_gql_output_config,
 )
+from phoenix.server.api.types.EvaluatorTaskDefinition import (
+    EvaluatorTaskDefinition,
+    to_gql_evaluator_task_definition,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.PromptInvocationParameters import (
     PromptInvocationParameters,
@@ -278,7 +282,7 @@ class EvaluatorTaskConfig(Node):
     evaluator_kind: EvaluatorKind
     input_mapping: EvaluatorInputMapping
     output_configs: list[BuiltInEvaluatorOutputConfig]
-    definition: JSON = strawberry.field(
+    definition: EvaluatorTaskDefinition = strawberry.field(
         description="The evaluator as it was run: an inline LLM judge prompt, inline code, "
         "or a stored evaluator's id. Use to rehydrate the playground.",
     )
@@ -302,7 +306,7 @@ class EvaluatorTaskConfig(Node):
                 )
                 for config in obj.output_configs
             ],
-            definition=JSON(obj.definition.model_dump(mode="json")),
+            definition=to_gql_evaluator_task_definition(obj.definition, obj.id),
         )
 
 
