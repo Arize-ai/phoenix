@@ -9,7 +9,6 @@ export * from "./createFaithfulnessEvaluator";
 export * from "./createHallucinationEvaluator";
 export * from "./createLanguageDetectionEvaluator";
 export * from "./createPiiDetectionEvaluator";
-export * from "./createQACorrectnessEvaluator";
 export * from "./createRefusalEvaluator";
 export * from "./createRetrievalRelevanceEvaluator";
 export * from "./createToolInvocationEvaluator";

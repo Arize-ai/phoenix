@@ -9,7 +9,6 @@ from .language_detection import LanguageDetectionEvaluator
 from .matches_regex import MatchesRegex
 from .pii_detection import PiiDetectionEvaluator
 from .precision_recall import PrecisionRecallFScore
-from .qa_correctness import QACorrectnessEvaluator
 from .refusal import RefusalEvaluator
 from .retrieval_relevance import RetrievalRelevanceEvaluator
 from .tool_invocation import ToolInvocationEvaluator
@@ -30,7 +29,6 @@ __all__ = [
     "MatchesRegex",
     "PiiDetectionEvaluator",
     "PrecisionRecallFScore",
-    "QACorrectnessEvaluator",
     "RefusalEvaluator",
     "RetrievalRelevanceEvaluator",
     "ToolInvocationEvaluator",

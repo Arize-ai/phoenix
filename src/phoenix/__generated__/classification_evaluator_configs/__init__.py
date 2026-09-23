@@ -25,9 +25,6 @@ from ._models import ClassificationEvaluatorConfig, PromptMessage
 from ._pii_detection_classification_evaluator_config import (
     PII_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
-from ._qa_correctness_classification_evaluator_config import (
-    QA_CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG,
-)
 from ._refusal_classification_evaluator_config import REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG
 from ._retrieval_relevance_classification_evaluator_config import (
     RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG,
@@ -57,7 +54,6 @@ __all__ = [
     "HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG",
     "LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG",
     "PII_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG",
-    "QA_CORRECTNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG",
     "RETRIEVAL_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG",
