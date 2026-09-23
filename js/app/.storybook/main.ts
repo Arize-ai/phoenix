@@ -14,11 +14,10 @@ const config: StorybookConfig = {
   core: {
     disableWhatsNewNotifications: true,
   },
-  addons: [
-    "@storybook/addon-docs",
-    "@storybook/addon-designs",
-    "@storybook/addon-vitest",
-  ],
+  // `@storybook/addon-vitest` is installed but deliberately not registered:
+  // no Vitest project runs stories (vite.config.mts has no `storybookTest`
+  // plugin), so its "Run tests" sidebar widget had nothing to run.
+  addons: ["@storybook/addon-docs", "@storybook/addon-designs"],
   framework: {
     name: "@storybook/react-vite",
     options: {},
