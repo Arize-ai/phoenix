@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-prepare harbor-plugin-e2e harbor-run harbor-exec harbor-view \
+	harbor-prepare harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -112,7 +112,6 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)harbor-prepare$(NC)             - Build the Phoenix wheel, produce each fixture, prepare each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
-	@echo -e "  $(YELLOW)harbor-exec$(NC)              - Compile one task per PXI example with harbor exec and run them with Reward Kit verifiers (HARBOR_EXEC_CONFIG=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
@@ -531,7 +530,8 @@ endef
 
 harbor-prepare: ## Build the Phoenix wheel, produce each fixture, prepare each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Preparing Harbor tasks...$(NC)"
-	./evals/harbor/scripts/prepare_harbor_environments.sh
+	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+		./evals/harbor/scripts/prepare_harbor_environments.sh
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
 	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
@@ -545,15 +545,6 @@ harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HA
 	$(check-harbor-prepared)
 	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
-
-# harbor exec compiles the PXI examples into tasks and runs them in one command; see
-# evals/harbor/pxi/exec_config.py. Write the config with evals/harbor/pxi/prepare_exec.sh.
-HARBOR_EXEC_CONFIG ?= evals/harbor/.cache/pxi-exec.yaml
-
-harbor-exec: ## Compile one task per PXI example with harbor exec and run them with Reward Kit verifiers (HARBOR_EXEC_CONFIG=...)
-	@test -f $(HARBOR_EXEC_CONFIG) || { echo "Missing $(HARBOR_EXEC_CONFIG); run evals/harbor/pxi/prepare_exec.sh first" >&2; exit 1; }
-	@echo -e "$(CYAN)Running harbor exec with $(HARBOR_EXEC_CONFIG)...$(NC)"
-	PYTHONPATH=. $(HARBOR) exec --config $(HARBOR_EXEC_CONFIG)
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs

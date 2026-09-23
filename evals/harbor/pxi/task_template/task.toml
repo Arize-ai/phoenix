@@ -1,5 +1,6 @@
-# Template for the tasks `harbor exec` compiles from the PXI examples. The compiler copies
-# this file into every task and sets `artifacts`; the example travels in `instruction.md`.
+# Template for the tasks compile_tasks.py builds from the PXI examples with Harbor's
+# compiler. Every task starts from this file; compile_tasks.py then sets the artifacts and
+# the example's name and metadata, and the example itself travels in `instruction.md`.
 schema_version = "1.3"
 
 [task]

@@ -215,6 +215,7 @@ def test_evaluator_output_reads_dynamic_tool_parts() -> None:
 
 
 def test_generate_writes_one_task_per_example(tmp_path: Path) -> None:
+    pytest.importorskip("harbor", reason="the compiler comes from Harbor, which needs Python 3.12")
     written = generate(
         out_dir=tmp_path,
         datasets=["in_app_links"],
