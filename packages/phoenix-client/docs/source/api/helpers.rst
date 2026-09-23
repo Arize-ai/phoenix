@@ -25,10 +25,10 @@ Anthropic
    :members:
    :show-inheritance:
 
-Google Generative AI
-~~~~~~~~~~~~~~~~~~~~
+Google Gen AI
+~~~~~~~~~~~~~
 
-.. automodule:: client.helpers.sdk.google_generativeai
+.. automodule:: client.helpers.sdk.google_genai
    :members:
    :show-inheritance:
 

@@ -7,6 +7,7 @@ import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
+from starlette.types import ASGIApp
 
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
@@ -19,12 +20,19 @@ from phoenix.db.facilitator import (
     _ensure_model_costs,
     _ensure_oauth2_clients,
 )
+from phoenix.db.types.token_price_customization import (
+    ThresholdBasedTokenPriceCustomization,
+)
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
 from phoenix.server.types import DbSessionFactory
+
+# These tests exercise seeding from an empty database, so they opt out of the
+# seeded template every other test's database comes from.
+pytestmark = pytest.mark.pristine_db
 
 
 class _MockWelcomeEmailSender:
@@ -680,6 +688,101 @@ class TestEnsureModelCosts:
         assert all_deleted_names == expected_all_deleted, (
             f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"
         )
+
+    async def test_syncs_token_price_customizations_from_manifest(
+        self,
+        _patch_manifest: Path,
+        db: DbSessionFactory,
+    ) -> None:
+        """Tier-rate customizations in the manifest must land in the database,
+        propagate on change, and clear when removed upstream."""
+        await _ensure_enums(db)
+
+        customization = {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000006,
+        }
+        manifest: list[dict[str, Any]] = [
+            {
+                "name": "tiered-model",
+                "name_pattern": r"(?i)^(tiered-model)$",
+                "token_prices": [
+                    {
+                        "base_rate": 0.000003,
+                        "is_prompt": True,
+                        "token_type": "input",
+                        "customization": customization,
+                    },
+                    {
+                        "base_rate": 0.000015,
+                        "is_prompt": False,
+                        "token_type": "output",
+                    },
+                ],
+            }
+        ]
+        self._update_manifest(_patch_manifest, manifest)
+        await _ensure_model_costs(db)
+
+        async def _get_input_price(db: DbSessionFactory) -> models.TokenPrice:
+            model = (await self._get_models(db, is_built_in=True))["tiered-model"]
+            return next(tp for tp in model.token_prices if tp.token_type == "input")
+
+        input_price = await _get_input_price(db)
+        assert isinstance(input_price.customization, ThresholdBasedTokenPriceCustomization)
+        assert input_price.customization.model_dump() == customization
+        model = (await self._get_models(db, is_built_in=True))["tiered-model"]
+        output_price = next(tp for tp in model.token_prices if tp.token_type == "output")
+        assert output_price.customization is None
+
+        # A changed tier rate propagates on re-sync.
+        manifest[0]["token_prices"][0]["customization"] = {
+            **customization,
+            "new_rate": 0.000012,
+        }
+        self._update_manifest(_patch_manifest, manifest)
+        await _ensure_model_costs(db)
+        input_price = await _get_input_price(db)
+        assert isinstance(input_price.customization, ThresholdBasedTokenPriceCustomization)
+        assert input_price.customization.new_rate == 0.000012
+
+        # Removing the customization upstream clears the stored one.
+        del manifest[0]["token_prices"][0]["customization"]
+        self._update_manifest(_patch_manifest, manifest)
+        await _ensure_model_costs(db)
+        input_price = await _get_input_price(db)
+        assert input_price.customization is None
+
+
+async def _count_built_in_models(db: DbSessionFactory) -> int:
+    async with db() as session:
+        count = await session.scalar(
+            select(sa.func.count())
+            .select_from(models.GenerativeModel)
+            .where(models.GenerativeModel.is_built_in.is_(True))
+        )
+    return int(count or 0)
+
+
+async def test_unit_test_apps_skip_model_cost_seeding(
+    db: DbSessionFactory,
+    asgi_app: ASGIApp,
+) -> None:
+    """The suite-wide stub is in force: app startup leaves the built-in model
+    table empty."""
+    assert await _count_built_in_models(db) == 0
+
+
+@pytest.mark.seeded_model_costs
+async def test_marker_seeds_model_costs_during_startup(
+    db: DbSessionFactory,
+    asgi_app: ASGIApp,
+) -> None:
+    """Opting in leaves the real step in the Facilitator, so app startup seeds
+    the manifest's built-in models."""
+    assert await _count_built_in_models(db) > 0
 
 
 class TestEnsureBuiltinEvaluators:

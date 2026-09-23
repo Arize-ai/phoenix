@@ -35,6 +35,13 @@ def recall_at_k(retrieved_ids, relevant_ids, k=5):
     return len(retrieved_set & relevant_set) / len(relevant_set)
 ```
 
+**No relevance labels?** IR metrics need them. When you don't have them, judge
+the retrieval step with an LLM instead: `RetrievalRelevanceEvaluator`
+(`createRetrievalRelevanceEvaluator` in TypeScript) scores the retrieved
+information holistically against the request, and is source-agnostic — it works
+for tool calls, MCP servers, web search, and database queries, not just vector
+search. See [evaluators-pre-built](evaluators-pre-built.md).
+
 ## Creating Retrieval Test Data
 
 Generate query-document pairs synthetically:

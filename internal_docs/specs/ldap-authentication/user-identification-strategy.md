@@ -147,6 +147,7 @@ from hashlib import md5
 
 NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"  # PUA character + "None" indicator
 
+
 def generate_null_email_marker(unique_id: str) -> str:
     """Generate a deterministic placeholder from unique_id."""
     normalized = unique_id.lower()  # Case-insensitive (UUIDs are case-insensitive)
@@ -168,6 +169,7 @@ from hashlib import md5
 
 NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"
 
+
 def validate_ldap_config():
     """Validate LDAP configuration at startup."""
     if not settings.PHOENIX_LDAP_ATTR_EMAIL and not settings.PHOENIX_LDAP_ATTR_UNIQUE_ID:
@@ -176,14 +178,16 @@ def validate_ldap_config():
             "Placeholder emails require unique_id to identify returning users."
         )
 
+
 def generate_null_email_marker(unique_id: str) -> str:
     """Generate a deterministic placeholder from unique_id."""
     normalized = unique_id.lower()
     return f"{NULL_EMAIL_MARKER_PREFIX}{md5(normalized.encode()).hexdigest()}"
 
+
 def get_email_from_ldap(ldap_user, username, unique_id: str):
     attr_name = settings.PHOENIX_LDAP_ATTR_EMAIL
-    
+
     if attr_name:  # Explicit attribute configured
         value = ldap_user.get(attr_name)
         if not value:
@@ -261,9 +265,11 @@ NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"  # PUA character + "None" indic
 ```python
 NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"
 
+
 def is_null_email_marker(email: str) -> bool:
     """Check if email is a placeholder (not from LDAP mail attribute)."""
     return email.startswith(NULL_EMAIL_MARKER_PREFIX)
+
 
 def get_display_identifier(user) -> str:
     """Return appropriate display value - email if real, username if placeholder."""
@@ -449,6 +455,7 @@ If your organization uses non-standard unique ID attributes, use **Simple Mode**
 # - Data3 (2 bytes): little-endian
 # - Data4 (8 bytes): big-endian
 import uuid
+
 unique_id = str(uuid.UUID(bytes_le=raw_bytes))  # e.g., "550e8400-e29b-41d4-a716-446655440000"
 ```
 

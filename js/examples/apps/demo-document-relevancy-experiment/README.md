@@ -7,7 +7,7 @@ This is a demo application that demonstrates how to run experiments and evaluati
 The demo consists of two main files:
 
 - `app.ts`: Contains a space knowledge application that retrieves relevant context from a knowledge base using OpenAI
-- `experiment.ts`: Sets up and runs an experiment that evaluates the document relevancy of the retrieved context
+- `experiment.ts`: Sets up and runs an experiment that evaluates the relevance of the retrieved context
 
 ## Required Packages
 
@@ -25,7 +25,8 @@ npm install dotenv openai @arizeai/openinference-instrumentation-openai @ai-sdk/
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
-PHOENIX_HOST=https://app.phoenix.arize.com/s/your-space
+PHOENIX_ENDPOINT=http://localhost:6006
+# Only needed if auth is enabled on your Phoenix instance
 PHOENIX_API_KEY=your-phoenix-api-key
 ```
 
@@ -46,7 +47,7 @@ npx tsx experiment.ts
 2. **experiment.ts**:
    - Creates a dataset with space-related questions
    - Runs the `spaceKnowledgeApplication` function for each question in the dataset
-   - Uses Phoenix Evals to evaluate the retrieved context using a document relevancy evaluator
-   - Sends the experiment results to Phoenix Cloud for analysis
+   - Uses Phoenix Evals to evaluate the retrieved context using the Retrieval Relevance evaluator
+   - Sends the experiment results to Phoenix for analysis
 
-The experiment results will be available in your Phoenix Cloud account, where you can analyze the performance of your application and view evaluation metrics.
+The experiment results will be available in Phoenix, where you can analyze the performance of your application and view evaluation metrics.

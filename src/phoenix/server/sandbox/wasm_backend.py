@@ -44,6 +44,7 @@ from .types import (
     NoCredentials,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     WASMConfig,
     WASMDeployment,
 )
@@ -320,7 +321,9 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
         credentials: NoCredentials,
         deployment: WASMDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
+        del runtime
         return WASMBackend()
 
     @staticmethod

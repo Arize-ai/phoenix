@@ -1,0 +1,142 @@
+name: phoenix-sqlean upstream pins
+
+# Opens a draft PR when SQLite or sqlean ships a release newer than the pins in
+# packages/phoenix-sqlean/Makefile. No dependency bot can see those pins:
+# Dependabot has no custom-regex manager, and SQLite's packed version maps to no
+# standard versioning scheme.
+#
+# No model runs here -- the bump is fully mechanical, so network access stays in
+# reviewable `run:` steps. Judgment calls (pinning past a tag, regenerating the
+# MSVC patch) are left to the reviewer as a checklist in the PR body.
+#
+# Deliberately builds and tests nothing: opening the PR runs
+# phoenix-sqlean-ci.yml, which repeats the same tripwires across every
+# OS/arch/interpreter pair -- including the Windows legs, the only place the
+# MSVC patch is exercised. Verifying here would be a strict subset of that, on
+# the one platform where the likeliest failure cannot reproduce.
+
+on:
+  schedule:
+    - cron: "0 14 * * 1"  # Mondays 14:00 UTC. SQLite ships a few times a year.
+  workflow_dispatch:
+
+concurrency:
+  group: phoenix-sqlean-upstream-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: Check ${{ matrix.component }} pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [sqlite, sqlean]
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # One HTTP request or one ls-remote, no downloads -- everything below is
+      # gated on it, so the common "already current" run is fast.
+      - name: Detect newer release
+        id: check
+        working-directory: packages/phoenix-sqlean
+        run: ./scripts/check-upstream.sh ${{ matrix.component }}
+
+      - name: Check for an existing open PR
+        if: steps.check.outputs.outdated == 'true'
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          TITLE: ${{ steps.check.outputs.title }}
+        run: |
+          set -euo pipefail
+          count=$(gh pr list --search "$TITLE in:title" --state open --json number --jq 'length')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
+            echo "A PR for this bump is already open; skipping."
+          fi
+
+      - name: Rewrite the pins
+        if: steps.check.outputs.outdated == 'true' && steps.existing.outputs.count == '0'
+        working-directory: packages/phoenix-sqlean
+        run: |
+          set -euo pipefail
+          mkdir -p ../../.scratch
+          ./scripts/check-upstream.sh ${{ matrix.component }} --apply \
+            | tee ../../.scratch/pr-body.md
+
+      - name: Commit and open pull request
+        if: steps.check.outputs.outdated == 'true' && steps.existing.outputs.count == '0'
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          BRANCH: ${{ steps.check.outputs.branch }}
+          TITLE: ${{ steps.check.outputs.title }}
+        run: |
+          set -euo pipefail
+          # Explicit paths: only pin files, never a fetched amalgamation.
+          git add packages/phoenix-sqlean/Makefile \
+                  packages/phoenix-sqlean/setup.py \
+                  packages/phoenix-sqlean/THIRD_PARTY_LICENSES
+          if git diff --cached --quiet; then
+            echo "No pin changes staged — exiting cleanly."
+            exit 0
+          fi
+
+          # Always a draft: every bump needs a human on the checklist above,
+          # whether or not it builds.
+          {
+            echo
+            echo "> [!NOTE]"
+            echo "> **Opened as a draft.** Verification happens on this PR:"
+            echo "> \`phoenix-sqlean-ci.yml\` runs the source-prep tripwires and then"
+            echo "> builds and tests every OS/arch/interpreter pair \`publish.yaml\`"
+            echo "> ships a wheel for — including the Windows legs, the only place"
+            echo "> \`src/sqlean-time-msvc.patch\` is ever exercised."
+            echo ">"
+            echo "> Mark ready once those are green and the checklist above is settled."
+            echo ">"
+            echo "> Opened by run"
+            echo "> $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+          } >> .scratch/pr-body.md
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git commit -m "$TITLE"
+          git push -u origin "$BRANCH"
+          gh pr create --draft \
+            --base main \
+            --head "$BRANCH" \
+            --title "$TITLE" \
+            --body-file .scratch/pr-body.md
+
+  # Failure here means the bump could not be *computed* -- upstream changed
+  # shape, so the script exited before writing and there is no PR to carry the
+  # signal, and no author watching a scheduled run. A bump that computes but
+  # does not build is not a failure: its draft PR is its own notification.
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [bump]
+    # Not 'cancelled': cancel-in-progress means a manual dispatch cancels an
+    # in-flight scheduled run, which is routine.
+    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    steps:
+      - name: Notify failure
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: phoenix-sqlean upstream pin check failed — could not compute a bump, so no PR was opened\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }

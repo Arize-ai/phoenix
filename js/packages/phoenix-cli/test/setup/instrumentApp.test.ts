@@ -98,6 +98,7 @@ describe("instrumentApp with --agent", () => {
     ]);
     expect(launched[0]?.args.at(-1)).toContain('project name "my-app"');
     expect(launched[0]?.env).toEqual({
+      PHOENIX_ENDPOINT: "http://localhost:6006",
       PHOENIX_COLLECTOR_ENDPOINT: "http://localhost:6006",
       PHOENIX_PROJECT_NAME: "my-app",
       PHOENIX_API_KEY: "sk-test",

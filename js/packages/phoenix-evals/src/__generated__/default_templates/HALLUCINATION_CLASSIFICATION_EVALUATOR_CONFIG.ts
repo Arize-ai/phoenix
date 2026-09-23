@@ -4,46 +4,77 @@ import type { ClassificationEvaluatorConfig } from "../types";
 
 export const HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
   name: "hallucination",
-  description: "A specialized evaluator for detecting hallucinations in grounded LLM responses.",
+  description: "Detect whether an assistant's response contains hallucinations — claims not supported by the input it came from (prior turns, tool calls and results, and any content read, retrieved, or provided).",
   optimizationDirection: "MINIMIZE",
   template: [
     {
       role: "user",
       content: `
-In this task, you will be presented with a query, some context and a response. The response is generated to the question based on the context. The response may contain false information. You must use the context to determine if the response to the question contains false information, if the response is hallucinated. 
+You are an expert evaluator labeling whether an assistant's response is grounded in the input it came from.
 
-Your objective is to determine whether the response text contains factual information and is factual relative to the context. An 'hallucinated' response refers to a response that is not based on the context or assumes information that is not available in the context. 
+The input is the complete record of what the assistant had available before it responded: the user's request, any earlier turns, any tool calls and the results they returned, and any content that was read, retrieved, or provided. It may appear as plain text, as structured data, or as a rendered transcript. Whatever form it takes, treat it as the full record of what the assistant knew and did, and as the only source of truth for claims about this situation. You are judging whether the response is GROUNDED in that record, not whether it is factually true about the world. The output is the response you are judging.
 
-Your response should be a single word: either 'factual' or 'hallucinated', and it should not include any other text or characters. 
+<rubric>
 
-'hallucinated' indicates that the response provides factually inaccurate information to the query based on the context. 
+HALLUCINATED - The response contains at least one claim that the input does not support. This includes:
 
-'factual' indicates that the response to the question is correct relative to the context, and does not contain made up information. 
+- Contradiction: the claim conflicts with something in the input.
+- Invented specifics: names, numbers, prices, dates, quotes, identifiers, entities, or events that do not appear in the input and do not follow from it.
+- Fabricated tool results: the response reports what a tool returned, but the input shows no such result — or shows a different one.
+- Unsupported findings: the response presents findings, file contents, search results, sources, or a review of material that the input never shows being read, searched, or returned.
+- Fabricated completed actions: the response states that an action has already been taken when the input shows no record of it happening.
+- Misattribution: the response attributes a claim, source, or action to the input that never appears there.
 
-Please read the query and context carefully before determining your response.
+GROUNDED - Every claim in the response is supported. The response:
+
+- Restates or summarizes what is in the input, accurately.
+- Draws conclusions that follow necessarily from the input.
+- Uses only uncontroversial, widely-known general knowledge — common facts, definitions, arithmetic, units of time or measure — that does not contradict the input. This is the one kind of claim that need not appear in the input (see rule 4).
+- Declines to answer, reports a failure, expresses uncertainty, or asks a clarifying question without asserting unsupported specifics.
+
+</rubric>
+
+Apply these rules when deciding:
+
+1. Absence of evidence is enough. You do not need to find a contradiction. If the response asserts situation-specific facts that simply do not appear anywhere in the input, that is a hallucination — however plausible, fluent, or well-organized the response is. A confident report is not evidence that the work behind it was done.
+
+2. Not everything in the input carries the same weight. User messages, tool results, and content that was read or provided are authoritative evidence. The assistant's own earlier statements are part of the record but are not independent evidence for a claim.
+
+3. A failed tool is not a source. An error, timeout, empty result, or "not found" is evidence that the lookup failed. It is not evidence about the thing being looked up. A response that supplies the missing value anyway is hallucinating.
+
+4. Apply the absence-of-evidence rule only to situation-specific claims. First distinguish claims about this particular situation — its entities, values, dates, events, sources, and what was returned or done — from ordinary general knowledge. Situation-specific claims must restate the input or follow from it necessarily; they are not supported if deriving them requires adding a typical value, default, cause, external lookup, or plausible completion. Ordinary general knowledge — definitions, arithmetic, common units and conventions, and widely known facts — is outside the grounding check and cannot by itself make a response hallucinated, as long as it does not contradict the input.
+
+5. One unsupported claim is enough. If any claim in the response fails these tests, the response is hallucinated. Quote the specific claim in your explanation.
+
+Out of scope — do not label a response hallucinated for any of these:
+
+- Being unhelpful, incomplete, poorly written, off-topic, or badly formatted.
+- Failing to do everything the user asked. Whether the assistant covered the full request is separate from whether what it said is supported.
+- Stating an intention to do something in the future. "I'll open a ticket" is a plan, not a claim about what happened. Only claims that an action is already complete are checkable here.
+- Content the input shows was shortened or omitted. Do not treat the absence of a claim from an explicitly elided region as evidence that the claim was fabricated. If the omitted region could plausibly contain the missing support, default to grounded. Otherwise, judge the claim against the visible input normally.
+
+When you are genuinely unsure whether a claim is supported, label the response grounded.
 
 <data>
 
-<query>
+<input>
 {{input}}
-</query>
+</input>
 
-<context>
-{{context}}
-</context>
-
-<response>
+<output>
 {{output}}
-</response>
+</output>
 
 </data>
 
-Is the response above factual or hallucinated based on the query and context?
+Work through the claims in the output one at a time, checking each against the input, before you decide.
+
+Is the output above grounded or hallucinated?
 `,
     },
   ],
   choices: {
   "hallucinated": 1,
-  "factual": 0
+  "grounded": 0
 },
 };

@@ -23,6 +23,25 @@ describe("Phoenix client configuration", () => {
       });
     });
 
+    it("should parse PHOENIX_ENDPOINT from environment", () => {
+      process.env.PHOENIX_ENDPOINT = "https://api-host.com";
+      const options = defaultGetEnvironmentOptions();
+      expect(options).toEqual({
+        baseUrl: "https://api-host.com",
+      });
+    });
+
+    it("should infer the base URL from PHOENIX_COLLECTOR_ENDPOINT", () => {
+      // The full precedence matrix is covered in @arizeai/phoenix-config;
+      // this and the test above only prove the client is wired to the
+      // resolver.
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "https://collector-host.com";
+      const options = defaultGetEnvironmentOptions();
+      expect(options).toEqual({
+        baseUrl: "https://collector-host.com",
+      });
+    });
+
     it("should parse PHOENIX_CLIENT_HEADERS from environment", () => {
       process.env.PHOENIX_CLIENT_HEADERS = JSON.stringify({
         "X-Custom-Header": "test-value",

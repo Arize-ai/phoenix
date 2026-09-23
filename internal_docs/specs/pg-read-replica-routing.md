@@ -232,7 +232,9 @@ class DbSessionFactory:
         self,
         db: Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
-        read_db: Optional[Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]] = None,
+        read_db: Optional[
+            Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]
+        ] = None,
     ):
         self._db = db
         self._read_db = read_db or db

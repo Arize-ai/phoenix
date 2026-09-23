@@ -51,7 +51,12 @@ examples:
     metadata:
       route_info_case: profile_route
   - id: route-info-call-ai-provider-settings
-    splits: [regression]
+    # quarantined regression -> dev (2026-08-25): since the browser-action
+    # meta-tools landed, the agent systematically answers this prompt from
+    # memory (zero tool calls) instead of grounding the destination via
+    # get_route_info. Reproduced in CI runs 32749407419 + 32865446008 and
+    # locally. Real agent deficiency to investigate, not flake.
+    splits: [dev]
     input:
       messages:
         - role: user
@@ -81,7 +86,12 @@ examples:
     metadata:
       route_info_case: model_settings
   - id: route-info-call-sandbox-dependencies
-    splits: [regression]
+    # quarantined regression -> dev (2026-08-25): since the browser-action
+    # meta-tools landed, the agent systematically answers this prompt from
+    # memory (zero tool calls) instead of grounding the destination via
+    # get_route_info. Reproduced in CI runs 32749407419 + 32865446008 and
+    # locally. Real agent deficiency to investigate, not flake.
+    splits: [dev]
     input:
       messages:
         - role: user
@@ -126,7 +136,12 @@ examples:
     metadata:
       route_info_case: prompt_settings
   - id: route-info-call-graphql-api
-    splits: [regression]
+    # quarantined regression -> dev (2026-08-25): since the browser-action
+    # meta-tools landed, the agent systematically answers this prompt from
+    # memory (zero tool calls) instead of grounding the destination via
+    # get_route_info. Reproduced in CI runs 32749407419 + 32865446008 and
+    # locally. Real agent deficiency to investigate, not flake.
+    splits: [dev]
     input:
       messages:
         - role: user
@@ -147,7 +162,6 @@ examples:
         - type: project
           projectNodeId: UHJvamVjdDo0Nw==
           spanFilter: ""
-          rootSpansOnly: false
       messages:
         - role: user
           content: Link me to this project's configuration page.

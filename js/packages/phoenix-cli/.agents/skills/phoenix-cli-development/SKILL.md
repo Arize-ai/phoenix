@@ -96,6 +96,7 @@ Defined in `src/exitCodes.ts`. Commands MUST use the named constants and MUST NO
 | 3    | `INVALID_ARGUMENT` | Bad CLI flags, missing required args, invalid input |
 | 4    | `AUTH_REQUIRED`    | Not authenticated or insufficient permissions       |
 | 5    | `NETWORK_ERROR`    | Failed to connect to server or network request      |
+| 6    | `NOT_VERIFIED`     | Ran, but could not verify the result it produces    |
 
 ### Interactive default with non-interactive mode
 
@@ -230,7 +231,7 @@ Commands that prompt for input or confirmation MUST support non-interactive mode
 The CLI MUST resolve configuration from multiple sources. Use `resolveConfig()` from `src/config.ts` for this merge logic. Priority:
 
 1. **CLI flags** (highest priority) — `--endpoint`, `--api-key`, `--project`
-2. **Environment variables** — `PHOENIX_HOST`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT` (alias: `PHOENIX_PROJECT_NAME`)
+2. **Environment variables** — `PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT` (alias: `PHOENIX_PROJECT_NAME`)
 3. **Defaults** — `http://localhost:6006` for endpoint
 
 Command handlers MUST NOT read environment variables directly.

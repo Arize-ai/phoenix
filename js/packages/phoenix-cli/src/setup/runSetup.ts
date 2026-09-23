@@ -34,9 +34,10 @@ import { instrumentApp, type InstrumentationLane } from "./steps/instrumentApp";
 import type { DocsMcpResult } from "./steps/offerDocsMcp";
 import { offerPxProfile } from "./steps/offerPxProfile";
 import {
-  hasSpansInSkewWindow,
+  skewWindowIsClear,
   waitForFirstTrace,
   tracesUrl,
+  type TraceVerification,
 } from "./steps/verifyTraces";
 import { ENV_FILE_NAME, writeEnvFile } from "./steps/writeEnvFile";
 
@@ -53,10 +54,34 @@ export interface SetupReport {
   /** The docs MCP offer, when it was made (configured replaces `docs`). */
   docsMcp?: DocsMcpResult;
   instrumentation?: InstrumentationLane;
-  /** True once the API confirmed a trace arrived after this run started. */
-  tracesVerified?: boolean;
+  /**
+   * How the wait for the first trace ended. Absent on a run that never
+   * instrumented and so had nothing to verify.
+   */
+  verification?: TraceVerification;
   tooling?: ToolingResult;
   tracesUrl: string;
+}
+
+/**
+ * True once the API confirmed a trace arrived after this run started — setup's
+ * definition of done.
+ */
+export function tracesConfirmed(report: SetupReport): boolean {
+  return report.verification === "verified";
+}
+
+/**
+ * True when setup tried to verify data flow and did not get it. The one
+ * outcome that makes a run a failure: a `deferred` wait was the user's call,
+ * and an absent verification means there was nothing to verify.
+ *
+ * Every surface that reports the verdict — the closing line, the headless
+ * summary, the exit code — reads it from here or {@link tracesConfirmed}, so
+ * they cannot drift into disagreeing with each other.
+ */
+export function verificationFailed(report: SetupReport): boolean {
+  return report.verification === "notVerified";
 }
 
 /**
@@ -119,9 +144,28 @@ export async function runSetup(
   );
   // Untitled: the outro below already says it, and closes the rail.
   deps.prompter.note(COPY.OUTRO_BODY);
-  deps.prompter.outro(COPY.OUTRO_TITLE);
+  deps.prompter.outro(outroTitle(report));
 
   return { ...report, tooling };
+}
+
+/**
+ * The closing line, which is the last thing left on screen and so the run's
+ * verdict as the user reads it. It has to follow the verification outcome: the
+ * notes above it are informational either way, and closing on "You're set up."
+ * after an unverified hand-off is a success claim setup did not earn.
+ *
+ * A deferred wait gets the same honest title as a failed one — the user chose
+ * to stop watching, which does not make tracing confirmed working. Only the
+ * exit code distinguishes them, because only that has a caller to mislead.
+ *
+ * A run that never instrumented has nothing to verify and keeps the plain
+ * title — registering is all it was asked to do.
+ */
+function outroTitle(report: SetupReport): string {
+  return report.verification && !tracesConfirmed(report)
+    ? COPY.OUTRO_TITLE_NOT_VERIFIED
+    : COPY.OUTRO_TITLE;
 }
 
 /**
@@ -144,7 +188,7 @@ export async function runInstrument(
   }
   const report = await registerAndInstrument(deps, inputs, { agentDetection });
   if (!inputs.headless) {
-    deps.prompter.outro(COPY.OUTRO_TITLE);
+    deps.prompter.outro(outroTitle(report));
   }
   return report;
 }
@@ -199,7 +243,7 @@ async function registerAndInstrument(
   // Any span already visible inside the clock-skew window predates this run —
   // verification must then require spans strictly after the start time, or a
   // pre-existing trace would falsely verify the hand-off.
-  const hadRecentSpans = await hasSpansInSkewWindow(deps, connection, {
+  const allowClockSkew = await skewWindowIsClear(deps, connection, {
     sinceMs: startedAt,
   });
 
@@ -230,9 +274,9 @@ async function registerAndInstrument(
   // arriving, not the agent's own claim that it finished. It is reported, not
   // thrown on: the connection and hand-off files are real work worth keeping
   // even when no trace showed up.
-  const tracesVerified = await waitForFirstTrace(deps, connection, {
+  const verification = await waitForFirstTrace(deps, connection, {
     sinceMs: startedAt,
-    allowClockSkew: !hadRecentSpans,
+    allowClockSkew,
     headless: inputs.headless,
   });
 
@@ -245,7 +289,7 @@ async function registerAndInstrument(
     files: [...base.files, ...(docsMcp?.files ?? [])],
     gitignored: [...base.gitignored, ...(docs?.gitignoreAppended ?? [])],
     instrumentation,
-    tracesVerified,
+    verification,
   };
 }
 

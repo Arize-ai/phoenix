@@ -5,22 +5,22 @@ Tests for the built-in ClassificationEvaluator subclasses.
 Covers:
 - Default behavior (no change from before)
 - kwargs forwarding (e.g. temperature)
-- HallucinationEvaluator deprecation warning preserved
 """
-
-import warnings
 
 import pytest
 
 from phoenix.evals.llm.prompts import PromptTemplate
+from phoenix.evals.metrics.completeness import CompletenessEvaluator
 from phoenix.evals.metrics.conciseness import ConcisenessEvaluator
 from phoenix.evals.metrics.correctness import CorrectnessEvaluator
 from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
 from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 from phoenix.evals.metrics.language_detection import LanguageDetectionEvaluator
+from phoenix.evals.metrics.pii_detection import PiiDetectionEvaluator
 from phoenix.evals.metrics.qa_correctness import QACorrectnessEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
+from phoenix.evals.metrics.retrieval_relevance import RetrievalRelevanceEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
 from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
 from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
@@ -68,6 +68,20 @@ ALL_EVALUATORS = [
         id="FaithfulnessEvaluator",
     ),
     pytest.param(
+        CompletenessEvaluator,
+        {
+            "conversation": (
+                "User: Reset my password and update billing.\nAssistant: Password reset."
+            ),
+        },
+        id="CompletenessEvaluator",
+    ),
+    pytest.param(
+        RetrievalRelevanceEvaluator,
+        {"input": "Q", "context": "C"},
+        id="RetrievalRelevanceEvaluator",
+    ),
+    pytest.param(
         ConcisenessEvaluator,
         {"input": "Q", "output": "A"},
         id="ConcisenessEvaluator",
@@ -76,6 +90,7 @@ ALL_EVALUATORS = [
         DocumentRelevanceEvaluator,
         {"input": "Q", "document_text": "D"},
         id="DocumentRelevanceEvaluator",
+        marks=pytest.mark.filterwarnings("ignore::DeprecationWarning"),
     ),
     pytest.param(
         RefusalEvaluator,
@@ -108,12 +123,14 @@ ALL_EVALUATORS = [
         id="LanguageDetectionEvaluator",
     ),
     pytest.param(
+        PiiDetectionEvaluator,
+        {"conversation": "User: Reset my account. My email is jane.doe@acme.com"},
+        id="PiiDetectionEvaluator",
+    ),
+    pytest.param(
         HallucinationEvaluator,
-        {"input": "Q", "output": "A", "context": "C"},
+        {"input": "User: Q\nAssistant: A", "output": "A"},
         id="HallucinationEvaluator",
-        marks=pytest.mark.filterwarnings(
-            "ignore:HallucinationEvaluator is deprecated and will be removed in a future version.*:DeprecationWarning"
-        ),
     ),
 ]
 
@@ -172,22 +189,14 @@ class TestKwargsForwarding:
         assert ev.invocation_parameters.get("temperature") == 0.5
 
 
-# ---------------------------------------------------------------------------
-# Tests: HallucinationEvaluator deprecation warning preserved
-# ---------------------------------------------------------------------------
+def test_document_relevance_evaluator_warns_with_migration_guidance() -> None:
+    with pytest.warns(DeprecationWarning) as warning_info:
+        DocumentRelevanceEvaluator(llm=MockLLM())
 
-
-class TestHallucinationDeprecation:
-    def test_deprecation_warning_on_default_init(self):
-        llm = MockLLM()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            HallucinationEvaluator(llm=llm)
-        assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
-
-    def test_deprecation_warning_with_kwargs(self):
-        llm = MockLLM()
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            HallucinationEvaluator(llm=llm, temperature=0.0)
-        assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
+    message = str(warning_info[0].message)
+    assert "RetrievalRelevanceEvaluator" in message
+    assert "document_text" in message
+    assert "context" in message
+    assert "unrelated" in message
+    assert "irrelevant" in message
+    assert "next major release" in message

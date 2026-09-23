@@ -115,7 +115,7 @@ Refusal = invariant (asserted → gates CI); helpfulness + latency = signals (lo
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PHOENIX_COLLECTOR_ENDPOINT` | — | Phoenix server URL |
+| `PHOENIX_ENDPOINT` | — | Phoenix base URL |
 | `PHOENIX_API_KEY` | — | Bearer token |
 | `PHOENIX_CLIENT_HEADERS` | — | Optional JSON headers |
 | `PHOENIX_TEST_TRACKING` | `true` | Set `0`/`false` to run offline (tests execute, nothing uploaded) |
@@ -154,7 +154,7 @@ jobs:
       - run: pip install "arize-phoenix-client[pytest,evals]" pytest
       - name: Run eval suite
         env:
-          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_ENDPOINT: ${{ secrets.PHOENIX_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         run: pytest tests/evals/
 ```

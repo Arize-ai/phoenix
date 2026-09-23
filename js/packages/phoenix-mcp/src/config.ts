@@ -1,10 +1,10 @@
 import {
   DEFAULT_PHOENIX_BASE_URL,
-  ENV_PHOENIX_HOST,
+  ENV_PHOENIX_ENDPOINT,
   type EnvironmentValueSource,
+  getBaseUrlFromEnvironmentWithSource,
   getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
-  getStrFromEnvironmentWithSource,
   type Headers,
   warnIfUsingFileEndpointWithCredentials,
 } from "@arizeai/phoenix-config";
@@ -35,8 +35,11 @@ function loadConfigFromEnvironmentWithSources(): {
   config: PhoenixMcpConfig;
   credentialSource?: EnvironmentValueSource;
   endpointSource?: EnvironmentValueSource;
+  endpointVariable?: string;
 } {
-  const baseUrl = getStrFromEnvironmentWithSource(ENV_PHOENIX_HOST);
+  // PHOENIX_ENDPOINT (canonical for API access) first, inferring from the
+  // trace-export variables when only those are set, then legacy PHOENIX_HOST.
+  const baseUrl = getBaseUrlFromEnvironmentWithSource();
   const {
     apiKey,
     headers,
@@ -53,6 +56,7 @@ function loadConfigFromEnvironmentWithSources(): {
     },
     credentialSource,
     endpointSource: baseUrl.source,
+    endpointVariable: baseUrl.envKey,
   };
 }
 
@@ -89,6 +93,7 @@ export function resolveConfig({
     config: envConfig,
     credentialSource,
     endpointSource,
+    endpointVariable,
   } = loadConfigFromEnvironmentWithSources();
   const commandLineConfig = getStringCommandLineOptions(commandLineOptions);
   const usesFileEndpoint =
@@ -104,7 +109,7 @@ export function resolveConfig({
     warnIfUsingFileEndpointWithCredentials({
       credentialSource: resolvedCredentialSource,
       endpointSource,
-      endpointVariable: ENV_PHOENIX_HOST,
+      endpointVariable: endpointVariable ?? ENV_PHOENIX_ENDPOINT,
     });
   }
 

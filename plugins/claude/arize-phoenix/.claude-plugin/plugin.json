@@ -1,0 +1,31 @@
+{
+  "name": "arize-phoenix",
+  "displayName": "Arize Phoenix",
+  "version": "0.1.0",
+  "description": "Connect to your Phoenix instance to debug, evaluate, and improve LLM applications.",
+  "author": {
+    "name": "Arize AI",
+    "email": "oss@arize.com",
+    "url": "https://arize.com"
+  },
+  "homepage": "https://arize.com/docs/phoenix",
+  "repository": "https://github.com/Arize-ai/phoenix",
+  "license": "Apache-2.0",
+  "keywords": [
+    "phoenix",
+    "arize",
+    "observability",
+    "tracing",
+    "evals",
+    "llm",
+    "mcp"
+  ],
+  "userConfig": {
+    "endpoint": {
+      "type": "string",
+      "title": "Phoenix endpoint",
+      "description": "Base URL of your Phoenix instance, with no trailing slash (e.g. https://phoenix.example.com). The plugin appends /mcp. Leave the default for a local Phoenix.",
+      "default": "http://localhost:6006"
+    }
+  }
+}

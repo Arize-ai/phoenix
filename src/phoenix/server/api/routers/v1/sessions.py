@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
 from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -12,10 +11,11 @@ from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_session
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.session_aggregates import SESSION_ROWID, token_counts_by_session
 from phoenix.server.api.helpers.annotations import get_note_identifier
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -36,6 +36,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ProjectSessionAnnotationInsertEvent, SpanDeleteEvent
+from phoenix.server.session_filters import SessionFilterConditionError, apply_session_filter_to_page
 
 from .annotations import SessionAnnotationData
 from .utils import RequestBody
@@ -99,16 +100,16 @@ class CreateSessionNoteResponseBody(ResponseBody[InsertedSessionAnnotation]):
 class SessionTraceData(V1RoutesBaseModel):
     id: str
     trace_id: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
 
 
 class SessionData(V1RoutesBaseModel):
     id: str
     session_id: str
     project_id: str
-    start_time: datetime
-    end_time: datetime
+    start_time: IsoDatetime
+    end_time: IsoDatetime
     traces: list[SessionTraceData]
     token_count_prompt: int = Field(
         default=0,
@@ -215,9 +216,11 @@ async def get_session(
             .order_by(models.Trace.start_time.asc())
         )
         traces = list((await db_session.scalars(traces_stmt)).all())
-        token_counts_rows = await db_session.execute(token_counts_by_session([project_session.id]))
+        token_counts_rows = await db_session.execute(
+            token_counts_by_session().as_grouped_subquery([project_session.id])
+        )
         token_counts: dict[int, tuple[int, int]] = {
-            row.id_: (row.prompt, row.completion) for row in token_counts_rows
+            row._mapping[SESSION_ROWID]: (row.prompt, row.completion) for row in token_counts_rows
         }
     data = _to_session_data(project_session, traces, token_counts)
     return GetSessionResponseBody(data=data)
@@ -336,7 +339,7 @@ async def delete_sessions(
     "/projects/{project_identifier}/sessions",
     operation_id="listProjectSessions",
     summary="List sessions for a project",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([400, 404, 422]),
 )
 async def list_project_sessions(
     request: Request,
@@ -356,6 +359,14 @@ async def list_project_sessions(
         default="asc",
         description="Sort order by ID: 'asc' (ascending) or 'desc' (descending).",
     ),
+    filter: Optional[str] = Query(
+        default=None,
+        description=(
+            "Session filter expression, as documented at "
+            "https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. "
+            "Empty expressions do not filter. Invalid expressions return 400."
+        ),
+    ),
 ) -> GetSessionsResponseBody:
     async with request.app.state.db.read() as db_session:
         project = await get_project_by_identifier(db_session, project_identifier)
@@ -368,6 +379,14 @@ async def list_project_sessions(
         sessions_stmt = (
             select(models.ProjectSession).filter_by(project_id=project.id).order_by(order_clause)
         )
+
+        if filter:
+            try:
+                sessions_stmt = apply_session_filter_to_page(
+                    sessions_stmt, filter, project_rowids=[project.id]
+                )
+            except SessionFilterConditionError as error:
+                raise HTTPException(status_code=400, detail=str(error)) from error
 
         if cursor:
             try:
@@ -407,9 +426,11 @@ async def list_project_sessions(
             if trace.project_session_rowid is not None:
                 traces_by_session[trace.project_session_rowid].append(trace)
 
-        token_counts_rows = await db_session.execute(token_counts_by_session(session_ids))
+        token_counts_rows = await db_session.execute(
+            token_counts_by_session().as_grouped_subquery(session_ids)
+        )
         token_counts: dict[int, tuple[int, int]] = {
-            row.id_: (row.prompt, row.completion) for row in token_counts_rows
+            row._mapping[SESSION_ROWID]: (row.prompt, row.completion) for row in token_counts_rows
         }
 
         data = [

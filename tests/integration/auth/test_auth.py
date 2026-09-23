@@ -44,6 +44,7 @@ from .._helpers import (
     _SYSTEM_USER_GID,
     _VIEWER,
     _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+    _VIEWER_ALLOWED_WRITE_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
     _AdminSecret,
@@ -1979,6 +1980,129 @@ class TestApiAccessViaCookiesOrApiKeys:
     - Dynamic test IDs using token_hex(4) for test isolation
     """
 
+    def test_agent_sessions_are_scoped_to_api_key_owner(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        member_api_client = _httpx_client(_app, member.create_api_key(_app))
+        list_response = member_api_client.get("v1/agent_sessions")
+
+        assert list_response.status_code == 200
+        session_ids = {session["id"] for session in list_response.json()["data"]}
+        assert member_session_id in session_ids
+        assert admin_session_id not in session_ids
+        assert member_api_client.get(f"v1/agent_sessions/{member_session_id}").status_code == 200
+        assert member_api_client.get(f"v1/agent_sessions/{admin_session_id}").status_code == 404
+        assert (
+            member_api_client.get(f"v1/agent_sessions/{member_session_id}/messages").status_code
+            == 200
+        )
+        assert (
+            member_api_client.get(f"v1/agent_sessions/{admin_session_id}/messages").status_code
+            == 404
+        )
+
+    def test_agent_sessions_default_to_admins_own_sessions(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        query = """
+          query ($viewerOnly: Boolean!) {
+            agentSessions(first: 100, viewerOnly: $viewerOnly) {
+              edges { node { id } }
+            }
+          }
+        """
+        all_sessions_response, _ = admin.gql(_app, query=query, variables={"viewerOnly": False})
+        all_session_ids = {
+            edge["node"]["id"] for edge in all_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert {member_session_id, admin_session_id} <= all_session_ids
+
+        own_sessions_response, _ = admin.gql(
+            _app,
+            query="""
+              query {
+                agentSessions(first: 100) {
+                  edges { node { id } }
+                }
+              }
+            """,
+        )
+        own_session_ids = {
+            edge["node"]["id"] for edge in own_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert admin_session_id in own_session_ids
+        assert member_session_id not in own_session_ids
+
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_role_based_access_control(
         self,
@@ -2077,8 +2201,13 @@ class TestApiAccessViaCookiesOrApiKeys:
                         f"for {method} {endpoint}"
                     )
 
-            # Test 4: User credential self-service is available to every human role.
-            for expected_status_code, method, endpoint in _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS:
+            # Test 4: Operations available to every role — credential
+            # self-service and viewer-allowed writes (e.g. the LLM proxy) —
+            # except session-only credential issuance, which API keys cannot use.
+            for expected_status_code, method, endpoint in (
+                *_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+                *_VIEWER_ALLOWED_WRITE_OPERATIONS,
+            ):
                 if (
                     is_api_key
                     and (
@@ -2102,9 +2231,12 @@ class TestVercelChatStreamRouterAuth:
         return {
             "trigger": "submit-message",
             "id": "test-msg-id",
-            "messages": [
-                {"id": "msg-1", "role": "user", "parts": [{"type": "text", "text": "hi"}]}
-            ],
+            "headless": False,
+            "message": {
+                "id": "msg-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "hi"}],
+            },
             "model": {
                 "providerType": "builtin",
                 "provider": "ANTHROPIC",
@@ -2114,7 +2246,7 @@ class TestVercelChatStreamRouterAuth:
 
     @pytest.fixture
     def _path(self) -> str:
-        return "/agents/assistant/sessions/test-session-id/chat"
+        return "/v1/agent_sessions/test-session-id/chat"
 
     def test_unauthenticated_request_is_rejected(
         self,
@@ -2127,7 +2259,7 @@ class TestVercelChatStreamRouterAuth:
             response.raise_for_status()
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_all_authenticated_roles_can_access_chat(
+    def test_session_token_roles_reach_chat_session_lookup_except_viewers(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -2138,10 +2270,11 @@ class TestVercelChatStreamRouterAuth:
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
         response = _httpx_client(_app, logged_in_user.tokens).post(_path, json=_body)
-        assert response.status_code == 200
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_api_key_authentication_works_for_chat(
+    def test_api_key_roles_reach_chat_session_lookup_except_viewers(
         self,
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
@@ -2153,7 +2286,8 @@ class TestVercelChatStreamRouterAuth:
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
         response = _httpx_client(_app, api_key).post(_path, json=_body)
-        assert response.status_code == 200
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
 
 
 class TestBruteForceLoginProtection:

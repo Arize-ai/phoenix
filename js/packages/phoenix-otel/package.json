@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-otel",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Phoenix OpenTelemetry tracing SDK for Node.js — register tracing, manual span helpers, and context attributes for LLM observability",
   "keywords": [
     "OpenInference",
@@ -59,22 +59,22 @@
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-core": "^2.4.0",
-    "@arizeai/openinference-semantic-conventions": "^2.5.0",
-    "@arizeai/openinference-vercel": "^3.1.0",
+    "@arizeai/openinference-core": "^2.7.1",
+    "@arizeai/openinference-semantic-conventions": "^2.12.0",
+    "@arizeai/openinference-vercel": "^3.2.1",
     "@arizeai/phoenix-config": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/context-async-hooks": "^2.9.0",
-    "@opentelemetry/core": "^2.9.0",
+    "@opentelemetry/context-async-hooks": "^2.11.0",
+    "@opentelemetry/core": "^2.11.0",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
     "@opentelemetry/instrumentation": "^0.220.0",
-    "@opentelemetry/resources": "^2.9.0",
-    "@opentelemetry/sdk-trace-base": "^2.9.0",
-    "@opentelemetry/sdk-trace-node": "^2.9.0"
+    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/sdk-trace-base": "^2.11.0",
+    "@opentelemetry/sdk-trace-node": "^2.11.0"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "vitest": "^4.1.10"
+    "@types/node": "^26.6.2",
+    "vitest": "^5.0.1"
   },
   "engines": {
     "node": ">=18"

@@ -1,13 +1,13 @@
 ---
 name: phoenix-typescript
-description: TypeScript conventions and patterns for any TypeScript code in the Phoenix monorepo — including js/packages/, app/, and any other TS directories. Use this skill whenever writing, reviewing, or modifying TypeScript code — new functions, types, exports, tests, or refactors. Also trigger when the user asks about TS patterns, naming conventions, or best practices for this project.
+description: TypeScript conventions and patterns for any TypeScript code in the Phoenix monorepo — including js/packages/, js/app/, and any other TS directories. Use this skill whenever writing, reviewing, or modifying TypeScript code — new functions, types, exports, tests, or refactors. Also trigger when the user asks about TS patterns, naming conventions, or best practices for this project.
 metadata:
   internal: true
 ---
 
 # Phoenix TypeScript Conventions
 
-These conventions apply to **all** TypeScript in the Phoenix monorepo — the `app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-mcp, phoenix-otel, phoenix-config), examples, and benchmarks.
+These conventions apply to **all** TypeScript in the Phoenix monorepo — the `js/app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-mcp, phoenix-otel, phoenix-config), examples, and benchmarks.
 
 Before writing new code, explore the directory you're working in to understand existing patterns — then follow these rules.
 

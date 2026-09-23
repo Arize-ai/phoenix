@@ -39,3 +39,7 @@ class ProviderDependencyError(AgentError):
 
 class SummarizationError(AgentError):
     """Raised when the model does not produce a usable summary tool call."""
+
+
+class CompactionError(AgentError):
+    """Raised when the model does not produce a usable conversation checkpoint."""

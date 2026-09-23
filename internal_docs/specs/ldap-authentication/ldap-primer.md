@@ -159,10 +159,7 @@ Two types:
 ```python
 # Phoenix binds with read-only service account
 connection = Connection(
-    server,
-    user="cn=readonly,dc=example,dc=com",
-    password="service_password",
-    auto_bind=True
+    server, user="cn=readonly,dc=example,dc=com", password="service_password", auto_bind=True
 )
 
 # Then searches for user by username
@@ -180,7 +177,7 @@ user_connection = Connection(
     server,
     user="uid=alice,ou=engineering,dc=example,dc=com",
     password=user_provided_password,
-    auto_bind=True
+    auto_bind=True,
 )
 
 if user_connection.bound:

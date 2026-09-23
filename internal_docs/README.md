@@ -3,4 +3,6 @@
 This folder contains materials that are only relevant to core maintainers of this project.
 
 - [Guide to being On-Call](./on_call.md)
-- [Feature Specifications][./specs]
+- [Feature Specifications](./specs)
+  - [Declarative RBAC](./specs/rbac.md)
+  - [MCP Analytics SQL Surface](./specs/mcp-analytics-sql.md)

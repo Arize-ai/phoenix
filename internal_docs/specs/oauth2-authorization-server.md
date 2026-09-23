@@ -63,7 +63,7 @@ scope for this document; everything here is the protocol machinery.
 | `src/phoenix/server/oauth2_authorization_server.py` | Pure validation logic: PKCE, redirect URIs, state, resource identifiers |
 | `src/phoenix/db/migrations/versions/132d988c5bef_*.py` | The one migration: three new tables + token-table columns |
 | `src/phoenix/db/facilitator.py` | First-party `phoenix-cli` client seeding, expired-code sweep |
-| `app/src/pages/auth/OAuth2ConsentPage.tsx` | SPA consent page |
+| `js/app/src/pages/auth/OAuth2ConsentPage.tsx` | SPA consent page |
 | `js/packages/phoenix-cli/src/oauth.ts` | CLI-side PKCE, loopback callback server, token exchange/refresh/revoke |
 | `js/packages/phoenix-cli/src/commands/auth.ts` | `px auth login` / `status` / `logout` |
 | `src/phoenix/server/api/routers/auth_md.py` | RFC 9728 protected-resource metadata (deployment-wide and per-resource `/mcp`) |

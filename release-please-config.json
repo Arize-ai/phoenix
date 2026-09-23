@@ -6,10 +6,17 @@
             "package-name": "arize-phoenix",
             "release-type": "python",
             "exclude-paths": [
+              ".agents",
+              ".claude",
+              ".codex",
+              ".cursor",
               ".github",
-              ".tours",
+              ".gitignore",
+              ".release-please-manifest.json",
               "api_reference",
               "docs",
+              "docs.json",
+              "evals",
               "examples",
               "internal_docs",
               "js",
@@ -18,7 +25,9 @@
               "requirements",
               "scripts",
               "tests",
-              "tutorials"
+              "tox.ini",
+              "tutorials",
+              "uv.lock"
             ]
         },
         "packages/phoenix-client": {
@@ -32,6 +41,11 @@
         "packages/phoenix-otel": {
             "package-name": "arize-phoenix-otel",
             "release-type": "python"
+        },
+        "packages/phoenix-sqlean": {
+            "package-name": "arize-phoenix-sqlean",
+            "release-type": "python",
+            "extra-files": ["setup.py"]
         }
     }
 }

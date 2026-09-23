@@ -36,21 +36,23 @@ from hashlib import md5
 
 NULL_EMAIL_MARKER_PREFIX = "\ue000NULL(stopgap)"  # PUA character + "NULL" indicator
 
+
 def generate_null_email_marker(unique_id: str) -> str:
     """Generate a deterministic placeholder from unique_id.
-    
+
     Using MD5 hash ensures:
     - Same unique_id always produces the same placeholder
     - No race conditions on concurrent logins
     - Placeholder is stable across restarts
-    
-    Note: MD5 is fine here - we're not using it for security, 
+
+    Note: MD5 is fine here - we're not using it for security,
     just for deterministic uniqueness.
     """
     normalized = unique_id.lower()  # Case-insensitive (UUIDs are case-insensitive)
     return f"{NULL_EMAIL_MARKER_PREFIX}{md5(normalized.encode()).hexdigest()}"
     # Example: unique_id "550E8400-E29B-41D4-A716-446655440000"
     #       → "\ue000NULL(stopgap)7f3d2a1b9c8e4f5da2b6c903e1f47d8b"
+
 
 def is_null_email_marker(email: str) -> bool:
     """Check if email is a placeholder."""
@@ -227,6 +229,7 @@ async def send_welcome_email(self, email: str, name: str) -> None:
         return
     # ... existing logic ...
 
+
 async def send_password_reset_email(self, email: str, reset_url: str) -> None:
     try:
         email = validate_email(email, check_deliverability=False).normalized
@@ -248,6 +251,7 @@ The GraphQL resolver filters out null email markers at the API boundary, returni
 ```python
 from phoenix.server.ldap import is_null_email_marker
 
+
 @strawberry.field
 async def email(self, info: Info[Context, None]) -> str | None:
     # ... fetch email from database ...
@@ -266,7 +270,7 @@ The REST API returns empty string `""` instead of `null` to maintain backwards c
 from phoenix.server.ldap import is_null_email_marker
 
 # In list_users endpoint
-email="" if is_null_email_marker(user.email) else user.email,
+email = ("" if is_null_email_marker(user.email) else user.email,)
 ```
 
 **Why `""` instead of `null`?**
@@ -525,7 +529,9 @@ PHOENIX_ADMINS=alice;bob;charlie
 ```python
 def pre_provision_ldap_user_by_username(username: str) -> models.User:
     """Create LDAP user with temporary placeholder, no unique_id."""
-    temp_placeholder = f"{NULL_EMAIL_MARKER_PREFIX}PREPROV_{md5(username.lower().encode()).hexdigest()}"
+    temp_placeholder = (
+        f"{NULL_EMAIL_MARKER_PREFIX}PREPROV_{md5(username.lower().encode()).hexdigest()}"
+    )
     return models.LDAPUser(
         email=temp_placeholder,
         username=username,

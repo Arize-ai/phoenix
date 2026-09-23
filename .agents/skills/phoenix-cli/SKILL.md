@@ -1,11 +1,11 @@
 ---
 name: phoenix-cli
-description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, structure trace review with open coding and axial coding, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user is analyzing traces or spans, investigating LLM/agent failures, deciding what to do after instrumenting an app, building failure taxonomies, choosing what evals to write, or asking "what's going wrong", "what kinds of mistakes", or "where do I focus" — even without naming a technique.
+description: Debug LLM applications using the Phoenix CLI. Fetch traces, spans, and sessions, annotate them, analyze errors, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user works with a Phoenix instance from the terminal.
 license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.3.0"
+  version: "3.5.0"
 ---
 
 # Phoenix CLI
@@ -24,20 +24,31 @@ px trace list
 px trace get <trace-id>
 px trace annotate <trace-id>
 px trace add-note <trace-id>
+px trace delete <trace-identifier>
 px trace-annotations delete
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
+px span delete <span-identifier>
 px span-annotations delete
 px session list
 px session get <session-id>
 px session annotate <session-id>
 px session add-note <session-id>
+px session delete <session-id>
 px session-annotations delete
 px dataset list
 px dataset get <name>
+px dataset delete <dataset-identifier>
+px experiment list
+px experiment get <id>
+px experiment delete <experiment-id>
+px prompt list
+px prompt get <prompt-identifier>
+px prompt delete <prompt-identifier>
 px project list
 px project get <name>
+px project delete <project-identifier>
 px annotation-config list
 px annotation-config get <identifier>
 px annotation-config create
@@ -52,15 +63,27 @@ px profile create <name>
 px profile use <name>
 px profile edit <name>
 px profile delete <name>
+px api graphql <query>
+px docs fetch
+px setup
+px self update
 ```
+
+Every `delete` above is gated: it requires
+`PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` in the environment and prompts for
+confirmation unless `-y`/`--yes` is passed (`px profile delete` is local-only and
+takes `--yes` without the env gate). Without the env var the command exits
+without deleting anything.
 
 ## Setup
 
 ```bash
-export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_ENDPOINT=http://localhost:6006
 export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
+
+`PHOENIX_ENDPOINT` is the base URL for API access. It usually holds the same URL as `PHOENIX_COLLECTOR_ENDPOINT`; when only the collector variable is set, the CLI uses it for API access too.
 
 For interactive local use, `px auth login` stores an OAuth session in the selected profile; the session acts with the permissions of the user who logged in. API keys take precedence over OAuth tokens when both are configured.
 OAuth access tokens are refreshed automatically for REST, GraphQL, and PXI
@@ -104,6 +127,17 @@ falls back to the download. `--no-docs-mcp` suppresses the interactive offer.
 — check `tracesVerified`, which is set only when the API confirmed a trace
 arriving, not when the agent claims it finished.
 
+A run whose wait ran out with no trace exits `6`, not `0`: the configuration and
+edits are real, but tracing is not confirmed working. Treat that as a failure to
+report, not a success — and do not substitute the hand-off agent's own exit code
+or summary for the verdict. Registering without `--instrument`, and a human
+answering "verify later" at the timeout prompt, both exit `0`.
+
+`tracesVerified` is `false` for a registration-only run too, so it alone can't
+tell "nothing to verify" from "no trace arrived". Read `verification`
+(`verified` / `notVerified` / `deferred`, absent when there was nothing to
+verify) when you need the difference.
+
 Re-runnable slices, so an already-registered repo skips the questions:
 
 ```bash
@@ -115,7 +149,7 @@ px setup skills                      # install the Phoenix coding-agent skills
 
 Wire the Phoenix remote MCP server (`<endpoint>/mcp`) into a coding agent so it
 can query Phoenix data. The endpoint is inferred from `--endpoint`, the active
-profile, or `PHOENIX_HOST`. Bare command prompts for scope (global default) then
+profile, or `PHOENIX_ENDPOINT`. Bare command prompts for scope (global default) then
 agent; `--agent` skips both prompts.
 
 ```bash
@@ -130,29 +164,6 @@ value"` (repeatable) for an API-key bearer fallback — for Codex a
 `Authorization: Bearer ${VAR}` header becomes `bearer_token_env_var`. `--format
 raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
 
-## Quick Reference
-
-| Task | Files |
-| ---- | ----- |
-| Look at sampled traces, spans, or sessions and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
-| Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
-
-Both stages tag every artifact with one shared **coding annotation identifier** (descriptive shape, e.g. `coding-run:chatbot-context-loss-2026-05-06`) so the run is queryable, reversible, and viewable as a unit. Pass `--identifier <value>` explicitly on every `px` call — shell inheritance is unreliable across agent harnesses. Open coding writes notes via `px ... add-note` and records a small local JSONL sidecar at `.px/coding/<sanitized-identifier>.jsonl`; axial coding reads that sidecar as the deterministic handoff and records labels in `.px/coding/<sanitized-identifier>-axial.jsonl`. Pick the identifier once per run (see [references/open-coding.md](references/open-coding.md#coding-annotation-identifier-pick-this-first)), then share the Phoenix UI link from the wrap-up section. Revert is opt-in and runs three identifier-bound DELETEs only after explicit user confirmation.
-
-> **Workflow term vs. server annotation name.** The skill prose calls this value the **coding annotation identifier** (shell-variable hint: `CODING_ANNOTATION_IDENTIFIER`). The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written by previous runs. Don't try to rename the server-side annotation; treat the asymmetry as load-bearing.
-
-## Workflows
-
-**"What do I do after instrumenting?" / "Where do I focus?" / "What's going wrong?"**
-[open-coding](references/open-coding.md) → [axial-coding](references/axial-coding.md) → build evals for the top categories.
-
-## Reference Categories
-
-| Prefix | Description |
-| ------ | ----------- |
-| `references/open-coding` | Free-form notes against sampled traces, spans, or sessions — reach for it whenever the user wants to make sense of LLM traffic but has no failure categories yet. Includes a unit-of-analysis diagnostic so the workflow runs at the level the failure modes actually live at (trace for stateless single-shot calls, session for multi-turn agents, span for mechanical/in-isolation failures). |
-| `references/axial-coding` | Inductive grouping of notes into a MECE taxonomy with counts — reach for it whenever the user has observations and needs categories or eval targets |
-
 ## Auth
 
 ```bash
@@ -166,6 +177,12 @@ px auth status --format raw                   # machine-readable credential sour
 ```
 
 `auth status` reports the credential source (`flag`, `env`, `profile-key`, `oauth`, or `none`). OAuth status includes the token expiry.
+
+When the stored credential source is `oauth` and the authenticated probe fails,
+`auth status` retries once without credentials and reports anonymous access only
+if the server explicitly says access is anonymous. This keeps a stale or expired
+profile token from being reported as an auth failure against a deployment that
+has since switched from OAuth to anonymous access.
 
 ## Profiles
 
@@ -200,9 +217,15 @@ px auth status --profile prod
 ```bash
 px project list                                            # list all projects (table view)
 px project list --format raw --no-progress | jq '.[].name' # project names as JSON
+px project list --name-contains prod                       # filter by name substring (case-insensitive)
 px project get my-project --format raw --no-progress       # single record by exact name
 px project get my-project --format raw --no-progress | jq -r '.id'  # extract project id
 ```
+
+`project list` accepts `--limit <n>` (projects fetched per page) and
+`--name-contains <filter>`, which filters server-side on a case-insensitive name
+substring. Use it instead of piping `list` through `grep` when you only know part
+of a project's name.
 
 `project get` exits with `ExitCode.FAILURE` (1) on a name miss and writes a `StructuredError` `{error, code: "FAILURE", hint}` to stderr in `--format json|raw`.
 
@@ -323,7 +346,12 @@ px session annotate <session-id> --name reviewer --label pass --identifier "<cod
 px session add-note <session-id> --text "verified by agent"
 px session add-note <session-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
 px session-annotations delete --identifier "<coding-annotation-id>" --all -y              # nuke every annotation tied to this coding annotation identifier
+px session delete <session-id> -y                                                        # requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true
 ```
+
+`session list` has no filter flag. To select sessions by shape — error counts,
+token totals, tool use, annotation labels — use the session filter expression
+language through GraphQL (see [Session filter expressions](#session-filter-expressions)).
 
 ### Session JSON shape
 
@@ -394,7 +422,104 @@ px api graphql '{ evaluators { edges { node { name kind } } } }' | jq '.data.eva
 px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' | jq '.data.__type.fields[]'
 ```
 
-Key root fields: `projects`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
+Key root fields: `projects`, `getProjectByName(name:)`, `datasets`, `prompts`, `evaluators`, `projectCount`, `datasetCount`, `promptCount`, `evaluatorCount`, `viewer`.
+
+`getProjectByName(name:)` targets one project; `projects(first: 1)` picks an
+arbitrary one. There is no `traces` connection: to list traces, query `spans`
+with `filterCondition: "parent_span is None"`, which keeps root spans, as the
+UI's traces table does. See [Filter expressions](#filter-expressions) below.
+
+### Filter expressions
+
+`spans`, `sessions`, and the project aggregates take filter conditions: Python
+boolean expressions compiled server-side. There are three languages, and the
+argument picks the language. Read
+[references/filter-expressions.md](references/filter-expressions.md) before
+writing a condition; it has the full vocabulary, operators, and compiled
+examples for each.
+
+| Argument | Matches | Names come from |
+| -------- | ------- | --------------- |
+| `filterCondition` | individual spans | the exhaustive table in the reference |
+| `traceFilterCondition` | whole traces | `traceFilterVocabulary` |
+| `sessionFilterCondition` | sessions | `sessionFilterVocabulary` |
+
+**Root spans.** There is no `traces` connection and no root-span argument.
+`filterCondition: "parent_span is None"` keeps root spans, including orphans
+whose parent was never received, and is what the UI's traces table runs;
+`parent_id is None` keeps only spans with no parent id. A root span is usually
+one per trace, and either clause composes with the rest of the filter:
+
+```bash
+px api graphql '{
+  getProjectByName(name: "default") { spans(
+    first: 20
+    filterCondition: "parent_id is None and status_code == \"ERROR\""
+    sort: { col: startTime, dir: desc }
+  ) { edges { node { spanId name latencyMs } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
+```
+
+**Annotations.** The accessor picks the level, and the wrong level matches
+nothing:
+
+| Accessor | Matches annotations on | Written by |
+| -------- | ---------------------- | ---------- |
+| `annotations["name"]` | the span itself | `px span annotate`, `px span add-note` |
+| `trace_annotations["name"]` | the span's parent trace | `px trace annotate`, `px trace add-note` |
+| `session_annotations["name"]` | the session (session filter only) | `px session annotate`, `px session add-note` |
+
+```bash
+px api graphql '{
+  getProjectByName(name: "default") { spans(
+    first: 20
+    filterCondition: "parent_id is None and trace_annotations[\"quality\"].label == \"poor\""
+  ) { edges { node { spanId name } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
+```
+
+**Traces.** `traceFilterCondition` keeps the spans of matching traces and
+composes with `filterCondition`:
+
+```bash
+px api graphql '{
+  getProjectByName(name: "default") { spans(
+    first: 20
+    filterCondition: "parent_id is None"
+    traceFilterCondition: "error_count > 0 and latency_ms > 1000"
+  ) { edges { node { spanId name latencyMs } } } }
+}' | jq '.data.getProjectByName.spans.edges[].node'
+```
+
+**Sessions.** `px session list` has no filter flag, so selecting sessions by
+shape goes through GraphQL:
+
+```bash
+px api graphql '{
+  projects(first: 1) { edges { node { sessions(
+    first: 10
+    sessionFilterCondition: "num_traces > 5 and any(span.status_code == \"ERROR\" for span in spans)"
+  ) { edges { node { sessionId numTraces numTracesWithError } } } } } }
+}' | jq '.data.projects.edges[0].node.sessions.edges[].node'
+```
+
+**Discover names and validate.** The vocabularies are generated from the
+compiler's own bindings, so they always match what compiles:
+
+```bash
+px api graphql '{ projects(first: 1) { edges { node { traceFilterVocabulary {
+  name type category description iterableName } } } } }' \
+  | jq '.data.projects.edges[0].node.traceFilterVocabulary[] | {name, type, category}'
+
+px api graphql '{ projects(first: 1) { edges { node {
+  validateSpanFilterCondition(condition: "parent_id is None") { isValid errorMessage }
+  validateTraceFilterCondition(condition: "error_count > 0") { isValid errorMessage }
+  validateSessionFilterCondition(condition: "num_traces > 5") { isValid errorMessage }
+} } } }'
+```
+
+On fields that accept both levels (e.g. `Project.recordCount`),
+`sessionFilterCondition` and `filterCondition` are mutually exclusive.
 
 ## Docs
 

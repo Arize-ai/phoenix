@@ -8,6 +8,10 @@ from phoenix.server.api.exceptions import (
     BadRequest,
     PhoenixErrorMasker,
 )
+from phoenix.server.api.helpers.experiment_run_filters import (
+    ExperimentRunFilterConditionSyntaxError,
+)
+from phoenix.trace.dsl import SpanFilterError
 
 
 @strawberry.type
@@ -23,6 +27,14 @@ class Query:
     @strawberry.field
     def bad_request(self) -> str:
         raise BadRequest("you sent a bad request")
+
+    @strawberry.field
+    def bad_span_filter(self) -> str:
+        raise SpanFilterError("invalid numeric literal: 1e400")
+
+    @strawberry.field
+    def bad_experiment_filter(self) -> str:
+        raise ExperimentRunFilterConditionSyntaxError("Unknown name")
 
 
 @pytest.fixture
@@ -61,6 +73,31 @@ class TestPhoenixErrorMasker:
         assert result.errors is not None
         assert len(result.errors) == 1
         assert result.errors[0].message == "you sent a bad request"
+
+    @pytest.mark.parametrize(
+        "field,expected",
+        [
+            pytest.param("badSpanFilter", "invalid numeric literal: 1e400", id="span-filter"),
+            pytest.param("badExperimentFilter", "Unknown name", id="experiment-filter"),
+        ],
+    )
+    def test_filter_condition_errors_are_surfaced_when_masking_is_enabled(
+        self,
+        schema: strawberry.Schema,
+        monkeypatch: pytest.MonkeyPatch,
+        field: str,
+        expected: str,
+    ) -> None:
+        """Both filter DSLs guarantee user-safe messages at their compile
+        boundary, so a filter error reaching a resolver without a local catch
+        (e.g. `compareExperiments`) must surface its message rather than be
+        masked to the generic one."""
+        monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
+        result = schema.execute_sync("{ %s }" % field)
+        assert isinstance(result, ExecutionResult)
+        assert result.errors is not None
+        assert len(result.errors) == 1
+        assert result.errors[0].message == expected
 
     def test_unknown_field_validation_error_passes_through_unmasked(
         self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch

@@ -1521,7 +1521,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         input_schema = dict(tool["input_schema"])  # type: ignore[typeddict-item]
         tool_input = _generate_fake_data(input_schema)
         tool_use_id = _generate_anthropic_tool_use_id()
-        tool_name = str(tool["name"])
+        tool_name = str(tool["name"])  # type: ignore[typeddict-item]
         output_tokens = _estimate_tokens(json.dumps(tool_input))
         return Message(
             id=message_id,
@@ -1612,7 +1612,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         input_schema = dict(tool["input_schema"])  # type: ignore[typeddict-item]
         tool_input = _generate_fake_data(input_schema)
         tool_use_id = _generate_anthropic_tool_use_id()
-        tool_name = str(tool["name"])
+        tool_name = str(tool["name"])  # type: ignore[typeddict-item]
         input_json = json.dumps(tool_input)
         output_tokens = _estimate_tokens(input_json)
 

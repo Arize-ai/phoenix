@@ -1,7 +1,7 @@
 ---
 name: evaluators
 description: >
-  Author or refine a Phoenix evaluator — code or LLM-as-a-judge — that scores a run's output. Trigger when the user wants to create a new evaluator, improve an existing one's logic or rubric, choose labels, or decide what to measure on a dataset or experiment. Do NOT trigger on: (1) manual prompt drafting (use `playground`), (2) running or comparing experiments themselves (use `experiments`), (3) cross-trace failure diagnosis with no evaluator in scope (use `debug-trace`).
+  Author or refine a Phoenix evaluator — code or LLM-as-a-judge — that scores a run's output. Trigger when the user wants to create a new evaluator, improve an existing one's logic or rubric, choose labels, or decide what to measure on a dataset or experiment. Do NOT trigger on: (1) manual prompt drafting (use `playground`), (2) running or comparing experiments themselves (use `experiments`), (3) cross-trace failure diagnosis with no evaluator in scope (use `phoenix-error-analysis`).
 summary: Design or refine a code or LLM evaluator — labels, logic or rubric, the field it reads, and representative preview cases.
 ---
 
@@ -55,7 +55,7 @@ When reference-based, triage what the `reference` actually is before trusting it
 
 Discover the environment first: read the capability fingerprint of the sandbox the evaluator will
 run in — which model credentials its environment variables name, whether it has internet access,
-and which packages are installed. Choose by environment capability and task need, not artifact
+which packages are installed, and any restricted-language runtime notes. Choose by environment capability and task need, not artifact
 kind. The ladder, floor to heaviest:
 
 - **deterministic primitives** — exact-match, contains, regex-match, json-distance,

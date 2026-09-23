@@ -6,7 +6,18 @@ from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.evaluators import _PHOENIX_RESULT_BEGIN, _PHOENIX_RESULT_END
+from phoenix.server.monty_runtime import (
+    MontyBusy,
+    MontyDeadlineExceeded,
+    MontyShuttingDown,
+    MontyUnavailable,
+    MontyWorkerCrashed,
+    MontyWorkerTurnTimedOut,
+)
+from phoenix.server.sandbox.result_protocol import (
+    PHOENIX_RESULT_BEGIN,
+    PHOENIX_RESULT_END,
+)
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -300,14 +311,14 @@ class TestInlineCodeEvaluatorPreviewMutation:
         gql_client: AsyncGraphQLClient,
         sandbox_config: models.SandboxConfig,
     ) -> None:
-        # The test mutation bypasses ``SandboxSessionManager`` and calls
-        # ``backend.execute`` directly — each click spins up an ephemeral
+        # The test mutation bypasses ``SandboxSessionManager`` and calls the
+        # backend's ephemeral execution path — each click spins up an ephemeral
         # sandbox via the backend's own ``async with`` lifecycle. Mocking
         # the managed API (``find_or_create_session`` / ``execute_in_session``)
         # would no longer intercept the call path.
         backend = AsyncMock()
-        fenced_stdout = f"{_PHOENIX_RESULT_BEGIN}\n1.0\n{_PHOENIX_RESULT_END}\n"
-        backend.execute = AsyncMock(
+        fenced_stdout = f"{PHOENIX_RESULT_BEGIN}\n1.0\n{PHOENIX_RESULT_END}\n"
+        backend.execute_with_inputs = AsyncMock(
             return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
         )
         backend.close = AsyncMock(return_value=None)
@@ -328,12 +339,81 @@ class TestInlineCodeEvaluatorPreviewMutation:
         assert results[0]["error"] is None
         assert results[0]["annotation"]["score"] == 1.0
         # Test mutation must not touch the session manager — only
-        # ``backend.execute`` is exercised. Asserting the managed-path APIs
+        # ``backend.execute_with_inputs`` is exercised. Asserting the managed-path APIs
         # were not called locks in the bypass invariant.
-        backend.execute.assert_awaited_once()
+        backend.execute_with_inputs.assert_awaited_once()
         backend.find_or_create_session.assert_not_called()
         backend.execute_in_session.assert_not_called()
         backend.close_session.assert_not_called()
+
+    async def test_reports_busy_monty_runtime_as_bad_request(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        backend = AsyncMock()
+        backend.execute_with_inputs = AsyncMock(side_effect=MontyBusy("internal capacity detail"))
+
+        with patch(
+            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            return_value=backend,
+        ):
+            result = await self._preview_inline_code_evaluator(
+                gql_client,
+                sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+            )
+
+        assert result.errors is not None
+        assert result.errors[0].message == "The Monty runtime is busy. Retry shortly."
+        assert "internal capacity detail" not in result.errors[0].message
+
+    @pytest.mark.parametrize(
+        ("error", "expected_message"),
+        [
+            (
+                MontyUnavailable("internal install detail"),
+                "The Monty runtime is unavailable. Check the server configuration and retry.",
+            ),
+            (
+                MontyShuttingDown("internal shutdown detail"),
+                "The Monty runtime is shutting down. Retry after the server restarts.",
+            ),
+            (
+                MontyDeadlineExceeded("internal deadline detail"),
+                "Monty execution timed out. Retry or reduce the evaluator's work.",
+            ),
+            (
+                MontyWorkerTurnTimedOut(None),
+                "Monty execution timed out. Retry or reduce the evaluator's work.",
+            ),
+            (
+                MontyWorkerCrashed(None),
+                "The Monty worker stopped unexpectedly. Retry the preview.",
+            ),
+        ],
+    )
+    async def test_reports_monty_runtime_errors_as_bad_requests(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+        error: Exception,
+        expected_message: str,
+    ) -> None:
+        backend = AsyncMock()
+        backend.execute_with_inputs = AsyncMock(side_effect=error)
+
+        with patch(
+            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            return_value=backend,
+        ):
+            result = await self._preview_inline_code_evaluator(
+                gql_client,
+                sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+            )
+
+        assert result.errors is not None
+        assert result.errors[0].message == expected_message
+        assert "internal" not in result.errors[0].message
 
 
 class TestCodeEvaluatorPreviewNoSandbox:

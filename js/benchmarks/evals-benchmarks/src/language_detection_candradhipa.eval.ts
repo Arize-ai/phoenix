@@ -8,7 +8,6 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createLanguageDetectionEvaluator } from "@arizeai/phoenix-evals";
 import { afterAll } from "vitest";
@@ -75,7 +74,8 @@ px.describe(
   "language-detection-candradhipa",
   () => {
     px.test.each(cases)(
-      (row) => `[${String(row.metadata?.category)}] ${String(row.metadata?.id)}`,
+      (row) =>
+        `[${String(row.metadata?.category)}] ${String(row.metadata?.id)}`,
       async ({ input, expected, metadata }) => {
         const result = await languageDetectionEvaluator.evaluate({
           session: input.session,
@@ -133,7 +133,9 @@ afterAll(() => {
     // eslint-disable-next-line no-console
     console.log(`  ${category}: ${stats.correct}/${stats.total}`);
   }
-  const failures = results.filter((result) => result.actual !== result.expected);
+  const failures = results.filter(
+    (result) => result.actual !== result.expected
+  );
   if (failures.length === 0) {
     // eslint-disable-next-line no-console
     console.log("\n✓ no misclassified cases\n");

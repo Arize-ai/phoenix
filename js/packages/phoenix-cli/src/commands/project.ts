@@ -25,6 +25,13 @@ interface ProjectListOptions extends CommonOptions<OutputFormat> {
    * @example 50
    */
   limit?: number;
+  /**
+   * `--name-contains <filter>`: Return projects whose names contain this
+   * substring. Matching is case-insensitive.
+   *
+   * @example production
+   */
+  nameContains?: string;
 }
 
 type ProjectSummary = {
@@ -34,15 +41,25 @@ type ProjectSummary = {
 };
 
 /**
- * Fetch all projects from Phoenix
+ * Fetch all matching projects from Phoenix.
+ *
+ * @param params - Project query parameters.
+ * @param params.client - Phoenix client used to fetch projects.
+ * @param params.limit - Maximum number of projects to fetch per page.
+ * @param params.nameContains - Optional case-insensitive project name filter.
  */
-async function fetchProjects(
-  client: PhoenixClient,
-  options: { limit?: number } = {}
-): Promise<ProjectSummary[]> {
+async function fetchProjects({
+  client,
+  limit: requestedLimit,
+  nameContains,
+}: {
+  client: PhoenixClient;
+  limit?: number;
+  nameContains?: string;
+}): Promise<ProjectSummary[]> {
   const allProjects: ProjectSummary[] = [];
   let cursor: string | undefined;
-  const limit = options.limit || 100;
+  const limit = requestedLimit || 100;
 
   do {
     const response = await client.GET("/v1/projects", {
@@ -51,6 +68,7 @@ async function fetchProjects(
           cursor,
           limit,
           include_experiment_projects: false,
+          name_contains: nameContains,
         },
       },
     });
@@ -87,8 +105,10 @@ async function projectListHandler(options: ProjectListOptions): Promise<void> {
     }
 
     const client = createPhoenixClient({ config });
-    const projects = await fetchProjects(client, {
+    const projects = await fetchProjects({
+      client,
       limit: options.limit,
+      nameContains: options.nameContains,
     });
 
     const output = formatProjectsOutput({
@@ -119,6 +139,10 @@ export function configureProjectListCommand(command: Command): Command {
       "--limit <number>",
       "Maximum number of projects to fetch per page",
       parseInt
+    )
+    .option(
+      "--name-contains <filter>",
+      "Filter projects by name substring (case-insensitive)"
     )
     .action(projectListHandler);
 }
@@ -263,7 +287,10 @@ async function projectGetHandler(
       noProgress: !options.progress,
     });
 
-    const projects = await fetchProjects(client, { limit: options.limit });
+    const projects = await fetchProjects({
+      client,
+      limit: options.limit,
+    });
     const match = projects.find((project) => project.name === name);
 
     if (!match) {

@@ -1,0 +1,73 @@
+---
+title: "08.11.2026: Persistent Agent Sessions"
+description: "Conversations with the Phoenix agent are saved server-side — browse, restore, rename, rewind, and branch them from the browser or the terminal, interchangeably."
+---
+
+Your conversations with the Phoenix agent now live on the server. A chat survives a page reload, a
+new browser, and a switch between the browser panel and the `pxi` terminal client — the same session
+list is behind all of them.
+
+**Available in arize-phoenix 20.0.0+ (server), @arizeai/phoenix-cli 1.16.0+ and @arizeai/phoenix-client 7.5.0+ (TypeScript)**
+
+## In the browser
+
+- **A session list** in the chat panel header — pick any past chat to continue it, with older
+  sessions loaded as you scroll.
+- **Titles you can edit** — Phoenix derives a title from the opening turn, and you can rename a
+  session at any time.
+- **Temporary chats** — a chat marked temporary is never saved to your history and shows an
+  ephemerality badge. Turn on **Start new chats as temporary** under **Settings → Assistant →
+  Personal settings** to make it the default; you can still flip any chat before its first message.
+- **Rewind or branch from any message** — a control on a message offers **Rewind conversation**
+  (drop that message and everything after it, putting a user message back in the input to edit and
+  re-send) or **Branch conversation** (fork a new chat from that point and leave the current one
+  untouched).
+
+## From the terminal
+
+The terminal client reads and writes the same sessions, so a chat started in the browser can be
+picked up in a shell:
+
+```bash
+npx @arizeai/phoenix-cli pxi --endpoint http://localhost:6006
+```
+
+| Command | Effect |
+| --- | --- |
+| `/new` | Start a new persisted session (`/clear` is an alias). |
+| `/temporary` | Start a new temporary session that is never saved. |
+| `/sessions` | Browse and restore persisted sessions. |
+| `/model` | Switch models for the current session. |
+| `/compact` | Summarize completed turns into a checkpoint, freeing context on a long session. |
+
+`/compact` writes a durable checkpoint and later turns load history from it onward, which is what
+keeps a long-running investigation inside the model's context window. Text typed after the command —
+`/compact keep going` — is sent as a follow-up once compaction finishes. A session that is busy
+elsewhere (a turn streaming in the browser, for example) rejects compaction and the client refreshes
+when that turn completes.
+
+`pxi` now checks the server version at startup and exits with a clear upgrade message when the
+connected Phoenix predates the agent-session contract, instead of failing on the first send.
+
+## Retention and admin controls
+
+Persisted chats are governed under **Settings → Assistant**:
+
+- **Delete idle chats** — remove each user's saved chats after N days without activity (30 when the
+  rule is switched on).
+- **Limit saved chats per user** — keep each user under a maximum, evicting least-recently-used
+  chats on an hourly sweep (30 when switched on).
+- **Assistant sessions card** — administrators can review saved sessions and delete individual ones.
+
+## Over the API
+
+Session management is exposed as REST routes under `/v1/agent_sessions` — create, list, get, patch,
+compact, chat, and fetch messages — the same endpoints the browser panel and the terminal client
+use. `@arizeai/phoenix-client` exports a capability requirement for each one, so a client can check
+support before calling.
+
+<CardGroup cols={2}>
+  <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
+    Enable the agent, run it from the terminal, and configure what it can reach
+  </Card>
+</CardGroup>

@@ -440,7 +440,7 @@ describe("Auth Commands", () => {
   });
 });
 
-describe("px auth login/logout", () => {
+describe("px auth status/login/logout", () => {
   let originalEnv: NodeJS.ProcessEnv;
   let tmpDir: string;
   let originalStdin: typeof process.stdin;
@@ -462,6 +462,107 @@ describe("px auth login/logout", () => {
     process.env = originalEnv;
     fs.rmSync(tmpDir, { recursive: true, force: true });
     vi.restoreAllMocks();
+  });
+
+  it("reports anonymous access when stale OAuth credentials cannot refresh", async () => {
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    let userRequestCount = 0;
+    try {
+      server = await withServer((request, response) => {
+        if (request.url === "/oauth2/token") {
+          response.writeHead(405);
+          response.end();
+          return;
+        }
+        if (request.url === "/v1/user") {
+          userRequestCount += 1;
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(JSON.stringify({ data: { auth_method: "ANONYMOUS" } }));
+          return;
+        }
+        response.writeHead(404);
+        response.end();
+      });
+      writeTempSettings(tmpDir, {
+        activeProfile: "local",
+        profiles: {
+          local: {
+            endpoint: server.url,
+            oauthTokens: {
+              accessToken: "expired-access",
+              refreshToken: "expired-refresh",
+              expiresAt: "2000-01-01T00:00:00.000Z",
+              scope: "",
+            },
+          },
+        },
+      });
+      const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const exitSpy = mockProcessExit();
+
+      await runAuthCommand(["status", "--format", "raw"]);
+
+      expect(JSON.parse(captured(stdoutSpy))).toMatchObject({
+        credentialSource: "oauth",
+        status: "anonymous",
+        user: { auth_method: "ANONYMOUS" },
+      });
+      expect(userRequestCount).toBe(1);
+      expect(exitSpy).not.toHaveBeenCalled();
+    } finally {
+      await server?.close();
+    }
+  });
+
+  it("preserves an OAuth failure when anonymous access is rejected", async () => {
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    let userRequestCount = 0;
+    try {
+      server = await withServer((request, response) => {
+        if (request.url === "/oauth2/token") {
+          response.writeHead(401);
+          response.end();
+          return;
+        }
+        if (request.url === "/v1/user") {
+          userRequestCount += 1;
+          response.writeHead(401);
+          response.end();
+          return;
+        }
+        response.writeHead(404);
+        response.end();
+      });
+      writeTempSettings(tmpDir, {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: server.url,
+            oauthTokens: {
+              accessToken: "expired-access",
+              refreshToken: "expired-refresh",
+              expiresAt: "2000-01-01T00:00:00.000Z",
+              scope: "",
+            },
+          },
+        },
+      });
+      const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const exitSpy = mockProcessExit();
+
+      await runAuthCommand(["status", "--format", "raw"]);
+
+      expect(JSON.parse(captured(stdoutSpy))).toMatchObject({
+        credentialSource: "oauth",
+        status: "unverified",
+      });
+      expect(userRequestCount).toBe(1);
+      expect(exitSpy).toHaveBeenCalledWith(ExitCode.AUTH_REQUIRED);
+    } finally {
+      await server?.close();
+    }
   });
 
   it("logs in via pasted redirect URL against stubbed endpoints", async () => {

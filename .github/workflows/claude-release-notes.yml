@@ -49,7 +49,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
+        uses: anthropics/claude-code-action@239e3a730883eeb5c53db12b0fc9573b3024b126 # v1.0.191
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
@@ -74,7 +74,7 @@ jobs:
             When done, write a PR body to `.scratch/pr-body.md`. Do not commit,
             push, or open a PR; the workflow handles publishing.
             The workflow will open a PR titled "docs: Add Phoenix release notes".
-          claude_args: '--model claude-opus-4-8 --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
+          claude_args: '--model opus --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
 
       - name: Commit and open pull request
         if: steps.claude.outcome == 'success'

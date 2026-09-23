@@ -44,8 +44,10 @@ Active Directory and OpenLDAP return specific error codes for password-related i
 ```python
 from enum import Enum
 
+
 class LDAPAuthResult(Enum):
     """LDAP authentication result with account status details."""
+
     SUCCESS = "success"
     INVALID_CREDENTIALS = "invalid_credentials"
     PASSWORD_EXPIRED = "password_expired"
@@ -56,14 +58,14 @@ class LDAPAuthResult(Enum):
 
 def _verify_user_password(self, server, user_dn, password) -> LDAPAuthResult:
     """Verify password and detect account status issues.
-    
+
     Parses Active Directory extended error information from bind failures
     to provide actionable feedback to users.
-    
+
     AD Error Format:
-        "80090308: LdapErr: DSID-0C09044E, comment: AcceptSecurityContext error, 
+        "80090308: LdapErr: DSID-0C09044E, comment: AcceptSecurityContext error,
          data XXX, v23f0"
-        
+
         Where XXX is the sub-status code (532, 533, 701, 773, 775, etc.)
     """
     try:
@@ -71,7 +73,7 @@ def _verify_user_password(self, server, user_dn, password) -> LDAPAuthResult:
         return LDAPAuthResult.SUCCESS
     except LDAPInvalidCredentialsResult as e:
         error_msg = str(e)
-        
+
         # Parse AD sub-status codes
         if "data 532" in error_msg:
             return LDAPAuthResult.PASSWORD_EXPIRED
@@ -84,7 +86,7 @@ def _verify_user_password(self, server, user_dn, password) -> LDAPAuthResult:
             return LDAPAuthResult.MUST_CHANGE_PASSWORD
         elif "data 775" in error_msg:
             return LDAPAuthResult.ACCOUNT_LOCKED
-        
+
         return LDAPAuthResult.INVALID_CREDENTIALS
 ```
 
@@ -100,7 +102,9 @@ match auth_result:
     case LDAPAuthResult.ACCOUNT_LOCKED:
         raise HTTPException(401, detail="Account is locked. Please try again later.")
     case LDAPAuthResult.MUST_CHANGE_PASSWORD:
-        raise HTTPException(401, detail="Password change required. Please contact your administrator.")
+        raise HTTPException(
+            401, detail="Password change required. Please contact your administrator."
+        )
     case _:
         raise HTTPException(401, detail="Invalid username and/or password")
 ```
@@ -146,27 +150,26 @@ logger = logging.getLogger(__name__)
 
 @retry(
     stop=stop_after_attempt(2),  # Original attempt + 1 retry
-    wait=wait_fixed(0.5),         # 500ms between attempts
-    retry=retry_if_exception_type((
-        LDAPSocketOpenError,      # Connection refused, timeout
-        LDAPSocketReceiveError,   # Connection reset mid-operation
-    )),
+    wait=wait_fixed(0.5),  # 500ms between attempts
+    retry=retry_if_exception_type(
+        (
+            LDAPSocketOpenError,  # Connection refused, timeout
+            LDAPSocketReceiveError,  # Connection reset mid-operation
+        )
+    ),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
 def _try_authenticate_on_server(
-    self, 
-    server: Server, 
-    username: str, 
-    password: str
+    self, server: Server, username: str, password: str
 ) -> LDAPUserInfo | None:
     """Single server auth attempt with retry for transient network errors.
-    
+
     Retry Policy:
         - Max 1 retry (2 total attempts)
         - 500ms delay between attempts
         - Only retries on socket-level errors (network issues)
-    
+
     Does NOT retry on:
         - LDAPInvalidCredentialsResult (wrong password)
         - LDAPNoSuchObjectResult (user not found)
@@ -182,16 +185,15 @@ def _try_authenticate_on_server(
 ```python
 # Track retry frequency for monitoring
 ldap_retry_total = Counter(
-    'phoenix_ldap_retry_total',
-    'LDAP authentication retry attempts',
-    ['server', 'error_type']
+    "phoenix_ldap_retry_total", "LDAP authentication retry attempts", ["server", "error_type"]
 )
+
 
 # In retry callback
 def on_retry(retry_state):
     ldap_retry_total.labels(
         server=retry_state.args[1].host,  # server argument
-        error_type=type(retry_state.outcome.exception()).__name__
+        error_type=type(retry_state.outcome.exception()).__name__,
     ).inc()
 ```
 
@@ -230,18 +232,16 @@ from prometheus_client import Counter, Histogram, Gauge
 # === Counters ===
 
 ldap_auth_total = Counter(
-    'phoenix_ldap_auth_total',
-    'Total LDAP authentication attempts',
-    ['result', 'server']
+    "phoenix_ldap_auth_total", "Total LDAP authentication attempts", ["result", "server"]
 )
 # Labels:
 #   result: success, invalid_credentials, user_not_found, server_error, timeout, all_failed
 #   server: hostname or "all" for aggregate failures
 
 ldap_bind_total = Counter(
-    'phoenix_ldap_bind_total',
-    'Total LDAP bind operations (service account + user)',
-    ['type', 'server', 'result']
+    "phoenix_ldap_bind_total",
+    "Total LDAP bind operations (service account + user)",
+    ["type", "server", "result"],
 )
 # Labels:
 #   type: service_account, user_verification, anonymous
@@ -250,17 +250,17 @@ ldap_bind_total = Counter(
 # === Histograms ===
 
 ldap_auth_duration_seconds = Histogram(
-    'phoenix_ldap_auth_duration_seconds',
-    'LDAP authentication end-to-end latency',
-    ['server'],
-    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
+    "phoenix_ldap_auth_duration_seconds",
+    "LDAP authentication end-to-end latency",
+    ["server"],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],
 )
 
 ldap_operation_duration_seconds = Histogram(
-    'phoenix_ldap_operation_duration_seconds',
-    'Individual LDAP operation latency',
-    ['operation', 'server'],
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
+    "phoenix_ldap_operation_duration_seconds",
+    "Individual LDAP operation latency",
+    ["operation", "server"],
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0],
 )
 # Labels:
 #   operation: connect, bind, search_user, search_groups, verify_password
@@ -268,14 +268,11 @@ ldap_operation_duration_seconds = Histogram(
 # === Gauges ===
 
 ldap_server_healthy = Gauge(
-    'phoenix_ldap_server_healthy',
-    'LDAP server health status (1=healthy, 0=unhealthy)',
-    ['server']
+    "phoenix_ldap_server_healthy", "LDAP server health status (1=healthy, 0=unhealthy)", ["server"]
 )
 
 ldap_servers_configured = Gauge(
-    'phoenix_ldap_servers_configured',
-    'Number of configured LDAP servers'
+    "phoenix_ldap_servers_configured", "Number of configured LDAP servers"
 )
 ```
 
@@ -289,16 +286,16 @@ async def authenticate(self, username: str, password: str) -> LDAPUserInfo | Non
             try:
                 result = await self._authenticate_on_server(server, username, password)
                 if result:
-                    ldap_auth_total.labels(result='success', server=server.host).inc()
+                    ldap_auth_total.labels(result="success", server=server.host).inc()
                     return result
                 else:
-                    ldap_auth_total.labels(result='invalid_credentials', server=server.host).inc()
+                    ldap_auth_total.labels(result="invalid_credentials", server=server.host).inc()
                     return None
             except LDAPException as e:
-                ldap_auth_total.labels(result='server_error', server=server.host).inc()
+                ldap_auth_total.labels(result="server_error", server=server.host).inc()
                 continue
-    
-    ldap_auth_total.labels(result='all_failed', server='all').inc()
+
+    ldap_auth_total.labels(result="all_failed", server="all").inc()
     return None
 ```
 
@@ -336,31 +333,31 @@ Current implementation won't see Alice as a member of "Phoenix Admins".
 ```python
 def _get_nested_groups_ad(self, conn: Connection, user_dn: str) -> list[str]:
     """Resolve nested AD groups using recursive membership filter.
-    
+
     Uses Microsoft's LDAP_MATCHING_RULE_IN_CHAIN (OID 1.2.840.113556.1.4.1941)
     which recursively expands group membership server-side.
-    
+
     Performance: Single LDAP query, server does recursion
     Compatibility: AD-only (not OpenLDAP)
-    
+
     Args:
         conn: Active LDAP connection
         user_dn: User's distinguished name
-        
+
     Returns:
         List of all group DNs (direct + transitive)
     """
     # OID 1.2.840.113556.1.4.1941 = LDAP_MATCHING_RULE_IN_CHAIN
     # Finds all groups where user_dn is a member (directly or transitively)
     nested_filter = f"(member:1.2.840.113556.1.4.1941:={escape_filter_chars(user_dn)})"
-    
+
     conn.search(
         search_base=self.config.group_search_base_dns[0],
         search_filter=nested_filter,
         search_scope=SUBTREE,
-        attributes=['distinguishedName'],
+        attributes=["distinguishedName"],
     )
-    
+
     return [entry.entry_dn for entry in conn.entries]
 ```
 
@@ -369,17 +366,17 @@ def _get_nested_groups_ad(self, conn: Connection, user_dn: str) -> list[str]:
 ```python
 def _get_nested_groups_via_token_groups(self, conn: Connection, user_dn: str) -> list[str]:
     """Resolve nested groups via AD's tokenGroups attribute.
-    
+
     tokenGroups contains binary SIDs of all groups (including nested).
     Requires additional lookup to convert SIDs to DNs.
-    
+
     Performance: Two queries (get SIDs, resolve to DNs)
     Compatibility: AD-only
-    
+
     Pros:
         - Returns security groups only (no distribution lists)
         - Includes domain-local groups from trusts
-        
+
     Cons:
         - Binary SID handling complexity
         - Requires SID-to-DN resolution query
@@ -387,29 +384,29 @@ def _get_nested_groups_via_token_groups(self, conn: Connection, user_dn: str) ->
     # Step 1: Get tokenGroups (binary SIDs)
     conn.search(
         search_base=user_dn,
-        search_filter='(objectClass=*)',
+        search_filter="(objectClass=*)",
         search_scope=BASE,
-        attributes=['tokenGroups'],
+        attributes=["tokenGroups"],
     )
-    
+
     if not conn.entries:
         return []
-    
+
     sids = conn.entries[0].tokenGroups.raw_values
-    
+
     # Step 2: Resolve SIDs to DNs
     groups = []
     for sid in sids:
         sid_string = self._binary_sid_to_string(sid)
         conn.search(
             search_base=self.config.user_search_base_dns[0],
-            search_filter=f'(objectSid={sid_string})',
+            search_filter=f"(objectSid={sid_string})",
             search_scope=SUBTREE,
-            attributes=['distinguishedName'],
+            attributes=["distinguishedName"],
         )
         if conn.entries:
             groups.append(conn.entries[0].entry_dn)
-    
+
     return groups
 ```
 
@@ -455,37 +452,37 @@ class LDAPAuthenticator:
         self.servers = self._create_servers()
         self._healthy_servers: list[Server] = list(self.servers)
         self._health_check_task: Optional[asyncio.Task] = None
-    
+
     async def start_health_checks(self, interval: float = 30.0) -> None:
         """Background task to check server health.
-        
+
         Performs lightweight anonymous bind or rootDSE query to verify connectivity.
         Updates _healthy_servers list for prioritized failover.
-        
+
         Args:
             interval: Seconds between health check cycles
         """
         logger.info(f"Starting LDAP health checks (interval={interval}s)")
-        
+
         while True:
             await asyncio.sleep(interval)
-            
+
             for server in self.servers:
                 healthy = await self._check_server_health(server)
-                
+
                 if healthy and server not in self._healthy_servers:
                     self._healthy_servers.append(server)
                     logger.info(f"LDAP server {server.host} recovered")
                     ldap_server_healthy.labels(server=server.host).set(1)
-                    
+
                 elif not healthy and server in self._healthy_servers:
                     self._healthy_servers.remove(server)
                     logger.warning(f"LDAP server {server.host} is unhealthy")
                     ldap_server_healthy.labels(server=server.host).set(0)
-    
+
     async def _check_server_health(self, server: Server) -> bool:
         """Quick connectivity check via rootDSE query.
-        
+
         RootDSE is always accessible without authentication and returns
         server capabilities. Faster than bind operations.
         """
@@ -496,21 +493,21 @@ class LDAPAuthenticator:
                 receive_timeout=5,  # Short timeout for health checks
             )
             conn.open()
-            
+
             # Query rootDSE (always accessible)
             conn.search(
-                search_base='',
-                search_filter='(objectClass=*)',
+                search_base="",
+                search_filter="(objectClass=*)",
                 search_scope=BASE,
-                attributes=['namingContexts'],
+                attributes=["namingContexts"],
             )
-            
+
             conn.unbind()
             return True
-            
+
         except LDAPException:
             return False
-    
+
     async def stop_health_checks(self) -> None:
         """Stop background health check task."""
         if self._health_check_task:
@@ -520,12 +517,12 @@ class LDAPAuthenticator:
             except asyncio.CancelledError:
                 pass
             self._health_check_task = None
-    
+
     async def authenticate(self, username: str, password: str) -> LDAPUserInfo | None:
         """Authenticate with health-aware server selection."""
         # Prioritize healthy servers, fall back to all servers if none healthy
         servers_to_try = self._healthy_servers if self._healthy_servers else self.servers
-        
+
         for server in servers_to_try:
             try:
                 result = await self._authenticate_on_server(server, username, password)
@@ -533,7 +530,7 @@ class LDAPAuthenticator:
                     return result
             except LDAPException:
                 continue
-        
+
         return None
 ```
 
@@ -542,20 +539,19 @@ class LDAPAuthenticator:
 ```python
 from contextlib import asynccontextmanager
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     if ldap_config := get_ldap_config():
         authenticator = LDAPAuthenticator(ldap_config)
-        authenticator._health_check_task = asyncio.create_task(
-            authenticator.start_health_checks()
-        )
+        authenticator._health_check_task = asyncio.create_task(authenticator.start_health_checks())
         app.state.ldap_authenticator = authenticator
-    
+
     yield
-    
+
     # Shutdown
-    if hasattr(app.state, 'ldap_authenticator'):
+    if hasattr(app.state, "ldap_authenticator"):
         await app.state.ldap_authenticator.stop_health_checks()
 ```
 
@@ -580,41 +576,37 @@ from ldap3.extend.standard import paged_search
 
 
 def _search_groups_paged(
-    self,
-    conn: Connection,
-    search_base: str,
-    search_filter: str,
-    page_size: int = 500
+    self, conn: Connection, search_base: str, search_filter: str, page_size: int = 500
 ) -> list[str]:
     """Search groups with pagination for large directories.
-    
+
     Uses LDAP Simple Paged Results Control (RFC 2696) to handle
     directories with more than 1000 groups.
-    
+
     Args:
         conn: Active LDAP connection
         search_base: Base DN for group search
         search_filter: LDAP filter for group membership
         page_size: Results per page (default 500)
-        
+
     Returns:
         List of all matching group DNs
     """
     groups = []
-    
+
     generator = paged_search.paged_search_generator(
         conn,
         search_base=search_base,
         search_filter=search_filter,
         search_scope=SUBTREE,
-        attributes=['distinguishedName'],
+        attributes=["distinguishedName"],
         paged_size=page_size,
     )
-    
+
     for entry in generator:
-        if entry['type'] == 'searchResEntry':
-            groups.append(entry['dn'])
-    
+        if entry["type"] == "searchResEntry":
+            groups.append(entry["dn"])
+
     logger.debug(f"Paged search returned {len(groups)} groups from {search_base}")
     return groups
 ```

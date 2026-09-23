@@ -1,0 +1,34 @@
+schema_version = "1.3"
+artifacts = ["/var/lib/phoenix-eval/server.log"]
+
+[task]
+name = "arize/trail-benchmark-spend-concentration"
+description = "Share of total cost in the most expensive tenth of traces"
+
+[metadata]
+fixture = "trail"
+
+[environment]
+os = "linux"
+cpus = 2
+memory_mb = 4096
+network_mode = "allowlist"
+build_timeout_sec = 1200.0
+
+[environment.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+
+[environment.healthcheck]
+command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
+timeout_sec = 180.0
+retries = 2
+
+[agent]
+user = "agent"
+timeout_sec = 600.0
+
+[verifier]
+network_mode = "allowlist"
+allowed_hosts = ["api.openai.com"]
+timeout_sec = 180.0

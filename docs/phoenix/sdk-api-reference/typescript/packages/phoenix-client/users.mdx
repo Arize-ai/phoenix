@@ -1,0 +1,44 @@
+---
+title: "Users"
+description: "Get the current Phoenix user with @arizeai/phoenix-client"
+---
+
+The users module identifies the user associated with the client's current credentials.
+
+## Get The Current User
+
+```ts
+import { getCurrentUser } from "@arizeai/phoenix-client/users";
+
+const user = await getCurrentUser();
+
+if (user.auth_method === "ANONYMOUS") {
+  console.log("Authentication is disabled");
+} else {
+  console.log(`${user.username} has the ${user.role} role`);
+}
+```
+
+`getCurrentUser()` returns the generated Phoenix API user union. Authenticated deployments return a local, OAuth 2, or LDAP user profile. When authentication is disabled, it returns `{ auth_method: "ANONYMOUS" }`. Invalid credentials reject with an `HttpError` whose `status` is `401`; other authorization failures retain their HTTP status as well.
+
+Pass a client explicitly when you need custom configuration:
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+import { getCurrentUser } from "@arizeai/phoenix-client/users";
+
+const client = createClient({
+  options: { baseUrl: "https://phoenix.example.com" },
+});
+
+const user = await getCurrentUser({ client });
+```
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/users/getCurrentUser.ts</code></li>
+    <li><code>src/users/index.ts</code></li>
+    <li><code>src/__generated__/api/v1.ts</code></li>
+  </ul>
+</section>

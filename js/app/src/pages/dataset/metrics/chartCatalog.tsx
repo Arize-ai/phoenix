@@ -1,0 +1,204 @@
+import type { ComponentType } from "react";
+import invariant from "tiny-invariant";
+
+import {
+  ChartPanel,
+  type ChartTypeIconType,
+  DeferredChartPanel,
+} from "@phoenix/components/chart";
+import type {
+  BuiltInExperimentMetricChartKey,
+  ExperimentMetricChartKey,
+} from "@phoenix/pages/dataset/constants";
+import {
+  EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+  EXPERIMENT_METRIC_CHART_KEYS,
+  EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+  getExperimentAnnotationName,
+} from "@phoenix/pages/dataset/constants";
+
+import { ExperimentAnnotationMetricPanel } from "./ExperimentAnnotationMetricsGrid";
+import { ExperimentAnnotationScoresChart } from "./ExperimentAnnotationScoresChart";
+import { ExperimentCostChart } from "./ExperimentCostChart";
+import { ExperimentErrorRateChart } from "./ExperimentErrorRateChart";
+import { ExperimentLatencyChart } from "./ExperimentLatencyChart";
+import { ExperimentTokensChart } from "./ExperimentTokensChart";
+import type { ExperimentMetricViewProps } from "./types";
+
+export type ExperimentMetricChart = {
+  key: ExperimentMetricChartKey;
+  annotationName?: string;
+  /**
+   * Shown as the chart panel title
+   */
+  name: string;
+  /**
+   * Shown as the chart panel subtitle
+   */
+  description: string;
+  /**
+   * The chart's visual archetype, shown as a glyph in the chart selector
+   */
+  chartType: ChartTypeIconType;
+  Panel: ComponentType<ExperimentMetricPanelProps>;
+};
+
+type ExperimentMetricPanelProps = ExperimentMetricViewProps & {
+  annotationName?: string;
+  fillHeight?: boolean;
+};
+
+type ExperimentMetricChartDefinition = Omit<
+  ExperimentMetricChart,
+  "key" | "Panel"
+> & {
+  Component: ComponentType<ExperimentMetricViewProps>;
+};
+
+/**
+ * The catalog of all experiment metric charts, keyed by chart key. Every
+ * chart plots the dataset's most recent experiments on the x axis.
+ */
+const CHART_DEFINITIONS: Record<
+  BuiltInExperimentMetricChartKey,
+  ExperimentMetricChartDefinition
+> = {
+  annotation_scores: {
+    name: "Annotation score comparison",
+    description: `Mean scores across all annotations for the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "line",
+    Component: ExperimentAnnotationScoresChart,
+  },
+  latency: {
+    name: "Run latency",
+    description: `Average run latency across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
+    Component: ExperimentLatencyChart,
+  },
+  cost: {
+    name: "Cost",
+    description: `Estimated cost in USD across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
+    Component: ExperimentCostChart,
+  },
+  tokens: {
+    name: "Token usage",
+    description: `Prompt and completion tokens across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
+    Component: ExperimentTokensChart,
+  },
+  error_rate: {
+    name: "Error rate",
+    description: `Share of runs that errored across the last ${EXPERIMENT_METRICS_EXPERIMENT_COUNT} experiments`,
+    chartType: "bar",
+    Component: ExperimentErrorRateChart,
+  },
+};
+
+function createExperimentMetricPanel({
+  name,
+  description,
+  Component,
+}: ExperimentMetricChartDefinition): ComponentType<ExperimentMetricPanelProps> {
+  return function ExperimentMetricPanel({ fillHeight = false, ...props }) {
+    return (
+      <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
+        <Component {...props} />
+      </ChartPanel>
+    );
+  };
+}
+
+/**
+ * The built-in chart objects, built once so repeated lookups return stable
+ * references. Annotation chart objects are derived per lookup from their key;
+ * only their shared `Panel` component reference is stable.
+ */
+const CHARTS_BY_KEY = Object.fromEntries(
+  EXPERIMENT_METRIC_CHART_KEYS.map((key) => {
+    const definition = CHART_DEFINITIONS[key];
+    return [
+      key,
+      {
+        key,
+        name: definition.name,
+        description: definition.description,
+        chartType: definition.chartType,
+        Panel: createExperimentMetricPanel(definition),
+      },
+    ];
+  })
+) as Record<BuiltInExperimentMetricChartKey, ExperimentMetricChart>;
+
+function ExperimentAnnotationChartPanel({
+  annotationName,
+  ...props
+}: ExperimentMetricPanelProps) {
+  invariant(
+    annotationName != null,
+    "annotationName is required for an annotation metric chart"
+  );
+  return (
+    <ExperimentAnnotationMetricPanel
+      {...props}
+      annotationName={annotationName}
+    />
+  );
+}
+
+/**
+ * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
+ * until scrolled into view. The placeholder uses the catalog title and
+ * subtitle so it matches the loaded panel.
+ */
+export function DeferredExperimentMetricPanel({
+  chart,
+  fillHeight = false,
+  ...props
+}: ExperimentMetricViewProps & {
+  chart: ExperimentMetricChart;
+  fillHeight?: boolean;
+}) {
+  return (
+    <DeferredChartPanel
+      title={chart.name}
+      subtitle={chart.description}
+      fillHeight={fillHeight}
+    >
+      <chart.Panel
+        {...props}
+        annotationName={chart.annotationName}
+        fillHeight={fillHeight}
+      />
+    </DeferredChartPanel>
+  );
+}
+
+export const getExperimentMetricChart = (
+  key: ExperimentMetricChartKey
+): ExperimentMetricChart => {
+  const annotationName = getExperimentAnnotationName(key);
+  if (annotationName == null) {
+    return CHARTS_BY_KEY[key as BuiltInExperimentMetricChartKey];
+  }
+  return {
+    key,
+    annotationName,
+    name: annotationName,
+    description: EXPERIMENT_ANNOTATION_METRIC_CHART_DESCRIPTION,
+    // An annotation's view (line or bars) is only known once its metric data
+    // loads, so the catalog shows a neutral line glyph.
+    chartType: "line",
+    Panel: ExperimentAnnotationChartPanel,
+  };
+};
+
+export const getExperimentMetricCharts = (
+  keys: readonly ExperimentMetricChartKey[]
+): ExperimentMetricChart[] => keys.map(getExperimentMetricChart);
+
+/**
+ * All the experiment metric charts, in chart selector display order.
+ */
+export const EXPERIMENT_METRIC_CHARTS: ExperimentMetricChart[] =
+  getExperimentMetricCharts(EXPERIMENT_METRIC_CHART_KEYS);

@@ -11,7 +11,7 @@ description: "Building effective text-to-SQL systems requires rigorous evaluatio
 We'll use a movie database containing recent titles, ratings, box office performance, and metadata to demonstrate how to build, evaluate, and systematically improve a text-to-SQL system using Phoenix's experimentation framework. Think of Phoenix as your scientific laboratory, meticulously recording every experiment to help you build better AI systems.
 
 ```sh
-!pip install "arize-phoenix>=11.0.0" openai 'httpx<0.28' duckdb datasets pyarrow "pydantic>=2.0.0" nest_asyncio openinference-instrumentation-openai --quiet
+!pip install "arize-phoenix>=11.0.0" openai duckdb datasets pyarrow "pydantic>=2.0.0" nest_asyncio openinference-instrumentation-openai --quiet
 ```
 
 Let's first start a phoenix server to act as our evaluation dashboard and experiment tracker. This will be our central hub for observing, measuring, and improving our text-to-SQL system.

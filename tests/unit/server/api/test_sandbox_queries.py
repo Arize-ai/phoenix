@@ -16,6 +16,7 @@ from phoenix.server.sandbox.types import (
     NoDeployment,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
 )
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -47,6 +48,7 @@ class _TestAuthAdapter(SandboxAdapter):  # type: ignore[type-arg]
         credentials: _TestAuthCreds,
         deployment: NoDeployment,
         user_env: Optional[Mapping[str, str]] = None,
+        runtime: Optional[SandboxRuntimeContext] = None,
     ) -> SandboxBackend:
         return MagicMock(spec=SandboxBackend)
 

@@ -4,7 +4,11 @@ description: Tracing the execution of LLM applications using Telemetry
 sidebarTitle: "Overview"
 ---
 
+import AgentAssistedOnboardingPrereq from "../../snippets/agent-assisted-onboarding-prereq.mdx";
+
 Phoenix traces AI applications, via OpenTelemetry and has first-class integrations with LlamaIndex, LangChain, OpenAI, and others.
+
+<AgentAssistedOnboardingPrereq />
 
 LLM tracing records the paths taken by requests as they propagate through multiple steps or components of an LLM application. For example, when a user interacts with an LLM application, tracing can capture the sequence of operations, such as document retrieval, embedding generation, language model invocation, and response generation to provide a detailed timeline of the request's execution.
 

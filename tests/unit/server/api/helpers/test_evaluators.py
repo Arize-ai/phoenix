@@ -2,11 +2,10 @@ import json
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
-import httpx
+import httpx2
 import pytest
-import respx
 from openai import AsyncOpenAI
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -47,6 +46,7 @@ from phoenix.db.types.prompts import (
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
+    PromptToolRaw,
     PromptTools,
     TextContentPart,
 )
@@ -68,7 +68,7 @@ from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_evaluator_prompt_and_configs,
 )
-from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
+from phoenix.server.api.helpers.playground_clients import OpenAIChatCompletionsClient
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -277,6 +277,22 @@ class TestValidateConsistentLLMEvaluatorAndPromptVersion:
             match=_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME,
         ):
             validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+
+    def test_raw_tool_error_does_not_echo_submitted_json(
+        self,
+        output_config: CategoricalOutputConfig,
+        prompt_version: models.PromptVersion,
+    ) -> None:
+        assert prompt_version.tools is not None
+        prompt_version.tools.tools = [
+            PromptToolRaw(type="raw", raw={"api_key": "secret", "type": "web_search"})
+        ]
+        with pytest.raises(
+            ValueError,
+            match=f"^{_LLMEvaluatorPromptErrorMessage.FUNCTION_TOOLS_REQUIRED}$",
+        ) as error:
+            validate_consistent_llm_evaluator_and_prompt_version(prompt_version, output_config)
+        assert "secret" not in str(error.value)
 
     def test_function_parameters_type_not_object_raises(
         self,
@@ -2297,22 +2313,44 @@ class TestLLMEvaluator:
         return Tracer(span_cost_calculator=span_cost_calculator)
 
     @pytest.fixture
-    def openai_streaming_client(
+    def openai_streaming_client_factory(
         self,
         openai_api_key: str,
-    ) -> "OpenAIStreamingClient":
-        @asynccontextmanager
-        async def create_openai_client() -> Any:
-            yield AsyncOpenAI(api_key=openai_api_key, max_retries=0)
+    ) -> Callable[
+        [Optional[httpx2.AsyncClient]],
+        "OpenAIChatCompletionsClient",
+    ]:
+        def create_client(
+            http_client: Optional[httpx2.AsyncClient],
+        ) -> "OpenAIChatCompletionsClient":
+            @asynccontextmanager
+            async def create_openai_client() -> Any:
+                yield AsyncOpenAI(
+                    api_key=openai_api_key,
+                    max_retries=0,
+                    http_client=http_client,
+                )
 
-        client_factory = LLMClientFactory(
-            create_openai_client, openai_rate_limit_key(openai_api_key, None)
-        )
-        return OpenAIStreamingClient(
-            client_factory=client_factory,
-            model_name="gpt-4o-mini",
-            provider="openai",
-        )
+            client_factory = LLMClientFactory(
+                create_openai_client, openai_rate_limit_key(openai_api_key, None)
+            )
+            return OpenAIChatCompletionsClient(
+                client_factory=client_factory,
+                model_name="gpt-4o-mini",
+                provider="openai",
+            )
+
+        return create_client
+
+    @pytest.fixture
+    def openai_streaming_client(
+        self,
+        openai_streaming_client_factory: Callable[
+            [Optional[httpx2.AsyncClient]],
+            "OpenAIChatCompletionsClient",
+        ],
+    ) -> "OpenAIChatCompletionsClient":
+        return openai_streaming_client_factory(None)
 
     @pytest.fixture
     def llm_evaluator_prompt_version(self) -> models.PromptVersion:
@@ -2372,29 +2410,41 @@ class TestLLMEvaluator:
         )
 
     @pytest.fixture
-    def llm_evaluator(
+    def llm_evaluator_factory(
         self,
         llm_evaluator_prompt_version: models.PromptVersion,
         output_config: CategoricalOutputConfig,
-        openai_streaming_client: "OpenAIStreamingClient",
-    ) -> LLMEvaluator:
+    ) -> Callable[["OpenAIChatCompletionsClient"], LLMEvaluator]:
         template = llm_evaluator_prompt_version.template
         assert isinstance(template, PromptChatTemplate)
         tools = llm_evaluator_prompt_version.tools
         assert tools is not None
 
-        return LLMEvaluator(
-            name="correctness",
-            description="Evaluates correctness",
-            template=template,
-            template_format=llm_evaluator_prompt_version.template_format,
-            tools=tools,
-            invocation_parameters=llm_evaluator_prompt_version.invocation_parameters,
-            model_provider=llm_evaluator_prompt_version.model_provider,
-            llm_client=openai_streaming_client,
-            output_configs=[output_config],
-            prompt_name="test-prompt",
-        )
+        def create_evaluator(
+            openai_streaming_client: "OpenAIChatCompletionsClient",
+        ) -> LLMEvaluator:
+            return LLMEvaluator(
+                name="correctness",
+                description="Evaluates correctness",
+                template=template,
+                template_format=llm_evaluator_prompt_version.template_format,
+                tools=tools,
+                invocation_parameters=llm_evaluator_prompt_version.invocation_parameters,
+                model_provider=llm_evaluator_prompt_version.model_provider,
+                llm_client=openai_streaming_client,
+                output_configs=[output_config],
+                prompt_name="test-prompt",
+            )
+
+        return create_evaluator
+
+    @pytest.fixture
+    def llm_evaluator(
+        self,
+        llm_evaluator_factory: Callable[["OpenAIChatCompletionsClient"], LLMEvaluator],
+        openai_streaming_client: "OpenAIChatCompletionsClient",
+    ) -> LLMEvaluator:
+        return llm_evaluator_factory(openai_streaming_client)
 
     @pytest.fixture
     def input_mapping(self) -> EvaluatorInputMappingInput:
@@ -2479,7 +2529,7 @@ class TestLLMEvaluator:
         self,
         multipart_llm_evaluator_prompt_version: models.PromptVersion,
         output_config: CategoricalOutputConfig,
-        openai_streaming_client: "OpenAIStreamingClient",
+        openai_streaming_client: "OpenAIChatCompletionsClient",
     ) -> LLMEvaluator:
         template = multipart_llm_evaluator_prompt_version.template
         assert isinstance(template, PromptChatTemplate)
@@ -3231,7 +3281,11 @@ class TestLLMEvaluator:
         db: DbSessionFactory,
         project: models.Project,
         tracer: Tracer,
-        llm_evaluator: LLMEvaluator,
+        llm_evaluator_factory: Callable[["OpenAIChatCompletionsClient"], LLMEvaluator],
+        openai_streaming_client_factory: Callable[
+            [Optional[httpx2.AsyncClient]],
+            "OpenAIChatCompletionsClient",
+        ],
         output_config: CategoricalOutputConfig,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
@@ -3258,14 +3312,15 @@ class TestLLMEvaluator:
                 },
             }
         )
-        with respx.mock:
-            respx.post("https://api.openai.com/v1/chat/completions").mock(
-                return_value=httpx.Response(
-                    200,
-                    content=text_response_body,
-                    headers={"content-type": "application/json"},
-                )
+        transport = httpx2.MockTransport(
+            lambda request: httpx2.Response(
+                200,
+                content=text_response_body,
+                headers={"content-type": "application/json"},
             )
+        )
+        async with httpx2.AsyncClient(transport=transport) as http_client:
+            llm_evaluator = llm_evaluator_factory(openai_streaming_client_factory(http_client))
             evaluation_results = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
                 input_mapping=input_mapping.to_orm(),
@@ -3410,7 +3465,11 @@ class TestLLMEvaluator:
         db: DbSessionFactory,
         project: models.Project,
         tracer: Tracer,
-        llm_evaluator: LLMEvaluator,
+        llm_evaluator_factory: Callable[["OpenAIChatCompletionsClient"], LLMEvaluator],
+        openai_streaming_client_factory: Callable[
+            [Optional[httpx2.AsyncClient]],
+            "OpenAIChatCompletionsClient",
+        ],
         output_config: CategoricalOutputConfig,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
@@ -3447,14 +3506,15 @@ class TestLLMEvaluator:
                 },
             }
         )
-        with respx.mock:
-            respx.post("https://api.openai.com/v1/chat/completions").mock(
-                return_value=httpx.Response(
-                    200,
-                    content=tool_call_response_body,
-                    headers={"content-type": "application/json"},
-                )
+        transport = httpx2.MockTransport(
+            lambda request: httpx2.Response(
+                200,
+                content=tool_call_response_body,
+                headers={"content-type": "application/json"},
             )
+        )
+        async with httpx2.AsyncClient(transport=transport) as http_client:
+            llm_evaluator = llm_evaluator_factory(openai_streaming_client_factory(http_client))
             evaluation_results = await llm_evaluator.evaluate(
                 context={"input": "What is 2 + 2?", "output": "4"},
                 input_mapping=input_mapping.to_orm(),

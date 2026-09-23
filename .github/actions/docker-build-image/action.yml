@@ -1,0 +1,172 @@
+name: Build every Phoenix variant for one platform
+description: >-
+  Build each requested variant for a single platform on one runner, push each
+  by digest, and upload the digests as one artifact. The variants differ only
+  in the final FROM, so the frontend, backend and WASM stages are built once
+  and reused from the local builder — running them as separate jobs would
+  repeat that work on a cold builder every time. A downstream job collects the
+  digests for every platform of a variant and assembles them into one manifest
+  list, so each platform builds natively instead of under QEMU.
+
+inputs:
+  variants:
+    description: Space-separated variants to build — any of root, nonroot, debug.
+    required: true
+  platform:
+    description: Target platform in Docker form, e.g. linux/amd64.
+    required: true
+  registry:
+    description: Docker Hub namespace.
+    required: true
+  image-name:
+    description: Repository name within the namespace.
+    required: true
+  dockerhub-username:
+    description: Docker Hub user to push as.
+    required: true
+  dockerhub-password:
+    description: Docker Hub access token for that user.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve platform slug
+      id: resolve
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        VARIANTS: ${{ inputs.variants }}
+      run: |
+        set -euo pipefail
+        [ -n "${VARIANTS// /}" ] || { echo "no variants requested" >&2; exit 1; }
+        for variant in $VARIANTS; do
+          case "$variant" in
+            root|nonroot|debug) ;;
+            *) echo "unknown variant: $variant" >&2; exit 1 ;;
+          esac
+        done
+        echo "platform-slug=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        username: ${{ inputs.dockerhub-username }}
+        password: ${{ inputs.dockerhub-password }}
+
+    - name: Extract image labels
+      id: meta
+      uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+      with:
+        images: ${{ inputs.registry }}/${{ inputs.image-name }}
+
+    # The WASM fetch is the only download here with no registry-protocol
+    # retry beneath it, and the release asset drops connections. Building
+    # that stage alone parks its layer in the Actions cache so the builds
+    # below restore it instead of refetching. Scoped by platform because the
+    # stage never reads the variant. ~78MB per scope; exporting the builder
+    # stages too would be ~1.3GB per leg and would not fit the repository's
+    # shared 10GB budget.
+    #
+    # This is the only step that touches the Actions cache. Once it runs, the
+    # layer is in the local builder, which is what the variant builds below
+    # consume — they need no cache-from of their own.
+    - name: Warm the WASM layer cache
+      uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+      with:
+        platforms: ${{ inputs.platform }}
+        context: .
+        file: ./Dockerfile
+        target: wasm-runtime
+        provenance: false
+        sbom: false
+        outputs: type=cacheonly
+        cache-from: type=gha,scope=wasm-${{ steps.resolve.outputs.platform-slug }}
+        # ignore-error: a cache export must never fail a publish. The layer is
+        # already local by then; the export only serves the next run.
+        cache-to: type=gha,scope=wasm-${{ steps.resolve.outputs.platform-slug }},mode=max,ignore-error=true
+
+    # Sequential on purpose: the first variant builds the frontend, backend and
+    # WASM stages, and the rest reuse them from the local builder, leaving only
+    # the final FROM and its COPYs. Never exits non-zero — a variant that fails
+    # must not withhold the digests of the ones that succeeded, so failures are
+    # recorded and reported after the upload.
+    - name: Build and push each variant by digest
+      id: build
+      shell: bash
+      env:
+        VARIANTS: ${{ inputs.variants }}
+        PLATFORM: ${{ inputs.platform }}
+        IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}
+        LABELS: ${{ steps.meta.outputs.labels }}
+      run: |
+        set -uo pipefail
+
+        label_args=()
+        while IFS= read -r label; do
+          [ -n "$label" ] && label_args+=(--label "$label")
+        done <<< "$LABELS"
+
+        out="${RUNNER_TEMP}/digests"
+        failed=""
+        for variant in $VARIANTS; do
+          case "$variant" in
+            root)    base=gcr.io/distroless/python3-debian13 ;;
+            nonroot) base=gcr.io/distroless/python3-debian13:nonroot ;;
+            debug)   base=gcr.io/distroless/python3-debian13:debug ;;
+          esac
+
+          echo "::group::build ${variant} (${PLATFORM})"
+          meta="${RUNNER_TEMP}/metadata-${variant}.json"
+          if docker buildx build \
+               --platform "$PLATFORM" \
+               --file ./Dockerfile \
+               --build-arg "BASE_IMAGE=${base}" \
+               --provenance mode=max \
+               --sbom true \
+               "${label_args[@]}" \
+               --metadata-file "$meta" \
+               --output "type=image,name=${IMAGE},push-by-digest=true,name-canonical=true,push=true" \
+               .
+          then
+            digest=$(jq -r '."containerimage.digest"' "$meta")
+            if [ -z "$digest" ] || [ "$digest" = null ]; then
+              echo "::error::${variant}: build reported success but no digest"
+              failed="${failed} ${variant}"
+            else
+              mkdir -p "${out}/${variant}"
+              touch "${out}/${variant}/${digest#sha256:}"
+              echo "${variant}: ${digest}"
+            fi
+          else
+            echo "::error::${variant}: build failed on ${PLATFORM}"
+            failed="${failed} ${variant}"
+          fi
+          echo "::endgroup::"
+        done
+
+        echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
+
+    - name: Upload digests
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: digests-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/digests/*
+        # warn, not error: every variant failing is reported by the next step,
+        # which is where that failure belongs.
+        if-no-files-found: warn
+        retention-days: 1
+
+    - name: Report failed variants
+      shell: bash
+      env:
+        FAILED: ${{ steps.build.outputs.failed }}
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        set -euo pipefail
+        [ -z "$FAILED" ] && exit 0
+        echo "::error::failed on ${PLATFORM}:${FAILED// /, }"
+        exit 1

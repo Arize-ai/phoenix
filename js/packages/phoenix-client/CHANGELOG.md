@@ -1,5 +1,122 @@
 # @arizeai/phoenix-client
 
+## 7.14.0
+
+### Minor Changes
+
+- aab229f: Add `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` helpers to the `datasets` subpath. The helpers select datasets by name or GlobalID, create splits on existing datasets, partially update split fields, add or remove example memberships idempotently, and delete splits without deleting their examples. They require Phoenix server 19.20.0 or newer.
+  
+  Also export the generated `DatasetSplit` response type and a `DatasetIdentifier` selector type from the datasets subpath.
+
+## 7.13.0
+
+### Minor Changes
+
+- c282563: Add an `upsertOrDeleteSecrets` helper to the new `secrets` subpath. It atomically creates, updates, or deletes ordered key/value-or-null batches through `PUT /v1/secrets`, returns only the affected key names, and keeps submitted values out of helper output and error messages.
+
+## 7.12.0
+
+### Minor Changes
+
+- dab09f1: Add `filter` expressions to `getTraces` and `listSessions` (requires Phoenix server >= 20.12.0). Deprecate the individual trace error and latency parameters while retaining their behavior and support for server >= 20.8.0.
+
+## 7.11.0
+
+### Minor Changes
+
+- 2b73847: Accept `metadata` in `promptVersion()` so prompt versions can carry arbitrary JSON metadata.
+
+## 7.10.0
+
+### Minor Changes
+
+- c839254: Add `error`, `minLatencyMs`, and `maxLatencyMs` filters to `getTraces`, matching the query parameters on `GET /v1/projects/{id}/traces` (requires Phoenix server >= 20.8.0).
+
+## 7.9.0
+
+### Minor Changes
+
+- bf047af: Add Meta (Muse Spark models) as a built-in OpenAI-compatible model provider (`META`).
+
+## 7.8.0
+
+### Minor Changes
+
+- 58b7017: Add Z.ai (GLM models) as a built-in OpenAI-compatible model provider (`ZAI`).
+
+## 7.7.1
+
+### Patch Changes
+
+- 1cdff14: Expose cumulative prompt, completion, and total token counts on the high-level `Session` objects returned by `getSession` and `listSessions`.
+
+## 7.7.0
+
+### Minor Changes
+
+- 37916d7: Add `setProjectRetentionPolicy` to the projects entry point for assigning an existing retention policy by GlobalID or resetting a project to the default policy.
+- c48e50e: Add `transferTraces` to the traces subpath for moving traces between Phoenix projects.
+- 773c5e5: Add a typed `getCurrentUser` helper through the `@arizeai/phoenix-client/users` entrypoint.
+
+### Patch Changes
+
+- b27561d: Widen the optional `openai` peer dependency range to `^6.10.0 || ^7.0.0` so apps already on the OpenAI SDK v7 can install the client without a peer conflict.
+
+## 7.6.0
+
+### Minor Changes
+
+- d328c3e: Add a `deletePrompt` helper to the `prompts` subpath. It takes a `prompt` selector — `{ name }` or `{ promptId }` — matching the selector style `getPrompt` already uses, and calls `DELETE /v1/prompts/{prompt_identifier}` (Phoenix server >= 13.20.0). Version-level selectors (`{ versionId }`, `{ name, tag }`) are rejected rather than widened to the whole prompt. Deletion cascades to every version of the prompt along with its version tags and labels.
+  
+  Also exports a `PromptIdentifier` type from `types/prompts` for the prompt-level selector union.
+
+## 7.5.0
+
+### Minor Changes
+
+- 0ed987a: Re-enable the PXI agent-session server version guard. PXI now fails fast at startup with a clear upgrade message when the connected Phoenix server predates the agent-session chat contract (server < 20.0.0), instead of 404ing on the first send. phoenix-client adds capability requirements for the remaining agent-session routes (list, get, patch, compact, tool outputs), exports all agent-session requirements from the package root, and routes `getServerVersion` through the client's configured fetch.
+
+## 7.4.0
+
+### Minor Changes
+
+- 90729f3: Add `updatePrompt` for `PATCH /v1/prompts/{prompt_identifier}` (description and metadata; requires Phoenix server >= 19.18.0).
+
+## 7.3.1
+
+### Patch Changes
+
+- c892873: Add generated types for the experiment tag REST routes (`GET`/`POST /v1/experiments/{experiment_id}/tags` and `DELETE /v1/experiments/{experiment_id}/tags/{tag_identifier}`)
+
+## 7.3.0
+
+### Minor Changes
+
+- d04f0fc: Introduce `PHOENIX_ENDPOINT` as the canonical base URL for API access, alongside `PHOENIX_COLLECTOR_ENDPOINT` for trace export.
+
+  Previously the TypeScript client read only `PHOENIX_HOST`, so pointing `PHOENIX_COLLECTOR_ENDPOINT` at a remote Phoenix and then reading spans back silently targeted `http://localhost:6006`. The client's base URL now resolves `PHOENIX_ENDPOINT` first, then the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` (any `/v1/traces` path is stripped), then the legacy `PHOENIX_HOST` — matching the Python client rung for rung, so the same environment reaches the same server from either language.
+
+  `PHOENIX_BASE_URL` is honored below the trace-export variables as an undocumented compatibility fallback. The client docs advertised that name for years while no code read it, so values set from those docs did nothing; placing it below the other variables means those configurations start working without retargeting anyone who set both. It is also no longer enough on its own to displace a discovered `.env.phoenix`, so a stale value left in a shell cannot redirect a project that `px setup` configured.
+
+  Empty and whitespace-only values now count as unset everywhere in the resolution chains, so `export PHOENIX_ENDPOINT=` falls through to the next variable instead of stranding every consumer on localhost.
+
+  Experiment and test-suite tracing follow the same rules as `register()`: a client created with an explicit `baseUrl` exports its spans to that server, and a client whose base URL came from the environment lets the trace-export variables decide. An unparseable endpoint in a discovered `.env.phoenix` now falls back with a warning instead of aborting the run, and the cross-tier credential warning fires on this path too.
+
+  `@arizeai/phoenix-config` gains `ENV_PHOENIX_ENDPOINT`, `ENV_OTEL_EXPORTER_OTLP_ENDPOINT`, `ENV_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `getBaseUrlFromEnvironment[WithSource]()`, `getBaseUrlFromValues()` (same precedence over an injected env record), `getTraceExportEndpointFromEnvironment()`, and `PHOENIX_CONNECTION_ENV_KEYS` (for test env hygiene).
+
+### Patch Changes
+
+- Updated dependencies [d04f0fc]
+- Updated dependencies [5420522]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-otel@2.2.0
+
+## 7.2.0
+
+### Minor Changes
+
+- 59aa7cb: Add a `getProjects` helper to the new `@arizeai/phoenix-client/projects` entry point. It lists projects with automatic cursor pagination and accepts an optional `nameContains` filter, which maps to the `name_contains` query parameter on `GET /v1/projects` (case-insensitive substring match, requires Phoenix server >= 17.16.0).
+
 ## 7.1.1
 
 ### Patch Changes

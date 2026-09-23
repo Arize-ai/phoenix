@@ -42,6 +42,7 @@ LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"  # Simple constant marker
 ```python
 LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"
 
+
 def is_ldap_user(oauth2_client_id: Optional[str]) -> bool:
     """Check if user is authenticated via LDAP."""
     return oauth2_client_id == LDAP_CLIENT_ID_MARKER

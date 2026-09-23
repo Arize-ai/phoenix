@@ -123,22 +123,47 @@ function extractInputOutputFromSpan(span: SpanLike): {
   return { input, output };
 }
 
-async function main() {
-  const phoenixEndpoint = process.env.PHOENIX_ENDPOINT;
-  const projectName = process.env.PHOENIX_PROJECT_NAME || "mastra-project";
+type EvaluationCase = { input: string; output: string; spanId: string };
+type EvaluationResult = EvaluationCase & {
+  label: string | null;
+  score: number | null;
+  explanation: string | null;
+};
 
-  if (!phoenixEndpoint) {
-    throw new Error(
-      "PHOENIX_ENDPOINT environment variable is required. Please set it in your .env file."
-    );
-  }
+function getSpanId(span: SpanLike): string | number | undefined {
+  return (
+    span.global_id ||
+    (span.context?.span_id as string | undefined) ||
+    span.span_id ||
+    span.id ||
+    (span.context?.spanId as string | undefined) ||
+    span.spanId
+  );
+}
 
+function getTraceId(span: SpanLike): string | undefined {
+  return (
+    (span.context?.trace_id as string | undefined) ||
+    span.trace_id ||
+    (span.context?.traceId as string | undefined) ||
+    span.traceId
+  );
+}
+
+function getParentSpanId(span: SpanLike): string | undefined {
+  return (
+    span.parent_span_id ||
+    (span.context?.parent_span_id as string | undefined) ||
+    span.parentSpanId ||
+    (span.context?.parentSpanId as string | undefined)
+  );
+}
+
+async function fetchRecentSpans(projectName: string): Promise<SpanLike[]> {
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
-
-  let allSpans: SpanLike[] = [];
-  let cursor: string | null | undefined = undefined;
-
+  const spans: SpanLike[] = [];
+  let cursor: string | null | undefined;
   do {
     const result = await getSpans({
       project: { projectName },
@@ -147,270 +172,169 @@ async function main() {
       cursor,
       limit: 100,
     });
-
-    allSpans = allSpans.concat(result.spans);
+    spans.push(...result.spans);
     cursor = result.nextCursor || undefined;
   } while (cursor);
+  return spans;
+}
 
+function toEvaluationCases(spans: SpanLike[]): EvaluationCase[] {
+  return spans.flatMap((span) => {
+    const { input, output } = extractInputOutputFromSpan(span);
+    const spanId = getSpanId(span);
+    if (!input || !output || spanId == null) return [];
+    const normalizedSpanId =
+      typeof spanId === "number"
+        ? spanId.toString(16)
+        : String(spanId).replace(/^0x/, "");
+    return [{ input, output, spanId: normalizedSpanId }];
+  });
+}
+
+function getToolSpans(spans: SpanLike[]): SpanLike[] {
   const toolNames = ["movieselector", "reviewer", "previewsummarizer"];
-  const toolSpans = allSpans.filter((span) => {
+  return spans.filter((span) => {
     const name = span.name?.toLowerCase() || "";
     const kind = span.kind?.toLowerCase() || "";
-
-    const matchesToolName = toolNames.some((toolName) =>
-      name.includes(toolName)
+    return (
+      toolNames.some((toolName) => name.includes(toolName)) ||
+      kind === "tool" ||
+      kind === "function"
     );
-
-    const isToolCall = kind === "tool" || kind === "function";
-
-    return matchesToolName || isToolCall;
   });
+}
 
-  if (toolSpans.length === 0) {
-    return;
+function getAgentRootSpans({
+  spans,
+  toolSpans,
+}: {
+  spans: SpanLike[];
+  toolSpans: SpanLike[];
+}): SpanLike[] {
+  const toolSpanIds = new Set(toolSpans.map(getSpanId));
+  const spansByTrace = new Map<string, SpanLike[]>();
+  for (const span of spans) {
+    const traceId = getTraceId(span);
+    if (!traceId) continue;
+    spansByTrace.set(traceId, [...(spansByTrace.get(traceId) ?? []), span]);
   }
+  return Array.from(spansByTrace.values())
+    .flatMap((traceSpans) =>
+      traceSpans.filter((span) => {
+        const parentId = getParentSpanId(span);
+        return (
+          !parentId ||
+          !traceSpans.some((candidate) => getSpanId(candidate) === parentId)
+        );
+      })
+    )
+    .filter((span) => {
+      const name = span.name?.toLowerCase() || "";
+      const kind = span.kind?.toLowerCase() || "";
+      const isAgent =
+        span.attributes?.["gen_ai.system"] === "agent" ||
+        kind === "agent" ||
+        kind === "llm";
+      return (
+        (name.includes("agent") || name.includes("movie") || isAgent) &&
+        !toolSpanIds.has(getSpanId(span))
+      );
+    });
+}
 
-  const testCases: Array<{ input: string; output: string; spanId: string }> =
-    [];
-
-  for (const span of toolSpans) {
-    const { input, output } = extractInputOutputFromSpan(span);
-    if (input && output) {
-      const spanId =
-        span.global_id ||
-        span.context?.span_id ||
-        span.span_id ||
-        span.id ||
-        span.context?.spanId ||
-        span.spanId;
-
-      if (spanId) {
-        let cleanSpanId = spanId.toString().replace(/^0x/, "");
-        if (typeof spanId === "number") {
-          cleanSpanId = spanId.toString(16);
-        }
-
-        testCases.push({ input, output, spanId: cleanSpanId });
-      }
-    }
-  }
-
-  if (testCases.length === 0) {
-    return;
-  }
-
+async function evaluateCases({
+  cases,
+  name,
+  choices,
+  promptTemplate,
+}: {
+  cases: EvaluationCase[];
+  name: string;
+  choices: Record<string, number>;
+  promptTemplate: string;
+}): Promise<EvaluationResult[]> {
   const evaluator = await createClassificationEvaluator({
-    name: "correctness",
+    name,
     model,
+    choices,
+    promptTemplate,
+  });
+  const results: EvaluationResult[] = [];
+  for (const testCase of cases) {
+    const result = await evaluator.evaluate(testCase);
+    results.push({ ...testCase, ...result });
+  }
+  return results;
+}
+
+async function logEvaluationResults({
+  results,
+  name,
+}: {
+  results: EvaluationResult[];
+  name: string;
+}): Promise<void> {
+  const spanAnnotations = results.map((result) => ({
+    spanId: result.spanId,
+    name,
+    label: result.label,
+    score: result.score,
+    explanation: result.explanation || undefined,
+    annotatorKind: "LLM" as const,
+    metadata: {
+      evaluator: name,
+      input: result.input.substring(0, 500),
+      output: result.output.substring(0, 500),
+    },
+  }));
+  try {
+    await logSpanAnnotations({ spanAnnotations, sync: true });
+  } catch (_error) {}
+}
+
+async function main() {
+  if (
+    !process.env.PHOENIX_ENDPOINT &&
+    !process.env.PHOENIX_COLLECTOR_ENDPOINT
+  ) {
+    throw new Error(
+      "PHOENIX_ENDPOINT (or PHOENIX_COLLECTOR_ENDPOINT) environment variable is required"
+    );
+  }
+  const spans = await fetchRecentSpans(
+    process.env.PHOENIX_PROJECT_NAME || "mastra-project"
+  );
+  const toolSpans = getToolSpans(spans);
+  const toolCases = toEvaluationCases(toolSpans);
+  if (toolCases.length === 0) return;
+
+  const correctnessResults = await evaluateCases({
+    cases: toolCases,
+    name: "correctness",
     choices: { correct: 1, incorrect: 0 },
     promptTemplate: toolCorrectnessPrompt,
   });
-
-  const results = [];
-
-  for (const testCase of testCases) {
-    const result = await evaluator.evaluate({
-      input: testCase.input,
-      output: testCase.output,
-    });
-
-    results.push({
-      spanId: testCase.spanId,
-      input: testCase.input,
-      output: testCase.output,
-      label: result.label,
-      score: result.score,
-      explanation: result.explanation,
-    });
-  }
-
-  const correctCount = results.filter((r) => r.label === "correct").length;
-  const totalCount = results.length;
-
+  const correctCount = correctnessResults.filter(
+    (result) => result.label === "correct"
+  ).length;
   assert(
-    correctCount >= totalCount * 0.5,
-    `Expected at least 50% of tests to pass, but only ${correctCount}/${totalCount} passed`
+    correctCount >= correctnessResults.length * 0.5,
+    `Expected at least 50% of tests to pass, but only ${correctCount}/${correctnessResults.length} passed`
   );
-
-  const spanAnnotations = results.map((result) => ({
-    spanId: result.spanId,
+  await logEvaluationResults({
+    results: correctnessResults,
     name: "correctness",
-    label: result.label,
-    score: result.score,
-    explanation: result.explanation || undefined,
-    annotatorKind: "LLM" as const,
-    metadata: {
-      evaluator: "correctness",
-      input: result.input.substring(0, 500),
-      output: result.output.substring(0, 500),
-    },
-  }));
-
-  try {
-    await logSpanAnnotations({
-      spanAnnotations,
-      sync: true,
-    });
-  } catch (_error) {}
-
-  const toolSpanIds = new Set(
-    toolSpans.map(
-      (s) =>
-        s.global_id ||
-        s.context?.span_id ||
-        s.span_id ||
-        s.id ||
-        s.context?.spanId ||
-        s.spanId
-    )
-  );
-
-  const spansByTrace = new Map<string, SpanLike[]>();
-  for (const span of allSpans) {
-    const traceId =
-      (span.context?.trace_id as string) ||
-      span.trace_id ||
-      (span.context?.traceId as string) ||
-      span.traceId;
-    if (traceId) {
-      if (!spansByTrace.has(traceId)) {
-        spansByTrace.set(traceId, []);
-      }
-      spansByTrace.get(traceId)!.push(span);
-    }
-  }
-
-  const rootSpansPerTrace: SpanLike[] = [];
-  for (const [_traceId, spans] of spansByTrace.entries()) {
-    const rootSpansInTrace = spans.filter((span) => {
-      const parentId =
-        span.parent_span_id ||
-        (span.context?.parent_span_id as string) ||
-        span.parentSpanId ||
-        (span.context?.parentSpanId as string);
-
-      if (!parentId) {
-        return true;
-      }
-      const parentInTrace = spans.some((s) => {
-        const sId =
-          s.global_id ||
-          (s.context?.span_id as string) ||
-          s.span_id ||
-          s.id ||
-          (s.context?.spanId as string) ||
-          s.spanId;
-        return sId === parentId;
-      });
-      return !parentInTrace;
-    });
-    rootSpansPerTrace.push(...rootSpansInTrace);
-  }
-
-  const rootSpans = rootSpansPerTrace.filter((span) => {
-    const name = span.name?.toLowerCase() || "";
-    const kind = span.kind?.toLowerCase() || "";
-    const spanId =
-      span.global_id ||
-      span.context?.span_id ||
-      span.span_id ||
-      span.id ||
-      span.context?.spanId ||
-      span.spanId;
-
-    const matchesAgentName = name.includes("agent") || name.includes("movie");
-
-    const isAgent =
-      span.attributes?.["gen_ai.system"] === "agent" ||
-      kind === "agent" ||
-      kind === "llm";
-
-    const isNotTool = spanId && !toolSpanIds.has(spanId);
-
-    return (matchesAgentName || isAgent) && isNotTool;
   });
 
-  if (rootSpans.length === 0) {
-    return;
-  }
-
-  const agentTestCases: Array<{
-    input: string;
-    output: string;
-    spanId: string;
-  }> = [];
-
-  for (const span of rootSpans) {
-    const { input, output } = extractInputOutputFromSpan(span);
-    if (input && output) {
-      const spanId =
-        span.global_id ||
-        span.context?.span_id ||
-        span.span_id ||
-        span.id ||
-        span.context?.spanId ||
-        span.spanId;
-
-      if (spanId) {
-        let cleanSpanId = spanId.toString().replace(/^0x/, "");
-        if (typeof spanId === "number") {
-          cleanSpanId = spanId.toString(16);
-        }
-
-        agentTestCases.push({ input, output, spanId: cleanSpanId });
-      }
-    }
-  }
-
-  if (agentTestCases.length === 0) {
-    return;
-  }
-
-  const goalEvaluator = await createClassificationEvaluator({
+  const agentCases = toEvaluationCases(getAgentRootSpans({ spans, toolSpans }));
+  if (agentCases.length === 0) return;
+  const goalResults = await evaluateCases({
+    cases: agentCases,
     name: "goal_completion",
-    model,
     choices: { completed: 1, incomplete: 0 },
     promptTemplate: agentGoalCompletionPrompt,
   });
-
-  const goalResults = [];
-
-  for (const testCase of agentTestCases) {
-    const result = await goalEvaluator.evaluate({
-      input: testCase.input,
-      output: testCase.output,
-    });
-
-    goalResults.push({
-      spanId: testCase.spanId,
-      input: testCase.input,
-      output: testCase.output,
-      label: result.label,
-      score: result.score,
-      explanation: result.explanation,
-    });
-  }
-
-  const goalAnnotations = goalResults.map((result) => ({
-    spanId: result.spanId,
-    name: "goal_completion",
-    label: result.label,
-    score: result.score,
-    explanation: result.explanation || undefined,
-    annotatorKind: "LLM" as const,
-    metadata: {
-      evaluator: "goal_completion",
-      input: result.input.substring(0, 500),
-      output: result.output.substring(0, 500),
-    },
-  }));
-
-  try {
-    await logSpanAnnotations({
-      spanAnnotations: goalAnnotations,
-      sync: true,
-    });
-  } catch (_error) {}
+  await logEvaluationResults({ results: goalResults, name: "goal_completion" });
 }
 
 main().catch(() => {

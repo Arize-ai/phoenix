@@ -15,6 +15,8 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.settings.registry import (
     SETTINGS_REGISTRY,
     AgentAssistantEnabledSetting,
+    AgentGitHubSetting,
+    AgentSessionRetentionSetting,
     AgentTraceRecordingSetting,
 )
 from phoenix.server.types import DaemonTask, DbSessionFactory
@@ -41,6 +43,12 @@ class _SettingsCache:
     def get(
         self, key: Literal["agent.assistant.enabled"]
     ) -> Optional[AgentAssistantEnabledSetting]: ...
+    @overload
+    def get(
+        self, key: Literal["agent.assistant.session_retention"]
+    ) -> Optional[AgentSessionRetentionSetting]: ...
+    @overload
+    def get(self, key: Literal["agent.assistant.github"]) -> Optional[AgentGitHubSetting]: ...
     def get(self, key: SystemSettingKey) -> Optional[BaseModel]:
         return self._data.get(key)
 
@@ -92,6 +100,32 @@ class SystemSettings(DaemonTask):
         user_id: Optional[int] = None,
     ) -> None:
         await self._set("agent.assistant.enabled", value, user_id=user_id)
+
+    @property
+    def agent_session_retention(self) -> AgentSessionRetentionSetting:
+        return self._cache.get("agent.assistant.session_retention") or (
+            AgentSessionRetentionSetting()
+        )
+
+    async def update_agent_session_retention(
+        self,
+        value: AgentSessionRetentionSetting,
+        *,
+        user_id: Optional[int] = None,
+    ) -> None:
+        await self._set("agent.assistant.session_retention", value, user_id=user_id)
+
+    @property
+    def agent_github(self) -> AgentGitHubSetting:
+        return self._cache.get("agent.assistant.github") or AgentGitHubSetting()
+
+    async def update_agent_github(
+        self,
+        value: AgentGitHubSetting,
+        *,
+        user_id: Optional[int] = None,
+    ) -> None:
+        await self._set("agent.assistant.github", value, user_id=user_id)
 
     async def _set(
         self,

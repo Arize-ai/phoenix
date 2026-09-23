@@ -121,6 +121,32 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
 }
 
 /**
+ * Fetch the viewer for `auth status`, accounting for deployments that changed
+ * from OAuth authentication to anonymous access. An expired profile token can
+ * fail during refresh before `/v1/user` is requested, so retry without
+ * credentials and accept the result only when the server explicitly reports
+ * anonymous access.
+ */
+async function fetchViewerForStatus(
+  config: PhoenixConfig
+): Promise<FetchViewerResult> {
+  const viewerResult = await fetchViewer(config);
+  const canCheckAnonymousAccess =
+    config.credentialSource === "oauth" &&
+    (viewerResult.status === "auth_error" ||
+      viewerResult.status === "unknown_error");
+  if (!canCheckAnonymousAccess) {
+    return viewerResult;
+  }
+
+  const anonymousResult = await fetchViewer({ endpoint: config.endpoint });
+  const isAnonymous =
+    anonymousResult.status === "success" &&
+    anonymousResult.user.auth_method === "ANONYMOUS";
+  return isAnonymous ? anonymousResult : viewerResult;
+}
+
+/**
  * Format auth status output in gh-style format.
  */
 export function formatAuthStatus(
@@ -238,7 +264,13 @@ function formatCredentialSource(
       return "oauth";
     case "none":
       return "none";
+    default:
+      return assertNever(source);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${String(value)}`);
 }
 
 function formatAuthOutput(
@@ -287,6 +319,8 @@ function exitCodeForResult(result: FetchViewerResult): ExitCode {
       return ExitCode.NETWORK_ERROR;
     case "unknown_error":
       return ExitCode.FAILURE;
+    default:
+      return assertNever(result);
   }
 }
 
@@ -304,7 +338,7 @@ async function verifyViewerOrExit(config: PhoenixConfig): Promise<ViewerUser> {
     process.exit(ExitCode.NETWORK_ERROR);
   }
   writeError({ message: `Could not verify login: ${result.message}` });
-  process.exit(ExitCode.FAILURE);
+  return process.exit(ExitCode.FAILURE);
 }
 
 /**
@@ -343,7 +377,7 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
       ? getProfileByName(settingsFile, options.profile)?.name
       : getStoredActiveProfile(settingsFile)?.name;
 
-  const result = await fetchViewer(config);
+  const result = await fetchViewerForStatus(config);
   const oauthTokens = loadCurrentOAuthTokens({
     config,
     profileName: activeProfileName,
@@ -525,7 +559,7 @@ async function authLogoutHandler(options: AuthLogoutOptions): Promise<void> {
   const profile = getProfileByName(settingsFile, targetProfileName);
   const refreshToken = profile?.entry.oauthTokens?.refreshToken;
   // Revoke against the endpoint stored on the profile — the server that
-  // issued the tokens — never a --endpoint/PHOENIX_HOST override, which would
+  // issued the tokens — never a --endpoint/env-var endpoint override, which would
   // leak the refresh token to a host that never issued it.
   const issuingEndpoint = profile?.entry.endpoint;
   if (refreshToken && issuingEndpoint) {

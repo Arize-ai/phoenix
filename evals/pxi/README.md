@@ -16,17 +16,31 @@ Fast unit coverage for the harness and evaluators lives under
 
 ## Online production evals
 
-The online runner evaluates recent `pxi.turn` traces after ingestion. It uses
-annotations as its checkpoint: before hydrating a trace or invoking an
-evaluator, it skips turn roots that already carry the evaluator's annotation
-name and identifier. The default 48-hour overlap therefore recovers from
-missed scheduled runs without evaluating the same turn twice.
+The online runner evaluates recent PXI spans after ingestion. It uses
+annotations as checkpoints: before hydrating a trace or invoking an evaluator,
+it skips targets that already carry the evaluator's annotation name and
+identifier. The default 48-hour overlap recovers missed scheduled runs without
+evaluating the same target twice.
 
 Trace evaluators live in `evals/pxi/online_evals/evaluators/`; run the CLI
 with `--help` to list what is currently registered. They remain separate from
 `evals.pxi.evaluators` because the latter implements the experiment contract
 over `(output, expected)` pairs, while online evaluators consume a hydrated
-`(root_span, trace_spans)` pair and produce root-span annotations.
+`(target_span, trace_spans)` pair and annotate the target span.
+
+Each evaluator declares a `SpanSelector`; evaluators with the same selector
+share a discovery query:
+
+- **Root targets** — `tool_count_per_turn` and `user_friction` select
+  `names=("pxi.turn",)`, `span_kinds=("AGENT",)`, `parent_id="null"`, so they
+  score and annotate one turn root per trace. They share a single query.
+- **TOOL targets** — `suggestion_accepted` selects on the approval attribute
+  `pxi.approval.source="user"` with `span_kinds=("TOOL",)` and no parent
+  restriction, so it annotates individual tool spans anywhere inside a turn.
+  It names no tools at all.
+
+Sampling is keyed on `trace_id`, so all targets within a turn are sampled
+together.
 
 All LLM evaluators share one judge configuration:
 `PHOENIX_AGENTS_EVALS_PROVIDER` / `PHOENIX_AGENTS_EVALS_MODEL`, defaulting to
@@ -36,13 +50,52 @@ OpenAI `gpt-5.5`. Supported providers are `openai` (`OPENAI_API_KEY`),
 matching API key fail once at startup, before trace discovery.
 
 Evaluators consume a trace-shaped input and attach their result as a span
-annotation on the trace's root `pxi.turn` span. The runner does not create or
-update project annotation configs; configure display or optimization metadata
-in Phoenix separately when needed.
+annotation on their target span. The runner does not create or update project
+annotation configs; configure display or optimization metadata in Phoenix
+separately when needed.
+
+### `suggestion_accepted`
+
+A deterministic CODE evaluator that records manual decisions on approval-gated
+PXI suggestions. It annotates each TOOL span separately because a turn can
+contain multiple decisions.
+
+| Recorded outcome | Annotation |
+|---|---|
+| `pxi.approval.decision = "rejected"` | `rejected` / `0.0` |
+| `pxi.approval.decision = "accepted"` | `accepted` / `1.0` |
+| anything else | *no annotation* |
+
+Approval-gated tools add `approval: {decision, source}` to their output. The
+server promotes it to `pxi.approval.decision` and `pxi.approval.source`, which
+the evaluator uses for discovery and classification.
+
+The evaluator does not annotate:
+
+- automatic accepts (`pxi.approval.source: "auto"`, i.e. bypass edit permission);
+- still-pending approvals, cancellations, and errored tools — all unmarked;
+- unknown or malformed decisions.
+
+Annotations contain only `{"tool_name": ...}`. Discovery does not depend on a
+tool-name allowlist, so new tools are covered when they emit the marker.
+
+Spans recorded before the marker shipped cannot be discovered or backfilled.
+
+`submit_code_evaluator_draft` and `submit_llm_evaluator_draft` remain
+unmeasured because their dialog decisions are not written to tool output.
+Accept/reject rates therefore exclude them until
+[#15033](https://github.com/Arize-ai/phoenix/issues/15033) is resolved.
+
+Preview it without writing anything:
+
+```bash
+PHOENIX_PROJECT=pxi_dev \
+uv run python -m evals.pxi.online_evals.run --eval suggestion_accepted --dry-run
+```
 
 Annotation identifiers are evaluator-specific versioned checkpoints. Increment
 an evaluator's `vN` identifier whenever its scoring semantics or rubric
-changes; the next overlapping run then backfills recent roots under the new
+changes; the next overlapping run then backfills recent targets under the new
 identity without overwriting the previous series. The runner appends
 `provider:model` to every LLM evaluator's identifier, so a judge change
 creates a distinct result series automatically. Only the runner's own
@@ -61,10 +114,10 @@ PHOENIX_PROJECT=pxi_dev \
 uv run python -m evals.pxi.online_evals.run --dry-run
 ```
 
-The runner waits five minutes before considering a turn settled and evaluates
-all applicable turns by default, running evaluations concurrently (bounded at
+The runner waits five minutes before considering a target settled and evaluates
+all applicable targets by default, running evaluations concurrently (bounded at
 8 in flight) so LLM judge calls are not serialized. An evaluator exception is
-contained to that turn: it is logged, counted in the summary's `errors`, and
+contained to that target: it is logged, counted in the summary's `errors`, and
 the run continues (the process exits non-zero so scheduled runs surface the
 failure). Structural trace anomalies (a tool span that does not descend from
 the turn root, missing ancestors, cycles) are deliberately loud: post-settle
@@ -90,9 +143,9 @@ runner on new-format development traces.
 
 ### Adding an online evaluator
 
-An evaluator is an async function that receives the root span and every
+An evaluator is an async function that receives one target span and every
 hydrated span in its trace. It returns a `phoenix.evals` `Score`, or `None`
-when the turn is not applicable:
+when the target is not applicable:
 
 ```python
 from collections.abc import Sequence
@@ -101,17 +154,16 @@ from phoenix.client.__generated__ import v1
 from phoenix.evals.evaluators import Score
 
 
-async def evaluate(root: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
+async def evaluate(target: v1.Span, spans: Sequence[v1.Span]) -> Score | None:
     if not spans:
         return None
     return Score(score=1.0, label="example", explanation="why")
 ```
 
-Declare an `EvaluatorSpec` with a name, the expected root span name, the
-evaluate function, annotator kind, sampling rate, and a versioned identifier.
-The annotator kind is required rather than defaulted: declare every evaluator
-explicitly as `"CODE"` or `"LLM"` because it also controls judge credential
-validation and model-specific checkpointing.
+Declare an `EvaluatorSpec` with a name, selector, evaluate function, annotator
+kind, sampling rate, and versioned identifier. Use `PXI_TURN_ROOT_SELECTOR` for
+turn-level evaluators. The annotator kind controls judge credential validation
+and model-specific checkpointing.
 LLM evaluators (`annotator_kind="LLM"`) automatically share the judge
 configuration from `evals/pxi/online_evals/judge.py`: the runner validates
 the judge credentials at startup and appends `provider:model` to their
@@ -123,6 +175,14 @@ should assert the exact persisted annotation shape as well as failure,
 not-applicable, sampling, and checkpoint behavior relevant to the evaluator.
 
 ## Run Locally
+
+The harness builds the production read-only MCP catalog, including PXI skills,
+and the server-side bash tool. Skills, references, and catalog discovery execute
+normally. Calls to `bash` and MCP `execute` are deferred, just like browser
+actions: these examples score the next requested action without executing it
+against application data. The harness does not start a Phoenix database or
+sandbox worker. Missing backend tools or a missing skill catalog fail before the
+model request and are reported as task errors rather than behavioral misses.
 
 There are two ways to run the evals:
 
@@ -401,7 +461,20 @@ Each example needs a stable `id`, exactly one split in a list-shaped `splits`
 field, and whatever `input`, `expected`, and `metadata` shape its evaluators
 consume. For the current tool-call evaluators, examples commonly use
 `input.messages`, `expected.tools`, and expected tool arguments under
-`expected.tool_call_args`.
+`expected.tool_call_args`. Behavior that lives behind the browser-action
+surface is asserted with `expected.ui_operations` (required/forbidden
+operation names, matched against `ui.<name>(...)` invocations inside observed
+`execute_browser_action` scripts) and `expected.ui_operation_args` (the same
+matcher vocabulary applied to the invocation's argument source).
+
+Because `search_browser_actions` and `execute_browser_action` are external
+tools, an agent run ends on the first one it emits. An example that scores
+operation selection or arguments therefore primes the discovery step in
+`input.messages` — an assistant `search_browser_actions` call plus a tool
+return carrying a catalog excerpt rendered in the real
+`renderUIOperationCatalog` format — so the agent resumes mid-loop holding the
+catalog and the scored step is the `execute_browser_action` script it
+composes next. Fresh-turn negatives stay unprimed.
 
 Example IDs must be unique because the runner uses them for stable upserts.
 Use `splits: [regression]` for a regression example.
@@ -433,88 +506,84 @@ list through to the Phoenix client upload payload.
 
 ## Inputs
 
-Every example declares `input.messages` as a single ordered conversation
-prefix. The trailing entry decides which step of the agent loop the harness
-scores:
-
-- **Last entry is `role: user`.** That turn becomes the user prompt; everything
-  before it is replayed as message history. The default case -- "user asks,
-  what does the agent do?"
-- **Last entry is `role: tool`.** The harness runs the agent with `user_prompt
-  = None` and the full list as message history, so the agent picks up
-  mid-loop from a primed tool return. Lets a dataset isolate one step of
-  behavior ("given the bash output below, what does the agent emit next?")
-  without a synthetic user follow-up.
-- **Last entry is `role: assistant`.** Rejected -- nothing remains to score.
-
-Examples may also include `input.contexts`, which uses the same camelCase
-shape as the browser agent API (`app`, `project`, `graphql`, etc.) so
-server-side evals can exercise realistic page state without launching
-Playwright.
-
-A plain example -- user asks, agent decides:
+New fixtures should use the public `PhoenixUIMessage` transcript returned by
+`GET /v1/agent_sessions/{session_id}/messages`. This is a stored conversation
+artifact. The chat POST now sends a new message or tool outputs into a server-owned
+session, so a fixture is not a literal POST request body.
 
 ```yaml
 input:
-  contexts:
-    - type: project
-      projectNodeId: UHJvamVjdDoxMg==
-      spanFilter: "status_code == 'ERROR'"
-      rootSpansOnly: false
   messages:
-    - role: user
-      content: Keep the error filter, but only show root spans.
+    - id: user-1
+      role: user
+      parts:
+        - type: text
+          text: Keep the error filter, but only show root spans.
+      metadata:
+        phoenix:
+          type: user
+          currentDateTime: "2026-04-03T12:00:00-07:00"
+          timeZone: America/Los_Angeles
+          editPermission: manual
+          uiContexts:
+            project:
+              type: project
+              projectNodeId: UHJvamVjdDoxMg==
+              spanFilter: "status_code == 'ERROR'"
 ```
 
-A primed-tool-history example -- the agent has already issued a `bash` call
-to inspect recent traces, and the harness scores whatever action it emits
-next (typically a `set_spans_filter` call referencing the dates that came
-back in the tool return):
+Completed tool calls and their outputs live together in an assistant part:
 
 ```yaml
-input:
-  contexts:
-    - type: project
-      projectNodeId: UHJvamVjdDoxMg==
-      spanFilter: "span_kind == 'LLM'"
-      rootSpansOnly: false
-  messages:
-    - role: user
-      content: Show me only the latest traces in this project.
-    - role: assistant
-      tool_calls:
-        - id: t1
-          name: bash
-          args:
-            command: "phoenix-gql --query '...recent spans by startTime desc...'"
-    - role: tool
-      tool_call_id: t1
-      name: bash
-      content: |
-        {"data":{"node":{"spans":{"edges":[
-          {"node":{"startTime":"2026-04-03T18:42:11Z"}},
-          {"node":{"startTime":"2026-04-03T18:41:58Z"}}
-        ]}}}}
+- id: assistant-1
+  role: assistant
+  parts:
+    - type: tool-search_browser_actions
+      toolCallId: search-1
+      state: output-available
+      input: {query: filter the spans table}
+      output: "<the public browser operation catalog>"
 ```
 
-Schema notes:
+The transcript must end with a user message or a completed tool output. Pending
+calls and approvals are rejected. Use synthetic identifiers and results; do not
+commit private production conversations. Keep each user turn's UI state and
+browser clock in its metadata. The production adapter renders changed state at
+the corresponding turn and preserves structured tool results.
 
-- An assistant turn may carry `content`, `tool_calls`, or both. Real PXI
-  traces show no assistant text between tool calls, so primed-tool examples
-  should omit narration unless you're deliberately testing narration
-  behavior.
-- Each tool call needs a local string `id` (any value; not interpreted by
-  the agent) plus `name` and `args`. Every assistant `tool_calls` entry
-  MUST be followed later by a `role: tool` entry whose `tool_call_id` and
-  `name` match. `tool_call_id` values must be unique across the whole list.
-- Primed messages are fed to the model verbatim via pydantic_ai's message
-  types; the model cannot distinguish a primed tool call from one that
-  was actually executed.
+Existing datasets may retain the compact `role/content/tool_calls` notation.
+The fixture compiler pairs each tool return with its call, validates the result
+as `PhoenixUIMessage`, then uses the same transcript adapter as production.
+Tool `content` may be an object. In particular, `bash` returns `command`,
+`stdout`, `stderr`, `exitCode`, timing, byte counts, and truncation flags. Raw
+GraphQL JSON belongs inside `stdout`, not at the top level of the tool result.
+
+For compact fixtures, `input.contexts` uses the public context union and describes
+the active user turn. Omitted contexts mean no page context. There is no implicit
+project. Do not combine top-level contexts with per-turn stored UI state.
+
+Prefer assertions about public UI operation arguments, resulting filter
+predicates, links, and artifacts. Avoid asserting a particular discovery order
+unless that order is the behavior under test. A catalog excerpt still isolates a
+single step; it does not exercise discovery against the full browser catalog.
+These offline evals stop at deferred actions and cannot prove that a script ran,
+a database query succeeded, or a UI mutation produced the intended state. Browser
+E2E tests cover those outcomes. Script argument extraction and tool-call budgets
+remain implementation-dependent checks and should be used sparingly.
+
+`test_agent_task_inputs.py` validates every fixture through the current public
+message models and production adapter. It also checks primed bash results against
+the shipped result schema. That catches wire-format drift before spending tokens
+on live evals.
 
 ## Matcher Vocabulary
 
 The `tool_call_args_match` evaluator compares expected args to observed args
-with subset semantics (extra observed keys are ignored). Each expected value
+with subset semantics (extra observed keys are ignored). The same vocabulary
+applies to `expected.ui_operation_args[<operation>]`, matched textually
+against the JavaScript argument source of `ui.<operation>(...)` invocations
+in observed `execute_browser_action` scripts (literals assert the key and
+value appear in the source). Each expected value
 is either a literal (compared by `==`) or a **matcher object** -- a dict
 whose top-level keys are all in this vocabulary:
 
@@ -535,7 +604,16 @@ content matters. Use `absent: true` when omission itself is the behavior under
 test.
 
 For efficiency-focused examples, add `expected.budgets.max_tool_calls` and
-enable the `tool_call_count_within_limit` evaluator. Bash-first examples can
+enable the `tool_call_count_within_limit` evaluator. When a read-only example
+must allow different setup paths, use `expected.budgets.max_repeated_tool_calls`
+instead. A repeat has the same tool name and JSON arguments as an earlier call
+in the scored output; object-key order and call IDs do not matter. Every call
+after the first matching one counts toward the limit. Distinct skills and
+corrected arguments are not repeats. Both limits apply if both are supplied.
+
+Use a zero-repeat budget only when another identical request would add no new
+information. It is not a replacement for latency or total-cost measurements,
+and it does not detect unnecessary calls with different arguments. Bash-first examples can
 use `bash_command_substrings_match` to check command intent without requiring
 exact shell syntax.
 
@@ -564,9 +642,10 @@ matcher vocabulary above. For example, `contains_all: ["span_kind == 'LLM'",
 literal order-insensitive. Use `absent: true` for keys that must be omitted
 despite subset matching otherwise allowing extra observed keys.
 
-Tool arg keys must match the tool's exact JSON schema, including camelCase. For
-`set_spans_filter` that means `condition` and `rootSpansOnly`;
-`root_spans_only` will silently fail arg-match.
+Tool and operation arg keys must match the exact input schema, including
+camelCase. For `spansFilter.set` that means `condition` -- and only
+`condition`, since root-span scoping is expressed inside the filter DSL
+(`parent_id is None`) rather than as a separate argument.
 
 ## Evaluators
 
@@ -639,3 +718,17 @@ coding agent) consume it:
    ```bash
    gh run download <run-id> -n pxi-eval-reports-<run-id>
    ```
+
+### Static filter predicate comparisons
+
+`condition: {filter_equals: "span_kind in ['LLM', 'TOOL']"}` compares a decoded
+`ui.spansFilter.set` condition with a Python DSL AST. It accepts quote and whitespace
+changes, reordered AND/OR clauses, and equivalent literal membership lists. It rejects
+missing or additional predicates and preserves the difference between AND and OR.
+
+This matcher supports a single unconditional operation with a string literal or
+`const` string binding, including shorthand properties, comments, static templates,
+and a UIResult return guard after the call. Dynamic expressions, conditional calls,
+and multiple filter calls fail closed. Scripts are never executed. Other matchers
+retain their existing substring semantics; this is not a complete JavaScript or
+semantic filter evaluator.

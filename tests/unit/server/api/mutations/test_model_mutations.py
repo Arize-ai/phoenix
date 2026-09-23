@@ -2,6 +2,7 @@ import re
 from typing import Any
 
 import pytest
+import sqlalchemy as sa
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -303,6 +304,141 @@ class TestModelMutations:
         assert len(result.errors) == 1
         assert result.errors[0].message == expected_error_message
         assert result.data is None
+
+    @pytest.mark.parametrize(
+        "provider_input",
+        [
+            pytest.param({"provider": None}, id="explicit-null-provider"),
+            pytest.param({}, id="omitted-provider"),
+            pytest.param({"provider": ""}, id="empty-string-provider"),
+        ],
+    )
+    async def test_create_model_without_provider_succeeds(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        provider_input: dict[str, Any],
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        """
+        A null or omitted provider is a provider-agnostic model, not a conflict.
+
+        Regression test for a bug where any name failed with "Model with name 'X'
+        already exists" whenever the provider was null, because the non-nullable
+        column raised an IntegrityError that was reported as a name conflict.
+        """
+        variables = {
+            "input": {
+                "name": "provider-agnostic-model",
+                "namePattern": "^provider-agnostic-model$",
+                "costs": [
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 1.0,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 2.0,
+                    },
+                ],
+                **provider_input,
+            }
+        }
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        model = result.data["createModel"]["model"]
+        assert model["name"] == "provider-agnostic-model"
+        # A provider-agnostic model reads back as null (`provider or None`) and is
+        # stored as the empty string the non-nullable column requires.
+        assert model["provider"] is None
+        async with db() as session:
+            stored_provider = await session.scalar(
+                sa.select(models.GenerativeModel.provider).where(
+                    models.GenerativeModel.name == "provider-agnostic-model"
+                )
+            )
+        assert stored_provider == ""
+
+    async def test_create_model_reusing_name_pattern_reports_pattern_conflict(
+        self,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        """
+        A duplicate (name_pattern, provider) is reported as such rather than as a
+        name conflict, which is what the blanket IntegrityError handler produced.
+        """
+        variables = {
+            "input": {
+                "name": "a-name-that-does-not-exist",
+                "provider": "anthropic",
+                "namePattern": "claude-*",
+                "costs": [
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 1.0,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 2.0,
+                    },
+                ],
+            }
+        }
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="CreateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == (
+            "Model 'custom-model' already uses name pattern 'claude-*' with provider 'anthropic'"
+        )
+        assert result.data is None
+
+    async def test_updating_model_to_its_own_values_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        """The conflict pre-check must not treat a model as conflicting with itself."""
+        variables = {
+            "input": {
+                "id": str(GlobalID(GenerativeModel.__name__, str(custom_model.id))),
+                "name": "custom-model",
+                "provider": "anthropic",
+                "namePattern": "claude-*",
+                "costs": [
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 5.0,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 6.0,
+                    },
+                ],
+            }
+        }
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["updateModel"]["model"]["name"] == "custom-model"
 
     @pytest.mark.parametrize(
         "variables,expected_error_message",

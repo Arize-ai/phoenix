@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
+from urllib.parse import urlsplit, urlunsplit
 
 from jinja2 import BaseLoader, Environment
 
@@ -78,11 +79,25 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 {% if disabled_sandboxes %}
   {{ disabled_sandbox_prefix }}{{ disabled_marker }}{{ disabled_sandboxes | join(", ") }}
 {% endif %}
-  Agent assistant     {{ enabled if agent_assistant_enabled else disabled }}
   Prometheus metrics  {{ enabled if prometheus_enabled else disabled }}
   Email (SMTP)        {{ smtp_hostname or not_configured }}
   Telemetry           {{ enabled if telemetry_enabled else disabled }}
 
+{% if assistant_config %}
+{{ header("✨", "Assistant") }}
+  Agent assistant     {{ enabled if agent_assistant_enabled else disabled }}
+  Trace project       {{ assistant_config.project_name or not_configured }}
+  Local traces        {{ enabled if assistant_config.allow_local_traces else disabled }}
+  Remote export       {{ enabled if assistant_config.allow_remote_export else disabled }}
+  Remote collector    {{ assistant_config.printable_collector_endpoint or not_configured }}
+{% set collector_api_key = configured if assistant_config.api_key_configured else not_configured %}
+  Collector API key   {{ collector_api_key }}
+  Force tracing       {{ enabled if assistant_config.force_tracing else disabled }}
+  Web access          {{ enabled if assistant_config.web_access_enabled else disabled }}
+  Server-side bash    {{ enabled if assistant_config.server_bash_enabled else disabled }}
+  GitHub tools        {{ enabled if assistant_config.github_enabled else disabled }}
+
+{% endif %}
 {% if dev_mode or debug_logging or dev_vite_url or debugpy_url %}
 {{ header("🐛", "Development") }}
 {% if dev_mode %}
@@ -110,6 +125,14 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
   REST API            {{ rest_api_url }}
   GraphQL API         {{ graphql_url }}
   MCP server          {{ mcp_url or disabled }}
+{% if skills_paths %}
+  External skills     {{ skills_paths[0] }}
+{% for path in skills_paths[1:] %}
+                      {{ path }}
+{% endfor %}
+{% else %}
+  External skills     {{ not_configured }}
+{% endif %}
 {% if read_only %}
   Mode                Read-only
 {% endif %}
@@ -121,6 +144,43 @@ Arize Phoenix v{{ version }} {{ "·" if unicode_ok else "-" }} AI Observability 
 {{ rocket }}Phoenix is up and running {{ dash }} open {{ ui_url }} to get started.
 """
 )
+
+
+def _hide_url_password(url: Optional[str]) -> Optional[str]:
+    """Mask a password embedded in a URL's userinfo so it never reaches stdout.
+
+    Mirrors how the banner prints the database URL, which goes through
+    SQLAlchemy's `render_as_string(hide_password=True)`.
+    """
+    if not url:
+        return url
+    parsed = urlsplit(url)
+    userinfo, separator, host = parsed.netloc.rpartition("@")
+    if not separator:
+        return url
+    username, has_password, _ = userinfo.partition(":")
+    redacted = f"{username}:***@{host}" if has_password else f"{username}@{host}"
+    return urlunsplit(parsed._replace(netloc=redacted))
+
+
+@dataclass(frozen=True)
+class AssistantConfig:
+    """Effective server-side assistant configuration displayed at startup."""
+
+    project_name: str
+    allow_local_traces: bool
+    allow_remote_export: bool
+    collector_endpoint: Optional[str]
+    api_key_configured: bool
+    force_tracing: bool
+    web_access_enabled: bool
+    server_bash_enabled: bool
+    github_enabled: bool
+
+    @property
+    def printable_collector_endpoint(self) -> Optional[str]:
+        """The collector endpoint with any embedded password masked."""
+        return _hide_url_password(self.collector_endpoint)
 
 
 @dataclass(frozen=True)
@@ -154,6 +214,11 @@ class BootMessage:
     prometheus_enabled: bool
     smtp_hostname: str
     telemetry_enabled: bool
+    # Depends on database-backed system settings, so it is only known once the
+    # server has started. `phoenix serve` fills it in at render time; until then
+    # the banner omits the Assistant section entirely.
+    assistant_config: Optional[AssistantConfig] = None
+    skills_paths: list[str] = field(default_factory=list)
     dev_mode: bool = False
     debug_logging: bool = False
     dev_vite_url: Optional[str] = None
@@ -176,6 +241,7 @@ class BootMessage:
                 enabled="✅ Enabled" if unicode_ok else "Enabled",
                 disabled="➖ Disabled" if unicode_ok else "Disabled",
                 not_configured="➖ Not configured" if unicode_ok else "Not configured",
+                configured="✅ Configured" if unicode_ok else "Configured",
                 enabled_marker="✅ " if unicode_ok else "Enabled: ",
                 disabled_marker="➖ " if unicode_ok else "Disabled: ",
                 enabled_sandboxes=enabled_sandboxes,

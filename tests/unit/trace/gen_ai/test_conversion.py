@@ -433,6 +433,54 @@ def test_text_plus_uri_image_emits_structured_contents() -> None:
     )
 
 
+def test_reasoning_plus_text_emits_structured_contents() -> None:
+    out = get_openinference_message_attributes(
+        _output_messages(
+            [
+                {
+                    "role": "assistant",
+                    "parts": [
+                        {"type": "reasoning", "content": "thinking it through"},
+                        {"type": "text", "content": "the answer"},
+                    ],
+                    "finish_reason": "stop",
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0"
+    contents = MessageAttributes.MESSAGE_CONTENTS
+    content_type = MessageContentAttributes.MESSAGE_CONTENT_TYPE
+    content_text = MessageContentAttributes.MESSAGE_CONTENT_TEXT
+    assert out[f"{base}.{contents}.0.{content_type}"] == "reasoning"
+    assert out[f"{base}.{contents}.0.{content_text}"] == "thinking it through"
+    assert out[f"{base}.{contents}.1.{content_type}"] == "text"
+    assert out[f"{base}.{contents}.1.{content_text}"] == "the answer"
+
+
+def test_reasoning_only_message_is_not_dropped() -> None:
+    out = get_openinference_message_attributes(
+        _output_messages(
+            [
+                {
+                    "role": "assistant",
+                    "parts": [{"type": "reasoning", "content": "pure reasoning"}],
+                    "finish_reason": "stop",
+                }
+            ]
+        )
+    )
+    base = f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0"
+    contents = MessageAttributes.MESSAGE_CONTENTS
+    assert (
+        out[f"{base}.{contents}.0.{MessageContentAttributes.MESSAGE_CONTENT_TYPE}"] == "reasoning"
+    )
+    assert (
+        out[f"{base}.{contents}.0.{MessageContentAttributes.MESSAGE_CONTENT_TEXT}"]
+        == "pure reasoning"
+    )
+
+
 def test_blob_part_becomes_data_url() -> None:
     out = get_openinference_message_attributes(
         _input_messages(

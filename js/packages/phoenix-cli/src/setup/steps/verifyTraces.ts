@@ -7,7 +7,7 @@
  * anyway") — never asked to eyeball the UI as the definition of done.
  */
 
-import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { HttpError, type PhoenixClient } from "@arizeai/phoenix-client";
 
 import * as COPY from "../copy";
 import type { SetupDeps } from "../deps";
@@ -35,20 +35,26 @@ function searchStartTime(sinceMs: number, skewMs: number): string {
 }
 
 /**
- * True when the project already has spans inside the clock-skew window at
- * `sinceMs`. Checked before instrumentation begins: any span visible at that
- * point predates this run, so verification must not credit the skew window.
+ * True when the clock-skew window at `sinceMs` is known to be empty, and so
+ * safe for verification to count as part of this run.
+ *
+ * Checked before instrumentation begins: any span already visible at that
+ * point predates this run, so verification must not credit the window. An
+ * indeterminate probe answers false for the same reason — widening the window
+ * on an answer we could not get would let a span from before this run satisfy
+ * verification, which is the false success this whole step exists to prevent.
  */
-export async function hasSpansInSkewWindow(
+export async function skewWindowIsClear(
   deps: Pick<SetupDeps, "createClient">,
   connection: Connection,
   { sinceMs }: { sinceMs: number }
 ): Promise<boolean> {
-  return hasNewSpans(
+  const probe = await probeForNewSpans(
     spanSearchClient(deps, connection),
     connection.projectName,
     searchStartTime(sinceMs, START_TIME_SKEW_MS)
   );
+  return probe === "none";
 }
 
 function spanSearchClient(
@@ -62,15 +68,19 @@ function spanSearchClient(
 }
 
 /**
- * One span-search request. Any failure is a "not yet": a 404 means the project
- * has no spans to have created it, and a network hiccup mid-poll should keep
- * setup watching rather than abort it.
+ * What one span search established. `unknown` is the important one: the
+ * request did not come back with an answer, which is not the same as an answer
+ * of "no". Polling treats both as "keep watching", but the skew pre-check must
+ * not read a failed request as proof the window was empty.
  */
-async function hasNewSpans(
+type SpanProbe = "found" | "none" | "unknown";
+
+/** One span-search request. */
+async function probeForNewSpans(
   client: PhoenixClient,
   projectName: string,
   startTime: string
-): Promise<boolean> {
+): Promise<SpanProbe> {
   try {
     const { data } = await client.GET(
       "/v1/projects/{project_identifier}/spans",
@@ -82,44 +92,73 @@ async function hasNewSpans(
         signal: AbortSignal.timeout(POLL_REQUEST_TIMEOUT_MS),
       }
     );
-    return (data?.data.length ?? 0) > 0;
-  } catch {
-    return false;
+    return (data?.data.length ?? 0) > 0 ? "found" : "none";
+  } catch (error) {
+    // The client's middleware turns every non-2xx into an HttpError, so a
+    // status is only reachable from here. A 404 is a definite "none": the
+    // project does not exist, so nothing has ever been delivered to it.
+    // Everything else — an auth rejection, a 5xx, a timeout, a dropped
+    // socket — is an answer we did not get.
+    return error instanceof HttpError && error.status === 404
+      ? "none"
+      : "unknown";
   }
 }
 
-/** Poll until a span arrives or the window elapses. */
+/**
+ * Poll until a span arrives or the window elapses, and report how it ended.
+ *
+ * The terminal probe is returned rather than a bare boolean so the caller can
+ * tell "Phoenix says there are no spans" from "Phoenix never answered" — the
+ * difference between the user's app not emitting and setup being unable to
+ * look, which need different remediation.
+ */
 async function pollWindow(
   deps: Pick<SetupDeps, "clock">,
   client: PhoenixClient,
   connection: Connection,
   startTime: string
-): Promise<boolean> {
+): Promise<SpanProbe> {
   const deadline = deps.clock.now() + POLL_WINDOW_MS;
   for (;;) {
-    if (await hasNewSpans(client, connection.projectName, startTime)) {
-      return true;
+    const probe = await probeForNewSpans(
+      client,
+      connection.projectName,
+      startTime
+    );
+    if (probe === "found") {
+      return probe;
     }
     if (deps.clock.now() >= deadline) {
-      return false;
+      return probe;
     }
     await deps.clock.sleep(POLL_INTERVAL_MS);
   }
 }
 
 /**
- * Watch for the first trace since `sinceMs`. Resolves true when a span is
- * observed via the API, false when the wait ends without one — the user gave
- * up at the timeout prompt, or, in a headless run, the first window elapsed.
+ * How the wait for the first trace ended.
+ *
+ * `deferred` is the outcome that is not a failure: the user was asked whether
+ * to keep watching and chose to stop. Verification was withdrawn, not attempted
+ * and lost, so setup must not report it as a broken setup — the escape hatch
+ * says "everything else is already configured" and means it.
+ */
+export type TraceVerification = "verified" | "notVerified" | "deferred";
+
+/**
+ * Watch for the first trace since `sinceMs`.
  *
  * The "keep watching?" prompt is the only thing that can extend the wait, so a
  * headless run gets exactly one window: there is no terminal to ask on, and
- * looping forever would hang an unattended caller.
+ * looping forever would hang an unattended caller. That also means only an
+ * interactive run can return `deferred` — a headless timeout is nobody's
+ * decision.
  *
  * @param args.sinceMs - instrumentation start; only spans after it count.
  * @param args.allowClockSkew - widen the window by the skew tolerance. Pass
- * false when the project had spans before instrumentation began (see
- * `hasSpansInSkewWindow`), so stale spans cannot satisfy verification.
+ * false unless the window was confirmed empty before instrumentation began
+ * (see {@link skewWindowIsClear}), so stale spans cannot satisfy verification.
  * @param args.headless - no prompting; give up after one window.
  */
 export async function waitForFirstTrace(
@@ -130,7 +169,7 @@ export async function waitForFirstTrace(
     allowClockSkew = true,
     headless = false,
   }: { sinceMs: number; allowClockSkew?: boolean; headless?: boolean }
-): Promise<boolean> {
+): Promise<TraceVerification> {
   const url = tracesUrl(connection);
   const startTime = searchStartTime(
     sinceMs,
@@ -139,13 +178,20 @@ export async function waitForFirstTrace(
   const client = spanSearchClient(deps, connection);
   deps.prompter.note(COPY.VERIFY.waitingBody(url), COPY.VERIFY.title);
   for (;;) {
-    if (await pollWindow(deps, client, connection, startTime)) {
+    const probe = await pollWindow(deps, client, connection, startTime);
+    if (probe === "found") {
       deps.prompter.line(COPY.VERIFY.received(url));
-      return true;
+      return "verified";
+    }
+    // Say which problem this is. "No trace arrived" sends the user to look at
+    // their exporter; an unanswered probe means setup could not look at all,
+    // and pointing them at instrumentation would be a wild goose chase.
+    if (probe === "unknown") {
+      deps.prompter.line(COPY.VERIFY.unreachable(connection.endpoint));
     }
     if (headless) {
       deps.prompter.line(COPY.VERIFY.notVerifiedHeadless(url));
-      return false;
+      return "notVerified";
     }
     const keepWatching = await deps.prompter.select<boolean>({
       message: COPY.VERIFY.timeoutMessage,
@@ -163,7 +209,7 @@ export async function waitForFirstTrace(
         COPY.VERIFY.notVerifiedBody(url),
         COPY.VERIFY.notVerifiedTitle
       );
-      return false;
+      return "deferred";
     }
   }
 }

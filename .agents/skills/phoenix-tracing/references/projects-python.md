@@ -60,6 +60,29 @@ register(project_name="my-app-v1")
 register(project_name="my-app-v2")
 ```
 
+## Listing Projects Programmatically
+
+`arize-phoenix-client` exposes a `projects` resource with full CRUD. `list()`
+pages through the REST API for you:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+projects = client.projects.list()
+for project in projects:
+    print(f"Project name: {project['name']}")
+
+# Filter server-side on a case-insensitive substring of the name
+agent_projects = client.projects.list(name_contains="agent")
+```
+
+`list()` is keyword-only: `list(*, name_contains: Optional[str] = None) -> list[v1.Project]`.
+Each project is a `TypedDict`, so read fields with `project["name"]`, not
+`project.name`. `client.projects` also offers `get`, `create`, `update`, and
+`delete`.
+
 ## Via HTTP Header (OTEL Collector / config-based tools)
 
 If you cannot set resource attributes in code (e.g. when using an OTEL Collector or another configuration-driven pipeline), set the `x-project-name` HTTP header on OTLP HTTP exports. The header takes precedence over the `openinference.project.name` resource attribute; every span in the request is routed to that project.

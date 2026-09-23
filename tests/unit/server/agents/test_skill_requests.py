@@ -2,23 +2,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import TypeAdapter
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-from pydantic_ai.ui.vercel_ai.request_types import (
+from pydantic_ai.ui.vercel_ai.request_types import UIMessage as PydanticAIUIMessage
+
+from phoenix.db.types.data_stream_protocol import (
     TextUIPart,
     ToolOutputAvailablePart,
     UIMessage,
 )
-
-from phoenix.server.agents.capabilities.skills import Skill
-from phoenix.server.agents.prompts.templating import get_template
 from phoenix.server.agents.skill_requests import (
     LOAD_SKILL_TOOL_NAME,
     inject_requested_skills,
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-
-_LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
+from phoenix.server.mcp.skills import Skill
 
 
 def _make_skill(name: str) -> Skill:
@@ -26,7 +25,7 @@ def _make_skill(name: str) -> Skill:
         name=name,
         description=f"{name} description",
         summary=f"{name} summary",
-        content=f"# {name}\n\nbody for {name}",
+        text=f"---\nname: {name}\n---\n\n# {name}\n\nbody for {name}\n",
         path=Path("/tmp/unused"),
     )
 
@@ -51,7 +50,6 @@ def _inject(
         messages=messages,
         requested_skill_names=requested,
         available_skills=available,
-        load_skill_template=_LOAD_SKILL_TEMPLATE,
         message_factory=UIMessage,
     )
 
@@ -120,7 +118,13 @@ class TestInjectRequestedSkills:
     def test_synthetic_pair_adapts_to_pydantic_ai_messages(self) -> None:
         messages = [_user_message("/debug-trace help")]
         result = _inject(messages, ["debug-trace"], [_make_skill("debug-trace")])
-        history = VercelAIAdapter.load_messages(result)
+        pydantic_ai_messages = TypeAdapter(list[PydanticAIUIMessage]).validate_python(
+            [
+                message.model_dump(mode="json", by_alias=True, exclude_none=True)
+                for message in result
+            ]
+        )
+        history = VercelAIAdapter.load_messages(pydantic_ai_messages)
         part_types = [type(part).__name__ for message in history for part in message.parts]
         assert "ToolCallPart" in part_types
         assert "ToolReturnPart" in part_types
@@ -156,12 +160,7 @@ class TestResolveRequestedSkills:
 class TestIterRequestedSkillResponseChunks:
     def test_emits_step_framed_tool_chunks_per_skill(self) -> None:
         skills = [_make_skill("debug-trace"), _make_skill("annotate-spans")]
-        chunks = list(
-            iter_requested_skill_response_chunks(
-                skills=skills,
-                load_skill_template=_LOAD_SKILL_TEMPLATE,
-            )
-        )
+        chunks = list(iter_requested_skill_response_chunks(skills=skills))
         types = [chunk.model_dump(by_alias=True)["type"] for chunk in chunks]
         # one start-step / tool-input / tool-output / finish-step per skill
         assert types == [
@@ -180,7 +179,6 @@ class TestIterRequestedSkillResponseChunks:
             chunk.model_dump(by_alias=True)
             for chunk in iter_requested_skill_response_chunks(
                 skills=[_make_skill("debug-trace")],
-                load_skill_template=_LOAD_SKILL_TEMPLATE,
             )
         ]
         input_chunk = next(c for c in chunks if c["type"] == "tool-input-available")
@@ -192,10 +190,5 @@ class TestIterRequestedSkillResponseChunks:
         assert "body for debug-trace" in output_chunk["output"]
 
     def test_no_skills_emits_nothing(self) -> None:
-        chunks = list(
-            iter_requested_skill_response_chunks(
-                skills=[],
-                load_skill_template=_LOAD_SKILL_TEMPLATE,
-            )
-        )
+        chunks = list(iter_requested_skill_response_chunks(skills=[]))
         assert chunks == []

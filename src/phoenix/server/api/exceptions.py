@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from graphql.error import GraphQLError
 from graphql.execution.execute import ExecutionResult as GraphQLExecutionResult
@@ -7,6 +7,10 @@ from strawberry.extensions.base_extension import SchemaExtension
 from strawberry.types.execution import ExecutionResult as StrawberryExecutionResult
 
 from phoenix.config import get_env_mask_internal_server_errors
+from phoenix.server.api.helpers.experiment_run_filters import (
+    ExperimentRunFilterConditionSyntaxError,
+)
+from phoenix.trace.dsl import SpanFilterError
 
 
 class CustomGraphQLError(Exception):
@@ -50,18 +54,23 @@ class Conflict(CustomGraphQLError):
 _GENERIC_MASK_MESSAGE = "an unexpected error occurred"
 
 
-def _find_custom_error(error: BaseException) -> Optional[CustomGraphQLError]:
-    """Walk the original_error / __cause__ chain looking for a CustomGraphQLError.
+def _find_custom_error(
+    error: BaseException,
+) -> Optional[Union[CustomGraphQLError, SpanFilterError, ExperimentRunFilterConditionSyntaxError]]:
+    """Walk the original_error / __cause__ chain looking for a safe public error.
 
     graphql-core wraps scalar `parse_value` errors in an outer GraphQLError and
     prefixes the message with the variable path + type name, which leaks
-    implementation detail to the UI. The inner CustomGraphQLError is what we
-    want to surface.
+    implementation detail to the UI. The inner expected error is what we want
+    to surface.
     """
     current: Optional[BaseException] = error
     seen: set[int] = set()
     while current is not None and id(current) not in seen:
-        if isinstance(current, CustomGraphQLError):
+        if isinstance(
+            current,
+            (CustomGraphQLError, SpanFilterError, ExperimentRunFilterConditionSyntaxError),
+        ):
             return current
         seen.add(id(current))
         current = getattr(current, "original_error", None) or current.__cause__
@@ -69,8 +78,16 @@ def _find_custom_error(error: BaseException) -> Optional[CustomGraphQLError]:
 
 
 class PhoenixErrorMasker(SchemaExtension):
-    """Replace error messages with the inner CustomGraphQLError's message
-    if present; otherwise mask with a generic message (when enabled)."""
+    """Replace error messages with the inner safe public error's message
+    (a CustomGraphQLError or one of the filter-condition errors) if present;
+    otherwise mask with a generic message (when enabled).
+
+    Both filter DSLs guarantee at their compile boundary that every raised
+    error carries a user-safe message about the condition, never internals,
+    which is what makes surfacing them verbatim correct. A filter error that
+    reaches a resolver without a local catch (e.g. `compareExperiments`)
+    would otherwise be masked to a generic message under the default config.
+    """
 
     def _rewrite(self, error: GraphQLError) -> GraphQLError:
         inner = _find_custom_error(error)

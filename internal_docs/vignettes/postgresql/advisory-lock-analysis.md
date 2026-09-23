@@ -445,6 +445,7 @@ from sqlalchemy import Connection, text
 
 _MIGRATION_LOCK_KEY = 0x50485801  # arbitrary, unique to Phoenix
 
+
 def run_migrations(connection: Connection) -> None:
     transaction = connection.begin()
     try:
@@ -463,6 +464,7 @@ def run_migrations(connection: Connection) -> None:
         raise
     finally:
         connection.close()
+
 
 def _acquire_migration_lock(connection: Connection) -> None:
     if connection.dialect.name != "postgresql":

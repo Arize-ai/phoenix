@@ -1,7 +1,24 @@
+import {
+  AGENT_SESSION_CHAT,
+  AGENT_SESSION_COMPACT,
+  AGENT_SESSION_CREATE,
+  AGENT_SESSION_GET,
+  AGENT_SESSION_LIST,
+  AGENT_SESSION_MESSAGES,
+  AGENT_SESSION_PATCH,
+  ensureServerCapability,
+  type CapabilityRequirement,
+} from "@arizeai/phoenix-client";
+
+import { createPhoenixClient } from "../client";
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
-import type { ModelSelection, PxiRuntimeOptions } from "./types";
+import type {
+  BuiltInProvider,
+  ModelSelection,
+  PxiRuntimeOptions,
+} from "./types";
 
 /**
  * Pre-launch validation of the selected model.
@@ -67,7 +84,7 @@ type PxiCustomProvider = {
   modelNames: string[];
 };
 
-type PxiModelPreflightData = {
+export type PxiModelPreflightData = {
   modelProviders: PxiModelProvider[];
   playgroundModels: PxiPlaygroundModel[];
   generativeModelCustomProviders: {
@@ -76,6 +93,24 @@ type PxiModelPreflightData = {
     }>;
   };
 };
+
+const RECOMMENDED_PXI_MODELS = [
+  { provider: "ANTHROPIC", modelName: "claude-fable-5-1" },
+  { provider: "ANTHROPIC", modelName: "claude-fable-5" },
+  { provider: "ANTHROPIC", modelName: "claude-opus-5" },
+  { provider: "ANTHROPIC", modelName: "claude-opus-4-8" },
+  { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
+  { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
+  { provider: "OPENAI", modelName: "gpt-5.6-sol" },
+  { provider: "OPENAI", modelName: "gpt-5.4" },
+  { provider: "OPENAI", modelName: "gpt-5.4-mini" },
+  { provider: "OPENAI", modelName: "gpt-5.5" },
+  { provider: "GOOGLE", modelName: "gemini-3.7-flash" },
+  { provider: "GOOGLE", modelName: "gemini-3.1-pro-preview" },
+] as const satisfies readonly {
+  provider: BuiltInProvider;
+  modelName: string;
+}[];
 
 type GraphqlError = {
   message?: string;
@@ -155,7 +190,7 @@ function formatEndpointPreflightFailure({
     "",
     "How to fix:",
     "  1. Start Phoenix and confirm the server is listening.",
-    "  2. If Phoenix is running at a different URL, pass --endpoint <url> or set PHOENIX_HOST.",
+    "  2. If Phoenix is running at a different URL, pass --endpoint <url> or set PHOENIX_ENDPOINT.",
     "  3. For remote endpoints, check VPN, proxy, firewall, and DNS settings.",
     "  4. To skip only model validation, pass --skip-model-preflight.",
   ].join("\n");
@@ -253,7 +288,7 @@ export async function fetchPxiModelPreflight({
 }): Promise<PxiModelPreflightData> {
   if (!config.endpoint) {
     throw new InvalidArgumentError(
-      "Phoenix endpoint not configured. Set PHOENIX_HOST or pass --endpoint."
+      "Phoenix endpoint not configured. Set PHOENIX_ENDPOINT or pass --endpoint."
     );
   }
   const request = buildGraphqlRequest({
@@ -287,6 +322,35 @@ export async function fetchPxiModelPreflight({
   const payload =
     (await response.json()) as GraphqlResponse<PxiModelPreflightData>;
   return assertPreflightData({ payload });
+}
+
+/** Return the main app's recommended models that exist in this server's catalog. */
+export function getRecommendedPxiModels({
+  data,
+}: {
+  data: PxiModelPreflightData;
+}): ModelSelection[] {
+  return RECOMMENDED_PXI_MODELS.filter(({ provider, modelName }) =>
+    data.playgroundModels.some(
+      (model) => model.providerKey === provider && model.name === modelName
+    )
+  ).map(({ provider, modelName }) => ({
+    providerType: "builtin",
+    provider,
+    modelName,
+  }));
+}
+
+/** Fetch the recommended model choices displayed by the interactive picker. */
+export async function fetchRecommendedPxiModels({
+  config,
+  fetchImpl = globalThis.fetch,
+}: {
+  config: PhoenixConfig;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<ModelSelection[]> {
+  const data = await fetchPxiModelPreflight({ config, fetchImpl });
+  return getRecommendedPxiModels({ data });
 }
 
 /**
@@ -369,14 +433,21 @@ export function validatePxiModelSelection({
 
 /**
  * Run the full preflight for a session: fetch the catalog and validate the
- * selected model, unless `--skip-model-preflight` was passed. This is the single
- * call the entry point makes before rendering the UI.
+ * given model selection, unless `--skip-model-preflight` was passed. This is
+ * the single call the entry point makes before rendering the UI, and the
+ * restored-session path reuses it so any future preflight step (e.g. catalog
+ * caching) covers both.
+ * @param params.options - the resolved PXI runtime options
+ * @param params.modelSelection - the selection to validate; defaults to the
+ * CLI launch selection
  */
 export async function runPxiModelPreflight({
   options,
+  modelSelection = options.modelSelection,
   fetchImpl = globalThis.fetch,
 }: {
   options: PxiRuntimeOptions;
+  modelSelection?: ModelSelection;
   fetchImpl?: typeof globalThis.fetch;
 }): Promise<void> {
   if (options.skipModelPreflight) {
@@ -388,8 +459,95 @@ export async function runPxiModelPreflight({
   });
   validatePxiModelSelection({
     data,
-    modelSelection: options.modelSelection,
+    modelSelection,
   });
+}
+
+/** Agent-session capabilities every PXI run depends on. */
+const PXI_SERVER_CAPABILITIES: readonly CapabilityRequirement[] = [
+  AGENT_SESSION_CREATE,
+  AGENT_SESSION_LIST,
+  AGENT_SESSION_GET,
+  AGENT_SESSION_PATCH,
+  AGENT_SESSION_MESSAGES,
+  AGENT_SESSION_COMPACT,
+  AGENT_SESSION_CHAT,
+];
+
+export async function runPxiServerVersionPreflight({
+  options,
+  fetchImpl,
+}: {
+  options: PxiRuntimeOptions;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<void> {
+  const client = createPhoenixClient({
+    config: options.config,
+    fetch: fetchImpl,
+  });
+  for (const requirement of PXI_SERVER_CAPABILITIES) {
+    await ensureServerCapability({ client, requirement });
+  }
+}
+
+/** Whether two selections name the same provider and model. */
+export function isSameModelSelection(
+  a: ModelSelection,
+  b: ModelSelection
+): boolean {
+  if (a.providerType === "custom" || b.providerType === "custom") {
+    return (
+      a.providerType === "custom" &&
+      b.providerType === "custom" &&
+      a.providerId === b.providerId &&
+      a.modelName === b.modelName
+    );
+  }
+  return a.provider === b.provider && a.modelName === b.modelName;
+}
+
+/**
+ * Resolve the model a restored session should display: always its persisted
+ * selection. The server-side record is the source of truth — every send
+ * asserts the displayed model, so displaying anything else (a fallback, the
+ * CLI default) would make the server reject each send with
+ * `agent_session_model_stale`. When the catalog says the persisted selection
+ * is invalid, `onInvalidModel` is called so the UI can warn the user; a
+ * transient catalog fetch failure is ignored entirely and the persisted
+ * selection is kept unvalidated.
+ *
+ * Explicit `--provider`/`--model` flags are deliberately *not* honoured here.
+ * They express an intent to move the session, which is applied once — as a
+ * write — when the session is restored; re-applying them on every poll would
+ * mask model changes made by other clients.
+ * @param params.onInvalidModel - called when the persisted selection fails
+ * catalog validation (not on catalog fetch failures)
+ */
+export async function resolveRestoredPxiModelSelection({
+  options,
+  persistedModelSelection,
+  onInvalidModel,
+  fetchImpl = globalThis.fetch,
+}: {
+  options: PxiRuntimeOptions;
+  persistedModelSelection: ModelSelection;
+  onInvalidModel?: (params: { error: InvalidArgumentError }) => void;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<ModelSelection> {
+  try {
+    await runPxiModelPreflight({
+      options,
+      modelSelection: persistedModelSelection,
+      fetchImpl,
+    });
+  } catch (error) {
+    // Validation failures name a model the catalog rejects; anything else is
+    // a transient fetch failure and the next resolve re-validates.
+    if (error instanceof InvalidArgumentError) {
+      onInvalidModel?.({ error });
+    }
+  }
+  return persistedModelSelection;
 }
 
 /**

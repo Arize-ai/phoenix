@@ -12,16 +12,27 @@ never assert -- ``gate.py`` decides pass/fail from the aggregated artifact.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from typing import Any
 
 import pytest
 
 from evals.pxi.evaluators import EVALUATORS_BY_NAME
-from evals.pxi.harness.agent_task import run_pxi_example
+from evals.pxi.harness.agent_task import (
+    DEFAULT_ASSISTANT_MODEL,
+    DEFAULT_ASSISTANT_OPENAI_API_TYPE,
+    DEFAULT_ASSISTANT_PROVIDER,
+    ENV_ASSISTANT_MODEL,
+    ENV_ASSISTANT_OPENAI_API_TYPE,
+    ENV_ASSISTANT_PROVIDER,
+    run_pxi_example,
+)
 from evals.pxi.harness.datasets import DATASETS_DIR, load_dataset
 from evals.pxi.harness.reporting import PASSING_SCORE
 from phoenix.client.pytest import evaluate, log_output
+
+EXPERIMENT_DESCRIPTION = "PXI behavioral regression evaluation run."
 
 
 @dataclass(frozen=True)
@@ -38,6 +49,13 @@ def _load_cases() -> list[Any]:
     cases: list[Any] = []
     for path in sorted(DATASETS_DIR.glob("*.yaml")):
         dataset = load_dataset(path)
+        experiment_metadata = {
+            "model": os.getenv(ENV_ASSISTANT_MODEL, DEFAULT_ASSISTANT_MODEL),
+            "provider": os.getenv(ENV_ASSISTANT_PROVIDER, DEFAULT_ASSISTANT_PROVIDER).upper(),
+            "openai_api_type": os.getenv(
+                ENV_ASSISTANT_OPENAI_API_TYPE, DEFAULT_ASSISTANT_OPENAI_API_TYPE
+            ),
+        }
         for example in dataset.examples:
             split = str(example["splits"][0])
             case = EvalCase(
@@ -60,7 +78,12 @@ def _load_cases() -> list[Any]:
                     # the repetition axis before parametrization exists -- a
                     # per-example repetitions kwarg would be silently ignored.
                     marks=[
-                        pytest.mark.phoenix(dataset=dataset.dataset_name),
+                        pytest.mark.phoenix(
+                            dataset=dataset.dataset_name,
+                            dataset_description=dataset.description,
+                            experiment_description=EXPERIMENT_DESCRIPTION,
+                            experiment_metadata=experiment_metadata,
+                        ),
                         getattr(pytest.mark, split),
                     ],
                     # Namespaced so example ids stay globally unique across

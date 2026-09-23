@@ -9,15 +9,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.0",
-    "@ai-sdk/otel": "^1.0.0",
+    "@ai-sdk/openai": "^4.0.71",
+    "@ai-sdk/otel": "^1.0.107",
     "@arizeai/phoenix-otel": "workspace:*",
-    "ai": "^7.0.0",
-    "zod": "^4.4.3"
+    "ai": "^7.0.107",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "tsx": "^4.23.1",
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   },
   "engines": {

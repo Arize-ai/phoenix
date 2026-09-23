@@ -113,7 +113,9 @@ remote_agent = agent_engines.create(
     ],
     extra_packages=["adk_agent.py"],
     env_vars={
-        "PHOENIX_COLLECTOR_ENDPOINT": "http://localhost:6006/v1/traces",  # Or your Phoenix deployment URL
+        # Agent Engine reaches this URL, not your machine, so localhost will not work here.
+        # Full OTLP traces URL, including the /v1/traces path
+        "PHOENIX_COLLECTOR_ENDPOINT": "https://your-phoenix.example.com/v1/traces",
         "PHOENIX_API_KEY": "<your-phoenix-api-key>",
     },
 )
@@ -128,6 +130,7 @@ tracer_provider = register(
     project_name="adk-agent",
     batch=False,  # Use sync export because Agent Engine pauses CPU after requests
     set_global_tracer_provider=False,  # Required: avoids conflict with Agent Engine's global provider
+    protocol="http/protobuf",  # Export over HTTPS — Agent Engine cannot reach a self-hosted gRPC port
 )
 GoogleADKInstrumentor().instrument(tracer_provider=tracer_provider)
 

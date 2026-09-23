@@ -177,7 +177,7 @@ def get_timestamp_range(
     offset_delta = timedelta(minutes=utc_offset_minutes)
     local_start_time = start_time + offset_delta
 
-    # round down start_time to the nearest stride in local timezone
+    # Round down start_time to the nearest stride boundary in local timezone
     if stride == "minute":
         t = local_start_time.replace(second=0, microsecond=0)
     elif stride == "hour":

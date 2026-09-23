@@ -1,0 +1,29 @@
+**Let your coding agent set this up.** Works with Claude Code, Codex, Cursor, and OpenCode.
+
+<Steps>
+  <Step title="Start Phoenix">
+    In one terminal, start Phoenix and leave it running. It serves at `http://localhost:6006`:
+
+    ```bash
+    uvx arize-phoenix serve
+    ```
+
+    Already have a Phoenix deployment? Skip this step. `px setup` can point at any running Phoenix, including a [self-hosted](/docs/phoenix/self-hosting) one.
+  </Step>
+
+  <Step title="Add tracing with a coding agent">
+    In a new terminal, from your app's root directory, run one of these:
+
+    <CodeGroup>
+    ```bash npx
+    npx -y @arizeai/phoenix-cli setup
+    ```
+
+    ```bash Install
+    npm i -g @arizeai/phoenix-cli && px setup
+    ```
+    </CodeGroup>
+
+    `px setup` hands the instrumentation to your coding agent and waits until a real trace arrives. It can also install the [Phoenix skills](/docs/phoenix/integrations/developer-tools/coding-agents#skills) so your agent can query what you capture. See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) for the full flow, CI usage, and unsupported agents.
+  </Step>
+</Steps>

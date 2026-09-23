@@ -37,12 +37,13 @@ The client will automatically read environment variables from your environment, 
 
 The following environment variables are used:
 
-- `PHOENIX_HOST` - The base URL of the Phoenix API.
+- `PHOENIX_ENDPOINT` - The base URL of your Phoenix. This is the canonical setting for the client.
 - `PHOENIX_API_KEY` - The API key to use for authentication.
 - `PHOENIX_CLIENT_HEADERS` - Custom headers to add to all requests. A JSON stringified object.
+- `PHOENIX_COLLECTOR_ENDPOINT` - Read by the OTel SDK for trace export, usually the same URL as `PHOENIX_ENDPOINT`. The client uses it for API access when `PHOENIX_ENDPOINT` is unset.
 
 ```bash
-PHOENIX_HOST='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
+PHOENIX_ENDPOINT='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
 # emits the following request:
 # GET http://localhost:12345/v1/datasets
 # headers: {
@@ -150,7 +151,7 @@ effort conversion to your LLM provider SDK of choice.
 The following LLM provider SDKs are supported:
 
 - Vercel AI SDK: `ai` [ai](https://www.npmjs.com/package/ai)
-- OpenAI: `openai` [openai](https://www.npmjs.com/package/openai)
+- OpenAI: `openai` [openai](https://www.npmjs.com/package/openai) (v6 and v7)
 - Anthropic: `anthropic` [@anthropic-ai/sdk](https://www.npmjs.com/package/@anthropic-ai/sdk)
 
 > **Note:** These provider SDKs are optional peer dependencies — installing `@arizeai/phoenix-client` does not pull them in. Install the one you convert to yourself, e.g. `npm install ai`, `npm install openai`, or `npm install @anthropic-ai/sdk`. Calling `toSDK({ sdk: "ai" | "openai" | "anthropic" })` without the matching SDK installed fails at runtime.
@@ -382,8 +383,11 @@ checks an aggregate bar (so CI can allow a mean of 80% while still running
 every case), and `passRate` requires a minimum fraction of runs to satisfy a
 per-run `passFn` predicate.
 
-See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
-`ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
+See the [CI Eval Tests](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals),
+[Vitest](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest),
+[Jest](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest),
+and [Annotations](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations)
+guides for setup, the full
 `describe` / `test` / `test.each` API, acceptance criteria, repetitions,
 dry-run mode, and annotation details.
 
@@ -420,19 +424,34 @@ const sessionTraces = await getTraces({
   project: { projectName: "my-project" },
   sessionId: "my-session-id",
 });
+
+// Filter by error status and latency (requires Phoenix server >= 20.12.0)
+const slowFailures = await getTraces({
+  project: { projectName: "my-project" },
+  filter: "error_count > 0 and latency_ms >= 1000",
+});
 ```
 
-| Parameter      | Type                           | Description                                |
-| -------------- | ------------------------------ | ------------------------------------------ |
-| `project`      | `ProjectIdentifier`            | The project (by name or ID) — **required** |
-| `startTime`    | `Date \| string \| null`       | Inclusive lower bound on trace start time  |
-| `endTime`      | `Date \| string \| null`       | Exclusive upper bound on trace start time  |
-| `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
-| `order`        | `"asc" \| "desc"`              | Sort direction                             |
-| `limit`        | `number`                       | Maximum number of traces to return         |
-| `cursor`       | `string \| null`               | Pagination cursor (Trace GlobalID)         |
-| `includeSpans` | `boolean`                      | Include full span details for each trace   |
-| `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
+| Parameter      | Type                           | Description                                                  |
+| -------------- | ------------------------------ | ------------------------------------------------------------ |
+| `project`      | `ProjectIdentifier`            | The project (by name or ID) — **required**                   |
+| `startTime`    | `Date \| string \| null`       | Inclusive lower bound on trace start time                    |
+| `endTime`      | `Date \| string \| null`       | Exclusive upper bound on trace start time                    |
+| `sort`         | `"start_time" \| "latency_ms"` | Sort field                                                   |
+| `order`        | `"asc" \| "desc"`              | Sort direction                                               |
+| `limit`        | `number`                       | Maximum number of traces to return                           |
+| `cursor`       | `string \| null`               | Pagination cursor                                            |
+| `includeSpans` | `boolean`                      | Include full span details for each trace                     |
+| `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)                       |
+| `filter`       | `string \| null`               | Trace filter expression                                      |
+| `error`        | `boolean \| null`              | Only traces with (`true`) or without (`false`) errored spans |
+| `minLatencyMs` | `number \| null`               | Inclusive lower bound on trace latency (ms)                  |
+| `maxLatencyMs` | `number \| null`               | Inclusive upper bound on trace latency (ms)                  |
+
+`error`, `minLatencyMs`, and `maxLatencyMs` are deprecated but remain supported on
+server >= 20.8.0. Use `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and
+`latency_ms <= N` in `filter` instead. Empty expressions do not filter; invalid
+expressions return HTTP 400. Keep the same expression when requesting the next page.
 
 ### Pagination
 
@@ -728,6 +747,82 @@ await addSessionNote({
   },
 });
 ```
+
+## Projects
+
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy assignments.
+
+### Fetching Projects
+
+Use `getProjects` to list projects. Pagination is handled for you.
+
+```ts
+import { getProjects } from "@arizeai/phoenix-client/projects";
+
+// List every project
+const projects = await getProjects();
+
+for (const project of projects) {
+  console.log(`Project: ${project.name} (${project.id})`);
+}
+```
+
+Pass `nameContains` to filter by a case-insensitive substring of the project name. The filter is applied server-side and requires Phoenix server `17.16.0` or newer.
+
+```ts
+const agentProjects = await getProjects({ nameContains: "agent" });
+```
+
+### Assigning a Retention Policy
+
+Use `setProjectRetentionPolicy` to assign an existing trace retention policy by GlobalID. Select the project by name or GlobalID.
+
+```ts
+import { setProjectRetentionPolicy } from "@arizeai/phoenix-client/projects";
+
+await setProjectRetentionPolicy({
+  projectName: "support-bot",
+  policyId: "UHJvamVjdFRyYWNlUmV0ZW50aW9uUG9saWN5OjI=",
+});
+```
+
+Pass `policyId: null` to reset the project to Phoenix's default retention policy:
+
+```ts
+await setProjectRetentionPolicy({
+  projectId: "UHJvamVjdDox",
+  policyId: null,
+});
+```
+
+This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
+
+## Secrets
+
+Use the `secrets` entrypoint to atomically create, update, or delete encrypted
+provider credentials. A string value creates or updates a key, while `null`
+deletes it. Duplicate keys use the last occurrence in the batch. The result
+contains only changed key names and never returns secret values.
+
+```ts
+import { upsertOrDeleteSecrets } from "@arizeai/phoenix-client/secrets";
+
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) throw new Error("OPENAI_API_KEY is required");
+
+const result = await upsertOrDeleteSecrets({
+  secrets: [
+    { key: "OPENAI_API_KEY", value: apiKey },
+    { key: "OLD_PROVIDER_API_KEY", value: null },
+  ],
+});
+
+console.log(result.upsertedKeys);
+console.log(result.deletedKeys);
+```
+
+Managing secrets requires an administrator when Phoenix authentication is
+enabled. Avoid logging the request batch or otherwise retaining its values.
 
 ## Examples
 

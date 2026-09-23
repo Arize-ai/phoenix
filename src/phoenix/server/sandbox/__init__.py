@@ -30,10 +30,12 @@ from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
 from phoenix.server.sandbox.deno_backend import DenoAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.modal_backend import ModalAdapter
+from phoenix.server.sandbox.monty_backend import MontyAdapter
 from phoenix.server.sandbox.types import (
     EnvVarValue,
     SandboxAdapter,
     SandboxBackend,
+    SandboxRuntimeContext,
     SupportsDependencies,
     SupportsEnvVars,
     SupportsInternetAccess,
@@ -62,6 +64,8 @@ class AdapterMetadata:
     hosting_type: Literal["local", "hosted"] = "hosted"
     supports_env_vars: bool = False
     internet_access_capability: Literal["none", "boolean"] = "none"
+    language_dialect: Literal["full", "restricted"] = "full"
+    runtime_notes: str = "Full language runtime."
     auto_seedable: bool = False
 
     @classmethod
@@ -91,6 +95,8 @@ class AdapterMetadata:
             hosting_type=adapter_cls.hosting_type,
             supports_env_vars=supports_env_vars,
             internet_access_capability=internet_access_capability,
+            language_dialect=adapter_cls.language_dialect,
+            runtime_notes=adapter_cls.runtime_notes,
             auto_seedable=auto_seedable,
         )
 
@@ -105,6 +111,7 @@ def _build_sandbox_adapter_metadata() -> Mapping[SandboxBackendType, AdapterMeta
             VercelAdapter,
             DenoAdapter,
             ModalAdapter,
+            MontyAdapter,
         )
     }
 
@@ -288,12 +295,14 @@ async def build_sandbox_backend(
     sandbox_config: models.SandboxConfig,
     *,
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext] = None,
 ) -> Optional[SandboxBackend]:
     """Build a fresh SandboxBackend from a stored SandboxConfig row."""
     return await _build_backend_for(
         sandbox_config.backend_type,
         config=sandbox_config.config or {},
         secrets=secrets,
+        runtime=runtime,
     )
 
 
@@ -302,12 +311,14 @@ async def probe_sandbox_backend_buildable(
     *,
     language: LanguageName,
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext] = None,
 ) -> Optional[SandboxBackend]:
     """Build a backend with a minimal config to verify the adapter is buildable."""
     return await _build_backend_for(
         backend_type,
         config={"language": language},
         secrets=secrets,
+        runtime=runtime,
     )
 
 
@@ -316,6 +327,7 @@ async def _build_backend_for(
     *,
     config: Mapping[str, Any],
     secrets: SecretsContext,
+    runtime: Optional[SandboxRuntimeContext],
 ) -> Optional[SandboxBackend]:
     # Caller must pass ``language`` in config; stored blobs and the probe wrapper both do.
     adapter = SANDBOX_ADAPTERS.get(backend_type)
@@ -348,6 +360,7 @@ async def _build_backend_for(
             credentials=typed_credentials,
             deployment=typed_deployment,
             user_env=user_env,
+            runtime=runtime,
         )
     except (MissingSecretError, UnsupportedOperation, ValidationError, ValueError):
         raise
@@ -375,3 +388,4 @@ _try_register_adapter(DaytonaAdapter)
 _try_register_adapter(VercelAdapter)
 _try_register_adapter(DenoAdapter)
 _try_register_adapter(ModalAdapter)
+_try_register_adapter(MontyAdapter)

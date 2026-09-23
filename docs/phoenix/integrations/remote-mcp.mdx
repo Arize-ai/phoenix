@@ -33,6 +33,8 @@ The `/mcp` endpoint requires **Phoenix 19.0.0 or later**. On older servers, upgr
 
 Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure — add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions.
 
+A client that follows the MCP authorization spec finds all of this on its own: the endpoint advertises [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) protected-resource metadata at `/.well-known/oauth-protected-resource/mcp`, which points at Phoenix's authorization server. See [Agent Authentication Discovery](/docs/phoenix/self-hosting/features/authentication#agent-authentication-discovery) for the full set of discovery endpoints.
+
 <Tip>
   The [`px` CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) automates the steps below for Claude Code, Codex, Gemini, Cursor, OpenCode, and VS Code — it infers your endpoint and writes each agent's config for you:
 
@@ -50,6 +52,8 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
         ```bash
         claude mcp add --transport http phoenix http://localhost:6006/mcp
         ```
+
+        Or install the [Phoenix plugin](/docs/phoenix/integrations/developer-tools/coding-agents#claude-code), which registers this server and the Phoenix skills together.
       </Step>
       <Step title="Log in">
         Run `/mcp` inside Claude Code, select **phoenix**, and complete the browser login.
@@ -148,6 +152,8 @@ Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as
     ```
 
     Launch `codex` and run `/mcp` to verify the server is connected.
+
+    Or install the [Phoenix plugin for Codex](/docs/phoenix/integrations/developer-tools/coding-agents#codex), which registers this server from a marketplace and supports browser login as well as an API key.
   </Accordion>
 
   <Accordion title="Gemini CLI">
@@ -240,14 +246,14 @@ Instead of exposing dozens of individual tools, the server presents a compact **
 
 The operation catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference), so the MCP surface always matches what your Phoenix version can do.
 
-`execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter — no filesystem, network, or import access, with strict time and memory limits. This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
+`execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter. Filesystem, network, environment, subprocess, and third-party package access are blocked; a restricted standard library remains importable. Strict time and memory limits apply. This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
 
 <Warning>
 Use code mode at your own risk. It relies on [Monty's](https://github.com/pydantic/monty) security model to sandbox agent-written Python. Review Monty's security model and determine whether it meets your security requirements before enabling code mode.
 </Warning>
 
 <Note>
-Prefer not to run agent-written code on your server? Set `PHOENIX_ENABLE_MCP_CODE_MODE=false` to remove the `execute` tool and Monty entirely. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`.
+Prefer not to run agent-written MCP code on your server? Set `PHOENIX_ENABLE_MCP_CODE_MODE=false` to remove the `execute` tool. The server then exposes the API operations as plain MCP tools, grouped by category, which clients reveal on demand via `list_tool_groups` and `enable_tool_group`. This setting does not disable Monty code evaluators; use `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` to control evaluator sandbox providers.
 </Note>
 
 ## Things to try
@@ -270,19 +276,30 @@ Pull my rag-pipeline prompt and suggest improvements based on recent trace failu
 
 ## Configuration
 
-Both variables are set on the Phoenix server before startup:
+These variables are set on the Phoenix server before startup:
 
 | Environment variable        | Default | Effect                                                                                                                              |
 | --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `PHOENIX_ENABLE_MCP_SERVER` | `true`  | Master switch. Set to `false` to remove the `/mcp` endpoint entirely.                                                               |
-| `PHOENIX_ENABLE_MCP_CODE_MODE`     | `true`  | Set to `false` to disable code execution (the `execute` tool and the Monty sandbox) and expose plain, group-gated tools instead.    |
+| `PHOENIX_ENABLE_MCP_CODE_MODE`     | `true`  | Set to `false` to disable the MCP `execute` tool and expose plain, group-gated tools instead.                                      |
+| `PHOENIX_SKILLS_PATHS`      | unset   | Comma-separated paths to your own [Agent Skills](https://agentskills.io/specification), served alongside Phoenix's built-in skills. See below. |
+
+### Mounting your own skills
+
+Point `PHOENIX_SKILLS_PATHS` at one or more skill directories, or at directories containing skills, on the Phoenix server. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
+
+```bash
+PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
+```
+
+Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the MCP server's instructions and in the Phoenix Assistant's skill picker.
 
 The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls — a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
 
 ## Security notes
 
 - **Authentication** is the same as the rest of Phoenix: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
-- **Code execution is sandboxed**: Monty is an interpreter with no filesystem, network, or import access, capped at 30 seconds, 100 MB of memory, and 50 operation calls per `execute` block. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
+- **Code execution is sandboxed**: Monty is an interpreter with no filesystem or network access, running in worker subprocesses rather than in the Phoenix process. Code may import a restricted standard library (`json`, `re`, `datetime`, and similar) but not `subprocess`, `socket`, `importlib`, or any third-party package. Each `execute` block is capped at 30 seconds of code execution, 100 MB of memory, 50 operation calls, and 5 minutes end to end including the time those operations take. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
 - **Treat query results as data, not instructions.** Traces and spans contain whatever your application logged, including untrusted user input. Agents should not follow directives found inside telemetry returned by these tools.
 
 ## Inspecting the server with MCP Inspector

@@ -1,5 +1,46 @@
 # @arizeai/phoenix-evals
 
+## 2.6.0
+
+### Minor Changes
+
+- b7b7dfb: Classification evaluators now accept AI SDK evaluation models such as TypeSafe's Jev. When an evaluation model is passed as `model`, the classification is routed through `experimental_evaluate` as a single choice question instead of `generateObject`. Results carry a `label` and `score` but no `explanation`, since evaluation models do not generate text.
+
+## 2.5.0
+
+### Minor Changes
+
+- 63805d0: Add `createCompletenessEvaluator` to judge whether every active user request in a conversation was actually completed.
+
+### Patch Changes
+
+- d67ea3f: Deprecate `createDocumentRelevanceEvaluator` in favor of
+  `createRetrievalRelevanceEvaluator`. Rename `documentText` to `context` and the
+  `unrelated` label to `irrelevant`. The deprecated factory and its types will be
+  removed in the next major release.
+
+## 2.4.0
+
+### Minor Changes
+
+- 0e3b2c2: Add a built-in PII detection evaluator (`createPiiDetectionEvaluator`) that screens a conversation record for personally identifiable information, including system instructions, tool calls and results, and retrieved content the end user may never have seen.
+
+## 2.3.0
+
+### Minor Changes
+
+- 7efa7b2: Add a built-in retrieval relevance evaluator (createRetrievalRelevanceEvaluator) that checks whether the external information retrieved during a step is relevant to the request it was serving. Unlike document relevance, it is source-agnostic and scores the retrieved information holistically, whether it came from a vector search, a tool or MCP call, a web search, or content embedded in an LLM turn.
+
+## 2.2.0
+
+### Minor Changes
+
+- 1aa1a84: Redesign `createHallucinationEvaluator` as a conversation-grounding evaluator.
+
+  This changes the evaluator input to `input` and `output`, where `input` is the conversation available to the assistant and `output` is the response being judged. A separate `context` field is no longer accepted.
+
+  Labels change from `factual`/`hallucinated` to `grounded`/`hallucinated`. Scores are minimized, with `hallucinated` equal to `1` and `grounded` equal to `0`. Existing stored evaluations, dashboards, thresholds, and label filters may require migration and should not be compared directly with results from the previous evaluator.
+
 ## 2.1.0
 
 ### Minor Changes

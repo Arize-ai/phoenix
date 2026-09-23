@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import warnings
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast, overload
@@ -189,6 +190,10 @@ class Spans:
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
             root_spans_only (Optional[bool]): Whether to return only root spans.
+                Deprecated: express root-span scoping in the query instead, e.g.
+                `SpanQuery().where("parent_span is None")` to match root spans
+                including orphans (spans whose parent is absent), or
+                `parent_id is None` to match only spans with no parent id.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
@@ -202,6 +207,15 @@ class Spans:
             ImportError: If pandas is not installed.
         """
         project_name = project_name
+        if root_spans_only is not None:
+            warnings.warn(
+                "root_spans_only is deprecated. Express root-span scoping in the query "
+                'instead: SpanQuery().where("parent_span is None") for root spans including '
+                'orphans, or SpanQuery().where("parent_id is None") for only spans with no '
+                "parent id.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         query = query if query else SpanQuery()
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
@@ -1472,6 +1486,10 @@ class AsyncSpans:
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
             root_spans_only (Optional[bool]): Whether to return only root spans.
+                Deprecated: express root-span scoping in the query instead, e.g.
+                `SpanQuery().where("parent_span is None")` to match root spans
+                including orphans (spans whose parent is absent), or
+                `parent_id is None` to match only spans with no parent id.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
@@ -1486,6 +1504,15 @@ class AsyncSpans:
             ImportError: If pandas is not installed.
         """
         project_name = project_name
+        if root_spans_only is not None:
+            warnings.warn(
+                "root_spans_only is deprecated. Express root-span scoping in the query "
+                'instead: SpanQuery().where("parent_span is None") for root spans including '
+                'orphans, or SpanQuery().where("parent_id is None") for only spans with no '
+                "parent id.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         query = query if query else SpanQuery()
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)

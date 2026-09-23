@@ -10,7 +10,8 @@
  * Fields are optional because Commander only populates the ones the user
  * passed, plus any the flag itself declares a default for. Handlers must not
  * read the environment directly — pass these values to `resolveConfig()`,
- * which layers flags over the active profile, then env vars, then defaults.
+ * which owns the full precedence: flags, then environment variables, then the
+ * active profile, then a discovered `.env.phoenix`, then defaults.
  */
 
 /**
@@ -20,7 +21,7 @@
 export interface ConnectionOptions {
   /**
    * `--endpoint <url>`: Base URL of the Phoenix server. Overrides the active
-   * profile and `PHOENIX_HOST`; defaults to `http://localhost:6006`.
+   * profile and `PHOENIX_ENDPOINT`; defaults to `http://localhost:6006`.
    *
    * @example "https://app.phoenix.arize.com"
    */

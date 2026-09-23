@@ -10,15 +10,16 @@ from binascii import hexlify
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from itertools import product
-from threading import Lock
+from threading import Lock, RLock
 from typing import Any, Literal, Optional, Union, cast
 from urllib.parse import urljoin
 
 import httpx
 import opentelemetry.sdk.trace as trace_sdk
+import opentelemetry.trace as trace_api
 from httpx import HTTPStatusError
 from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
@@ -32,7 +33,16 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource  # type: ignore[attr-defined, unused-ignore]
 from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import INVALID_SPAN_ID, Status, StatusCode, Tracer
+from opentelemetry.trace import (
+    INVALID_SPAN_ID,
+    NoOpTracerProvider,
+    Status,
+    StatusCode,
+    Tracer,
+)
+from opentelemetry.util._decorator import (
+    _agnosticcontextmanager,  # pyright: ignore[reportPrivateUsage]
+)
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
@@ -145,6 +155,84 @@ class _NoOpProcessor(trace_sdk.SpanProcessor):
         return True
 
 
+@dataclass(frozen=True)
+class _TracerBundle:
+    tracer: Tracer
+    resource: Resource
+    provider: Any
+
+
+_GLOBAL_TRACER_PROVIDER_LOCK = RLock()
+_evaluator_provider_mount_count = 0
+
+
+class _EvaluatorRoutingProvider(trace_api.TracerProvider):
+    def __init__(self, evaluator_provider: Any) -> None:
+        self.evaluator_provider = evaluator_provider
+
+    def get_tracer(
+        self,
+        instrumenting_module_name: str,
+        instrumenting_library_version: Optional[str] = None,
+        schema_url: Optional[str] = None,
+        attributes: Optional[Mapping[str, Any]] = None,
+    ) -> Tracer:
+        return _RoutingTracer(
+            self,
+            (
+                instrumenting_module_name,
+                instrumenting_library_version,
+                schema_url,
+                attributes,
+            ),
+        )
+
+
+class _RoutingTracer(Tracer):
+    def __init__(
+        self,
+        routing_provider: _EvaluatorRoutingProvider,
+        get_tracer_args: tuple[str, Optional[str], Optional[str], Optional[Mapping[str, Any]]],
+    ) -> None:
+        self._routing_provider = routing_provider
+        self._get_tracer_args = get_tracer_args
+
+    def _delegate(self) -> Tracer:
+        if _evaluator_provider_mount_count:
+            provider = self._routing_provider.evaluator_provider
+        else:
+            provider = trace_api._TRACER_PROVIDER  # pyright: ignore[reportPrivateUsage]
+            if provider is None or provider is self._routing_provider:
+                return NoOpTracerProvider().get_tracer(*self._get_tracer_args)
+        return cast(Tracer, provider.get_tracer(*self._get_tracer_args))
+
+    def start_span(self, *args: Any, **kwargs: Any) -> trace_api.Span:
+        return self._delegate().start_span(*args, **kwargs)
+
+    @_agnosticcontextmanager
+    def start_as_current_span(self, *args: Any, **kwargs: Any) -> Iterator[trace_api.Span]:
+        with self._delegate().start_as_current_span(*args, **kwargs) as span:
+            yield span
+
+
+@contextmanager
+def _attach_global_tracer_provider(provider: Any) -> Iterator[None]:
+    """Temporarily mount a provider while preserving OpenTelemetry's exact prior state."""
+    global _evaluator_provider_mount_count
+
+    routing_provider = _EvaluatorRoutingProvider(provider)
+    with _GLOBAL_TRACER_PROVIDER_LOCK:
+        previous = trace_api._TRACER_PROVIDER  # pyright: ignore[reportPrivateUsage]
+        _evaluator_provider_mount_count += 1
+        # ProxyTracer caches its first real tracer, so the mounted tracer must route each emission.
+        trace_api._TRACER_PROVIDER = routing_provider  # pyright: ignore[reportPrivateUsage]
+        try:
+            yield
+        finally:
+            trace_api._TRACER_PROVIDER = previous  # pyright: ignore[reportPrivateUsage]
+            _evaluator_provider_mount_count -= 1
+
+
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
@@ -156,11 +244,11 @@ EVALUATOR = OpenInferenceSpanKindValues.EVALUATOR.value
 JSON = OpenInferenceMimeTypeValues.JSON
 
 
-def _get_tracer(
+def _get_tracer_bundle(
     project_name: Optional[str] = None,
     base_url: Optional[str] = None,
     headers: Optional[dict[str, str]] = None,
-) -> tuple[Tracer, Resource]:
+) -> _TracerBundle:
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
     tracer_provider = trace_sdk.TracerProvider(resource=resource)
 
@@ -176,7 +264,30 @@ def _get_tracer(
         span_processor = _NoOpProcessor()
 
     tracer_provider.add_span_processor(span_processor)
-    return OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig()), resource
+    return _TracerBundle(
+        tracer=OITracer(tracer_provider.get_tracer(__name__), config=TraceConfig()),
+        resource=resource,
+        provider=tracer_provider,
+    )
+
+
+def _get_noop_tracer_bundle() -> _TracerBundle:
+    resource = Resource({})
+    provider = NoOpTracerProvider()
+    return _TracerBundle(
+        tracer=OITracer(provider.get_tracer("no-op"), config=TraceConfig()),
+        resource=resource,
+        provider=provider,
+    )
+
+
+def _get_tracer(
+    project_name: Optional[str] = None,
+    base_url: Optional[str] = None,
+    headers: Optional[dict[str, str]] = None,
+) -> tuple[Tracer, Resource]:
+    bundle = _get_tracer_bundle(project_name, base_url, headers)
+    return bundle.tracer, bundle.resource
 
 
 def get_tqdm_progress_bar_formatter(title: str) -> str:

@@ -1,0 +1,47 @@
+--- sqlean-time.c
++++ sqlean-time.c
+@@ -13,11 +13,11 @@
+ 
+ // Common durations.
+ const Duration Nanosecond = 1;
+-const Duration Microsecond = 1000 * Nanosecond;
+-const Duration Millisecond = 1000 * Microsecond;
+-const Duration Second = 1000 * Millisecond;
+-const Duration Minute = 60 * Second;
+-const Duration Hour = 60 * Minute;
++const Duration Microsecond = 1000;
++const Duration Millisecond = 1000000;
++const Duration Second = 1000000000;
++const Duration Minute = 60000000000LL;
++const Duration Hour = 3600000000000LL;
+ 
+ #pragma region Conversion
+ 
+@@ -939,9 +939,9 @@
+ #pragma region Private
+ 
+ static const int64_t seconds_per_minute = 60;
+-static const int64_t seconds_per_hour = 60 * seconds_per_minute;
+-static const int64_t seconds_per_day = 24 * seconds_per_hour;
+-static const int64_t seconds_per_week = 7 * seconds_per_day;
++static const int64_t seconds_per_hour = 3600;
++static const int64_t seconds_per_day = 86400;
++static const int64_t seconds_per_week = 604800;
+ static const int64_t days_per_400_years = 365 * 400 + 97;
+ static const int64_t days_per_100_years = 365 * 100 + 24;
+ static const int64_t days_per_4_years = 365 * 4 + 1;
+@@ -954,11 +954,10 @@
+ // Offsets to convert between internal and absolute or Unix times.
+ // = (absoluteZeroYear - internalYear) * 365.2425 * secondsPerDay
+ static const int64_t absolute_to_internal = -9223371966579724800LL;
+-static const int64_t internal_to_absolute = -absolute_to_internal;
++static const int64_t internal_to_absolute = 9223371966579724800LL;
+ 
+-static const int64_t unix_to_internal =
+-    (1969 * 365 + 1969 / 4 - 1969 / 100 + 1969 / 400) * seconds_per_day;
+-static const int64_t internal_to_unix = -unix_to_internal;
++static const int64_t unix_to_internal = 62135596800LL;
++static const int64_t internal_to_unix = -62135596800LL;
+ 
+ // days_before[m] counts the number of days in a non-leap year
+ // before month m begins. There is an entry for m=12, counting

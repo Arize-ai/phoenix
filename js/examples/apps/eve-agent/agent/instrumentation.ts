@@ -17,11 +17,20 @@ import {
   isOpenInferenceSpan,
   OpenInferenceSimpleSpanProcessor,
 } from "@arizeai/openinference-vercel";
-import { OTLPTraceExporter, register } from "@arizeai/phoenix-otel";
+import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
 import { defineInstrumentation } from "eve/instrumentation";
 
 export default defineInstrumentation({
   setup: ({ agentName }) => {
+    // Accepts a base URL or one that already carries the OTLP /v1/traces path.
+    const traceUrl = ensureCollectorEndpoint(
+      process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"
+    );
+
     register({
       projectName: process.env.PHOENIX_PROJECT_NAME ?? agentName,
       spanProcessors: [
@@ -30,7 +39,7 @@ export default defineInstrumentation({
         // Swap in OpenInferenceBatchSpanProcessor if you prefer batching.
         new OpenInferenceSimpleSpanProcessor({
           exporter: new OTLPTraceExporter({
-            url: `${process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"}/v1/traces`,
+            url: traceUrl,
             // Only needed when Phoenix has auth enabled.
             headers: process.env.PHOENIX_API_KEY
               ? { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` }

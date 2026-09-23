@@ -172,6 +172,8 @@ export const phoenixToolChoiceToOpenAI = phoenixToolChoiceSchema.transform(
         return "required";
       case "specific_function":
         return { type: "function", function: { name: phoenix.function_name } };
+      default:
+        return assertUnreachable(phoenix);
     }
   }
 );

@@ -6,7 +6,14 @@
  */
 
 export type CommandContext = {
-  clearMessages: () => void;
+  startNewSession: (options: { temporary: boolean }) => void;
+  openModelPicker: () => void;
+  openSessionPicker: () => void;
+  /**
+   * Compact older conversation context into a checkpoint summary. Any text
+   * after the command is sent as a follow-up message once compaction finishes.
+   */
+  compactSession: (pendingText?: string) => void;
   exit: () => void;
 };
 
@@ -20,8 +27,33 @@ export type PxiCommand = {
 export const SLASH_COMMANDS: PxiCommand[] = [
   {
     name: "clear",
-    description: "Clear the conversation history",
-    handler: (_args, ctx) => ctx.clearMessages(),
+    description: "Start a new persisted session (alias for /new)",
+    handler: (_args, ctx) => ctx.startNewSession({ temporary: false }),
+  },
+  {
+    name: "compact",
+    description: "Compact older conversation context",
+    handler: (args, ctx) => ctx.compactSession(args || undefined),
+  },
+  {
+    name: "model",
+    description: "Switch models for this session",
+    handler: (_args, ctx) => ctx.openModelPicker(),
+  },
+  {
+    name: "new",
+    description: "Start a new persisted session",
+    handler: (_args, ctx) => ctx.startNewSession({ temporary: false }),
+  },
+  {
+    name: "sessions",
+    description: "Browse and restore persisted sessions",
+    handler: (_args, ctx) => ctx.openSessionPicker(),
+  },
+  {
+    name: "temporary",
+    description: "Start a new temporary session",
+    handler: (_args, ctx) => ctx.startNewSession({ temporary: true }),
   },
   {
     name: "exit",

@@ -64,6 +64,34 @@ jobs:
             echo "✓ Versions already match for $PACKAGE_NAME: $CURRENT_VERSION"
           fi
 
+      # PyPI's simple index trails the upload by a minute or two, and tox.ini
+      # resolves the workspace siblings from PyPI (`--no-sources`), so a PR opened
+      # too early cannot resolve. Require two hits: the CDN purge reaches nodes
+      # unevenly, so one lucky response proves nothing.
+      - name: Wait for version to be resolvable on PyPI
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          CONFIRMATIONS=0
+          for attempt in $(seq 1 40); do
+            if curl -sf -H 'Accept: application/vnd.pypi.simple.v1+json' \
+                 -H 'Cache-Control: no-cache' \
+                 "https://pypi.org/simple/$PACKAGE_NAME/" \
+                 | jq -e --arg v "$PACKAGE_VERSION" '.versions | index($v)' > /dev/null; then
+              CONFIRMATIONS=$((CONFIRMATIONS + 1))
+              if [ "$CONFIRMATIONS" -ge 2 ]; then
+                echo "✓ $PACKAGE_NAME==$PACKAGE_VERSION is in the PyPI simple index"
+                exit 0
+              fi
+              echo "· $PACKAGE_NAME==$PACKAGE_VERSION seen ($CONFIRMATIONS/2 confirmations)"
+            else
+              CONFIRMATIONS=0
+              echo "· $PACKAGE_NAME==$PACKAGE_VERSION not in the simple index yet (attempt $attempt/40)"
+            fi
+            sleep 15
+          done
+          echo "::error::$PACKAGE_NAME==$PACKAGE_VERSION never appeared in the PyPI simple index; not opening a PR that cannot resolve"
+          exit 1
+
       - name: Update pyproject.toml
         if: steps.check-update.outputs.needs_update == 'true'
         run: |

@@ -53,6 +53,7 @@ describe("writeEnvFile", () => {
     expect(env).toContain(
       'PHOENIX_COLLECTOR_ENDPOINT="https://phoenix.example.com"'
     );
+    expect(env).toContain('PHOENIX_ENDPOINT="https://phoenix.example.com"');
     expect(env).toContain('PHOENIX_PROJECT_NAME="my-app"');
     expect(env).toContain('PHOENIX_API_KEY="sk-secret"');
     expect(env).toContain("do NOT commit");

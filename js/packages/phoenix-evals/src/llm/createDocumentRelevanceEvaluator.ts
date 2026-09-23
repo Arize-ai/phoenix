@@ -3,6 +3,12 @@ import type { CreateClassificationEvaluatorArgs } from "../types/evals";
 import type { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
+/**
+ * Arguments for the document relevance evaluator.
+ *
+ * @deprecated Use {@link RetrievalRelevanceEvaluatorArgs} instead. This type will be
+ * removed in the next major release.
+ */
 export interface DocumentRelevanceEvaluatorArgs<
   RecordType extends Record<string, unknown> =
     DocumentRelevanceEvaluationRecord,
@@ -18,6 +24,9 @@ export interface DocumentRelevanceEvaluatorArgs<
 
 /**
  * A record to be evaluated by the document relevance evaluator.
+ *
+ * @deprecated Use {@link RetrievalRelevanceEvaluationRecord} instead. Rename
+ * `documentText` to `context`. This type will be removed in the next major release.
  */
 export interface DocumentRelevanceEvaluationRecord {
   input: string;
@@ -27,6 +36,12 @@ export interface DocumentRelevanceEvaluationRecord {
 
 /**
  * Creates a document relevance evaluator function.
+ *
+ * @deprecated Use {@link createRetrievalRelevanceEvaluator} instead. Rename the
+ * `documentText` input field to `context`, and update code that checks for the
+ * `unrelated` label to check for `irrelevant`. Pass one document as `context` to
+ * preserve per-document evaluation. This function will be removed in the next major
+ * release.
  *
  * This function returns an evaluator that determines whether a given document text
  * is relevant to a provided input question. The evaluator uses a classification model
@@ -38,18 +53,8 @@ export interface DocumentRelevanceEvaluationRecord {
  * @param args.promptTemplate - The prompt template to use (defaults to DOCUMENT_RELEVANCE_TEMPLATE).
  * @param args.telemetry - The telemetry to use for the evaluator.
  *
- * @returns An evaluator function that takes a {@link DocumentRelevanceExample} and returns a classification result
+ * @returns An evaluator function that takes a {@link DocumentRelevanceEvaluationRecord} and returns a classification result
  * indicating whether the document is relevant to the input question.
- *
- * @example
- * ```ts
- * const evaluator = createDocumentRelevanceEvaluator({ model: openai("gpt-4o-mini") });
- * const result = await evaluator.evaluate({
- *   input: "What is the capital of France?",
- *   documentText: "Paris is the capital and most populous city of France.",
- * });
- * console.log(result.label); // "relevant" or "unrelated"
- * ```
  */
 export function createDocumentRelevanceEvaluator<
   RecordType extends Record<string, unknown> =

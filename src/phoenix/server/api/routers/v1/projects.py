@@ -8,6 +8,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
@@ -19,7 +20,11 @@ from phoenix.server.api.routers.v1.utils import (
     add_errors_to_responses,
     get_project_by_identifier,
 )
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.api.types.ProjectTraceRetentionPolicy import (
+    ProjectTraceRetentionPolicy as ProjectTraceRetentionPolicyNodeType,
+)
 from phoenix.server.authorization import is_not_locked, require_admin
 
 router = APIRouter(tags=["projects"])
@@ -321,6 +326,87 @@ async def delete_project(
 
         await session.delete(project)
     return None
+
+
+class ProjectRetentionPolicyData(V1RoutesBaseModel):
+    project_id: str
+    policy_id: Optional[str] = Field(
+        description=(
+            "The retention policy the project now uses, or null when the project falls back "
+            "to the default policy."
+        ),
+    )
+
+
+class SetProjectRetentionPolicyRequestBody(V1RoutesBaseModel):
+    # Required but nullable: an explicit null resets the project to the default policy,
+    # so omitting the field cannot be mistaken for a reset.
+    policy_id: Optional[str] = Field(
+        description=(
+            "The ID (GlobalID) of an existing trace retention policy to assign, or null to "
+            "reset the project to the default policy."
+        ),
+    )
+
+
+class SetProjectRetentionPolicyResponseBody(ResponseBody[ProjectRetentionPolicyData]):
+    pass
+
+
+@router.patch(
+    "/projects/{project_identifier}/retention",
+    dependencies=[Depends(require_admin), Depends(is_not_locked)],
+    operation_id="setProjectRetentionPolicy",
+    summary="Set a project's trace retention policy",
+    description=(
+        "Assign an existing trace retention policy to a project, or reset the project to the "
+        "default policy with a null `policy_id`. Retention policies are standalone, reusable "
+        "entities: this endpoint only changes which policy the project points at, and never "
+        "creates, edits, or deletes a policy."
+    ),
+    response_description="The project's retention policy assignment",
+    responses=add_errors_to_responses([403, 404, 422]),
+)
+async def set_project_retention_policy(
+    request: Request,
+    request_body: SetProjectRetentionPolicyRequestBody,
+    project_identifier: str = Path(
+        description="The project identifier: either project ID or project name.",
+    ),
+) -> SetProjectRetentionPolicyResponseBody:
+    policy_rowid: Optional[int] = None
+    if request_body.policy_id is not None:
+        try:
+            policy_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(request_body.policy_id),
+                ProjectTraceRetentionPolicyNodeType.__name__,
+            )
+            if policy_rowid == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID:
+                policy_rowid = None
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid retention policy ID: {request_body.policy_id}",
+            )
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        if policy_rowid is not None:
+            policy = await session.get(models.ProjectTraceRetentionPolicy, policy_rowid)
+            if policy is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Retention policy with ID {request_body.policy_id} not found",
+                )
+        project.trace_retention_policy_id = policy_rowid
+        data = ProjectRetentionPolicyData(
+            project_id=str(GlobalID(ProjectNodeType.__name__, str(project.id))),
+            policy_id=(
+                str(GlobalID(ProjectTraceRetentionPolicyNodeType.__name__, str(policy_rowid)))
+                if policy_rowid is not None
+                else None
+            ),
+        )
+    return SetProjectRetentionPolicyResponseBody(data=data)
 
 
 def _to_project_response(project: models.Project) -> Project:

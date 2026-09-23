@@ -86,7 +86,7 @@ Split the list into three buckets:
 - **Audit candidates** — anything that could plausibly affect a user: new APIs, new CLI
   flags, new UI, new config, new env vars, new providers, behavior changes, performance
   changes visible to users, breaking changes, deprecations. **In-product onboarding
-  snippets, integration registries, and provider configs under `app/` count as
+  snippets, integration registries, and provider configs under `js/app/` count as
   user-facing** — they are literally the instructions users copy out of the product, so
   a new snippet without a matching `docs/phoenix/integrations/<...>.mdx` page is a real
   gap, even though the change technically lives in the frontend.
@@ -160,7 +160,7 @@ Map each public surface to a **package of record**:
 | `js/packages/phoenix-evals/src/` | TS evals |
 | `js/packages/phoenix-mcp/src/` | TS MCP |
 | `js/packages/phoenix-cli/src/` | TS CLI |
-| `app/src/` | Phoenix UI |
+| `js/app/src/` | Phoenix UI |
 
 A single feature often spans multiple packages — keep that mapping, it tells you which doc
 surfaces to check.
@@ -229,7 +229,7 @@ For server changes touching `src/phoenix/server/...`:
    (feature flag leaked into public docs).
 4. Migrations/schema changes: check `docs/phoenix/self-hosting/` and `MIGRATION.md`.
 
-For UI changes touching `app/src/`:
+For UI changes touching `js/app/src/`:
 
 1. Is there a `docs/phoenix/` page for the feature? User-facing UI should have one.
 2. Does the existing page still match current screenshots and flow?

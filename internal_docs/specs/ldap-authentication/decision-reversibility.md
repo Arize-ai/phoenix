@@ -165,12 +165,12 @@ When user logs in via LDAP:
 if input.auth_method is AuthMethod.LDAP:
     # LDAP users are stored with special Unicode marker
     from phoenix.server.ldap import LDAP_CLIENT_ID_MARKER
-    
+
     user = models.OAuth2User(
-        email=email,                          # Unique identifier
-        username=input.username,              # Display name (will sync from LDAP)
+        email=email,  # Unique identifier
+        username=input.username,  # Display name (will sync from LDAP)
         oauth2_client_id=LDAP_CLIENT_ID_MARKER,  # Identifies as LDAP
-        oauth2_user_id=None,                  # NULL until first login (then upgraded to DN)
+        oauth2_user_id=None,  # NULL until first login (then upgraded to DN)
     )
 ```
 

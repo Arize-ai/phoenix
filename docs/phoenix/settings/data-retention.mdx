@@ -107,6 +107,18 @@ You can either delete traces by time or individually. To delete traces older tha
   </div>
 </div>
 
+## Agent Session Retention
+
+Conversations with the [PXI agent](/docs/phoenix/pxi) are a separate kind of data from your traces, and they carry their own retention — these are agent chats, not the trace sessions described above. Unlike traces, Phoenix does not keep them forever by default; it holds them on a rolling window so old chats don't accumulate:
+
+- **Idle persisted chats** are removed after **30 days** without activity.
+- **Per user**, Phoenix keeps the **30** most recently updated chats and evicts the rest.
+- **Temporary chats** — chats a user marks as temporary — are never saved to history and are removed **24 hours** after their last activity.
+
+A background sweep enforces these limits about once an hour. Both persisted-chat limits are set by an administrator under **Settings → Assistant**: raise or lower the idle window and the per-user cap, or set either to `0` to turn that limit off and keep chats indefinitely. The 24-hour window for temporary chats is fixed and not configurable.
+
+Deleting a chat is permanent, whether it ages out under a retention limit, an administrator removes it from the assistant sessions card, or the user deletes it themselves.
+
 ## Frequently Asked Questions
 
 ### Why doesn't my storage usage decrease after deleting traces?

@@ -324,7 +324,7 @@ export const openAIMessageToVercelAI = openAIMessageSchema.transform(
           content: [],
         };
       default:
-        assertUnreachable(role);
+        return assertUnreachable(role);
     }
   }
 );
@@ -354,7 +354,7 @@ export const openAIToolChoiceToAnthropic = openAIToolChoiceSchema.transform(
       case "required":
         return { type: "any" };
       default:
-        assertUnreachable(openAI);
+        return assertUnreachable(openAI);
     }
   }
 );
@@ -372,7 +372,7 @@ export const openAIToolChoiceToVercelAI = openAIToolChoiceSchema.transform(
       case "required":
         return "required";
       default:
-        assertUnreachable(openAI);
+        return assertUnreachable(openAI);
     }
   }
 );

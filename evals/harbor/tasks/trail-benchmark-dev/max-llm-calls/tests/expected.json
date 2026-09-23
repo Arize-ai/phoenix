@@ -1,0 +1,4 @@
+{
+  "reference": "78 LLM calls",
+  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows"
+}

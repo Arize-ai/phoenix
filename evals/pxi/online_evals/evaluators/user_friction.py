@@ -24,7 +24,7 @@ from evals.pxi.online_evals.conversation import Turn, segment_turns, transcript
 from evals.pxi.online_evals.message_origin import is_human_message
 from evals.pxi.online_evals.models import EvaluatorSpec
 from evals.pxi.online_evals.rendering import render_conversation
-from evals.pxi.online_evals.topology import PXI_TURN_ROOT_NAME
+from evals.pxi.online_evals.topology import PXI_TURN_ROOT_SELECTOR
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ async def evaluate_user_friction(root: v1.Span, spans: Sequence[v1.Span]) -> Sco
 
 USER_FRICTION = EvaluatorSpec(
     name="user_friction",
-    root_span_name=PXI_TURN_ROOT_NAME,
+    selector=PXI_TURN_ROOT_SELECTOR,
     evaluate=evaluate_user_friction,
     annotator_kind="LLM",
     sample_rate=1.0,

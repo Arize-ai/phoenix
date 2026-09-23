@@ -85,10 +85,10 @@ Phoenix's test suite (`tests/unit/db/test_models.py`) already tests extensive Un
 ```python
 # From Phoenix's existing test suite
 test_data = [
-    "Hello Wörld",         # German umlaut
-    "Café Naïve",          # French accents  
-    "Hello 世界",           # Chinese characters
-    "αβγ ñoño",            # Greek + Spanish
+    "Hello Wörld",  # German umlaut
+    "Café Naïve",  # French accents
+    "Hello 世界",  # Chinese characters
+    "αβγ ñoño",  # Greek + Spanish
     "unicode_café%wörld",  # Unicode + special chars
 ]
 ```

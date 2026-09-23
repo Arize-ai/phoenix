@@ -16,6 +16,7 @@ from evals.pxi.online_evals.conversation import (
 )
 from evals.pxi.online_evals.evaluators import user_friction
 from evals.pxi.online_evals.message_origin import is_human_message
+from evals.pxi.online_evals.models import SpanSelector
 from evals.pxi.online_evals.rendering import render_conversation, render_turn_detailed
 
 
@@ -146,7 +147,7 @@ def test_transcript_ignores_later_subagent_llm_span() -> None:
     """A subagent's LLM span starting after the main agent's final call must not
     hijack transcript reconstruction (regression: trace 6e6a106d in pxi_dev)."""
     root, spans = _two_turn_trace("no, I asked for this week")
-    subagent = _span("subagent", name="ServerAgent.iter", kind="AGENT", parent_id="root", start=5)
+    subagent = _span("subagent", name="PXISubagent.iter", kind="AGENT", parent_id="root", start=5)
     nested_llm = _span(
         "nested-llm",
         name="model",
@@ -374,6 +375,8 @@ def test_spec_configuration() -> None:
     spec = user_friction.USER_FRICTION
     assert spec.name == "user_friction"
     assert spec.annotator_kind == "LLM"
-    assert spec.root_span_name == "pxi.turn"
+    assert spec.selector == SpanSelector(
+        names=("pxi.turn",), span_kinds=("AGENT",), parent_id="null"
+    )
     assert spec.sample_rate == 1.0
     assert spec.identifier == "pxi-online-evals:user-friction:v1"

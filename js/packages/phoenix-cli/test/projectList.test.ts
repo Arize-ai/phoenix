@@ -18,10 +18,11 @@ afterEach(() => {
 });
 
 describe("project list", () => {
-  it("excludes experiment projects, propagates --limit, and prints raw JSON", async () => {
+  it("forwards list filters and prints raw JSON", async () => {
     const captured: {
       limit?: string | null;
       includeExperimentProjects?: string | null;
+      nameContains?: string | null;
       count: number;
     } = { count: 0 };
     mock.server.use(
@@ -32,29 +33,47 @@ describe("project list", () => {
         captured.includeExperimentProjects = searchParams.get(
           "include_experiment_projects"
         );
+        captured.nameContains = searchParams.get("name_contains");
         return response(200).json({ data: PROJECTS, next_cursor: null });
       })
     );
     const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
-      ["list", "--limit", "50", "--format", "raw", ...BASE_ARGS],
+      [
+        "list",
+        "--limit",
+        "50",
+        "--name-contains",
+        "ALPha",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
       { from: "user" }
     );
 
     expect(captured.count).toBe(1);
     expect(captured.limit).toBe("50");
     expect(captured.includeExperimentProjects).toBe("false");
+    expect(captured.nameContains).toBe("ALPha");
     const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(PROJECTS);
   });
 
-  it("follows next_cursor across pages and concatenates the results", async () => {
-    const cursors: (string | null)[] = [];
+  it("forwards the name filter across paginated requests", async () => {
+    const requests: {
+      cursor: string | null;
+      nameContains: string | null;
+    }[] = [];
     mock.server.use(
       http.get("/v1/projects", ({ request, response }) => {
-        const cursor = new URL(request.url).searchParams.get("cursor");
-        cursors.push(cursor);
+        const searchParams = new URL(request.url).searchParams;
+        const cursor = searchParams.get("cursor");
+        requests.push({
+          cursor,
+          nameContains: searchParams.get("name_contains"),
+        });
         if (cursor === null) {
           return response(200).json({
             data: [PROJECTS[0]],
@@ -67,11 +86,14 @@ describe("project list", () => {
     const io = captureCliOutput();
 
     await createProjectCommand().parseAsync(
-      ["list", "--format", "raw", ...BASE_ARGS],
+      ["list", "--name-contains", "a", "--format", "raw", ...BASE_ARGS],
       { from: "user" }
     );
 
-    expect(cursors).toEqual([null, "cursor-2"]);
+    expect(requests).toEqual([
+      { cursor: null, nameContains: "a" },
+      { cursor: "cursor-2", nameContains: "a" },
+    ]);
     const parsed = JSON.parse(String(io.stdout.mock.calls[0]?.[0]));
     expect(parsed).toEqual(PROJECTS);
   });

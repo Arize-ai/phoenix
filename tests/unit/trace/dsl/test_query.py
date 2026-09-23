@@ -1,3 +1,4 @@
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -377,7 +378,9 @@ async def test_filter_for_not_none(
     )
 
 
-async def test_filter_for_substring_case_sensitive_not_glob_not_like(
+@pytest.mark.parametrize("needle", ["y%*", "Y%*"])
+async def test_filter_for_substring_ignores_case_not_glob_not_like(
+    needle: str,
     db: DbSessionFactory,
     default_project: Any,
     abc_project: Any,
@@ -386,13 +389,13 @@ async def test_filter_for_substring_case_sensitive_not_glob_not_like(
         SpanQuery()
         .select("input.value")
         .where(
-            "'y%*' in input.value",
+            f"'{needle}' in input.value",
         )
     )
     expected = pd.DataFrame(
         {
-            "context.span_id": ["456"],
-            "input.value": ["xy%*z"],
+            "context.span_id": ["345", "456"],
+            "input.value": ["XY%*Z", "xy%*z"],
         }
     ).set_index("context.span_id")
     async with db() as session:
@@ -403,7 +406,9 @@ async def test_filter_for_substring_case_sensitive_not_glob_not_like(
     )
 
 
-async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
+@pytest.mark.parametrize("needle", ["y%*", "Y%*"])
+async def test_filter_for_not_substring_ignores_case_not_glob_not_like(
+    needle: str,
     db: DbSessionFactory,
     default_project: Any,
     abc_project: Any,
@@ -412,13 +417,39 @@ async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
         SpanQuery()
         .select("input.value")
         .where(
-            "'y%*' not in input.value",
+            f"'{needle}' not in input.value",
         )
     )
     expected = pd.DataFrame(
         {
-            "context.span_id": ["234", "345"],
-            "input.value": ["xy%z*", "XY%*Z"],
+            "context.span_id": ["234"],
+            "input.value": ["xy%z*"],
+        }
+    ).set_index("context.span_id")
+    async with db() as session:
+        actual = await session.run_sync(sq, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+async def test_filter_for_equality_stays_case_sensitive(
+    db: DbSessionFactory,
+    default_project: Any,
+    abc_project: Any,
+) -> None:
+    sq = (
+        SpanQuery()
+        .select("input.value")
+        .where(
+            "input.value == 'xy%*z'",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456"],
+            "input.value": ["xy%*z"],
         }
     ).set_index("context.span_id")
     async with db() as session:
@@ -1399,3 +1430,39 @@ async def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        pytest.param({"root_spans_only": True}, id="root-spans-only"),
+        pytest.param({"root_spans_only": False}, id="root-spans-only-false"),
+        # Deprecated even on its own: it is a no-op without `root_spans_only`,
+        # but a caller passing it is still using a deprecated argument.
+        pytest.param({"orphan_span_as_root_span": False}, id="orphan-flag-alone"),
+        pytest.param({"root_spans_only": True, "orphan_span_as_root_span": False}, id="both"),
+    ],
+)
+async def test_root_span_flags_warn_as_deprecated(
+    db: DbSessionFactory,
+    abc_project: Any,
+    kwargs: dict[str, Any],
+) -> None:
+    """The root-span flags are deprecated in favor of expressing the scoping in
+    the filter condition, and must say so the way `stop_time` already does."""
+    sq = SpanQuery()
+    async with db() as session:
+        with pytest.warns(DeprecationWarning, match="root_spans_only"):
+            await session.run_sync(sq, project_name="abc", **kwargs)
+
+
+async def test_no_deprecation_warning_without_the_root_span_flags(
+    db: DbSessionFactory,
+    abc_project: Any,
+) -> None:
+    """The migrated path -- root scoping inside the condition -- stays quiet."""
+    sq = SpanQuery().where("parent_id is None")
+    async with db() as session:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            await session.run_sync(sq, project_name="abc")

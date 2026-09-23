@@ -36,10 +36,40 @@ Represent calls to language models (OpenAI, Anthropic, local models, etc.).
 **Input messages:**
 - `llm.input_messages.{i}.message.role` - "user", "assistant", "system", "tool"
 - `llm.input_messages.{i}.message.content` - Text content
-- `llm.input_messages.{i}.message.contents.{j}` - Multimodal (text + images)
+- `llm.input_messages.{i}.message.contents.{j}` - Structured content parts (multimodal)
 - `llm.input_messages.{i}.message.tool_calls` - Tool invocations
 
 **Output messages:** Same structure as input messages.
+
+**Structured content parts.** Each entry under `message.contents.{j}` carries a
+type tag and its payload:
+
+- `llm.output_messages.{i}.message.contents.{j}.message_content.type` - one of
+  `text`, `image`, `audio`, `reasoning`, `tool_use`
+- `llm.output_messages.{i}.message.contents.{j}.message_content.text` - the text
+  payload, set for both `text` and `reasoning` parts
+
+Reasoning content is a content part, not a separate attribute — a model's
+thinking tokens arrive as a part with `type = "reasoning"` alongside the `text`
+parts of the same message. Code that reads message text should filter on
+`message_content.type` rather than concatenating every part, or reasoning text
+will be mixed into the visible answer.
+
+A `reasoning` part carries the provider's replay payload alongside the summary,
+under the same `message_content` prefix:
+
+- `.id` — the provider's own identifier for the part (an OpenAI Responses
+  reasoning item id, for example), which has to be echoed back on replay
+- `.signature` — an opaque vendor signature captured verbatim (an Anthropic
+  thinking signature, a Gemini `thoughtSignature`)
+- `.data` — opaque vendor data captured verbatim (Anthropic
+  `redacted_thinking.data`)
+- `.encrypted_content` — OpenAI encrypted reasoning captured verbatim
+
+Only `.text` is human-readable, and it is optional: OpenAI returns reasoning
+encrypted unless a summary was requested, so a `reasoning` part can arrive with
+nothing but `.id` and `.encrypted_content`. Treat a missing `.text` as "the
+provider withheld the summary", not as an empty thought.
 
 ## Example: Basic LLM Call
 

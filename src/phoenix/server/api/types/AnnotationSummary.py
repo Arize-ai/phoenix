@@ -46,7 +46,8 @@ class AnnotationSummary:
                 fraction=float(row.avg_label_fraction),
             )
             for row in self.df.itertuples()
-            if row.label is not None
+            # Pandas can represent the synthetic coverage row's SQL NULL as NaN.
+            if pd.notna(row.label)
         ]
 
     @strawberry.field

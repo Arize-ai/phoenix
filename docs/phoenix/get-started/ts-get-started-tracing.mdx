@@ -4,17 +4,17 @@ title: "Send Traces From Your App"
 
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
 
-<Info>
-  **Want your coding agent to do this for you?** If you're using Claude Code, Cursor, Copilot, or another AI coding assistant, try [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) to add Phoenix tracing automatically with a single command.
-</Info>
-
 This guide walks through a complete workflow for understanding and improving an agent application using Phoenix. The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
 
 A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows. 
 
 In this guide, we’ll get tracing set up and walk through how to instrument an application. We’ll start by running a local Phoenix instance, create a simple agent, and then send a single trace so we can see everything end to end.
 
-We’ll use the Mastra framework in TypeScript, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations Page](https://arize.com/docs/phoenix/integrations).
+We’ll use the Mastra framework in TypeScript, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations page](/docs/phoenix/integrations).
+
+<Note>
+  **Have an existing app?** Your coding agent can instrument it for you. See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup). This guide builds and instruments a demo agent by hand.
+</Note>
 
 ## **Before We Start**
 
@@ -56,13 +56,14 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
     ```
     OPENAI_API_KEY= <ENTER YOUR OPENAI API KEY>
 
+    PHOENIX_ENDPOINT=http://localhost:6006
     PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
     PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
     ```
-    Note that `v1/traces` needs to be appended to the endpoint in your `.env` file when working with Mastra.
+    Both point at the same Phoenix, one variable per concern. `PHOENIX_ENDPOINT` is your Phoenix server's base URL, read by the API clients used later in this series for evals and experiments. `PHOENIX_COLLECTOR_ENDPOINT` is the exact URL traces are sent to — Mastra's exporter POSTs to it verbatim, so it carries the OTLP `/v1/traces` path.
 
     <Note>
-      If you're pointing at a remote deployment, set `PHOENIX_COLLECTOR_ENDPOINT` to that hostname with `/v1/traces` still appended (e.g. `https://phoenix.example.com/v1/traces`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
+      If you're pointing at a remote deployment, swap `http://localhost:6006` for that hostname in both (e.g. `https://phoenix.example.com` and `https://phoenix.example.com/v1/traces`). If it has [authentication](/docs/phoenix/self-hosting/features/authentication) enabled, also add a `PHOENIX_API_KEY` from its **Settings** page. A local `phoenix serve` needs no key.
     </Note>
 
     ### **Connect Your Project in Phoenix** 
@@ -83,7 +84,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
+                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),
@@ -356,7 +357,7 @@ We’ll be using OpenAI as our LLM provider throughout our agent and eventually 
               process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
             exporters: [
               new ArizeExporter({
-                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
+                endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT,
                 apiKey: process.env.PHOENIX_API_KEY,
                 projectName: process.env.PHOENIX_PROJECT_NAME,
               }),

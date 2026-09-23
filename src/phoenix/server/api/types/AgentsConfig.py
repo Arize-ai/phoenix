@@ -37,6 +37,28 @@ class AgentsConfig:
             "disabled for the entire workspace regardless of individual user preferences."
         ),
     )
+    github_server_enabled: bool = strawberry.field(
+        description=(
+            "Deploy-time ceiling for the PXI GitHub tools: true when external "
+            "resources are allowed and PHOENIX_AGENTS_DISABLE_GITHUB is unset. "
+            "When false, the GitHub settings UI is hidden entirely."
+        ),
+    )
+    github_enabled: bool = strawberry.field(
+        description=(
+            "Whether the PXI GitHub tools are effectively enabled: requires the "
+            "`agent.assistant.github` system setting to be on (default on), "
+            "PHOENIX_AGENTS_DISABLE_GITHUB to be unset, and external resources "
+            "to be allowed."
+        ),
+    )
+    github_workspace_token_configured: bool = strawberry.field(
+        description=(
+            "Whether a workspace-wide GitHub token is configured (the "
+            "GITHUB_PERSONAL_ACCESS_TOKEN secret or environment variable). "
+            "When false, each user must supply their own personal access token."
+        ),
+    )
     allow_local_traces: bool = strawberry.field(
         description=(
             "Admin ceiling for persisting PXI traces in this Phoenix instance. "
@@ -49,5 +71,17 @@ class AgentsConfig:
             "Admin ceiling for exporting PXI traces to the remote collector. "
             "Sourced from the `agent.assistant.trace_recording` system setting. When False, "
             "users cannot turn on remote trace export for themselves."
+        ),
+    )
+    session_retention_max_idle_days: Optional[int] = strawberry.field(
+        description=(
+            "Number of idle days after which agent sessions "
+            "are deleted. Null means idle sessions are never deleted."
+        ),
+    )
+    session_retention_max_count_per_user: Optional[int] = strawberry.field(
+        description=(
+            "Maximum number of agent sessions kept per user; "
+            "the most recently active sessions are retained. Null means no cap."
         ),
     )

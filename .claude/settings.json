@@ -1,4 +1,7 @@
 {
+  "env": {
+    "PHOENIX_ROSTER_INCLUDE": "Nancy-Chauhan"
+  },
   "hooks": {
     "PostToolUse": [
       {

@@ -3,7 +3,7 @@ Parity tests to ensure Python and TypeScript Mustache variable extraction behave
 
 These tests document the expected behavior that both implementations should follow.
 The Python implementation is in phoenix.utilities.template_formatters.MustacheTemplateFormatter
-The TypeScript implementation is in app/src/components/templateEditor/language/mustacheLike/
+The TypeScript implementation is in js/app/src/components/templateEditor/language/mustacheLike/
 
 Both implementations should:
 1. Extract only top-level variables (depth 0)

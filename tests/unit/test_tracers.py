@@ -145,6 +145,19 @@ class TestTracer:
         assert len(returned_traces) == 1
         assert returned_traces[0].project_session is None
 
+    @pytest.mark.parametrize("span_kind", ["tool", "ToOl"])
+    @pytest.mark.asyncio
+    async def test_get_db_traces_normalizes_span_kind(self, tracer: Tracer, span_kind: str) -> None:
+        with tracer.start_as_current_span(
+            "span",
+            attributes={OPENINFERENCE_SPAN_KIND: span_kind},
+        ):
+            pass
+
+        returned_traces = tracer.get_db_traces(project_id=1)
+        assert len(returned_traces) == 1
+        assert [span.span_kind for span in returned_traces[0].spans] == ["TOOL"]
+
     @pytest.mark.asyncio
     async def test_detached_otel_context_can_use_propagated_remote_parent(
         self, project: models.Project, tracer: Tracer

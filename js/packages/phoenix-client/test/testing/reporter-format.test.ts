@@ -106,6 +106,38 @@ describe("per-suite block", () => {
     expect(out).not.toContain('{"userQuery"');
   });
 
+  it("does not treat a minimize metric's desired 0 as a miss when accuracy is gated", () => {
+    const out = formatSuiteSummary(
+      suite([
+        result("true negative", "passed", 1, {
+          annotations: [
+            { name: "accuracy", score: 1 },
+            {
+              name: "pii_detection",
+              score: 0,
+              label: "no_pii_detected",
+              explanation: "FINDINGS: none",
+            },
+          ],
+        }),
+        result("misclassified", "passed", 0, {
+          annotations: [
+            { name: "accuracy", score: 0, explanation: "wrong label" },
+            {
+              name: "pii_detection",
+              score: 1,
+              label: "pii_detected",
+            },
+          ],
+        }),
+      ]),
+      COMPACT
+    );
+    expect(out).toContain("1 miss");
+    expect(out).toContain("✗ misclassified");
+    expect(out).not.toContain("✗ true negative");
+  });
+
   it("shows only the sub-perfect metrics that drove a miss", () => {
     const out = formatSuiteSummary(
       suite([

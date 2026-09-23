@@ -15,13 +15,13 @@ if (!process.env.OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT) {
 
 // Register with Phoenix - this handles all the OpenTelemetry boilerplate
 export const provider = register({
-  projectName: process.env.PHOENIX_PROJECT_NAME || "langchain-ts-quickstart",
+  projectName: process.env.PHOENIX_PROJECT_NAME || "langchain-travel-agent",
   // Optional: set batch to false for immediate span delivery during development
   batch: false,
 });
 
 console.log("✅ Phoenix tracing enabled");
 console.log(
-  `   Project: ${process.env.PHOENIX_PROJECT_NAME || "langchain-ts-quickstart"}`
+  `   Project: ${process.env.PHOENIX_PROJECT_NAME || "langchain-travel-agent"}`
 );
 console.log("");

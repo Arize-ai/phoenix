@@ -1,0 +1,111 @@
+name: Merge per-platform digests into one manifest list
+description: >-
+  Collect the digests pushed by every platform build of a variant and assemble
+  them into a single multi-platform manifest list under the given tags. Fails
+  if any expected digest is missing, so a half-built manifest is never tagged.
+
+inputs:
+  variant:
+    description: Image variant whose digests to collect — must match the build job.
+    required: true
+  registry:
+    description: Docker Hub namespace.
+    required: true
+  image-name:
+    description: Repository name within the namespace.
+    required: true
+  tags:
+    description: Newline-separated list of fully qualified tags to apply.
+    required: true
+  expected-digests:
+    description: Number of platform digests required before tagging.
+    required: true
+  dockerhub-username:
+    required: true
+  dockerhub-password:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # One artifact per platform, each holding a directory per variant it built.
+    # Merged, they form <variant>/<digest> across every platform.
+    - name: Download digests
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      with:
+        pattern: digests-*
+        merge-multiple: true
+        path: ${{ runner.temp }}/digests
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        username: ${{ inputs.dockerhub-username }}
+        password: ${{ inputs.dockerhub-password }}
+
+    - name: Create manifest list and push
+      id: create
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}
+        TAGS: ${{ inputs.tags }}
+        EXPECTED_DIGESTS: ${{ inputs.expected-digests }}
+        VARIANT: ${{ inputs.variant }}
+      run: |
+        set -euo pipefail
+        # nullglob so a variant that failed on every platform — and therefore
+        # has no directory at all — reports found 0 rather than erroring out.
+        shopt -s nullglob
+        cd "${RUNNER_TEMP}/digests"
+
+        sources=()
+        for digest in "${VARIANT}"/*; do
+          [ -f "$digest" ] || continue
+          sources+=("${IMAGE}@sha256:$(basename "$digest")")
+        done
+        if [ "${#sources[@]}" -ne "$EXPECTED_DIGESTS" ]; then
+          echo "expected $EXPECTED_DIGESTS platform digests, found ${#sources[@]}" >&2
+          exit 1
+        fi
+
+        tag_args=()
+        while IFS= read -r tag; do
+          [ -n "$tag" ] || continue
+          tag_args+=(--tag "$tag")
+          first_tag="${first_tag:-$tag}"
+        done <<< "$TAGS"
+        if [ "${#tag_args[@]}" -eq 0 ]; then
+          echo "no tags supplied" >&2
+          exit 1
+        fi
+
+        docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
+        echo "first-tag=${first_tag}" >> "$GITHUB_OUTPUT"
+
+    # The push already happened, so this is a tripwire rather than a gate: it
+    # turns a silently single-architecture tag into a red build.
+    - name: Verify published platforms
+      shell: bash
+      env:
+        FIRST_TAG: ${{ steps.create.outputs.first-tag }}
+        EXPECTED_DIGESTS: ${{ inputs.expected-digests }}
+      run: |
+        set -euo pipefail
+        docker buildx imagetools inspect "$FIRST_TAG"
+
+        # Attestation manifests carry platform unknown/unknown; only real
+        # architectures count. `// []` keeps a plain manifest (no index at
+        # all) on the reported-as-0 path instead of erroring out of jq.
+        raw=$(docker buildx imagetools inspect --raw "$FIRST_TAG")
+        real='[.manifests // [] | .[] | select(.platform.os != null and .platform.os != "unknown")]'
+        platforms=$(jq -r "${real} | map(\"\(.platform.os)/\(.platform.architecture)\") | sort | join(\",\")" <<< "$raw")
+        found=$(jq "${real} | length" <<< "$raw")
+
+        echo "published platforms: ${platforms:-<none>}"
+        if [ "$found" -ne "$EXPECTED_DIGESTS" ]; then
+          echo "expected $EXPECTED_DIGESTS platforms in $FIRST_TAG, found $found" >&2
+          exit 1
+        fi

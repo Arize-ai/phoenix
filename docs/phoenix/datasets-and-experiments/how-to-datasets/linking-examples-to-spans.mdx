@@ -1,0 +1,200 @@
+---
+title: "Linking Examples to Their Source Span (REST)"
+description: Link dataset examples back to the spans and traces they came from over Phoenix's REST API — via example metadata or the source span link — then log evaluations onto those spans.
+---
+
+When you build a dataset from your traces with Phoenix, each example usually carries a
+reference back to the **span** (and trace) it came from. This page shows how to work with that
+reference over the REST API: read it off an example, resolve the trace and session, and log
+evaluations back onto the span to close the observability loop.
+
+There are two ways an example can reference its source span, and you read them differently:
+
+- **`metadata`** — the common case. Most dataset-building flows (the UI's *From Spans* action,
+  error- and trace-analysis tools, your own scripts) record span and trace IDs inside the
+  example's `metadata`, under keys they choose (`trace_id`, `span_id`, `root_span_id`, …). This
+  is also the only way to make examples *filterable* by those IDs.
+- **`source`** — a first-class object (`span_id` + `span_node_id`) that Phoenix populates only
+  when an example was created with an explicit span link (see
+  [Create examples with a span link](#create-examples-with-a-span-link)).
+
+<Info>
+Neither path exposes `trace_id` or `session_id` as top-level, filterable fields on the examples
+endpoint. You either read a `trace_id` your dataset stored in `metadata`, or derive it from the
+span (see [Resolve the trace and session](#resolve-the-trace-and-session)).
+</Info>
+
+The examples below are `curl` requests to Phoenix's REST API. Two things depend on your setup:
+
+- **Base URL** Every request starts with the address where your Phoenix server is running.
+  `http://localhost:6006` is the default when you run Phoenix on your own machine. If Phoenix
+  is hosted somewhere else, replace it with that host and port. See
+  [Environments](/docs/phoenix/environments) for how Phoenix is served and how to find this URL.
+- **Authentication** A local Phoenix has no authentication by default, so these examples send
+  no credentials. If your Phoenix requires authentication, [create an API key](/docs/phoenix/settings/api-keys)
+  and pass it on every request with an `api_key` header: `-H 'api_key: YOUR_API_KEY'`.
+
+## Read the linkage from an example
+
+`GET /v1/datasets/{id}/examples` returns every example with its `input`, `output`, `metadata`,
+and — when present — a `source` object.
+
+```bash
+curl 'http://localhost:6006/v1/datasets/<dataset_id>/examples' \
+  -H 'accept: application/json'
+```
+
+**Most datasets carry the linkage in `metadata`.** A dataset built from error-trace analysis,
+for instance, stores the IDs under its own keys:
+
+```json
+{
+  "id": "RGF0YXNldEV4YW1wbGU6Mjk=",
+  "input": { "user_message": "find me a toy for a toddler" },
+  "output": { "expected_behavior": "…" },
+  "metadata": {
+    "trace_id": "502470b1b7580b8df6e0d2f302348247",
+    "root_span_id": "49b2b80dd2fbc9d2",
+    "error_span_ids": ["a5e5366a5604abb6"]
+  }
+}
+```
+
+The exact keys depend on whatever created the dataset — inspect one example and use the keys
+you find. Because `metadata` is returned verbatim, any IDs stored there double as a filterable
+link: you can match on them client-side, or pre-filter the spans list by a stored `trace_id`
+([below](#resolve-the-trace-and-session)).
+
+**If the example was created with an explicit span link, you'll also get a `source` object:**
+
+```json
+"source": {
+  "span_id": "67f6740bbe1ddc3f",
+  "span_node_id": "U3Bhbjox"
+}
+```
+
+- **`source.span_id`** is the [OpenTelemetry span ID](https://opentelemetry.io/docs/concepts/signals/traces/#span-context)
+  — your join key back to the span in Phoenix (and any other OTel backend you send the same
+  trace to).
+- **`source.span_node_id`** is the Phoenix Global ID for the span, used by the GraphQL API.
+
+Examples with no stored span link omit `source` (or return it as `null`) — fall back to
+`metadata`.
+
+## Resolve the trace and session
+
+You now have a span or trace ID (from `metadata` or `source`); to read the full span — its
+`trace_id`, `session.id`, and attributes — list the project's spans with
+`GET /v1/projects/{project}/spans`.
+
+**If you have a `trace_id`** (commonly in `metadata`), filter by it. This returns just that
+trace's spans — a small, direct result:
+
+```bash
+curl 'http://localhost:6006/v1/projects/<project-name-or-id>/spans?trace_id=502470b1b7580b8df6e0d2f302348247' \
+  -H 'accept: application/json'
+```
+
+Each returned span carries `context.trace_id`, `context.span_id`, and its `attributes` (where
+an OpenInference `session.id` lives, when set). Match your span ID against `context.span_id` to
+pick out the exact span.
+
+<Warning>
+This endpoint is **project-scoped**, but an example's `metadata` and `source` record the
+`span_id`/`trace_id` — **not** which project the span lives in. Querying the wrong project
+returns `200 OK` with zero spans, not an error. Use the project the trace was captured in; if
+you don't know it, list your projects with `GET /v1/projects` and search each until the trace
+turns up.
+</Warning>
+
+**If you only have a `span_id`** (for example from `source`), note that this endpoint filters by
+`trace_id`, time range, name, span kind, and attributes — but **not** by a single `span_id`.
+Without a trace ID you have to page through the project's spans (responses include a
+`next_cursor`) and match `context.span_id` yourself, so narrow with a time range first. See the
+[List spans](/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl)
+reference for all filters and cursor-based pagination.
+
+<Tip>
+To make examples **queryable by `trace_id` or `session_id`** in a REST-only workflow, store
+those IDs in each example's `metadata` at creation time (as the datasets above do). `metadata`
+is returned verbatim, giving you a filterable link without a second lookup. The GraphQL API also
+exposes `DatasetExample → span → context.traceId` and the `session.id` attribute directly.
+</Tip>
+
+## Log evaluations onto the span
+
+Once you have the span's OpenTelemetry `span_id` (from `metadata`, `source`, or the spans list),
+attach evaluation results with `POST /v1/span_annotations`. Set `annotator_kind` to `LLM` or
+`CODE` for automated evals (use `HUMAN` for manual review):
+
+```bash
+curl -X 'POST' \
+  'http://localhost:6006/v1/span_annotations?sync=false' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "data": [
+      {
+        "span_id": "49b2b80dd2fbc9d2",
+        "name": "correctness",
+        "annotator_kind": "LLM",
+        "result": {
+          "label": "correct",
+          "score": 1,
+          "explanation": "The answer matches the reference output."
+        }
+      }
+    ]
+  }'
+```
+
+Passing an `identifier` upserts the annotation on repeated calls, so you can re-run an
+evaluator without creating duplicates. For the full annotation payload and client/SDK
+examples, see [Annotating via the Client](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback).
+
+## Create examples with a span link
+
+If you're creating a dataset over REST and want the first-class `source` link (rather than
+storing IDs in `metadata`), pass a `span_ids` array parallel to your `inputs`/`outputs` on the
+**upload** endpoint. Phoenix stores the link on each example, so later reads return a `source`
+object.
+
+```bash
+curl -X 'POST' \
+  'http://localhost:6006/v1/datasets/upload?sync=true' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "action": "create",
+    "name": "qa-from-traces",
+    "inputs":  [{"question": "What is Phoenix?"}],
+    "outputs": [{"answer": "An open-source observability tool."}],
+    "metadata": [{}],
+    "span_ids": ["67f6740bbe1ddc3f"]
+  }'
+```
+
+The `span_ids` entries are [OpenTelemetry span IDs](https://opentelemetry.io/docs/concepts/signals/traces/#span-context)
+(hex, no `0x` prefix) — the same IDs you see on your spans in the tracing UI. Use `null` for any
+example that has no source span. For the other ways to create a dataset — the UI, a CSV, or a
+pandas DataFrame — see [Creating Datasets](/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets);
+its [From Spans](/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets#from-spans)
+flow also produces the `source` link. See the
+[Upload dataset](/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow)
+reference for the full request schema.
+
+<CardGroup cols={2}>
+  <Card title="Get examples from a dataset" icon="database" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset">
+    REST reference for the examples endpoint and its `source` field.
+  </Card>
+  <Card title="Create span annotations" icon="pen" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations">
+    REST reference for logging evaluations onto spans.
+  </Card>
+  <Card title="List spans" icon="list" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl">
+    Resolve a span's trace ID, session, and attributes.
+  </Card>
+  <Card title="Annotating via the Client" icon="code" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback">
+    Full annotation payload with Python, TypeScript, and curl.
+  </Card>
+</CardGroup>

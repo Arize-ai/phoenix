@@ -28,7 +28,7 @@ export default defineConfig({
   `*.eval.ts` convention.
 - `reporters` keeps Vitest's default diagnostics and enables the Phoenix
   summary block.
-- `setupFiles: ["dotenv/config"]` loads `PHOENIX_HOST`, `PHOENIX_API_KEY`,
+- `setupFiles: ["dotenv/config"]` loads `PHOENIX_ENDPOINT`, `PHOENIX_API_KEY`,
   and any other env vars from `.env`.
 - `testTimeout` is bumped because LLM calls can be slow.
 

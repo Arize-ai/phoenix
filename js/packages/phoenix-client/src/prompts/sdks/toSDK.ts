@@ -42,7 +42,7 @@ const getTargetSDK = <SDK extends SupportedSDK>(sdk: SDK) => {
     case "ai":
       return PROVIDER_TO_SDK.ai;
     default:
-      assertUnreachable(sdk);
+      return assertUnreachable(sdk);
   }
 };
 

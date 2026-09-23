@@ -242,6 +242,19 @@ class DeploymentValidators:
         return validator
 
     @staticmethod
+    def termination_grace_period(seconds: int) -> Validator:
+        """Validate the pod termination grace period."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            deployment = find_resource(resources, "Deployment")
+            if not deployment:
+                return False
+            pod_spec = deployment.get("spec", {}).get("template", {}).get("spec", {})
+            return pod_spec.get("terminationGracePeriodSeconds") == seconds
+
+        return validator
+
+    @staticmethod
     def resource_limits(cpu: str, memory: str) -> Validator:
         """Validate container resource limits."""
 
@@ -2776,6 +2789,11 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             "Custom replica count (3 replicas)",
             "--set replicaCount=3",
             DeploymentValidators.replicas(3),
+        ),
+        TestCase(
+            "Default termination grace period",
+            "",
+            DeploymentValidators.termination_grace_period(90),
         ),
         TestCase(
             "Custom CPU and memory limits",

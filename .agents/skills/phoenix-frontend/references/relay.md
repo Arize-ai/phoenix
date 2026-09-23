@@ -10,7 +10,7 @@ Query refs returned by `loadQuery` are retained until they are disposed. Use `us
 
 ## Owned preloaded queries
 
-Phoenix provides `app/src/hooks/useOwnedPreloadedQuery.ts` for the common route-loader pattern:
+Phoenix provides `js/app/src/hooks/useOwnedPreloadedQuery.ts` for the common route-loader pattern:
 
 - Loader uses `loadQuery(...)` and returns a query ref.
 - Component reads the ref with `useOwnedPreloadedQuery(...)`.

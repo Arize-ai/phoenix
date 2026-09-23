@@ -14,7 +14,7 @@ A LangChain TypeScript travel planner agent with Phoenix tracing and optional ev
 1. **Install dependencies:**
 
 ```bash
-cd langchain-ts-quickstart
+cd js/examples/apps/langchain-quickstart
 npm install
 ```
 
@@ -27,7 +27,9 @@ Copy `.env.example` to `.env` and fill in:
 OPENAI_API_KEY=your-openai-api-key
 TAVILY_API_KEY=your-tavily-api-key
 
-# Optional: Phoenix (defaults shown)
+# Optional: Phoenix (defaults shown). Traces are exported to
+# PHOENIX_COLLECTOR_ENDPOINT; the eval scripts call the Phoenix API on PHOENIX_ENDPOINT.
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=langchain-travel-agent
 
@@ -76,7 +78,7 @@ npm run custom_evals
 ```
 
 - Uses a custom classification evaluator with a travel-plan correctness template.
-- Requires `PHOENIX_ENDPOINT` or `PHOENIX_HOST` and `FIREWORKS_API_KEY`.
+- Requires `PHOENIX_ENDPOINT` and `FIREWORKS_API_KEY`.
 - Evaluates the same LangGraph spans and logs annotations as `custom_correctness`.
 
 ## What to Look For in Phoenix
@@ -96,7 +98,7 @@ After running evals, you’ll see span annotations (e.g. correctness / custom_co
 ### Project Structure
 
 ```
-langchain-ts-quickstart/
+langchain-quickstart/
 ├── package.json              # Dependencies and scripts
 ├── tsconfig.json             # TypeScript configuration
 ├── .env.example              # Example environment variables
@@ -146,6 +148,6 @@ langchain-ts-quickstart/
 - Or run from the Phoenix repo root: `uv run phoenix serve`
 - Evals still run and print results; only sending annotations to Phoenix fails until the server is upgraded.
 
-**custom_evals: Set PHOENIX_ENDPOINT or PHOENIX_HOST**
+**custom_evals: Set PHOENIX_ENDPOINT**
 
-- Set one of these in `.env` (e.g. `PHOENIX_ENDPOINT=http://localhost:6006`) and ensure `FIREWORKS_API_KEY` is set for the Fireworks evaluator model.
+- Set it in `.env` (e.g. `PHOENIX_ENDPOINT=http://localhost:6006`) and ensure `FIREWORKS_API_KEY` is set for the Fireworks evaluator model.

@@ -1,3 +1,10 @@
+import type { components } from "../__generated__/api/v1";
+
+/**
+ * A project as returned by the Phoenix REST API.
+ */
+export type Project = components["schemas"]["Project"];
+
 /**
  * Identifies a project. Accepts any of:
  * - `project` — a project ID or name (the server accepts either)

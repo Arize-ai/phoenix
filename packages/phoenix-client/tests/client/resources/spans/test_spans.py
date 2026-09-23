@@ -1,10 +1,59 @@
+import json
+import warnings
 from urllib.parse import parse_qs, urlparse
 
 import httpx
+import pandas as pd
 import pytest
 
+from phoenix.client import Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.spans import AsyncSpans, Spans
+
+
+@pytest.mark.parametrize(
+    ("span_id", "document_position", "expected_message"),
+    [
+        pytest.param(
+            "span-1",
+            "not-an-int",
+            "document_position values must be of type int",
+            id="non-integer-document-position",
+        ),
+        pytest.param(
+            "span-1",
+            None,
+            "document_position values cannot be None",
+            id="missing-document-position",
+        ),
+        pytest.param(
+            "",
+            0,
+            "span_id values must be non-empty strings",
+            id="empty-span-id",
+        ),
+    ],
+)
+def test_log_document_annotations_dataframe_rejects_invalid_identifiers(
+    span_id: object,
+    document_position: object,
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame(
+        {
+            "name": ["relevance"],
+            "annotator_kind": ["HUMAN"],
+            "span_id": [span_id],
+            "document_position": [document_position],
+            "label": ["relevant"],
+        }
+    )
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    http_client = httpx.Client(transport=transport, base_url="http://test")
+    client = Client(http_client=http_client)
+
+    with pytest.raises(ValueError, match=expected_message):
+        client.spans.log_document_annotations_dataframe(dataframe=dataframe)
 
 
 def _make_span(
@@ -413,3 +462,41 @@ async def test_async_get_spans_with_span_ids_calls_guard_before_request() -> Non
         await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
             project_identifier="my-project", span_ids=["span-1"]
         )
+
+
+def _make_dataframe_handler(expected_root_spans_only: object) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url).endswith("/v1/spans")
+        body = json.loads(request.content)
+        assert body["root_spans_only"] == expected_root_spans_only
+        return httpx.Response(200, json={"data": []})
+
+    return httpx.MockTransport(handler)
+
+
+class TestGetSpansDataframeRootSpansOnlyDeprecation:
+    def test_root_spans_only_warns_and_is_still_sent(self) -> None:
+        client = httpx.Client(
+            transport=_make_dataframe_handler(expected_root_spans_only=True),
+            base_url="http://test",
+        )
+        with pytest.warns(DeprecationWarning, match="parent_span is None"):
+            Spans(client).get_spans_dataframe(root_spans_only=True)
+
+    def test_omitting_root_spans_only_does_not_warn(self) -> None:
+        client = httpx.Client(
+            transport=_make_dataframe_handler(expected_root_spans_only=None),
+            base_url="http://test",
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            Spans(client).get_spans_dataframe()
+
+    @pytest.mark.anyio
+    async def test_async_root_spans_only_warns(self) -> None:
+        client = httpx.AsyncClient(
+            transport=_make_dataframe_handler(expected_root_spans_only=False),
+            base_url="http://test",
+        )
+        with pytest.warns(DeprecationWarning, match="root_spans_only is deprecated"):
+            await AsyncSpans(client).get_spans_dataframe(root_spans_only=False)

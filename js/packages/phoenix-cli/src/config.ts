@@ -1,11 +1,12 @@
 import {
-  ENV_PHOENIX_HOST,
+  ENV_PHOENIX_ENDPOINT,
   ENV_PHOENIX_PROJECT,
   ENV_PHOENIX_PROJECT_NAME,
   type EnvironmentValueSource,
+  getBaseUrlFromEnvironmentWithSource,
+  type ResolvedBaseUrlRank,
   getCredentialsFromEnvironmentWithSource,
   getProjectFromEnvironment,
-  getStrFromEnvironmentWithSource,
   warnIfUsingFileEndpointWithCredentials,
 } from "@arizeai/phoenix-config";
 
@@ -19,7 +20,8 @@ import {
 } from "./settings";
 
 /**
- * Default Phoenix endpoint used when PHOENIX_HOST is not set.
+ * Default Phoenix endpoint used when no endpoint environment variable
+ * (PHOENIX_ENDPOINT, the trace-export variables, legacy PHOENIX_HOST) is set.
  */
 export const DEFAULT_PHOENIX_ENDPOINT = "http://localhost:6006";
 
@@ -63,6 +65,12 @@ export interface PhoenixConfig {
    * Custom headers
    */
   headers?: Record<string, string>;
+
+  /**
+   * GitHub personal access token from the selected profile, sent ephemerally
+   * with pxi chat requests so the agent's GitHub tools act as this user.
+   */
+  githubPersonalAccessToken?: string;
 }
 
 /**
@@ -90,10 +98,16 @@ function loadConfigFromEnvironmentWithSources(): {
   config: PhoenixConfig;
   credentialSource?: EnvironmentValueSource;
   endpointSource?: EnvironmentValueSource;
+  endpointVariable?: string;
+  endpointRank?: ResolvedBaseUrlRank;
 } {
   const config: PhoenixConfig = {};
 
-  const endpoint = getStrFromEnvironmentWithSource(ENV_PHOENIX_HOST);
+  // PHOENIX_ENDPOINT (canonical for API access) first, inferring from the
+  // trace-export variables when only those are set, then legacy PHOENIX_HOST
+  // — the same resolution the API clients use. `px setup` writes
+  // PHOENIX_ENDPOINT and PHOENIX_COLLECTOR_ENDPOINT into `.env.phoenix`.
+  const endpoint = getBaseUrlFromEnvironmentWithSource();
   if (endpoint.value) {
     config.endpoint = endpoint.value;
   }
@@ -119,6 +133,8 @@ function loadConfigFromEnvironmentWithSources(): {
     config,
     credentialSource,
     endpointSource: endpoint.source,
+    endpointVariable: endpoint.envKey,
+    endpointRank: endpoint.rank,
   };
 }
 
@@ -126,11 +142,15 @@ function splitEnvironmentConfigTiers(): {
   processEnvConfig: PhoenixConfig;
   envFileConfig: PhoenixConfig;
   endpointSource?: EnvironmentValueSource;
+  endpointVariable?: string;
+  endpointRank?: ResolvedBaseUrlRank;
 } {
   const {
     config: merged,
     credentialSource,
     endpointSource,
+    endpointVariable,
+    endpointRank,
   } = loadConfigFromEnvironmentWithSources();
   const processEnvConfig: PhoenixConfig = {};
   const envFileConfig: PhoenixConfig = {};
@@ -159,7 +179,13 @@ function splitEnvironmentConfigTiers(): {
     projectTier.project = merged.project;
   }
 
-  return { endpointSource, processEnvConfig, envFileConfig };
+  return {
+    endpointSource,
+    endpointVariable,
+    endpointRank,
+    processEnvConfig,
+    envFileConfig,
+  };
 }
 
 /**
@@ -215,8 +241,59 @@ function profileEntryToConfig(
   if (entry.oauthTokens) config.oauthTokens = entry.oauthTokens;
   if (entry.project) config.project = entry.project;
   if (entry.headers) config.headers = entry.headers;
+  if (entry.githubPersonalAccessToken) {
+    config.githubPersonalAccessToken = entry.githubPersonalAccessToken;
+  }
   config.profileName = profileName;
   return config;
+}
+
+function getDefinedConfigValues(
+  config: Partial<PhoenixConfig>
+): Partial<PhoenixConfig> {
+  return Object.fromEntries(
+    Object.entries(config).filter(([, value]) => value !== undefined)
+  ) as Partial<PhoenixConfig>;
+}
+
+function bindProfileCredentials({
+  profileConfig,
+  resolvedEndpoint,
+}: {
+  profileConfig: PhoenixConfig;
+  resolvedEndpoint: string | undefined;
+}): PhoenixConfig {
+  return profileConfig.oauthTokens &&
+    profileConfig.endpoint !== resolvedEndpoint
+    ? { ...profileConfig, oauthTokens: undefined }
+    : profileConfig;
+}
+
+function getWarningCredentialSource({
+  cliOptions,
+  processEnvConfig,
+  profileConfig,
+}: {
+  cliOptions: Partial<PhoenixConfig>;
+  processEnvConfig: PhoenixConfig;
+  profileConfig: PhoenixConfig;
+}): string | undefined {
+  if (cliOptions.apiKey !== undefined || cliOptions.headers !== undefined) {
+    return "CLI options";
+  }
+  if (
+    processEnvConfig.apiKey !== undefined ||
+    processEnvConfig.headers !== undefined
+  ) {
+    return "the process environment";
+  }
+  if (
+    profileConfig.apiKey !== undefined ||
+    profileConfig.headers !== undefined
+  ) {
+    return "the active profile";
+  }
+  return undefined;
 }
 
 /**
@@ -239,7 +316,9 @@ export interface ResolveConfigOptions {
  * Resolve configuration from supported sources.
  * Priority (highest to lowest):
  *   1. CLI flags
- *   2. Explicitly set environment variables
+ *   2. Explicitly set environment variables (an endpoint inferred from the
+ *      trace-export variables PHOENIX_COLLECTOR_ENDPOINT or
+ *      OTEL_EXPORTER_OTLP_ENDPOINT ranks below the profile)
  *   3. Active profile (from --profile or settings file)
  *   4. Discovered `.env.phoenix` file values
  *   5. Built-in defaults
@@ -250,29 +329,42 @@ export function resolveConfig({
 }: ResolveConfigOptions): PhoenixConfig {
   const builtInDefaults = getBuiltInDefaults();
   const profileConfig = loadConfigFromProfile(profileName);
-  const { endpointSource, processEnvConfig, envFileConfig } =
-    splitEnvironmentConfigTiers();
+  const {
+    endpointSource,
+    endpointVariable,
+    endpointRank,
+    processEnvConfig,
+    envFileConfig,
+  } = splitEnvironmentConfigTiers();
 
   // Commander (and other callers) may include keys with `undefined` values.
   // If we spread those over envConfig we would accidentally clobber env vars.
-  const definedCliOptions = Object.fromEntries(
-    Object.entries(cliOptions).filter(([, value]) => value !== undefined)
-  ) as Partial<PhoenixConfig>;
+  const definedCliOptions = getDefinedConfigValues(cliOptions);
+
+  // A process-env endpoint merely *inferred* from a trace-export variable
+  // (PHOENIX_COLLECTOR_ENDPOINT exported in the shell for app tracing, which
+  // historically had no effect on px) must not out-rank an explicitly
+  // configured profile — it would redirect authenticated commands and strip
+  // the profile's OAuth tokens below. Canonical (PHOENIX_ENDPOINT) and legacy
+  // (PHOENIX_HOST) endpoints keep their env-over-profile rank.
+  if (endpointRank === "inferred" && profileConfig.endpoint) {
+    delete processEnvConfig.endpoint;
+  }
 
   // OAuth tokens are only valid against the endpoint that issued them. When
-  // --endpoint or PHOENIX_HOST points the command at a different server, drop
-  // the tokens so they are never sent to — or refreshed against — a host that
-  // did not issue them.
+  // --endpoint or an endpoint environment variable points the command at a
+  // different server, drop the tokens so they are never sent to — or refreshed
+  // against — a host that did not issue them.
   const resolvedEndpoint =
     definedCliOptions.endpoint ??
     processEnvConfig.endpoint ??
     profileConfig.endpoint ??
     envFileConfig.endpoint ??
     builtInDefaults.endpoint;
-  const boundProfileConfig =
-    profileConfig.oauthTokens && profileConfig.endpoint !== resolvedEndpoint
-      ? { ...profileConfig, oauthTokens: undefined }
-      : profileConfig;
+  const boundProfileConfig = bindProfileCredentials({
+    profileConfig,
+    resolvedEndpoint,
+  });
 
   const credentialSource = getCredentialSource({
     cliOptions: definedCliOptions,
@@ -306,22 +398,16 @@ export function resolveConfig({
     definedCliOptions.endpoint === undefined &&
     processEnvConfig.endpoint === undefined &&
     profileConfig.endpoint === undefined;
-  const warningCredentialSource =
-    definedCliOptions.apiKey !== undefined ||
-    definedCliOptions.headers !== undefined
-      ? "CLI options"
-      : processEnvConfig.apiKey !== undefined ||
-          processEnvConfig.headers !== undefined
-        ? "the process environment"
-        : profileConfig.apiKey !== undefined ||
-            profileConfig.headers !== undefined
-          ? "the active profile"
-          : undefined;
+  const warningCredentialSource = getWarningCredentialSource({
+    cliOptions: definedCliOptions,
+    processEnvConfig,
+    profileConfig,
+  });
   if (usesFileEndpoint) {
     warnIfUsingFileEndpointWithCredentials({
       credentialSource: warningCredentialSource,
       endpointSource,
-      endpointVariable: ENV_PHOENIX_HOST,
+      endpointVariable: endpointVariable ?? ENV_PHOENIX_ENDPOINT,
     });
   }
   return config;
@@ -384,7 +470,7 @@ export function validateConfig({
   const errors: string[] = [];
   if (!config.endpoint) {
     errors.push(
-      "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag."
+      "Phoenix endpoint not configured. Set PHOENIX_ENDPOINT environment variable or use --endpoint flag."
     );
   }
 
@@ -423,7 +509,7 @@ export function getConfigErrorMessage({
     "",
     "Quick Start:",
     "  1. Set your Phoenix endpoint:",
-    "     export PHOENIX_HOST=http://localhost:6006",
+    "     export PHOENIX_ENDPOINT=http://localhost:6006",
     "",
     "  2. Set your project name:",
     "     export PHOENIX_PROJECT=my-project",

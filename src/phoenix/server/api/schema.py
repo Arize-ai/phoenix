@@ -22,6 +22,7 @@ from phoenix.server.api.types.CronExpression import (
 from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
+from phoenix.server.api.types.ExperimentTag import ExperimentTag
 from phoenix.server.api.types.Identifier import identifier_scalar_definition
 from phoenix.server.api.types.RedactedString import (
     RedactedString,
@@ -53,6 +54,7 @@ def build_graphql_schema(
         ),
         types=list(
             chain(
+                [ExperimentTag],
                 _implementing_types(ChatCompletionSubscriptionPayload),
                 _implementing_types(Evaluator),
             )

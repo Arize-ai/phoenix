@@ -33,6 +33,7 @@ from anthropic.types import (
 )
 from anthropic.types.message_create_params import MessageCreateParamsBase
 from deepdiff.diff import DeepDiff
+from google.genai import types as genai_types
 from openai import pydantic_function_tool
 from openai.lib._parsing import type_to_response_format_param
 from openai.types.chat import (
@@ -585,6 +586,22 @@ _CREATE_CHAT_PROMPT = """
 """
 
 
+def _from_google_genai(
+    obj: dict[str, Any],
+    /,
+    *,
+    template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
+    model_provider: Literal["GOOGLE"],
+) -> PromptVersion:
+    return PromptVersion.from_google_genai(
+        obj["model"],
+        cast(Sequence[genai_types.Content], obj["messages"]),
+        config=cast(genai_types.GenerateContentConfig, obj["config"]),
+        template_format=template_format,
+        model_provider=model_provider,
+    )
+
+
 class TestClient:
     @pytest.mark.parametrize(
         "template_format",
@@ -864,8 +881,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     system="You are {role}.",
                     messages=[
@@ -880,8 +895,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1025,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     thinking={
                         "type": "enabled",
@@ -900,8 +913,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     thinking={"type": "disabled"},
                     system="You are {role}.",
@@ -917,8 +928,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     system=[
                         {"type": "text", "text": "You are {role}."},
@@ -942,8 +951,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         {
@@ -962,8 +969,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         {
@@ -990,8 +995,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         MessageParam(
@@ -1031,8 +1034,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         MessageParam(
@@ -1091,8 +1092,6 @@ class TestClient:
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
-                    temperature=random(),
-                    top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     messages=[
                         MessageParam(
@@ -1152,6 +1151,163 @@ class TestClient:
                     tool_choice=ToolChoiceAnyParam(type="any"),
                 ),
                 id="anthropic-tool-result-list",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(text="Write a poem about {topic}.")],
+                        )
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        system_instruction="You are {role}.",
+                        temperature=0.0,
+                    ),
+                },
+                id="google-genai-system-instruction",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[
+                                genai_types.Part(text="What is the weather in {city}?"),
+                                genai_types.Part(text="Use the weather tool."),
+                            ],
+                        ),
+                        genai_types.Content(
+                            role="model",
+                            parts=[
+                                genai_types.Part(
+                                    function_call=genai_types.FunctionCall(
+                                        id="weather-call",
+                                        name="get_weather",
+                                        args={"city": "Paris"},
+                                    )
+                                )
+                            ],
+                        ),
+                        genai_types.Content(
+                            role="user",
+                            parts=[
+                                genai_types.Part(
+                                    function_response=genai_types.FunctionResponse(
+                                        id="weather-call",
+                                        name="get_weather",
+                                        response={"temperature": 20},
+                                    )
+                                )
+                            ],
+                        ),
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        system_instruction="You are a helpful {role}.",
+                        temperature=0.0,
+                        max_output_tokens=128,
+                        stop_sequences=["END"],
+                        top_p=0.9,
+                        top_k=20,
+                        presence_penalty=0.1,
+                        frequency_penalty=0.2,
+                        thinking_config=genai_types.ThinkingConfig(
+                            thinking_budget=1024,
+                            include_thoughts=True,
+                        ),
+                        tools=cast(
+                            Any,
+                            [
+                                genai_types.Tool(
+                                    function_declarations=[
+                                        genai_types.FunctionDeclaration(
+                                            name="get_weather",
+                                            description="Get the weather",
+                                            parameters_json_schema={
+                                                "type": "object",
+                                                "properties": {
+                                                    "city": {"type": "string"},
+                                                },
+                                                "required": ["city"],
+                                            },
+                                        )
+                                    ]
+                                )
+                            ],
+                        ),
+                        tool_config=genai_types.ToolConfig(
+                            function_calling_config=genai_types.FunctionCallingConfig(
+                                mode=genai_types.FunctionCallingConfigMode.ANY,
+                            )
+                        ),
+                        response_mime_type="application/json",
+                        response_json_schema={
+                            "type": "object",
+                            "properties": {"answer": {"type": "string"}},
+                        },
+                    ),
+                },
+                id="google-genai-tools-and-config",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(text="Do not call any tools.")],
+                        )
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        tools=cast(
+                            Any,
+                            [
+                                genai_types.Tool(
+                                    function_declarations=[
+                                        genai_types.FunctionDeclaration(
+                                            name="get_weather",
+                                            description="Get the weather",
+                                        )
+                                    ]
+                                )
+                            ],
+                        ),
+                        tool_config=genai_types.ToolConfig(
+                            function_calling_config=genai_types.FunctionCallingConfig(
+                                mode=genai_types.FunctionCallingConfigMode.NONE,
+                            )
+                        ),
+                    ),
+                },
+                id="google-genai-tool-choice-none",
+            ),
+            pytest.param(
+                "GOOGLE",
+                _from_google_genai,
+                {
+                    "model": "gemini-2.0-flash",
+                    "messages": [
+                        genai_types.Content(
+                            role="user",
+                            parts=[genai_types.Part(text="Search for {topic}.")],
+                        )
+                    ],
+                    "config": genai_types.GenerateContentConfig(
+                        tools=cast(
+                            Any,
+                            [genai_types.Tool(google_search=genai_types.GoogleSearch())],
+                        ),
+                    ),
+                },
+                id="google-genai-built-in-tool",
             ),
         ],
     )

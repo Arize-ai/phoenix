@@ -1,25 +1,24 @@
-import type { EnvironmentConfig } from "@arizeai/phoenix-config";
 import {
   DEFAULT_PHOENIX_BASE_URL,
-  getEnvironmentConfig,
+  getBaseUrlFromEnvironment,
+  getCredentialsFromEnvironment,
 } from "@arizeai/phoenix-config";
 import type { ClientOptions } from "openapi-fetch";
 
 /**
- * Convert a EnvironmentConfig object into a ClientOptions object.
+ * Convert resolved Phoenix credentials into a ClientOptions object.
  *
- * @param environment - The EnvironmentConfig object to convert.
+ * @param credentials - The API key and headers resolved from the environment.
  * @returns The converted ClientOptions object.
  */
-const phoenixEnvironmentToClientOptions = (
-  environment: EnvironmentConfig
+const phoenixCredentialsToClientOptions = (
+  credentials: ReturnType<typeof getCredentialsFromEnvironment>
 ): Partial<ClientOptions> => {
   const options: Partial<ClientOptions> = {
-    baseUrl: environment.PHOENIX_HOST,
     headers: {
-      ...(environment.PHOENIX_CLIENT_HEADERS ?? {}),
-      ...(environment.PHOENIX_API_KEY
-        ? { Authorization: `Bearer ${environment.PHOENIX_API_KEY}` }
+      ...(credentials.headers ?? {}),
+      ...(credentials.apiKey
+        ? { Authorization: `Bearer ${credentials.apiKey}` }
         : {}),
     },
   };
@@ -37,6 +36,17 @@ const phoenixEnvironmentToClientOptions = (
 };
 
 /**
+ * Where a client's base URL came from: an explicit `baseUrl` option
+ * (`"explicit"`), a Phoenix environment variable (`"environment"`), or the
+ * built-in localhost default (`"default"`).
+ *
+ * Explicit configuration outranks the ambient environment, so this is what
+ * decides whether an environment variable may retarget the client's trace
+ * export.
+ */
+export type BaseUrlSource = "default" | "environment" | "explicit";
+
+/**
  * Get the environment options from the environment.
  *
  * @returns The environment options as a Partial<ClientOptions> object.
@@ -46,7 +56,14 @@ export const defaultGetEnvironmentOptions = (): Partial<ClientOptions> => {
   if (typeof process !== "object" || typeof process.env !== "object") {
     return {};
   }
-  return phoenixEnvironmentToClientOptions(getEnvironmentConfig());
+  const options = phoenixCredentialsToClientOptions(
+    getCredentialsFromEnvironment()
+  );
+  // The base URL resolves as a tier group (PHOENIX_ENDPOINT first, inferring
+  // from the trace-export variables, then legacy PHOENIX_HOST) rather than
+  // variable by variable.
+  const baseUrl = getBaseUrlFromEnvironment();
+  return baseUrl !== undefined ? { ...options, baseUrl } : options;
 };
 
 /**

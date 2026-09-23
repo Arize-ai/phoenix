@@ -3,16 +3,26 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal, Optional
 from urllib.request import urlopen
 
 from pydantic import AfterValidator, BaseModel
+
+PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
+
+
+class ThresholdBasedTokenPriceCustomization(BaseModel):
+    type: Literal["threshold_based"] = "threshold_based"
+    key: str
+    threshold: float
+    new_rate: float
 
 
 class TokenPrice(BaseModel):
     base_rate: float
     is_prompt: bool
     token_type: str
+    customization: Optional[ThresholdBasedTokenPriceCustomization] = None
 
 
 def validate_regular_expression(value: str) -> str:
@@ -48,9 +58,12 @@ class ModelCostManifest(BaseModel):
 PROVIDER_PREFIXES: dict[str, str | None] = {
     "cerebras/": "cerebras",
     "groq/": "groq",
+    "minimax/": "minimax",
     "moonshot/": None,
     "perplexity/": None,
     "together_ai/": "together",
+    "zai/": "zai",
+    "meta/": "meta",
 }
 
 
@@ -135,12 +148,75 @@ def fetch_data(url: str) -> dict[str, Any]:
         raise Exception(f"Error fetching data from URL: {e}")
 
 
+def _tier_customization(
+    model_info: dict[str, Any],
+    base_field: str,
+) -> Optional[ThresholdBasedTokenPriceCustomization]:
+    """
+    LiteLLM publishes whole-prompt tier rates as ``<base_field>_above_NNNk_tokens`` variants
+    (e.g. ``input_cost_per_token_above_200k_tokens``). Emit the lowest configured tier as a
+    ThresholdBasedTokenPriceCustomization keyed on the prompt token count, so that once the
+    prompt strictly exceeds the threshold every token bills at the elevated rate. Only a
+    single tier per model is emitted today; no publicly-priced model in the LiteLLM manifest
+    configures more than one tier for the same base field.
+    """
+    tier_field = re.compile(rf"{re.escape(base_field)}_above_(?P<thousands>\d+)k_tokens")
+
+    rates_by_threshold: dict[float, float] = {}
+    for field, rate in model_info.items():
+        match = tier_field.fullmatch(field)
+        if match is None or not _is_positive_number(rate):
+            continue
+        threshold = float(match["thousands"]) * 1000
+        rates_by_threshold[threshold] = float(rate)
+
+    if not rates_by_threshold:
+        return None
+    lowest_threshold = min(rates_by_threshold)
+    return ThresholdBasedTokenPriceCustomization(
+        key=PROMPT_TOKEN_ATTRIBUTE,
+        threshold=lowest_threshold,
+        new_rate=rates_by_threshold[lowest_threshold],
+    )
+
+
+OUTPUT_RATE_FIELDS: tuple[str, ...] = (
+    "output_cost_per_token",
+    "output_cost_per_image_token",
+)
+
+
+def _output_rate_field(model_info: dict[str, Any]) -> Optional[str]:
+    """
+    Resolve which LiteLLM field prices Phoenix's ``output`` token type.
+
+    Phoenix bills every completion token that has no more specific price at the ``output``
+    rate, and the cost calculator requires that rate whenever any completion price is
+    configured. LiteLLM publishes a text rate (``output_cost_per_token``) for chat models,
+    but image generation models such as gpt-image-2 emit only image tokens and carry just
+    ``output_cost_per_image_token``. Prefer the text rate when published and fall back to
+    the image-token rate otherwise. The image-token rate is always emitted as an explicit
+    ``image`` price as well, so instrumentation that reports image tokens separately bills
+    them exactly regardless of which field backs ``output``.
+    """
+    for field in OUTPUT_RATE_FIELDS:
+        if _is_positive_number(model_info.get(field)):
+            return field
+    return None
+
+
+def _is_positive_number(value: Any) -> bool:
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
     models_with_pricing = []
     for model_id, model_info in data.items():
-        if (
-            "input_cost_per_token" in model_info and "output_cost_per_token" in model_info
-        ):  # both are required for pricing
+        # Both an input and an output rate are required for pricing.
+        if "input_cost_per_token" in model_info and _output_rate_field(model_info) is not None:
             models_with_pricing.append(model_id)
 
     filtered_model_ids = filter_models(models_with_pricing)
@@ -163,15 +239,17 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="input",
                     base_rate=input_cost,
                     is_prompt=True,
+                    customization=_tier_customization(model_info, "input_cost_per_token"),
                 )
             )
 
-        if output_cost := float(model_info.get("output_cost_per_token", 0)):
+        if (output_field := _output_rate_field(model_info)) is not None:
             token_prices.append(
                 TokenPrice(
                     token_type="output",
-                    base_rate=output_cost,
+                    base_rate=float(model_info[output_field]),
                     is_prompt=False,
+                    customization=_tier_customization(model_info, output_field),
                 )
             )
 
@@ -181,6 +259,7 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="cache_read",
                     base_rate=cache_read_cost,
                     is_prompt=True,
+                    customization=_tier_customization(model_info, "cache_read_input_token_cost"),
                 )
             )
 
@@ -190,6 +269,9 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                     token_type="cache_write",
                     base_rate=cache_creation_cost,
                     is_prompt=True,
+                    customization=_tier_customization(
+                        model_info, "cache_creation_input_token_cost"
+                    ),
                 )
             )
 
@@ -207,6 +289,33 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
                 TokenPrice(
                     token_type="audio",
                     base_rate=output_audio_cost,
+                    is_prompt=False,
+                )
+            )
+
+        if input_image_cost := float(model_info.get("input_cost_per_image_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="image",
+                    base_rate=input_image_cost,
+                    is_prompt=True,
+                )
+            )
+
+        if output_image_cost := float(model_info.get("output_cost_per_image_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="image",
+                    base_rate=output_image_cost,
+                    is_prompt=False,
+                )
+            )
+
+        if reasoning_cost := float(model_info.get("output_cost_per_reasoning_token", 0)):
+            token_prices.append(
+                TokenPrice(
+                    token_type="reasoning",
+                    base_rate=reasoning_cost,
                     is_prompt=False,
                 )
             )

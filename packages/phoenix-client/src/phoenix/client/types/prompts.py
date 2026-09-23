@@ -24,12 +24,12 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
-    GoogleModelKwargs,
-    create_prompt_version_from_google,
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
+    GoogleGenAIModelKwargs,
+    create_prompt_version_from_google_genai,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
-    to_chat_messages_and_kwargs as to_messages_google,
+from phoenix.client.helpers.sdk.google_genai.generate_content import (
+    to_chat_messages_and_kwargs as to_messages_google_genai,
 )
 from phoenix.client.helpers.sdk.openai.chat import (
     OpenAIChatCompletionModelKwargs,
@@ -43,7 +43,7 @@ from phoenix.client.utils.template_formatters import TemplateFormatter
 if TYPE_CHECKING:
     from anthropic.types import MessageParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
-    from google.generativeai import protos
+    from google.genai import types as genai_types
     from openai.types.chat import ChatCompletionMessageParam
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 
@@ -60,6 +60,7 @@ class PromptVersion:
         *,
         model_name: str,
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal[
             "OPENAI",
             "AZURE_OPENAI",
@@ -73,8 +74,11 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
+            "ZAI",
+            "META",
         ] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
@@ -85,7 +89,9 @@ class PromptVersion:
             prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
             model_name (str): The name of the model to use for the prompt.
             description (Optional[str]): A description of the prompt. Defaults
-            to None. model_provider (Literal["OPENAI", "AZURE_OPENAI",
+                to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+            model_provider (Literal["OPENAI", "AZURE_OPENAI",
             "ANTHROPIC", "GOOGLE",
                 "DEEPSEEK", "XAI", "AWS", "OLLAMA"]): The provider of the model
                 to use for the prompt. Defaults to "OPENAI".
@@ -109,11 +115,15 @@ class PromptVersion:
             "FIREWORKS",
             "GROQ",
             "MOONSHOT",
+            "MINIMAX",
             "PERPLEXITY",
             "TOGETHER",
+            "ZAI",
+            "META",
         ] = model_provider
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self._description = description
+        self._metadata = dict(metadata or {})
         self._invocation_parameters: Union[
             v1.PromptOpenAIInvocationParameters,
             v1.PromptAzureOpenAIInvocationParameters,
@@ -129,6 +139,8 @@ class PromptVersion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptZAIInvocationParameters,
+            v1.PromptMetaInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -192,6 +204,11 @@ class PromptVersion:
                 type="moonshot",
                 moonshot=v1.PromptMoonshotInvocationParametersContent(),
             )
+        elif model_provider == "MINIMAX":
+            self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=v1.PromptOpenAIInvocationParametersContent(),
+            )
         elif model_provider == "PERPLEXITY":
             self._invocation_parameters = v1.PromptPerplexityInvocationParameters(
                 type="perplexity",
@@ -202,6 +219,16 @@ class PromptVersion:
                 type="together",
                 together=v1.PromptTogetherInvocationParametersContent(),
             )
+        elif model_provider == "ZAI":
+            self._invocation_parameters = v1.PromptZAIInvocationParameters(
+                type="zai",
+                zai=v1.PromptZAIInvocationParametersContent(),
+            )
+        elif model_provider == "META":
+            self._invocation_parameters = v1.PromptMetaInvocationParameters(
+                type="meta",
+                meta=v1.PromptMetaInvocationParametersContent(),
+            )
         else:
             assert_never(model_provider)
         self._tools: Optional[v1.PromptTools] = None
@@ -211,9 +238,11 @@ class PromptVersion:
     def __dir__(self) -> list[str]:
         return [
             "id",
+            "metadata",
             "format",
             "from_openai",
             "from_anthropic",
+            "from_google_genai",
         ]
 
     @property
@@ -222,6 +251,11 @@ class PromptVersion:
         Prompt Version ID if stored in the Phoenix backend
         """
         return self._id
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Metadata associated with this prompt version."""
+        return dict(self._metadata)
 
     def format(
         self,
@@ -261,9 +295,9 @@ class PromptVersion:
                     formatter=formatter,
                 )
             )
-        if sdk == "google_generativeai":
-            return GoogleGenerativeaiPrompt(
-                *to_messages_google(
+        if sdk == "google_genai":
+            return GoogleGenAIPrompt(
+                *to_messages_google_genai(
                     obj,
                     variables=variables,
                     formatter=formatter,
@@ -284,6 +318,7 @@ class PromptVersion:
             messages,
             model_name=obj["model_name"],
             description=obj.get("description"),
+            metadata=obj.get("metadata"),
             model_provider=obj["model_provider"],
             template_format=obj["template_format"],
         )
@@ -308,6 +343,8 @@ class PromptVersion:
             template_format=self._template_format,
             invocation_parameters=self._invocation_parameters,
         )
+        if self._metadata:
+            ans["metadata"] = dict(self._metadata)
         if self._tools is not None:
             ans["tools"] = self._tools
         if self._response_format is not None:
@@ -324,6 +361,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
     ) -> Self:
         """
@@ -334,6 +372,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+                Defaults to None.
             model_provider (Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"]):
                 The provider of the model to use for the prompt. Defaults to "OPENAI".
 
@@ -344,6 +384,7 @@ class PromptVersion:
             create_prompt_version_from_openai(
                 obj,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
@@ -357,6 +398,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["AWS"] = "AWS",
     ) -> Self:
         raise NotImplementedError("AWS is not supported yet")
@@ -369,6 +411,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
     ) -> Self:
         """
@@ -379,6 +422,8 @@ class PromptVersion:
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
             description (Optional[str]): A description of the prompt. Defaults to None.
+            metadata (Optional[Mapping[str, Any]]): Metadata for the prompt version.
+                Defaults to None.
             model_provider (Literal["ANTHROPIC"]): The provider of the model to use for the prompt.
                 Defaults to "ANTHROPIC".
 
@@ -389,25 +434,49 @@ class PromptVersion:
             create_prompt_version_from_anthropic(
                 obj,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
         )
 
     @classmethod
-    def from_google_generativeai(
+    def from_google_genai(
         cls,
-        obj: Any,
+        model: str,
+        contents: Sequence[genai_types.Content],
         /,
         *,
+        config: Optional[
+            Union[genai_types.GenerateContentConfig, genai_types.GenerateContentConfigDict]
+        ] = None,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal["GOOGLE"] = "GOOGLE",
     ) -> Self:
+        """
+        Creates a prompt version from Google GenAI ``generate_content`` parameters.
+
+        Args:
+            model: The Google model name.
+            contents: The content sequence passed to ``generate_content``.
+            config: Optional Google GenAI generation configuration.
+            template_format: The format of the template to use. Defaults to ``"MUSTACHE"``.
+            description: An optional prompt description.
+            metadata: Optional metadata for the prompt version.
+            model_provider: The model provider. Defaults to ``"GOOGLE"``.
+
+        Returns:
+            PromptVersion: The prompt version.
+        """
         return cls._loads(
-            create_prompt_version_from_google(
-                obj,
+            create_prompt_version_from_google_genai(
+                model,
+                contents,
+                config=config,
                 description=description,
+                metadata=metadata,
                 template_format=template_format,
                 model_provider=model_provider,
             )
@@ -464,14 +533,24 @@ class AnthropicPrompt(_FormattedPrompt):
 
 
 @dataclass(frozen=True)
-class GoogleGenerativeaiPrompt(_FormattedPrompt):
-    messages: Sequence[protos.Content]
-    kwargs: GoogleModelKwargs
+class GoogleGenAIPrompt(_FormattedPrompt):
+    """
+    Represents a formatted prompt for the Google GenAI SDK (google-genai).
+
+    Attributes:
+        messages (Sequence[genai_types.Content]): A sequence of content messages
+            to pass as ``contents`` to ``client.models.generate_content``.
+        kwargs (GoogleGenAIModelKwargs): Keyword arguments (``model`` and ``config``)
+            for ``client.models.generate_content``.
+    """
+
+    messages: Sequence[genai_types.Content]
+    kwargs: GoogleGenAIModelKwargs
 
 
 SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
-    "google_generativeai",  # https://pypi.org/project/google-generativeai/
+    "google_genai",  # https://pypi.org/project/google-genai/
     "openai",  # https://pypi.org/project/openai/
     "boto3",  # https://boto3.amazonaws.com/v1/documentation/api/latest/index.html
 ]
@@ -491,8 +570,11 @@ def _to_sdk(
         "FIREWORKS",
         "GROQ",
         "MOONSHOT",
+        "MINIMAX",
         "PERPLEXITY",
         "TOGETHER",
+        "ZAI",
+        "META",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -502,7 +584,7 @@ def _to_sdk(
     if model_provider == "ANTHROPIC":
         return "anthropic"
     if model_provider == "GOOGLE":
-        return "google_generativeai"
+        return "google_genai"
     if model_provider == "DEEPSEEK":
         return "openai"
     if model_provider == "XAI":
@@ -519,8 +601,14 @@ def _to_sdk(
         return "openai"
     if model_provider == "MOONSHOT":
         return "openai"
+    if model_provider == "MINIMAX":
+        return "openai"
     if model_provider == "PERPLEXITY":
         return "openai"
     if model_provider == "TOGETHER":
+        return "openai"
+    if model_provider == "ZAI":
+        return "openai"
+    if model_provider == "META":
         return "openai"
     assert_never(model_provider)

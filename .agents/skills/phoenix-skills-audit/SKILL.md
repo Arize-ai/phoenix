@@ -240,8 +240,8 @@ let it surface as the agent's final message.
 - `SKILL.md` — updated `--format` description; default changed in commit `<sha>`.
 
 ### phoenix-evals
-- `references/evaluators-pre-built.md` — added entry for `<NewEvaluator>` from
-  commit `<sha>`; example uses signature `<verified>`.
+- `references/evaluators-pre-built.md` — added table row for `<NewEvaluator>` from
+  commit `<sha>`; inputs/labels/direction verified against `<source file>`.
 
 ## Skipped commits
 
@@ -280,17 +280,50 @@ downstream task that follows the skill is wrong.
 When in doubt, read more code. The cost of an extra file read is tiny compared to the
 cost of poisoning every future agent with a hallucinated API.
 
+## Writing style — sound like a person
+
+Skills are read by agents but reviewed and maintained by humans. Write like the
+existing docs, not like a release announcement or a model narrating its diff:
+
+- **Current state only, no history.** Skills describe the application as it is
+  today — never how it was versus how it is now. No "previously took X", "no
+  longer emits Y", "changed shape", "they now land…" — that's changelog voice,
+  and it goes stale the moment it's written. This has no exceptions: when a
+  rename or removal happens, rewrite the affected text as if the old behavior
+  never existed. A fact that varies by version is stated as a requirement
+  ("requires Phoenix server >= 20.4.0"), not as a timeline.
+- **Bold sparingly.** Bolding ordinary words mid-sentence ("**existing**",
+  "**re-parents**") reads as machine emphasis. Reserve bold for bullet lead-ins.
+- **Catalogs stay catalogs.** A reference file that lists things — above all
+  `phoenix-evals/references/evaluators-pre-built.md` — gets a table row per item
+  (name, inputs, labels, direction), never a section per item. Prose in a catalog
+  is only for cross-item decision points (faithfulness vs. hallucination) and
+  short gotcha bullets (an unusual input shape, a surprising score direction, a
+  breaking change). If a new item genuinely needs pages of explanation, that's a
+  sign it belongs in its own topical reference file, not inline.
+- **One example per pattern, not per entry.** Naming conventions are stated once;
+  a reader can extrapolate `create<Name>Evaluator` without a snippet for every
+  evaluator.
+- **Explain scenarios, not predicates.** When behavior branches, lead each case
+  with the real-world situation ("the subagent was spawned by a tool call",
+  "the subagent was started by the system") and put the field-level conditions
+  after it as the test for that case. A table whose rows are raw predicates
+  ("`source` is `\"agent\"` and `tool_calls` contain a `tool_call_id` equal
+  to…") restates the implementation without telling the reader which situation
+  they're in. Show the resulting output shape (a trace tree, a JSON payload)
+  when it makes the outcome concrete.
+
 ## Decision quick reference
 
 | Question | Answer |
 |---|---|
 | Commit message says `refactor:` — skip? | Read the diff. Refactors often add exports. |
-| Frontend-only change (`app/src/`) — does it affect any of the three skills? | Almost never. Skip and note in "out-of-scope findings". |
+| Frontend-only change (`js/app/src/`) — does it affect any of the three skills? | Almost never. Skip and note in "out-of-scope findings". |
 | New env var — feature flag? | Skip. Feature flags (`*_DANGEROUSLY_*`, `*_EXPERIMENTAL_*`) stay out of public skills. |
 | New env var that controls a public surface? | Update the relevant skill's setup or environment section. |
 | Server-only change (`src/phoenix/server/`) — relevant to the three skills? | Only if it changes what a client/CLI sees. A new GraphQL field consumed by the CLI is in scope; an internal server refactor is not. |
 | Removed/renamed public symbol? | Edit the skill: remove the old reference, add the new one in the same pass. |
-| New evaluator class? | Add to `phoenix-evals/references/evaluators-pre-built.md` (or create a topic-specific reference if the patterns are new). |
+| New evaluator class? | Add a row to the table in `phoenix-evals/references/evaluators-pre-built.md` — inputs, labels, direction. It's a catalog: no per-evaluator section; at most a short gotcha bullet under "Notes on Specific Evaluators". If the patterns are genuinely new, create a topic-specific reference instead. |
 | New CLI subcommand? | Add to the relevant section of `phoenix-cli/SKILL.md`. Document the JSON shape if the command emits structured output. |
 | New OpenInference attribute? | Add to `phoenix-tracing/references/attributes-*.md` and the relevant `span-*.md`. |
 | Breaking change to an existing skill example? | High priority. Update the example *and* search the rest of the skill for adjacent uses of the old signature. |
@@ -315,6 +348,8 @@ Before exiting, walk through:
 - [ ] No edits made outside `.agents/skills/phoenix-tracing/`, `.agents/skills/phoenix-cli/`,
       or `.agents/skills/phoenix-evals/`.
 - [ ] No invented APIs, no invented imports, no placeholder values disguised as real code.
+- [ ] Prose follows the writing-style rules: present tense, no changelog narration,
+      sparing bold, catalog files get rows/bullets rather than new sections.
 
 ## Operating modes
 

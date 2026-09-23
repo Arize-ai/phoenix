@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from phoenix.server.dml_event import DmlEvent
     from phoenix.server.email.types import EmailSender
     from phoenix.server.sandbox.session_manager import SandboxSessionManager
+    from phoenix.server.sandbox.types import SandboxRuntimeContext
     from phoenix.server.types import (
         CanGetLastUpdatedAt,
         CanPutItem,
@@ -45,6 +46,7 @@ class Context(BaseContext):
     span_cost_calculator: SpanCostCalculator
     experiment_runner: ExperimentRunner
     sandbox_session_manager: SandboxSessionManager
+    sandbox_runtime: SandboxRuntimeContext
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
@@ -121,6 +123,7 @@ def build_context(
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
@@ -144,6 +147,7 @@ def build_context(
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
         sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
         encrypt=encrypt,
         decrypt=decrypt,
         last_updated_at=last_updated_at,

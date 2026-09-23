@@ -24,6 +24,7 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator, DatasetEvaluator, LLMEvaluator
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _user_role_id
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -1284,12 +1285,8 @@ class TestDatasetEvaluatorFields:
             session.add(llm_evaluator)
             await session.flush()
 
-            user_role = models.UserRole(name="MEMBER")
-            session.add(user_role)
-            await session.flush()
-
             user = models.User(
-                user_role_id=user_role.id,
+                user_role_id=await _user_role_id(session, "MEMBER"),
                 username=f"test-user-{token_hex(4)}",
                 email=f"{token_hex(4)}@test.com",
                 password_hash=b"hash",

@@ -74,7 +74,7 @@ automatically receiving the appropriate icon and card size.
 ## Choosing a variant
 
 1. Look for a variant whose name matches the region/topic of your empty state in
-   `EMPTY_STATE_GRAPHICS` (`app/src/components/empty-state/EmptyStateGraphic.tsx`).
+   `EMPTY_STATE_GRAPHICS` (`js/app/src/components/empty-state/EmptyStateGraphic.tsx`).
    If one exists, use it.
 2. If none fits, use `variant="genericAdd"` — the fallback for surfaces that do not
    (yet) warrant their own entry.

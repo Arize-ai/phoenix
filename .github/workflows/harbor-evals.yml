@@ -1,0 +1,79 @@
+name: Harbor Evals
+
+permissions:
+  contents: read
+
+# Manual only for now. Running this on every PR would spend agent tokens on a
+# regression dataset that is still too small to trust; switch it on once there's
+# a pass-rate history worth gating against.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: harbor-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harbor-eval:
+    name: PXI benchmark (Daytona)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # The run itself (agents, attempts, Daytona) is defined by
+    # evals/harbor/jobs/benchmark.yaml; the Phoenix plugin records it under
+    # PHOENIX_COLLECTOR_ENDPOINT.
+    env:
+      DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+      PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+
+      - name: Install PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+
+      - name: Set up Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: js/pnpm-lock.yaml
+
+      - name: Install JavaScript dependencies
+        working-directory: js
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the Phoenix wheel, stage the Harbor task environments, and build the px CLI archive
+        run: make harbor-stage
+
+      # The oracle validates the environment build, fixture download, and
+      # verifiers without spending agent tokens; it gates the real-agent run
+      # for tasks that ship a solution.
+      - name: Run oracle trial
+        if: hashFiles('evals/harbor/tasks/error-analysis/solution/solve.sh') != ''
+        run: |
+          make harbor-run HARBOR_ARGS='-a oracle -k 1'
+          python3 evals/harbor/scripts/check_job_reward.py --min-reward 1.0
+
+      # The agents are nondeterministic; require 3 of 4 steps rather than
+      # perfection. Tighten once there's a pass-rate history.
+      - name: Run the benchmark
+        run: |
+          make harbor-run
+          python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.75
+
+      - name: Upload job results
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: harbor-jobs
+          path: jobs/
+          retention-days: 30

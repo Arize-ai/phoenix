@@ -373,10 +373,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance</loc>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match</loc>
   </url>
 
@@ -393,27 +389,7 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data</loc>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal</loc>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance</loc>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval</loc>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval</loc>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval</loc>
   </url>
 
   <url>

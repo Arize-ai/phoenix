@@ -1,5 +1,118 @@
 # @arizeai/phoenix-mcp
 
+## 4.3.13
+
+### Patch Changes
+
+- Updated dependencies [aab229f]
+  - @arizeai/phoenix-client@7.14.0
+
+## 4.3.12
+
+### Patch Changes
+
+- Updated dependencies [c282563]
+  - @arizeai/phoenix-client@7.13.0
+
+## 4.3.11
+
+### Patch Changes
+
+- Updated dependencies [dab09f1]
+  - @arizeai/phoenix-client@7.12.0
+
+## 4.3.10
+
+### Patch Changes
+
+- Updated dependencies [2b73847]
+  - @arizeai/phoenix-client@7.11.0
+
+## 4.3.9
+
+### Patch Changes
+
+- Updated dependencies [c839254]
+  - @arizeai/phoenix-client@7.10.0
+
+## 4.3.8
+
+### Patch Changes
+
+- Updated dependencies [bf047af]
+  - @arizeai/phoenix-client@7.9.0
+
+## 4.3.7
+
+### Patch Changes
+
+- Updated dependencies [58b7017]
+  - @arizeai/phoenix-client@7.8.0
+
+## 4.3.6
+
+### Patch Changes
+
+- Updated dependencies [1cdff14]
+  - @arizeai/phoenix-client@7.7.1
+
+## 4.3.5
+
+### Patch Changes
+
+- Updated dependencies [37916d7]
+- Updated dependencies [c48e50e]
+- Updated dependencies [773c5e5]
+- Updated dependencies [b27561d]
+  - @arizeai/phoenix-client@7.7.0
+
+## 4.3.4
+
+### Patch Changes
+
+- Updated dependencies [d328c3e]
+  - @arizeai/phoenix-client@7.6.0
+
+## 4.3.3
+
+### Patch Changes
+
+- Updated dependencies [0ed987a]
+  - @arizeai/phoenix-client@7.5.0
+
+## 4.3.2
+
+### Patch Changes
+
+- Updated dependencies [90729f3]
+  - @arizeai/phoenix-client@7.4.0
+
+## 4.3.1
+
+### Patch Changes
+
+- Updated dependencies [c892873]
+  - @arizeai/phoenix-client@7.3.1
+
+## 4.3.0
+
+### Minor Changes
+
+- e90ba00: Resolve the MCP server's base URL from `PHOENIX_ENDPOINT`, inferring from the trace-export variables `PHOENIX_COLLECTOR_ENDPOINT` and `OTEL_EXPORTER_OTLP_ENDPOINT` when only those are set, then the legacy `PHOENIX_HOST` — matching the API clients and the `px` CLI. Previously the MCP server read only `PHOENIX_HOST`.
+
+### Patch Changes
+
+- Updated dependencies [d04f0fc]
+  - @arizeai/phoenix-config@0.5.0
+  - @arizeai/phoenix-client@7.3.0
+
+## 4.2.8
+
+### Patch Changes
+
+- Updated dependencies [59aa7cb]
+  - @arizeai/phoenix-client@7.2.0
+
 ## 4.2.7
 
 ### Patch Changes

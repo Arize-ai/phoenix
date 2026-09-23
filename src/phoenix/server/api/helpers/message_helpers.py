@@ -206,7 +206,7 @@ def prompt_chat_template_to_playground_messages(
 ) -> list[PlaygroundMessage]:
     """
     Convert a PromptChatTemplate (DB model) into the list of PlaygroundMessage
-    dicts used by LLM streaming clients.
+    dicts used by LLM clients.
 
     Content part mapping:
       - text part        → content str (joined with newline for multiple text parts)

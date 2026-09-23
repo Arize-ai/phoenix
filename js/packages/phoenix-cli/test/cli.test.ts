@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { createProgram, main } from "../src/cli";
+import { buildUnknownCommandDiagnosis, createProgram, main } from "../src/cli";
 import { CLI_VERSION } from "../src/version";
+
+const fetchReturningVersion = (version: string): typeof fetch =>
+  (async () => ({
+    ok: true,
+    json: async () => ({ version }),
+  })) as unknown as typeof fetch;
 
 describe("Phoenix CLI", () => {
   it("should have a main function", () => {
@@ -320,5 +326,39 @@ describe("Phoenix CLI", () => {
     expect(
       sessionAnnotationsCommand?.commands.map((command) => command.name())
     ).toEqual(expect.arrayContaining(["delete"]));
+  });
+});
+
+describe("unknown command diagnosis", () => {
+  it("suggests upgrading when a newer version is published", async () => {
+    const message = await buildUnknownCommandDiagnosis({
+      fetchFn: fetchReturningVersion("9999.0.0"),
+    });
+
+    expect(message).toContain("Current version:");
+    expect(message).toContain("9999.0.0");
+    expect(message).toContain("px self update");
+  });
+
+  it("does not suggest upgrading when already on the latest version", async () => {
+    const message = await buildUnknownCommandDiagnosis({
+      fetchFn: fetchReturningVersion(CLI_VERSION),
+    });
+
+    expect(message).toContain("up to date");
+    expect(message).toContain("px --help");
+    expect(message).not.toContain("px self update");
+  });
+
+  it("falls back to no extra guidance when the registry is unreachable", async () => {
+    const failingFetch: typeof fetch = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+
+    const message = await buildUnknownCommandDiagnosis({
+      fetchFn: failingFetch,
+    });
+
+    expect(message).toBeNull();
   });
 });

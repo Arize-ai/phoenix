@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 import pandas as pd
@@ -9,6 +9,8 @@ from phoenix.db import models
 from phoenix.server.api.dataloaders.annotation_summaries import AnnotationSummaryDataLoader, Key
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
+
+from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
 async def test_evaluation_summaries(
@@ -56,7 +58,6 @@ async def test_evaluation_summaries(
     expected = trace_df.loc[:, "mean_score"].to_list() + span_df.loc[:, "mean_score"].to_list()
     kinds: list[Literal["span", "trace"]] = ["trace", "span"]
     session_filter_condition = None
-    session_rowid = None
     keys: list[Key] = [
         (
             kind,
@@ -64,7 +65,6 @@ async def test_evaluation_summaries(
             TimeRange(start=start_time, end=end_time),
             "'_trace4_' in name" if kind == "span" else None,
             session_filter_condition,
-            session_rowid,
             eval_name,
         )
         for kind in kinds
@@ -80,6 +80,99 @@ async def test_evaluation_summaries(
             summary.mean_score(),  # type: ignore[call-arg]
         )
     assert actual == pytest.approx(expected, 1e-7)
+
+
+async def test_session_filter_scopes_fraction_numerator_and_denominator_alike(
+    db: DbSessionFactory,
+) -> None:
+    """A filtered fraction is taken over the filtered sessions only.
+
+    The denominator (distinct annotated sessions) and the numerator (sessions carrying a
+    label) are built by separate statements, so a filter reaching only one of them shows up
+    here as a fraction diluted by the sessions the filter excluded.
+    """
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session)
+        # Two traces puts a session in scope of the filter below; one leaves it out.
+        for trace_count, label in ((2, "good"), (2, "bad"), (1, "good"), (1, "good")):
+            project_session = await _add_project_session(
+                session,
+                project,
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=10),
+            )
+            for _ in range(trace_count):
+                await _add_trace(session, project, project_session, start_time=base_time)
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="quality",
+                    label=label,
+                    score=1.0,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+        await session.flush()
+
+    result = await AnnotationSummaryDataLoader(db).load(
+        (
+            "session",
+            project.id,
+            TimeRange(start=base_time, end=base_time + timedelta(hours=1)),
+            None,
+            "num_traces >= 2",
+            "quality",
+        )
+    )
+    assert result is not None
+    label_fractions = {lf.label: lf.fraction for lf in result.label_fractions()}  # type: ignore[call-arg, attr-defined]
+    # Of the two filtered sessions, one is "good" and one is "bad". Counting all four
+    # sessions in the denominator would report 0.25 apiece instead.
+    assert label_fractions["good"] == pytest.approx(0.5, rel=1e-4)
+    assert label_fractions["bad"] == pytest.approx(0.5, rel=1e-4)
+
+
+async def test_span_filter_scopes_fraction_numerator_and_denominator_alike(
+    db: DbSessionFactory,
+) -> None:
+    base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project, start_time=base_time)
+        for span_kind, label in (("LLM", "good"), ("CHAIN", "bad")):
+            span = await _add_span(session, trace, span_kind=span_kind, start_time=base_time)
+            session.add(
+                models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name="quality",
+                    label=label,
+                    score=1.0,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                )
+            )
+        await session.flush()
+
+    result = await AnnotationSummaryDataLoader(db).load(
+        (
+            "span",
+            project.id,
+            TimeRange(start=base_time, end=base_time + timedelta(hours=1)),
+            "span_kind == 'LLM'",
+            None,
+            "quality",
+        )
+    )
+    assert result is not None
+    label_fractions = {lf.label: lf.fraction for lf in result.label_fractions()}  # type: ignore[call-arg, attr-defined]
+    assert label_fractions["good"] == pytest.approx(1.0, rel=1e-4)
+    assert sum(label_fractions.values()) == pytest.approx(1.0, rel=1e-4)
 
 
 async def test_multiple_annotations_score_weighting(
@@ -105,7 +198,6 @@ async def test_multiple_annotations_score_weighting(
     loader = AnnotationSummaryDataLoader(db)
     filter_condition = None
     session_filter_condition = None
-    session_rowid = None
     result = await loader.load(
         (
             "span",
@@ -113,7 +205,6 @@ async def test_multiple_annotations_score_weighting(
             TimeRange(start=start_time, end=end_time),
             filter_condition,
             session_filter_condition,
-            session_rowid,
             "quality",
         )
     )
@@ -152,7 +243,6 @@ async def test_missing_label_aggregation(
         assert isinstance(project_id, int)
     filter_condition = None
     session_filter_condition = None
-    session_rowid = None
     result = await loader.load(
         (
             "span",
@@ -160,7 +250,6 @@ async def test_missing_label_aggregation(
             TimeRange(start=start_time, end=end_time),
             filter_condition,
             session_filter_condition,
-            session_rowid,
             "distribution",
         )
     )
@@ -197,7 +286,6 @@ async def test_mixed_emit_coverage_counts(
             "span",
             project_id,
             TimeRange(start=start_time, end=end_time),
-            None,
             None,
             None,
             "coverage",
@@ -238,7 +326,6 @@ async def test_pure_score_only_coverage_counts(
             TimeRange(start=start_time, end=end_time),
             None,
             None,
-            None,
             "unlabeled",
         )
     )
@@ -270,7 +357,6 @@ async def test_null_label_handling(
     loader = AnnotationSummaryDataLoader(db)
     filter_condition = None
     session_filter_condition = None
-    session_rowid = None
     result = await loader.load(
         (
             "span",
@@ -278,7 +364,6 @@ async def test_null_label_handling(
             TimeRange(start=start_time, end=end_time),
             filter_condition,
             session_filter_condition,
-            session_rowid,
             "unlabeled",
         )
     )

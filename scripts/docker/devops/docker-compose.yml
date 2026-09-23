@@ -229,9 +229,9 @@ services:
     expose:
       - "5173"
     volumes:
-      - ../../../app:/app:cached
-      - /app/node_modules
-      - /app/.vite-config
+      - ../../../js/app:/phoenix/js/app:cached
+      - /phoenix/js/app/node_modules
+      - /phoenix/js/app/.vite-config
     environment:
       - NODE_ENV=development
       - VITE_HMR_CLIENT_PORT=18273

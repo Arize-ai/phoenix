@@ -21,7 +21,7 @@ For LLM-as-judge evaluators, install your provider's SDK:
 ```bash
 pip install openai      # OpenAI
 pip install anthropic   # Anthropic
-pip install google-generativeai  # Google
+pip install google-genai  # Google
 ```
 
 ## Validation (Optional)

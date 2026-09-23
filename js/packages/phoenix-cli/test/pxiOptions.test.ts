@@ -49,7 +49,7 @@ describe("PXI options", () => {
     expect(selection).toEqual({
       providerType: "builtin",
       provider: "ANTHROPIC",
-      modelName: "claude-opus-4-8",
+      modelName: "claude-opus-5",
     });
   });
 
@@ -63,6 +63,19 @@ describe("PXI options", () => {
       providerType: "builtin",
       provider: "ANTHROPIC",
       modelName: "claude-opus-4-6",
+    });
+  });
+
+  it("accepts MiniMax as a built-in provider", () => {
+    const selection = resolveModelSelection({
+      provider: "minimax",
+      model: "MiniMax-M3",
+    });
+
+    expect(selection).toEqual({
+      providerType: "builtin",
+      provider: "MINIMAX",
+      modelName: "MiniMax-M3",
     });
   });
 
@@ -102,6 +115,19 @@ describe("PXI options", () => {
     });
 
     expect(options.skipModelPreflight).toBe(false);
+    expect(options.hasExplicitModelSelection).toBe(false);
+  });
+
+  it("records whether model flags were explicitly provided", () => {
+    const options = resolvePxiRuntimeOptions({
+      cliOptions: {
+        endpoint: "http://localhost:6006",
+        model: "claude-opus-4-6",
+      },
+      sessionId: "session-1",
+    });
+
+    expect(options.hasExplicitModelSelection).toBe(true);
   });
 
   it("supports skipping model preflight", () => {

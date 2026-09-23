@@ -2,7 +2,7 @@ from dataclasses import asdict
 from typing import NamedTuple, Optional, cast
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -127,7 +127,10 @@ async def insert_span(
                 func.sum(models.Span.cumulative_error_count),
                 func.sum(models.Span.cumulative_llm_token_count_prompt),
                 func.sum(models.Span.cumulative_llm_token_count_completion),
-            ).where(models.Span.parent_id == span.context.span_id)
+            ).where(
+                models.Span.trace_rowid == trace.id,
+                models.Span.parent_id == span.context.span_id,
+            )
         )
     ).first():
         cumulative_error_count += cast(int, accumulation[0] or 0)
@@ -166,14 +169,21 @@ async def insert_span(
     # child arrives after its parent, we need to make sure that all the
     # ancestors' cumulative values are updated.
     ancestors = (
-        select(models.Span.id, models.Span.parent_id)
-        .where(models.Span.span_id == span.parent_id)
+        select(models.Span.id, models.Span.parent_id, models.Span.trace_rowid)
+        .where(
+            models.Span.trace_rowid == trace.id,
+            models.Span.span_id == span.parent_id,
+        )
         .cte(recursive=True)
     )
     child = ancestors.alias()
     ancestors = ancestors.union_all(
-        select(models.Span.id, models.Span.parent_id).join(
-            child, models.Span.span_id == child.c.parent_id
+        select(models.Span.id, models.Span.parent_id, models.Span.trace_rowid).join(
+            child,
+            and_(
+                models.Span.trace_rowid == child.c.trace_rowid,
+                models.Span.span_id == child.c.parent_id,
+            ),
         )
     )
     await session.execute(

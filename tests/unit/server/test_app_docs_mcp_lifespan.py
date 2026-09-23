@@ -14,13 +14,15 @@ from contextlib import AsyncExitStack
 
 import pytest
 from asgi_lifespan import LifespanManager
+from fastapi import FastAPI
 
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.app import create_app
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
+    OfflineDocsMCPServer,
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -44,7 +46,7 @@ async def test_app_starts_up_when_docs_mcp_server_init_fails(
     monkeypatch.setattr("phoenix.server.app.MintlifyDocsMCPServer", _ExplodingDocsMCPServer)
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -57,3 +59,16 @@ async def test_app_starts_up_when_docs_mcp_server_init_fails(
         assert isinstance(app.state.docs_mcp_server, _ExplodingDocsMCPServer)
         # Lifespan startup must not raise even though docs MCP init fails.
         await stack.enter_async_context(LifespanManager(app))
+
+
+async def test_unit_test_apps_get_the_offline_docs_toolset(app: FastAPI) -> None:
+    """The suite-wide stub is in force: the fixture app carries the offline
+    toolset, so its lifespan startup opens no session to the Mintlify host."""
+    assert isinstance(app.state.docs_mcp_server, OfflineDocsMCPServer)
+
+
+@pytest.mark.real_docs_mcp_server
+async def test_marker_restores_the_real_docs_toolset(app: FastAPI) -> None:
+    """Opting in builds the real toolset. Construction opens no connection, so
+    the check stops short of lifespan startup."""
+    assert type(app.state.docs_mcp_server) is MintlifyDocsMCPServer

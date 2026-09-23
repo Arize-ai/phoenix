@@ -131,11 +131,16 @@ from azure.identity.aio import DefaultAzureCredential
 
 credential = DefaultAzureCredential()  # construct once, reuse for the process
 
+
 async def open_connection() -> asyncpg.Connection:
     token = await credential.get_token("https://ossrdbms-aad.database.windows.net/.default")
     return await asyncpg.connect(
-        host=host, port=port, user=user, password=token.token,
-        database=database, ssl="require",
+        host=host,
+        port=port,
+        user=user,
+        password=token.token,
+        database=database,
+        ssl="require",
     )
 ```
 
@@ -197,13 +202,20 @@ import boto3
 
 rds_client = boto3.client("rds")  # construct once, reuse for the process
 
+
 async def open_connection() -> asyncpg.Connection:
     token = rds_client.generate_db_auth_token(
-        DBHostname=host, Port=port, DBUsername=user,
+        DBHostname=host,
+        Port=port,
+        DBUsername=user,
     )
     return await asyncpg.connect(
-        host=host, port=port, user=user, password=token,
-        database=database, ssl="require",
+        host=host,
+        port=port,
+        user=user,
+        password=token,
+        database=database,
+        ssl="require",
     )
 ```
 
