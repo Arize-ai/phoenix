@@ -1,6 +1,6 @@
 import { formatTemplate } from "../template";
 import type {
-  ClassificationChoicesMap,
+  ClassificationChoices,
   CreateClassifierArgs,
   EvaluationResult,
   EvaluatorFn,
@@ -8,13 +8,13 @@ import type {
 import { generateClassification } from "./generateClassification";
 
 /**
- * Convert a mapping of choices to labels
- * Asserts that the choices are valid
+ * Convert choices to the labels the classifier may return.
+ * Asserts that the choices are valid.
  */
 function choicesToLabels(
-  choices: ClassificationChoicesMap
+  choices: ClassificationChoices
 ): [string, ...string[]] {
-  const labels = Object.keys(choices);
+  const labels = Array.isArray(choices) ? [...choices] : Object.keys(choices);
   if (labels.length < 1) {
     throw new Error("No choices provided");
   }
@@ -46,11 +46,12 @@ export function createClassifierFn<
       ...rest,
     });
 
-    // Post-process the classification result and map it to the choices
-    const score = choices[classification.label];
+    if (Array.isArray(choices)) {
+      return classification;
+    }
 
     return {
-      score,
+      score: choices[classification.label],
       ...classification,
     };
   };
