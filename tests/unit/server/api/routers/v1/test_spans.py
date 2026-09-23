@@ -1,6 +1,6 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 from urllib.parse import quote
 from uuid import UUID
 
@@ -1092,7 +1092,7 @@ async def test_span_search_filter_expression_combines_with_field_filters(
 async def test_span_search_filter_expression_paginates(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ) -> None:
-    params = {"filter": "name != 'span-1'", "limit": 1}
+    params: dict[str, Union[str, int]] = {"filter": "name != 'span-1'", "limit": 1}
     first = await httpx_client.get("v1/projects/search-test/spans", params=params)
     assert first.is_success
     assert first.json()["next_cursor"]
