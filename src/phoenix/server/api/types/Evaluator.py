@@ -1347,6 +1347,18 @@ class ProjectEvaluator(Node):
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
+            "Evaluations this evaluator gave up on within the time range, placed in time by "
+            "when they were given up on. Failures older than the online evaluation retention "
+            "window are reaped, so a longer range counts no further back than that."
+        )
+    )
+    async def failed_run_count(self, info: Info[Context, None], time_range: TimeRange) -> int:
+        return await info.context.data_loaders.project_evaluator_failed_run_count.load(
+            (self.id, time_range.start, time_range.end)
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
             "Distribution of this evaluator's primary output over all annotated targets in range. "
             "Spans and traces filter on trace start time; sessions on session start time. "
             "Uses the latest annotation per target and name across annotation identifiers."

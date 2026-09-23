@@ -12,6 +12,7 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 const PROJECT_EVALUATOR_COLUMNS = [
   { id: "name", label: "name", isVisibilityToggleDisabled: true },
   { id: "status", label: "status" },
+  { id: "recentFailures", label: "recent failures" },
   { id: "kind", label: "kind" },
   { id: "meanScore", label: "mean score" },
   { id: "prompt", label: "prompt" },

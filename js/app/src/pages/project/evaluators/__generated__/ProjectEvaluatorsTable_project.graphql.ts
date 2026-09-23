@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<83fe9829f09a4363251a30359c4b8f47>>
+ * @generated SignedSource<<862ff89567e9fd779b43305c5c4d703c>>
  * @lightSyntaxTransform
  */
 
@@ -13,7 +13,7 @@ export type ProjectEvaluatorsTable_project$data = {
   readonly evaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_row" | "ProjectEvaluatorsTable_scores">;
+        readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_row" | "ProjectEvaluatorsTable_scores">;
       };
     }>;
   };
@@ -109,14 +109,17 @@ v12 = [
     "storageKey": null
   }
 ],
-v13 = {
+v13 = [
+  (v3/*:: as any*/)
+],
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -571,9 +574,22 @@ return {
                     }
                   ],
                   "args": (v11/*:: as any*/),
-                  "argumentDefinitions": [
-                    (v3/*:: as any*/)
-                  ]
+                  "argumentDefinitions": (v13/*:: as any*/)
+                },
+                {
+                  "kind": "InlineDataFragmentSpread",
+                  "name": "ProjectEvaluatorsTable_failures",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": (v11/*:: as any*/),
+                      "kind": "ScalarField",
+                      "name": "failedRunCount",
+                      "storageKey": null
+                    }
+                  ],
+                  "args": (v11/*:: as any*/),
+                  "argumentDefinitions": (v13/*:: as any*/)
                 },
                 {
                   "kind": "InlineDataFragmentSpread",
@@ -618,8 +634,8 @@ return {
                               "name": "summary",
                               "plural": false,
                               "selections": [
-                                (v13/*:: as any*/),
                                 (v14/*:: as any*/),
+                                (v15/*:: as any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -664,7 +680,7 @@ return {
                               "name": "previousSummary",
                               "plural": false,
                               "selections": [
-                                (v13/*:: as any*/)
+                                (v14/*:: as any*/)
                               ],
                               "storageKey": null
                             },
@@ -683,8 +699,8 @@ return {
                                   "name": "timestamp",
                                   "storageKey": null
                                 },
-                                (v13/*:: as any*/),
-                                (v14/*:: as any*/)
+                                (v14/*:: as any*/),
+                                (v15/*:: as any*/)
                               ],
                               "storageKey": null
                             }
@@ -772,6 +788,6 @@ return {
 };
 })();
 
-(node as any).hash = "9da07562d1eee40e3d6d2471a3630ed9";
+(node as any).hash = "9f24d0be426c3cd1ddda1ec684b167ed";
 
 export default node;

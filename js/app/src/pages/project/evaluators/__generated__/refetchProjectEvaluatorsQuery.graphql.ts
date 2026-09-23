@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<822c2f6df71f1588f8db68c0b9e2b186>>
+ * @generated SignedSource<<8bff052ce3a5ed90a4dcc407d42ff657>>
  * @lightSyntaxTransform
  */
 
@@ -24,7 +24,7 @@ export type refetchProjectEvaluatorsQuery$data = {
     readonly evaluators?: {
       readonly edges: ReadonlyArray<{
         readonly node: {
-          readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_row">;
+          readonly " $fragmentSpreads": FragmentRefs<"ProjectEvaluatorsTable_costs" | "ProjectEvaluatorsTable_failures" | "ProjectEvaluatorsTable_row">;
         };
       }>;
       readonly pageInfo: {
@@ -391,21 +391,31 @@ v28 = {
   ],
   "storageKey": null
 },
-v29 = {
+v29 = [
+  (v2/*:: as any*/)
+],
+v30 = {
+  "alias": null,
+  "args": (v26/*:: as any*/),
+  "kind": "ScalarField",
+  "name": "failedRunCount",
+  "storageKey": null
+},
+v31 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v30 = {
+v32 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cursor",
   "storageKey": null
 },
-v31 = {
+v33 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -430,7 +440,7 @@ v31 = {
   ],
   "storageKey": null
 },
-v32 = [
+v34 = [
   {
     "kind": "Variable",
     "name": "first",
@@ -601,19 +611,26 @@ return {
                               (v28/*:: as any*/)
                             ],
                             "args": (v26/*:: as any*/),
-                            "argumentDefinitions": [
-                              (v2/*:: as any*/)
-                            ]
+                            "argumentDefinitions": (v29/*:: as any*/)
                           },
-                          (v29/*:: as any*/)
+                          {
+                            "kind": "InlineDataFragmentSpread",
+                            "name": "ProjectEvaluatorsTable_failures",
+                            "selections": [
+                              (v30/*:: as any*/)
+                            ],
+                            "args": (v26/*:: as any*/),
+                            "argumentDefinitions": (v29/*:: as any*/)
+                          },
+                          (v31/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v30/*:: as any*/)
+                      (v32/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v31/*:: as any*/)
+                  (v33/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -646,14 +663,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v29/*:: as any*/),
+          (v31/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v4/*:: as any*/),
               {
                 "alias": null,
-                "args": (v32/*:: as any*/),
+                "args": (v34/*:: as any*/),
                 "concreteType": "ProjectEvaluatorConnection",
                 "kind": "LinkedField",
                 "name": "evaluators",
@@ -691,7 +708,7 @@ return {
                             "name": "evaluator",
                             "plural": false,
                             "selections": [
-                              (v29/*:: as any*/),
+                              (v31/*:: as any*/),
                               (v5/*:: as any*/),
                               (v13/*:: as any*/),
                               {
@@ -702,7 +719,7 @@ return {
                                 "name": "outputConfigs",
                                 "plural": true,
                                 "selections": [
-                                  (v29/*:: as any*/),
+                                  (v31/*:: as any*/),
                                   (v14/*:: as any*/),
                                   (v16/*:: as any*/),
                                   (v19/*:: as any*/),
@@ -791,21 +808,22 @@ return {
                             "storageKey": null
                           },
                           (v28/*:: as any*/),
-                          (v29/*:: as any*/)
+                          (v30/*:: as any*/),
+                          (v31/*:: as any*/)
                         ],
                         "storageKey": null
                       },
-                      (v30/*:: as any*/)
+                      (v32/*:: as any*/)
                     ],
                     "storageKey": null
                   },
-                  (v31/*:: as any*/)
+                  (v33/*:: as any*/)
                 ],
                 "storageKey": null
               },
               {
                 "alias": null,
-                "args": (v32/*:: as any*/),
+                "args": (v34/*:: as any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ProjectEvaluatorsTable_evaluators",
@@ -823,7 +841,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a35f49a4582710226d90a74241e26d58",
+    "cacheID": "e2d99306309cde0db48d1a46d41cce25",
     "id": null,
     "metadata": {
       "connection": [
@@ -840,11 +858,11 @@ return {
     },
     "name": "refetchProjectEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            ...ProjectEvaluatorsTable_costs_3E0ZE6\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n    droppedCount\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query refetchProjectEvaluatorsQuery(\n  $projectId: ID!\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      evaluators(first: $first) {\n        edges {\n          node {\n            ...ProjectEvaluatorsTable_row\n            ...ProjectEvaluatorsTable_costs_3E0ZE6\n            ...ProjectEvaluatorsTable_failures_3E0ZE6\n            id\n            __typename\n          }\n          cursor\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_failures_3E0ZE6 on ProjectEvaluator {\n  failedRunCount(timeRange: $timeRange)\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n    droppedCount\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a2a508a1a9a21b34283579a268673d20";
+(node as any).hash = "4f665edb5c9acfb70f4e11db9106bc33";
 
 export default node;
