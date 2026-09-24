@@ -17,6 +17,8 @@ The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) reaches the sa
 
 The server is your [Phoenix endpoint](/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint) plus `/mcp`, so `http://localhost:6006/mcp` for a local Phoenix. It requires Phoenix 19.0.0 or later; on older servers, use the [npm package](#phoenix-mcp-server-npm).
 
+### Connect
+
 Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix is its own authorization server and supports dynamic client registration, so there is nothing to pre-configure: add the server and your client opens a browser login, with tokens scoped to your permissions. A Phoenix running without authentication needs no login.
 
 The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) writes the config for you and infers your endpoint:
@@ -151,7 +153,7 @@ To write the config by hand, or for a client `px` does not cover, use the steps 
 
 Then, in your client, list its MCP servers: `/mcp` in Claude Code or Codex, `claude mcp list` from a shell, or the client's MCP settings. `phoenix` shows as connected. With auth enabled, the first use opens a browser login.
 
-## What your agent can do with it
+### What your agent can do with it
 
 The server presents seven tools. The agent finds an operation with `search` or `tags`, checks its parameters with `get_schema`, then runs Python in `execute` that chains as many operations as the task needs, filtering and joining the results before they reach its context window. The catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview), around 116 operations, so it always matches what your Phoenix version can do. `load_skill` pulls in a Phoenix [skill](/docs/phoenix/integrations/developer-tools/skills) before the agent works in its domain.
 
