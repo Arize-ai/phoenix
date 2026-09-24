@@ -275,6 +275,8 @@ Each skill is a directory whose name matches the `name` in its `SKILL.md` frontm
 
 The Phoenix Docs MCP server lets AI assistants search and retrieve the Phoenix documentation in real time. Run it alongside the [Remote MCP Server](#remote-mcp-server) so your assistant can answer questions from the docs as well as your Phoenix instance. No authentication is required. Neither plugin includes it.
 
+This is an endpoint for a client to connect to, not a page to visit. Opening it in a browser returns the server's tool manifest as JSON, which is the server working correctly. Paste it into a client instead:
+
 ```text
 https://arizeai-433a7140.mintlify.app/mcp
 ```
