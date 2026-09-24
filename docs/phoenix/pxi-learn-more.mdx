@@ -45,7 +45,7 @@ Sessions are also exposed as REST routes under `/v1/agent_sessions`, and rewind,
 
 ## The terminal client
 
-The same server-side agent in your terminal, shipped with the Phoenix CLI. Credentials, skills, and permissions come from the server, as in [Models](#models).
+The same server-side agent in your terminal, shipped with the Phoenix CLI. Credentials, skills, and permissions come from the server, as in [Models](#bring-your-own-model).
 
 ```bash
 # run without installing
@@ -69,17 +69,17 @@ Inside the chat, lines beginning with `/` are handled locally and never sent to 
 
 ## Configuration
 
-### Models
+### Bring your own model
 
-Configure credentials for at least one provider via environment variables or Phoenix secrets, or a custom provider under **Settings → Models**.
+PXI runs on your model provider and your API key. Set credentials for Anthropic, OpenAI, Google, or AWS Bedrock through environment variables or Phoenix secrets, or add a custom provider under **Settings → Models**.
 
-PXI leans heavily on tool calling, and models weak at it produce broken sessions. Use a validated model:
+It relies heavily on tool calling, so pick a model validated for it:
 
 - **Anthropic**: `claude-fable-5-1`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
 - **OpenAI**: `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
 - **Google**: `gemini-3.7-flash`, `gemini-3.1-pro-preview`
 
-Other models can be selected but are untested and may fail to invoke tools.
+Any other model can be selected, but is untested and may fail to invoke tools.
 
 ### Permissions and approval
 
