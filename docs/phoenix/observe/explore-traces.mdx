@@ -6,6 +6,19 @@ sidebarTitle: "Explore your traces"
 
 After your application sends traces to Phoenix, open Observe to inspect stored trace data, find failures, review sessions, and share links with your team.
 
+## Ways to inspect traces
+
+You can inspect traces in the Phoenix UI, fetch them in code, or ask an agent to investigate them.
+
+| Path | Use it when... |
+| :--- | :--- |
+| Phoenix UI | You want to browse projects, traces, spans, sessions, dashboards, and filters. |
+| Phoenix client or CLI | You want to fetch traces, spans, or sessions for scripts, notebooks, or eval workflows. |
+| PXI | You want to ask a Phoenix agent to investigate trace data, for example why a trace failed. |
+| Coding agent with MCP or skills | You want Claude Code, Codex, Cursor, or another coding agent to query Phoenix while it works in your repo. |
+
+For code access, start with [Retrieve traces with the CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli) or [Export data and query spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans). For agent workflows, see [PXI](/docs/phoenix/pxi) and [Coding agents](/docs/phoenix/integrations/developer-tools/coding-agents).
+
 <CardGroup cols={2}>
   <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/llm-traces/projects">
     Organize traces and annotations by application, environment, or workflow

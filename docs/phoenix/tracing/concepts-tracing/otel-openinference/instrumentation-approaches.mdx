@@ -1,7 +1,7 @@
 ---
-title: "Instrumentation Approaches"
+title: "Instrumentation approaches"
 sidebarTitle: "Instrumentation approaches"
-description: "Three ways to emit spans — auto-instrumentation, manual instrumentation, and hybrid — with trade-offs, mechanics, and the custom span processor pattern."
+description: "Compare auto-instrumentation, manual instrumentation, and hybrid tracing."
 keywords: ['auto-instrumentation', 'manual instrumentation', 'hybrid instrumentation', 'monkey patching', 'custom span processor', 'OpenInference', 'tracer']
 ---
 
@@ -11,13 +11,13 @@ There are three ways to emit spans from your application:
 | :--- | :--- | :--- |
 | **Auto-instrumentation** | Few lines of setup code | Whatever the instrumentor library supports |
 | **Manual instrumentation** | Per-span code | Anything you want to trace |
-| **Hybrid** | Auto + targeted manual work | Best of both — start broad, fill gaps |
+| **Hybrid** | Auto plus targeted manual work | Start broad, then fill gaps |
 
 For practical setup, see [Auto-instrumentation](/docs/phoenix/integrations), [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument), and [Set up tracing](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel). The rest of the page explains what each approach does under the hood.
 
 # Auto-instrumentation
 
-Auto-instrumentation automatically collects telemetry from supported libraries — no per-call code changes needed. Recommended whenever an OpenInference auto-instrumentor exists for your stack.
+Auto-instrumentation collects telemetry from supported libraries without per-call code changes. Use it whenever an OpenInference auto-instrumentor exists for your stack.
 
 ## Initializing an Auto-instrumentor
 
@@ -33,24 +33,24 @@ tracer_provider = register(
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
-After this runs, every OpenAI call your application makes is traced — model name, input messages, output messages, token counts, finish reason, all set as attributes on an LLM span.
+After this runs, every OpenAI call your application makes is traced. Phoenix receives the model name, input messages, output messages, token counts, and finish reason as attributes on an LLM span.
 
 For the full list of supported frameworks and providers, see [Integrations](/docs/phoenix/integrations).
 
 ## How Auto-instrumentors Work
 
-Auto-instrumentors use a technique called **monkey patching** to wrap library functions with tracing logic. The mechanics:
+Auto-instrumentors wrap library functions with tracing logic. The mechanics are:
 
 When you call `OpenAIInstrumentor().instrument()`:
 
-1. **Identify** — the instrumentor targets specific functions in the library (e.g., `openai.chat.completions.create`).
-1. **Wrap** — the original function is replaced with a wrapper that:
+1. **Identify**: the instrumentor targets specific functions in the library, such as `openai.chat.completions.create`.
+1. **Wrap**: the original function is replaced with a wrapper that:
    1. Creates a span before the original function runs.
    1. Calls the original function.
    1. Sets span attributes from the function's arguments and response (e.g., `llm.input_messages`, `llm.output_messages`, `llm.token_count.*`).
    1. Ends the span.
 
-The wrapping happens at import time (or at `instrument()` call time, depending on the library). After that, every call to the wrapped function flows through the tracing logic transparently.
+The wrapping happens at import time or at `instrument()` call time, depending on the library. After that, every call to the wrapped function flows through the tracing logic.
 
 For the source of every OpenInference instrumentor, see the [OpenInference repository](https://github.com/Arize-ai/openinference).
 
@@ -75,7 +75,7 @@ with tracer.start_as_current_span("span-name") as span:
 1. It automatically sets the span as the active span in the OTel context, so any spans created inside the block become children.
 1. It automatically calls `span.end()` when the context-manager block exits, so you don't have to manage span lifetime by hand.
 
-When spans are created without explicitly setting their context, they inherit the most recent active span as their `parent_id` — which is exactly what you want for nested operations.
+When spans are created without explicitly setting their context, they inherit the most recent active span as their `parent_id`. This keeps nested operations attached to the right parent span.
 
 ## Pros and Cons
 
@@ -88,41 +88,41 @@ When spans are created without explicitly setting their context, they inherit th
 
 A few failure modes worth knowing about:
 
-- **Forgetting to end a span** — spans are only handed off to the [span processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) when `end()` is called. A never-ended span never exports. Use `start_as_current_span` (which auto-ends) to avoid this entirely.
-- **Not setting span status** — set `Ok` or `Error` explicitly so the Phoenix UI can flag failures.
+- **Forgetting to end a span**: spans are only handed off to the [span processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) when `end()` is called. A never-ended span never exports. Use `start_as_current_span` because it ends the span when the block exits.
+- **Not setting span status**: set `OK` or `ERROR` explicitly so the Phoenix UI can flag failures.
 - **Missing important semantic conventions**:
-  - `openinference.span.kind` — without this, the Phoenix UI can't pick the right icon.
-  - `input.value` and `output.value` — without these, the trace list view shows blanks.
-  - `llm.input_messages` and `llm.output_messages` on LLM spans — the chat history doesn't render in the Phoenix UI without them.
-  - `tool.name` and `tool.parameters` on tool spans — tool detail panels stay empty.
+  - `openinference.span.kind`: Phoenix uses this to pick the right icon.
+  - `input.value` and `output.value`: Phoenix uses these in the trace list view.
+  - `llm.input_messages` and `llm.output_messages`: Phoenix uses these to render chat history on LLM spans.
+  - `tool.name` and `tool.parameters`: Phoenix uses these in tool detail panels.
 
-For the practical how-to, see [Manual Instrumentation](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans).
+For the practical how-to, see [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument). To add metadata, tags, users, sessions, or prompt template attributes, see [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans).
 
 # Hybrid Instrumentation
 
-Auto-instrumentors are an easy way to *begin* tracing, but they only know about what the underlying library exposes. The most interesting parts of an AI application — tool execution in user code, custom business logic, agent loops, evaluation steps — often need extra spans or extra attributes the instrumentor can't see.
+Auto-instrumentors are the easiest way to begin tracing, but they only know about what the underlying library exposes. Tool execution in your code, custom business logic, agent loops, and evaluation steps often need extra spans or attributes.
 
 Hybrid instrumentation combines auto-instrumentation with targeted manual work. Three primary ways to extend an auto-instrumented trace:
 
 | Method | Pros | Cons |
 | :--- | :--- | :--- |
-| **Manually add additional spans** with `tracer.start_as_current_span()` while the traced application is running, setting attributes on the newly created span. | Full control over what's added. Fairly easy to implement. | Depending on the instrumented library, it can be hard to insert a custom span at the right place in the trace tree. |
-| **[OpenInference Context Managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers)** like `using_session`, `using_user`, `using_metadata` — apply attributes to every span created inside their scope. | Very easy to implement. No per-span code. | Adds attributes to *all* spans in scope. Useful for cross-cutting context like session ID; less useful for per-span data. |
-| **[Custom span processor](#custom-span-processor)** — a class that mutates spans as they pass through the pipeline. | Centralized — one place to enrich or filter every span. | More complex to author and reason about. |
+| **Manually add additional spans** with `tracer.start_as_current_span()` while the traced application is running, setting attributes on the newly created span. | Full control over what gets added. Fairly easy to implement. | Depending on the instrumented library, it can be hard to insert a custom span at the right place in the trace tree. |
+| **[OpenInference Context Managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers)** like `using_session`, `using_user`, and `using_metadata`. | No per-span code. Useful for context that applies to many spans, such as session ID. | Adds attributes to every span in scope, so it is less useful for per-span data. |
+| **[Custom span processor](#custom-span-processor)**. | One place to enrich or filter every span. | More complex to write and review. |
 
 ## Custom Span Processor
 
-Custom span processors are the most powerful hybrid pattern. You write a class that implements `on_start` and `on_end` (and optionally the upcoming `on_ending`) and attach it to the Tracer Provider.
+Custom span processors give you one place to enrich or filter spans. You write a class that implements `on_start` and `on_end` and attach it to the Tracer Provider.
 
 What you can do at each hook:
 
 | Hook | Span state | What it's good for |
 | :--- | :--- | :--- |
 | `on_start(span, parent_context)` | Mutable. Attributes may not be set yet, but name and span context can be edited. | Adding context-scoped attributes (request ID, tenant ID). |
-| `on_end(span)` | Passed in as a `ReadableSpan` — intended to be immutable. | Filtering, enriching, or modifying attributes before export. |
+| `on_end(span)` | Passed in as a `ReadableSpan`, which is intended to be immutable. | Filtering, enriching, or modifying attributes before export. |
 | `on_ending(span)` | Mutable (still in development). | Last-moment attribute changes without the immutability workarounds. |
 
-The classic use case is **PII redaction**: walk every outgoing span and scrub sensitive values from the attributes. For practical examples, see [Mask and redact data](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes).
+A common use case is **PII redaction**. You can inspect outgoing spans and remove sensitive values before export. For practical examples, see [Mask and redact data](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes).
 
 <Warning>
 The `ReadableSpan` passed to `on_end` is *intended* to be immutable. In Python you can edit it anyway, but doing so affects every downstream processor and exporter attached to the same Tracer Provider. If you need to modify a span, prefer copying the `ReadableSpan` with edited attributes rather than mutating it in place.

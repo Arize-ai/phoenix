@@ -1,329 +1,71 @@
 ---
-title: "Tracing concepts"
+title: "Tracing Concepts"
 sidebarTitle: "Tracing concepts"
-description: "Learn how traces, spans, span kinds, attributes, and the Phoenix tracing pipeline fit together."
+description: "Learn how traces and spans work in Phoenix."
 ---
 
-import AgentAssistedOnboardingPrereq from "../../../snippets/agent-assisted-onboarding-prereq.mdx";
+Tracing shows what happened while your AI application handled a request. Phoenix receives traces over OTLP and shows them as trace trees.
 
-Phoenix collects traces from AI applications over OpenTelemetry. You can send traces with Phoenix OTEL, an OpenInference integration, or manual spans.
-
-<AgentAssistedOnboardingPrereq />
-
-Tracing records what happens inside an LLM application. A trace can show model calls, retrieval, tool calls, agent steps, inputs, outputs, timing, token counts, errors, and metadata.
-
-For example, a single user request can include document retrieval, embedding generation, a model call, tool calls, and response generation. Phoenix accepts traces over the OpenTelemetry Protocol, or OTLP, and works with frameworks, SDKs, and providers such as [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), [LangChain](/docs/phoenix/integrations/python/langchain), [DSPy](/docs/phoenix/integrations/python/dspy/dspy-tracing), [OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Bedrock](/docs/phoenix/integrations/llm-providers/amazon-bedrock), [Mistral](/docs/phoenix/integrations/llm-providers/mistralai), and [Vertex](/docs/phoenix/integrations/llm-providers/vertexai).
-
-<Frame caption="View the execution path for your LLM application">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" alt="Phoenix trace details view showing spans in an LLM application trace" />
+<Frame caption="View the execution path for your AI application">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/trace-overview-20260924.png" alt="Phoenix trace detail view showing a nested trace tree, latency bars, status, total cost, and latency for an AI application request." />
 </Frame>
 
-Trace data helps you find performance and reliability issues in your application. After Phoenix receives traces, use [Observe](/docs/phoenix/observe/explore-traces) to inspect projects, sessions, filters, metrics, and dashboards.
+## How Tracing Works
 
-Use this page to understand the data Phoenix receives before you instrument your app.
+Under the hood, Phoenix tracing uses two open standards:
 
-## Traces and spans
+* [OpenTelemetry](https://opentelemetry.io/), or OTel, is the open framework for creating and exporting telemetry data. Phoenix accepts OTel spans over OTLP, so the same instrumentation can be exported to other OTel-compatible backends.
+* [OpenInference](https://github.com/Arize-ai/openinference) is a set of AI semantic conventions built on top of OTel. It defines the attributes that make traces meaningful for AI applications, such as span kinds, messages, token counts, retrieved documents, tool calls, and cost.
 
-A trace records the path a request takes through your application. The first span in a trace is the root span, and it represents the request from start to finish.
+Together, OpenTelemetry and OpenInference give Phoenix [30+ tracing integrations](/docs/phoenix/integrations), portability across OTel-compatible backends, and a standard format for AI trace data. The flow is:
 
-A span represents one operation inside the trace. A span records what happened during that operation, when it started, when it ended, and which attributes describe it.
-
-Spans can be nested. A child span represents work that happened inside a parent span, such as a retriever span or tool span inside an agent trace.
-
-## How tracing works
+1. **Instrumentation** captures work in your application as spans. You can use an OpenInference integration or add spans manually.
+2. **An exporter** sends those spans to Phoenix over OTLP. In Python, Phoenix OTEL's `register()` configures the exporter, and `auto_instrument=True` turns on installed OpenInference instrumentors.
+3. **The Phoenix collector** receives the spans, groups them into traces, and shows them in Observe. Use [Explore your traces](/docs/phoenix/observe/explore-traces) to inspect, filter, and debug them.
 
 <Frame caption="Phoenix receives traces over OTLP">
   <img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" alt="Applications export traces over OTLP to the Phoenix server." />
 </Frame>
 
-First, instrumentation creates spans from your application. You can use auto-instrumentation for supported frameworks, or you can create spans manually around custom code.
+## What's Inside a Trace
 
-Second, an exporter sends spans out of your application. With Phoenix OTEL, the exporter is configured when you call `register()`.
+A trace contains spans, and each span should have a span kind. The span kind tells Phoenix what operation the span represents. Phoenix falls back to `UNKNOWN` when the value is missing or not recognized.
 
-Third, Phoenix receives spans as a collector and shows them in the UI. When you start Phoenix locally or connect to a remote Phoenix instance, Phoenix can receive spans from applications that export traces to it.
+| Span kind | What it represents |
+| :--- | :--- |
+| `LLM` | A model call for chat or completion |
+| `TOOL` | A tool or function call |
+| `AGENT` | An agent run that may contain model, tool, and retrieval spans |
+| `RETRIEVER` | A retrieval call that returns documents |
+| `CHAIN` | A step that groups related application work |
+| `EMBEDDING` | An embedding model call |
+| `RERANKER` | A reranking step for retrieved documents |
+| `GUARDRAIL` | A safety or policy check on input or output |
+| `EVALUATOR` | An evaluation run that scores a model response |
+| `PROMPT` | A prompt template rendered with variables |
+| `UNKNOWN` | The fallback when no span kind is set or the value is not recognized |
 
-Phoenix receives traces over OpenTelemetry Protocol, or OTLP. Phoenix supports OTLP over HTTP, and Phoenix OTEL can configure the exporter for you.
-
-## What you can inspect
-
-Phoenix stores span details that help you debug LLM application behavior:
-
-* **Latency**: Find slow LLM, retriever, tool, and custom spans.
-* **Token usage and cost**: See which LLM calls use the most tokens and estimated cost.
-* **Errors**: Review exceptions, rate limits, and failed tool calls.
-* **Retrieved documents**: Check document text, scores, and order returned by retrievers.
-* **Embeddings**: Review embedding input text and model attributes used during retrieval.
-* **LLM parameters**: Check model name, temperature, system prompts, and other invocation settings.
-* **Prompt templates**: See template text, versions, and variables when you send them.
-* **Tools and function calls**: Inspect available tool schemas, selected tools, tool messages, and function-call inputs.
-
-## Projects
-
-A project is a collection of traces. Use projects to separate applications, environments, evaluation runs, or versions. To configure projects, see [Set up projects](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects).
-
-## OpenTelemetry and OpenInference
-
-Phoenix tracing is built on OpenTelemetry and OpenInference.
-
-OpenTelemetry defines how spans are created, processed, and exported. OpenInference adds GenAI-specific attributes on top of OpenTelemetry, such as span kinds, messages, model names, token counts, retrieved documents, and tool calls.
-
-Phoenix uses [OpenInference semantic conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) as its standard trace format. When possible, use OpenInference attributes so Phoenix and other OpenInference-aware tools can read the same trace data.
-
-## Span kinds
-
-When a span is created, it should include an `openinference.span.kind` attribute. Phoenix uses the span kind to render the trace tree and choose which attributes to show.
-
-<Frame caption="The span kinds supported by OpenInference tracing">
-  <img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/span_kinds.png" alt="OpenInference span kinds used by Phoenix, including chain, retriever, reranker, LLM, embedding, tool, agent, guardrail, evaluator, prompt, and unknown." />
+<Frame caption="A Phoenix trace showing nested spans and span attributes">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/trace-span-attributes-20260924.png" alt="Phoenix trace detail view showing nested spans for retrieval, embedding, reranking, and response generation, with span attributes for the selected embedding span." />
 </Frame>
 
-Common span kinds include `CHAIN`, `RETRIEVER`, `RERANKER`, `LLM`, `EMBEDDING`, `TOOL`, `AGENT`, `GUARDRAIL`, `EVALUATOR`, `PROMPT`, and `UNKNOWN`. For the full list and per-kind attributes, see [Span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds).
+### Span Attributes
 
-## Span attributes
+Span attributes are key-value pairs that describe a span. Common examples include `llm.model_name`, `llm.input_messages`, `input.value`, and `output.value`.
 
-Attributes are key-value pairs that describe a span. For example, an LLM span can capture the model name, invocation parameters, token count, input messages, and output messages.
+Attributes can also carry multimodal content, such as image URLs, base64 images, audio URLs, and transcripts. See [Capture multimodal traces](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing).
 
-Attributes have the following rules:
-
-* Keys must be non-null string values.
-* Values must be a non-null string, boolean, floating point value, integer, or an array of those values.
-
-Semantic attributes are standard attribute names for common operations. Use semantic attributes where possible so Phoenix can read your trace data consistently. For details, see [Semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions).
-
-## Example OpenTelemetry spans
-
-The examples below show the shape of common OpenInference spans. Use them as references when you add manual instrumentation.
-
-<CodeGroup>
-
-```json LLM
-{
-  "name": "openai.chat",
-  "context": {
-    "trace_id": "0x6c80880dbeb609e2ed41e06a6397a0dd",
-    "span_id": "0xd9bdedf0df0b7208"
-  },
-  "kind": "SpanKind.INTERNAL",
-  "parent_id": "0x7eb5df0046c77cd2",
-  "start_time": "2024-05-08T21:46:11.480777Z",
-  "end_time": "2024-05-08T21:46:35.368042Z",
-  "status": {
-    "status_code": "OK"
-  },
-  "attributes": {
-    "openinference.span.kind": "LLM",
-    "input.value": "Write a haiku about telemetry.",
-    "output.value": "Signals cross the night...",
-    "llm.model_name": "gpt-4o-mini",
-    "llm.token_count.total": 39
-  }
-}
-```
-
-```json Retriever
-{
-  "name": "retrieve",
-  "context": {
-    "trace_id": "0x6c80880dbeb609e2ed41e06a6397a0dd",
-    "span_id": "0x03f3466720f4bfc7"
-  },
-  "kind": "SpanKind.INTERNAL",
-  "parent_id": "0x7eb5df0046c77cd2",
-  "start_time": "2024-05-08T21:46:11.044464Z",
-  "end_time": "2024-05-08T21:46:11.465803Z",
-  "status": {
-    "status_code": "OK"
-  },
-  "attributes": {
-    "openinference.span.kind": "RETRIEVER",
-    "input.value": "How do I send traces to Phoenix?",
-    "retrieval.documents.0.document.id": "getting-started",
-    "retrieval.documents.0.document.score": 0.91,
-    "retrieval.documents.0.document.content": "Install Phoenix OTEL, call register(), and attach an OpenInference instrumentor."
-  }
-}
-```
-
-</CodeGroup>
-
-## Common tracing questions
-
-### How do I log traces?
-
-To log traces, instrument your application manually or with an OpenInference instrumentation package. To send traces to a remote Phoenix instance, set `PHOENIX_COLLECTOR_ENDPOINT` to the Phoenix URL before your app starts.
-
-<Tabs>
-<Tab title="Local Phoenix">
-When Phoenix runs locally on the default port of `6006`, no extra configuration is needed.
-
-```python
-import phoenix as px
-from openinference.instrumentation.langchain import LangChainInstrumentor
-from phoenix.otel import register
-
-px.launch_app()
-
-tracer_provider = register()
-LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
-
-# Run your LangChain application.
-```
-</Tab>
-
-<Tab title="Remote Phoenix">
-If you are running a remote instance of Phoenix, set `PHOENIX_COLLECTOR_ENDPOINT` to its URL before registering. Include the scheme because the value is parsed as a URL.
-
-```python
-import os
-from openinference.instrumentation.langchain import LangChainInstrumentor
-from phoenix.otel import register
-
-# Assume Phoenix is running at 162.159.135.42:6007.
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://162.159.135.42:6007"
-
-tracer_provider = register()
-LangChainInstrumentor().instrument(tracer_provider=tracer_provider)
-
-# Run your LangChain application.
-```
-
-See [Environments](/docs/phoenix/environments) for the rest of the connection settings.
-</Tab>
-</Tabs>
-
-### How do I turn off tracing?
-
-Tracing can be paused temporarily or disabled permanently.
-
-Use `suppress_tracing` when a block of code should not emit traces. For example, you may want to skip tracing for document chunking or evaluation code.
-
-```python
-from phoenix.trace import suppress_tracing
-
-with suppress_tracing():
-    # Code running inside this block does not generate traces.
-    ...
-
-# Tracing resumes outside the block.
-```
-
-To disable an auto-instrumentor permanently, call `.uninstrument()` on the instrumentor.
-
-```python
-LangChainInstrumentor().uninstrument()
-LlamaIndexInstrumentor().uninstrument()
-OpenAIInstrumentor().uninstrument()
-```
-
-### How do I get token counts when streaming with OpenAI?
-
-To get token counts when streaming, install `openai>=1.26` and set `stream_options={"include_usage": True}` when calling `create`. For more information, see the [OpenAI streaming usage announcement](https://community.openai.com/t/usage-stats-now-available-when-using-streaming-with-the-chat-completions-api-or-completions-api/738156).
-
-```python
-response = openai.OpenAI().chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[{"role": "user", "content": "Write a haiku."}],
-    max_tokens=20,
-    stream=True,
-    stream_options={"include_usage": True},
-)
-```
-
-### Why are traces missing for a custom LangChain component?
-
-If you customize a LangChain component, such as a retriever, traces may not appear unless the component inherits from the LangChain base classes. The example below shows a custom retriever that inherits from the LangChain retriever base class.
-
-```python expandable
-from typing import List
-
-from langchain_core.callbacks import CallbackManagerForRetrieverRun
-from langchain_core.retrievers import BaseRetriever, Document
-from openinference.instrumentation.langchain import LangChainInstrumentor
-from opentelemetry import trace as trace_api
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
-endpoint = "http://127.0.0.1:6006/v1/traces"
-tracer_provider = trace_sdk.TracerProvider()
-trace_api.set_tracer_provider(tracer_provider)
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-
-LangChainInstrumentor().instrument()
-
-
-class CustomRetriever(BaseRetriever):
-    """A custom retriever that returns the top k matching documents."""
-
-    k: int
-    """Number of top results to return."""
-
-    def _get_relevant_documents(
-        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
-    ) -> List[Document]:
-        """Return matching documents."""
-        matching_documents: List[Document] = []
-
-        for index in range(self.k):
-            matching_documents.append(Document(page_content=f"dummy content at {index}", score=1.0))
-        return matching_documents
-
-
-retriever = CustomRetriever(k=3)
-
-
-if __name__ == "__main__":
-    documents = retriever.invoke("what is the meaning of life?")
-```
-
-## Next steps
+Phoenix uses these attributes to show inputs, outputs, tool calls, retrieval details, latency, cost, and errors. Auto-instrumentation sets many attributes for you. Add your own attributes with [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans). For the full reference, see [Span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) and [Semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions).
 
 <CardGroup cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/docs/phoenix/get-started/get-started-tracing">
-    Send your first traces to Phoenix
-  </Card>
-  <Card title="Auto-instrumentation" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
-    Configure Phoenix OTEL and connect your app
-  </Card>
-  <Card title="Choose an integration" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
-    Pick the framework, provider, or tool you want to trace
-  </Card>
-  <Card title="Manual instrumentation" icon="code" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
-    Add custom spans with decorators and wrappers
-  </Card>
-  <Card title="Customize spans" icon="tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans">
-    Add users, sessions, metadata, tags, and prompt-template attributes
-  </Card>
-  <Card title="OpenTelemetry and OpenInference" icon="book-open" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview">
-    Read the deeper reference for standards, exporters, resources, and span processors
-  </Card>
+  <Card title="Python Semantic Conventions" icon="python" href="https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py" />
+  <Card title="TS Semantic Conventions" icon="js" href="https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-semantic-conventions/src/trace/SemanticConventions.ts" />
 </CardGroup>
 
-## Organize and inspect traces
+## Next Step
 
-<CardGroup cols={2}>
-  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
-    Group traces by application or environment
-  </Card>
-  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
-    Group related traces into multi-turn conversations
-  </Card>
-  <Card title="Query and export spans" icon="database" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
-    Export spans to a dataframe or query spans with the SDK
-  </Card>
-  <Card title="Import and export traces" icon="file-export" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces">
-    Move trace data between Phoenix instances and external systems
-  </Card>
-  <Card title="Run evaluations" icon="chart-line" href="/docs/phoenix/get-started/get-started-evaluations">
-    Score your traces with LLM-as-a-judge evaluators
-  </Card>
-  <Card title="Cost tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
-    Track token usage and estimated cost
-  </Card>
-  <Card title="Advanced tracing patterns" icon="sliders" href="/docs/phoenix/tracing/how-to-tracing/advanced">
-    Use OpenTelemetry and OpenInference patterns when basic tracing is not enough
-  </Card>
-  <Card title="Observe traces" icon="magnifying-glass-chart" href="/docs/phoenix/observe/explore-traces">
-    Inspect trace data after your app sends it to Phoenix
-  </Card>
-</CardGroup>
+Next, add tracing to your app.
+
+<Card title="Next: Auto-instrumentation" icon="arrow-right" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel" />
+
+Use [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) when you need custom spans. Use [Agent-assisted setup](/docs/phoenix/agent-assisted-setup) when you want `px setup` to have a supported coding agent add tracing.

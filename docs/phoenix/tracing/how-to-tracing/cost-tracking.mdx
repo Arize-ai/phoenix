@@ -4,9 +4,9 @@ sidebarTitle: "Track costs"
 description: "Track LLM token usage and estimated costs in Phoenix."
 ---
 
-Phoenix tracks token-based costs for LLM runs. Costs are calculated from token counts and model pricing data, then rolled up to spans, traces, sessions, projects, and experiments.
+Phoenix tracks token-based costs for LLM calls. It calculates cost from token counts and model prices, then rolls those costs up to spans, traces, sessions, projects, and experiments.
 
-In most cases it is simplest to let Phoenix handle cost calculation using its built-in model pricing table. When custom pricing is required, you can create custom cost configurations in Settings > Models.
+In most cases, use the built-in model pricing table. If your model uses custom pricing, add or override prices in **Settings > Models**.
 
 <Frame>
   <iframe src="https://cdn.iframe.ly/rIqN5QUj" title="Phoenix cost tracking walkthrough" allowFullScreen style={{ width: '100%', height: '420px' }} allow="encrypted-media *;" className="aspect-video"></iframe>
@@ -14,11 +14,11 @@ In most cases it is simplest to let Phoenix handle cost calculation using its bu
 
 ## Send token counts
 
-For Phoenix to accurately derive costs for LLM spans, you need to provide token counts in your traces:
+Phoenix needs token counts to calculate costs for LLM spans:
 
-* If you are using OpenInference auto-instrumentation with OpenAI, Anthropic, or other supported instrumentation, token counts and model information are automatically captured.
-* If you are manually instrumenting your code, you should include the appropriate token count attributes in your spans.
-* If you are using OpenTelemetry directly, ensure that your LLM spans include the OpenInference semantic conventions for token counts.
+* If you use OpenInference auto-instrumentation with OpenAI, Anthropic, or another supported provider, Phoenix receives token counts and model information automatically.
+* If you instrument spans manually, include the token count attributes on your LLM spans.
+* If you use OpenTelemetry directly, use the OpenInference semantic conventions for token counts.
 
 ### Required span attributes for cost tracking
 
@@ -36,12 +36,12 @@ Phoenix uses the [OpenInference semantic conventions](https://arize-ai.github.io
 
 | Attribute        | Type   | Description                                                      |
 | :---------------- | :------ | :---------------------------------------------------------------- |
-| `llm.model_name` | String | The name of the language model being utilized                    |
+| `llm.model_name` | String | The name of the language model used                              |
 | `llm.provider`   | String | The hosting provider of the LLM, such as `openai`, `anthropic`, or `azure` |
 
 ### Detailed token breakdown (optional)
 
-For more granular cost tracking, you can provide detailed token counts:
+You can also provide detailed token counts:
 
 #### Prompt token details
 
@@ -60,7 +60,7 @@ For more granular cost tracking, you can provide detailed token counts:
 
 ## Model pricing configuration
 
-Phoenix includes a model pricing table with built-in support for popular providers, including:
+Phoenix includes a model pricing table for common providers, including:
 
 * OpenAI
 * Anthropic
@@ -73,7 +73,7 @@ Phoenix includes a model pricing table with built-in support for popular provide
 
 ### Managing model prices
 
-You can view and manage model pricing through the Phoenix UI:
+You can view and manage model prices in the Phoenix UI:
 
 <Steps>
 <Step>
@@ -91,7 +91,7 @@ Set different prices for prompt tokens and completion tokens.
 </Steps>
 ### Adding a custom model
 
-To add pricing for a model not in the built-in table:
+To add pricing for a model that is not in the built-in table:
 
 1. Click **Add new model** in the Models settings page
 2. Fill in the model details:
@@ -102,22 +102,22 @@ To add pricing for a model not in the built-in table:
    * **Completion cost**: Cost per 1M output tokens
    * **Start date**: When this pricing becomes effective (optional)
 
-### Advanced pricing configuration
+### Detailed pricing configuration
 
-For models with complex pricing structures, you can configure detailed token pricing:
+For models with more detailed pricing, configure token-specific rates:
 
 * **Prompt price breakdown**: Different rates for cache read, cache write, audio, image, and video tokens
 * **Completion price breakdown**: Different rates for reasoning, audio, and image tokens
 * **Provider matching**: Match models by provider to avoid naming conflicts
 
-## Viewing cost data
+## View cost data
 
-Once configured, Phoenix automatically displays cost information throughout the interface:
+After Phoenix has token counts and model prices, it shows cost data across the app.
 
 ### Trace-level costs
 
 * Total cost for the entire trace
-* Breakdown by prompt vs completion costs
+* Breakdown by prompt and completion costs
 
 ### Span-level costs
 
@@ -127,8 +127,7 @@ Once configured, Phoenix automatically displays cost information throughout the 
 ### Session-level costs
 
 * Aggregated costs across all traces within a session
-* Session-based cost analysis for multi-turn conversations
-* Cost tracking for extended user interactions
+* Cost across multi-turn conversations
 
 ### Experiment-level costs
 
@@ -137,7 +136,7 @@ Phoenix tracks costs for traced experiments and shows cost across experiment run
 * **Total experiment cost**: Sum of all LLM costs across all experiment runs
 * **Cost per experiment run**: Individual cost for each dataset example run through an experiment
 
-Experiment costs are calculated when you:
+Experiment costs are available when you:
 
 1. Run experiments on datasets through Phoenix
 2. Include proper token count and model information in your traced LLM calls

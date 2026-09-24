@@ -4,15 +4,15 @@ sidebarTitle: "Auto-instrumentation"
 description: "Connect your application to Phoenix and choose an instrumentation method."
 ---
 
-import AgentAssistedOnboarding from "../../../../snippets/agent-assisted-onboarding.mdx";
-
 Start sending traces to Phoenix by configuring OpenTelemetry and choosing an instrumentation method. The Phoenix OTEL SDK wraps OpenTelemetry with Phoenix defaults.
+
+<Info>
+Prefer agent-assisted setup? Use [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) to have `px setup` hand the instrumentation work to a supported coding agent and verify that traces arrive. This page shows the code path.
+</Info>
 
 <Note>
 **Go users:** Phoenix does not ship a branded `phoenix-otel` SDK wrapper for Go. Configure the standard [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/) directly and point an OTLP/HTTP exporter at Phoenix. End-to-end examples live in the Go integration pages: [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk), [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go), and [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
 </Note>
-
-<AgentAssistedOnboarding />
 
 ## Choose an approach
 
