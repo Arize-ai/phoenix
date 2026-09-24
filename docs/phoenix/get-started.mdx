@@ -4,60 +4,41 @@ title: "Overview"
 
 import AgentAssistedOnboarding from "../snippets/agent-assisted-onboarding.mdx";
 
-This guide walks through a complete workflow for understanding and improving an agent application using Phoenix.
+Use this series to instrument an AI agent, turn traces into a dataset, run experiments, and score outputs in Phoenix.
 
-The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
+You will start with request-level traces, then reuse selected traces as test examples for prompt and agent changes.
 
-## **What You’ll End Up With**
+## **What you'll build**
 
 By the end of this series, you will have:
 
-- An application instrumented with tracing so you can see how requests execute
-- Evaluation results attached to those executions so you can tell whether outputs are correct
-- Datasets that group related runs, such as failures or edge cases
-- Experiments that compare changes using the same inputs
-- A way to iterate on prompts and logic and verify whether those changes help
+- Traces that show how agent requests execute
+- A dataset built from traced inputs, outputs, and metadata
+- Experiments that run agent or prompt variants over the same examples
+- Evaluator scores for comparing variants per example
 
-Together, these pieces let you move from inspecting individual runs to making changes with evidence.
+That gives you a repeatable loop: inspect traces, select examples, run variants, and compare evaluator results.
 
-## **How the Guides Fit Together**
+## **How the guides fit together**
 
-### **Tracing**
+### **Observe your agent**
 
-Tracing answers a basic question: what is happening under the hood of my application when it runs?
+Tracing shows how one agent request executed.
 
-A trace is a record of a single run of your application, broken down into spans that show what happened at each step. In this guide, you instrument an application and send trace data to Phoenix. Traces show how agents, tasks, and tools executed during a run, and provide the raw data needed for everything that follows.
+A trace is a record of a single agent request, broken down into spans that show how LLM calls, data lookups, tool calls, and other steps executed. In this guide, you instrument an agent and send trace data to Phoenix.
 
-This gives you an end-to-end view of execution that is difficult to reconstruct from logs alone.
+Selected traces become dataset examples for the evaluation guide.
 
-### **Evals**
+### **Evaluate your agent**
 
-Once you can see what happened, the next question is whether the output was correct.
+After traces are flowing, evaluate whether outputs satisfy your criteria.
 
-An evaluation produces a score or label for an output, so you can track quality across runs. In this guide, you define evaluations and run them on existing trace data. Evaluations attach quality signals to runs so that correctness or relevance can be reasoned about consistently instead of judged case by case.
+In the evaluation guide, you turn traces into a dataset, run an experiment, and score outputs with evaluators. You can use the Prompt Playground to test prompt edits in the UI, or run your agent over the dataset in code.
 
-This turns traces from observations into something you can measure.
-
-### **Prompts**
-
-Prompt changes often have a direct impact on application behavior.
-
-A prompt is the set of instructions and context sent to the model to produce an output. In this guide, you start from real prompts captured during executions, group failing runs into a dataset, and use the Prompt Playground to iterate on prompt variants. Prompt Hub is used to save and reuse prompts across runs.
-
-This lets you evaluate prompt changes using the same data and criteria instead of relying on spot checks.
-
-### **Experiments**
-
-Once you have changes you want to test, experiments let you compare versions in a controlled way.
-
-An experiment is a structured comparison between versions of your application using the same inputs and evaluation criteria. In this guide, you pull down an existing dataset and run experiments in code to compare different versions of your application using the same inputs and evaluation criteria. This makes it possible to test changes and verify whether they actually improve quality.
-
-This lets you compare versions using the exact same inputs, so differences in results come from your changes.
-
-## **Where to Start**
+## **Where to start**
 
 <AgentAssistedOnboarding />
 
-Or do it yourself: start with [Python: Get Started with Tracing](/docs/phoenix/get-started/get-started-tracing) or [TypeScript: Get Started with Tracing](/docs/phoenix/get-started/ts-get-started-tracing) and follow the guides in order. Each step assumes the previous one is in place.
+For manual setup, start with [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing), pick the Python or TypeScript tab, and follow the guides in order. Each step assumes the previous one is in place.
 
-Taken together, these guides describe a single workflow for understanding behavior, measuring quality, and improving an application in a controlled way.
+The flow is: trace requests, create a dataset, run experiments, attach evaluators, and compare variants.

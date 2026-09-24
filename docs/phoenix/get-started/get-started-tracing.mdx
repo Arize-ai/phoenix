@@ -1,205 +1,291 @@
 ---
-title: "Send Traces From Your App"
+title: "Observe Your Agent"
 ---
 
 import StartPhoenix from "../../snippets/start-phoenix.mdx";
 import PhoenixAuthNote from "../../snippets/phoenix-auth-note.mdx";
 
-This guide walks through a complete workflow for understanding and improving an agent application using Phoenix. The goal is not just to run an application, but to understand how it behaves, determine whether its outputs are correct, and make changes that can be tested and verified. Each guide in this series introduces one piece of that workflow and builds on the previous one.
+This page walks through the steps for sending your first trace to Phoenix. Need to learn more about tracing first? [What are traces](/docs/phoenix/tracing/concepts-tracing/what-are-traces) explains spans and attributes, and [How tracing works](/docs/phoenix/tracing/concepts-tracing/how-tracing-works) explains what happens between your app and Phoenix.
 
-A trace is a record of a single run of your application, broken down into spans that show what happened at each step (how agents, tasks, and tools executed) and provides the raw data needed for everything that follows.
+Phoenix is the open source product offered by Arize. Run it locally from your terminal, inside a notebook, or [self-hosted](/docs/phoenix/self-hosting) on your own infrastructure. The instrumentation stays the same whichever you pick, and only `PHOENIX_COLLECTOR_ENDPOINT` changes.
 
-In this guide, you'll set up tracing and instrument an application: we'll start a local Phoenix instance, build a simple agent, and send a single trace so you can see the full flow end to end.
+## Agent-assisted setup (Recommended)
 
-We’ll use the CrewAI framework in Python, but Phoenix works with many agent frameworks and orchestration libraries. You can find the full list of supported frameworks on our [Integrations page](/docs/phoenix/integrations).
+<Card>
+  <Tabs>
+    <Tab title="Run px setup">
+      Start Phoenix, or point at an existing deployment.
 
-<Note>
-  **Have an existing app?** Your coding agent can instrument it for you. See [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup). This guide builds and instruments a demo agent by hand.
-</Note>
+      ```bash
+      uvx arize-phoenix serve
+      ```
 
-## **Before We Start**
+      Then, from your project root:
 
-To follow along, you’ll need an [OpenAI API key](https://platform.openai.com/api-keys) & a [Serper Dev Key](https://serper.dev/signup).
+      ```bash
+      npx -y @arizeai/phoenix-cli setup
+      ```
 
-We’ll be using OpenAI as our LLM provider & Serper as our Web Search Tool for our chatbot.
+      Follow the prompts. It asks for a project name and API key if needed, writes `.env.phoenix`, hands instrumentation to Claude Code, Codex, Cursor, or OpenCode, and doesn't finish until a real trace arrives.
 
----
+      When it finishes, open your project in Phoenix and select the **Traces** tab. You should see one trace per request, and clicking into one shows the spans, prompts, responses, and timing.
 
-<Info>
-  **Follow along with code**: This guide has a companion notebook with runnable
-  code examples. Find it
-  [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstarts/python_quickstart.ipynb).
-</Info>
+      See the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) page for a global install, supported agents, CI flags, and troubleshooting.
+    </Tab>
 
----
+    <Tab title="Ask your coding agent">
+      For an agent `px setup` does not support, install the skills and ask it yourself.
+
+      ```bash
+      npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
+      ```
+
+      Start Phoenix, then paste the prompt below from your project root.
+
+      ```bash
+      uvx arize-phoenix serve
+      ```
+
+      ```text
+      Use the Phoenix tracing skill to instrument this application.
+
+      First inspect the codebase and identify the LLM providers, frameworks,
+      package manager, and existing OpenTelemetry setup. Then propose the
+      Phoenix instrumentation plan before changing code.
+      ```
+
+      If your agent cannot install skills, use the [Phoenix tracing setup prompt](https://raw.githubusercontent.com/Arize-ai/phoenix/main/docs/PROMPT.md) instead.
+    </Tab>
+  </Tabs>
+</Card>
+
+## Manual setup
+
+Use this path when you want to add the tracing code yourself.
 
 <Steps>
   <Step title={<span className="step-title">Start Phoenix</span>}>
-    Before we can send traces anywhere, we need Phoenix running.
+    Phoenix has to be running before anything can send traces to it. It ships as a Python package, so `uvx` is the quickest local option even if your agent is TypeScript.
 
     <StartPhoenix />
   </Step>
 
-  <Step title={<span className="step-title">Configure your Environment</span>}>
-    Now that Phoenix is running, we need to connect our application to it so we can start sending traces.
+  <Step title={<span className="step-title">Get your keys</span>}>
+    The example below calls OpenAI, so you need an [OpenAI API key](https://platform.openai.com/api-keys).
 
-    In this step, we’ll install the required dependencies and configure a few environment variables. This setup is what allows Phoenix to receive trace data from our application. Once it’s in place, running the application will automatically create a project in the Phoenix UI and record each traced run there.
+    <PhoenixAuthNote />
+  </Step>
 
-    We’ll now install both the CrewAI package and the OpenInference CrewAI auto-instrumentation package, which handles tracing for us without requiring manual instrumentation.
+  <Step title={<span className="step-title">Set up tracing</span>}>
+    <Tabs>
+      <Tab title="Python">
+    Install Phoenix's tracing helper, OpenAI, and the OpenInference OpenAI instrumentor. The tracing packages need Python 3.10 or later; on an older Python, `pip` installs outdated versions without warning.
 
-    ### **Install Your Packages**
-
+    ```bash
+    pip install -U arize-phoenix-otel openai openinference-instrumentation-openai
     ```
-    %pip install -qqqqq arize-phoenix crewai crewai-tools openinference-instrumentation-crewai openinference-instrumentation-openai openai
-    ```
 
-    ### **Set Your API Keys**
+    Create a file named `quickstart.py`. Set your OpenAI key and point tracing at your local Phoenix instance.
 
     ```python
     import os
 
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-    os.environ["SERPER_API_KEY"] = "<ENTER YOUR SERPER API KEY>"
     os.environ["OPENAI_API_KEY"] = "<ENTER YOUR OPENAI API KEY>"
+    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
     ```
 
-    <PhoenixAuthNote />
-
-    ### **Register Your Project in Phoenix**
-
-    Next, we’ll register a tracer provider linked to a project in Phoenix. This project is where your traces will show up in the UI.
+    Register a Phoenix tracer provider and instrument OpenAI.
 
     ```python
+    from openai import OpenAI
+    from openinference.instrumentation.openai import OpenAIInstrumentor
     from phoenix.otel import register
 
-    tracer_provider = register(project_name="crewai-tracing-quickstart", auto_instrument=True)
+    tracer_provider = register(
+        project_name="tracing-quickstart",
+        protocol="http/protobuf",
+    )
+    tracer = tracer_provider.get_tracer(__name__)
+    OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+
+    client = OpenAI()
     ```
 
-    At this point, your application is configured to send traces to Phoenix!
+    After this registration, OpenAI calls are exported to Phoenix as traces.
+      </Tab>
+
+      <Tab title="TypeScript">
+    Install OpenAI, Phoenix's TypeScript tracing helper, and the OpenInference OpenAI instrumentor.
+
+    ```bash
+    npm install openai @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai dotenv tsx
+    ```
+
+    Add these environment variables to `.env`.
+
+    ```bash
+    OPENAI_API_KEY=<ENTER YOUR OPENAI API KEY>
+
+    PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+    PHOENIX_PROJECT=tracing-quickstart
+    ```
+
+    Create an instrumentation file named `instrumentation.ts`, and import it before your agent makes OpenAI calls.
+
+    ```typescript
+    import "dotenv/config";
+
+    import OpenAI from "openai";
+    import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+    import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
+
+    export const provider = register({
+      projectName:
+        process.env.PHOENIX_PROJECT ??
+        process.env.PHOENIX_PROJECT_NAME ??
+        "tracing-quickstart",
+      url: process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006",
+      apiKey: process.env.PHOENIX_API_KEY,
+    });
+
+    const instrumentation = new OpenAIInstrumentation();
+    instrumentation.manuallyInstrument(OpenAI);
+
+    registerInstrumentations({
+      instrumentations: [instrumentation],
+    });
+    ```
+
+    After this registration, OpenAI calls are exported to Phoenix as traces.
+      </Tab>
+    </Tabs>
   </Step>
 
-  <Step title={<span className="step-title">Create your Agent</span>}>
-    Now that Phoenix is running and our environment is configured, we can start building the application so we can generate real execution and send traces to Phoenix.
-
-    In this step, we’ll create a simple Financial Analysis and Research chatbot. This tutorial we will use CrewAI, but you can build agents in any of these [different frameworks ](https://arize.com/docs/phoenix/integrations) for auto-integration with Phoenix.
-
-    This agent is made up of:
-
-    - Two sub-agents: a Research agent and a Writer agent
-    - Two tasks: one for financial research and one for generating a summary report
-    - One tool: SerperDevTool for real-time web search
-
-    ### **Define the Agents**
-
-    We’ll start by defining the two agents that make up our crew & the tool the agents may use.
+  <Step title={<span className="step-title">Generate some traces</span>}>
+    <Tabs>
+      <Tab title="Python">
+    Add a small support-assistant function, then send representative requests through it.
 
     ```python
-    from crewai import Agent, Crew, Process, Task
-    from crewai_tools import SerperDevTool
+    @tracer.chain(name="support_reply")
+    def run_my_app(user_input: str) -> str:
+        response = client.chat.completions.create(
+            model="gpt-5-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a concise support assistant. Ask one clarifying question when needed.",
+                },
+                {"role": "user", "content": user_input},
+            ],
+        )
+        return response.choices[0].message.content or ""
 
-    search_tool = SerperDevTool()
+    inputs = [
+        "Draft a short reply about why an invoice changed.",
+        "A customer says an upload failed twice. Ask one question before troubleshooting.",
+        "Write a reply for a customer asking about a delayed refund.",
+        "Help a user who cannot reset their password.",
+        "Ask one question to debug a dashboard that suddenly became slow.",
+    ]
 
-    researcher = Agent(
-        role="Financial Research Analyst",
-        goal="Gather up-to-date financial data, trends, and news for the target companies or markets",
-        backstory="""
-            You are a Senior Financial Research Analyst.
-        """,
-        verbose=True,
-        allow_delegation=False,
-        max_iter=2,
-        tools=[search_tool],
-    )
+    for user_input in inputs:
+        print(run_my_app(user_input))
 
-    writer = Agent(
-        role="Financial Report Writer",
-        goal="Compile and summarize financial research into clear, actionable insights",
-        backstory="""
-            You are an experienced financial content writer.
-        """,
-        verbose=True,
-        allow_delegation=True,
-        max_iter=1
-    )
+    tracer_provider.force_flush()
     ```
 
-    ### **Define the Tasks & Tool**
+    Run the file.
 
-    Next, we’ll define the tasks each agent is responsible for.
-
-    ```python
-    task1 = Task(
-        description="""
-            Research: {tickers}
-            Focus on: {focus}
-        """,
-        expected_output="Detailed financial research summary with web search findings",
-        agent=researcher,
-    )
-
-    task2 = Task(
-        description="Write a report based on the research above.",
-        expected_output="A polished financial analysis report",
-        agent=writer,
-    )
+    ```bash
+    python quickstart.py
     ```
 
-    ### **Create and Run the Crew**
+    Replace the support assistant with your agent's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
+      </Tab>
 
-    Finally, we’ll wire the agents and tasks together and run them sequentially.
+      <Tab title="TypeScript">
+    Create a file named `app.ts`, add a small support-assistant function, then send representative requests through it.
 
-    ```python
-    crew = Crew(
-        agents=[researcher, writer],
-        tasks=[task1, task2],
-        verbose=True,
-        process=Process.sequential,
-    )
-    ```
+    ```typescript
+    import OpenAI from "openai";
+    import { traceChain } from "@arizeai/phoenix-otel";
+    import { provider } from "./instrumentation";
 
-    At this point, we have a working CrewAI setup with multiple agents, tasks, and a tool. In the next step, we’ll run the crew and see how its execution shows up as a trace in Phoenix!
-  </Step>
+    const client = new OpenAI();
 
-  <Step title={<span className="step-title">Look at the Trace in Phoenix</span>}>
-    Now that we’ve defined our chatbot, all that’s left to do is run it and see what Phoenix captures.
+    const runMyApp = traceChain(
+      async (userInput: string): Promise<string> => {
+        const response = await client.chat.completions.create({
+          model: "gpt-5-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a concise support assistant. Ask one clarifying question when needed.",
+            },
+            { role: "user", content: userInput },
+          ],
+        });
+        return response.choices[0]?.message?.content ?? "";
+      },
+      { name: "support_reply" }
+    );
 
-    To run the agent, execute the following:
+    const inputs = [
+      "Draft a short reply about why an invoice changed.",
+      "A customer says an upload failed twice. Ask one question before troubleshooting.",
+      "Write a reply for a customer asking about a delayed refund.",
+      "Help a user who cannot reset their password.",
+      "Ask one question to debug a dashboard that suddenly became slow.",
+    ];
 
-    ```python
-    user_inputs = {
-        "tickers": "TSLA",
-        "focus": "financial analysis and market outlook"
+    async function main() {
+      for (const userInput of inputs) {
+        console.log(await runMyApp(userInput));
+      }
+
+      await provider.shutdown();
     }
 
-    result = crew.kickoff(inputs=user_inputs)
+    main().catch(async (error) => {
+      console.error(error);
+      await provider.shutdown();
+      process.exit(1);
+    });
     ```
 
-    Once the run completes, head back to Phoenix and navigate to the **Traces** view. You should see a new trace corresponding to this run. Click into it to explore how the agents and tasks are executed.
+    Run the file.
 
-    <video
-      controls
-      className="w-full aspect-video rounded-xl"
-      src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/first_trace_onboarding.mov"
-    />
+    ```bash
+    npx tsx app.ts
+    ```
 
-    At this point, you can follow the full execution of the chatbot as a single trace in Phoenix.
+    Replace the support assistant with your agent's entry point when you are ready. Include typical requests plus edge cases so Phoenix captures both normal behavior and failure-prone paths.
+      </Tab>
+    </Tabs>
+  </Step>
 
-    More importantly, you can now see how your application actually ran:
+  <Step title={<span className="step-title">Look at the trace in Phoenix</span>}>
+    Once the runs complete, head back to Phoenix, open your project, and select the **Traces** tab. You should see one trace per request. Click into a trace to inspect the spans, prompts, responses, timing, and errors.
 
-    - Which agents were invoked and in what order
-    - How tasks flowed from one step to the next
-    - Where time was spent across the workflow
-
-    This is something you couldn’t see before tracing. Instead of guessing how an agent run behaved or digging through logs, you now have a single, end-to-end view of each execution.
-
-    **Congratulations!** You’ve sent your first trace to Phoenix.
+    <Frame caption="Traces from the support assistant">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/get-started/tracing-quickstart-trace-detail.png"
+        alt="Phoenix Traces view showing multiple support_reply traces and an opened trace with input and output"
+      />
+    </Frame>
   </Step>
 </Steps>
 
-## **Learn More About Traces**
+## Learn more about traces
 
-You’ve now sent a trace to Phoenix and seen how an agent runs shows up from start to finish.
+Other ways to read your traces:
 
-The next step you can take is to run evaluations on your application to start measuring where it is working well and where it needs some iteration to improve performance. Follow along with the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations) to add even more value to setting up tracing.
+- **In code**, with [Extract data from spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans).
+- **From a coding agent**, with the [CLI](/docs/phoenix/integrations/developer-tools/cli) or [MCP](/docs/phoenix/integrations/mcp).
+- **By asking [PXI](/docs/phoenix/pxi)**, for example *"why did this trace fail?"*
+- **Across multi-turn conversations**, with [Sessions](/docs/phoenix/tracing/llm-traces/sessions).
 
-If you want to focus on tracing and go deeper into just looking at your traces, the [Tracing Tutorial ](https://arize.com/docs/phoenix/tracing/tutorial)walks through how to interpret traces in more detail: including how to read spans, understand timing, and use trace data to debug and analyze your application.
+To go deeper on tracing, the [Tracing Tutorial](/docs/phoenix/tracing/tutorial) covers how to read spans, understand timing, and use trace data to debug and analyze your agent.
+

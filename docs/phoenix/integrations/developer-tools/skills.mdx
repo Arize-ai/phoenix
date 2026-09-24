@@ -1,0 +1,80 @@
+---
+title: "Skills"
+description: Teach your coding agent Phoenix's conventions for the CLI, tracing, and evals, so it gets them right the first time.
+---
+
+A skill is a set of instructions your coding agent loads when a task matches it, such as debugging with the `px` CLI or writing an evaluator. Phoenix ships its skills in the [Phoenix repository](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills), and the [Set Up Your Agent](/docs/phoenix/integrations/developer-tools/coding-agents) paths install them for you. This page is for installing or updating them on their own.
+
+## Install
+
+```bash
+npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
+```
+
+This writes each skill into the project's agent directory, such as `.claude/skills/` or `.cursor/skills/`, and lists what it installed and for which agents. Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents). It needs no Phoenix instance and no traces.
+
+Two other routes install the same skills: `px setup skills` from the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli), and the [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins), which registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`. The [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) also serves every skill through its `load_skill` tool, so a connected client can use them with nothing installed.
+
+## What your agent can do with them
+
+<CardGroup cols={2}>
+  <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-cli/SKILL.md">
+    Debug LLM apps using Phoenix CLI for traces, experiments, datasets, and prompts. Recommended.
+  </Card>
+  <Card title="phoenix-error-analysis" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-error-analysis/SKILL.md">
+    Read sampled traces, write free-form notes, then group them into a failure taxonomy that picks eval targets and fix priorities.
+  </Card>
+  <Card title="phoenix-evals" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-evals/SKILL.md">
+    Build and run evaluators for AI/LLM apps across code-based and LLM-as-judge workflows.
+  </Card>
+  <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-tracing/SKILL.md">
+    Implement OpenInference tracing conventions and instrumentation in Python and TypeScript.
+  </Card>
+  <Card title="phoenix-harbor" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-harbor/SKILL.md">
+    Configure Harbor agent evaluations and interpret their Phoenix experiments, scores, and ATIF traces.
+  </Card>
+</CardGroup>
+
+Example prompt, with `phoenix-error-analysis` installed:
+
+```text
+Review the last 50 traces in my support-agent project and tell me what categories of failures we have
+```
+
+## Learn more
+
+- [Set Up Your Agent](/docs/phoenix/integrations/developer-tools/coding-agents) installs skills alongside the CLI and MCP server.
+- [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) is what the `phoenix-cli` skill teaches an agent to use.
+- [Agent Skills specification](https://agentskills.io/specification) is the format these follow.
+
+## Reference
+
+### `skills add` options
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | Install to user directory instead of project |
+| `-a, --agent <agents...>` | Target specific agents (for example, `claude-code`, `cursor`) |
+| `-s, --skill <skills...>` | Install specific skills by name |
+| `-l, --list` | List available skills without installing |
+| `-y, --yes` | Skip confirmation prompts |
+
+Examples:
+
+```bash
+# Install the CLI skill globally for all projects
+npx skills add Arize-ai/phoenix --skill phoenix-cli -g
+
+# Install CLI + tracing skills together
+npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
+
+# Install for specific coding agents
+npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
+
+# Non-interactive installation
+npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
+```
+
+### Add your own skills
+
+Point `PHOENIX_SKILLS_PATHS` on the Phoenix server at your own skill directories. The Remote MCP Server serves them to every connected client, and PXI lists them in its skill picker. See [Mounting your own skills](/docs/phoenix/integrations/mcp#mounting-your-own-skills).
