@@ -30,12 +30,12 @@ with a travel support prompt, and tell me which examples scored lowest and why.
   <Step title={<span className="step-title">Start with a handful of examples</span>}>
     A dataset is a fixed set of examples you test every change against.
 
-    1. Download [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv). Three travel support questions with the answer each one should get.
+    1. Download [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv). Three questions about a fictional airline's Basic fare, with the answer each one should get.
     2. Go to **Datasets** and click **New Dataset**.
     3. Drop the file on the upload area. Phoenix accepts `.csv` and `.jsonl`.
     4. Map `question` to **input** and `expected_answer` to **output**, then create the dataset.
 
-    Two of the three are cases a weak prompt gets wrong: it invents visa rules, and it agrees to a refund it should decline.
+    The answers are specific to this airline and deliberately differ from industry norms, so a model cannot guess them. That is the point: the prompt has to supply the policy.
 
     <Note>
       Already have traces? Build the dataset from real failures instead. Filter the spans table with an expression such as `status_code == 'ERROR'` or `latency_ms > 1000`, or ask [PXI](/docs/phoenix/pxi) to identify traces with issues, then select those spans and click **Add to Dataset**.
@@ -87,16 +87,17 @@ with a travel support prompt, and tell me which examples scored lowest and why.
   </Step>
 
   <Step title={<span className="step-title">Prove the change helped</span>}>
-    The baseline prompt gives the model no guidance on the hard cases, so it tends to invent visa rules and agree to refunds it should decline. Add a rule for each.
+    The baseline prompt has no way to know this airline's policy, so it answers from industry norms and gets all three wrong. Give it the policy.
 
     1. Replace the user prompt with this version:
 
        ```text
-       You are a travel support agent. Answer the customer's question.
+       You are a travel support agent. Answer the customer's question using this policy.
 
-       Rules:
-       - Visa and entry requirements: do not answer from memory. Point the customer to an official government source.
-       - Non-refundable fares: do not promise a refund. Say what is recoverable, such as taxes or a travel credit.
+       Basic fare policy:
+       - Full refund if cancelled within 48 hours of booking.
+       - Can be changed once for a 40 dollar fee, plus any price difference.
+       - Includes one checked bag. A second bag is 45 dollars.
 
        Question: {{question}}
        ```
