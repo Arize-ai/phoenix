@@ -14,16 +14,16 @@ Both reach the same Phoenix data.
 
 | | Phoenix CLI (`px`) | [MCP server](/docs/phoenix/integrations/mcp) |
 | --- | --- | --- |
-| Client needs | A shell | MCP support, a config entry, and a login |
+| Client needs | The ability to run shell commands | MCP support, a config entry, and a login |
 | Setup | Install, set `PHOENIX_ENDPOINT` | `px setup mcp --agent <agent>` |
 | Surface | The `px` commands | Around 116 operations, composed in one `execute` call |
 | Output | Tables, or `--format json` | Results filtered and joined server-side |
 
-Start with the CLI when your agent has a terminal. Add the MCP server when the client cannot run shell commands, such as Claude Desktop or a chat-only IDE panel, or when you want the agent to aggregate across many operations in one step. Running both is common.
+Start with the CLI. Every coding agent can run shell commands, so it works everywhere with no client setup. Add the MCP server if your client cannot run shell commands, such as Claude Desktop or a chat-only IDE panel, or if you want the agent to aggregate across many operations in one step. Running both is common.
 
 ## Set up the CLI
 
-Install it on the machine your agent runs commands on, usually your own, and tell it which Phoenix instance to talk to. Once the last step returns your projects, your agent can use every command on this page.
+Install it on the machine your agent runs commands on, usually your own, and tell it which Phoenix instance to talk to. Once the last step returns a project table, your agent can use every command on this page.
 
 <Steps>
   <Step title="Install">
@@ -46,7 +46,7 @@ Install it on the machine your agent runs commands on, usually your own, and tel
     px project list
     ```
 
-    A table of your projects means the CLI reached your instance. Not sending traces yet? [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) covers `px setup`, which wires a project to Phoenix and waits for a real trace.
+    Every Phoenix has a project named `default`, so this returns at least one row on a fresh instance. A wrong endpoint fails with `Error fetching projects: fetch failed`. Not sending traces yet? [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) covers `px setup`, which wires a project to Phoenix and waits for a real trace.
   </Step>
 </Steps>
 
