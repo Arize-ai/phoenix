@@ -96,21 +96,7 @@ const PAGE_SIZE = 30;
 /** Labels for columns whose header is not a plain string. */
 const COLUMN_LABELS: Partial<Record<string, string>> = {
   meanScore: "mean score",
-  meanScoreStep: "mean score (step)",
-  meanScoreCoverage: "mean score (coverage)",
-  meanScoreStepCoverage: "mean score (step + coverage)",
 };
-
-/**
- * The mean score column ids. Four render the same data with different
- * sparkline marks while the mark is under design review; one will remain.
- */
-const MEAN_SCORE_COLUMN_IDS = [
-  "meanScore",
-  "meanScoreStep",
-  "meanScoreCoverage",
-  "meanScoreStepCoverage",
-] as const;
 
 const scrollableAreaCSS = css`
   flex: 1 1 auto;
@@ -345,8 +331,8 @@ export function ProjectEvaluatorsTable({
       getEvaluatorScoreWindow({ timeRange: pageTimeRange, utcOffsetMinutes }),
     [pageTimeRange, utcOffsetMinutes]
   );
-  const isMeanScoreColumnVisible = useProjectEvaluatorsTableContext((state) =>
-    MEAN_SCORE_COLUMN_IDS.some((id) => state.columnVisibility[id] !== false)
+  const isMeanScoreColumnVisible = useProjectEvaluatorsTableContext(
+    (state) => state.columnVisibility["meanScore"] !== false
   );
   // Latched: once the mean score column has been shown, keep fetching its
   // data so hiding and re-showing it does not churn the connection. Set
@@ -503,57 +489,6 @@ export function ProjectEvaluatorsTable({
               outputConfigs: row.original.evaluator.outputConfigs,
             })}
             scoreMetrics={row.original.annotationScoreMetrics}
-          />
-        ),
-      },
-      {
-        id: "meanScoreStep",
-        header: () => (
-          <ProjectEvaluatorMeanScoreHeader label="mean score (step)" />
-        ),
-        size: 280,
-        cell: ({ row }) => (
-          <ProjectEvaluatorMeanScoreCell
-            annotations={getProjectEvaluatorResultAnnotations({
-              name: row.original.name,
-              outputConfigs: row.original.evaluator.outputConfigs,
-            })}
-            scoreMetrics={row.original.annotationScoreMetrics}
-            sparklineVariant="step"
-          />
-        ),
-      },
-      {
-        id: "meanScoreCoverage",
-        header: () => (
-          <ProjectEvaluatorMeanScoreHeader label="mean score (coverage)" />
-        ),
-        size: 280,
-        cell: ({ row }) => (
-          <ProjectEvaluatorMeanScoreCell
-            annotations={getProjectEvaluatorResultAnnotations({
-              name: row.original.name,
-              outputConfigs: row.original.evaluator.outputConfigs,
-            })}
-            scoreMetrics={row.original.annotationScoreMetrics}
-            sparklineVariant="coverage"
-          />
-        ),
-      },
-      {
-        id: "meanScoreStepCoverage",
-        header: () => (
-          <ProjectEvaluatorMeanScoreHeader label="mean score (step + coverage)" />
-        ),
-        size: 280,
-        cell: ({ row }) => (
-          <ProjectEvaluatorMeanScoreCell
-            annotations={getProjectEvaluatorResultAnnotations({
-              name: row.original.name,
-              outputConfigs: row.original.evaluator.outputConfigs,
-            })}
-            scoreMetrics={row.original.annotationScoreMetrics}
-            sparklineVariant="step-coverage"
           />
         ),
       },

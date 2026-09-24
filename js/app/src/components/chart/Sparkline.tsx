@@ -25,19 +25,6 @@ export type SparklineBinRange = {
   end: number;
 };
 
-/**
- * How the drawn points are marked on the shared bin axis.
- * - `line`: a polyline through the bin centers, shaded to the baseline; an
- *   isolated value is a dot over a one-bin column.
- * - `step`: a flat segment across each bin, joined vertically within a run
- *   and shaded to the baseline. A daily mean reads as the whole day's level.
- * - `coverage`: the `line` marks without shading, over a strip along the
- *   baseline with one cell per bin: filled where data exists, faint where it
- *   doesn't.
- * - `step-coverage`: the `step` marks without shading, over the same strip.
- */
-export type SparklineVariant = "line" | "step" | "coverage" | "step-coverage";
-
 export interface SparklineProps {
   /**
    * One value per time bin, in time order. Every bin occupies its own x
@@ -47,11 +34,10 @@ export interface SparklineProps {
    *
    * When there are more bins than the rendered width can resolve, runs of
    * adjacent bins are merged into one drawn point (a weighted mean, see
-   * `weights`) so the line keeps a few pixels per point instead of collapsing
-   * into noise. The line breaks at every empty drawn point rather than
-   * interpolating across it; an isolated value draws as a dot over a
-   * one-point column. Every run is shaded down to the baseline, so a sparse
-   * series still reads as a chart rather than as scattered marks.
+   * `weights`) so each step keeps a few pixels instead of collapsing into
+   * noise. Each drawn point is a flat step across the bins it covers; steps
+   * join vertically within a run and break at every empty point rather than
+   * interpolating across it.
    */
   values: ReadonlyArray<number | null>;
   /**
@@ -68,8 +54,15 @@ export interface SparklineProps {
   minRange?: number;
   /** Stroke color, e.g. a design token var. */
   color: string;
-  /** The mark style. @default "line" */
-  variant?: SparklineVariant;
+  /**
+   * Whether to draw a coverage strip along the baseline: one cell per drawn
+   * bin, filled where the bin carries a value and faint where it doesn't, so
+   * presence reads separately from level. With the strip, the steps go
+   * unshaded; without it, every run is shaded down to the baseline instead,
+   * which is what keeps a sparse series reading as a chart.
+   * @default false
+   */
+  showCoverage?: boolean;
   /** Rendered height in pixels. @default 20 */
   height?: number;
   /**
@@ -79,12 +72,12 @@ export interface SparklineProps {
   maxWidth?: number;
   /**
    * Detail for a drawn point, shown in a tooltip while hovering near it,
-   * which is also marked on the line. Receives the range of source bins the
+   * which is also marked on the step. Receives the range of source bins the
    * point covers: a single bin unless bins were merged to fit the width. Only
    * ranges that carry a value are passed. Omit for a non-interactive sparkline.
    */
   renderPointDetail?: (range: SparklineBinRange) => ReactNode;
-  /** Accessible description of what the line shows. */
+  /** Accessible description of what the sparkline shows. */
   "aria-label"?: string;
 }
 
@@ -94,7 +87,7 @@ const DRAWING_WIDTH = 64;
 const VERTICAL_PADDING = 2;
 /**
  * The horizontal room each drawn point gets. Below this, adjacent bins merge:
- * a line with less than a few pixels per point reads as texture, not trend.
+ * steps narrower than a few pixels read as texture, not trend.
  */
 const MIN_PIXELS_PER_POINT = 4;
 /**
@@ -104,36 +97,20 @@ const MIN_PIXELS_PER_POINT = 4;
  */
 const FALLBACK_WIDTH = 160;
 const LINE_WIDTH = 1.5;
-/** An isolated value: the same visual weight as the line, not a marker. */
-const ISOLATED_DOT_WIDTH = 2.5;
 /** The most recent value, anchoring where the series ends. */
 const END_DOT_WIDTH = 3;
 const HOVER_DOT_WIDTH = 5;
 /**
- * The shading under the line at its highest point; it fades to nothing at
- * the baseline. Faint enough to stay ink, not a bar: it anchors the line to
- * the box so the eye reads a chart, and gives an isolated value some mass.
+ * The shading under the steps at their highest point; it fades to nothing at
+ * the baseline. Faint enough to stay ink, not a bar: it anchors the steps to
+ * the box so the eye reads a chart, and gives a lone step some mass.
  */
 const FILL_TOP_OPACITY = 0.3;
-/** The coverage strip's height, and the room between it and the marks. */
+/** The coverage strip's height, and the room between it and the steps. */
 const COVERAGE_STRIP_HEIGHT = 3;
 const COVERAGE_STRIP_GAP = 2;
-/** The vertical room the coverage strip takes from the marks. */
+/** The vertical room the coverage strip takes from the steps. */
 const COVERAGE_STRIP_INSET = COVERAGE_STRIP_HEIGHT + COVERAGE_STRIP_GAP;
-
-/**
- * A variant is a mark (line or step) plus, optionally, the coverage strip.
- * With the strip, presence lives there and the marks go unshaded.
- */
-const VARIANT_SPECS: Record<
-  SparklineVariant,
-  { mark: "line" | "step"; hasCoverage: boolean }
-> = {
-  line: { mark: "line", hasCoverage: false },
-  step: { mark: "step", hasCoverage: false },
-  coverage: { mark: "line", hasCoverage: true },
-  "step-coverage": { mark: "step", hasCoverage: true },
-};
 /** A coverage cell with data, and one without. */
 const COVERAGE_PRESENT_OPACITY = 0.85;
 const COVERAGE_EMPTY_OPACITY = 0.15;
@@ -246,10 +223,9 @@ function getPoints({
 }
 
 /**
- * Points split into one polyline per contiguous run of populated bins, so
- * the line breaks at gaps instead of drawing through them: an empty bin is
- * absent data, never interpolated. A run of one is a gap-isolated point,
- * rendered as a dot over a column.
+ * Points split into one run per contiguous stretch of populated bins, so
+ * the steps break at gaps instead of drawing through them: an empty bin is
+ * absent data, never interpolated. A run of one is a lone step.
  */
 function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
   const segments: SparklinePoint[][] = [];
@@ -268,29 +244,12 @@ function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
   return segments;
 }
 
-function toPathData(points: SparklinePoint[]): string {
-  return points
-    .map(
-      (point, index) =>
-        `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
-    )
-    .join(" ");
-}
-
 /**
  * A zero-length round-capped stroke renders as a dot that, unlike a circle,
  * keeps its shape under the svg's non-uniform horizontal stretching.
  */
 function toDotPathData(point: SparklinePoint): string {
   return `M ${point.x.toFixed(2)} ${point.y.toFixed(2)} l 0.01 0`;
-}
-
-/** The region between a run of points and the baseline at `height`. */
-function toAreaPathData(points: SparklinePoint[], height: number): string {
-  const first = points[0];
-  const last = points[points.length - 1];
-  const baseline = height.toFixed(2);
-  return `${toPathData(points)} L ${last.x.toFixed(2)} ${baseline} L ${first.x.toFixed(2)} ${baseline} Z`;
 }
 
 /**
@@ -312,26 +271,6 @@ function getBinExtent({
     left: Math.max(0, (range.start - 0.5) * scale),
     right: Math.min(DRAWING_WIDTH, (range.end + 0.5) * scale),
   };
-}
-
-/**
- * The region under an isolated point: a column as wide as the point's share
- * of the axis, clipped to the drawing box. It gives a value with no
- * neighbors to join the same footing on the baseline as a run.
- */
-function toColumnPathData({
-  point,
-  binCount,
-  height,
-}: {
-  point: SparklinePoint;
-  binCount: number;
-  height: number;
-}): string {
-  const { left, right } = getBinExtent({ range: point.bin.range, binCount });
-  const y = point.y.toFixed(2);
-  const baseline = height.toFixed(2);
-  return `M ${left.toFixed(2)} ${y} L ${right.toFixed(2)} ${y} L ${right.toFixed(2)} ${baseline} L ${left.toFixed(2)} ${baseline} Z`;
 }
 
 /**
@@ -379,34 +318,23 @@ function toStepAreaPathData({
 /** The shaded regions under each run, drawn first so strokes sit on top. */
 function Shading({
   segments,
-  mark,
   binCount,
   height,
   fill,
 }: {
   segments: SparklinePoint[][];
-  mark: "line" | "step";
   binCount: number;
   height: number;
   fill: string;
 }) {
-  return segments.map((segment) => {
-    const first = segment[0];
-    return (
-      <path
-        key={first.bin.position}
-        d={
-          mark === "step"
-            ? toStepAreaPathData({ points: segment, binCount, height })
-            : segment.length === 1
-              ? toColumnPathData({ point: first, binCount, height })
-              : toAreaPathData(segment, height)
-        }
-        fill={fill}
-        stroke="none"
-      />
-    );
-  });
+  return segments.map((segment) => (
+    <path
+      key={segment[0].bin.position}
+      d={toStepAreaPathData({ points: segment, binCount, height })}
+      fill={fill}
+      stroke="none"
+    />
+  ));
 }
 
 /**
@@ -442,87 +370,29 @@ function CoverageStrip({
   });
 }
 
-/** The strokes: a step or polyline per run, a dot for a lone line value. */
-function Marks({
-  segments,
-  mark,
-  binCount,
-  color,
-}: {
-  segments: SparklinePoint[][];
-  mark: "line" | "step";
-  binCount: number;
-  color: string;
-}) {
-  return segments.map((segment) => {
-    const first = segment[0];
-    if (mark === "step") {
-      // Every step, even a lone one, spans its bin, so there is no
-      // dot case: a single flat segment already has the line's weight
-      return (
-        <path
-          key={first.bin.position}
-          d={toStepPathData({ points: segment, binCount })}
-          fill="none"
-          stroke={color}
-          strokeWidth={LINE_WIDTH}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      );
-    }
-    return (
-      <g key={first.bin.position}>
-        {segment.length === 1 ? (
-          // A gap-isolated value has no line to join, so it draws
-          // as a dot of the line's weight
-          <path
-            d={toDotPathData(first)}
-            fill="none"
-            stroke={color}
-            strokeWidth={ISOLATED_DOT_WIDTH}
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        ) : (
-          <path
-            d={toPathData(segment)}
-            fill="none"
-            stroke={color}
-            strokeWidth={LINE_WIDTH}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            // The svg stretches horizontally; keep the stroke width uniform
-            vectorEffect="non-scaling-stroke"
-          />
-        )}
-      </g>
-    );
-  });
-}
-
 /**
- * A small inline line chart for table cells and stat tiles: a single series
+ * A small inline step chart for table cells and stat tiles: a single series
  * stretching to fill the width its container gives it, up to `maxWidth`.
- * Bins keep their position on the axis, so sparklines sharing a time axis
- * align across rows, and a series ending early visibly stops short. When the
- * width can't give every bin a few pixels, adjacent bins merge into weighted
- * means so the line stays legible at any size. The line breaks at every
- * empty point, never interpolating across missing data, and marks its most
- * recent value. With `renderPointDetail`, hovering marks the nearest point and
- * shows its detail in a tooltip; further detail belongs to the surrounding
- * component. Every run is shaded down to the baseline with a gradient that
- * fades from the line, and an isolated value stands on a column of the same
- * shading, so the marks read as one chart whether the series is dense or
- * sparse. Renders nothing when no bin carries a value.
+ * Every drawn point is a flat step across the bins it covers, so a per-bin
+ * aggregate reads as the whole bin's level and a lone value is a short
+ * shelf rather than a dot. Bins keep their position on the axis, so
+ * sparklines sharing a time axis align across rows, and a series ending
+ * early visibly stops short. When the width can't give every bin a few
+ * pixels, adjacent bins merge into weighted means so the steps stay legible
+ * at any size. The steps break at every empty point, never interpolating
+ * across missing data, and the most recent value is marked. Presence is
+ * carried either by shading each run down to the baseline or, with
+ * `showCoverage`, by a strip of per-bin cells along the baseline. With
+ * `renderPointDetail`, hovering marks the nearest point and shows its detail
+ * in a tooltip; further detail belongs to the surrounding component. Renders
+ * nothing when no bin carries a value.
  */
 export function Sparkline({
   values,
   weights,
   minRange,
   color,
-  variant = "line",
+  showCoverage = false,
   height = 20,
   maxWidth,
   renderPointDetail,
@@ -550,10 +420,9 @@ export function Sparkline({
     weights,
     maxPoints: Math.max(1, Math.floor(width / MIN_PIXELS_PER_POINT)),
   });
-  const { mark, hasCoverage } = VARIANT_SPECS[variant];
-  // The coverage strip takes its room from the bottom of the box; the marks
+  // The coverage strip takes its room from the bottom of the box; the steps
   // plot into what remains
-  const plotHeight = height - (hasCoverage ? COVERAGE_STRIP_INSET : 0);
+  const plotHeight = height - (showCoverage ? COVERAGE_STRIP_INSET : 0);
   const points = getPoints({
     bins,
     binCount: values.length,
@@ -590,11 +459,10 @@ export function Sparkline({
         };
   const segments = getSegments(points);
   // The shading is a single vertical gradient in drawing coordinates, from
-  // the series' highest point to the baseline, shared by every run and
-  // column: equal heights shade equally across the whole line, and a flat
-  // run (whose own bounding box has no height) still shades.
+  // the series' highest step to the baseline, shared by every run: equal
+  // heights shade equally across the whole chart, and a flat run (whose own
+  // bounding box has no height) still shades.
   const top = Math.min(...points.map((point) => point.y));
-  const fill = `url(#${gradientId})`;
   return (
     <span ref={containerRef} css={containerCSS} style={{ height, maxWidth }}>
       <svg
@@ -612,22 +480,9 @@ export function Sparkline({
         }
       >
         {ariaLabel != null ? <title id={titleId}>{ariaLabel}</title> : null}
-        <defs>
-          <linearGradient
-            id={gradientId}
-            gradientUnits="userSpaceOnUse"
-            x1="0"
-            y1={top.toFixed(2)}
-            x2="0"
-            y2={plotHeight}
-          >
-            <stop offset="0" stopColor={color} stopOpacity={FILL_TOP_OPACITY} />
-            <stop offset="1" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        {/* Shading goes down first so every stroke sits on top of it; with a
-            coverage strip, presence lives in the strip and the marks go bare */}
-        {hasCoverage ? (
+        {/* Presence goes down first so every stroke sits on top of it: the
+            coverage strip when asked for, otherwise shading under each run */}
+        {showCoverage ? (
           <CoverageStrip
             bins={bins}
             binCount={values.length}
@@ -635,20 +490,47 @@ export function Sparkline({
             color={color}
           />
         ) : (
-          <Shading
-            segments={segments}
-            mark={mark}
-            binCount={values.length}
-            height={plotHeight}
-            fill={fill}
-          />
+          <>
+            <defs>
+              <linearGradient
+                id={gradientId}
+                gradientUnits="userSpaceOnUse"
+                x1="0"
+                y1={top.toFixed(2)}
+                x2="0"
+                y2={plotHeight}
+              >
+                <stop
+                  offset="0"
+                  stopColor={color}
+                  stopOpacity={FILL_TOP_OPACITY}
+                />
+                <stop offset="1" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <Shading
+              segments={segments}
+              binCount={values.length}
+              height={plotHeight}
+              fill={`url(#${gradientId})`}
+            />
+          </>
         )}
-        <Marks
-          segments={segments}
-          mark={mark}
-          binCount={values.length}
-          color={color}
-        />
+        {segments.map((segment) => (
+          // Every step, even a lone one, spans its bin, so there is no dot
+          // case: a single flat segment already has the line's weight
+          <path
+            key={segment[0].bin.position}
+            d={toStepPathData({ points: segment, binCount: values.length })}
+            fill="none"
+            stroke={color}
+            strokeWidth={LINE_WIDTH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            // The svg stretches horizontally; keep the stroke width uniform
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         {/* The most recent value: where the series stands now, and where
             it stops if the axis runs on past it */}
         <path
