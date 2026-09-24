@@ -63,6 +63,12 @@ export interface SparklineProps {
    * @default false
    */
   showCoverage?: boolean;
+  /**
+   * Fill for the coverage strip's cells, e.g. a design token var. A fainter
+   * color than the line keeps presence reading as context under the steps.
+   * Defaults to `color`.
+   */
+  coverageColor?: string;
   /** Rendered height in pixels. @default 20 */
   height?: number;
   /**
@@ -112,10 +118,10 @@ const COVERAGE_STRIP_GAP = 2;
 /** The vertical room the coverage strip takes from the steps. */
 const COVERAGE_STRIP_INSET = COVERAGE_STRIP_HEIGHT + COVERAGE_STRIP_GAP;
 /** A coverage cell with data, and one without. */
-const COVERAGE_PRESENT_OPACITY = 0.85;
-const COVERAGE_EMPTY_OPACITY = 0.15;
-/** The gap between adjacent coverage cells, in drawing units. */
-const COVERAGE_CELL_INSET = 0.4;
+const COVERAGE_PRESENT_OPACITY = 1;
+const COVERAGE_EMPTY_OPACITY = 1 / 3;
+/** The gap between adjacent coverage cells, in pixels at any width. */
+const COVERAGE_CELL_GAP = 1;
 
 /** A drawn point: one source bin, or several merged to fit the width. */
 type SparklineBin = {
@@ -346,20 +352,24 @@ function CoverageStrip({
   binCount,
   height,
   color,
+  width,
 }: {
   bins: SparklineBin[];
   binCount: number;
   height: number;
   color: string;
+  /** The rendered width, which maps the pixel gap into drawing units. */
+  width: number;
 }) {
+  const cellInset = ((COVERAGE_CELL_GAP / 2) * DRAWING_WIDTH) / width;
   return bins.map((bin) => {
     const { left, right } = getBinExtent({ range: bin.range, binCount });
     return (
       <rect
         key={bin.position}
-        x={(left + COVERAGE_CELL_INSET).toFixed(2)}
+        x={(left + cellInset).toFixed(2)}
         y={height - COVERAGE_STRIP_HEIGHT}
-        width={Math.max(0, right - left - 2 * COVERAGE_CELL_INSET).toFixed(2)}
+        width={Math.max(0, right - left - 2 * cellInset).toFixed(2)}
         height={COVERAGE_STRIP_HEIGHT}
         fill={color}
         fillOpacity={
@@ -393,6 +403,7 @@ export function Sparkline({
   minRange,
   color,
   showCoverage = false,
+  coverageColor = color,
   height = 20,
   maxWidth,
   renderPointDetail,
@@ -487,7 +498,8 @@ export function Sparkline({
             bins={bins}
             binCount={values.length}
             height={height}
-            color={color}
+            color={coverageColor}
+            width={width}
           />
         ) : (
           <>

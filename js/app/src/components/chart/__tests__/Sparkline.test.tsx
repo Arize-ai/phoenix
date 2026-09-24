@@ -204,10 +204,10 @@ describe("Sparkline", () => {
       expect(container.querySelector("linearGradient")).toBeNull();
       const cells = getCoverageCells();
       expect(cells.map((cell) => cell.getAttribute("x"))).toEqual([
-        "0.40",
-        "11.07",
-        "32.40",
-        "53.73",
+        "0.20",
+        "10.87",
+        "32.20",
+        "53.53",
       ]);
       expect(cells.map((cell) => cell.getAttribute("y"))).toEqual([
         "17",
@@ -216,10 +216,10 @@ describe("Sparkline", () => {
         "17",
       ]);
       expect(cells.map((cell) => cell.getAttribute("fill-opacity"))).toEqual([
-        "0.85",
-        "0.85",
-        "0.15",
-        "0.85",
+        "1",
+        "1",
+        "0.3333333333333333",
+        "1",
       ]);
     });
 
@@ -230,17 +230,28 @@ describe("Sparkline", () => {
       });
       const cells = getCoverageCells();
       expect(cells.map((cell) => cell.getAttribute("width"))).toEqual([
-        "12.91",
-        "17.49",
-        "17.49",
-        "12.91",
+        "9.71",
+        "14.29",
+        "14.29",
+        "9.71",
       ]);
       expect(cells.map((cell) => cell.getAttribute("fill-opacity"))).toEqual([
-        "0.85",
-        "0.15",
-        "0.15",
-        "0.85",
+        "1",
+        "0.3333333333333333",
+        "0.3333333333333333",
+        "1",
       ]);
+    });
+
+    it("fills the cells with the coverage color, not the line's", () => {
+      render([0, null, 1], {
+        showCoverage: true,
+        coverageColor: "var(--coverage)",
+      });
+      expect(
+        getCoverageCells().map((cell) => cell.getAttribute("fill"))
+      ).toEqual(["var(--coverage)", "var(--coverage)", "var(--coverage)"]);
+      expect(getStrokes()[0].getAttribute("stroke")).toBe("currentColor");
     });
   });
 });

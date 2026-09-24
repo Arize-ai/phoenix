@@ -80,7 +80,13 @@ const SPARKLINE_MIN_RANGE_FRACTION = 0.2;
  * carry the judgement, and painting the whole history in a status color
  * would restate one number's sign across the entire window.
  */
-const SPARKLINE_COLOR = "var(--global-text-color-700)";
+const SPARKLINE_COLOR = "var(--global-text-color-900)";
+
+/**
+ * Well under the line, so where there is data reads as context beneath the
+ * steps rather than as a second series.
+ */
+const SPARKLINE_COVERAGE_COLOR = "var(--global-text-color-300)";
 
 /**
  * Whether the sparkline carries a coverage strip along its baseline, one cell
@@ -281,6 +287,7 @@ function AnnotationMeanScoreView({
         maxWidth={SPARKLINE_MAX_WIDTH}
         color={SPARKLINE_COLOR}
         showCoverage={SPARKLINE_SHOW_COVERAGE}
+        coverageColor={SPARKLINE_COVERAGE_COLOR}
         aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
         renderPointDetail={({ start, end }) => {
           // The point may cover several bins merged to fit the width: the
