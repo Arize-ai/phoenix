@@ -1,6 +1,7 @@
-from typing import Annotated, Any, Generic, Optional, TypedDict, TypeVar, Union
+from typing import Annotated, Any, Generic, Iterable, Optional, TypedDict, TypeVar, Union
 
 from fastapi import APIRouter, HTTPException
+from fastapi.routing import APIRoute
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -159,26 +160,53 @@ def add_text_csv_content_to_responses(
 ModelType = TypeVar("ModelType", bound=models.Base)
 
 
-def order_identifier_routes(router: APIRouter) -> None:
+def include_routers(parent: APIRouter, routers: Iterable[APIRouter]) -> None:
     """
-    Reorder a router's routes in place so that no route is shadowed by a
-    greedier one. Routes without an ``identifier`` parameter keep their
-    relative order and come first. Among routes with one, those with more
-    path segments come first, so ``/datasets/{d:path}/examples`` is
-    tried before ``/datasets/{d:path}`` swallows ``/datasets/foo/examples``.
+    Include ``routers`` in ``parent`` in an order where no route is shadowed.
 
-    Routes are matched in registration order across routers too, so a router
-    whose routes end in an identifier must be included after the routers that
-    define sub-routes under the same prefix.
+    Routes are matched in registration order, and a ``{name:path}`` parameter
+    matches greedily across slashes, so ``/datasets/{d:path}`` would also match
+    ``/datasets/foo/examples`` if tried first. Within each router the routes
+    with more path segments go first. Across routers, a router is included
+    after every router holding a route that one of its own routes would
+    shadow. Two routers that shadow each other cannot be ordered and raise.
     """
+    for router in routers:
+        router.routes.sort(key=_route_specificity)
+    remaining = list(routers)
+    while remaining:
+        free = [
+            router
+            for router in remaining
+            if not any(_shadows(router, other) for other in remaining if other is not router)
+        ]
+        if not free:
+            raise ValueError("routers shadow each other; move the conflicting routes")
+        for router in free:
+            parent.include_router(router)
+            remaining.remove(router)
 
-    def key(route: BaseRoute) -> tuple[int, int]:
-        path = getattr(route, "path", "")
-        if ":path}" not in path:
-            return (0, 0)
-        return (1, -path.count("/"))
 
-    router.routes.sort(key=key)
+def _route_specificity(route: BaseRoute) -> tuple[int, int]:
+    path = getattr(route, "path", "")
+    if ":path}" not in path:
+        return (0, 0)
+    return (1, -path.count("/"))
+
+
+def _shadows(router: APIRouter, other: APIRouter) -> bool:
+    """Whether any route in ``router`` would capture a URL meant for ``other``."""
+    return any(
+        route.methods & candidate.methods and route.path_regex.match(_sample_url(candidate))
+        for route in router.routes
+        if isinstance(route, APIRoute) and route.methods and ":path}" in route.path
+        for candidate in other.routes
+        if isinstance(candidate, APIRoute) and candidate.methods
+    )
+
+
+def _sample_url(route: APIRoute) -> str:
+    return route.path_format.format(**{name: "x" for name in route.param_convertors})
 
 
 async def _get_entity_by_identifier(

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Arize-Phoenix REST API",
-    "description": "Schema for Arize-Phoenix REST API.\n\nPath parameters named `*_identifier` accept either the entity's node ID or its\nunique name. Names may contain slashes. A name whose trailing segments coincide\nwith a sub-route of the same entity, such as a dataset named `foo/examples`, is\nambiguous in a URL and must be referenced by node ID on that route.\n",
+    "description": "Schema for Arize-Phoenix REST API",
     "version": "1.0"
   },
   "paths": {

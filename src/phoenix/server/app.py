@@ -114,7 +114,7 @@ from phoenix.server.api.routers.oauth2_authorization_server import (
     authorization_server_enabled,
     authorization_server_metadata,
 )
-from phoenix.server.api.routers.v1 import REST_API_DESCRIPTION, REST_API_VERSION
+from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
@@ -1108,7 +1108,6 @@ def create_app(
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
-        description=REST_API_DESCRIPTION,
         lifespan=_lifespan(
             db=db,
             read_only=read_only,

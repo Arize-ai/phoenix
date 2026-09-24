@@ -138,3 +138,35 @@ async def test_annotation_config_routes_accept_names_containing_slashes(
     response = await httpx_client.delete("v1/annotation_configs/quality/tone")
     assert response.status_code == 200
     assert (await httpx_client.get("v1/annotation_configs/quality/tone")).status_code == 404
+
+
+def test_include_routers_puts_shadowed_routes_first() -> None:
+    from phoenix.server.api.routers.v1.utils import include_routers
+
+    async def endpoint() -> None: ...
+
+    bare = APIRouter()
+    bare.add_api_route("/things/{name:path}", endpoint, methods=["GET"])
+    nested = APIRouter()
+    nested.add_api_route("/things/{name:path}/parts", endpoint, methods=["GET"])
+
+    parent = APIRouter()
+    include_routers(parent, (bare, nested))
+    included = [getattr(route, "original_router", None) for route in parent.routes]
+    assert included == [nested, bare]
+
+
+def test_include_routers_rejects_mutual_shadowing() -> None:
+    from phoenix.server.api.routers.v1.utils import include_routers
+
+    async def endpoint() -> None: ...
+
+    first = APIRouter()
+    first.add_api_route("/a/{x:path}", endpoint, methods=["GET"])
+    first.add_api_route("/b/{x:path}/c", endpoint, methods=["GET"])
+    second = APIRouter()
+    second.add_api_route("/b/{x:path}", endpoint, methods=["GET"])
+    second.add_api_route("/a/{x:path}/c", endpoint, methods=["GET"])
+
+    with pytest.raises(ValueError, match="shadow"):
+        include_routers(APIRouter(), (first, second))
