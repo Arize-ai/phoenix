@@ -500,3 +500,46 @@ class TestGetSpansDataframeRootSpansOnlyDeprecation:
         )
         with pytest.warns(DeprecationWarning, match="root_spans_only is deprecated"):
             await AsyncSpans(client).get_spans_dataframe(root_spans_only=False)
+
+
+class TestGetSpansSort:
+    def test_sort_by_start_time_is_sent(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project", sort="start_time")
+        assert len(spans) == 1
+
+    def test_no_sort_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "sort" not in parse_qs(urlparse(str(request.url)).query)
+            return httpx.Response(200, json={"data": [_make_span()], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_sort_wired_through_async_client(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project", sort="start_time"
+        )
+        assert len(spans) == 1
+
+    def test_order_is_sent(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"], "order": ["asc"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project", sort="start_time", order="asc"
+        )
+        assert len(spans) == 1
+
+    def test_no_order_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "order" not in parse_qs(urlparse(str(request.url)).query)
+            return httpx.Response(200, json={"data": [_make_span()], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1

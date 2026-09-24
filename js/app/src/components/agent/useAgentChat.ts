@@ -52,6 +52,8 @@ import { useDraftSessionCreation } from "./useDraftSessionCreation";
 
 export type { AgentChatOperationError } from "./types";
 
+const AGENT_CHAT_RENDER_THROTTLE_MS = 16;
+
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
  * for a single agent session.
@@ -174,7 +176,13 @@ export function useAgentChat({
   // `useChat` subscribes the current React tree to the already-created runtime
   // instance. Draft surfaces expose an inert chat shape until the first send.
   const chat = useChat<AgentUIMessage>(
-    chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
+    chatInstance
+      ? { chat: chatInstance, throttle: AGENT_CHAT_RENDER_THROTTLE_MS }
+      : {
+          id: undefined,
+          messages: [],
+          throttle: AGENT_CHAT_RENDER_THROTTLE_MS,
+        }
   );
   const {
     messages,

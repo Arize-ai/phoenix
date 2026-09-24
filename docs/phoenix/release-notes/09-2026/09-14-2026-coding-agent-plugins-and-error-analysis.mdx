@@ -1,0 +1,296 @@
+---
+title: "09.14.2026: Coding Agent Plugins and Error Analysis"
+description: "Use Phoenix from your coding tools. Run error analysis through MCP and check whether a conversation covered every request."
+---
+
+Phoenix now works as a plugin in Claude Code and Cursor, with a Codex plugin available from the same
+marketplace. Error analysis is available through MCP. The release also adds the Completeness
+evaluator. Filters now cover costs and annotations across prompts and tracing views.
+
+# Phoenix Plugins for Coding Tools
+
+September 9 to 10, 2026
+
+**Available in arize-phoenix 20.10.0+; plugin connections use the built-in MCP endpoint from arize-phoenix 19.0.0+**
+
+The Phoenix repository is now a plugin marketplace. After install, point the plugin at your Phoenix
+instance. The tool can then read traces and datasets through the built-in MCP server. Experiments,
+prompts, and Phoenix docs are available too.
+
+```bash
+claude plugin marketplace add Arize-ai/phoenix
+claude plugin install arize-phoenix@arize-phoenix
+```
+
+```bash
+codex plugin marketplace add Arize-ai/phoenix
+codex plugin add arize-phoenix@arize-phoenix
+```
+
+- **Claude Code and Cursor also get the skills.** They install `phoenix-cli` together with
+  `phoenix-evals` and `phoenix-tracing`, so there is no separate `skills add` step. The Codex plugin
+  registers the MCP server config.
+- **Point it at your instance once.** Claude Code and Cursor prompt for a **Phoenix endpoint**
+  and default to `http://localhost:6006`. They append `/mcp` themselves; Codex reads
+  `PHOENIX_ENDPOINT` from the shell you launch it in.
+- **OAuth handles auth.** When your Phoenix requires a login, the MCP server signs in through the
+  browser on first use. For a headless environment, register a bearer-token server with
+  `px setup mcp` instead.
+- **Codex can use an API key without exposing it.** If `PHOENIX_API_KEY` is set, the launcher passes
+  it to `mcp-remote` at runtime instead of putting the plaintext key in the command arguments.
+- **Cursor also gets Phoenix docs.** The Cursor plugin registers a `phoenix-docs` MCP server next to
+  the instance server, so it can search the docs without extra setup.
+- **Manual setup remains available.** You can still install the CLI and MCP server separately, then
+  add skills only when you need them.
+
+<CardGroup cols={2}>
+  <Card title="Coding Agents" icon="robot" href="/docs/phoenix/integrations/developer-tools/coding-agents">
+    Install plugins and configure Phoenix MCP
+  </Card>
+  <Card title="Remote MCP Server" icon="plug" href="/docs/phoenix/integrations/remote-mcp">
+    The MCP endpoint the plugins connect to
+  </Card>
+</CardGroup>
+
+# Error Analysis Through MCP
+
+September 11 to 12, 2026
+
+**Available in arize-phoenix 20.11.0+**
+
+Phoenix now hosts the error-analysis skill for sampled Phoenix records; it turns observed problems
+into notes, then groups those notes into focused annotations with labels and counts. Use the result
+to pick eval targets and fix priorities from real traffic.
+
+- **Any MCP client can load it** because the `/mcp` handshake lists the shared skills and exposes
+  `load_skill` and `load_skill_reference`, so a connected tool can run it without a local skill
+  install.
+- **PXI records notes on the trace data.** PXI can create notes on spans or on whole traces and
+  sessions through MCP, so open coding notes land on the entity instead of in the chat log. This
+  replaces the older `debug-trace` / `span-coding` / `annotate-spans` skills.
+- **Summary links come prefiltered.** Each annotated level links to its own filtered traces or
+  sessions table.
+- **Install it anywhere** with `npx skills add Arize-ai/phoenix --skill phoenix-error-analysis`.
+
+<CardGroup cols={2}>
+  <Card title="PXI" icon="robot" href="/docs/phoenix/pxi">
+    Investigate Phoenix data with PXI
+  </Card>
+  <Card title="Skills" icon="wand-magic-sparkles" href="/docs/phoenix/integrations/developer-tools/coding-agents">
+    Install Phoenix skills for connected tools
+  </Card>
+</CardGroup>
+
+# Completeness Evaluator
+
+September 9, 2026
+
+**Available in arize-phoenix-evals 3.7.0+ (Python) and @arizeai/phoenix-evals 2.5.0+ (TypeScript)**
+
+Check whether a conversation satisfied every active request in the record. A response that resets the
+password but silently drops the billing address change scores `incomplete`.
+
+- **Completion means finished work.** Delivered answers and artifacts count only when they include
+  the required parts. Actions count only when success is visible in the record. Refusals do not
+  count as completed work; neither do clarifying questions or blocker reports. Withdrawn requests
+  are excluded.
+- **Pass the whole record** as `conversation`. For traced conversations, include tool results next
+  to the calls so the evaluator can verify that an action actually succeeded.
+- **The result is one label.** It returns `complete` or `incomplete`, with an explanation that walks
+  each request it tracked.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import CompletenessEvaluator
+
+evaluator = CompletenessEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+
+scores = evaluator.evaluate(
+    {
+        "conversation": (
+            "User: Reset my password and update the billing address.\n"
+            "Assistant: Your password has been reset."
+        )
+    }
+)
+print(scores[0].label)  # "incomplete"
+```
+
+```typescript
+import { createCompletenessEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createCompletenessEvaluator({ model: openai("gpt-4o-mini") });
+
+const result = await evaluator.evaluate({
+  conversation:
+    "User: Reset my password and update the billing address.\nAssistant: Your password has been reset.",
+});
+console.log(result.label); // "incomplete"
+```
+
+<CardGroup cols={2}>
+  <Card title="Completeness" icon="list-check" href="/docs/phoenix/evaluation/pre-built-metrics/completeness">
+    Prompt, labels, and scoring details
+  </Card>
+  <Card title="Pre-Built Metrics" icon="ruler" href="/docs/phoenix/evaluation/pre-built-metrics">
+    Every evaluator that ships with Phoenix
+  </Card>
+</CardGroup>
+
+# Document Relevance Evaluators Are Deprecated
+
+September 9, 2026
+
+**Deprecated in arize-phoenix-evals 3.7.0 and @arizeai/phoenix-evals 2.5.0**
+
+`DocumentRelevanceEvaluator` and `createDocumentRelevanceEvaluator` now emit a deprecation warning
+and will be removed in the next major release. Retrieval relevance covers the same judgment and
+accepts any retrieved context, not only a single document.
+
+- **Rename the input field** `document_text` to `context`; in TypeScript, the field is
+  `documentText`.
+- **The negative label changes** from `unrelated` to `irrelevant`, so update anything that branches
+  on it.
+- **Pass one document as `context`** to keep scoring each document separately.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
+evaluator = RetrievalRelevanceEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+
+scores = evaluator.evaluate(
+    {
+        "input": "What is the capital of France?",
+        "context": "Paris is the capital and largest city of France.",
+    }
+)
+```
+
+<CardGroup cols={2}>
+  <Card title="Retrieval Relevance" icon="magnifying-glass" href="/docs/phoenix/evaluation/pre-built-metrics/retrieval-relevance">
+    The replacement evaluator
+  </Card>
+</CardGroup>
+
+# Filter Spans by Cost and Annotation Identifier
+
+September 10, 2026
+
+**Available in arize-phoenix 20.10.0+**
+
+The span filter now reads a span's own cost. Every filter level can match an annotation's identifier,
+so you can find expensive spans or PXI-labeled traces with one expression in the filter bar.
+
+- **Cost scalars** `total_cost` / `prompt_cost` / `completion_cost` read the span's cost row and
+  return `0` when the span has no recorded cost.
+- **`cost_details` iterates the rows for each token type** with `any`, `all`, `len`, `sum`, `max`, and
+  `min`, exposing `token_type`, `is_prompt`, `cost`, `tokens`, plus `cost_per_token`.
+- **`.identifier` joins `.label` / `.score` / `.explanation`** on annotation lookups in the span,
+  trace, or session filters.
+- **The filter bar autocompletes the new names** and includes snippets for cost and cost-detail
+  filters.
+
+```python
+total_cost > 0.10
+any(cost_detail.token_type == 'cache_read' for cost_detail in cost_details)
+annotations['quality'].identifier == 'pxi'
+```
+
+<CardGroup cols={2}>
+  <Card title="Filter Expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Filter vocabulary for spans, traces, sessions
+  </Card>
+</CardGroup>
+
+# Prompt Version Metadata
+
+September 9 to 10, 2026
+
+**Available in arize-phoenix 20.10.0+ (server and UI) and @arizeai/phoenix-client 7.11.0+ (TypeScript)**
+
+Prompt versions now carry JSON metadata for version-scoped details such as owner, upstream
+dependency, or review status.
+
+- **Set and read it over REST or GraphQL**, then pass `metadata` to the TypeScript `promptVersion()`
+  helper.
+- **The playground's save dialog offers the Metadata field** when saving a new version of an
+  existing prompt, not only when creating a prompt.
+- **The prompt version details page displays it**, so you can inspect version tags without writing a
+  query.
+
+```typescript
+import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
+
+await createPrompt({
+  name: "support-triage",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-4o-mini",
+    metadata: { owner: "support-eng", reviewed: true },
+    template: [{ role: "user", content: "Classify this ticket: {{ticket}}" }],
+  }),
+});
+```
+
+<CardGroup cols={2}>
+  <Card title="Create a Prompt" icon="pen-to-square" href="/docs/phoenix/prompt-engineering/how-to-prompts/create-a-prompt">
+    Push prompt versions from the SDKs
+  </Card>
+</CardGroup>
+
+# REST API Updates
+
+September 14, 2026
+
+**Available in arize-phoenix 20.12.0+**
+
+- **`filter` on `GET /v1/projects/{project_identifier}/traces` and `.../sessions`** takes the same
+  trace and session filter expressions the UI uses. It combines with the other query parameters
+  using AND; an empty expression does not filter, and an invalid one returns `400`.
+- **The discrete trace filters are deprecated.** `error` still works, as do `min_latency_ms` and
+  `max_latency_ms`, but `filter=error_count > 0` and `filter=latency_ms >= 1000` replace them.
+- **`GET /v1/datasets/{dataset_identifier}/splits`** lists a dataset's splits with cursor
+  pagination. A split appears when at least one of its examples belongs to the dataset, so
+  `example_count` is dataset-scoped and agrees with the create/update/delete endpoints.
+
+```bash
+curl -G "$PHOENIX_ENDPOINT/v1/projects/my-project/traces" \
+  --data-urlencode "filter=error_count > 0 and total_cost > 0.05" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+<CardGroup cols={2}>
+  <Card title="List Traces for a Project" icon="code" href="/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project">
+    Endpoint reference
+  </Card>
+  <Card title="Splits" icon="table-columns" href="/docs/phoenix/datasets-and-experiments/how-to-experiments/splits">
+    Work with dataset splits
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+September 9 to 14, 2026
+
+**Available in arize-phoenix 20.10.0+**
+
+- **Reasoning content appears in its own collapsible block** for LLM span messages, with Markdown
+  summaries and an explanation when the provider returned only an encrypted payload.
+- **Token tooltips show cache reads and writes**, so cumulative counts in the traces, spans,
+  session, and experiment views show whether prompt caching was hit.
+- **Trace and session filters live in the URL.** `traceFilterCondition` and
+  `sessionFilterCondition` make a filtered table shareable, and a filtered link no longer flashes
+  unfiltered rows first.
+- **The traces table shows span annotations by default**, under a column name that accounts for the
+  child spans revealed by expanded rows.
+- **Experiment comparisons open example details from an ID** and show example external IDs.
+- **Notes have GraphQL mutations** at every supported record level, with an explicit annotator kind
+  and source.
+- **Built-in token prices are refreshed**, image generation models stay in the cost manifest, and
+  `gpt-image-2.5` is priced.
+- **Annotation explanation controls are clickable and keyboard-reachable**, and code editor errors
+  render inside dialogs instead of overflowing them.
+- **The bundled SQLite extension driver fixes memory-safety and correctness bugs** in
+  `arize-phoenix-sqlean` 0.1.2.

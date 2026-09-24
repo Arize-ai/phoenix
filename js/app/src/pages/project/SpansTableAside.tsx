@@ -151,7 +151,7 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
                 </Text>
               </StatItem>
               <StatItem label="Total Cost">
-                <TooltipTrigger delay={0}>
+                <TooltipTrigger delay={0} isDisabled={totalCost === 0}>
                   <Focusable>
                     <Text size="L" role="button" fontFamily="mono">
                       {costFormatter(totalCost)}

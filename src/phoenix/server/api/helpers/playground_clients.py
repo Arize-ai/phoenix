@@ -1154,6 +1154,8 @@ class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
                     pass
                 elif event.type == "response.shell_call_output_content.done":
                     pass
+                elif event.type == "response.compaction.compacting":
+                    pass
                 elif TYPE_CHECKING:
                     assert_never(event.type)
 
@@ -1446,6 +1448,7 @@ class MetaClient(OpenAICompatibleClient):
         PROVIDER_DEFAULT,
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5-5",
         "anthropic.claude-opus-5",
         "anthropic.claude-opus-4-8",
         "anthropic.claude-opus-4-7",
@@ -1979,6 +1982,8 @@ class OpenAIChatCompletionsClient(OpenAICompatibleClient):
 
 OPENAI_REASONING_MODELS = [
     "gpt-6-astra",
+    "gpt-6-sol",
+    "gpt-6-luna",
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
@@ -2143,6 +2148,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
     "claude-fable-5-1",
     "claude-fable-5",
+    "claude-opus-5-5",
     "claude-opus-5",
     "claude-opus-4-8",
     "claude-opus-4-7",

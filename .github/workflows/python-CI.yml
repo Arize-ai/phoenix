@@ -727,7 +727,7 @@ jobs:
           # the repository afterwards, so there is no pyproject.toml for setup-uv
           # to read `required-version` from. Keep in sync with [tool.uv]
           # required-version in pyproject.toml.
-          version: "0.12.7"
+          version: "0.12.17"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'

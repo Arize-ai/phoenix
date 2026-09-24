@@ -42,7 +42,7 @@ jobs:
       # Literal pin: this job never checks out the repository, so there is no
       # pyproject.toml for setup-uv to read `required-version` from. Keep in
       # sync with [tool.uv] required-version in pyproject.toml.
-      UV_VERSION: "0.12.7"
+      UV_VERSION: "0.12.17"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PHOENIX_HOST: "127.0.0.1"
       PHOENIX_PORT: "6606"

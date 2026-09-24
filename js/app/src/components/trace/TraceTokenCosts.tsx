@@ -2,14 +2,10 @@ import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
-import {
-  Loading,
-  RichTooltip,
-  TooltipArrow,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
 
 import { TokenCosts } from "./TokenCosts";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
 import { TraceTokenCostsDetails } from "./TraceTokenCostsDetails";
 
 type TraceTokenCostsProps = {
@@ -38,9 +34,13 @@ export function TraceTokenCosts(props: TraceTokenCostsProps) {
           {props.totalCost}
         </TokenCosts>
       </Pressable>
-      <RichTooltip>
+      <RichTooltip placement="end">
         <TooltipArrow />
-        <Suspense fallback={<Loading />}>
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton costs={{ total: props.totalCost }} />
+          }
+        >
           <TraceTokenCostsDetails traceNodeId={props.nodeId} />
         </Suspense>
       </RichTooltip>

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-import { useScrollAnchor } from "./scrollAnchor";
+import { useChatScrollContext } from "./ChatScrollContext";
 
 /**
  * Open/closed controller for a tool-call disclosure (a single {@link ToolPart}
@@ -23,7 +23,7 @@ export function useToolDisclosure<T extends HTMLElement = HTMLElement>({
 }) {
   const ref = useRef<T>(null);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
-  const scrollAnchor = useScrollAnchor();
+  const chatScrollContext = useChatScrollContext();
 
   const isOpen = manualOpen ?? defaultOpen;
 
@@ -34,10 +34,10 @@ export function useToolDisclosure<T extends HTMLElement = HTMLElement>({
   const toggle = useCallback(() => {
     // Record the disclosure's position before it grows/shrinks, flip the open
     // state, then restore the same spot once the DOM has updated.
-    scrollAnchor.capture(ref.current);
+    chatScrollContext?.captureAnchor(ref.current);
     setManualOpen((previousManualOpen) => !(previousManualOpen ?? defaultOpen));
-    requestAnimationFrame(() => scrollAnchor.restore(ref.current));
-  }, [scrollAnchor, defaultOpen]);
+    requestAnimationFrame(() => chatScrollContext?.restoreAnchor(ref.current));
+  }, [chatScrollContext, defaultOpen]);
 
   return { ref, isOpen, toggle };
 }
