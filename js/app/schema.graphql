@@ -3824,11 +3824,6 @@ type ProjectEvaluatorRunSummary {
   """Evaluations that were given up on."""
   failedCount: Int!
 
-  """
-  Evaluations shed from the backlog before they ran, to keep up under load. They are not failures and do not affect the status.
-  """
-  droppedCount: Int!
-
   """The most recent evaluation error, or null if none was recorded."""
   lastError: String
 }

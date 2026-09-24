@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<edb4f0fe2e7583bae6d506d49e5a5e83>>
+ * @generated SignedSource<<6505159e17498d2b344a2cc6d2c37507>>
  * @lightSyntaxTransform
  */
 
@@ -378,13 +378,6 @@ return {
                                 "args": null,
                                 "kind": "ScalarField",
                                 "name": "failedCount",
-                                "storageKey": null
-                              },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "droppedCount",
                                 "storageKey": null
                               }
                             ],
@@ -841,12 +834,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "614c07156701ab1387bc232ab28c03ee",
+    "cacheID": "ba099dd4c919893d64d6c0e357104020",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorsTablePaginationQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $includeMeanScore: Boolean!\n  $scoreTimeBinConfig: TimeBinConfig!\n  $scoreTimeRange: TimeRange!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_1TlaaZ\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_1TlaaZ on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        ...ProjectEvaluatorsTable_costs_3E0ZE6\n        ...ProjectEvaluatorsTable_scores_3clT2T\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n    droppedCount\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_scores_3clT2T on ProjectEvaluator {\n  annotationScoreMetrics(timeRange: $scoreTimeRange, timeBinConfig: $scoreTimeBinConfig) @include(if: $includeMeanScore) {\n    annotationName\n    summary {\n      meanScore\n      count\n      scoreCount\n      labelCount\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    previousSummary {\n      meanScore\n    }\n    series {\n      timestamp\n      meanScore\n      count\n    }\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTablePaginationQuery(\n  $after: String = null\n  $filter: ProjectEvaluatorFilter = null\n  $first: Int = 30\n  $includeMeanScore: Boolean!\n  $scoreTimeBinConfig: TimeBinConfig!\n  $scoreTimeRange: TimeRange!\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectEvaluatorsTable_project_1TlaaZ\n    id\n  }\n}\n\nfragment ProjectEvaluatorsTable_costs_3E0ZE6 on ProjectEvaluator {\n  traceProject {\n    id\n    traceCount(timeRange: $timeRange)\n    costSummary(timeRange: $timeRange) {\n      total {\n        cost\n      }\n      prompt {\n        cost\n      }\n      completion {\n        cost\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_project_1TlaaZ on Project {\n  evaluators(first: $first, after: $after, filter: $filter) {\n    edges {\n      node {\n        ...ProjectEvaluatorsTable_row\n        ...ProjectEvaluatorsTable_costs_3E0ZE6\n        ...ProjectEvaluatorsTable_scores_3clT2T\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment ProjectEvaluatorsTable_row on ProjectEvaluator {\n  id\n  name\n  evaluationTarget\n  filterCondition\n  samplingRate\n  enabled\n  updatedAt\n  runSummary {\n    status\n    lastRunAt\n    queuedCount\n    evaluatedCount\n    failedCount\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    outputConfigs {\n      __typename\n      ... on AnnotationConfigBase {\n        __isAnnotationConfigBase: __typename\n        name\n        annotationType\n      }\n      ... on CategoricalAnnotationConfig {\n        optimizationDirection\n        values {\n          label\n          score\n        }\n      }\n      ... on ContinuousAnnotationConfig {\n        optimizationDirection\n        lowerBound\n        upperBound\n      }\n      ... on FreeformAnnotationConfig {\n        optimizationDirection\n        threshold\n        lowerBound\n        upperBound\n      }\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment ProjectEvaluatorsTable_scores_3clT2T on ProjectEvaluator {\n  annotationScoreMetrics(timeRange: $scoreTimeRange, timeBinConfig: $scoreTimeBinConfig) @include(if: $includeMeanScore) {\n    annotationName\n    summary {\n      meanScore\n      count\n      scoreCount\n      labelCount\n      labelFractions {\n        label\n        fraction\n      }\n    }\n    previousSummary {\n      meanScore\n    }\n    series {\n      timestamp\n      meanScore\n      count\n    }\n  }\n}\n"
   }
 };
 })();
