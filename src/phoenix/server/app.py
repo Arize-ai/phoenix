@@ -40,7 +40,6 @@ from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.authentication import UnauthenticatedUser
 from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -1482,12 +1481,12 @@ def _get_build_graphql_context_function(
     """Factory for creating GraphQL context."""
 
     def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
-        request = Request(
-            {
-                "type": "http",
-                "user": user if user is not None else UnauthenticatedUser(),
-            }
-        )
+        # Without a user the scope has no "user" key, matching a request that never
+        # passed through AuthenticationMiddleware; resolvers check for the key first.
+        scope: dict[str, Any] = {"type": "http"}
+        if user is not None:
+            scope["user"] = user
+        request = Request(scope)
         return build_context(
             db=db,
             settings=system_settings,
