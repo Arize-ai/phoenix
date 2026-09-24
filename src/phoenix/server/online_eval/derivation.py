@@ -1,9 +1,7 @@
-"""Shared derivation recipes for online-eval coordination. The producer, consumer, and
-backstop all compute config fingerprints, annotation identifiers, and sampling keys
-through this module — an independent recipe that drifts from these re-materializes the
-work backlog (fingerprint mismatch) or breaks annotation idempotency (identifier
-mismatch). It also re-exports the shared work-unit retry budget (``MAX_ATTEMPTS``), which
-the producer's reaper/backstop and the consumer's claim predicate must agree on. All
+"""Shared derivation recipes for online-eval coordination. Materializers and consumers
+compute config fingerprints, annotation identifiers, and sampling keys through this
+module — an independent recipe that drifts from these re-materializes the work backlog
+(fingerprint mismatch) or breaks annotation idempotency (identifier mismatch). All
 functions are pure; version resolution and any DB access happen in callers.
 """
 
@@ -21,9 +19,7 @@ _IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
 
 # Error recorded when a claimed unit's recomputed fingerprint no longer matches the
-# stored one. The consumer stamps it on expiry and the producer keys its revival
-# scan and reset on it, so a project evaluator edited and reverted re-materializes; the two
-# sides must read the same constant or the revival path can never fire.
+# stored one.
 STALE_FINGERPRINT_ERROR = "CONFIG_FINGERPRINT_MISMATCH"
 
 
