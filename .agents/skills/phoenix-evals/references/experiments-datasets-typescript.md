@@ -75,72 +75,35 @@ await createDataset({ client, name: "production-sample", examples });
 ## Retrieving Datasets
 
 ```typescript
-import {
-  getDataset,
-  getDatasetExamples,
-  getDatasetInfo,
-} from "@arizeai/phoenix-client/datasets";
+import { getDataset, listDatasets } from "@arizeai/phoenix-client/datasets";
 
-const selector = { datasetName: "qa-test-v1" };
-
-const dataset = await getDataset({ client, dataset: selector });     // info + examples
-const info = await getDatasetInfo({ client, dataset: selector });    // name, description, metadata
-const { examples, versionId } = await getDatasetExamples({ client, dataset: selector });
+// `dataset` is `{ datasetId }` or `{ datasetName }` in every helper
+const dataset = await getDataset({ client, dataset: { datasetName: "qa-test-v1" } });
+const all = await listDatasets({ client });
 ```
-
-Every helper selects the dataset the same way: `{ datasetId }` or `{ datasetName }`.
 
 ## Managing Splits
 
-Splits are named subsets — train, test, validation, or anything else you want to
-slice an experiment by. `createDataset()` assigns them per example through
-`splits`; the split helpers manage them on a dataset that already exists.
+`createDataset()` assigns splits per example via `splits`; these helpers edit splits on an existing dataset (server >= 19.20.0):
 
 ```typescript
 import {
   createDatasetSplit,
   deleteDatasetSplit,
-  getDatasetExamples,
   updateDatasetSplit,
 } from "@arizeai/phoenix-client/datasets";
 
 const dataset = { datasetName: "qa-test-v1" };
-const { examples } = await getDatasetExamples({ client, dataset });
-const heldOut = examples.slice(0, 10).map((example) => example.id);
-
-const testSplit = await createDatasetSplit({
-  client,
-  dataset,
-  name: "test",
-  description: "Held-out evaluation examples",
-  color: "#B8E986",
-  exampleIds: heldOut,
-});
-
-// Only the fields you pass change. Adding a current member or removing a
-// non-member is a no-op, so the call is safe to re-run.
-await updateDatasetSplit({
-  client,
-  dataset,
-  splitId: testSplit.id,
-  addExampleIds: examples.slice(10, 12).map((example) => example.id),
-  removeExampleIds: heldOut.slice(0, 1),
-});
-
-// Removes the split and its memberships, not the examples themselves.
-await deleteDatasetSplit({ client, dataset, splitId: testSplit.id });
+const split = await createDatasetSplit({ client, dataset, name: "test", exampleIds: ["ex-1", "ex-2"] });
+await updateDatasetSplit({ client, dataset, splitId: split.id, addExampleIds: ["ex-3"], removeExampleIds: ["ex-1"] }); // idempotent
+await deleteDatasetSplit({ client, dataset, splitId: split.id }); // keeps the examples
 ```
 
-Split names are unique across the whole Phoenix instance, so creating or
-renaming a split to a name already in use returns HTTP 409. The helpers require
-a Phoenix server >= 19.20.0. Membership by the user-provided example `id`
-requires a server >= 20.16.0 — against 19.20.0 through 20.15.0, pass the
-example's `nodeId` instead.
+Split names are unique instance-wide (409 on conflict). Before server 20.16.0, `exampleIds` must be example `nodeId`s, not user-provided `id`s.
 
 ## Best Practices
 
-- **Upsert by default**: Re-upload to the same name to update in-place; use `id` on examples so the server targets specific rows instead of treating every upload as new data
-- **Unique example IDs**: Example IDs are unique per dataset, so give every example its own value or omit `id` and let the server generate one
+- **Upsert by default**: Re-upload to the same name to update in-place; set a unique-per-dataset `id` on examples so the server targets specific rows instead of treating every upload as new data
 - **Versioning**: Version with new names (e.g., `qa-test-v2`) when you want a clean snapshot, not just incremental edits
 - **Metadata**: Track source, category, provenance
 - **Type safety**: Use the `Example` type from `@arizeai/phoenix-client/types/datasets`

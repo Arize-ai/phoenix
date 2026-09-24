@@ -24,9 +24,7 @@ Answer (helpful/not_helpful):`,
 
 ## Decision-Only Models
 
-`model` also accepts an AI SDK evaluation model — a model that answers typed
-questions instead of generating text, such as TypeSafe's Jev. Pass it wherever a
-`LanguageModel` goes, including the pre-built evaluators:
+`model` also accepts an AI SDK evaluation model (e.g. TypeSafe's Jev), a cheaper, faster classifier for high-volume labeling:
 
 ```typescript
 import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
@@ -37,13 +35,7 @@ const hallucination = createHallucinationEvaluator({
 });
 ```
 
-Reach for one when you are classifying at volume and only need the label: the
-rendered prompt goes out as a single choice question, which is cheaper and
-faster than a chat completion. What you give up is the explanation — these
-models cannot produce text, so the result has `label` and `score` but no
-`explanation`. In its place, `metadata` carries the model's `probabilities` per
-label and the resolved `modelId`. Telemetry options are ignored on this path,
-so the call emits no spans.
+Results have no `explanation`; `metadata` holds per-label `probabilities` and `modelId`. No spans are emitted.
 
 ## Template Variables
 

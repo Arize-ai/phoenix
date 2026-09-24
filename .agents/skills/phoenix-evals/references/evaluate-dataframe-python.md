@@ -34,17 +34,7 @@ results_df = evaluate_dataframe(
 
 ## Errors and Retries
 
-A row that raises is retried up to `max_retries` times, with one carve-out: a
-`phoenix.evals.exceptions.PhoenixException` is treated as permanent and fails
-the row on the first attempt. Provider rate limiting is the exception to that
-exception — `phoenix.evals.rate_limiters.RateLimitError` subclasses
-`PhoenixException` but still takes the retry path, so a single 429 does not
-sink a run.
-
-Once a row is out of attempts, `exit_on_error` decides what happens next:
-`True` (the default) returns immediately and leaves the remaining rows
-unevaluated, `False` records the failure and moves on. Either way, read
-`{name}_execution_details` for the per-row `status` and `exceptions`.
+Failing rows retry up to `max_retries`, except `PhoenixException`s, which fail immediately (`RateLimitError` still retries). `exit_on_error=True` (default) stops at the first exhausted row, leaving the rest unevaluated; `False` continues. Per-row `status`/`exceptions` are in `{name}_execution_details`.
 
 ## Result Column Format
 
