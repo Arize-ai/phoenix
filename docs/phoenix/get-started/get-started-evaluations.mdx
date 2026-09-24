@@ -26,13 +26,13 @@ with a travel support prompt, and tell me which examples scored lowest and why.
 
 ## Or ask PXI
 
-[PXI](/docs/phoenix/pxi), the agent built into Phoenix, cannot fetch files from the internet, so do steps 1 and 2 below first. Then open the **Prompt Playground**, choose **Test over a dataset**, pick `travel-support`, open PXI, and ask:
+[PXI](/docs/phoenix/pxi), the agent built into Phoenix, can run the whole flow, inventing the dataset instead of downloading it. Open it from any page, set it to Bypass Approval, and paste:
 
 ```text
-Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the travel-support dataset as an experiment, then tell me which examples scored lowest and why.
+Create a dataset called airline-support with 3 examples: customer questions about a fictional airline's Basic fare, with input {"question": ...} and output {"expected_answer": ...}. Invent a refund, change, and baggage policy that differs from industry norms. Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
 ```
 
-Set PXI to Bypass Approval to let it run through.
+When it reports the scores, reply *Add the policy to the prompt and rerun* to see the improvement.
 
 ## Do it yourself
 
