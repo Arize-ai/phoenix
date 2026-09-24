@@ -105,10 +105,10 @@ The following environment variables will control how your phoenix server runs.
 | `PHOENIX_ONLINE_EVAL_RETENTION_SECONDS` | `604800` | Retains terminal work rows for this many seconds before cleanup. |
 | `PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING` | `10000` | Stops span-work materialization at this number of pending, running, and retryable-error units. |
 | `PHOENIX_ONLINE_EVAL_MAX_SESSION_OUTSTANDING` | `10000` | Stops session-work materialization at this number of pending, running, and retryable-error units. |
-| `PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE` | `10` | Work units each consumer claims per cycle, and so its per-replica evaluation concurrency. |
-| `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `10` | Limits aggregate evaluator calls across both consumers per replica. |
+| `PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE` | `10` | Limits the work units each consumer claims at once. A consumer claims only as many as it can start under `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY`. |
+| `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `10` | Limits the work units a replica evaluates at once, across all consumers. |
 | `PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY` | `5` | Limits aggregate database phases across both consumers per replica. |
-| `PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS` | `5` | Sets the delay between claim cycles. Together with claim batch size, this bounds per-replica claim throughput. |
+| `PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS` | `5` | Sets how long a consumer waits before claiming again when it finds no work. |
 | `PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES` | `65536` | Limits the aggregate UTF-8 size of the final rendered messages sent to an LLM provider. Minimum: `1024`. |
 | `PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES` | `65536` | Limits the UTF-8 size of the rendered span or session code-evaluator payload. Minimum: `1024`. |
 
