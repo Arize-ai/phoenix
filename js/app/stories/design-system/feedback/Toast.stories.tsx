@@ -214,6 +214,5 @@ export const Region: StoryFn<ComponentProps<typeof ToastRegion>> = () => (
 export const Thumbnail: StoryObj = {
   ...Success,
   tags: ["!dev", "!autodocs"],
-  // `toastFrame`, carried over from `Success`, hosts the toast at the region's 400px width.
   parameters: { thumbnail: { scale: 0.75 } },
 };
