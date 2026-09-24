@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00272697bff5a14763af593d5c0936ac>>
+ * @generated SignedSource<<2337526e958e241da9d1c8172f0b4974>>
  * @lightSyntaxTransform
  */
 
@@ -12,8 +12,9 @@ import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorFilterColumn = "name";
 export type TimeBinScale = "DAY" | "HOUR" | "MINUTE" | "MONTH" | "WEEK" | "YEAR";
 export type ProjectEvaluatorFilter = {
-  col: ProjectEvaluatorFilterColumn;
-  value: string;
+  annotationNames?: ReadonlyArray<string> | null;
+  col?: ProjectEvaluatorFilterColumn | null;
+  value?: string | null;
 };
 export type TimeRange = {
   end?: string | null;
