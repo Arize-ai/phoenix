@@ -1,192 +1,161 @@
 ---
-title: "Set up tracing"
+title: "Auto-instrumentation"
 sidebarTitle: "Auto-instrumentation"
-description: "Connect your application to Phoenix and choose an instrumentation method."
+description: "Auto-instrument supported frameworks and model clients with Phoenix OTEL and OpenInference."
 ---
 
-Start sending traces to Phoenix by configuring OpenTelemetry and choosing an instrumentation method. The Phoenix OTEL SDK wraps OpenTelemetry with Phoenix defaults.
+Start where tracing is automatic. Install the OpenInference instrumentor for your model client or AI framework, attach it once, and calls are traced.
 
-<Info>
-Prefer agent-assisted setup? Use [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup) to have `px setup` hand the instrumentation work to a supported coding agent and verify that traces arrive. This page shows the code path.
-</Info>
+## Auto-instrument with a coding agent
 
-<Note>
-**Go users:** Phoenix does not ship a branded `phoenix-otel` SDK wrapper for Go. Configure the standard [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/) directly and point an OTLP/HTTP exporter at Phoenix. End-to-end examples live in the Go integration pages: [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk), [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go), and [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
-</Note>
+`px setup` connects your app to Phoenix, hands instrumentation to your coding agent, and verifies that traces arrive.
 
-## Choose an approach
+<Steps>
+  <Step title={<span className="step-title">Start Phoenix</span>}>
+    If you already have a Phoenix deployment, skip this step.
 
-Choose the approach that fits your codebase.
-
-<CardGroup cols={2}>
-  <Card title="Choose an integration" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
-    Pick a supported framework, provider, or tool to trace
-  </Card>
-  <Card title="Manual instrumentation" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
-    Use decorators and helpers to trace specific methods or code blocks in Python
-  </Card>
-  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
-    Group traces by application or environment
-  </Card>
-  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
-    Group related traces into multi-turn conversations
-  </Card>
-</CardGroup>
-
-## Install
-
-<Tabs>
-  <Tab title="Python" icon="python">
     ```bash
-    pip install "arize-phoenix-otel>=0.16.0"
+    uvx arize-phoenix serve
+    ```
+  </Step>
+
+  <Step title={<span className="step-title">Run setup from your app</span>}>
+    In a new terminal, run one of these from your app's root directory:
+
+    <CodeGroup>
+    ```bash npx
+    npx -y @arizeai/phoenix-cli setup
     ```
 
-    <Note>
-    Version **0.16.0** or later is required to import OpenInference context managers and semantic conventions directly from `phoenix.otel`. On earlier versions, import them from `openinference.instrumentation` and `openinference.semconv.trace` instead.
-    </Note>
-  </Tab>
-  <Tab title="TypeScript" icon="js">
-    ```bash
-    npm install @arizeai/phoenix-otel
+    ```bash Install
+    npm i -g @arizeai/phoenix-cli && px setup
     ```
-  </Tab>
-</Tabs>
+    </CodeGroup>
+  </Step>
+</Steps>
 
-<Note>
-**Do I need to match the SDK version to my Phoenix server version?** No. `arize-phoenix-otel` (and `@arizeai/phoenix-otel`) are versioned independently of the Phoenix server. Any recent SDK version works with any Phoenix server version, so you don't need to upgrade the server when you upgrade the SDK, or vice versa. The SDK sends traces over OTLP using [OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference), both of which are backward compatible, so there is no version pairing to track. See [The phoenix.otel helpers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers#version-compatibility) for why.
-</Note>
+During setup, choose Claude Code, Codex, Cursor, or OpenCode. When prompted to install agent skills, answer yes. You can also run `px setup skills` later. For CI, unsupported agents, and setup flags, see [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup).
 
-## Configure
+You can also start from the Phoenix UI. In a project with no traces, open **Spans** or **Traces**, choose **Trace your app**, then pick the integration that matches your stack.
 
-Set environment variables to connect to your Phoenix instance:
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/auto-instrumentation-ui-llamaindex-snippet.png" alt="Phoenix Trace your app setup screen with the LlamaIndex integration selected and install dependencies shown" />
+</Frame>
 
-```bash
-export PHOENIX_API_KEY="your-api-key"
+## Auto-instrument with code
 
-# Local (default, no API key required)
-export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+Use this path when you want to add tracing yourself. Choose the OpenInference package for your stack from [Supported integrations](/docs/phoenix/integrations), install it with Phoenix OTEL, then register tracing in your app.
 
-# A remote Phoenix deployment
-# export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
+<Steps>
+  <Step title={<span className="step-title">Install</span>}>
+    <Tabs>
+      <Tab title="Python" icon="python">
+        ```bash
+        pip install arize-phoenix-otel
+        pip install openinference-instrumentation-openai
+        ```
+      </Tab>
+      <Tab title="JS/TS" icon="js">
+        ```bash
+        npm install @arizeai/phoenix-otel
+        npm install @arizeai/openinference-instrumentation-openai
+        ```
+      </Tab>
+    </Tabs>
 
-# Self-hosted
-# export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
-```
+    The commands above use OpenAI as an example. For another framework or provider, install its package from [Supported integrations](/docs/phoenix/integrations).
 
-<Tip>
-You can find your collector endpoint and API key in the **Settings** page of your Phoenix instance.
-</Tip>
-
-## Register
-
-Call `register()` to initialize tracing. The SDK automatically reads your environment variables.
-
-For manual instrumentation, `arize-phoenix-otel` (>=0.16.0) and `@arizeai/phoenix-otel` re-export all commonly used OpenInference helpers so a single dependency is sufficient:
-
-- **Python**: context managers (`using_session`, `using_user`, `using_metadata`, `using_tags`, `using_attributes`, `using_prompt_template`, `suppress_tracing`) and semantic conventions (`SpanAttributes`, `OpenInferenceSpanKindValues`, `OpenInferenceMimeTypeValues`).
-- **TypeScript**: `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, and context setters like `setSession` and `setMetadata`.
-
-<Tabs>
-  <Tab title="Python" icon="python">
-    ```python
-    from phoenix.otel import register
-
-    tracer_provider = register(
-        project_name="my-llm-app",
-        auto_instrument=True,  # automatically instruments OpenAI, LangChain, etc.
-    )
-    ```
-
-    <Accordion title="Configuration options">
-      | Parameter | Description |
-      |-----------|-------------|
-      | `project_name` | Project name in Phoenix, from this argument or the `PHOENIX_PROJECT` environment variable. `PHOENIX_PROJECT_NAME` is also supported as an alias. |
-      | `auto_instrument` | Automatically instrument all supported libraries |
-      | `batch` | Process spans in batch (default: `False`) |
-      | `endpoint` | Custom collector endpoint URL |
-      | `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"` |
-      | `headers` | Headers to send with each span payload |
+    <Accordion title="Go setup">
+    Phoenix does not ship a branded `phoenix-otel` SDK wrapper for Go. Configure the standard [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/) directly and point an OTLP/HTTP exporter at Phoenix. End-to-end examples live in the Go integration pages: [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk), [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go), and [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
     </Accordion>
-  </Tab>
+  </Step>
 
-  <Tab title="TypeScript" icon="js">
-    ```typescript
-    import { register } from "@arizeai/phoenix-otel";
-
-    register({ projectName: "my-llm-app" });
-    ```
-
-    <Accordion title="Configuration options">
-      | Parameter | Type | Default | Description |
-      |-----------|------|---------|-------------|
-      | `projectName` | `string` | `"default"` | Project name in Phoenix |
-      | `url` | `string` | `"http://localhost:6006"` | Phoenix server URL |
-      | `apiKey` | `string` | None | API key for authentication |
-      | `batch` | `boolean` | `true` | Use batch span processing |
-      | `headers` | `Record<string, string>` | `{}` | Custom headers for OTLP requests |
-      | `instrumentations` | `Instrumentation[]` | None | Instrumentations to register |
-      | `global` | `boolean` | `true` | Register as the global tracer provider |
-      | `spanProcessors` | `SpanProcessor[]` | None | Custom span processors (overrides default exporter) |
-      | `diagLogLevel` | `DiagLogLevel` | None | Enable diagnostic logging |
-    </Accordion>
-  </Tab>
-</Tabs>
-
-## Instrument
-
-Add instrumentation to capture traces from your LLM calls:
-
-<Tabs>
-  <Tab title="Python" icon="python">
-    With `auto_instrument=True`, Phoenix automatically discovers and activates **all** OpenInference instrumentor packages installed in your Python environment, so no additional code is required.
+  <Step title={<span className="step-title">Register and instrument</span>}>
+    Set environment variables to connect to your Phoenix instance:
 
     ```bash
-    # Install instrumentors for your frameworks
-    pip install openinference-instrumentation-openai
-    pip install openinference-instrumentation-langchain
-    # ... any other OpenInference packages you need
+    export PHOENIX_API_KEY="your-api-key"
+
+    # Local (default, no API key required)
+    export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+
+    # A remote Phoenix deployment
+    # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
+
+    # Self-hosted
+    # export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
     ```
+
+    Call `register()` to initialize tracing. The SDK automatically reads your environment variables.
+
+    <Tabs>
+      <Tab title="Python" icon="python">
+        ```python
+        from phoenix.otel import register
+
+        tracer_provider = register(
+            project_name="my-llm-app",
+            auto_instrument=True,  # automatically instruments OpenAI, LangChain, etc.
+        )
+        ```
+
+        <Accordion title="Configuration options">
+          | Parameter | Description |
+          |-----------|-------------|
+          | `project_name` | Project name in Phoenix, from this argument or the `PHOENIX_PROJECT` environment variable. `PHOENIX_PROJECT_NAME` is also supported as an alias. |
+          | `auto_instrument` | Automatically instrument all supported libraries |
+          | `batch` | Process spans in batch (default: `False`) |
+          | `endpoint` | Custom collector endpoint URL |
+          | `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"` |
+          | `headers` | Headers to send with each span payload |
+        </Accordion>
+      </Tab>
+
+      <Tab title="JS/TS" icon="js">
+        ```typescript
+        import OpenAI from "openai";
+        import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
+        import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+
+        register({ projectName: "my-llm-app" });
+
+        const instrumentation = new OpenAIInstrumentation();
+        instrumentation.manuallyInstrument(OpenAI);
+
+        registerInstrumentations({
+          instrumentations: [instrumentation],
+        });
+        ```
+
+        <Info>
+        ESM projects require calling `manuallyInstrument()` on the client class. CommonJS projects can skip this step.
+        </Info>
+
+        <Accordion title="Configuration options">
+          | Parameter | Type | Default | Description |
+          |-----------|------|---------|-------------|
+          | `projectName` | `string` | `"default"` | Project name in Phoenix |
+          | `url` | `string` | `"http://localhost:6006"` | Phoenix server URL |
+          | `apiKey` | `string` | None | API key for authentication |
+          | `batch` | `boolean` | `true` | Use batch span processing |
+          | `headers` | `Record<string, string>` | `{}` | Custom headers for OTLP requests |
+          | `instrumentations` | `Instrumentation[]` | None | Instrumentations to register |
+          | `global` | `boolean` | `true` | Register as the global tracer provider |
+          | `spanProcessors` | `SpanProcessor[]` | None | Custom span processors (overrides default exporter) |
+          | `diagLogLevel` | `DiagLogLevel` | None | Enable diagnostic logging |
+        </Accordion>
+      </Tab>
+    </Tabs>
 
     <Tip>
-    Just `pip install` the instrumentation packages you need and set `auto_instrument=True`. Phoenix handles the rest.
+    You can find your collector endpoint and API key in the **Settings** page of your Phoenix instance.
     </Tip>
+  </Step>
 
-    See [Choose an integration](/docs/phoenix/integrations) for supported packages, or use [manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for custom spans.
-  </Tab>
-
-  <Tab title="TypeScript" icon="js">
-    Install and register instrumentations for your framework:
-
-    ```bash
-    npm install @arizeai/openinference-instrumentation-openai
-    ```
-
-    ```typescript
-    import OpenAI from "openai";
-    import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
-    import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
-
-    register({ projectName: "my-llm-app" });
-
-    const instrumentation = new OpenAIInstrumentation();
-    instrumentation.manuallyInstrument(OpenAI);
-
-    registerInstrumentations({
-      instrumentations: [instrumentation],
-    });
-    ```
-
-    <Info>
-    ESM projects require calling `manuallyInstrument()` on the client class. CommonJS projects can skip this step.
-    </Info>
-
-    <Tip>
-    For manual spans, import the helpers from `@arizeai/phoenix-otel`. Phoenix's wrappers resolve the active global tracer when they execute, so the same traced function keeps working inside experiment runs and other provider swaps.
-    </Tip>
-
-    See [Choose an integration](/docs/phoenix/integrations) for supported packages.
-  </Tab>
-</Tabs>
+  <Step title={<span className="step-title">Run your app</span>}>
+    Run your application as usual. Phoenix receives spans from the supported model clients, frameworks, or tools you installed.
+  </Step>
+</Steps>
 
 ---
 
@@ -196,28 +165,24 @@ Spans may not be exported if still queued in the processor when your process exi
 
 ---
 
-## Advanced configuration
+## Learn more
 
-For more control over tracing behavior, see the SDK reference documentation:
+- **What auto captures:** auto-instrumentors set [OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions) automatically, including model names, messages, token counts, inputs, and outputs.
 
-<CardGroup cols={2}>
-  <Card title="Python arize-phoenix-otel" icon="python" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel">
-    Batch processing, custom endpoints, gRPC/HTTP transport, sampling, and OTel primitives
-  </Card>
-  <Card title="TypeScript @arizeai/phoenix-otel" icon="js" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel">
-    Diagnostic logging, custom headers, and full API reference
-  </Card>
-</CardGroup>
+- **Group traces into conversations:** add `session.id` and `user.id` to follow multi-turn interactions. See [Set up sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions).
+
+- **Enrich traces with custom data:** attach metadata, tags, and custom attributes to auto-instrumented spans. See [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans).
+
+- **Control what is captured:** hide sensitive inputs, suppress tracing for specific calls, or redact span attributes. See [Mask and redact data](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes).
+
+- **Add spans that auto-instrumentation missed:** add manual spans around custom logic. See [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument).
+
+- **Tune the SDK setup:** configure batching, custom endpoints, headers, sampling, and full SDK options. See [Python arize-phoenix-otel](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel) or [TypeScript @arizeai/phoenix-otel](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel).
 
 ---
 
 ## Next steps
 
-<CardGroup cols={2}>
-  <Card title="Choose an integration" icon="puzzle-piece" href="/docs/phoenix/integrations">
-    Pick a framework, provider, or tool to trace
-  </Card>
-  <Card title="Tracing Helpers" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
-    Manual instrumentation with decorators
-  </Card>
-</CardGroup>
+Next, add spans around custom logic that auto-instrumentation does not capture.
+
+<Card title="Next: Manual instrumentation" icon="arrow-right" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument" />
