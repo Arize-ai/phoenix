@@ -327,8 +327,8 @@
                 "group": "How-to: Experiments",
                 "pages": [
                   "docs/phoenix/datasets-and-experiments/how-to-experiments",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
@@ -2750,6 +2750,14 @@
     {
       "source": "/docs/phoenix/llm-evals/building-your-own-evals",
       "destination": "/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators"
+    },
+    {
+      "source": "/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
+      "destination": "/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments"
+    },
+    {
+      "source": "/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background",
+      "destination": "/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments-in-background"
     }
   ]
 }
