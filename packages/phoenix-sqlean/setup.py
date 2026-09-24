@@ -172,7 +172,7 @@ def get_setup_args():
         url="https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-sqlean",
         package_dir={PACKAGE_NAME: PACKAGE_NAME},
         packages=packages,
-        python_requires=">=3.10, <3.15",
+        python_requires=">=3.11, <3.15",
         ext_modules=[
             Extension(
                 name=f"{PACKAGE_NAME}._sqlite3",

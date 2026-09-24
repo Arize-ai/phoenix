@@ -149,7 +149,7 @@ check-tools: ## Verify required tools are installed
 
 install-python: ## Install Python dependencies
 	@echo -e "$(CYAN)Installing Python dependencies...$(NC)"
-	@$(UV) sync --python 3.10
+	@$(UV) sync --python 3.11
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 install-node: ## Install Node.js dependencies
@@ -214,7 +214,7 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 		--output-model-type dataclasses.dataclass \
 		--collapse-root-models \
 		--enum-field-as-literal all \
-		--target-python-version 3.10 \
+		--target-python-version 3.11 \
 		--use-default-kwarg \
 		--use-double-quotes \
 		--use-generic-container-types \
@@ -517,7 +517,7 @@ HARBOR_VERSION ?= 0.21.0
 HARBOR_CLIENT_VERSION ?= 3.5.0
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
-# Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.10.
+# Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.11.
 HARBOR_PYTHON ?= 3.13
 UVX := uvx
 HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \

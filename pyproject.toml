@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.10, <3.15"
+requires-python = ">=3.11, <3.15"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,7 +15,6 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -219,8 +218,7 @@ azure = [
 ]
 container = [
   "anthropic>=1,<2",
-  "google-genai>=1.50.0 ; python_version >= '3.10'",
-  "google-genai ; python_version < '3.10'",
+  "google-genai>=1.50.0",
   "prometheus-client",
   "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
@@ -403,7 +401,7 @@ follow_untyped_imports = true
 venvPath = "."
 venv = ".venv"
 extraPaths = ["src"]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 # Restating all three defaults is required because setting exclude replaces
 # them; omitting "**/.*" makes pyright walk .venv and every other
 # dot-directory. packages/phoenix-sqlean is a vendored fork of
@@ -435,7 +433,7 @@ exclude = [
   "packages/phoenix-sqlean",
 ]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
