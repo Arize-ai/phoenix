@@ -283,21 +283,81 @@ This is an endpoint for a client to connect to, not a page to visit. Opening it 
 https://arizeai-433a7140.mintlify.app/mcp
 ```
 
-Add it under the name `phoenix-docs`, alongside the `phoenix` server rather than in place of it:
+<Tabs>
+  <Tab title="Claude Code">
+    Project scope:
 
-```bash
-claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
-```
+    ```bash
+    claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
+    ```
 
-That adds it for the current directory. Add `--scope user` to make it available in all projects, then run `claude mcp list` to verify. Other clients take the same config shapes as [Connect](#connect), with this URL and the name `phoenix-docs`:
+    User scope:
 
-| Client | Where it goes | Key |
-| ------ | ------------- | --- |
-| Cursor | `~/.cursor/mcp.json`, or project `.cursor/mcp.json` | `mcpServers.phoenix-docs.url`. Restart Cursor and confirm the server appears in MCP settings. |
-| VS Code | `.vscode/mcp.json`, or `MCP: Add Server` from the Command Palette | `servers.phoenix-docs`, with `"type": "http"` and `url`. Run `MCP: List Servers` to verify. |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers.phoenix-docs.serverUrl`. Refresh MCP servers from the MCP settings. |
-| Claude Desktop | Connector settings | A custom connector named `Phoenix Docs` with this URL. |
-| Other clients | Anywhere the client keeps MCP config | Any client that supports streamable HTTP works. Configure the URL directly. |
+    ```bash
+    claude mcp add --transport http phoenix-docs --scope user https://arizeai-433a7140.mintlify.app/mcp
+    ```
+
+    Verify with `claude mcp list`.
+  </Tab>
+
+  <Tab title="Cursor">
+    Add to `~/.cursor/mcp.json`, or project `.cursor/mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix-docs": {
+          "url": "https://arizeai-433a7140.mintlify.app/mcp"
+        }
+      }
+    }
+    ```
+
+    Then restart Cursor and confirm the server appears in MCP settings.
+  </Tab>
+
+  <Tab title="VS Code">
+    Run `MCP: Add Server` from the Command Palette, or add to `.vscode/mcp.json`:
+
+    ```json
+    {
+      "servers": {
+        "phoenix-docs": {
+          "type": "http",
+          "url": "https://arizeai-433a7140.mintlify.app/mcp"
+        }
+      }
+    }
+    ```
+
+    Then run `MCP: List Servers` to verify.
+  </Tab>
+
+  <Tab title="Windsurf">
+    Add to `~/.codeium/windsurf/mcp_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix-docs": {
+          "serverUrl": "https://arizeai-433a7140.mintlify.app/mcp"
+        }
+      }
+    }
+    ```
+
+    Then refresh MCP servers from the MCP settings.
+  </Tab>
+
+  <Tab title="Claude Desktop">
+    Add a custom connector in Claude Desktop's connector settings:
+
+    - **Name**: `Phoenix Docs`
+    - **URL**: `https://arizeai-433a7140.mintlify.app/mcp`
+  </Tab>
+</Tabs>
+
+Any other client that supports streamable HTTP works. Configure the URL directly.
 
 Client reference docs: [Claude Code MCP](https://code.claude.com/docs/en/mcp), [Cursor MCP](https://cursor.com/docs/context/mcp), [VS Code MCP servers](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf MCP](https://docs.windsurf.com/windsurf/cascade/mcp).
 
