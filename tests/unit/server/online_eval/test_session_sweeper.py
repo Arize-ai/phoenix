@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from secrets import token_hex
 from typing import Sequence, cast
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import Table, delete, event, func, select, text, update
@@ -23,9 +23,12 @@ from phoenix.server.online_eval.derivation import (
     ResolvedProjectEvaluator,
     sample_key,
 )
+from phoenix.server.online_eval.leases import (
+    MATERIALIZER_LEASE_TTL_SECONDS,
+    current_database_time,
+)
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.sweeper import (
-    SWEEP_LEASE_TTL_SECONDS,
     TRACE_SWEEP_MAX_OUTSTANDING,
     EvalSweeper,
 )
@@ -93,28 +96,6 @@ def test_live_key_predicate_is_single_sourced() -> None:
     assert migration._LIVE_EVAL_SESSION_WORK_PREDICATE == predicate
 
 
-@pytest.mark.parametrize(
-    "database_dialect,expected_clock",
-    [("sqlite", "now()"), ("postgresql", "statement_timestamp()")],
-)
-async def test_database_now_uses_statement_time(
-    database_dialect: str,
-    expected_clock: str,
-) -> None:
-    session = AsyncMock(spec=AsyncSession)
-    session.scalar.return_value = _now()
-    sweeper = EvalSweeper(
-        DbSessionFactory(db=Mock(), dialect=database_dialect),
-        evaluation_target="SESSION",
-        max_outstanding=_MAX_OUTSTANDING,
-    )
-
-    await sweeper._database_now(session)
-
-    statement = session.scalar.await_args.args[0]
-    assert expected_clock in str(statement)
-
-
 async def test_materialization_rechecks_eligibility_at_write_time(
     db: DbSessionFactory,
 ) -> None:
@@ -127,7 +108,7 @@ async def test_materialization_rechecks_eligibility_at_write_time(
 
     async with db() as session:
         criterion = (await sweeper._load_evaluators(session))[0]
-        database_now = await sweeper._database_now(session)
+        database_now = await current_database_time(session, db.dialect)
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
@@ -221,7 +202,7 @@ async def test_materializes_due_session_with_activity_snapshot(
         lease = (
             await session.scalars(
                 select(models.EvalWorkLease).where(
-                    models.EvalWorkLease.name == sweeper._lease_name,
+                    models.EvalWorkLease.name == sweeper._lease.name,
                 )
             )
         ).one()
@@ -232,7 +213,7 @@ async def test_materializes_due_session_with_activity_snapshot(
     assert unit.project_evaluator_id == project_evaluator_id
     assert unit.evaluated_through == last_span_ingested_at
     assert unit.status == "PENDING"
-    assert lease.holder == sweeper._sweeper_id
+    assert lease.holder == sweeper._lease.holder
     assert live_work_count == 1
 
 
@@ -279,7 +260,7 @@ async def test_watermark_reaches_a_full_page_or_the_due_horizon(
     async def sweep_page(limit: int) -> datetime:
         async with db() as session:
             project_evaluators = await sweeper._load_evaluators(session)
-            database_now = await sweeper._database_now(session)
+            database_now = await current_database_time(session, db.dialect)
             await sweeper._load_eligible_pairs(
                 session,
                 database_now,
@@ -431,8 +412,8 @@ async def test_storage_pause_renews_lease_without_materializing(
     async with db() as session:
         session.add(
             models.EvalWorkLease(
-                name=sweeper._lease_name,
-                holder=sweeper._sweeper_id,
+                name=sweeper._lease.name,
+                holder=sweeper._lease.holder,
                 heartbeat_at=_now() - timedelta(seconds=30),
             )
         )
@@ -451,12 +432,12 @@ async def test_storage_pause_renews_lease_without_materializing(
         assert project_session is not None
         lease = (
             await session.scalars(
-                select(models.EvalWorkLease).where(models.EvalWorkLease.name == sweeper._lease_name)
+                select(models.EvalWorkLease).where(models.EvalWorkLease.name == sweeper._lease.name)
             )
         ).one()
     assert work_count == 0
     assert project_session.last_span_ingested_at == last_span_ingested_at
-    assert lease.holder == sweeper._sweeper_id
+    assert lease.holder == sweeper._lease.holder
 
 
 async def test_retained_long_delay_pairs_do_not_block_later_due_pair(
@@ -589,7 +570,7 @@ async def test_closed_admission_gate_skips_evaluator_resolution(
 
     monkeypatch.setattr(sweeper_module, "resolve_project_evaluators_bulk", unexpected_resolution)
     async with db() as session:
-        database_now = await sweeper._database_now(session)
+        database_now = await current_database_time(session, db.dialect)
         assert await sweeper._sweep(session, database_now) == (0, None)
 
 
@@ -968,13 +949,13 @@ async def test_sweep_is_kept_when_the_lease_is_lost_mid_tick(
         async with db() as session:
             await session.execute(
                 update(models.EvalWorkLease)
-                .where(models.EvalWorkLease.name == sweeper._lease_name)
+                .where(models.EvalWorkLease.name == sweeper._lease.name)
                 .values(holder="replacement-sweeper")
             )
         await materialize()
 
     monkeypatch.setattr(sweeper, "_materialize", lose_lease_then_materialize)
-    with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
+    with caplog.at_level(logging.WARNING):
         await sweeper._tick()
 
     async with db() as session:
@@ -982,7 +963,7 @@ async def test_sweep_is_kept_when_the_lease_is_lost_mid_tick(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
     assert work_count == 1
-    assert "SESSION evaluation sweeper lost its lease" in caplog.text
+    assert "Lost the online-eval session-sweep lease" in caplog.text
 
 
 async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
@@ -993,7 +974,7 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
     async with db() as session:
         session.add(
             models.EvalWorkLease(
-                name=f"{sweeper_module._SESSION_SWEEP_LEASE_NAME}:default",
+                name="session-sweep",
                 holder="other-sweeper",
                 heartbeat_at=_now(),
             )
@@ -1007,8 +988,8 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
         )
         await session.execute(
             update(models.EvalWorkLease)
-            .where(models.EvalWorkLease.name == sweeper._lease_name)
-            .values(heartbeat_at=_now() - timedelta(seconds=SWEEP_LEASE_TTL_SECONDS + 1))
+            .where(models.EvalWorkLease.name == sweeper._lease.name)
+            .values(heartbeat_at=_now() - timedelta(seconds=MATERIALIZER_LEASE_TTL_SECONDS + 1))
         )
     await sweeper._tick()
 
@@ -1073,7 +1054,7 @@ async def test_session_filter_is_evaluated_against_page_rowids_before_sampling(
     try:
         async with db() as session:
             project_evaluator = await sweeper._load_evaluators(session)
-            database_now = await sweeper._database_now(session)
+            database_now = await current_database_time(session, db.dialect)
             materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
                 session,
                 database_now,
@@ -1137,7 +1118,7 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
 
     async with db() as session:
         project_evaluator = await sweeper._load_evaluators(session)
-        database_now = await sweeper._database_now(session)
+        database_now = await current_database_time(session, db.dialect)
         compiled = select(
             sweeper_module._eligible_pairs_relation(
                 sweeper._target, project_evaluator, database_now, db.dialect
@@ -1322,7 +1303,7 @@ async def test_materializes_due_trace_with_activity_snapshot(
         lease = (
             await session.scalars(
                 select(models.EvalWorkLease).where(
-                    models.EvalWorkLease.name == sweeper._lease_name,
+                    models.EvalWorkLease.name == sweeper._lease.name,
                 )
             )
         ).one()
@@ -1333,7 +1314,7 @@ async def test_materializes_due_trace_with_activity_snapshot(
     assert unit.project_evaluator_id == project_evaluator_id
     assert unit.evaluated_through == last_span_ingested_at
     assert unit.status == "PENDING"
-    assert lease.holder == sweeper._sweeper_id
+    assert lease.holder == sweeper._lease.holder
     assert session_work_count == 0
 
 

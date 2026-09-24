@@ -3719,12 +3719,9 @@ class ProjectEvaluator(HasId):
 
 
 class EvalWorkLease(HasId):
-    """A named single-holder lease for a materializer that has no position to keep.
-
-    The session and trace sweepers decide what to materialize from entity state rather
-    than from the span arrival log, so they need mutual exclusion and nothing else. A lease is
-    held while heartbeat_at stays fresh; once it goes stale another holder may take it.
-    """
+    """A named lease that keeps one replica at a time running an online-eval materializer,
+    so replicas do not repeat each other's queries. It is held while heartbeat_at stays
+    fresh; once it goes stale another replica may take it."""
 
     __tablename__ = "eval_work_leases"
     name: Mapped[str] = mapped_column(String, nullable=False)
@@ -3739,35 +3736,25 @@ class EvalWorkLease(HasId):
     __table_args__ = (UniqueConstraint("name"),)
 
 
-class EvalWorkCursor(HasId):
-    """SPAN producer lease and position in the span arrival log, one row per
-    (evaluation_target, consumer_group). produced_through_id, observed_high_water_id and
-    observed_at are Span.id positions in that log, so only targets materialized by
-    scanning it keep a row here — targets that materialize from entity state take a
-    plain EvalWorkLease instead."""
+class EvalSpanCursor(Base):
+    """The span producer's position in the span arrival log, as Span.id values. The table
+    holds a single row."""
 
-    __tablename__ = "eval_work_cursors"
-    evaluation_target: Mapped[EvaluationTarget] = mapped_column(
-        CheckConstraint(
-            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
-        ),
-        nullable=False,
+    __tablename__ = "eval_span_cursors"
+    id: Mapped[int] = mapped_column(
+        _Integer,
+        CheckConstraint("id = 1", name="single_row"),
+        primary_key=True,
+        autoincrement=False,
     )
-    consumer_group: Mapped[str] = mapped_column(String, nullable=False)
-
     produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
     observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
     observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-
-    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    claimed_by: Mapped[Optional[str]] = mapped_column(String)
 
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-
-    __table_args__ = (UniqueConstraint("evaluation_target", "consumer_group"),)
 
 
 class EvalWorkUnit(HasId):

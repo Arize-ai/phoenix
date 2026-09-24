@@ -35,6 +35,7 @@ from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
 )
+from phoenix.server.online_eval.leases import MATERIALIZER_LEASE_TTL_SECONDS
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.project_evaluator_resolution import (
     resolve_project_evaluator,
@@ -137,27 +138,21 @@ async def _seed_cursor(
     produced_through_id: int = 0,
     observed_high_water_id: int | None = None,
     observed_at: datetime | None = None,
-    claimed_by: str | None = None,
-    claimed_at: datetime | None = None,
-) -> int:
+) -> None:
     async with db() as session:
-        cursor = models.EvalWorkCursor(
-            evaluation_target="SPAN",
-            consumer_group="default",
-            produced_through_id=produced_through_id,
-            observed_high_water_id=observed_high_water_id,
-            observed_at=observed_at,
-            claimed_by=claimed_by,
-            claimed_at=claimed_at,
+        session.add(
+            models.EvalSpanCursor(
+                id=1,
+                produced_through_id=produced_through_id,
+                observed_high_water_id=observed_high_water_id,
+                observed_at=observed_at,
+            )
         )
-        session.add(cursor)
-        await session.flush()
-        return cursor.id
 
 
-async def _get_cursor(db: DbSessionFactory, cursor_id: int) -> models.EvalWorkCursor:
+async def _get_cursor(db: DbSessionFactory) -> models.EvalSpanCursor:
     async with db() as session:
-        cursor = await session.get(models.EvalWorkCursor, cursor_id)
+        cursor = await session.get(models.EvalSpanCursor, 1)
         assert cursor is not None
         return cursor
 
@@ -180,16 +175,10 @@ async def test_cold_start_initializes_cursor_at_current_high_water(
     await producer._tick()
 
     async with db() as session:
-        cursor = (
-            await session.scalars(
-                select(models.EvalWorkCursor).where(
-                    models.EvalWorkCursor.evaluation_target == "SPAN",
-                    models.EvalWorkCursor.consumer_group == "default",
-                )
-            )
-        ).one()
+        cursor = (await session.scalars(select(models.EvalSpanCursor))).one()
+        lease = (await session.scalars(select(models.EvalWorkLease))).one()
     assert cursor.produced_through_id == spans[-1].id
-    assert cursor.claimed_by == producer._producer_id
+    assert lease.holder == producer._lease.holder
     assert await _work_unit_span_rowids(db) == []
 
 
@@ -201,7 +190,7 @@ async def test_storage_pause_skips_materialization_and_cursor_advance(
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         produced_through_id=0,
         observed_high_water_id=span.id,
@@ -216,7 +205,7 @@ async def test_storage_pause_skips_materialization_and_cursor_advance(
         db.should_not_insert_or_update = False
 
     assert await _work_unit_span_rowids(db) == []
-    assert (await _get_cursor(db, cursor_id)).produced_through_id == 0
+    assert (await _get_cursor(db)).produced_through_id == 0
 
 
 async def test_tick_materializes_matching_spans_and_advances_watermark(
@@ -234,7 +223,7 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         db, project.id, filter_condition="span_kind == 'LLM'"
     )
     high_water = other_span.id
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         observed_high_water_id=high_water,
         observed_at=_now() - timedelta(seconds=120),
@@ -263,16 +252,13 @@ async def test_tick_materializes_matching_spans_and_advances_watermark(
         assert unit.project_evaluator_id == project_evaluator_id
         assert unit.config_fingerprint == expected_fingerprint
 
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == high_water
-    assert cursor.claimed_by == producer._producer_id
 
     # Re-scanning the same window is idempotent under the work-key unique constraint.
     async with db() as session:
         await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(
+            update(models.EvalSpanCursor).values(
                 produced_through_id=0,
                 observed_high_water_id=high_water,
                 observed_at=_now() - timedelta(seconds=120),
@@ -540,7 +526,7 @@ async def test_tick_advances_at_most_one_id_chunk(
     await _seed_criteria(db, project.id)
     low_exclusive = spans[0].id - 1
     observed_at = _now() - timedelta(seconds=120)
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         produced_through_id=low_exclusive,
         observed_high_water_id=spans[-1].id,
@@ -550,7 +536,7 @@ async def test_tick_advances_at_most_one_id_chunk(
     producer = OnlineEvalProducer(db)
     await producer._tick()
 
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == low_exclusive + 2
     assert cursor.observed_high_water_id == spans[-1].id
     assert cursor.observed_at == observed_at
@@ -558,7 +544,7 @@ async def test_tick_advances_at_most_one_id_chunk(
 
     await producer._tick()
 
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == low_exclusive + 4
     assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:4]]
 
@@ -574,7 +560,7 @@ async def test_materialization_budget_truncates_without_advancing(
     await _seed_criteria(db, project.id)
     await _seed_criteria(db, project.id)
     low_exclusive = spans[0].id - 1
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         produced_through_id=low_exclusive,
         observed_high_water_id=spans[-1].id,
@@ -587,7 +573,7 @@ async def test_materialization_budget_truncates_without_advancing(
     async with db() as session:
         unit_count = await session.scalar(select(func.count()).select_from(models.EvalWorkUnit))
     assert unit_count == 3
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == low_exclusive
     assert await producer._admission_budget() == 0
 
@@ -607,7 +593,7 @@ async def test_materialization_budget_truncates_without_advancing(
     assert len(units) == 4
     assert sum(unit.status == "DONE" for unit in units) == 3
     assert sum(unit.status == "PENDING" for unit in units) == 1
-    assert (await _get_cursor(db, cursor_id)).produced_through_id == spans[-1].id
+    assert (await _get_cursor(db)).produced_through_id == spans[-1].id
 
 
 @pytest.mark.parametrize("value", ["0", "-1"])
@@ -627,7 +613,7 @@ async def test_cursor_regresses_to_live_span_high_water(db: DbSessionFactory) ->
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
     stale_high_water = span.id + 100
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         produced_through_id=stale_high_water,
         observed_high_water_id=stale_high_water,
@@ -637,7 +623,7 @@ async def test_cursor_regresses_to_live_span_high_water(db: DbSessionFactory) ->
     producer = OnlineEvalProducer(db)
     await producer._tick()
 
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == span.id
     assert cursor.observed_high_water_id is None
     assert cursor.observed_at is None
@@ -650,13 +636,13 @@ async def test_frontier_gate_holds_until_lag_elapses(db: DbSessionFactory) -> No
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
     observed_at = _now()
-    cursor_id = await _seed_cursor(db, observed_high_water_id=span.id, observed_at=observed_at)
+    await _seed_cursor(db, observed_high_water_id=span.id, observed_at=observed_at)
 
     producer = OnlineEvalProducer(db)
     await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == 0
     # The pending observation is held so it can age past the lag gate — a tick
     # must not reset observed_at while the observation is unconsumed.
@@ -674,12 +660,7 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
     evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
     watermark = expired_span.id
     producer = OnlineEvalProducer(db)
-    await _seed_cursor(
-        db,
-        produced_through_id=watermark,
-        claimed_by=producer._producer_id,
-        claimed_at=_now(),
-    )
+    await _seed_cursor(db, produced_through_id=watermark)
     active = await producer._load_active_project_evaluators()
     assert len(active) == 1
     project_evaluator = active[0]
@@ -728,12 +709,7 @@ async def test_backstop_stops_at_insertion_budget(db: DbSessionFactory) -> None:
     await _seed_criteria(db, project.id)
 
     producer = OnlineEvalProducer(db)
-    await _seed_cursor(
-        db,
-        produced_through_id=spans[-1].id,
-        claimed_by=producer._producer_id,
-        claimed_at=_now(),
-    )
+    await _seed_cursor(db, produced_through_id=spans[-1].id)
     active = await producer._load_active_project_evaluators()
     remaining = await producer._backstop_sweep(active, spans[-1].id, 2)
 
@@ -990,7 +966,7 @@ async def test_admission_gate_skips_materialization(
                 for _ in range(2)
             ]
         )
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         observed_high_water_id=span.id,
         observed_at=_now() - timedelta(seconds=120),
@@ -1002,7 +978,7 @@ async def test_admission_gate_skips_materialization(
     async with db() as session:
         unit_count = await session.scalar(select(func.count()).select_from(models.EvalWorkUnit))
     assert unit_count == 2
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == 0
 
 
@@ -1103,7 +1079,7 @@ async def test_unexpected_criteria_load_error_fails_closed(
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         observed_high_water_id=span.id,
         observed_at=_now() - timedelta(seconds=120),
@@ -1119,7 +1095,7 @@ async def test_unexpected_criteria_load_error_fails_closed(
         await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == 0
 
 
@@ -1134,7 +1110,7 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
         span = await _add_span(session, trace)
     good_evaluator_id, _ = await _seed_criteria(db, project.id)
     _, bad_criteria_id = await _seed_criteria(db, project.id, filter_condition="span_kind ==")
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         observed_high_water_id=span.id,
         observed_at=_now() - timedelta(seconds=120),
@@ -1147,7 +1123,7 @@ async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFact
         units = list(await session.scalars(select(models.EvalWorkUnit)))
     assert {unit.evaluator_id for unit in units} == {good_evaluator_id}
     assert bad_criteria_id not in {unit.project_evaluator_id for unit in units}
-    cursor = await _get_cursor(db, cursor_id)
+    cursor = await _get_cursor(db)
     assert cursor.produced_through_id == span.id
 
 
@@ -1157,51 +1133,32 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
-    observed_at = _now() - timedelta(seconds=120)
-    cursor_id = await _seed_cursor(
+    await _seed_cursor(
         db,
         observed_high_water_id=span.id,
-        observed_at=observed_at,
-        claimed_by="rival-producer",
-        claimed_at=_now(),
+        observed_at=_now() - timedelta(seconds=120),
     )
+    async with db() as session:
+        session.add(
+            models.EvalWorkLease(name="span-producer", holder="rival-producer", heartbeat_at=_now())
+        )
 
     producer = OnlineEvalProducer(db)
     await producer._tick()
 
     assert await _work_unit_span_rowids(db) == []
-    cursor = await _get_cursor(db, cursor_id)
-    assert cursor.claimed_by == "rival-producer"
-    assert cursor.produced_through_id == 0
+    assert (await _get_cursor(db)).produced_through_id == 0
 
     async with db() as session:
         await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(claimed_at=_now() - timedelta(seconds=300))
+            update(models.EvalWorkLease).values(
+                heartbeat_at=_now() - timedelta(seconds=MATERIALIZER_LEASE_TTL_SECONDS + 1)
+            )
         )
     await producer._tick()
 
-    cursor = await _get_cursor(db, cursor_id)
-    assert cursor.claimed_by == producer._producer_id
-    assert cursor.produced_through_id == span.id
+    assert (await _get_cursor(db)).produced_through_id == span.id
     assert sorted(await _work_unit_span_rowids(db)) == [span.id]
-
-
-async def test_renew_lease_refreshes_claimed_at(db: DbSessionFactory) -> None:
-    producer = OnlineEvalProducer(db)
-    old = _now() - timedelta(seconds=60)
-    cursor_id = await _seed_cursor(
-        db,
-        claimed_by=producer._producer_id,
-        claimed_at=old,
-    )
-    renewed_at = _now()
-
-    await producer._renew_lease(renewed_at)
-
-    cursor = await _get_cursor(db, cursor_id)
-    assert cursor.claimed_at == renewed_at
 
 
 async def test_producer_publishes_its_own_frontier_and_ingest_gauges(

@@ -280,21 +280,14 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "eval_work_cursors",
+        "eval_span_cursors",
         sa.Column(
             "id",
             _Integer,
+            sa.CheckConstraint("id = 1", name="single_row"),
             primary_key=True,
+            autoincrement=False,
         ),
-        sa.Column(
-            "evaluation_target",
-            sa.String(),
-            sa.CheckConstraint(
-                "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
-            ),
-            nullable=False,
-        ),
-        sa.Column("consumer_group", sa.String(), nullable=False),
         sa.Column(
             "produced_through_id",
             _Integer,
@@ -303,8 +296,6 @@ def upgrade() -> None:
         ),
         sa.Column("observed_high_water_id", _Integer, nullable=True),
         sa.Column("observed_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("claimed_by", sa.String(), nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -317,7 +308,6 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("evaluation_target", "consumer_group"),
     )
     op.create_table(
         "eval_work_leases",
@@ -613,7 +603,7 @@ def downgrade() -> None:
     op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
     op.drop_table("project_evaluators")
     op.drop_table("eval_work_leases")
-    op.drop_table("eval_work_cursors")
+    op.drop_table("eval_span_cursors")
 
     op.drop_index(
         "ix_traces_project_rowid_last_span_ingested_at",
