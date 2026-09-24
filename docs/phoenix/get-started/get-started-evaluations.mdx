@@ -26,13 +26,13 @@ with a travel support prompt, and tell me which examples scored lowest and why.
 
 ## Or ask PXI
 
-[PXI](/docs/phoenix/pxi), the agent built into Phoenix, can run the experiment and read the results for you. It cannot fetch files from the internet, so do steps 1 and 2 below first: upload the CSV and add the evaluator. Then open the **Prompt Playground**, choose **Test over a dataset** and pick `travel-support`, open PXI, and ask:
+[PXI](/docs/phoenix/pxi), the agent built into Phoenix, cannot fetch files from the internet, so do steps 1 and 2 below first. Then open the **Prompt Playground**, choose **Test over a dataset**, pick `travel-support`, open PXI, and ask:
 
 ```text
 Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the travel-support dataset as an experiment, then tell me which examples scored lowest and why.
 ```
 
-PXI proposes each change for you to approve. Set it to Bypass Approval to let it run through.
+Set PXI to Bypass Approval to let it run through.
 
 ## Do it yourself
 
@@ -62,23 +62,17 @@ PXI proposes each change for you to approve. Set it to Bypass Approval to let it
   <Step title={<span className="step-title">Decide what good looks like</span>}>
     An evaluator turns an experiment into a measurement. Attach one to the dataset and Phoenix runs it on every experiment you launch from the Playground.
 
-    1. Open the dataset and click the **Evaluators** tab.
-    2. Click **Add evaluator**, then **Create new LLM evaluator**. Name it `correctness`.
-    3. Replace the system message with this rubric:
+    1. Open the dataset, click the **Evaluators** tab, then **Add evaluator** and **Create new LLM evaluator**. Name it `correctness`.
+    2. Replace the system message with this rubric. Leave the user message alone: it hands the judge the expected answer as `{{reference}}` and the reply as `{{output}}`.
 
        ```text
-       You are grading a travel support agent. Compare the provided answer to the reference answer.
-
-       Label true if the provided answer states the same policy as the reference: same time windows, fees, and quantities, in any wording.
-
-       Label false if it contradicts the reference, hedges instead of answering, or leaves out a fee, limit, or condition the reference includes.
+       Compare the provided answer to the reference answer. Label true if it states the same policy: same time windows, fees, and quantities, in any wording. Label false if it contradicts the reference, hedges, or leaves out a fee, limit, or condition.
        ```
 
-       Leave the user message as is. It hands the judge `{{reference}}`, the example's expected answer, and `{{output}}`, the reply your prompt produced.
-    4. Under **Map Prompt Variables**, set `reference` to `$.reference.expected_answer` so the judge sees the answer text alone.
-    5. Click **Test** on one example, then click **Create**.
+    3. Under **Map Prompt Variables**, set `reference` to `$.reference.expected_answer`.
+    4. Click **Test** on one example, then **Create**.
 
-    **Use LLM evaluator template** offers ready-made judges for correctness, hallucination, tool selection, and more. They judge from the input and output alone, with no reference answer, which is why this guide writes its own. For a deterministic check, choose a built-in code evaluator such as exact match or contains. See [Server Evals](/docs/phoenix/evaluation/server-evals/overview) for the full set.
+    The ready-made templates under **Use LLM evaluator template** judge from the question and reply alone, with no expected answer, so this guide writes its own. See [Server Evals](/docs/phoenix/evaluation/server-evals/overview) for templates and code evaluators.
   </Step>
 
   <Step title={<span className="step-title">Get a baseline score</span>}>
@@ -133,7 +127,7 @@ PXI proposes each change for you to approve. Set it to Bypass Approval to let it
       />
     </Frame>
 
-    A higher score on the same dataset and evaluator means the edit helped. One example may still score 0: asked how many bags come with the fare, the model tends to answer that alone and skip the second-bag fee. Open that run and read the judge's explanation. That is your next edit.
+    A higher score on the same dataset and evaluator means the edit helped. If one example still scores 0, open that run and read the judge's explanation. That is your next edit.
   </Step>
 </Steps>
 
