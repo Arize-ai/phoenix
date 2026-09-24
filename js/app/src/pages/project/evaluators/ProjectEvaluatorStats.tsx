@@ -17,6 +17,7 @@ import {
   ChartPanelStrip,
 } from "@phoenix/components/chart";
 import { Badge } from "@phoenix/components/core/badge";
+import { useProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import type {
   ProjectEvaluatorStats_projectEvaluator$data,
@@ -36,7 +37,6 @@ import {
   getAnnotationLevel,
   getProjectEvaluatorStatus,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { useProjectEvaluatorResultAnnotations } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /** Matches the height of the metric chart strips above the tables. */
