@@ -48,6 +48,7 @@ from phoenix.server.prometheus import (
     ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
 )
+from phoenix.server.span_filters import select_project_span_rowids
 from phoenix.server.types import DaemonTask, DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter
 
@@ -78,13 +79,9 @@ class _ActiveProjectEvaluator:
     span_filter: SpanFilter
 
     def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[tuple[int]]:
-        stmt = (
-            select(models.Span.id)
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == self.project_id)
-            .where(models.Span.id > low_exclusive, models.Span.id <= high_inclusive)
+        return select_project_span_rowids(self.project_id, self.span_filter).where(
+            models.Span.id > low_exclusive, models.Span.id <= high_inclusive
         )
-        return self.span_filter(stmt)
 
     def materializable_scan_stmt(
         self, low_exclusive: int, high_inclusive: int

@@ -22,14 +22,17 @@ import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
+  Button,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
   Link,
-  LinkButton,
   LoadMoreButton,
   Text,
   View,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
@@ -75,6 +78,7 @@ import {
   ProjectEvaluatorMeanScoreHeader,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { ProjectEvaluatorPlaygroundDialog } from "@phoenix/pages/project/evaluators/ProjectEvaluatorPlaygroundDialog";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
@@ -651,22 +655,29 @@ export function ProjectEvaluatorsTable({
             justifyContent="end"
             width="100%"
           >
-            {row.original.evaluator.kind !== "BUILTIN" ? (
+            {row.original.evaluator.kind !== "BUILTIN" &&
+            // TODO: support other targets
+            row.original.evaluationTarget === "SPAN" ? (
               <StopPropagation>
-                <LinkButton
-                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                  size="S"
-                  aria-label="Open in playground"
-                  // The project evaluator, not its shared evaluator: its own
-                  // input mapping is what runs on spans, so it is what gets
-                  // calibrated. It scores spans, so the playground opens
-                  // without a dataset; pick one there to run the evaluator.
-                  to={`/playground?${new URLSearchParams({
-                    projectEvaluator0: row.original.id,
-                  })}`}
-                >
-                  Playground
-                </LinkButton>
+                <DialogTrigger>
+                  <Button
+                    leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                    size="S"
+                    aria-label="Open in playground"
+                  >
+                    Playground
+                  </Button>
+                  <ViewportModalOverlay>
+                    <ViewportModal size="M">
+                      <ProjectEvaluatorPlaygroundDialog
+                        projectId={projectId}
+                        projectEvaluatorId={row.original.id}
+                        evaluatorName={row.original.name}
+                        filterCondition={row.original.filterCondition}
+                      />
+                    </ViewportModal>
+                  </ViewportModalOverlay>
+                </DialogTrigger>
               </StopPropagation>
             ) : null}
             <ProjectEvaluatorActionMenu

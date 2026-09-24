@@ -16,15 +16,12 @@ import invariant from "tiny-invariant";
 import {
   Alert,
   Button,
-  Card,
-  CardCollapsedPreview,
   Counter,
   Flex,
   Heading,
   Icon,
   Icons,
   Loading,
-  LoadMoreButton,
   RichTooltip,
   SegmentedControl,
   SegmentedControlItem,
@@ -62,7 +59,6 @@ import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
   useEvaluatorStore,
@@ -91,6 +87,11 @@ import {
   type ProjectEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  RecordContextViewer,
+  RecordPreviewCard,
+  RecordPreviewList,
+} from "@phoenix/pages/project/evaluators/RecordPreviewList";
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
@@ -102,7 +103,6 @@ import type {
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { toContentPreview } from "@phoenix/utils/contentPreviewUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 export type ProjectEvaluatorInlineCode = {
   language: CodeEvaluatorLanguage;
@@ -1115,55 +1115,38 @@ function RecordedRunList({
     return () => onCanRunAllChange?.(false);
   }, [canRunAllRecords, onCanRunAllChange]);
   return (
-    <div css={runListCSS}>
-      {rows[0]?.isSample ? (
-        <Text size="S" color="text-500">
-          Use this sample {recordNoun} to test your evaluator.
-        </Text>
-      ) : null}
-      <ul aria-label={listLabel} className="run-list__rows">
-        {rows.map((row) => (
-          <RecordedRunRow
-            key={row.key}
-            row={row}
-            recordNoun={recordNoun}
-            isExpanded={expandedRowKey === row.key}
-            onToggleExpanded={() =>
-              setExpandedKey(expandedRowKey === row.key ? null : row.key)
-            }
-            run={runs[row.key]}
-            isRunnable={isRunnable}
-            onRun={() => runOnContext(row.key, row.context)}
-            inputMapping={inputMapping}
-            requiredVariables={requiredVariables}
-          />
-        ))}
-      </ul>
-      {hasMore ? (
-        <Flex justifyContent="center">
-          <LoadMoreButton
-            isLoadingNext={isLoadingMore}
-            onLoadMore={onLoadMore}
-          />
-        </Flex>
-      ) : null}
-    </div>
+    <RecordPreviewList
+      listLabel={listLabel}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={onLoadMore}
+      leadingContent={
+        rows[0]?.isSample ? (
+          <Text size="S" color="text-500">
+            Use this sample {recordNoun} to test your evaluator.
+          </Text>
+        ) : null
+      }
+    >
+      {rows.map((row) => (
+        <RecordedRunRow
+          key={row.key}
+          row={row}
+          recordNoun={recordNoun}
+          isExpanded={expandedRowKey === row.key}
+          onToggleExpanded={() =>
+            setExpandedKey(expandedRowKey === row.key ? null : row.key)
+          }
+          run={runs[row.key]}
+          isRunnable={isRunnable}
+          onRun={() => runOnContext(row.key, row.context)}
+          inputMapping={inputMapping}
+          requiredVariables={requiredVariables}
+        />
+      ))}
+    </RecordPreviewList>
   );
 }
-
-const runListCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
-  .run-list__rows {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-  }
-`;
 
 /**
  * What each declared variable resolves to on one record, derived once so the
@@ -1224,134 +1207,102 @@ export function RecordedRunRow({
     ? []
     : diagnostics.filter(({ status }) => status === "missing");
   return (
-    <li>
-      <Card
-        collapsible
-        // The error count carries a tooltip trigger, which cannot nest inside
-        // the collapse button.
-        interactiveTitle
-        // Names the bare arrow itself; left unset it would borrow the title,
-        // error count included.
-        collapseButtonLabel={`Toggle ${row.name}`}
-        isOpen={isExpanded}
-        onOpenChange={onToggleExpanded}
-        title={
-          <>
-            {missingDiagnostics.length > 0 ? (
-              <TooltipTrigger delay={750}>
-                {/* Error counter remains clickable to open the header. */}
-                <TriggerWrap onPress={onToggleExpanded}>
-                  <Counter variant="danger">
-                    {missingDiagnostics.length}
-                  </Counter>
-                </TriggerWrap>
-                <RichTooltip placement="bottom">
-                  <TooltipArrow />
-                  <Flex direction="column" gap="size-50">
-                    {missingDiagnostics.map((diagnostic) => (
-                      <Flex
-                        key={diagnostic.variable}
-                        direction="row"
-                        gap="size-100"
-                        alignItems="center"
-                      >
-                        <Icon svg={<Icons.CloseCircle />} color="danger" />
-                        <Text size="S">
-                          {formatMissingBindingMessage(diagnostic, recordNoun)}
-                        </Text>
-                      </Flex>
-                    ))}
+    <RecordPreviewCard
+      name={row.name}
+      spanKind={row.spanKind}
+      token={row.isSample ? "sample" : row.metric}
+      context={row.context}
+      isExpanded={isExpanded}
+      onToggleExpanded={onToggleExpanded}
+      titleLeadingContent={
+        missingDiagnostics.length > 0 ? (
+          <TooltipTrigger delay={750}>
+            {/* Error counter remains clickable to open the header. */}
+            <TriggerWrap onPress={onToggleExpanded}>
+              <Counter variant="danger">{missingDiagnostics.length}</Counter>
+            </TriggerWrap>
+            <RichTooltip placement="bottom">
+              <TooltipArrow />
+              <Flex direction="column" gap="size-50">
+                {missingDiagnostics.map((diagnostic) => (
+                  <Flex
+                    key={diagnostic.variable}
+                    direction="row"
+                    gap="size-100"
+                    alignItems="center"
+                  >
+                    <Icon svg={<Icons.CloseCircle />} color="danger" />
+                    <Text size="S">
+                      {formatMissingBindingMessage(diagnostic, recordNoun)}
+                    </Text>
                   </Flex>
-                </RichTooltip>
-              </TooltipTrigger>
-            ) : null}
-            {row.spanKind ? (
-              <SpanKindToken spanKind={row.spanKind} size="S" />
-            ) : null}
-            {row.name}
-          </>
-        }
-        titleExtra={
-          row.isSample ? (
-            <Token size="S">sample</Token>
-          ) : row.metric ? (
-            <Token size="S">{row.metric}</Token>
-          ) : null
-        }
-        headerContent={
-          <CardCollapsedPreview>
-            {getContextSnippet(row.context)}
-          </CardCollapsedPreview>
-        }
-        extra={
-          <Flex direction="row" alignItems="center" gap="size-100" flex="none">
-            <RecordedRunResultChip run={run} />
-            <Button
-              size="S"
-              variant="primary"
-              aria-label={
-                // Recent records commonly share a name; suffix the record id so
-                // each row's button has a distinct accessible name.
-                row.isSample
-                  ? `Test evaluator on ${row.name}`
-                  : `Test evaluator on ${
-                      row.name
-                    }, ${recordNoun} ${row.key.slice(-8)}`
-              }
-              leadingVisual={
-                <Icon
-                  svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />}
-                />
-              }
-              isDisabled={!isRunnable || isRunning || isUnavailable}
-              isPending={isRunning}
-              onPress={onRun}
-            >
-              {isRunning ? "Testing..." : "Test"}
-            </Button>
-          </Flex>
-        }
-      >
-        {isExpanded ? (
-          <View padding="size-200">
-            {row.unavailableReason ? (
-              <Alert variant="warning" title="No evaluation context">
-                {row.unavailableReason}
-              </Alert>
-            ) : (
-              <Flex direction="column" gap="size-100">
-                <RecordedRunDetail run={run} />
-                <Tabs defaultSelectedKey="values">
-                  <TabList>
-                    <Tab id="values">Values</Tab>
-                    <Tab id="context">Raw</Tab>
-                  </TabList>
-                  <TabPanel id="values">
-                    <Flex direction="column" gap="size-200">
-                      <BindingPreview
-                        context={row.context}
-                        grain={recordNoun}
-                        inputMapping={inputMapping}
-                        requiredVariables={requiredVariables}
-                        isSampleContext={row.isSample}
-                      />
-                    </Flex>
-                  </TabPanel>
-                  <TabPanel id="context">
-                    <div css={contextViewerCSS}>
-                      <JSONBlock
-                        value={JSON.stringify(row.context, null, 2)}
-                        basicSetup={{ lineNumbers: false }}
-                      />
-                    </div>
-                  </TabPanel>
-                </Tabs>
+                ))}
               </Flex>
-            )}
-          </View>
-        ) : null}
-      </Card>
-    </li>
+            </RichTooltip>
+          </TooltipTrigger>
+        ) : null
+      }
+      extra={
+        <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+          <RecordedRunResultChip run={run} />
+          <Button
+            size="S"
+            variant="primary"
+            aria-label={
+              // Recent records commonly share a name; suffix the record id so
+              // each row's button has a distinct accessible name.
+              row.isSample
+                ? `Test evaluator on ${row.name}`
+                : `Test evaluator on ${
+                    row.name
+                  }, ${recordNoun} ${row.key.slice(-8)}`
+            }
+            leadingVisual={
+              <Icon
+                svg={isRunning ? <Icons.Loading /> : <Icons.PlayCircle />}
+              />
+            }
+            isDisabled={!isRunnable || isRunning || isUnavailable}
+            isPending={isRunning}
+            onPress={onRun}
+          >
+            {isRunning ? "Testing..." : "Test"}
+          </Button>
+        </Flex>
+      }
+    >
+      <View padding="size-200">
+        {row.unavailableReason ? (
+          <Alert variant="warning" title="No evaluation context">
+            {row.unavailableReason}
+          </Alert>
+        ) : (
+          <Flex direction="column" gap="size-100">
+            <RecordedRunDetail run={run} />
+            <Tabs defaultSelectedKey="values">
+              <TabList>
+                <Tab id="values">Values</Tab>
+                <Tab id="context">Raw</Tab>
+              </TabList>
+              <TabPanel id="values">
+                <Flex direction="column" gap="size-200">
+                  <BindingPreview
+                    context={row.context}
+                    grain={recordNoun}
+                    inputMapping={inputMapping}
+                    requiredVariables={requiredVariables}
+                    isSampleContext={row.isSample}
+                  />
+                </Flex>
+              </TabPanel>
+              <TabPanel id="context">
+                <RecordContextViewer context={row.context} />
+              </TabPanel>
+            </Tabs>
+          </Flex>
+        )}
+      </View>
+    </RecordPreviewCard>
   );
 }
 
@@ -1432,20 +1383,6 @@ function RecordedRunDetail({ run }: { run: RecordedRun | undefined }) {
     </Flex>
   );
 }
-
-const contextViewerCSS = css`
-  margin-top: var(--global-dimension-size-100);
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-small);
-  /* CodeMirror only virtualizes long documents when it scrolls inside a
-     bounded height. */
-  .cm-editor {
-    max-height: 400px;
-  }
-  .cm-scroller {
-    overflow: auto;
-  }
-`;
 
 type BindingRowBase = {
   keyword: string;
@@ -1917,41 +1854,6 @@ const bindingRowCSS = css`
     color: var(--global-text-color-700);
   }
 `;
-
-/**
- * The collapsed-card excerpt for a span: the span's input, falling back to its
- * output. An LLM span's input often arrives as a serialized chat payload, so
- * surface the latest message's text rather than the raw JSON envelope.
- */
-function getContextSnippet(context: unknown): string {
-  if (!isStringKeyedObject(context)) {
-    return "";
-  }
-  return (
-    toContentPreview(getLatestMessageText(context.input) ?? context.input) ??
-    toContentPreview(getLatestMessageText(context.output) ?? context.output) ??
-    ""
-  );
-}
-
-/** The text of the last non-empty message in a chat payload, if it is one. */
-function getLatestMessageText(value: unknown): string | null {
-  const payload =
-    typeof value === "string" && value.trimStart().startsWith("{")
-      ? safelyParseJSON(value).json
-      : value;
-  if (!isStringKeyedObject(payload) || !Array.isArray(payload.messages)) {
-    return null;
-  }
-  for (let index = payload.messages.length - 1; index >= 0; index--) {
-    const message: unknown = payload.messages[index];
-    const content = isStringKeyedObject(message) ? message.content : null;
-    if (typeof content === "string" && content.trim()) {
-      return content;
-    }
-  }
-  return null;
-}
 
 /**
  * Binds the mapping source to the open row's context, so the input mapping is

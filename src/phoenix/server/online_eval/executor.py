@@ -28,7 +28,7 @@ from typing import (
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload, with_polymorphic
+from sqlalchemy.orm import with_polymorphic
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
@@ -54,9 +54,8 @@ from phoenix.server.api.evaluators import (
     get_builtin_evaluator_by_key,
 )
 from phoenix.server.api.helpers.dataset_helpers import (
-    get_dataset_example_input,
-    get_dataset_example_metadata,
-    get_dataset_example_output,
+    SPAN_EVAL_CONTEXT_LOAD_OPTIONS,
+    span_eval_context,
 )
 from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.helpers.expected_outputs import (
@@ -232,21 +231,6 @@ class SessionEvalContext:
 
     context: dict[str, Any]
     applied_policy: dict[str, Any]
-
-
-def span_eval_context(
-    span: models.Span,
-    *,
-    trace_id: str,
-    annotations: Sequence[models.SpanAnnotation],
-) -> dict[str, Any]:
-    """Span context, sharing the span→dataset-example conversion so an
-    evaluator sees the same values on a span and on the example made from it."""
-    return {
-        "input": get_dataset_example_input(span),
-        "output": get_dataset_example_output(span),
-        "metadata": get_dataset_example_metadata(span, trace_id=trace_id, annotations=annotations),
-    }
 
 
 def session_eval_context(
@@ -497,10 +481,7 @@ async def _load_span_context(
     span = await session.get(
         models.Span,
         unit.target_rowid,
-        options=[
-            joinedload(models.Span.trace),
-            selectinload(models.Span.span_annotations).selectinload(models.SpanAnnotation.user),
-        ],
+        options=SPAN_EVAL_CONTEXT_LOAD_OPTIONS,
     )
     if span is None:
         return HydrationFailure(HydrationFailureReason.SPAN_MISSING)

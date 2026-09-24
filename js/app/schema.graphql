@@ -918,6 +918,21 @@ input CreateDatasetCodeEvaluatorInput {
   description: String = null
 }
 
+input CreateDatasetFromSpansInput {
+  projectId: ID!
+  name: String!
+
+  """A span filter condition; the empty string matches every span."""
+  filterCondition: String! = ""
+
+  """
+  How many of the latest matching spans, by start time, to add as examples. At most 200.
+  """
+  limit: Int! = 50
+  description: String
+  metadata: JSON
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -3050,6 +3065,7 @@ type Mutation {
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
+  createDatasetFromSpans(input: CreateDatasetFromSpansInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
