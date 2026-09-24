@@ -15,7 +15,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 
@@ -219,3 +219,28 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     )
     assert model is not None, f"no built-in model priced {span_model_name}"
     assert model.name == expected_entry
+
+
+def test_every_manifest_entry_resolves_to_itself(
+    manifest: dict[str, Any],
+    built_in_lookup: CostModelLookup,
+) -> None:
+    """Every built-in model name must bill against its own entry.
+
+    Patterns are unanchored, so an entry whose name extends another one's (``claude-opus-5-5``
+    and ``claude-opus-5``) only wins through regex specificity. Checking every entry, not a
+    hand-picked list, makes each manifest sync check itself. Entries that share a pattern
+    across providers (``groq/openai/gpt-oss-120b`` and ``together_ai/openai/gpt-oss-120b``)
+    are told apart by the span's provider, so it is passed along. See Arize-ai/phoenix#16402.
+    """
+    now = datetime.now(timezone.utc)
+    mismatched: dict[str, Optional[str]] = {}
+    for entry in manifest["models"]:
+        llm: dict[str, str] = {"model_name": entry["name"]}
+        if entry.get("provider"):
+            llm["provider"] = entry["provider"]
+        model = built_in_lookup.find_model(start_time=now, attributes={"llm": llm})
+        resolved = model.name if model is not None else None
+        if resolved != entry["name"]:
+            mismatched[entry["name"]] = resolved
+    assert not mismatched, f"manifest entries that bill against another entry: {mismatched}"
