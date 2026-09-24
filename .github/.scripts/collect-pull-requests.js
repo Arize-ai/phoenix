@@ -191,7 +191,9 @@ function getOwners(pullRequest) {
 }
 
 function compareEntries(a, b) {
-  const roleDifference = ROLE_PRIORITY[a.role] - ROLE_PRIORITY[b.role];
+  // Unowned entries carry a null role; sort them last rather than producing NaN
+  const priority = (role) => ROLE_PRIORITY[role] ?? Number.MAX_SAFE_INTEGER;
+  const roleDifference = priority(a.role) - priority(b.role);
   if (roleDifference !== 0) return roleDifference;
   return new Date(a.pullRequest.createdAt) - new Date(b.pullRequest.createdAt); // Oldest first
 }
