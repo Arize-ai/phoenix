@@ -86,13 +86,6 @@ class ServerVersionGuard:
     def require(self, requirement: CapabilityRequirement) -> None:
         _check_version(self._get(), requirement)
 
-    def supports(self, requirement: CapabilityRequirement) -> bool:
-        try:
-            self.require(requirement)
-        except PhoenixException:
-            return False
-        return True
-
 
 class AsyncServerVersionGuard:
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -107,13 +100,6 @@ class AsyncServerVersionGuard:
 
     async def require(self, requirement: CapabilityRequirement) -> None:
         _check_version(await self._get(), requirement)
-
-    async def supports(self, requirement: CapabilityRequirement) -> bool:
-        try:
-            await self.require(requirement)
-        except PhoenixException:
-            return False
-        return True
 
 
 def _parse_version(response: httpx.Response) -> Version:

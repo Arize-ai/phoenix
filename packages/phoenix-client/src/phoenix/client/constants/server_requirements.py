@@ -154,12 +154,12 @@ GET_SPANS_FILTER_EXPRESSION = ParameterRequirement(
     parameter_name="filter",
     parameter_location="query",
     route="GET /v1/projects/{id}/spans",
-    min_server_version=Version(20, 16, 0),
+    min_server_version=Version(20, 17, 0),
 )
 
 GET_SPANS_ROOT_SPANS_ONLY = ParameterRequirement(
     parameter_name="root_spans_only",
     parameter_location="query",
     route="GET /v1/projects/{id}/spans",
-    min_server_version=Version(20, 16, 0),
+    min_server_version=Version(20, 17, 0),
 )
