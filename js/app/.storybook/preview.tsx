@@ -384,6 +384,11 @@ function useDocsThemeMode(): string {
  * once and a multi-story page lists only the stories below the primary one.
  * And the props table is omitted when the file sets
  * `parameters.controls.disable`.
+ *
+ * A file whose stories are peers, with no single representative instance,
+ * sets `parameters.phoenixDocs.showPrimary: false`. The page then skips the
+ * unlabeled primary canvas and lists every story under Stories, each with
+ * its name as a heading.
  */
 function DocsPage() {
   // Storybook's Controls block ignores `parameters.controls.disable`, which
@@ -391,14 +396,16 @@ function DocsPage() {
   // fixtures rather than reader choices shows no props table.
   const { preparedMeta } = useOf("meta", ["meta"]);
   const controlsDisabled = preparedMeta.parameters.controls?.disable === true;
+  const showPrimary =
+    preparedMeta.parameters.phoenixDocs?.showPrimary !== false;
   return (
     <>
       <Title />
       <Subtitle />
       <Description />
-      <Primary />
-      {controlsDisabled ? null : <Controls />}
-      <Stories includePrimary={false} />
+      {showPrimary ? <Primary /> : null}
+      {controlsDisabled || !showPrimary ? null : <Controls />}
+      <Stories includePrimary={!showPrimary} />
     </>
   );
 }
