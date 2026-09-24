@@ -309,6 +309,13 @@ px span add-note <span-id> --text "verified by agent" --identifier "<coding-anno
 px span-annotations delete --identifier "<coding-annotation-id>" --all -y           # nuke every annotation tied to this coding annotation identifier
 ```
 
+`span list` orders by ingestion (newest first), not `start_time`; they diverge for late-arriving spans (backfills, replays). To sort by `start_time` (server >= 20.16.0), call REST and keep `sort`/`order` fixed across `next_cursor` pages:
+
+```bash
+curl -s -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  "$PHOENIX_ENDPOINT/v1/projects/my-project/spans?sort=start_time&order=desc&limit=20"
+```
+
 ### Span JSON shape
 
 ```
