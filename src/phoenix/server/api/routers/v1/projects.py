@@ -151,7 +151,7 @@ async def get_projects(
 
 
 @router.get(
-    "/projects/{project_identifier}",
+    "/projects/{project_identifier:identifier}",
     operation_id="getProject",
     summary="Get project by ID or name",  # noqa: E501
     description="Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
@@ -231,7 +231,7 @@ async def create_project(
 
 
 @router.put(
-    "/projects/{project_identifier}",
+    "/projects/{project_identifier:identifier}",
     dependencies=[Depends(require_admin), Depends(is_not_locked)],
     operation_id="updateProject",
     summary="Update a project by ID or name",  # noqa: E501
@@ -279,7 +279,7 @@ async def update_project(
 
 
 @router.delete(
-    "/projects/{project_identifier}",
+    "/projects/{project_identifier:identifier}",
     dependencies=[Depends(require_admin)],
     operation_id="deleteProject",
     summary="Delete a project by ID or name",  # noqa: E501
@@ -354,7 +354,7 @@ class SetProjectRetentionPolicyResponseBody(ResponseBody[ProjectRetentionPolicyD
 
 
 @router.patch(
-    "/projects/{project_identifier}/retention",
+    "/projects/{project_identifier:identifier}/retention",
     dependencies=[Depends(require_admin), Depends(is_not_locked)],
     operation_id="setProjectRetentionPolicy",
     summary="Set a project's trace retention policy",

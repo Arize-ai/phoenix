@@ -170,7 +170,7 @@ async def list_datasets(
 
 
 @router.delete(
-    "/datasets/{dataset_identifier}",
+    "/datasets/{dataset_identifier:identifier}",
     operation_id="deleteDatasetById",
     summary="Delete dataset by ID or name",
     status_code=204,
@@ -212,7 +212,7 @@ class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
 
 
 @router.get(
-    "/datasets/{dataset_identifier}",
+    "/datasets/{dataset_identifier:identifier}",
     operation_id="getDataset",
     summary="Get dataset by ID or name",
     responses=add_errors_to_responses([404]),
@@ -253,7 +253,7 @@ class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/versions",
+    "/datasets/{dataset_identifier:identifier}/versions",
     operation_id="listDatasetVersionsByDatasetId",
     summary="List dataset versions",
     responses=add_errors_to_responses([422]),
@@ -1284,7 +1284,7 @@ class ListDatasetExamplesResponseBody(ResponseBody[ListDatasetExamplesData]):
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/examples",
+    "/datasets/{dataset_identifier:identifier}/examples",
     operation_id="getDatasetExamples",
     summary="Get examples from a dataset",
     responses=add_errors_to_responses([404]),
@@ -1646,7 +1646,7 @@ def _to_dataset_split(split: models.DatasetSplit, *, example_count: int) -> Data
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/splits",
+    "/datasets/{dataset_identifier:identifier}/splits",
     operation_id="listDatasetSplits",
     summary="List dataset splits",
     responses=add_errors_to_responses(
@@ -1707,7 +1707,7 @@ async def list_dataset_splits(
 
 
 @router.post(
-    "/datasets/{dataset_identifier}/splits",
+    "/datasets/{dataset_identifier:identifier}/splits",
     dependencies=[Depends(is_not_locked)],
     operation_id="createDatasetSplit",
     summary="Create a dataset split",
@@ -1775,7 +1775,7 @@ async def create_dataset_split(
 
 
 @router.patch(
-    "/datasets/{dataset_identifier}/splits/{split_identifier}",
+    "/datasets/{dataset_identifier:identifier}/splits/{split_identifier:identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="updateDatasetSplit",
     summary="Update a dataset split",
@@ -1886,7 +1886,7 @@ async def update_dataset_split(
 
 
 @router.delete(
-    "/datasets/{dataset_identifier}/splits/{split_identifier}",
+    "/datasets/{dataset_identifier:identifier}/splits/{split_identifier:identifier}",
     operation_id="deleteDatasetSplit",
     summary="Delete a dataset split",
     status_code=204,
@@ -1916,7 +1916,7 @@ async def delete_dataset_split(
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/csv",
+    "/datasets/{dataset_identifier:identifier}/csv",
     operation_id="getDatasetCsv",
     summary="Download dataset examples as CSV file",
     response_class=StreamingResponse,
@@ -1972,7 +1972,7 @@ async def get_dataset_csv(
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/jsonl",
+    "/datasets/{dataset_identifier:identifier}/jsonl",
     operation_id="getDatasetJSONL",
     summary="Download dataset examples as JSONL file",
     response_class=PlainTextResponse,
@@ -2028,7 +2028,7 @@ async def get_dataset_jsonl(
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/jsonl/openai_ft",
+    "/datasets/{dataset_identifier:identifier}/jsonl/openai_ft",
     operation_id="getDatasetJSONLOpenAIFineTuning",
     summary="Download dataset examples as OpenAI fine-tuning JSONL file",
     response_class=PlainTextResponse,
@@ -2082,7 +2082,7 @@ async def get_dataset_jsonl_openai_ft(
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/jsonl/openai_evals",
+    "/datasets/{dataset_identifier:identifier}/jsonl/openai_evals",
     operation_id="getDatasetJSONLOpenAIEvals",
     summary="Download dataset examples as OpenAI evals JSONL file",
     response_class=PlainTextResponse,

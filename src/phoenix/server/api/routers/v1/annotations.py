@@ -202,7 +202,7 @@ class SessionAnnotationsResponseBody(PaginatedResponseBody[SessionAnnotation]):
 
 
 @router.get(
-    "/projects/{project_identifier}/span_annotations",
+    "/projects/{project_identifier:identifier}/span_annotations",
     operation_id="listSpanAnnotationsBySpanIds",
     summary="Get span annotations filtered by span_ids and/or identifier.",
     description=(
@@ -382,7 +382,7 @@ async def list_span_annotations(
 
 
 @router.get(
-    "/projects/{project_identifier}/trace_annotations",
+    "/projects/{project_identifier:identifier}/trace_annotations",
     operation_id="listTraceAnnotationsByTraceIds",
     summary="Get trace annotations filtered by trace_ids and/or identifier.",
     description=(
@@ -557,7 +557,7 @@ async def list_trace_annotations(
 
 
 @router.get(
-    "/projects/{project_identifier}/session_annotations",
+    "/projects/{project_identifier:identifier}/session_annotations",
     operation_id="listSessionAnnotationsBySessionIds",
     summary="Get session annotations filtered by session_ids and/or identifier.",
     description=(
@@ -887,7 +887,7 @@ def _build_annotation_filter_predicates(
 
 
 @router.delete(
-    "/projects/{project_identifier}/span_annotations",
+    "/projects/{project_identifier:identifier}/span_annotations",
     operation_id="deleteSpanAnnotations",
     summary="Delete span annotations in a project that match the supplied filter.",
     description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="span"),
@@ -974,7 +974,7 @@ async def delete_span_annotations(
 
 
 @router.delete(
-    "/projects/{project_identifier}/trace_annotations",
+    "/projects/{project_identifier:identifier}/trace_annotations",
     operation_id="deleteTraceAnnotations",
     summary="Delete trace annotations in a project that match the supplied filter.",
     description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="trace"),
@@ -1059,7 +1059,7 @@ async def delete_trace_annotations(
 
 
 @router.delete(
-    "/projects/{project_identifier}/session_annotations",
+    "/projects/{project_identifier:identifier}/session_annotations",
     operation_id="deleteSessionAnnotations",
     summary="Delete session annotations in a project that match the supplied filter.",
     description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="session"),

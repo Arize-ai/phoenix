@@ -140,7 +140,7 @@ def _parse_trace_cursor(cursor: str, sort: str) -> Cursor:
 
 
 @router.get(
-    "/projects/{project_identifier}/traces",
+    "/projects/{project_identifier:identifier}/traces",
     operation_id="listProjectTraces",
     summary="List traces for a project",
     responses=add_errors_to_responses([400, 404, 422]),
@@ -382,7 +382,7 @@ async def list_project_traces(
 
 
 @router.delete(
-    "/projects/{project_identifier}/traces",
+    "/projects/{project_identifier:identifier}/traces",
     operation_id="deleteProjectTraces",
     summary="Delete traces from a project",
     description=(

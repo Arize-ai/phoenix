@@ -11,7 +11,7 @@ from phoenix.server.api.routers.agents import create_agents_router
 from phoenix.server.api.routers.auth import create_auth_router
 from phoenix.server.api.routers.legacy_agents import create_legacy_agents_router
 from phoenix.server.api.routers.oauth2 import router as oauth2_router
-from phoenix.server.api.routers.v1 import REST_API_VERSION, create_v1_router
+from phoenix.server.api.routers.v1 import REST_API_DESCRIPTION, REST_API_VERSION, create_v1_router
 from phoenix.server.app import router as app_root_router
 
 
@@ -27,10 +27,11 @@ def get_openapi_schema() -> dict[str, Any]:
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         openapi_version="3.1.0",
-        description="Schema for Arize-Phoenix REST API",
+        description=REST_API_DESCRIPTION,
         routes=router.routes,
         separate_input_output_schemas=False,
     )
+    schema["paths"] = dict(sorted(schema["paths"].items()))
     schema = add_registered_models_to_openapi_schema(
         openapi_schema=schema,
         registered_models=get_registered_models(),

@@ -277,7 +277,7 @@ async def list_annotation_configs(
 
 
 @router.get(
-    "/annotation_configs/{config_identifier}",
+    "/annotation_configs/{config_identifier:identifier}",
     operation_id="getAnnotationConfig",
     summary="Get an annotation configuration by ID or name",
 )
@@ -327,7 +327,7 @@ async def create_annotation_config(
 
 
 @router.put(
-    "/annotation_configs/{config_identifier}",
+    "/annotation_configs/{config_identifier:identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="updateAnnotationConfig",
     summary="Update an annotation configuration by ID or name",
@@ -366,7 +366,7 @@ async def update_annotation_config(
 
 
 @router.delete(
-    "/annotation_configs/{config_identifier}",
+    "/annotation_configs/{config_identifier:identifier}",
     operation_id="deleteAnnotationConfig",
     summary="Delete an annotation configuration by ID or name",
     responses=add_errors_to_responses([404]),
@@ -389,7 +389,7 @@ async def delete_annotation_config(
 
 
 @router.get(
-    "/projects/{project_identifier}/annotation_configs",
+    "/projects/{project_identifier:identifier}/annotation_configs",
     operation_id="getProjectAnnotationConfigs",
     summary="List annotation configurations assigned to a project",
     description=(
@@ -471,7 +471,7 @@ async def list_project_annotation_configs(
 
 
 @router.put(
-    "/projects/{project_identifier}/annotation_configs/{config_identifier}",
+    "/projects/{project_identifier:identifier}/annotation_configs/{config_identifier:identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="assignAnnotationConfigToProject",
     summary="Assign an annotation configuration to a project",
@@ -528,7 +528,7 @@ async def assign_annotation_config_to_project(
 
 
 @router.delete(
-    "/projects/{project_identifier}/annotation_configs/{config_identifier}",
+    "/projects/{project_identifier:identifier}/annotation_configs/{config_identifier:identifier}",
     operation_id="unassignAnnotationConfigFromProject",
     summary="Unassign an annotation configuration from a project",
     description=(
@@ -578,7 +578,7 @@ async def unassign_annotation_config_from_project(
 
 
 @router.put(
-    "/projects/{project_identifier}/annotation_configs",
+    "/projects/{project_identifier:identifier}/annotation_configs",
     dependencies=[Depends(is_not_locked)],
     operation_id="setProjectAnnotationConfigs",
     summary="Replace the set of annotation configurations assigned to a project",

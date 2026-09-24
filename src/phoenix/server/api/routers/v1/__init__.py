@@ -27,9 +27,17 @@ from .sessions import router as sessions_router
 from .spans import router as spans_router
 from .traces import router as traces_router
 from .users import router as users_router
-from .utils import add_errors_to_responses
+from .utils import add_errors_to_responses, order_identifier_routes
 
 REST_API_VERSION = "1.0"
+REST_API_DESCRIPTION = """\
+Schema for Arize-Phoenix REST API.
+
+Path parameters named `*_identifier` accept either the entity's node ID or its
+unique name. Names may contain slashes. A name whose trailing segments coincide
+with a sub-route of the same entity, such as a dataset named `foo/examples`, is
+ambiguous in a URL and must be referenced by node ID on that route.
+"""
 
 
 def create_v1_router(authentication_enabled: bool) -> APIRouter:
@@ -62,24 +70,32 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     viewer_restricted_router = APIRouter(
         dependencies=[Depends(restrict_access_by_viewers)] if authentication_enabled else []
     )
-    viewer_restricted_router.include_router(annotation_configs_router)
-    viewer_restricted_router.include_router(annotations_router)
-    viewer_restricted_router.include_router(dataset_labels_router)
-    viewer_restricted_router.include_router(datasets_router)
-    viewer_restricted_router.include_router(experiments_router)
-    viewer_restricted_router.include_router(experiment_tags_router)
-    viewer_restricted_router.include_router(experiment_runs_router)
-    viewer_restricted_router.include_router(experiment_evaluations_router)
-    viewer_restricted_router.include_router(traces_router)
-    viewer_restricted_router.include_router(spans_router)
-    viewer_restricted_router.include_router(prompts_router)
-    viewer_restricted_router.include_router(projects_router)
-    viewer_restricted_router.include_router(model_providers_router)
-    viewer_restricted_router.include_router(custom_model_providers_router)
-    viewer_restricted_router.include_router(sessions_router)
-    viewer_restricted_router.include_router(documents_router)
-    viewer_restricted_router.include_router(users_router)
-    viewer_restricted_router.include_router(secrets_router)
+    # Name-or-ID identifiers match greedily across slashes, so within each router the
+    # more specific routes go first, and a router whose routes end in an identifier
+    # (projects, datasets) is included after the routers with sub-routes under its
+    # prefix. tests/unit/server/api/routers/v1/test_identifier_routes.py pins this.
+    for viewer_restricted in (
+        annotation_configs_router,
+        annotations_router,
+        traces_router,
+        spans_router,
+        sessions_router,
+        projects_router,
+        dataset_labels_router,
+        experiments_router,
+        experiment_tags_router,
+        experiment_runs_router,
+        experiment_evaluations_router,
+        datasets_router,
+        prompts_router,
+        model_providers_router,
+        custom_model_providers_router,
+        documents_router,
+        users_router,
+        secrets_router,
+    ):
+        order_identifier_routes(viewer_restricted)
+        viewer_restricted_router.include_router(viewer_restricted)
     router.include_router(viewer_restricted_router)
     # API-key routes define their own viewer policy: viewers can manage their own user keys,
     # while system and organization-wide operations remain admin-gated.

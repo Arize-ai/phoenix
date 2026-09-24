@@ -113,7 +113,7 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 
 
 @router.post(
-    "/datasets/{dataset_identifier}/experiments",
+    "/datasets/{dataset_identifier:identifier}/experiments",
     dependencies=[Depends(is_not_locked)],
     operation_id="createExperiment",
     summary="Create experiment on a dataset",
@@ -752,7 +752,7 @@ async def get_incomplete_runs(
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/experiments",
+    "/datasets/{dataset_identifier:identifier}/experiments",
     operation_id="listExperiments",
     summary="List experiments by dataset",
     description="Retrieve a paginated list of experiments for the specified dataset.",

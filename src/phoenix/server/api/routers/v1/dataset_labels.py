@@ -188,7 +188,7 @@ async def list_dataset_labels(
 
 
 @router.get(
-    "/dataset_labels/{label_identifier}",
+    "/dataset_labels/{label_identifier:identifier}",
     operation_id="getDatasetLabel",
     summary="Get a dataset label by ID",
     responses=add_errors_to_responses(
@@ -248,7 +248,7 @@ async def create_dataset_label(
 
 
 @router.patch(
-    "/dataset_labels/{label_identifier}",
+    "/dataset_labels/{label_identifier:identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="updateDatasetLabel",
     summary="Update a dataset label by ID",
@@ -307,7 +307,7 @@ async def update_dataset_label(
 
 
 @router.delete(
-    "/dataset_labels/{label_identifier}",
+    "/dataset_labels/{label_identifier:identifier}",
     operation_id="deleteDatasetLabel",
     summary="Delete a dataset label by ID",
     description=(
@@ -341,7 +341,7 @@ async def delete_dataset_label(
 
 
 @router.get(
-    "/datasets/{dataset_identifier}/labels",
+    "/datasets/{dataset_identifier:identifier}/labels",
     operation_id="listDatasetLabelsForDataset",
     summary="List the labels applied to a dataset",
     responses=add_errors_to_responses(
@@ -376,7 +376,7 @@ async def list_dataset_labels_for_dataset(
 
 
 @router.put(
-    "/datasets/{dataset_identifier}/labels/{label_identifier}",
+    "/datasets/{dataset_identifier:identifier}/labels/{label_identifier:identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="addDatasetLabelToDataset",
     summary="Apply a label to a dataset",
@@ -427,7 +427,7 @@ async def add_dataset_label_to_dataset(
 
 
 @router.delete(
-    "/datasets/{dataset_identifier}/labels/{label_identifier}",
+    "/datasets/{dataset_identifier:identifier}/labels/{label_identifier:identifier}",
     operation_id="removeDatasetLabelFromDataset",
     summary="Remove a label from a dataset",
     description=(
@@ -464,7 +464,7 @@ async def remove_dataset_label_from_dataset(
 
 
 @router.put(
-    "/datasets/{dataset_identifier}/labels",
+    "/datasets/{dataset_identifier:identifier}/labels",
     dependencies=[Depends(is_not_locked)],
     operation_id="setDatasetLabelsForDataset",
     summary="Replace the set of labels applied to a dataset",
