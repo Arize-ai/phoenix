@@ -3,25 +3,19 @@ title: "Skills"
 description: Teach your coding agent Phoenix's conventions for the CLI, tracing, and evals, so it gets them right the first time.
 ---
 
-A skill is a set of instructions your coding agent loads when a task matches it, such as debugging with the `px` CLI or writing an evaluator. Phoenix ships its skills in the [Phoenix repository](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills).
+A skill is a set of instructions your coding agent loads when a task matches it, such as debugging with the `px` CLI or writing an evaluator. Phoenix ships its skills in the [Phoenix repository](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills), and the [Set Up Your Agent](/docs/phoenix/integrations/developer-tools/coding-agents) paths install them for you. This page is for installing or updating them on their own.
 
 ## Install
-
-Install Phoenix skills using [skills add](https://github.com/vercel-labs/skills). The recommended default:
 
 ```bash
 npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
 ```
 
-This installs skills into the project's agent directory (for example, `.claude/skills/`, `.cursor/skills/`, or `.github/skills/`). Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents).
+This writes each skill into the project's agent directory, such as `.claude/skills/` or `.cursor/skills/`, and lists what it installed and for which agents. Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents). It needs no Phoenix instance and no traces.
 
-Other ways your agent gets skills:
+Two other routes install the same skills: `px setup skills` from the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli), and the [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins), which registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`. The [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) also serves every skill through its `load_skill` tool, so a connected client can use them with nothing installed.
 
-- **Claude Code plugin**: the [plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) already registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`.
-- **`px setup skills`**: the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) installs them for you.
-- **Remote MCP Server**: the [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) serves `phoenix-error-analysis` through its `load_skill` tool, so any connected client can use it with nothing installed.
-
-## Available skills
+## What your agent can do with them
 
 <CardGroup cols={2}>
   <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-cli/SKILL.md">
@@ -41,7 +35,21 @@ Other ways your agent gets skills:
   </Card>
 </CardGroup>
 
-## `skills add` options
+Example prompt, with `phoenix-error-analysis` installed:
+
+```text
+Review the last 50 traces in my support-agent project and tell me what categories of failures we have
+```
+
+## Learn more
+
+- [Set Up Your Agent](/docs/phoenix/integrations/developer-tools/coding-agents) installs skills alongside the CLI and MCP server.
+- [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) is what the `phoenix-cli` skill teaches an agent to use.
+- [Agent Skills specification](https://agentskills.io/specification) is the format these follow.
+
+## Reference
+
+### `skills add` options
 
 | Option | Description |
 |--------|-------------|
@@ -67,6 +75,6 @@ npx skills add Arize-ai/phoenix --skill phoenix-cli -a claude-code -a cursor
 npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
 ```
 
-## Add your own skills
+### Add your own skills
 
 Point `PHOENIX_SKILLS_PATHS` on the Phoenix server at your own skill directories. The Remote MCP Server serves them to every connected client, and PXI lists them in its skill picker. See [Mounting your own skills](/docs/phoenix/integrations/mcp#mounting-your-own-skills).
