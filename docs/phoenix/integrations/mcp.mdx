@@ -9,13 +9,12 @@ Phoenix has two [MCP](https://modelcontextprotocol.io/) servers: one for your da
 | --- | --- | --- |
 | [Remote MCP Server](#remote-mcp-server) (beta) | Operates on your Phoenix instance. Built into the server at `/mcp`; nothing to install. | Primary choice for Phoenix data |
 | [Phoenix Docs MCP](#phoenix-docs-mcp) | Answers questions from the Phoenix documentation. A hosted URL you point your client at. | Recommended for all users |
-| [Phoenix MCP Server (npm)](#phoenix-mcp-server-npm) | The same Phoenix data through a local stdio server. In maintenance mode. | Only with Phoenix versions that do not serve `/mcp` |
 
 The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) reaches the same data from a shell. [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server) compares the two.
 
 ## Remote MCP Server
 
-The server is your [Phoenix endpoint](/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint) plus `/mcp`, so `http://localhost:6006/mcp` for a local Phoenix. It requires Phoenix 19.0.0 or later; on older servers, use the [npm package](#phoenix-mcp-server-npm).
+The server is your [Phoenix endpoint](/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint) plus `/mcp`, so `http://localhost:6006/mcp` for a local Phoenix. It requires Phoenix 19.0.0 or later.
 
 ### Connect
 
@@ -134,7 +133,7 @@ To write the config by hand, or for a client `px` does not cover, use the steps 
   </Accordion>
 
   <Accordion title="Claude Desktop">
-    Claude Desktop reaches custom connectors from Anthropic's cloud, so the URL must be reachable over the public internet. For a local Phoenix, use the [npm server](#phoenix-mcp-server-npm), which runs on your machine.
+    Claude Desktop reaches custom connectors from Anthropic's cloud, so the URL must be reachable over the public internet; a local Phoenix on `localhost` is not.
 
     For a deployed Phoenix, add a custom connector in Claude Desktop's connector settings:
 
@@ -350,7 +349,7 @@ Each skill is a directory whose name matches the `name` in its `SKILL.md` frontm
 
   <Accordion title="Troubleshooting">
     **`/mcp` returns 405 or the Phoenix app page:**
-    Your Phoenix version predates the MCP server, or it was disabled with `PHOENIX_ENABLE_MCP_SERVER=false`. Upgrade or re-enable it, or fall back to the [npm package](#phoenix-mcp-server-npm).
+    Your Phoenix version predates the MCP server, or it was disabled with `PHOENIX_ENABLE_MCP_SERVER=false`. Upgrade or re-enable it.
 
     **Login loops or 401 errors:**
     Re-run the login (`/mcp` in Claude Code, or remove and re-add the server). If you're using the API-key fallback, confirm the key is valid and passed as `Authorization: Bearer <key>`.
@@ -360,67 +359,3 @@ Each skill is a directory whose name matches the `name` in its `SKILL.md` frontm
   </Accordion>
 
 </AccordionGroup>
-
-### Phoenix MCP Server (npm)
-
-<Warning>
-**Maintenance mode.** `@arizeai/phoenix-mcp` continues to receive bug fixes, but new capabilities land in the [Remote MCP Server](#remote-mcp-server). Use it when your Phoenix version doesn't serve `/mcp`, or when your client can only reach a local process.
-</Warning>
-
-A local stdio server launched with `npx`. In every client, pass your endpoint with `--baseUrl` and an [API key](/docs/phoenix/settings/api-keys) with `--apiKey`.
-
-<AccordionGroup>
-  <Accordion title="Claude Code">
-    ```bash
-    claude mcp add phoenix -- npx -y @arizeai/phoenix-mcp@latest \
-      --baseUrl https://my-phoenix.com \
-      --apiKey your-api-key
-    ```
-
-    Restart your Claude Code session to start using the Phoenix MCP tools.
-  </Accordion>
-
-  <Accordion title="Claude Desktop, Cursor, and other stdio clients">
-    Claude Desktop and Cursor take the same entry. In **Claude Desktop**, open **Settings → Developer → Edit Config**, add the following, then save the file and relaunch. In **Cursor**, add it to `~/.cursor/mcp.json`, or project `.cursor/mcp.json`:
-
-    ```json
-    {
-      "mcpServers": {
-        "phoenix": {
-          "command": "npx",
-          "args": [
-            "-y",
-            "@arizeai/phoenix-mcp@latest",
-            "--baseUrl",
-            "https://my-phoenix.com",
-            "--apiKey",
-            "your-api-key"
-          ]
-        }
-      }
-    }
-    ```
-
-    Any other client that supports stdio MCP servers works. Configure it to run
-    `npx -y @arizeai/phoenix-mcp@latest --baseUrl <your-phoenix-url> --apiKey <your-api-key>`.
-  </Accordion>
-
-  <Accordion title="What it can do">
-    It manages:
-
-    * **Projects, Traces, and Spans**: Explore recent traces, inspect spans, and analyze annotations
-    * **Sessions**: Review conversation flows and session annotations
-    * **Annotation Configs**: Inspect the available labeling and scoring configs in Phoenix
-    * **Prompts Management**: Create, list, update, and iterate on prompts
-    * **Datasets**: Explore datasets and synthesize new examples
-    * **Experiments**: Pull experiment results and visualize them with the help of an LLM
-
-    The npm server can retrieve operational data, inspect prompt and experiment artifacts, and perform the existing prompt and dataset write flows. Some good questions to try:
-
-    1. `Show me the latest traces in my default Phoenix project`
-    1. `Create a new prompt in Phoenix that classifies user intent`
-    1. `Visualize the results of my jailbreak dataset experiments in Phoenix`
-  </Accordion>
-</AccordionGroup>
-
-`@arizeai/phoenix-mcp` is [open-source](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp). Issues and PRs welcome.
