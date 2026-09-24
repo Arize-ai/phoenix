@@ -73,14 +73,6 @@ Inside the chat, lines beginning with `/` are handled locally and never sent to 
 
 PXI runs on your model provider and your API key. Set credentials for Anthropic, OpenAI, Google, or AWS Bedrock through environment variables or Phoenix secrets, or add a custom provider under **Settings → Models**.
 
-It relies heavily on tool calling, so pick a model validated for it:
-
-- **Anthropic**: `claude-fable-5-1`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
-- **OpenAI**: `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
-- **Google**: `gemini-3.7-flash`, `gemini-3.1-pro-preview`
-
-Any other model can be selected, but is untested and may fail to invoke tools.
-
 ### Permissions and approval
 
 Agent assistance is opt-in. PXI can be turned off completely, runs under an explicit permission model, and reaches the internet only when you let it.
