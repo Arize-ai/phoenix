@@ -1,9 +1,13 @@
+import { startCompletion } from "@codemirror/autocomplete";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
-import CodeMirror from "@uiw/react-codemirror";
-import { useMemo, useState } from "react";
+import CodeMirror, {
+  type BasicSetupOptions,
+  type EditorView,
+} from "@uiw/react-codemirror";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -26,10 +30,12 @@ import { createEvaluatorAutocompletion } from "@phoenix/components/evaluators/co
 import { CODE_EVALUATOR_TEMPLATES } from "@phoenix/components/evaluators/codeEvaluatorTemplates";
 import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
 import { getDefaultCodeEvaluatorSource } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 
 /**
  * Editable source-code editor with a read-only auto-generated type footer.
@@ -47,22 +53,57 @@ export const CodeEvaluatorSourceEditor = ({
   onChange: (value: string) => void;
 }) => {
   const { theme } = useTheme();
+  // CodeMirror reconfigures the whole editor whenever its onChange identity
+  // changes, so hand it a stable callback that forwards to the latest prop.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  const handleChange = useCallback(
+    (value: string) => onChangeRef.current(value),
+    []
+  );
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   // The auto-generated type footer is hidden by default.
   const [showTypes, setShowTypes] = useState(false);
 
-  // Get the evaluator mapping source from the store for type generation
-  const evaluatorMappingSource = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource.source
+  const evaluatorMappingSourceState = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource
   );
-  const mappingSourceGrain = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource.grain
+  const inputMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
   );
+  const evaluatorMappingSource = evaluatorMappingSourceState.source;
+  const evaluationContext = useMemo(() => {
+    const grain = evaluatorMappingSourceState.grain;
+    return grain === "dataset"
+      ? null
+      : materializeEvaluatorContext({
+          grain,
+          evaluatorMappingSource: evaluatorMappingSourceState,
+          inputMapping,
+        });
+  }, [evaluatorMappingSourceState, inputMapping]);
 
-  // Generate the type footer based on language and available data
+  // The footer names what `evaluate` receives, so for a project grain it reads
+  // the mapping applied rather than the record as it arrived — the same
+  // context the autocomplete offers from. A dataset example is bound by name
+  // and has no such gap.
   const typeFooter = useMemo(
-    () => generateEvaluatorTypes(language, evaluatorMappingSource),
-    [language, evaluatorMappingSource]
+    () =>
+      generateEvaluatorTypes(
+        language,
+        evaluationContext === null
+          ? evaluatorMappingSource
+          : {
+              input: evaluationContext.values.input,
+              output: evaluationContext.values.output,
+              metadata: isStringKeyedObject(evaluationContext.values.metadata)
+                ? evaluationContext.values.metadata
+                : {},
+            }
+      ),
+    [language, evaluatorMappingSource, evaluationContext]
   );
 
   const extensions = useMemo(
@@ -73,10 +114,24 @@ export const CodeEvaluatorSourceEditor = ({
       createEvaluatorAutocompletion({
         mappingSource: evaluatorMappingSource,
         language,
+        evaluationContext,
       }),
     ],
-    [language, evaluatorMappingSource]
+    [language, evaluatorMappingSource, evaluationContext]
   );
+
+  // The sampled record can arrive after the user has already put the cursor
+  // in a completable position — the reconfigure it causes discards any open
+  // dropdown, so re-open it, the same way DSLFilterConditionField does. The
+  // source offers nothing outside those positions, so this is inert
+  // elsewhere in the source code.
+  const editorViewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
 
   const descriptionText =
     "Define an evaluate function that returns a score or label.";
@@ -140,7 +195,10 @@ export const CodeEvaluatorSourceEditor = ({
             leadingVisual={<Icon svg={<Icons.Refresh />} />}
             onPress={() =>
               onChange(
-                getDefaultCodeEvaluatorSource(language, mappingSourceGrain)
+                getDefaultCodeEvaluatorSource(
+                  language,
+                  evaluatorMappingSourceState.grain
+                )
               )
             }
           >
@@ -183,20 +241,15 @@ export const CodeEvaluatorSourceEditor = ({
                 // Key on language to force remount when language changes
                 key={language}
                 value={sourceCode}
-                onChange={onChange}
+                onChange={handleChange}
                 theme={codeMirrorTheme}
                 extensions={extensions}
+                onCreateEditor={(editorView) => {
+                  editorViewRef.current = editorView;
+                }}
                 height="100%"
                 indentWithTab
-                basicSetup={{
-                  lineNumbers: true,
-                  foldGutter: true,
-                  bracketMatching: true,
-                  syntaxHighlighting: true,
-                  highlightActiveLine: false,
-                  highlightActiveLineGutter: false,
-                  tabSize: language === "PYTHON" ? 4 : 2,
-                }}
+                basicSetup={BASIC_SETUP_BY_LANGUAGE[language]}
               />
             </div>
           </Panel>
@@ -212,15 +265,7 @@ export const CodeEvaluatorSourceEditor = ({
                     theme={codeMirrorTheme}
                     extensions={extensions}
                     editable={false}
-                    basicSetup={{
-                      lineNumbers: true,
-                      foldGutter: true,
-                      bracketMatching: true,
-                      syntaxHighlighting: true,
-                      highlightActiveLine: false,
-                      highlightActiveLineGutter: false,
-                      tabSize: language === "PYTHON" ? 4 : 2,
-                    }}
+                    basicSetup={BASIC_SETUP_BY_LANGUAGE[language]}
                   />
                 </div>
               </Panel>
@@ -230,6 +275,24 @@ export const CodeEvaluatorSourceEditor = ({
       </div>
     </Flex>
   );
+};
+
+const BASE_BASIC_SETUP = {
+  lineNumbers: true,
+  foldGutter: true,
+  bracketMatching: true,
+  syntaxHighlighting: true,
+  highlightActiveLine: false,
+  highlightActiveLineGutter: false,
+} satisfies BasicSetupOptions;
+
+/** Module-level so CodeMirror does not reconfigure on every render. */
+const BASIC_SETUP_BY_LANGUAGE: Record<
+  CodeEvaluatorLanguage,
+  BasicSetupOptions
+> = {
+  PYTHON: { ...BASE_BASIC_SETUP, tabSize: 4 },
+  TYPESCRIPT: { ...BASE_BASIC_SETUP, tabSize: 2 },
 };
 
 const editorContainerCSS = css`
