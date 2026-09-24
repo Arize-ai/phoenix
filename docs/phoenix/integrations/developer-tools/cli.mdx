@@ -84,8 +84,8 @@ This is the workflow the `phoenix-cli` skill drives, and the reason to hand `px`
 | `px project` | Projects |
 | `px session` | Multi-turn sessions |
 | `px annotation-config` | Annotation label schemas |
-| `px trace-annotations`, `px span-annotations`, `px session-annotations` | Stored annotations |
-| `px api` | Authenticated requests to any Phoenix API route |
+| `px trace-annotations`, `px span-annotations`, `px session-annotations` | Bulk deletion of stored annotations. Each takes only `delete`, and requires `--all` or a `--start-time`/`--end-time` window. |
+| `px api graphql` | Read-only GraphQL queries against the Phoenix API. Mutations are rejected. |
 | `px docs` | Workflow docs for coding agents |
 | `px auth`, `px profile` | Credentials and saved endpoints |
 | `px self` | The installed CLI |
