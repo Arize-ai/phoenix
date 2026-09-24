@@ -17,7 +17,6 @@ from sqlalchemy import and_, case, func, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
-from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -249,74 +248,8 @@ class DbEvalWorkCoordinator:
     ) -> None:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
-            identity_statement: Any
-            if self._evaluation_target == "SESSION":
-                identity_statement = select(
-                    work_unit_model.project_evaluator_id,
-                    self._target_row_column.label("project_session_rowid"),
-                ).where(work_unit_model.id == work_unit_id)
-            elif self._evaluation_target == "TRACE":
-                identity_statement = (
-                    select(
-                        work_unit_model.project_evaluator_id,
-                        models.Trace.id.label("trace_rowid"),
-                    )
-                    .select_from(work_unit_model)
-                    .join(models.Trace, self._target_row_column == models.Trace.id)
-                    .where(work_unit_model.id == work_unit_id)
-                )
-            elif self._evaluation_target == "SPAN":
-                identity_statement = (
-                    select(
-                        work_unit_model.project_evaluator_id,
-                        models.Trace.project_session_rowid,
-                    )
-                    .select_from(work_unit_model)
-                    .join(models.Span, self._target_row_column == models.Span.id)
-                    .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-                    .where(work_unit_model.id == work_unit_id)
-                )
-            else:
-                assert_never(self._evaluation_target)
-            identity = (await session.execute(identity_statement)).one_or_none()
-            if identity is None:
-                raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
-
-            # Publication lock order:
-            # - SPAN/SESSION: evaluator -> session -> work unit.
-            # - TRACE: evaluator -> trace -> work unit; never the trace's session, because a
-            #   trace annotation does not describe session content.
-            # Deletion takes no session lock, so no path orders session before trace.
-            # Exception: the sweep reaps lapsed leases (work-unit locks) before locking evaluators.
-            # Exception: per-span ingest widens the trace before the session.
-            project_evaluator_enabled = await session.scalar(
-                select(models.ProjectEvaluator.enabled)
-                .where(models.ProjectEvaluator.id == identity.project_evaluator_id)
-                .with_for_update()
-            )
-            if project_evaluator_enabled is not True:
-                raise PublicationClaimLostError(
-                    f"work unit {work_unit_id} project evaluator is disabled or missing"
-                )
-            if self._evaluation_target == "TRACE":
-                trace_rowid = await session.scalar(
-                    select(models.Trace.id)
-                    .where(models.Trace.id == identity.trace_rowid)
-                    .with_for_update()
-                )
-                if trace_rowid is None:
-                    raise PublicationClaimLostError(f"work unit {work_unit_id} trace is missing")
-            elif self._evaluation_target == "SESSION":
-                await self._lock_session(session, work_unit_id, identity.project_session_rowid)
-            elif self._evaluation_target == "SPAN":
-                # A span in a session takes the session rung of the lock order.
-                if identity.project_session_rowid is not None:
-                    await self._lock_session(session, work_unit_id, identity.project_session_rowid)
-            else:
-                assert_never(self._evaluation_target)
-
-            fenced = await session.scalar(
-                select(work_unit_model.id)
+            project_evaluator_id = await session.scalar(
+                select(work_unit_model.project_evaluator_id)
                 .where(
                     work_unit_model.id == work_unit_id,
                     work_unit_model.claimed_by == claimed_by,
@@ -324,31 +257,20 @@ class DbEvalWorkCoordinator:
                 )
                 .with_for_update()
             )
-            if fenced is None:
+            if project_evaluator_id is None:
                 raise PublicationClaimLostError(
                     f"work unit {work_unit_id} is no longer owned and live"
                 )
+            project_evaluator_enabled = await session.scalar(
+                select(models.ProjectEvaluator.enabled).where(
+                    models.ProjectEvaluator.id == project_evaluator_id
+                )
+            )
+            if project_evaluator_enabled is not True:
+                raise PublicationClaimLostError(
+                    f"work unit {work_unit_id} project evaluator is disabled or missing"
+                )
             await write(session)
-
-    @staticmethod
-    async def _lock_session(
-        session: AsyncSession,
-        work_unit_id: int,
-        project_session_rowid: int,
-    ) -> None:
-        """Hold the session row for the rest of the publication transaction.
-
-        The lock is the point: it is the session rung of the publication lock order.
-        The missing-row check rarely fires, since a deleted session cascades its work
-        units away before the identity read above.
-        """
-        locked_project_session_rowid = await session.scalar(
-            select(models.ProjectSession.id)
-            .where(models.ProjectSession.id == project_session_rowid)
-            .with_for_update()
-        )
-        if locked_project_session_rowid is None:
-            raise PublicationClaimLostError(f"work unit {work_unit_id} session is missing")
 
     async def fail(
         self,
