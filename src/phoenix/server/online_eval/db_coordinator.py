@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import and_, case, func, or_, select, text, type_coerce, update
+from sqlalchemy import and_, case, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement, TextClause
@@ -36,6 +36,7 @@ from phoenix.server.online_eval.coordinator import (
     RetiredWorkStatus,
 )
 from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
+from phoenix.server.online_eval.leases import current_database_time
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
@@ -45,17 +46,6 @@ _WorkUnitModel = (
 )
 _TargetModel = type[models.Span] | type[models.ProjectSession] | type[models.Trace]
 _DATABASE_NOW = object()
-
-
-async def _database_now(session: AsyncSession) -> datetime:
-    if session.get_bind().dialect.name == "postgresql":
-        clock = func.statement_timestamp()
-    else:
-        clock = func.strftime("%Y-%m-%d %H:%M:%f", "now")
-    now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
-    if now is None:
-        raise RuntimeError("Database did not return its current time")
-    return now
 
 
 def work_unit_lease_lapsed(
@@ -149,7 +139,7 @@ class DbEvalWorkCoordinator:
     ) -> Sequence[ClaimedWorkUnit]:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
-            now = await _database_now(session)
+            now = await current_database_time(session, self._db.dialect)
             await reap_lapsed_leases(
                 session, work_unit_model, now=now, max_attempts=self._max_attempts
             )
@@ -311,7 +301,7 @@ class DbEvalWorkCoordinator:
             attempts = work_unit_model.attempts + 1
         else:
             async with self._db.read() as session:
-                database_now = await _database_now(session)
+                database_now = await current_database_time(session, self._db.dialect)
             retry_age_cutoff = database_now - timedelta(seconds=TRANSIENT_RETRY_MAX_AGE_SECONDS)
             attempts = case(
                 (work_unit_model.created_at < retry_age_cutoff, self._max_attempts),
@@ -368,7 +358,7 @@ class DbEvalWorkCoordinator:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
             if values.get("claimed_at") is _DATABASE_NOW:
-                values["claimed_at"] = await _database_now(session)
+                values["claimed_at"] = await current_database_time(session, self._db.dialect)
             result = await session.execute(
                 update(work_unit_model)
                 .where(
