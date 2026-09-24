@@ -16,10 +16,10 @@ import {
 } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
+import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
 import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import type { ProjectEvaluatorResultAnnotation } from "@phoenix/pages/project/evaluators/useProjectEvaluatorResultAnnotations";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 /**
