@@ -4,9 +4,7 @@ sidebarTitle: "CLI"
 description: The px command gives any coding agent with a terminal direct access to your traces, spans, datasets, experiments, and prompts.
 ---
 
-The Phoenix CLI is a command-line tool for your Phoenix instance. The command is `px`. It reads your traces, spans, datasets, experiments, and prompts, and it records annotations and notes back onto them.
-
-It matters for coding agents because it needs nothing but a shell. Claude Code, Codex, Cursor, and the rest can all run it with no client configuration, so you ask in plain language and the agent runs `px` underneath. The [`phoenix-cli` skill](/docs/phoenix/integrations/developer-tools/skills) teaches it which commands to reach for.
+The Phoenix CLI gives your coding agent terminal-native access to your Phoenix instance: traces, spans, sessions, datasets, experiments, and prompts. The command is `px`. Any agent that can run shell commands can use it, which is every coding agent, so you ask in plain language and the agent runs `px` underneath. The [`phoenix-cli` skill](/docs/phoenix/integrations/developer-tools/skills) teaches it which commands to reach for.
 
 ## CLI or MCP server?
 
@@ -19,63 +17,45 @@ Both reach the same Phoenix data.
 | Surface | The `px` commands | Around 116 operations, composed in one `execute` call |
 | Output | Tables, or `--format json` | Results filtered and joined server-side |
 
-## Set up the CLI
+## Install
 
-Install it on the machine your agent runs commands on, usually your own, and tell it which Phoenix instance to talk to. Once the last step returns a project table, your agent can use every command on this page.
-
-<Steps>
-  <Step title="Install">
-    ```bash
-    npm install -g @arizeai/phoenix-cli
-    ```
-
-    Or run any command without installing: `npx -y @arizeai/phoenix-cli trace list`.
-  </Step>
-  <Step title="Point it at Phoenix">
-    ```bash
-    export PHOENIX_ENDPOINT=http://localhost:6006
-    export PHOENIX_PROJECT=my-app
-    ```
-
-    Add `PHOENIX_API_KEY` if your instance has auth enabled. `PHOENIX_PROJECT` saves passing `--project` on every call.
-  </Step>
-  <Step title="Confirm it connects">
-    ```bash
-    px project list
-    ```
-
-    Every Phoenix has a project named `default`, created on first start, where traces land when no project name is set. It is empty on a fresh instance, so this returns at least that one row. A wrong endpoint fails with `Error fetching projects: fetch failed`. Not sending traces yet? [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) covers `px setup`, which wires a project to Phoenix and waits for a real trace.
-  </Step>
-</Steps>
-
-## What you can do with it
-
-Find the failures, then open one. The first command prints the ids the second takes.
+Install the Phoenix CLI globally:
 
 ```bash
-px span list --status-code ERROR --limit 10
-px trace get 3b59e7fdc86dd3d8ccf951403882b5ec
+npm install -g @arizeai/phoenix-cli
 ```
 
-Record what you found, so it stays on the trace for whoever opens it next.
+Point it at your Phoenix instance. Add `PHOENIX_API_KEY` if your instance has auth enabled.
 
 ```bash
-px span annotate 6099f08961d12ae9 --name correctness --label incorrect --score 0
-px trace add-note 3b59e7fdc86dd3d8ccf951403882b5ec --text "Tool called with an empty query"
+export PHOENIX_ENDPOINT=http://localhost:6006
 ```
 
-Look up what a change is measured against.
+Verify the install and the connection:
 
 ```bash
-px dataset get travel-support
-px experiment list --dataset travel-support
-px prompt get my-prompt
+px --help
+px project list
 ```
 
-Ask a question the built-in commands do not cover, as a read-only GraphQL query.
+`project list` works before you have sent a single trace: every Phoenix has a project named `default`, created on first start, where traces land when no project name is set. A wrong endpoint fails with `Error fetching projects: fetch failed`.
 
-```bash
-px api graphql '{ projects { edges { node { name } } } }'
+Once your app is sending traces to a named project, set `PHOENIX_PROJECT` to that name so commands do not need `--project`. Not sending traces yet? [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) covers `px setup`, which wires a project to Phoenix and waits for a real trace.
+
+## What your agent can do with it
+
+Common agent workflows with `px`:
+
+- investigate trace failures and performance regressions
+- inspect and compare experiment runs
+- list and fetch datasets for evaluation workflows
+- inspect and retrieve prompt versions and content
+- annotate spans and traces with what it found, so the finding stays with the data
+
+Example prompt:
+
+```text
+Debug my agent's tool-call failures. Use Phoenix CLI to inspect traces, recent experiments, and relevant prompts, then summarize root causes.
 ```
 
 Annotations and notes are the only things `px` writes. It does not create datasets, edit prompts, or run experiments; do that from the UI, as in [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations), or with the SDK. The fix itself goes in your code.
@@ -93,6 +73,7 @@ For an agent reading this page:
 
 - Discover flags with `px <command> --help` rather than guessing. `dataset`, `prompt`, and `experiment` offer only `list`, `get`, and `delete`.
 - Pass `--format json` on read commands and parse the result. Exit status is 0 on success and 1 on failure.
+- Read commands need a project. Pass `--project <name>` or set `PHOENIX_PROJECT`; without one they fail with a configuration error. `px project list` shows what exists.
 - `span annotate` and `trace add-note` take the OpenTelemetry id, found at `context.span_id` and `context.trace_id` in `px span list --format json`, and not the opaque id shown elsewhere. Pass `--identifier` so a repeat run overwrites instead of stacking annotations.
 - `px api graphql` accepts queries only. Mutations are rejected.
 - You cannot create a dataset, edit a prompt, or run an experiment with `px`. Make the code change instead, and leave authoring to the UI or the SDK.
