@@ -13,16 +13,22 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Sequence
 
-from sqlalchemy import and_, case, func, or_, select, type_coerce, update
+from sqlalchemy import and_, case, func, or_, select, text, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
-from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.elements import ColumnElement, TextClause
 
 from phoenix.db import models
+from phoenix.db.eval_work import (
+    live_eval_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
+    terminal_eval_work_index_predicate,
+)
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.coordinator import (
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
+    TERMINAL_METRICS_WINDOW_SECONDS,
     ClaimedWorkUnit,
     PublicationClaimLostError,
     PublicationWrite,
@@ -105,14 +111,17 @@ class DbEvalWorkCoordinator:
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
             self._target_model: _TargetModel = models.Span
+            self._terminal_index_predicate = text(terminal_eval_work_index_predicate())
         elif evaluation_target == "SESSION":
             self._work_unit_model = models.EvalSessionWorkUnit
             self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
             self._target_model = models.ProjectSession
+            self._terminal_index_predicate = text(terminal_eval_session_work_index_predicate())
         elif evaluation_target == "TRACE":
             self._work_unit_model = models.EvalTraceWorkUnit
             self._target_row_column = models.EvalTraceWorkUnit.trace_rowid
             self._target_model = models.Trace
+            self._terminal_index_predicate = text(terminal_eval_session_work_index_predicate())
         else:
             raise ValueError(
                 f"Online evaluation work coordination does not support {evaluation_target}"
@@ -383,20 +392,20 @@ class DbEvalWorkCoordinator:
     async def lag(self) -> QueueLag:
         now = datetime.now(timezone.utc)
         work_unit_model = self._work_unit_model
+        # SQLite reads through a partial index only when the query repeats the index's
+        # predicate literally; a bound IN list does not match it.
+        live = text(live_eval_work_index_predicate())
         async with self._db.read() as session:
-            counts: dict[str, int] = {
-                status: count
-                for status, count in (
-                    await session.execute(
-                        select(work_unit_model.status, func.count()).group_by(
-                            work_unit_model.status
-                        )
-                    )
-                ).all()
-            }
+            live_counts = await self._count_by_status(session, live)
+            terminal_counts = await self._count_by_status(
+                session,
+                self._terminal_index_predicate,
+                work_unit_model.updated_at
+                >= now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),
+            )
             oldest_work_created_at = await session.scalar(
                 select(work_unit_model.created_at)
-                .where(work_unit_model.status.in_(("PENDING", "ERROR")))
+                .where(live, work_unit_model.status.in_(("PENDING", "ERROR")))
                 .order_by(work_unit_model.created_at)
                 .limit(1)
             )
@@ -406,12 +415,26 @@ class DbEvalWorkCoordinator:
             else None
         )
         return QueueLag(
-            pending_count=counts.get("PENDING", 0),
-            running_count=counts.get("RUNNING", 0),
-            retryable_error_count=counts.get("ERROR", 0),
-            exhausted_error_count=counts.get("FAILED", 0),
+            pending_count=live_counts.get("PENDING", 0),
+            running_count=live_counts.get("RUNNING", 0),
+            retryable_error_count=live_counts.get("ERROR", 0),
+            exhausted_error_count=terminal_counts.get("FAILED", 0),
             expired_count=sum(
-                counts.get(status, 0) for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST")
+                terminal_counts.get(status, 0)
+                for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST")
             ),
             oldest_actionable_age_seconds=oldest_actionable_age_seconds,
         )
+
+    async def _count_by_status(
+        self,
+        session: AsyncSession,
+        *where: ColumnElement[bool] | TextClause,
+    ) -> dict[str, int]:
+        work_unit_model = self._work_unit_model
+        rows = await session.execute(
+            select(work_unit_model.status, func.count())
+            .where(*where)
+            .group_by(work_unit_model.status)
+        )
+        return {status: count for status, count in rows.all()}
