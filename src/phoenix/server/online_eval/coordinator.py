@@ -11,7 +11,6 @@ Work-unit lifecycle:
                        RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
-    PENDING (pending TTL exceeded) --> DROPPED
 """
 
 from __future__ import annotations
