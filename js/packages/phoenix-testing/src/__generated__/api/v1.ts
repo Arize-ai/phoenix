@@ -50,10 +50,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Update an annotation configuration */
+        /** Update an annotation configuration by ID or name */
         put: operations["updateAnnotationConfig"];
         post?: never;
-        /** Delete an annotation configuration */
+        /** Delete an annotation configuration by ID or name */
         delete: operations["deleteAnnotationConfig"];
         options?: never;
         head?: never;
@@ -361,11 +361,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get dataset by ID */
+        /** Get dataset by ID or name */
         get: operations["getDataset"];
         put?: never;
         post?: never;
-        /** Delete dataset by ID */
+        /** Delete dataset by ID or name */
         delete: operations["deleteDatasetById"];
         options?: never;
         head?: never;
@@ -7509,7 +7509,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description ID of the annotation configuration */
+                /** @description The annotation configuration identifier: either ID or name. */
                 config_id: string;
             };
             cookie?: never;
@@ -7538,13 +7538,22 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
@@ -7554,7 +7563,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description ID of the annotation configuration */
+                /** @description The annotation configuration identifier: either ID or name. */
                 config_id: string;
             };
             cookie?: never;
@@ -7579,13 +7588,22 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
@@ -8272,7 +8290,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the dataset label */
+                /** @description The dataset label identifier: either label ID or label name. */
                 label_id: string;
             };
             cookie?: never;
@@ -8322,7 +8340,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the dataset label */
+                /** @description The dataset label identifier: either label ID or label name. */
                 label_id: string;
             };
             cookie?: never;
@@ -8370,7 +8388,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the dataset label */
+                /** @description The dataset label identifier: either label ID or label name. */
                 label_id: string;
             };
             cookie?: never;
@@ -8539,7 +8557,7 @@ export interface operations {
             path: {
                 /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
                 dataset_identifier: string;
-                /** @description The ID of the dataset label to apply */
+                /** @description The dataset label identifier: either label ID or label name. */
                 label_id: string;
             };
             cookie?: never;
@@ -8591,7 +8609,7 @@ export interface operations {
             path: {
                 /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
                 dataset_identifier: string;
-                /** @description The ID of the dataset label to remove */
+                /** @description The dataset label identifier: either label ID or label name. */
                 label_id: string;
             };
             cookie?: never;
@@ -8684,7 +8702,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the dataset */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -8718,13 +8736,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
@@ -8734,7 +8752,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the dataset to delete. */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -8787,7 +8805,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The ID of the dataset */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -8922,7 +8940,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The ID of the dataset */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -9092,7 +9110,7 @@ export interface operations {
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
                 dataset_identifier: string;
-                /** @description The ID (GlobalID) of the dataset split. */
+                /** @description The dataset split identifier: either split ID or split name. */
                 split_id: string;
             };
             cookie?: never;
@@ -9142,7 +9160,7 @@ export interface operations {
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
                 dataset_identifier: string;
-                /** @description The ID (GlobalID) of the dataset split. */
+                /** @description The dataset split identifier: either split ID or split name. */
                 split_id: string;
             };
             cookie?: never;
@@ -9208,7 +9226,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The ID of the dataset */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -9252,7 +9270,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The ID of the dataset */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -9296,7 +9314,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The ID of the dataset */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -9340,7 +9358,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The ID of the dataset */
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 id: string;
             };
             cookie?: never;
@@ -9386,6 +9404,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 dataset_id: string;
             };
             cookie?: never;
@@ -9426,6 +9445,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
                 dataset_id: string;
             };
             cookie?: never;

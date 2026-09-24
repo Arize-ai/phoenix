@@ -189,7 +189,7 @@
         "tags": [
           "annotation_configs"
         ],
-        "summary": "Update an annotation configuration",
+        "summary": "Update an annotation configuration by ID or name",
         "operationId": "updateAnnotationConfig",
         "parameters": [
           {
@@ -198,10 +198,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "ID of the annotation configuration",
+              "description": "The annotation configuration identifier: either ID or name.",
               "title": "Config Id"
             },
-            "description": "ID of the annotation configuration"
+            "description": "The annotation configuration identifier: either ID or name."
           }
         ],
         "requestBody": {
@@ -235,15 +235,25 @@
             },
             "description": "Forbidden"
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       },
@@ -251,7 +261,7 @@
         "tags": [
           "annotation_configs"
         ],
-        "summary": "Delete an annotation configuration",
+        "summary": "Delete an annotation configuration by ID or name",
         "operationId": "deleteAnnotationConfig",
         "parameters": [
           {
@@ -260,10 +270,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "ID of the annotation configuration",
+              "description": "The annotation configuration identifier: either ID or name.",
               "title": "Config Id"
             },
-            "description": "ID of the annotation configuration"
+            "description": "The annotation configuration identifier: either ID or name."
           }
         ],
         "responses": {
@@ -287,15 +297,25 @@
             },
             "description": "Forbidden"
           },
-          "422": {
-            "description": "Validation Error",
+          "404": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -1807,10 +1827,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset label",
+              "description": "The dataset label identifier: either label ID or label name.",
               "title": "Label Id"
             },
-            "description": "The ID of the dataset label"
+            "description": "The dataset label identifier: either label ID or label name."
           }
         ],
         "responses": {
@@ -1870,10 +1890,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset label",
+              "description": "The dataset label identifier: either label ID or label name.",
               "title": "Label Id"
             },
-            "description": "The ID of the dataset label"
+            "description": "The dataset label identifier: either label ID or label name."
           }
         ],
         "requestBody": {
@@ -1953,10 +1973,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset label",
+              "description": "The dataset label identifier: either label ID or label name.",
               "title": "Label Id"
             },
-            "description": "The ID of the dataset label"
+            "description": "The dataset label identifier: either label ID or label name."
           }
         ],
         "responses": {
@@ -2159,10 +2179,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset label to apply",
+              "description": "The dataset label identifier: either label ID or label name.",
               "title": "Label Id"
             },
-            "description": "The ID of the dataset label to apply"
+            "description": "The dataset label identifier: either label ID or label name."
           }
         ],
         "responses": {
@@ -2233,10 +2253,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset label to remove",
+              "description": "The dataset label identifier: either label ID or label name.",
               "title": "Label Id"
             },
-            "description": "The ID of the dataset label to remove"
+            "description": "The dataset label identifier: either label ID or label name."
           }
         ],
         "responses": {
@@ -2373,7 +2393,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Delete dataset by ID",
+        "summary": "Delete dataset by ID or name",
         "operationId": "deleteDatasetById",
         "parameters": [
           {
@@ -2382,10 +2402,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset to delete.",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset to delete."
+            "description": "The dataset identifier: either dataset ID or dataset name."
           }
         ],
         "responses": {
@@ -2428,7 +2448,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Get dataset by ID",
+        "summary": "Get dataset by ID or name",
         "operationId": "getDataset",
         "parameters": [
           {
@@ -2437,10 +2457,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset"
+            "description": "The dataset identifier: either dataset ID or dataset name."
           }
         ],
         "responses": {
@@ -2475,14 +2495,14 @@
             "description": "Not Found"
           },
           "422": {
-            "description": "Validation Error",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -2501,10 +2521,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset"
+            "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
             "name": "cursor",
@@ -2834,10 +2854,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset"
+            "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
             "name": "version_id",
@@ -3126,10 +3146,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID (GlobalID) of the dataset split.",
+              "description": "The dataset split identifier: either split ID or split name.",
               "title": "Split Id"
             },
-            "description": "The ID (GlobalID) of the dataset split."
+            "description": "The dataset split identifier: either split ID or split name."
           }
         ],
         "requestBody": {
@@ -3219,10 +3239,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID (GlobalID) of the dataset split.",
+              "description": "The dataset split identifier: either split ID or split name.",
               "title": "Split Id"
             },
-            "description": "The ID (GlobalID) of the dataset split."
+            "description": "The dataset split identifier: either split ID or split name."
           }
         ],
         "responses": {
@@ -3276,10 +3296,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset"
+            "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
             "name": "version_id",
@@ -3349,10 +3369,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset"
+            "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
             "name": "version_id",
@@ -3421,10 +3441,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset"
+            "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
             "name": "version_id",
@@ -3493,10 +3513,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
               "title": "Id"
             },
-            "description": "The ID of the dataset"
+            "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
             "name": "version_id",
@@ -3565,8 +3585,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Dataset ID"
-            }
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Id"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
           }
         ],
         "requestBody": {
@@ -3636,8 +3658,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Dataset ID"
-            }
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Id"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
             "name": "cursor",
