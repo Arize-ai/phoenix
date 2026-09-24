@@ -16,6 +16,7 @@ export type ProjectEvaluatorGallerySelection =
 
 type ProjectEvaluatorContextValue = {
   openGallery: (selection?: ProjectEvaluatorGallerySelection) => void;
+  onEvaluatorCreated: () => void;
 };
 
 const ProjectEvaluatorContext =
