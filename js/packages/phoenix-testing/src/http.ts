@@ -10,7 +10,7 @@ import { DEFAULT_MOCK_BASE_URL } from "./constants.js";
  *
  * ```ts
  * const http = createHttp();
- * const handler = http.get("/v1/datasets/{id}", ({ params, response }) =>
+ * const handler = http.get("/v1/datasets/{dataset_identifier}", ({ params, response }) =>
  *   response(200).json({ data: { ... } })
  * );
  * ```

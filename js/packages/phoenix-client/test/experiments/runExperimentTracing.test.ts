@@ -123,23 +123,25 @@ describe("runExperiment tracing", () => {
     });
 
     server.use(
-      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response(200).json({
-          data: {
-            id: "exp-1",
-            dataset_id: mockDataset.id,
-            dataset_version_id: mockDataset.versionId,
-            project_name: "experiment-project",
-            repetitions: 1,
-            metadata: {},
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            example_count: 1,
-            successful_run_count: 0,
-            failed_run_count: 0,
-            missing_run_count: 1,
-          },
-        })
+      http.post(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response(200).json({
+            data: {
+              id: "exp-1",
+              dataset_id: mockDataset.id,
+              dataset_version_id: mockDataset.versionId,
+              project_name: "experiment-project",
+              repetitions: 1,
+              metadata: {},
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              example_count: 1,
+              successful_run_count: 0,
+              failed_run_count: 0,
+              missing_run_count: 1,
+            },
+          })
       ),
       http.post("/v1/experiments/{experiment_id}/runs", ({ response }) =>
         response(200).json({ data: { id: "run-1" } })

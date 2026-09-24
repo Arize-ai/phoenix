@@ -113,7 +113,7 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 
 
 @router.post(
-    "/datasets/{dataset_id}/experiments",
+    "/datasets/{dataset_identifier}/experiments",
     dependencies=[Depends(is_not_locked)],
     operation_id="createExperiment",
     summary="Create experiment on a dataset",
@@ -125,7 +125,7 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 async def create_experiment(
     request: Request,
     request_body: CreateExperimentRequestBody,
-    dataset_id: str = Path(
+    dataset_identifier: str = Path(
         description="The dataset identifier: either dataset ID or dataset name."
     ),
 ) -> CreateExperimentResponseBody:
@@ -149,7 +149,7 @@ async def create_experiment(
             )
 
     async with request.app.state.db() as session:
-        dataset = await get_dataset_by_identifier(session, dataset_id)
+        dataset = await get_dataset_by_identifier(session, dataset_identifier)
         dataset_rowid = dataset.id
         dataset_globalid = GlobalID("Dataset", str(dataset_rowid))
         dataset_name = dataset.name
@@ -752,7 +752,7 @@ async def get_incomplete_runs(
 
 
 @router.get(
-    "/datasets/{dataset_id}/experiments",
+    "/datasets/{dataset_identifier}/experiments",
     operation_id="listExperiments",
     summary="List experiments by dataset",
     description="Retrieve a paginated list of experiments for the specified dataset.",
@@ -761,7 +761,7 @@ async def get_incomplete_runs(
 )
 async def list_experiments(
     request: Request,
-    dataset_id: str = Path(
+    dataset_identifier: str = Path(
         description="The dataset identifier: either dataset ID or dataset name."
     ),
     cursor: Optional[str] = Query(
@@ -773,7 +773,7 @@ async def list_experiments(
     ),
 ) -> ListExperimentsResponseBody:
     async with request.app.state.db() as session:
-        dataset_rowid = (await get_dataset_by_identifier(session, dataset_id)).id
+        dataset_rowid = (await get_dataset_by_identifier(session, dataset_identifier)).id
         query = (
             select(models.Experiment)
             .where(models.Experiment.dataset_id == dataset_rowid)

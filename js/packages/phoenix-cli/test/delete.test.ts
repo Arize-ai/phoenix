@@ -69,15 +69,15 @@ function usePinnedDatasetList() {
 }
 
 /**
- * Register a DELETE /v1/datasets/{id} handler that records the deleted id and
+ * Register a DELETE /v1/datasets/{dataset_identifier} handler that records the deleted id and
  * how many times it was called.
  */
 function captureDatasetDelete() {
   const captured: { id?: string; calls: number } = { calls: 0 };
   mock.server.use(
-    http.delete("/v1/datasets/{id}", ({ params, response }) => {
+    http.delete("/v1/datasets/{dataset_identifier}", ({ params, response }) => {
       captured.calls += 1;
-      captured.id = params.id;
+      captured.id = params.dataset_identifier;
       return response(204).empty();
     })
   );
@@ -136,9 +136,9 @@ describe("dataset delete", () => {
     vi.restoreAllMocks();
   });
 
-  it("resolves dataset name to ID then calls DELETE /v1/datasets/{id}", async () => {
+  it("resolves dataset name to ID then calls DELETE /v1/datasets/{dataset_identifier}", async () => {
     // First request: GET /v1/datasets?name=my-dataset (resolveDatasetId)
-    // Second request: DELETE /v1/datasets/{id}
+    // Second request: DELETE /v1/datasets/{dataset_identifier}
     const listCounter = countDatasetListCalls();
     const deleted = captureDatasetDelete();
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -176,7 +176,7 @@ describe("dataset delete", () => {
   it("exits with FAILURE on 404", async () => {
     usePinnedDatasetList();
     mock.server.use(
-      http.delete("/v1/datasets/{id}", ({ response }) =>
+      http.delete("/v1/datasets/{dataset_identifier}", ({ response }) =>
         response(404).text("Dataset not found")
       )
     );
@@ -506,14 +506,14 @@ describe("annotation-config delete", () => {
       values: [{ label: "good" }, { label: "bad" }],
     };
 
-  it("calls DELETE /v1/annotation_configs/{config_id}", async () => {
+  it("calls DELETE /v1/annotation_configs/{config_identifier}", async () => {
     const captured: { configId?: string; calls: number } = { calls: 0 };
     mock.server.use(
       http.delete(
-        "/v1/annotation_configs/{config_id}",
+        "/v1/annotation_configs/{config_identifier}",
         ({ params, response }) => {
           captured.calls += 1;
-          captured.configId = params.config_id;
+          captured.configId = params.config_identifier;
           return response(200).json({ data: annotationConfigFixture });
         }
       )
@@ -532,8 +532,9 @@ describe("annotation-config delete", () => {
   it("uses confirmation message without cascade warning", async () => {
     vi.mocked(confirmOrExit).mockResolvedValue(undefined);
     mock.server.use(
-      http.delete("/v1/annotation_configs/{config_id}", ({ response }) =>
-        response(200).json({ data: annotationConfigFixture })
+      http.delete(
+        "/v1/annotation_configs/{config_identifier}",
+        ({ response }) => response(200).json({ data: annotationConfigFixture })
       )
     );
     vi.spyOn(console, "error").mockImplementation(() => {});

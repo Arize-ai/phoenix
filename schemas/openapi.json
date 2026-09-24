@@ -182,9 +182,7 @@
             }
           }
         }
-      }
-    },
-    "/v1/annotation_configs/{config_id}": {
+      },
       "put": {
         "tags": [
           "annotation_configs"
@@ -193,13 +191,13 @@
         "operationId": "updateAnnotationConfig",
         "parameters": [
           {
-            "name": "config_id",
+            "name": "config_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The annotation configuration identifier: either ID or name.",
-              "title": "Config Id"
+              "title": "Config Identifier"
             },
             "description": "The annotation configuration identifier: either ID or name."
           }
@@ -265,13 +263,13 @@
         "operationId": "deleteAnnotationConfig",
         "parameters": [
           {
-            "name": "config_id",
+            "name": "config_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The annotation configuration identifier: either ID or name.",
-              "title": "Config Id"
+              "title": "Config Identifier"
             },
             "description": "The annotation configuration identifier: either ID or name."
           }
@@ -1813,7 +1811,7 @@
         }
       }
     },
-    "/v1/dataset_labels/{label_id}": {
+    "/v1/dataset_labels/{label_identifier}": {
       "get": {
         "tags": [
           "datasets"
@@ -1822,13 +1820,13 @@
         "operationId": "getDatasetLabel",
         "parameters": [
           {
-            "name": "label_id",
+            "name": "label_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset label identifier: either label ID or label name.",
-              "title": "Label Id"
+              "title": "Label Identifier"
             },
             "description": "The dataset label identifier: either label ID or label name."
           }
@@ -1885,13 +1883,13 @@
         "operationId": "updateDatasetLabel",
         "parameters": [
           {
-            "name": "label_id",
+            "name": "label_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset label identifier: either label ID or label name.",
-              "title": "Label Id"
+              "title": "Label Identifier"
             },
             "description": "The dataset label identifier: either label ID or label name."
           }
@@ -1968,13 +1966,13 @@
         "operationId": "deleteDatasetLabel",
         "parameters": [
           {
-            "name": "label_id",
+            "name": "label_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset label identifier: either label ID or label name.",
-              "title": "Label Id"
+              "title": "Label Identifier"
             },
             "description": "The dataset label identifier: either label ID or label name."
           }
@@ -2153,7 +2151,7 @@
         }
       }
     },
-    "/v1/datasets/{dataset_identifier}/labels/{label_id}": {
+    "/v1/datasets/{dataset_identifier}/labels/{label_identifier}": {
       "put": {
         "tags": [
           "datasets"
@@ -2174,13 +2172,13 @@
             "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
           },
           {
-            "name": "label_id",
+            "name": "label_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset label identifier: either label ID or label name.",
-              "title": "Label Id"
+              "title": "Label Identifier"
             },
             "description": "The dataset label identifier: either label ID or label name."
           }
@@ -2248,13 +2246,13 @@
             "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
           },
           {
-            "name": "label_id",
+            "name": "label_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset label identifier: either label ID or label name.",
-              "title": "Label Id"
+              "title": "Label Identifier"
             },
             "description": "The dataset label identifier: either label ID or label name."
           }
@@ -2388,7 +2386,7 @@
         }
       }
     },
-    "/v1/datasets/{id}": {
+    "/v1/datasets/{dataset_identifier}": {
       "delete": {
         "tags": [
           "datasets"
@@ -2397,13 +2395,13 @@
         "operationId": "deleteDatasetById",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           }
@@ -2452,13 +2450,13 @@
         "operationId": "getDataset",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           }
@@ -2507,7 +2505,7 @@
         }
       }
     },
-    "/v1/datasets/{id}/versions": {
+    "/v1/datasets/{dataset_identifier}/versions": {
       "get": {
         "tags": [
           "datasets"
@@ -2516,13 +2514,13 @@
         "operationId": "listDatasetVersionsByDatasetId",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
@@ -2840,7 +2838,7 @@
         }
       }
     },
-    "/v1/datasets/{id}/examples": {
+    "/v1/datasets/{dataset_identifier}/examples": {
       "get": {
         "tags": [
           "datasets"
@@ -2849,13 +2847,13 @@
         "operationId": "getDatasetExamples",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
@@ -3121,7 +3119,7 @@
         }
       }
     },
-    "/v1/datasets/{dataset_identifier}/splits/{split_id}": {
+    "/v1/datasets/{dataset_identifier}/splits/{split_identifier}": {
       "patch": {
         "tags": [
           "datasets"
@@ -3141,13 +3139,13 @@
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
-            "name": "split_id",
+            "name": "split_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset split identifier: either split ID or split name.",
-              "title": "Split Id"
+              "title": "Split Identifier"
             },
             "description": "The dataset split identifier: either split ID or split name."
           }
@@ -3234,13 +3232,13 @@
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
           {
-            "name": "split_id",
+            "name": "split_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset split identifier: either split ID or split name.",
-              "title": "Split Id"
+              "title": "Split Identifier"
             },
             "description": "The dataset split identifier: either split ID or split name."
           }
@@ -3282,7 +3280,7 @@
         }
       }
     },
-    "/v1/datasets/{id}/csv": {
+    "/v1/datasets/{dataset_identifier}/csv": {
       "get": {
         "tags": [
           "datasets"
@@ -3291,13 +3289,13 @@
         "operationId": "getDatasetCsv",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
@@ -3355,7 +3353,7 @@
         }
       }
     },
-    "/v1/datasets/{id}/jsonl": {
+    "/v1/datasets/{dataset_identifier}/jsonl": {
       "get": {
         "tags": [
           "datasets"
@@ -3364,13 +3362,13 @@
         "operationId": "getDatasetJSONL",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
@@ -3427,7 +3425,7 @@
         }
       }
     },
-    "/v1/datasets/{id}/jsonl/openai_ft": {
+    "/v1/datasets/{dataset_identifier}/jsonl/openai_ft": {
       "get": {
         "tags": [
           "datasets"
@@ -3436,13 +3434,13 @@
         "operationId": "getDatasetJSONLOpenAIFineTuning",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
@@ -3499,7 +3497,7 @@
         }
       }
     },
-    "/v1/datasets/{id}/jsonl/openai_evals": {
+    "/v1/datasets/{dataset_identifier}/jsonl/openai_evals": {
       "get": {
         "tags": [
           "datasets"
@@ -3508,13 +3506,13 @@
         "operationId": "getDatasetJSONLOpenAIEvals",
         "parameters": [
           {
-            "name": "id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           },
@@ -3571,7 +3569,7 @@
         }
       }
     },
-    "/v1/datasets/{dataset_id}/experiments": {
+    "/v1/datasets/{dataset_identifier}/experiments": {
       "post": {
         "tags": [
           "experiments"
@@ -3580,13 +3578,13 @@
         "operationId": "createExperiment",
         "parameters": [
           {
-            "name": "dataset_id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Dataset Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           }
@@ -3653,13 +3651,13 @@
         "operationId": "listExperiments",
         "parameters": [
           {
-            "name": "dataset_id",
+            "name": "dataset_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
               "description": "The dataset identifier: either dataset ID or dataset name.",
-              "title": "Dataset Id"
+              "title": "Dataset Identifier"
             },
             "description": "The dataset identifier: either dataset ID or dataset name."
           },

@@ -231,8 +231,8 @@ describe("appendDatasetExamples", () => {
   it("should append examples by dataset ID (fetches name first)", async () => {
     let receivedDatasetId: string | undefined;
     server.use(
-      http.get("/v1/datasets/{id}", ({ params, response }) => {
-        receivedDatasetId = params.id;
+      http.get("/v1/datasets/{dataset_identifier}", ({ params, response }) => {
+        receivedDatasetId = params.dataset_identifier;
         return response(200).json({
           data: {
             id: "dataset-123",

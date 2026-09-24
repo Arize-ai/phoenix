@@ -69,10 +69,10 @@ describe("createMockServer", () => {
 
   it("lets type-safe custom handlers take precedence over generated ones", async () => {
     server.use(
-      http.get("/v1/datasets/{id}", ({ params, response }) =>
+      http.get("/v1/datasets/{dataset_identifier}", ({ params, response }) =>
         response(200).json({
           data: {
-            id: params.id,
+            id: params.dataset_identifier,
             name: "my dataset",
             description: null,
             metadata: {},

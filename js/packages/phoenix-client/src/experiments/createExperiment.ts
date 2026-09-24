@@ -53,10 +53,10 @@ export async function createExperiment({
   const client = _client || createClient();
 
   const experimentResponse = await client
-    .POST("/v1/datasets/{dataset_id}/experiments", {
+    .POST("/v1/datasets/{dataset_identifier}/experiments", {
       params: {
         path: {
-          dataset_id: datasetId,
+          dataset_identifier: datasetId,
         },
       },
       body: {

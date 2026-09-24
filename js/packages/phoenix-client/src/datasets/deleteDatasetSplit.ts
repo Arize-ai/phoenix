@@ -35,12 +35,15 @@ export async function deleteDatasetSplit({
   await ensureServerCapability({ client, requirement: DELETE_DATASET_SPLIT });
   const datasetIdentifier = resolveDatasetIdentifier(dataset);
 
-  await client.DELETE("/v1/datasets/{dataset_identifier}/splits/{split_id}", {
-    params: {
-      path: {
-        dataset_identifier: datasetIdentifier,
-        split_id: splitId,
+  await client.DELETE(
+    "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
+    {
+      params: {
+        path: {
+          dataset_identifier: datasetIdentifier,
+          split_identifier: splitId,
+        },
       },
-    },
-  });
+    }
+  );
 }

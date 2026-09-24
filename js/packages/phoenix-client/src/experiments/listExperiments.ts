@@ -45,10 +45,10 @@ export async function listExperiments({
   do {
     const res: {
       data?: components["schemas"]["ListExperimentsResponseBody"];
-    } = await client.GET("/v1/datasets/{dataset_id}/experiments", {
+    } = await client.GET("/v1/datasets/{dataset_identifier}/experiments", {
       params: {
         path: {
-          dataset_id: datasetId,
+          dataset_identifier: datasetId,
         },
         query: {
           cursor,

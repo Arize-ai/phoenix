@@ -280,9 +280,12 @@ async function resolveSuiteExampleIds({
   datasetId: string;
 }): Promise<void> {
   try {
-    const { data: response } = await client.GET("/v1/datasets/{id}/examples", {
-      params: { path: { id: datasetId } },
-    });
+    const { data: response } = await client.GET(
+      "/v1/datasets/{dataset_identifier}/examples",
+      {
+        params: { path: { dataset_identifier: datasetId } },
+      }
+    );
     const fetched = response?.data?.examples ?? [];
     const idToTestName = new Map<string, string>();
     const inputKeyToTestNames = new Map<string, string[]>();
@@ -338,8 +341,8 @@ async function createSuiteExperiment({
   suite.projectName = projectName;
   try {
     const response = await client
-      .POST("/v1/datasets/{dataset_id}/experiments", {
-        params: { path: { dataset_id: datasetId } },
+      .POST("/v1/datasets/{dataset_identifier}/experiments", {
+        params: { path: { dataset_identifier: datasetId } },
         body: {
           name: suite.config.datasetName ?? suite.name,
           description,

@@ -327,7 +327,7 @@ async def create_annotation_config(
 
 
 @router.put(
-    "/annotation_configs/{config_id}",
+    "/annotation_configs/{config_identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="updateAnnotationConfig",
     summary="Update an annotation configuration by ID or name",
@@ -336,7 +336,7 @@ async def create_annotation_config(
 async def update_annotation_config(
     request: Request,
     data: CreateAnnotationConfigData,
-    config_id: str = Path(
+    config_identifier: str = Path(
         ..., description="The annotation configuration identifier: either ID or name."
     ),
 ) -> UpdateAnnotationConfigResponseBody:
@@ -349,7 +349,7 @@ async def update_annotation_config(
         raise HTTPException(status_code=400, detail=str(error))
 
     async with request.app.state.db() as session:
-        existing_config = await get_annotation_config_by_identifier(session, config_id)
+        existing_config = await get_annotation_config_by_identifier(session, config_identifier)
 
         existing_config.name = input_config.name
         existing_config.config = db_config
@@ -366,19 +366,19 @@ async def update_annotation_config(
 
 
 @router.delete(
-    "/annotation_configs/{config_id}",
+    "/annotation_configs/{config_identifier}",
     operation_id="deleteAnnotationConfig",
     summary="Delete an annotation configuration by ID or name",
     responses=add_errors_to_responses([404]),
 )
 async def delete_annotation_config(
     request: Request,
-    config_id: str = Path(
+    config_identifier: str = Path(
         ..., description="The annotation configuration identifier: either ID or name."
     ),
 ) -> DeleteAnnotationConfigResponseBody:
     async with request.app.state.db() as session:
-        annotation_config = await get_annotation_config_by_identifier(session, config_id)
+        annotation_config = await get_annotation_config_by_identifier(session, config_identifier)
         data = db_to_api_annotation_config(annotation_config)
         await session.execute(
             delete(models.AnnotationConfig).where(

@@ -211,8 +211,8 @@ async function prepareRecordedExperiment({
   setGlobalTracerProvider: boolean;
 }): Promise<PreparedExperiment> {
   const response = await client
-    .POST("/v1/datasets/{dataset_id}/experiments", {
-      params: { path: { dataset_id: dataset.id } },
+    .POST("/v1/datasets/{dataset_identifier}/experiments", {
+      params: { path: { dataset_identifier: dataset.id } },
       body: {
         name: experimentName,
         description: experimentDescription,

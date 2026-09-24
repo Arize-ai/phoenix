@@ -65,10 +65,10 @@ function captureAnnotationConfigUpdateFlow(
       }
     ),
     http.put(
-      "/v1/annotation_configs/{config_id}",
+      "/v1/annotation_configs/{config_identifier}",
       async ({ params, request, response }) => {
         captured.putCount += 1;
-        captured.putConfigId = params.config_id;
+        captured.putConfigId = params.config_identifier;
         captured.putBody = (await request.clone().json()) as Record<
           string,
           unknown

@@ -140,8 +140,8 @@ export const initializeDatasetTools = ({
         datasetName: dataset_name,
       });
 
-      const response = await client.GET("/v1/datasets/{id}", {
-        params: { path: { id: resolvedId } },
+      const response = await client.GET("/v1/datasets/{dataset_identifier}", {
+        params: { path: { dataset_identifier: resolvedId } },
       });
       const dataset = getResponseData({
         response,
@@ -167,12 +167,15 @@ export const initializeDatasetTools = ({
         datasetName: dataset_name,
       });
 
-      const response = await client.GET("/v1/datasets/{id}/examples", {
-        params: {
-          path: { id: resolvedId },
-          query: { version_id, split: splits },
-        },
-      });
+      const response = await client.GET(
+        "/v1/datasets/{dataset_identifier}/examples",
+        {
+          params: {
+            path: { dataset_identifier: resolvedId },
+            query: { version_id, split: splits },
+          },
+        }
+      );
       const datasetExamples = getResponseData({
         response,
         errorPrefix: `Failed to fetch examples for dataset "${resolvedId}"`,
@@ -200,10 +203,10 @@ export const initializeDatasetTools = ({
         limit,
         fetchPage: async (cursor, pageSize) => {
           const response = await client.GET(
-            "/v1/datasets/{dataset_id}/experiments",
+            "/v1/datasets/{dataset_identifier}/experiments",
             {
               params: {
-                path: { dataset_id: resolvedId },
+                path: { dataset_identifier: resolvedId },
                 query: { cursor, limit: pageSize },
               },
             }

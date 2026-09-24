@@ -118,9 +118,9 @@ describe("updateDatasetSplit", () => {
     server.use(
       serverVersionHandler(),
       http.patch(
-        "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+        "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
         async ({ params, request, response }) => {
-          captured.splitId = params.split_id;
+          captured.splitId = params.split_identifier;
           captured.body = await request.json();
           return response(200).json({
             data: { ...DATASET_SPLIT, description: null, metadata: {} },
@@ -151,7 +151,7 @@ describe("updateDatasetSplit", () => {
     server.use(
       serverVersionHandler(),
       http.patch(
-        "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+        "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
         async ({ request, response }) => {
           const body = (await request.json()) as {
             add_example_ids?: string[];
@@ -199,7 +199,7 @@ describe("updateDatasetSplit", () => {
     server.use(
       serverVersionHandler(),
       http.patch(
-        "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+        "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
         ({ response }) =>
           response.untyped(
             new Response("Dataset split not found", { status: 404 })
@@ -221,7 +221,7 @@ describe("updateDatasetSplit", () => {
     server.use(
       serverVersionHandler(),
       http.patch(
-        "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+        "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
         ({ response }) =>
           response.untyped(
             new Response("A dataset split with this name already exists", {
@@ -248,10 +248,10 @@ describe("deleteDatasetSplit", () => {
     server.use(
       serverVersionHandler(),
       http.delete(
-        "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+        "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
         ({ params, response }) => {
           captured.datasetIdentifier = params.dataset_identifier;
-          captured.splitId = params.split_id;
+          captured.splitId = params.split_identifier;
           return response(204).empty();
         }
       )
@@ -274,7 +274,7 @@ describe("deleteDatasetSplit", () => {
     server.use(
       serverVersionHandler(),
       http.delete(
-        "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+        "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
         ({ response }) =>
           response.untyped(
             new Response("Invalid dataset split ID", { status: 422 })
@@ -296,7 +296,7 @@ describe("deleteDatasetSplit", () => {
     server.use(
       serverVersionHandler("19.19.0"),
       http.delete(
-        "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+        "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
         ({ response }) => {
           deleteRequestCount += 1;
           return response(204).empty();

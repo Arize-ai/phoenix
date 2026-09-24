@@ -35,17 +35,20 @@ export async function getDatasetExamples({
 
   const { versionId, splits } = datasetSelector;
 
-  const response = await client.GET("/v1/datasets/{id}/examples", {
-    params: {
-      path: {
-        id: datasetId,
+  const response = await client.GET(
+    "/v1/datasets/{dataset_identifier}/examples",
+    {
+      params: {
+        path: {
+          dataset_identifier: datasetId,
+        },
+        query: {
+          ...(versionId ? { version_id: versionId } : {}),
+          ...(splits ? { split: splits } : {}),
+        },
       },
-      query: {
-        ...(versionId ? { version_id: versionId } : {}),
-        ...(splits ? { split: splits } : {}),
-      },
-    },
-  });
+    }
+  );
 
   invariant(response.data?.data, "Failed to get dataset examples");
   const examplesData = response.data.data;

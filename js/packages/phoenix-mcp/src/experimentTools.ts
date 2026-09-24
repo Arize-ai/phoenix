@@ -83,10 +83,10 @@ export const initializeExperimentTools = ({
         limit,
         fetchPage: async (cursor, pageSize) => {
           const response = await client.GET(
-            "/v1/datasets/{dataset_id}/experiments",
+            "/v1/datasets/{dataset_identifier}/experiments",
             {
               params: {
-                path: { dataset_id: resolvedDatasetId },
+                path: { dataset_identifier: resolvedDatasetId },
                 query: { cursor, limit: pageSize },
               },
             }

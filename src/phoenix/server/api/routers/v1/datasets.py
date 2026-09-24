@@ -170,7 +170,7 @@ async def list_datasets(
 
 
 @router.delete(
-    "/datasets/{id}",
+    "/datasets/{dataset_identifier}",
     operation_id="deleteDatasetById",
     summary="Delete dataset by ID or name",
     status_code=204,
@@ -183,10 +183,12 @@ async def list_datasets(
 )
 async def delete_dataset(
     request: Request,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
 ) -> None:
     async with request.app.state.db() as session:
-        dataset_id = (await get_dataset_by_identifier(session, id)).id
+        dataset_id = (await get_dataset_by_identifier(session, dataset_identifier)).id
         project_names = await session.scalars(get_project_names_for_datasets(dataset_id))
         eval_trace_ids = await session.scalars(get_eval_trace_ids_for_datasets(dataset_id))
         stmt = (
@@ -210,17 +212,19 @@ class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
 
 
 @router.get(
-    "/datasets/{id}",
+    "/datasets/{dataset_identifier}",
     operation_id="getDataset",
     summary="Get dataset by ID or name",
     responses=add_errors_to_responses([404]),
 )
 async def get_dataset(
     request: Request,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
 ) -> GetDatasetResponseBody:
     async with request.app.state.db() as session:
-        dataset = await get_dataset_by_identifier(session, id)
+        dataset = await get_dataset_by_identifier(session, dataset_identifier)
         example_count = await session.scalar(
             select(models.Dataset.example_count).where(models.Dataset.id == dataset.id)
         )
@@ -249,14 +253,16 @@ class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
 
 
 @router.get(
-    "/datasets/{id}/versions",
+    "/datasets/{dataset_identifier}/versions",
     operation_id="listDatasetVersionsByDatasetId",
     summary="List dataset versions",
     responses=add_errors_to_responses([422]),
 )
 async def list_dataset_versions(
     request: Request,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
     cursor: Optional[str] = Query(
         default=None,
         description="Cursor for pagination",
@@ -266,7 +272,7 @@ async def list_dataset_versions(
     ),
 ) -> ListDatasetVersionsResponseBody:
     async with request.app.state.db() as session:
-        dataset_id = (await get_dataset_by_identifier(session, id)).id
+        dataset_id = (await get_dataset_by_identifier(session, dataset_identifier)).id
         stmt = (
             select(models.DatasetVersion)
             .where(models.DatasetVersion.dataset_id == dataset_id)
@@ -1278,14 +1284,16 @@ class ListDatasetExamplesResponseBody(ResponseBody[ListDatasetExamplesData]):
 
 
 @router.get(
-    "/datasets/{id}/examples",
+    "/datasets/{dataset_identifier}/examples",
     operation_id="getDatasetExamples",
     summary="Get examples from a dataset",
     responses=add_errors_to_responses([404]),
 )
 async def get_dataset_examples(
     request: Request,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -1312,7 +1320,7 @@ async def get_dataset_examples(
         raise HTTPException(detail=f"ID {version_gid} refers to a {version_type}", status_code=404)
 
     async with request.app.state.db() as session:
-        resolved_dataset_id = (await get_dataset_by_identifier(session, id)).id
+        resolved_dataset_id = (await get_dataset_by_identifier(session, dataset_identifier)).id
 
         # Subquery to find the maximum created_at for each dataset_example_id
         # timestamp tiebreaks are resolved by the largest id
@@ -1767,7 +1775,7 @@ async def create_dataset_split(
 
 
 @router.patch(
-    "/datasets/{dataset_identifier}/splits/{split_id}",
+    "/datasets/{dataset_identifier}/splits/{split_identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="updateDatasetSplit",
     summary="Update a dataset split",
@@ -1788,7 +1796,7 @@ async def update_dataset_split(
     dataset_identifier: str = Path(
         description="The dataset identifier: either dataset ID or dataset name."
     ),
-    split_id: str = Path(
+    split_identifier: str = Path(
         description="The dataset split identifier: either split ID or split name."
     ),
 ) -> UpdateDatasetSplitResponseBody:
@@ -1807,7 +1815,7 @@ async def update_dataset_split(
 
     async with request.app.state.db() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        split = await get_dataset_split_by_identifier(session, split_id)
+        split = await get_dataset_split_by_identifier(session, split_identifier)
         split_rowid = split.id
 
         # Perform all reads before mutating the split: subsequent queries would
@@ -1878,7 +1886,7 @@ async def update_dataset_split(
 
 
 @router.delete(
-    "/datasets/{dataset_identifier}/splits/{split_id}",
+    "/datasets/{dataset_identifier}/splits/{split_identifier}",
     operation_id="deleteDatasetSplit",
     summary="Delete a dataset split",
     status_code=204,
@@ -1894,7 +1902,7 @@ async def delete_dataset_split(
     dataset_identifier: str = Path(
         description="The dataset identifier: either dataset ID or dataset name."
     ),
-    split_id: str = Path(
+    split_identifier: str = Path(
         description="The dataset split identifier: either split ID or split name."
     ),
 ) -> None:
@@ -1903,12 +1911,12 @@ async def delete_dataset_split(
         # split globally. Its example memberships are removed via ON DELETE
         # CASCADE; the underlying examples are left untouched.
         await get_dataset_by_identifier(session, dataset_identifier)
-        split = await get_dataset_split_by_identifier(session, split_id)
+        split = await get_dataset_split_by_identifier(session, split_identifier)
         await session.execute(delete(models.DatasetSplit).where(models.DatasetSplit.id == split.id))
 
 
 @router.get(
-    "/datasets/{id}/csv",
+    "/datasets/{dataset_identifier}/csv",
     operation_id="getDatasetCsv",
     summary="Download dataset examples as CSV file",
     response_class=StreamingResponse,
@@ -1921,7 +1929,9 @@ async def delete_dataset_split(
 async def get_dataset_csv(
     request: Request,
     response: Response,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -1941,7 +1951,7 @@ async def get_dataset_csv(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset = await get_dataset_by_identifier(session, id)
+            dataset = await get_dataset_by_identifier(session, dataset_identifier)
             dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
@@ -1962,7 +1972,7 @@ async def get_dataset_csv(
 
 
 @router.get(
-    "/datasets/{id}/jsonl",
+    "/datasets/{dataset_identifier}/jsonl",
     operation_id="getDatasetJSONL",
     summary="Download dataset examples as JSONL file",
     response_class=PlainTextResponse,
@@ -1978,7 +1988,9 @@ async def get_dataset_csv(
 async def get_dataset_jsonl(
     request: Request,
     response: Response,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -1998,7 +2010,7 @@ async def get_dataset_jsonl(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset = await get_dataset_by_identifier(session, id)
+            dataset = await get_dataset_by_identifier(session, dataset_identifier)
             dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
@@ -2016,7 +2028,7 @@ async def get_dataset_jsonl(
 
 
 @router.get(
-    "/datasets/{id}/jsonl/openai_ft",
+    "/datasets/{dataset_identifier}/jsonl/openai_ft",
     operation_id="getDatasetJSONLOpenAIFineTuning",
     summary="Download dataset examples as OpenAI fine-tuning JSONL file",
     response_class=PlainTextResponse,
@@ -2032,7 +2044,9 @@ async def get_dataset_jsonl(
 async def get_dataset_jsonl_openai_ft(
     request: Request,
     response: Response,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -2052,7 +2066,7 @@ async def get_dataset_jsonl_openai_ft(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset = await get_dataset_by_identifier(session, id)
+            dataset = await get_dataset_by_identifier(session, dataset_identifier)
             dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
@@ -2068,7 +2082,7 @@ async def get_dataset_jsonl_openai_ft(
 
 
 @router.get(
-    "/datasets/{id}/jsonl/openai_evals",
+    "/datasets/{dataset_identifier}/jsonl/openai_evals",
     operation_id="getDatasetJSONLOpenAIEvals",
     summary="Download dataset examples as OpenAI evals JSONL file",
     response_class=PlainTextResponse,
@@ -2084,7 +2098,9 @@ async def get_dataset_jsonl_openai_ft(
 async def get_dataset_jsonl_openai_evals(
     request: Request,
     response: Response,
-    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -2104,7 +2120,7 @@ async def get_dataset_jsonl_openai_evals(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset = await get_dataset_by_identifier(session, id)
+            dataset = await get_dataset_by_identifier(session, dataset_identifier)
             dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id

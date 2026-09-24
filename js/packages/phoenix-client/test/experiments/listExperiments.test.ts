@@ -70,10 +70,10 @@ describe("listExperiments", () => {
 
     server.use(
       http.get(
-        "/v1/datasets/{dataset_id}/experiments",
+        "/v1/datasets/{dataset_identifier}/experiments",
         ({ params, request, response }) => {
           requestCount += 1;
-          receivedDatasetId = params.dataset_id;
+          receivedDatasetId = params.dataset_identifier;
           const searchParams = new URL(request.url).searchParams;
           receivedCursor = searchParams.get("cursor");
           receivedLimit = searchParams.get("limit");
@@ -127,7 +127,7 @@ describe("listExperiments", () => {
 
     server.use(
       http.get(
-        "/v1/datasets/{dataset_id}/experiments",
+        "/v1/datasets/{dataset_identifier}/experiments",
         ({ request, response }) => {
           receivedCursors.push(new URL(request.url).searchParams.get("cursor"));
           const page = pages[receivedCursors.length - 1];
@@ -153,13 +153,15 @@ describe("listExperiments", () => {
 
   it("should throw error if API returns no data", async () => {
     server.use(
-      http.get("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response.untyped(
-          new Response(JSON.stringify({}), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
-        )
+      http.get(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response.untyped(
+            new Response(JSON.stringify({}), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            })
+          )
       )
     );
 
@@ -173,18 +175,20 @@ describe("listExperiments", () => {
 
   it("should handle empty metadata", async () => {
     server.use(
-      http.get("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response.untyped(
-          new Response(
-            JSON.stringify({
-              data: [{ ...experimentOne, metadata: null }],
-            }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            }
+      http.get(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response.untyped(
+            new Response(
+              JSON.stringify({
+                data: [{ ...experimentOne, metadata: null }],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
           )
-        )
       )
     );
 

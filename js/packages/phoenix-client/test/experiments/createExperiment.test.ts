@@ -47,9 +47,9 @@ describe("createExperiment", () => {
 
     server.use(
       http.post(
-        "/v1/datasets/{dataset_id}/experiments",
+        "/v1/datasets/{dataset_identifier}/experiments",
         async ({ params, request, response }) => {
-          receivedDatasetId = params.dataset_id;
+          receivedDatasetId = params.dataset_identifier;
           receivedRequestBody = await request.json();
           return response(200).json({ data: experimentFixture });
         }
@@ -92,9 +92,9 @@ describe("createExperiment", () => {
 
     server.use(
       http.post(
-        "/v1/datasets/{dataset_id}/experiments",
+        "/v1/datasets/{dataset_identifier}/experiments",
         async ({ params, request, response }) => {
-          receivedDatasetId = params.dataset_id;
+          receivedDatasetId = params.dataset_identifier;
           receivedRequestBody = await request.json();
           return response(200).json({
             data: {
@@ -155,9 +155,9 @@ describe("createExperiment", () => {
 
     server.use(
       http.post(
-        "/v1/datasets/{dataset_id}/experiments",
+        "/v1/datasets/{dataset_identifier}/experiments",
         async ({ params, request, response }) => {
-          receivedDatasetId = params.dataset_id;
+          receivedDatasetId = params.dataset_identifier;
           receivedRequestBody = await request.json();
           return response(200).json({
             data: {
@@ -189,14 +189,16 @@ describe("createExperiment", () => {
 
   it("should create an experiment with custom repetitions", async () => {
     server.use(
-      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response(200).json({
-          data: {
-            ...experimentFixture,
-            repetitions: 5,
-            missing_run_count: 50,
-          },
-        })
+      http.post(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response(200).json({
+            data: {
+              ...experimentFixture,
+              repetitions: 5,
+              missing_run_count: 50,
+            },
+          })
       )
     );
 
@@ -212,16 +214,20 @@ describe("createExperiment", () => {
 
   it("should handle null metadata in response", async () => {
     server.use(
-      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response.untyped(
-          new Response(
-            JSON.stringify({ data: { ...experimentFixture, metadata: null } }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            }
+      http.post(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response.untyped(
+            new Response(
+              JSON.stringify({
+                data: { ...experimentFixture, metadata: null },
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
           )
-        )
       )
     );
 
@@ -235,8 +241,9 @@ describe("createExperiment", () => {
 
   it("should throw error when dataset is not found", async () => {
     server.use(
-      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response(404).text("Dataset not found")
+      http.post(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) => response(404).text("Dataset not found")
       )
     );
 
@@ -256,13 +263,15 @@ describe("createExperiment", () => {
 
   it("should throw error when response data is missing", async () => {
     server.use(
-      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response.untyped(
-          new Response(JSON.stringify(null), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
-        )
+      http.post(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response.untyped(
+            new Response(JSON.stringify(null), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            })
+          )
       )
     );
 
@@ -276,16 +285,18 @@ describe("createExperiment", () => {
 
   it("should throw error for validation errors", async () => {
     server.use(
-      http.post("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response(422).json({
-          detail: [
-            {
-              loc: ["body", "repetitions"],
-              msg: "Validation Error",
-              type: "value_error",
-            },
-          ],
-        })
+      http.post(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response(422).json({
+            detail: [
+              {
+                loc: ["body", "repetitions"],
+                msg: "Validation Error",
+                type: "value_error",
+              },
+            ],
+          })
       )
     );
 
@@ -310,9 +321,9 @@ describe("createExperiment", () => {
 
     server.use(
       http.post(
-        "/v1/datasets/{dataset_id}/experiments",
+        "/v1/datasets/{dataset_identifier}/experiments",
         async ({ params, request, response }) => {
-          receivedDatasetId = params.dataset_id;
+          receivedDatasetId = params.dataset_identifier;
           receivedRequestBody = await request.json();
           return response(200).json({
             data: {

@@ -40,7 +40,7 @@ const DATASET: componentsV1["schemas"]["Dataset"] = {
 };
 
 /**
- * Register a handler for GET /v1/datasets/{dataset_id}/experiments that
+ * Register a handler for GET /v1/datasets/{dataset_identifier}/experiments that
  * answers with a single pinned experiment and records the requested dataset
  * ID and query parameters.
  */
@@ -53,10 +53,10 @@ function captureListExperimentsRequest() {
   } = { count: 0 };
   mock.server.use(
     http.get(
-      "/v1/datasets/{dataset_id}/experiments",
+      "/v1/datasets/{dataset_identifier}/experiments",
       ({ params, request, response }) => {
         captured.count += 1;
-        captured.datasetId = params.dataset_id;
+        captured.datasetId = params.dataset_identifier;
         const searchParams = new URL(request.url).searchParams;
         captured.limit = searchParams.get("limit");
         captured.cursor = searchParams.get("cursor");
@@ -123,8 +123,10 @@ describe("experiment list", () => {
 
   it("exits FAILURE with an error message on a server error", async () => {
     mock.server.use(
-      http.get("/v1/datasets/{dataset_id}/experiments", ({ response }) =>
-        response.untyped(HttpResponse.json({}, { status: 404 }))
+      http.get(
+        "/v1/datasets/{dataset_identifier}/experiments",
+        ({ response }) =>
+          response.untyped(HttpResponse.json({}, { status: 404 }))
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -145,7 +147,7 @@ describe("experiment list", () => {
 
   it("exits NETWORK_ERROR when the connection fails", async () => {
     mock.server.use(
-      http.get("/v1/datasets/{dataset_id}/experiments", () =>
+      http.get("/v1/datasets/{dataset_identifier}/experiments", () =>
         HttpResponse.error()
       )
     );

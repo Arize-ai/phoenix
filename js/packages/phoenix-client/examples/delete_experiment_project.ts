@@ -82,8 +82,8 @@ async function main() {
 
   // --- Cleanup ---
   console.log("\nCleaning up...");
-  await client.DELETE("/v1/datasets/{id}", {
-    params: { path: { id: datasetId } },
+  await client.DELETE("/v1/datasets/{dataset_identifier}", {
+    params: { path: { dataset_identifier: datasetId } },
   });
   // Clean up the orphaned project left by Case 1
   if (project1) {

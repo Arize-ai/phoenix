@@ -34,22 +34,6 @@ export interface paths {
         };
         /** Get an annotation configuration by ID or name */
         get: operations["getAnnotationConfig"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/annotation_configs/{config_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
         /** Update an annotation configuration by ID or name */
         put: operations["updateAnnotationConfig"];
         post?: never;
@@ -267,7 +251,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/dataset_labels/{label_id}": {
+    "/v1/dataset_labels/{label_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -313,7 +297,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{dataset_identifier}/labels/{label_id}": {
+    "/v1/datasets/{dataset_identifier}/labels/{label_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -354,7 +338,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{id}": {
+    "/v1/datasets/{dataset_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -372,7 +356,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{id}/versions": {
+    "/v1/datasets/{dataset_identifier}/versions": {
         parameters: {
             query?: never;
             header?: never;
@@ -406,7 +390,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{id}/examples": {
+    "/v1/datasets/{dataset_identifier}/examples": {
         parameters: {
             query?: never;
             header?: never;
@@ -441,7 +425,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{dataset_identifier}/splits/{split_id}": {
+    "/v1/datasets/{dataset_identifier}/splits/{split_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -459,7 +443,7 @@ export interface paths {
         patch: operations["updateDatasetSplit"];
         trace?: never;
     };
-    "/v1/datasets/{id}/csv": {
+    "/v1/datasets/{dataset_identifier}/csv": {
         parameters: {
             query?: never;
             header?: never;
@@ -476,7 +460,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{id}/jsonl": {
+    "/v1/datasets/{dataset_identifier}/jsonl": {
         parameters: {
             query?: never;
             header?: never;
@@ -493,7 +477,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{id}/jsonl/openai_ft": {
+    "/v1/datasets/{dataset_identifier}/jsonl/openai_ft": {
         parameters: {
             query?: never;
             header?: never;
@@ -510,7 +494,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{id}/jsonl/openai_evals": {
+    "/v1/datasets/{dataset_identifier}/jsonl/openai_evals": {
         parameters: {
             query?: never;
             header?: never;
@@ -527,7 +511,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/datasets/{dataset_id}/experiments": {
+    "/v1/datasets/{dataset_identifier}/experiments": {
         parameters: {
             query?: never;
             header?: never;
@@ -7510,7 +7494,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The annotation configuration identifier: either ID or name. */
-                config_id: string;
+                config_identifier: string;
             };
             cookie?: never;
         };
@@ -7564,7 +7548,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The annotation configuration identifier: either ID or name. */
-                config_id: string;
+                config_identifier: string;
             };
             cookie?: never;
         };
@@ -8291,7 +8275,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset label identifier: either label ID or label name. */
-                label_id: string;
+                label_identifier: string;
             };
             cookie?: never;
         };
@@ -8341,7 +8325,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset label identifier: either label ID or label name. */
-                label_id: string;
+                label_identifier: string;
             };
             cookie?: never;
         };
@@ -8389,7 +8373,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset label identifier: either label ID or label name. */
-                label_id: string;
+                label_identifier: string;
             };
             cookie?: never;
         };
@@ -8558,7 +8542,7 @@ export interface operations {
                 /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
                 dataset_identifier: string;
                 /** @description The dataset label identifier: either label ID or label name. */
-                label_id: string;
+                label_identifier: string;
             };
             cookie?: never;
         };
@@ -8610,7 +8594,7 @@ export interface operations {
                 /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
                 dataset_identifier: string;
                 /** @description The dataset label identifier: either label ID or label name. */
-                label_id: string;
+                label_identifier: string;
             };
             cookie?: never;
         };
@@ -8703,7 +8687,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -8753,7 +8737,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -8806,7 +8790,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -8941,7 +8925,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -9111,7 +9095,7 @@ export interface operations {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
                 dataset_identifier: string;
                 /** @description The dataset split identifier: either split ID or split name. */
-                split_id: string;
+                split_identifier: string;
             };
             cookie?: never;
         };
@@ -9161,7 +9145,7 @@ export interface operations {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
                 dataset_identifier: string;
                 /** @description The dataset split identifier: either split ID or split name. */
-                split_id: string;
+                split_identifier: string;
             };
             cookie?: never;
         };
@@ -9227,7 +9211,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -9271,7 +9255,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -9315,7 +9299,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -9359,7 +9343,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -9405,7 +9389,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                dataset_id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };
@@ -9446,7 +9430,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The dataset identifier: either dataset ID or dataset name. */
-                dataset_id: string;
+                dataset_identifier: string;
             };
             cookie?: never;
         };

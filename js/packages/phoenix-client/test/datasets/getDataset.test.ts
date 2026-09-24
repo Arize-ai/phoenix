@@ -60,10 +60,10 @@ const exampleThree: componentsV1["schemas"]["DatasetExample"] = {
   updated_at: "2024-01-03T00:00:00Z",
 };
 
-/** Register a handler answering `GET /v1/datasets/{id}` with `datasetInfo`. */
+/** Register a handler answering `GET /v1/datasets/{dataset_identifier}` with `datasetInfo`. */
 function stubDatasetInfo() {
   server.use(
-    http.get("/v1/datasets/{id}", ({ response }) =>
+    http.get("/v1/datasets/{dataset_identifier}", ({ response }) =>
       response(200).json({ data: datasetInfo })
     )
   );
@@ -92,13 +92,16 @@ function stubDatasetExamples(
 ): CapturedExamplesRequest[] {
   const requests: CapturedExamplesRequest[] = [];
   server.use(
-    http.get("/v1/datasets/{id}/examples", ({ params, request, response }) => {
-      requests.push({
-        datasetId: params.id,
-        query: new URL(request.url).searchParams,
-      });
-      return response(200).json({ data });
-    })
+    http.get(
+      "/v1/datasets/{dataset_identifier}/examples",
+      ({ params, request, response }) => {
+        requests.push({
+          datasetId: params.dataset_identifier,
+          query: new URL(request.url).searchParams,
+        });
+        return response(200).json({ data });
+      }
+    )
   );
   return requests;
 }
@@ -166,7 +169,7 @@ describe("getDataset", () => {
 
   it("should propagate errors from getDatasetInfo", async () => {
     server.use(
-      http.get("/v1/datasets/{id}", ({ response }) =>
+      http.get("/v1/datasets/{dataset_identifier}", ({ response }) =>
         response(404).text("Dataset not found")
       )
     );
@@ -187,7 +190,7 @@ describe("getDataset", () => {
   it("should propagate errors from getDatasetExamples", async () => {
     stubDatasetInfo();
     server.use(
-      http.get("/v1/datasets/{id}/examples", ({ response }) =>
+      http.get("/v1/datasets/{dataset_identifier}/examples", ({ response }) =>
         response(404).text("Dataset not found")
       )
     );

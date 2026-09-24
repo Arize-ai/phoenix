@@ -27,13 +27,16 @@ export async function getDatasetInfo({
     });
   }
 
-  const datasetResponse = await client.GET("/v1/datasets/{id}", {
-    params: {
-      path: {
-        id: dataset.datasetId,
+  const datasetResponse = await client.GET(
+    "/v1/datasets/{dataset_identifier}",
+    {
+      params: {
+        path: {
+          dataset_identifier: dataset.datasetId,
+        },
       },
-    },
-  });
+    }
+  );
   invariant(datasetResponse.data?.data, "Failed to get dataset info");
   const datasetInfo = datasetResponse.data.data;
   return {

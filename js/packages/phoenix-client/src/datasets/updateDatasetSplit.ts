@@ -81,12 +81,12 @@ export async function updateDatasetSplit({
       : {}),
   };
   const response = await client.PATCH(
-    "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+    "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
     {
       params: {
         path: {
           dataset_identifier: datasetIdentifier,
-          split_id: splitId,
+          split_identifier: splitId,
         },
       },
       body,

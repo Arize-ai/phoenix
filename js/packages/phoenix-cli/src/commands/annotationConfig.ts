@@ -726,13 +726,16 @@ async function annotationConfigDeleteHandler(
       yes: options.yes,
     });
 
-    const response = await client.DELETE("/v1/annotation_configs/{config_id}", {
-      params: {
-        path: {
-          config_id: configId,
+    const response = await client.DELETE(
+      "/v1/annotation_configs/{config_identifier}",
+      {
+        params: {
+          path: {
+            config_identifier: configId,
+          },
         },
-      },
-    });
+      }
+    );
 
     if (response.error) {
       throw new Error(`Failed to delete annotation config: ${response.error}`);
@@ -832,11 +835,11 @@ async function annotationConfigUpdateHandler(
     });
 
     const updateResponse = await client.PUT(
-      "/v1/annotation_configs/{config_id}",
+      "/v1/annotation_configs/{config_identifier}",
       {
         params: {
           path: {
-            config_id: existing.id,
+            config_identifier: existing.id,
           },
         },
         body: updatedData,

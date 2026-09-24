@@ -172,13 +172,13 @@ describe("dataset get", () => {
         });
       }),
       // Dataset metadata fetch (for the display name).
-      http.get("/v1/datasets/{id}", ({ response }) =>
+      http.get("/v1/datasets/{dataset_identifier}", ({ response }) =>
         response(200).json({ data: DATASET_GOLDEN })
       ),
       http.get(
-        "/v1/datasets/{id}/examples",
+        "/v1/datasets/{dataset_identifier}/examples",
         ({ params, request, response }) => {
-          capturedExamplesId = params.id;
+          capturedExamplesId = params.dataset_identifier;
           capturedExamplesQuery = new URL(request.url).searchParams;
           return response(200).json({
             data: {
@@ -231,17 +231,19 @@ describe("dataset get", () => {
         resolutionCalls += 1;
         return response(200).json({ data: [], next_cursor: null });
       }),
-      http.get("/v1/datasets/{id}", ({ response }) =>
+      http.get("/v1/datasets/{dataset_identifier}", ({ response }) =>
         response(200).json({ data: DATASET_GOLDEN })
       ),
-      http.get("/v1/datasets/{id}/examples", ({ params, response }) =>
-        response(200).json({
-          data: {
-            dataset_id: params.id,
-            version_id: "version-latest",
-            examples: [EXAMPLE_ONE],
-          },
-        })
+      http.get(
+        "/v1/datasets/{dataset_identifier}/examples",
+        ({ params, response }) =>
+          response(200).json({
+            data: {
+              dataset_id: params.dataset_identifier,
+              version_id: "version-latest",
+              examples: [EXAMPLE_ONE],
+            },
+          })
       )
     );
     const io = captureCliOutput();
@@ -284,7 +286,9 @@ describe("dataset get", () => {
     mock.server.use(
       // The display-name fetch swallows its own errors, so only the examples
       // request needs to fail to exercise the network error path.
-      http.get("/v1/datasets/{id}/examples", () => HttpResponse.error())
+      http.get("/v1/datasets/{dataset_identifier}/examples", () =>
+        HttpResponse.error()
+      )
     );
     const io = captureCliOutput();
     const exitSpy = mockProcessExit();

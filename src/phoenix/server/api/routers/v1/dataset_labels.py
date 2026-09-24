@@ -188,7 +188,7 @@ async def list_dataset_labels(
 
 
 @router.get(
-    "/dataset_labels/{label_id}",
+    "/dataset_labels/{label_identifier}",
     operation_id="getDatasetLabel",
     summary="Get a dataset label by ID",
     responses=add_errors_to_responses(
@@ -200,12 +200,12 @@ async def list_dataset_labels(
 )
 async def get_dataset_label(
     request: Request,
-    label_id: str = Path(
+    label_identifier: str = Path(
         description="The dataset label identifier: either label ID or label name."
     ),
 ) -> GetDatasetLabelResponseBody:
     async with request.app.state.db() as session:
-        dataset_label = await get_dataset_label_by_identifier(session, label_id)
+        dataset_label = await get_dataset_label_by_identifier(session, label_identifier)
         return GetDatasetLabelResponseBody(data=_db_to_api_dataset_label(dataset_label))
 
 
@@ -248,7 +248,7 @@ async def create_dataset_label(
 
 
 @router.patch(
-    "/dataset_labels/{label_id}",
+    "/dataset_labels/{label_identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="updateDatasetLabel",
     summary="Update a dataset label by ID",
@@ -270,7 +270,7 @@ async def create_dataset_label(
 async def update_dataset_label(
     request: Request,
     request_body: UpdateDatasetLabelRequestBody,
-    label_id: str = Path(
+    label_identifier: str = Path(
         description="The dataset label identifier: either label ID or label name."
     ),
 ) -> UpdateDatasetLabelResponseBody:
@@ -287,7 +287,7 @@ async def update_dataset_label(
         raise HTTPException(status_code=422, detail="No fields to update")
 
     async with request.app.state.db() as session:
-        dataset_label = await get_dataset_label_by_identifier(session, label_id)
+        dataset_label = await get_dataset_label_by_identifier(session, label_identifier)
         try:
             dataset_label = await session.scalar(
                 update(models.DatasetLabel)
@@ -307,7 +307,7 @@ async def update_dataset_label(
 
 
 @router.delete(
-    "/dataset_labels/{label_id}",
+    "/dataset_labels/{label_identifier}",
     operation_id="deleteDatasetLabel",
     summary="Delete a dataset label by ID",
     description=(
@@ -323,12 +323,12 @@ async def update_dataset_label(
 )
 async def delete_dataset_label(
     request: Request,
-    label_id: str = Path(
+    label_identifier: str = Path(
         description="The dataset label identifier: either label ID or label name."
     ),
 ) -> Response:
     async with request.app.state.db() as session:
-        dataset_label = await get_dataset_label_by_identifier(session, label_id)
+        dataset_label = await get_dataset_label_by_identifier(session, label_identifier)
         await session.execute(
             delete(models.DatasetLabel).where(models.DatasetLabel.id == dataset_label.id)
         )
@@ -376,7 +376,7 @@ async def list_dataset_labels_for_dataset(
 
 
 @router.put(
-    "/datasets/{dataset_identifier}/labels/{label_id}",
+    "/datasets/{dataset_identifier}/labels/{label_identifier}",
     dependencies=[Depends(is_not_locked)],
     operation_id="addDatasetLabelToDataset",
     summary="Apply a label to a dataset",
@@ -396,13 +396,13 @@ async def add_dataset_label_to_dataset(
     dataset_identifier: str = Path(
         description="The dataset identifier: either the dataset ID (GlobalID) or its name.",
     ),
-    label_id: str = Path(
+    label_identifier: str = Path(
         description="The dataset label identifier: either label ID or label name."
     ),
 ) -> AddDatasetLabelToDatasetResponseBody:
     async with request.app.state.db() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        dataset_label = await get_dataset_label_by_identifier(session, label_id)
+        dataset_label = await get_dataset_label_by_identifier(session, label_identifier)
         label_rowid = dataset_label.id
         data = _db_to_api_dataset_label(dataset_label)
         already_applied = await session.scalar(
@@ -427,7 +427,7 @@ async def add_dataset_label_to_dataset(
 
 
 @router.delete(
-    "/datasets/{dataset_identifier}/labels/{label_id}",
+    "/datasets/{dataset_identifier}/labels/{label_identifier}",
     operation_id="removeDatasetLabelFromDataset",
     summary="Remove a label from a dataset",
     description=(
@@ -447,13 +447,13 @@ async def remove_dataset_label_from_dataset(
     dataset_identifier: str = Path(
         description="The dataset identifier: either the dataset ID (GlobalID) or its name.",
     ),
-    label_id: str = Path(
+    label_identifier: str = Path(
         description="The dataset label identifier: either label ID or label name."
     ),
 ) -> Response:
     async with request.app.state.db() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        label_rowid = (await get_dataset_label_by_identifier(session, label_id)).id
+        label_rowid = (await get_dataset_label_by_identifier(session, label_identifier)).id
         await session.execute(
             delete(models.DatasetsDatasetLabel).where(
                 models.DatasetsDatasetLabel.dataset_id == dataset.id,

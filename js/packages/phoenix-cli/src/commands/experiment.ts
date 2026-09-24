@@ -94,17 +94,20 @@ async function fetchExperiments(
   const pageLimit = options.limit || 100;
 
   do {
-    const response = await client.GET("/v1/datasets/{dataset_id}/experiments", {
-      params: {
-        path: {
-          dataset_id: datasetId,
+    const response = await client.GET(
+      "/v1/datasets/{dataset_identifier}/experiments",
+      {
+        params: {
+          path: {
+            dataset_identifier: datasetId,
+          },
+          query: {
+            cursor,
+            limit: pageLimit,
+          },
         },
-        query: {
-          cursor,
-          limit: pageLimit,
-        },
-      },
-    });
+      }
+    );
 
     if (response.error || !response.data) {
       throw new Error(`Failed to fetch experiments: ${response.error}`);

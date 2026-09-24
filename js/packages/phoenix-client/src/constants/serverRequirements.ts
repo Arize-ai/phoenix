@@ -157,14 +157,14 @@ export const CREATE_DATASET_SPLIT: RouteRequirement = {
 export const UPDATE_DATASET_SPLIT: RouteRequirement = {
   kind: "route",
   method: "PATCH",
-  path: "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+  path: "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
   minServerVersion: [19, 20, 0],
 };
 
 export const DELETE_DATASET_SPLIT: RouteRequirement = {
   kind: "route",
   method: "DELETE",
-  path: "/v1/datasets/{dataset_identifier}/splits/{split_id}",
+  path: "/v1/datasets/{dataset_identifier}/splits/{split_identifier}",
   minServerVersion: [19, 20, 0],
 };
 

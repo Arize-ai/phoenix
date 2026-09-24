@@ -109,17 +109,20 @@ async function fetchDatasetExamples(
     splits?: string[];
   } = {}
 ): Promise<DatasetExamplesData> {
-  const response = await client.GET("/v1/datasets/{id}/examples", {
-    params: {
-      path: {
-        id: datasetId,
+  const response = await client.GET(
+    "/v1/datasets/{dataset_identifier}/examples",
+    {
+      params: {
+        path: {
+          dataset_identifier: datasetId,
+        },
+        query: {
+          version_id: options.versionId,
+          split: options.splits,
+        },
       },
-      query: {
-        version_id: options.versionId,
-        split: options.splits,
-      },
-    },
-  });
+    }
+  );
 
   if (response.error || !response.data) {
     throw new Error(`Failed to fetch dataset examples: ${response.error}`);
@@ -136,10 +139,10 @@ async function fetchDatasetName(
   datasetId: string
 ): Promise<string | undefined> {
   try {
-    const response = await client.GET("/v1/datasets/{id}", {
+    const response = await client.GET("/v1/datasets/{dataset_identifier}", {
       params: {
         path: {
-          id: datasetId,
+          dataset_identifier: datasetId,
         },
       },
     });
@@ -339,10 +342,10 @@ async function datasetDeleteHandler(
       yes: options.yes,
     });
 
-    const response = await client.DELETE("/v1/datasets/{id}", {
+    const response = await client.DELETE("/v1/datasets/{dataset_identifier}", {
       params: {
         path: {
-          id: datasetId,
+          dataset_identifier: datasetId,
         },
       },
     });
