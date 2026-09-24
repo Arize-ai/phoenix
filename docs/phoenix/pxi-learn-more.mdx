@@ -12,7 +12,7 @@ Reference for [PXI](/docs/phoenix/pxi). Start there for what it does and how to 
 
 ### Skills
 
-A **skill** is a reusable procedure for one Phoenix workflow: what to look at, in what order, and what the output should be. PXI loads the matching one on demand. Track new ones on the [roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13).
+A **skill** is a reusable procedure for one Phoenix workflow: what to look at, in what order, and what the output should be. PXI loads the matching one on demand.
 
 | Skill | What it does |
 | --- | --- |
@@ -49,7 +49,7 @@ The same server-side agent in your terminal, shipped with the Phoenix CLI. Crede
 
 ```bash
 # run without installing
-npx -y @arizeai/phoenix-cli pxi
+npx -y -p @arizeai/phoenix-cli pxi
 
 # or install it globally
 npm install -g @arizeai/phoenix-cli
@@ -99,6 +99,15 @@ Agent assistance is opt-in. PXI can be turned off completely, runs under an expl
 | **Bypass Approval** | Edits are applied without asking. The selector shows a warning treatment while active. |
 
 ## Privacy and tracing
+
+### Where your data goes
+
+PXI runs **inside the Phoenix process you are already running**:
+
+- Tool calls execute against your Phoenix server and your data. No separate Arize service is involved.
+- The LLM is **your model provider**, called with **your API key**. Arize is not in the request path.
+- Documentation lookups go to the Mintlify-hosted Phoenix docs MCP server when external resources are allowed, the same public docs you can read in a browser, serving docs only.
+- Remote trace export happens **only if every gate is enabled**: a remote collector is configured, an administrator allows export in system settings, and the user enables it in personal settings.
 
 ### Trace recording & observability
 
