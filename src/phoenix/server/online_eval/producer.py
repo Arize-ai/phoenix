@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Optional
 
-from sqlalchemy import Select, delete, exists, func, or_, select, update
+from sqlalchemy import Select, delete, exists, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
@@ -35,7 +35,7 @@ from phoenix.config import (
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
-from phoenix.db.eval_work import LIVE_EVAL_WORK_STATUSES, TERMINAL_EVAL_WORK_STATUSES
+from phoenix.db.eval_work import TERMINAL_EVAL_WORK_STATUSES, live_eval_work_index_predicate
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
@@ -376,7 +376,8 @@ class OnlineEvalProducer(DaemonTask):
             outstanding = (
                 select(1)
                 .select_from(models.EvalWorkUnit)
-                .where(models.EvalWorkUnit.status.in_(LIVE_EVAL_WORK_STATUSES))
+                # SQLite reads a partial index only when the query repeats its predicate.
+                .where(text(live_eval_work_index_predicate()))
                 .limit(self._max_outstanding)
                 .subquery()
             )
