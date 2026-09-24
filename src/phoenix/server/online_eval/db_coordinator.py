@@ -35,7 +35,7 @@ from phoenix.server.online_eval.coordinator import (
     QueueLag,
     RetiredWorkStatus,
 )
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS
 from phoenix.server.online_eval.leases import current_database_time
 from phoenix.server.types import DbSessionFactory
 
@@ -185,9 +185,7 @@ class DbEvalWorkCoordinator:
                         select(
                             work_unit_model.id,
                             self._target_row_column.label("target_rowid"),
-                            work_unit_model.evaluator_id,
                             work_unit_model.project_evaluator_id,
-                            work_unit_model.config_fingerprint,
                             work_unit_model.attempts,
                         )
                         .where(work_unit_model.id.in_(claimed_ids))
@@ -204,10 +202,7 @@ class DbEvalWorkCoordinator:
                 work_unit_id=row.id,
                 evaluation_target=self._evaluation_target,
                 target_rowid=row.target_rowid,
-                evaluator_id=row.evaluator_id,
                 project_evaluator_id=row.project_evaluator_id,
-                config_fingerprint=row.config_fingerprint,
-                identifier=annotation_identifier(row.config_fingerprint),
                 attempts=row.attempts,
                 claimed_by=claimed_by,
                 lease_expires_at=lease_expires_at,
@@ -409,8 +404,7 @@ class DbEvalWorkCoordinator:
             retryable_error_count=live_counts.get("ERROR", 0),
             exhausted_error_count=terminal_counts.get("FAILED", 0),
             expired_count=sum(
-                terminal_counts.get(status, 0)
-                for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST")
+                terminal_counts.get(status, 0) for status in ("EXPIRED", "CONTENT_LOST")
             ),
             oldest_actionable_age_seconds=oldest_actionable_age_seconds,
         )

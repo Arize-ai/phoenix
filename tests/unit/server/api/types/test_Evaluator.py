@@ -29,7 +29,6 @@ from phoenix.server.api.types.Evaluator import (
     DatasetEvaluator,
     LLMEvaluator,
 )
-from phoenix.server.online_eval.derivation import STALE_FINGERPRINT_ERROR
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _user_role_id
 from tests.unit.graphql import AsyncGraphQLClient
@@ -1717,7 +1716,6 @@ async def test_project_evaluator_run_summary(
     gql_client: AsyncGraphQLClient,
 ) -> None:
     now = datetime.now(timezone.utc)
-    fingerprint = token_hex(8)
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
@@ -1776,17 +1774,13 @@ async def test_project_evaluator_run_summary(
             [
                 models.EvalWorkUnit(
                     span_rowid=spans[0].id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     status="DONE",
                     updated_at=now - timedelta(minutes=1),
                 ),
                 models.EvalWorkUnit(
                     span_rowid=spans[1].id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     status="FAILED",
                     attempts=MAX_ATTEMPTS,
                     error="rate limited",
@@ -1794,49 +1788,32 @@ async def test_project_evaluator_run_summary(
                 ),
                 models.EvalWorkUnit(
                     span_rowid=spans[2].id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     status="PENDING",
-                    updated_at=now,
-                ),
-                models.EvalWorkUnit(
-                    span_rowid=spans[3].id,
-                    evaluator_id=evaluator.id,
-                    project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
-                    status="SUPERSEDED",
-                    error=STALE_FINGERPRINT_ERROR,
                     updated_at=now,
                 ),
                 # An error with attempts remaining is a retry in progress, not a
                 # failure — it must count as queued and must not surface its error.
                 models.EvalWorkUnit(
-                    span_rowid=spans[4].id,
-                    evaluator_id=evaluator.id,
+                    span_rowid=spans[3].id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     status="ERROR",
                     attempts=1,
                     error="retrying rate limit",
                     updated_at=now,
                 ),
-                # A non-stale expiry was given up on — it counts as failed and,
-                # being the newest failure, owns lastError.
+                # An expiry was given up on — it counts as failed and, being the
+                # newest failure, owns lastError.
                 models.EvalWorkUnit(
-                    span_rowid=spans[5].id,
-                    evaluator_id=evaluator.id,
+                    span_rowid=spans[4].id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     status="EXPIRED",
                     error="execution deadline exceeded",
                     updated_at=now - timedelta(minutes=5),
                 ),
                 models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     evaluated_through=now,
                     status="DONE",
                     updated_at=now - timedelta(minutes=2),
@@ -1845,9 +1822,7 @@ async def test_project_evaluator_run_summary(
                 # lifecycle event outside every bucket, and never the last error.
                 models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=token_hex(8),
                     evaluated_through=now,
                     status="CONTENT_LOST",
                     error="NO_ROOT_TURNS",
@@ -1880,8 +1855,8 @@ async def test_project_evaluator_run_summary(
     run_summary = response.data["node"]["runSummary"]
     assert run_summary["status"] == "RUNNING"
     assert run_summary["evaluatedCount"] == 2
-    # Given up on: the FAILED unit and the EXPIRED one. SUPERSEDED and CONTENT_LOST
-    # fall outside every bucket.
+    # Given up on: the FAILED unit and the EXPIRED one. CONTENT_LOST falls outside
+    # every bucket.
     assert run_summary["failedCount"] == 2
     # Waiting: the PENDING unit and the ERROR with attempts remaining.
     assert run_summary["queuedCount"] == 2
@@ -1897,7 +1872,6 @@ async def test_project_evaluator_run_summary_counts_trace_work(
 ) -> None:
     """A trace evaluator's funnel reads its own work-unit table, not an empty one."""
     now = datetime.now(timezone.utc)
-    fingerprint = token_hex(8)
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
@@ -1933,18 +1907,14 @@ async def test_project_evaluator_run_summary_counts_trace_work(
             [
                 models.EvalTraceWorkUnit(
                     trace_rowid=traces[0].id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     evaluated_through=now,
                     status="DONE",
                     updated_at=now - timedelta(minutes=1),
                 ),
                 models.EvalTraceWorkUnit(
                     trace_rowid=traces[1].id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     evaluated_through=now,
                     status="EXPIRED",
                     error="ROOT_SPAN_MISSING",
@@ -1990,7 +1960,6 @@ async def test_project_evaluator_run_summary_reports_error_when_failure_is_newes
     """Failure newer than the last success wins the status — the direction that
     matters for an evaluator that used to work and no longer does."""
     now = datetime.now(timezone.utc)
-    fingerprint = token_hex(8)
     async with db() as session:
         project = models.Project(name=f"project-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
@@ -2043,17 +2012,13 @@ async def test_project_evaluator_run_summary_reports_error_when_failure_is_newes
             [
                 models.EvalWorkUnit(
                     span_rowid=spans[0].id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     status="DONE",
                     updated_at=now - timedelta(minutes=10),
                 ),
                 models.EvalWorkUnit(
                     span_rowid=spans[1].id,
-                    evaluator_id=evaluator.id,
                     project_evaluator_id=project_evaluator.id,
-                    config_fingerprint=fingerprint,
                     status="FAILED",
                     attempts=MAX_ATTEMPTS,
                     error="credentials expired",

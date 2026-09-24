@@ -73,16 +73,15 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
 def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     """A unit that was given up on — the only units whose errors the user is owed.
 
-    SUPERSEDED (the evaluator's configuration changed under it) and CONTENT_LOST (the
-    subject's content was gone by the time the unit was hydrated) are lifecycle events,
-    not evaluation failures.
+    CONTENT_LOST (the subject's content was gone by the time the unit was hydrated) is a
+    lifecycle event, not an evaluation failure.
     """
     return model.status.in_(("FAILED", "EXPIRED"))
 
 
 def _outcome(model: _WorkUnitModel) -> sa.Case[Optional[str]]:
-    """Bucket a work unit into the funnel the user sees. SUPERSEDED and CONTENT_LOST
-    fall outside every bucket, since no evaluation was ever owed for them."""
+    """Bucket a work unit into the funnel the user sees. CONTENT_LOST falls outside
+    every bucket, since no evaluation was ever owed for it."""
     return sa.case(
         (model.status == "DONE", _EVALUATED),
         (_failed(model), _FAILED),

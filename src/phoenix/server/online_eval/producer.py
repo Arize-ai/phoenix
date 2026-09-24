@@ -3,7 +3,7 @@
 Materializes span-level eval work units from enabled project evaluators.
 The producer runs on every replica. The ``span-producer`` lease keeps one replica
 scanning at a time so scans aren't repeated; correctness rests on the unique
-(span, evaluator, config) work-unit key, which absorbs duplicate inserts. Each tick:
+(span, project evaluator) work-unit key, which absorbs duplicate inserts. Each tick:
 take the lease, delete aged terminal work rows, scan the lag-gated span id window per
 project evaluator, and insert surviving work units. A slow-cadence
 backstop sweep re-covers a bounded id window behind the watermark to catch spans
@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Optional
 
-from sqlalchemy import Select, delete, exists, func, or_, select, text, update
+from sqlalchemy import Select, delete, exists, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
@@ -36,11 +36,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.eval_work import TERMINAL_EVAL_WORK_STATUSES, live_eval_work_index_predicate
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.derivation import (
-    annotation_identifier,
-    config_fingerprint,
-    sample_key,
-)
+from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.prometheus import (
@@ -55,7 +51,7 @@ logger = logging.getLogger(__name__)
 TICK_INTERVAL_SECONDS = 10.0
 
 _INSERT_BATCH_SIZE = 1000
-_WORK_UNIT_UNIQUE_BY = ("span_rowid", "evaluator_id", "config_fingerprint")
+_WORK_UNIT_UNIQUE_BY = ("span_rowid", "project_evaluator_id")
 _CURSOR_ID = 1
 
 
@@ -63,11 +59,7 @@ _CURSOR_ID = 1
 class _ActiveProjectEvaluator:
     project_evaluator_id: int
     project_id: int
-    evaluator_id: int
-    name: str
     sampling_rate: float
-    fingerprint: str
-    identifier: str
     span_filter: SpanFilter
 
     def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[tuple[int]]:
@@ -85,27 +77,9 @@ class _ActiveProjectEvaluator:
         return self.scan_stmt(low_exclusive, high_inclusive).where(
             ~exists(
                 select(1).where(
-                    models.SpanAnnotation.span_rowid == models.Span.id,
-                    models.SpanAnnotation.name == self.name,
-                    models.SpanAnnotation.identifier == self.identifier,
+                    models.EvalWorkUnit.span_rowid == models.Span.id,
+                    models.EvalWorkUnit.project_evaluator_id == self.project_evaluator_id,
                 )
-            ),
-            or_(
-                ~exists(
-                    select(1).where(
-                        models.EvalWorkUnit.span_rowid == models.Span.id,
-                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
-                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
-                    )
-                ),
-                exists(
-                    select(1).where(
-                        models.EvalWorkUnit.span_rowid == models.Span.id,
-                        models.EvalWorkUnit.evaluator_id == self.evaluator_id,
-                        models.EvalWorkUnit.config_fingerprint == self.fingerprint,
-                        models.EvalWorkUnit.status == "SUPERSEDED",
-                    )
-                ),
             ),
         )
 
@@ -364,16 +338,11 @@ class OnlineEvalProducer(DaemonTask):
                         "filter_condition failed to compile"
                     )
                     continue
-                fingerprint = config_fingerprint(resolved)
                 active.append(
                     _ActiveProjectEvaluator(
                         project_evaluator_id=project_evaluator.id,
                         project_id=project_evaluator.project_id,
-                        evaluator_id=project_evaluator.evaluator_id,
-                        name=resolved.name,
                         sampling_rate=project_evaluator.sampling_rate,
-                        fingerprint=fingerprint,
-                        identifier=annotation_identifier(fingerprint),
                         span_filter=span_filter,
                     )
                 )
@@ -494,39 +463,12 @@ class OnlineEvalProducer(DaemonTask):
         records = [
             {
                 "span_rowid": span_rowid,
-                "evaluator_id": project_evaluator.evaluator_id,
                 "project_evaluator_id": project_evaluator.project_evaluator_id,
-                "config_fingerprint": project_evaluator.fingerprint,
             }
             for span_rowid in span_ids
         ]
         for start in range(0, len(records), _INSERT_BATCH_SIZE):
             batch = records[start : start + _INSERT_BATCH_SIZE]
-            batch_span_ids = [record["span_rowid"] for record in batch]
-            await session.execute(
-                update(models.EvalWorkUnit)
-                .where(
-                    models.EvalWorkUnit.span_rowid.in_(batch_span_ids),
-                    models.EvalWorkUnit.evaluator_id == project_evaluator.evaluator_id,
-                    models.EvalWorkUnit.config_fingerprint == project_evaluator.fingerprint,
-                    models.EvalWorkUnit.status == "SUPERSEDED",
-                    ~exists(
-                        select(1).where(
-                            models.SpanAnnotation.span_rowid == models.EvalWorkUnit.span_rowid,
-                            models.SpanAnnotation.name == project_evaluator.name,
-                            models.SpanAnnotation.identifier == project_evaluator.identifier,
-                        )
-                    ),
-                )
-                .values(
-                    status="PENDING",
-                    attempts=0,
-                    error=None,
-                    claimed_by=None,
-                    claimed_at=None,
-                    cooldown_until=None,
-                )
-            )
             await session.execute(
                 insert_on_conflict(
                     *batch,

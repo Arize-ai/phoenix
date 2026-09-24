@@ -39,7 +39,7 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
-from phoenix.server.api.evaluators import ContainsEvaluator, SandboxPayloadTooLargeError
+from phoenix.server.api.evaluators import SandboxPayloadTooLargeError
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -240,10 +240,12 @@ def _hydrated_stub(
     evaluator_kind: str,
     output_configs: Sequence[OutputConfigType],
     annotation_name: str = "criterion",
+    identifier: str = "online:criterion",
     annotation_metadata: Optional[dict[str, Any]] = None,
 ) -> HydratedWorkUnit:
     return HydratedWorkUnit(
         annotation_name=annotation_name,
+        identifier=identifier,
         annotator_kind="LLM" if evaluator_kind == "LLM" else "CODE",
         evaluator_kind=cast(Any, evaluator_kind),
         evaluator=cast(Any, _StubEvaluator(results)),
@@ -260,10 +262,7 @@ def _claimed_unit(target_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUni
         work_unit_id=work_unit_id,
         evaluation_target="SPAN",
         target_rowid=target_rowid,
-        evaluator_id=1,
         project_evaluator_id=1,
-        config_fingerprint="fingerprint",
-        identifier="online:fingerprint",
         attempts=0,
         claimed_by="consumer",
         lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
@@ -273,7 +272,6 @@ def _claimed_unit(target_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUni
 def _claimed_session_unit(
     project_session_rowid: int,
     *,
-    identifier: str,
     work_unit_id: int = 1,
 ) -> ClaimedWorkUnit:
     now = datetime.now(timezone.utc)
@@ -281,10 +279,7 @@ def _claimed_session_unit(
         work_unit_id=work_unit_id,
         evaluation_target="SESSION",
         target_rowid=project_session_rowid,
-        evaluator_id=1,
         project_evaluator_id=1,
-        config_fingerprint="fingerprint",
-        identifier=identifier,
         attempts=0,
         claimed_by="consumer",
         lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
@@ -294,9 +289,7 @@ def _claimed_session_unit(
 def _claimed_trace_unit(
     trace_rowid: int,
     *,
-    evaluator_id: int,
     project_evaluator_id: int,
-    config_fingerprint: str,
     work_unit_id: int = 1,
 ) -> ClaimedWorkUnit:
     now = datetime.now(timezone.utc)
@@ -304,10 +297,7 @@ def _claimed_trace_unit(
         work_unit_id=work_unit_id,
         evaluation_target="TRACE",
         target_rowid=trace_rowid,
-        evaluator_id=evaluator_id,
         project_evaluator_id=project_evaluator_id,
-        config_fingerprint=config_fingerprint,
-        identifier=f"online:{config_fingerprint}",
         attempts=0,
         claimed_by="consumer",
         lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
@@ -589,9 +579,7 @@ async def _materialize_unit(
         fingerprint = config_fingerprint(resolved)
         unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint=fingerprint,
         )
         session.add(unit)
         await session.flush()
@@ -624,9 +612,7 @@ async def _materialize_session_unit(
             project_session.last_span_ingested_at = evaluated_through
         unit = models.EvalSessionWorkUnit(
             project_session_rowid=project_session_rowid,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint=fingerprint,
             evaluated_through=evaluated_through,
         )
         session.add(unit)
@@ -660,9 +646,7 @@ async def _materialize_trace_unit(
             trace.last_span_ingested_at = evaluated_through
         unit = models.EvalTraceWorkUnit(
             trace_rowid=trace_rowid,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint=fingerprint,
             evaluated_through=evaluated_through,
         )
         session.add(unit)
@@ -825,6 +809,7 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
         evaluator_kind="BUILTIN",
         output_configs=[_output_config(annotation_name)],
         annotation_name=annotation_name,
+        identifier=annotation_identifier(fingerprint),
         annotation_metadata={
             "phoenix.online_eval.session_policy": {"last_loaded_event_time": event_time.isoformat()}
         },
@@ -881,8 +866,7 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
             await session.scalars(
                 select(models.EvalSessionWorkUnit).where(
                     models.EvalSessionWorkUnit.project_session_rowid == project_session.id,
-                    models.EvalSessionWorkUnit.evaluator_id == evaluator_id,
-                    models.EvalSessionWorkUnit.config_fingerprint == fingerprint,
+                    models.EvalSessionWorkUnit.project_evaluator_id == project_evaluator_id,
                 )
             )
         )
@@ -1255,15 +1239,12 @@ async def test_trace_hydration_binds_the_trace_context(
         project.id,
         evaluation_target="TRACE",
     )
-    fingerprint = await _config_fingerprint(db, evaluator_id, project_evaluator_id)
     executor = _executor(db, evaluation_target="TRACE")
 
     hydrated = await executor.hydrate(
         _claimed_trace_unit(
             trace.id,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint=fingerprint,
         )
     )
     assert isinstance(hydrated, HydratedWorkUnit)
@@ -1278,9 +1259,7 @@ async def test_trace_hydration_binds_the_trace_context(
     assert await executor.hydrate(
         _claimed_trace_unit(
             rootless_trace.id,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint=fingerprint,
         )
     ) == HydrationFailure(HydrationFailureReason.ROOT_SPAN_MISSING)
 
@@ -1654,7 +1633,7 @@ async def test_shared_hydration_failure_releases_claims_without_attempts(
     assert all(unit.claimed_by is None and unit.claimed_at is None for unit in units)
 
 
-async def test_configuration_snapshot_is_discarded_after_claim_batch(
+async def test_work_queued_before_an_edit_runs_under_the_new_configuration(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1685,9 +1664,16 @@ async def test_configuration_snapshot_is_discarded_after_claim_batch(
     await _cycle_to_completion(consumer)
 
     units = [await _get_unit(db, unit_id) for unit_id in unit_ids]
-    assert [unit.status for unit in units] == ["DONE", "SUPERSEDED"]
-    assert units[1].error == "CONFIG_FINGERPRINT_MISMATCH"
-    assert len(client.requests) == 1
+    assert [unit.status for unit in units] == ["DONE", "DONE"]
+    assert len(client.requests) == 2
+    edited_identifier = annotation_identifier(
+        await _config_fingerprint(db, evaluator_id, project_evaluator_id)
+    )
+    identifiers = {
+        annotation.span_rowid: annotation.identifier for annotation in await _annotations(db)
+    }
+    assert identifiers[spans[1].id] == edited_identifier
+    assert identifiers[spans[0].id] != edited_identifier
 
 
 async def test_session_happy_path_builds_context_annotates_and_emits_insert_event(
@@ -1846,16 +1832,13 @@ async def test_session_happy_path_builds_context_annotates_and_emits_insert_even
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         assert project_evaluator is not None
         annotation_name = project_evaluator.name.root
-    duplicate = _claimed_session_unit(
-        project_session.id,
-        identifier=annotation_identifier(fingerprint),
-        work_unit_id=unit_id,
-    )
+    duplicate = _claimed_session_unit(project_session.id, work_unit_id=unit_id)
     duplicate_hydrated = _hydrated_stub(
         results=[_evaluation_result(annotation_name)],
         evaluator_kind="LLM",
         output_configs=[_output_config("quality")],
         annotation_name=annotation_name,
+        identifier=annotation_identifier(fingerprint),
     )
     async with db() as session:
         await session.execute(
@@ -2332,43 +2315,6 @@ async def test_builtin_criteria_input_mapping_override_is_used_during_execution(
     assert annotation.score == 1.0
 
 
-async def test_builtin_implementation_mismatch_expires_without_counting_attempt(
-    db: DbSessionFactory,
-    synced_builtin_evaluators: None,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-        evaluator_id = await session.scalar(
-            select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
-        )
-        assert evaluator_id is not None
-        project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
-            project_id=project.id,
-            evaluator_id=evaluator_id,
-            name=Identifier(root="contains-version-check"),
-            filter_condition="",
-            sampling_rate=1.0,
-            evaluation_target="SPAN",
-        )
-        session.add(project_evaluator)
-        await session.flush()
-        project_evaluator_id = project_evaluator.id
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-    monkeypatch.setattr(ContainsEvaluator, "implementation_version", "mismatched")
-
-    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    await _cycle_to_completion(consumer)
-
-    unit = await _get_unit(db, unit_id)
-    assert unit.status == "SUPERSEDED"
-    assert unit.attempts == 0
-    assert unit.error == "CONFIG_FINGERPRINT_MISMATCH"
-
-
 async def test_code_criteria_input_mapping_override_is_used_during_execution(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2486,7 +2432,6 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
         )
     (reclaimed,) = await coordinator.claim(claimed_by="consumer-2", limit=1)
     assert reclaimed.work_unit_id == first_claim.work_unit_id
-    assert reclaimed.identifier == first_claim.identifier
 
     events: SimpleQueue[DmlEvent] = SimpleQueue()
     executor = _executor(db, event_queue=events)
@@ -2494,6 +2439,7 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     reclaimed_hydrated = await executor.hydrate(reclaimed)
     assert isinstance(first_hydrated, HydratedWorkUnit)
     assert isinstance(reclaimed_hydrated, HydratedWorkUnit)
+    assert reclaimed_hydrated.identifier == first_hydrated.identifier
 
     with pytest.raises(PublicationClaimLostError):
         await executor.evaluate_and_annotate(first_claim, first_hydrated)
@@ -3178,9 +3124,7 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
 
     claims = {
         span_consumer: AsyncMock(return_value=[_claimed_unit(1, work_unit_id=1)]),
-        session_consumer: AsyncMock(
-            return_value=[_claimed_session_unit(1, identifier="online:session", work_unit_id=2)]
-        ),
+        session_consumer: AsyncMock(return_value=[_claimed_session_unit(1, work_unit_id=2)]),
     }
     for consumer, claim in claims.items():
         monkeypatch.setattr(consumer._coordinator, "claim", claim)
@@ -3386,34 +3330,6 @@ async def test_failure_transition_retries_after_ambiguous_commit(
     row = await _get_unit(db, unit_id)
     assert row.status == "ERROR"
     assert row.attempts == 1
-
-
-async def test_staleness_guard_expires_unit_without_annotating(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-
-    # A project_evaluator edit between materialization and consumption changes the
-    # recomputed fingerprint, so the unit must be dropped, not executed.
-    async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(sampling_rate=0.5)
-        )
-
-    consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
-    await _cycle_to_completion(consumer)
-
-    unit = await _get_unit(db, unit_id)
-    assert unit.status == "SUPERSEDED"
-    assert unit.error == "CONFIG_FINGERPRINT_MISMATCH"
-    assert await _annotations(db) == []
 
 
 async def test_stop_drains_in_flight_work_instead_of_cancelling(

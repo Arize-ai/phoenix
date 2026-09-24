@@ -22,7 +22,7 @@ from phoenix.server.online_eval.db_coordinator import (
     TRANSIENT_RETRY_MAX_AGE_SECONDS,
     DbEvalWorkCoordinator,
 )
-from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, STALE_FINGERPRINT_ERROR
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
@@ -34,8 +34,8 @@ async def _seed_work_units(
     *,
     project_session: bool = False,
 ) -> list[int]:
-    """Create a span, evaluator, and project_evaluator, plus ``n`` PENDING work units
-    (distinct fingerprints), returning the work unit ids in id order."""
+    """Create a span and ``n`` PENDING work units on it, one per project evaluator,
+    returning the work unit ids in id order."""
     async with db() as session:
         project = await _add_project(session)
         parent_session = await _add_project_session(session, project) if project_session else None
@@ -50,25 +50,26 @@ async def _seed_work_units(
         )
         session.add(evaluator)
         await session.flush()
-        project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
-            project_id=project.id,
-            evaluator_id=evaluator.id,
-            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
-            filter_condition="",
-            sampling_rate=1.0,
-            evaluation_target="SPAN",
-        )
-        session.add(project_evaluator)
+        project_evaluators = [
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SPAN",
+            )
+            for _ in range(n)
+        ]
+        session.add_all(project_evaluators)
         await session.flush()
         units = [
             models.EvalWorkUnit(
                 span_rowid=span.id,
-                evaluator_id=evaluator.id,
                 project_evaluator_id=project_evaluator.id,
-                config_fingerprint=f"fp-{i}-{token_hex(8)}",
             )
-            for i in range(n)
+            for project_evaluator in project_evaluators
         ]
         session.add_all(units)
         await session.flush()
@@ -95,28 +96,29 @@ async def _seed_session_work_units(db: DbSessionFactory, n: int) -> tuple[int, l
         )
         session.add(evaluator)
         await session.flush()
-        project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
-            project_id=project.id,
-            evaluator_id=evaluator.id,
-            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
-            filter_condition="",
-            sampling_rate=1.0,
-            evaluation_target="SESSION",
-        )
-        session.add(project_evaluator)
+        project_evaluators = [
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="SESSION",
+            )
+            for _ in range(n)
+        ]
+        session.add_all(project_evaluators)
         await session.flush()
         evaluated_through = datetime.now(timezone.utc)
         project_session.last_span_ingested_at = evaluated_through
         units = [
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session.id,
-                evaluator_id=evaluator.id,
                 project_evaluator_id=project_evaluator.id,
-                config_fingerprint=f"session-fp-{i}-{token_hex(8)}",
                 evaluated_through=evaluated_through,
             )
-            for i in range(n)
+            for project_evaluator in project_evaluators
         ]
         session.add_all(units)
         await session.flush()
@@ -145,26 +147,27 @@ async def _seed_trace_work_units(
         )
         session.add(evaluator)
         await session.flush()
-        project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
-            project_id=project.id,
-            evaluator_id=evaluator.id,
-            name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
-            filter_condition="",
-            sampling_rate=1.0,
-            evaluation_target="TRACE",
-        )
-        session.add(project_evaluator)
+        project_evaluators = [
+            models.ProjectEvaluator(
+                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+                project_id=project.id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"project-evaluator-name-{token_hex(4)}"),
+                filter_condition="",
+                sampling_rate=1.0,
+                evaluation_target="TRACE",
+            )
+            for _ in range(n)
+        ]
+        session.add_all(project_evaluators)
         await session.flush()
         units = [
             models.EvalTraceWorkUnit(
                 trace_rowid=trace.id,
-                evaluator_id=evaluator.id,
                 project_evaluator_id=project_evaluator.id,
-                config_fingerprint=f"trace-fp-{i}-{token_hex(8)}",
                 evaluated_through=datetime.now(timezone.utc),
             )
-            for i in range(n)
+            for project_evaluator in project_evaluators
         ]
         session.add_all(units)
         await session.flush()
@@ -184,7 +187,6 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
     assert [unit.work_unit_id for unit in claimed] == unit_ids
     for claimed_unit in claimed:
         assert claimed_unit.project_evaluator_id > 0
-        assert claimed_unit.identifier == "online:" + claimed_unit.config_fingerprint[:16]
         assert claimed_unit.attempts == 0
         assert claimed_unit.claimed_by == "consumer-1"
         assert claimed_unit.lease_expires_at >= before + timedelta(
@@ -364,16 +366,16 @@ async def test_expire_is_terminal(db: DbSessionFactory) -> None:
     assert await coordinator.expire(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        error=STALE_FINGERPRINT_ERROR,
+        error="EVALUATOR_VERSION_MISSING",
     )
     row = await _get_unit(db, unit_id)
     assert row.status == "EXPIRED"
-    assert row.error == STALE_FINGERPRINT_ERROR
+    assert row.error == "EVALUATOR_VERSION_MISSING"
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
     assert not await coordinator.expire(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        error=STALE_FINGERPRINT_ERROR,
+        error="EVALUATOR_VERSION_MISSING",
     )
 
 
@@ -425,7 +427,7 @@ async def test_transitions_return_false_after_lapsed_lease_is_reclaimed(
     assert not await coordinator.expire(
         work_unit_id=unit_id,
         claimed_by="consumer-1",
-        error=STALE_FINGERPRINT_ERROR,
+        error="EVALUATOR_VERSION_MISSING",
     )
 
     row = await _get_unit(db, unit_id)
@@ -606,7 +608,6 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
     (claimed,) = await coordinator.claim(claimed_by="session-consumer", limit=1)
     assert claimed.evaluation_target == "SESSION"
     assert claimed.target_rowid == project_session_id
-    assert claimed.identifier == "online:" + claimed.config_fingerprint[:16]
     assert await coordinator.heartbeat(
         work_unit_id=claimed.work_unit_id,
         claimed_by="session-consumer",
@@ -714,7 +715,7 @@ async def test_session_no_result_terminal_history_allows_replacement(
         assert await coordinator.expire(
             work_unit_id=unit_id,
             claimed_by=claimed.claimed_by,
-            error=STALE_FINGERPRINT_ERROR,
+            error="EVALUATOR_VERSION_MISSING",
         )
 
     async with db() as session:
@@ -724,9 +725,7 @@ async def test_session_no_result_terminal_history_allows_replacement(
         assert terminal.evaluated_through == scheduled_at
         replacement = models.EvalSessionWorkUnit(
             project_session_rowid=terminal.project_session_rowid,
-            evaluator_id=terminal.evaluator_id,
             project_evaluator_id=terminal.project_evaluator_id,
-            config_fingerprint=terminal.config_fingerprint,
             evaluated_through=terminal.evaluated_through,
         )
         session.add(replacement)
@@ -915,7 +914,7 @@ async def test_target_delete_waits_for_publication(
                 explanation=None,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=claim.identifier,
+                identifier="online:race",
                 source="API",
                 user_id=None,
             )
