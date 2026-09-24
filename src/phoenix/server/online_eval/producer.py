@@ -1,16 +1,15 @@
 """Online-eval producer daemon.
 
 Materializes span-level eval work units from enabled project evaluators.
-The producer runs on every replica. The ``eval_work_cursors`` lease keeps one replica
-scanning at a time so scans aren't repeated. Work-unit inserts commit whether or not
-the lease is still held, because the unique (span, evaluator, config) work-unit key
-absorbs duplicates; the cursor is written only while this replica holds the lease. Each
-tick takes the lease and deletes aged terminal work rows. When a frontier is due and the
-admission gate is open, it also scans the lag-gated span id window per project evaluator
-and inserts surviving work units. A slow-cadence backstop sweep re-covers a bounded id
-window behind the watermark to catch spans that became visible after their window was
-scanned; it rolls back if the cursor moved while it ran, because the cursor's new holder
-may have reaped terminal work in that window.
+The producer runs on every replica. The ``span-producer`` lease is advisory: it keeps
+one replica scanning at a time so scans aren't repeated, but the producer's writes
+don't check it. The unique (span, evaluator, config) work-unit key absorbs duplicate
+inserts. Each tick takes the lease and deletes aged terminal work rows. When a frontier
+is due and the admission gate is open, it also scans the lag-gated span id window per
+project evaluator and inserts surviving work units. A slow-cadence backstop sweep
+re-covers a bounded id window behind the watermark to catch spans that became visible
+after their window was scanned; it rolls back if the cursor moved while it ran, because
+the cursor's new holder may have reaped terminal work in that window.
 """
 
 from __future__ import annotations
