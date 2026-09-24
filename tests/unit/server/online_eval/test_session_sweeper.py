@@ -954,7 +954,7 @@ async def test_outstanding_work_ceiling_defers_eligible_pair(
     assert session_id == project_session_id
 
 
-async def test_lost_lease_rolls_back_sweep(
+async def test_sweep_is_kept_when_the_lease_is_lost_mid_tick(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -962,20 +962,18 @@ async def test_lost_lease_rolls_back_sweep(
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    acquire_lease = sweeper._acquire_lease
+    materialize = sweeper._materialize
 
-    async def acquire_then_lose_lease(**kwargs: bool) -> int | None:
-        lease_id = await acquire_lease(**kwargs)
-        assert lease_id is not None
+    async def lose_lease_then_materialize() -> None:
         async with db() as session:
             await session.execute(
                 update(models.EvalWorkLease)
-                .where(models.EvalWorkLease.id == lease_id)
+                .where(models.EvalWorkLease.name == sweeper._lease_name)
                 .values(holder="replacement-sweeper")
             )
-        return lease_id
+        await materialize()
 
-    monkeypatch.setattr(sweeper, "_acquire_lease", acquire_then_lose_lease)
+    monkeypatch.setattr(sweeper, "_materialize", lose_lease_then_materialize)
     with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
         await sweeper._tick()
 
@@ -983,7 +981,7 @@ async def test_lost_lease_rolls_back_sweep(
         work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
-    assert work_count == 0
+    assert work_count == 1
     assert "SESSION evaluation sweeper lost its lease" in caplog.text
 
 
