@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import {
   graphql,
   useLazyLoadQuery,
@@ -6,25 +6,17 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 
-import { Alert, Flex, LinkButton } from "@phoenix/components";
+import { Alert, LinkButton } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
-import {
-  CodeEvaluatorLanguageField,
-  CodeEvaluatorSandboxField,
-  mapSandboxConfigOptions,
-} from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
+import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
+import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
   getDefaultCodeEvaluatorSource,
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import {
-  CodeEvaluatorAnnotationSection,
-  CodeEvaluatorSourceEditor,
-} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
-import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import {
   buildOutputConfigsInput,
   getOutputConfigValidationErrors,
@@ -167,14 +159,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
       }
     `);
 
-  const handleLanguageChange = (nextLanguage: CodeEvaluatorLanguage) => {
-    // Auto-swap only if sourceCode is still the generated placeholder — never
-    // overwrite user-authored code.
-    if (sourceCode === getDefaultCodeEvaluatorSource(language, grain)) {
-      setSourceCode(getDefaultCodeEvaluatorSource(nextLanguage, grain));
-    }
-    setLanguage(nextLanguage);
-  };
+  const clearValidationMessage = () => setValidationMessage(undefined);
 
   const onSubmit = () => {
     setError(undefined);
@@ -293,16 +278,21 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
       )}
       left={
         <ProjectCodeEvaluatorFormSections
+          projectId={projectId}
+          scope={scope}
+          onScopeChange={onScopeChange}
+          onFilterValidityChange={setIsFilterValid}
+          onFieldChange={clearValidationMessage}
           codeDefinition={
             <CodeAuthoringFields
               language={language}
-              onLanguageChange={handleLanguageChange}
+              onLanguageChange={setLanguage}
               sandboxConfigs={sandboxConfigs}
               selectedSandboxConfigId={selectedSandboxConfigId}
               onSandboxChange={setSandboxConfigId}
               sourceCode={sourceCode}
               onSourceCodeChange={setSourceCode}
-              onFieldChange={() => setValidationMessage(undefined)}
+              onFieldChange={clearValidationMessage}
             />
           }
         />
@@ -311,8 +301,6 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
         <ProjectEvaluatorScopePanel
           projectId={projectId}
           scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
           inlineCode={{
             language,
             sourceCode,
@@ -324,61 +312,3 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     />
   );
 };
-
-export const CodeAuthoringFields = ({
-  language,
-  onLanguageChange,
-  sandboxConfigs,
-  selectedSandboxConfigId,
-  onSandboxChange,
-  sourceCode,
-  onSourceCodeChange,
-  isLanguageDisabled = false,
-  onFieldChange,
-}: {
-  language: CodeEvaluatorLanguage;
-  onLanguageChange: (language: CodeEvaluatorLanguage) => void;
-  sandboxConfigs: Parameters<
-    typeof CodeEvaluatorSandboxField
-  >[0]["sandboxConfigs"];
-  selectedSandboxConfigId: string | null;
-  onSandboxChange: (sandboxConfigId: string | null) => void;
-  sourceCode: string;
-  onSourceCodeChange: (sourceCode: string) => void;
-  isLanguageDisabled?: boolean;
-  onFieldChange?: () => void;
-}): ReactNode => (
-  <Flex direction="column" gap="size-200">
-    <EvaluatorNameAndDescriptionFields onValueChange={onFieldChange} />
-    <Flex direction="row" gap="size-200" alignItems="start">
-      <CodeEvaluatorLanguageField
-        language={language}
-        onChange={(nextLanguage) => {
-          onFieldChange?.();
-          onLanguageChange(nextLanguage);
-        }}
-        isDisabled={isLanguageDisabled}
-        isRequired
-      />
-      <CodeEvaluatorSandboxField
-        sandboxConfigs={sandboxConfigs}
-        language={language}
-        selectedSandboxConfigId={selectedSandboxConfigId}
-        onSelectionChange={(sandboxConfigId) => {
-          onFieldChange?.();
-          onSandboxChange(sandboxConfigId);
-        }}
-        isRequired
-      />
-    </Flex>
-    <CodeEvaluatorSourceEditor
-      language={language}
-      sourceCode={sourceCode}
-      onChange={(nextSourceCode) => {
-        onFieldChange?.();
-        onSourceCodeChange(nextSourceCode);
-      }}
-    />
-    <CodeEvaluatorAnnotationSection onChange={onFieldChange} />
-  </Flex>
-);
