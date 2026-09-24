@@ -92,6 +92,8 @@ If you still need to create spans, start with [Auto-instrumentation](/docs/phoen
 
 Set `input.value` and `output.value` for the span table. Set MIME types when the value is JSON, text, or another structured format.
 
+For chat-style LLM spans, also use `llm.input_messages.*` and `llm.output_messages.*` so Phoenix can show message roles and content. See [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) for the message format.
+
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
@@ -144,11 +146,16 @@ Set `input.value` and `output.value` for the span table. Set MIME types when the
   </Tab>
 </Tabs>
 
-For LLM chat messages, tool calls, retrieval documents, and multimodal content, use the matching OpenInference attributes. See [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) and [Capture multimodal traces](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing).
+For tool calls, retrieval documents, and multimodal content, use the matching OpenInference attributes. See [OpenInference span kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) and [Capture multimodal traces](/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing).
 
 ## Custom attributes and metadata
 
 Use custom attributes for single-span values you want to filter or group by, such as customer tier, environment, feature flag, or A/B test variant. Use metadata for request-wide JSON context that should travel with child spans.
+
+| Use | Best for | Example |
+| :-- | :------- | :------ |
+| Custom attribute | A filterable value on one span | `mycompany.customer_tier` |
+| Metadata | Request-wide JSON context inherited by child spans | `{"request_id": "req-123"}` |
 
 <Tabs>
   <Tab title="Python" icon="python">
@@ -267,6 +274,8 @@ Set session, user, metadata, and tags on the active context before the traced wo
 </Tabs>
 
 Use the same `session.id` for every turn in a conversation. See [Set up sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions).
+
+If you create raw OpenTelemetry spans inside that context, copy the propagated attributes onto the span yourself. OpenInference instrumentors and `OITracer` do this automatically. See [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) and [TypeScript context attributes](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes).
 
 ## Prompt templates
 
