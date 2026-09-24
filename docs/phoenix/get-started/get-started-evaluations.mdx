@@ -24,6 +24,16 @@ question and matches the expected answer. Run an experiment over the dataset
 with a travel support prompt, and tell me which examples scored lowest and why.
 ```
 
+## Or ask PXI
+
+[PXI](/docs/phoenix/pxi), the agent built into Phoenix, can run this flow from inside the UI. It cannot fetch files from the internet, so create the dataset first: upload [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv) under **Datasets** with `question` as input and `expected_answer` as output. Then open the **Prompt Playground**, choose **Test over a dataset** and pick `travel-support`, open PXI, and ask:
+
+```text
+Add a correctness evaluator to the travel-support dataset, run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over it as an experiment, and tell me which examples scored lowest and why.
+```
+
+PXI proposes each change for you to approve. Set it to Bypass Approval to let it run through.
+
 ## Do it yourself
 
 <Steps>
