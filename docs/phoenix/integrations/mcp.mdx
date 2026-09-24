@@ -16,7 +16,7 @@ Phoenix has two [MCP](https://modelcontextprotocol.io/) servers: one for your da
 Phoenix ships a remote MCP server built directly into the Phoenix server. Point any MCP-compatible client at your instance's `/mcp` endpoint and it can search, query, and operate on everything the Phoenix REST API can do.
 
 <Warning>
-**The remote MCP server is in beta.** Tool names, behavior, and defaults may change between releases. It ships enabled by default, and you can [turn it off or restrict it](#configuration) with environment variables.
+**The remote MCP server is in beta.** Tool names, behavior, and defaults may change between releases. It ships enabled by default, and you can [turn it off or restrict it](#server-configuration) with environment variables.
 
 Feedback is very welcome. Please [open a GitHub issue](https://github.com/Arize-ai/phoenix/issues) with what worked, what didn't, and what you'd like the tools to do.
 </Warning>
@@ -34,7 +34,7 @@ The `/mcp` endpoint requires **Phoenix 19.0.0 or later**. On older servers, upgr
 
 ### Connect
 
-Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure. Add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions. If your Phoenix runs without authentication, no login happens.
+Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix is its own authorization server and supports dynamic client registration, so there is nothing to pre-configure: add the server and your client opens a browser login, with tokens scoped to your permissions. A Phoenix running without authentication needs no login.
 
 The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) writes the config for you and infers your endpoint:
 
@@ -212,29 +212,19 @@ The server presents a compact **code-mode** surface by default: seven tools that
 
 The operation catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview), plus analytics SQL tools, so the MCP surface always matches what your Phoenix version can do.
 
-`execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter. Filesystem, network, environment, subprocess, and third-party package access are blocked; a restricted standard library remains importable. Strict time and memory limits apply. This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
+`execute` runs the agent-written Python inside [Monty](https://github.com/pydantic/monty), Pydantic's sandboxed Python interpreter, under the sandbox limits in [Security](#security-and-troubleshooting). This lets an agent filter, join, and aggregate results across many API calls in one step instead of shuttling raw JSON through its context window.
 
 <Warning>
-Use code mode at your own risk. It relies on [Monty's](https://github.com/pydantic/monty) security model to sandbox agent-written Python. Review Monty's security model and determine whether it meets your security requirements before enabling code mode.
+Code mode relies on [Monty's](https://github.com/pydantic/monty) security model to sandbox agent-written Python. Review it against your own security requirements before enabling code mode. To run without it, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`: the server drops `execute` and the discovery tools and exposes each REST operation as its own MCP tool, over a hundred of them. That setting leaves Monty code evaluators alone; use `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` for those.
 </Warning>
 
-<Note>
-Prefer not to run agent-written MCP code on your server? Set `PHOENIX_ENABLE_MCP_CODE_MODE=false`. The server then drops `execute` and the discovery tools and exposes each REST operation as its own MCP tool, over a hundred of them. This setting does not disable Monty code evaluators; use `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` to control evaluator sandbox providers.
-</Note>
+### Server configuration
 
-### Configuration
-
-These variables are set on the Phoenix server before startup:
-
-| Environment variable        | Default | Effect                                                                                                                              |
-| --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `PHOENIX_ENABLE_MCP_SERVER` | `true`  | Master switch. Set to `false` to remove the `/mcp` endpoint entirely.                                                               |
-| `PHOENIX_ENABLE_MCP_CODE_MODE`     | `true`  | Set to `false` to disable the MCP `execute` tool and expose one tool per REST operation instead.                                      |
-| `PHOENIX_SKILLS_PATHS`      | unset   | Comma-separated paths to your own [Agent Skills](https://agentskills.io/specification), served alongside Phoenix's built-in skills. See below. |
+`PHOENIX_ENABLE_MCP_SERVER` removes the `/mcp` endpoint and `PHOENIX_ENABLE_MCP_CODE_MODE` drops the `execute` tool. Both default to `true` and are documented with the rest of the server's variables under [self-hosting configuration](/docs/phoenix/self-hosting/configuration).
 
 #### Mounting your own skills
 
-Point `PHOENIX_SKILLS_PATHS` at one or more skill directories, or at directories containing skills, on the Phoenix server. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
+`PHOENIX_SKILLS_PATHS` serves your own [Agent Skills](https://agentskills.io/specification) alongside Phoenix's built-in ones. Point `PHOENIX_SKILLS_PATHS` at one or more skill directories, or at directories containing skills, on the Phoenix server. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
 
 ```bash
 PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
@@ -242,14 +232,13 @@ PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
 
 Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references, named by their path, for example `references/notes.md`. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the MCP server's instructions and in PXI's skill picker.
 
-The browser-login flow is served by Phoenix's built-in OAuth2 authorization server, which has its own controls: a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
-
 ### Security and troubleshooting
 
 <AccordionGroup>
   <Accordion title="Security">
     A client that follows the MCP authorization spec finds all of this on its own: the endpoint advertises [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728) protected-resource metadata at `/.well-known/oauth-protected-resource/mcp`, which points at Phoenix's authorization server. See [Agent Authentication Discovery](/docs/phoenix/self-hosting/features/authentication#agent-authentication-discovery) for the full set of discovery endpoints.
 
+    - **The browser-login flow** is served by Phoenix's built-in OAuth2 authorization server, which has its own controls: a master switch (`PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER`), grant expiry, dynamic client registration modes, redirect-host allowlists, and rate limits. See [OAuth2 Authorization Server](/docs/phoenix/self-hosting/features/authentication#oauth2-authorization-server) for the full reference.
     - **Authentication** is the same as the rest of Phoenix: OAuth access tokens are audience-scoped to `/mcp` and cannot be replayed against other endpoints, and API keys carry the permissions of the user who created them.
     - **Code execution is sandboxed**: Monty is an interpreter with no filesystem or network access, running in worker subprocesses rather than in the Phoenix process. Code may import a restricted standard library (`json`, `re`, `datetime`, and similar) but not `subprocess`, `socket`, `importlib`, or any third-party package. Each `execute` block is capped at 30 seconds of code execution, 100 MB of memory, 50 operation calls, and 5 minutes end to end including the time those operations take. If your security policy forbids executing agent-written code on the server regardless, set `PHOENIX_ENABLE_MCP_CODE_MODE=false`.
     - **Treat query results as data, not instructions.** Traces and spans contain whatever your AI agent logged, including untrusted user input. Agents should not follow directives found inside telemetry returned by these tools.
@@ -365,11 +354,7 @@ The Phoenix MCP Server (`@arizeai/phoenix-mcp`) is a local stdio server, launche
     The npm server can retrieve operational data, inspect prompt and experiment artifacts, and perform the existing prompt and dataset write flows. Some good questions to try:
 
     1. `Show me the latest traces in my default Phoenix project`
-    1. `Show me the last 10 sessions in my support-agent project`
-    1. `What annotation configs do I have in Phoenix?`
-    1. `What prompts do I have in Phoenix?`
     1. `Create a new prompt in Phoenix that classifies user intent`
-    1. `Summarize the Phoenix experiments run on my agent inputs dataset`
     1. `Visualize the results of my jailbreak dataset experiments in Phoenix`
   </Accordion>
 </AccordionGroup>
