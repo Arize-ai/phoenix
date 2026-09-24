@@ -3,7 +3,6 @@ import { useEffect } from "react";
 
 import {
   Flex,
-  Heading,
   Input,
   Label,
   NumberField,
@@ -11,6 +10,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import {
   useEvaluatorStore,
@@ -39,14 +39,10 @@ export const CodeEvaluatorAnnotationSection = ({
   return (
     <View flex="none">
       <Flex direction="column" gap="size-100">
-        <Heading level={2} weight="heavy">
-          Evaluator Annotation
-        </Heading>
-        <Text color="text-500">
-          Define the annotation that your evaluator will create. Optimization
-          direction, score range, and threshold apply only when your evaluator
-          returns a numeric score.
-        </Text>
+        <EvaluatorSectionHeader
+          title="Evaluator Annotation"
+          description="Define the annotation that your evaluator will create. Optimization direction, score range, and threshold apply only when your evaluator returns a numeric score."
+        />
         <View
           borderRadius="medium"
           borderWidth="thin"
