@@ -87,7 +87,7 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
       <Step title="Verify">
         Run `/mcp` and select **phoenix**. If your Phoenix has auth enabled, a browser window opens to sign in with your Phoenix account; without auth, it connects straight away.
 
-        To see everything the plugin added, run `claude plugin details arize-phoenix@arize-phoenix` in your shell. It also reports what the plugin adds to your context window.
+        To see everything the plugin added, run `claude plugin details arize-phoenix@arize-phoenix` in your shell. It lists the MCP server and the three skills, and reports what they add to your context window. The plugin has to be enabled: on a disabled one the command reports the plugin as not found.
       </Step>
     </Steps>
 
@@ -124,8 +124,11 @@ The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each p
 
     ```bash
     claude plugin update arize-phoenix@arize-phoenix     # pull the latest version
+    claude plugin disable arize-phoenix@arize-phoenix    # keep it installed, turn it off
     claude plugin uninstall arize-phoenix@arize-phoenix  # remove the plugin
     ```
+
+    `disable` and `uninstall` act on user scope by default. Pass the scope you installed at, such as `--scope local`, or the command reports which scope holds the plugin and stops.
 
     To work on the plugin itself, add the marketplace from a checkout with `/plugin marketplace add ./` at the repository root (a bare `.` is rejected), and check your changes with `claude plugin validate plugins/claude/arize-phoenix`. The catalog is [`.claude-plugin/marketplace.json`](https://github.com/Arize-ai/phoenix/blob/main/.claude-plugin/marketplace.json) and the plugin lives in [`plugins/claude/arize-phoenix`](https://github.com/Arize-ai/phoenix/tree/main/plugins/claude/arize-phoenix).
   </Accordion>
