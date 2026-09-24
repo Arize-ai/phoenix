@@ -8,12 +8,12 @@ A skill is a set of instructions your coding agent loads when a task matches it,
 ## Install
 
 ```bash
-npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
+npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-evals --skill phoenix-tracing --skill phoenix-error-analysis --skill phoenix-harbor
 ```
 
-This writes each skill into the project's agent directory, such as `.claude/skills/` or `.cursor/skills/`, and lists what it installed and for which agents. Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents). It needs no Phoenix instance and no traces.
+Those are the five skills written for people using Phoenix. Each lands in the agent's directory, such as `.claude/skills/` or `.cursor/skills/`. Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents). It needs no Phoenix instance and no traces.
 
-Two other routes install the same skills: `px setup skills` from the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli), and the [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins), which registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`. The [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) also serves every skill through its `load_skill` tool, so a connected client can use them with nothing installed.
+**Plugin or `skills add`?** The [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` and keeps them current as Phoenix updates. `skills add` is a one-time copy: rerun it, or `npx skills update`, to pick up changes. Use it when your agent has no plugin. `px setup skills` from the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) runs the same install, and the [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) serves every skill through its `load_skill` tool, so a connected client can use them with nothing installed.
 
 ## What your agent can do with them
 
@@ -53,6 +53,7 @@ Review the last 50 traces in my support-agent project and tell me what categorie
 
 | Option | Description |
 |--------|-------------|
+| `--all` | Every skill in the repository for every detected agent, without prompts. That includes Phoenix's internal development skills, so name the skills you want instead. |
 | `-g, --global` | Install to user directory instead of project |
 | `-a, --agent <agents...>` | Target specific agents (for example, `claude-code`, `cursor`) |
 | `-s, --skill <skills...>` | Install specific skills by name |
@@ -65,7 +66,7 @@ Examples:
 # Install the CLI skill globally for all projects
 npx skills add Arize-ai/phoenix --skill phoenix-cli -g
 
-# Install CLI + tracing skills together
+# Install only the CLI and tracing skills
 npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
 
 # Install for specific coding agents
@@ -77,4 +78,10 @@ npx skills add Arize-ai/phoenix --skill phoenix-cli -g -y
 
 ### Add your own skills
 
-Point `PHOENIX_SKILLS_PATHS` on the Phoenix server at your own skill directories. The Remote MCP Server serves them to every connected client, and PXI lists them in its skill picker. See [Mounting your own skills](/docs/phoenix/integrations/mcp#mounting-your-own-skills).
+Point `PHOENIX_SKILLS_PATHS` on the Phoenix server at one or more skill directories to serve your own [Agent Skills](https://agentskills.io/specification) alongside the built-in ones. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
+
+```bash
+PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
+```
+
+Each skill is a directory whose name matches the `name` in its `SKILL.md` frontmatter, which must also carry a `description`. Files under an optional `references/` directory are exposed as loadable references, named by their path, for example `references/notes.md`. `scripts/`, `assets/`, and other frontmatter fields are not read. Mounted skills appear in the [Remote MCP Server](/docs/phoenix/integrations/mcp)'s instructions, through `load_skill`, and in PXI's skill picker.
