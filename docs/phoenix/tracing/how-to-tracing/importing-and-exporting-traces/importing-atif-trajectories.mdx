@@ -1,11 +1,21 @@
 ---
-title: "Import ATIF trajectories"
+title: "Import agent trajectories"
 description: "Convert saved ATIF agent trajectories into Phoenix traces."
 ---
 
-[ATIF (Agent Trajectory Interchange Format)](https://www.harborframework.com/docs/agents/trajectory-format) is an open schema for recording agent execution traces. Agent frameworks like **Claude Code**, **OpenHands**, **Gemini CLI**, and **Codex** export ATIF via [Harbor](https://www.harborframework.com/docs), a benchmark harness for evaluating coding agents.
+Use this page when you have saved ATIF agent runs and want to view them in Phoenix.
 
-The `phoenix-client` package includes a utility that converts ATIF v1.0 through v1.7 trajectory JSON into OpenTelemetry-compatible span trees and uploads them to Phoenix, so you can visualize and evaluate agent runs using Phoenix's tracing UI. This utility uploads traces only. The Harbor plugin also records experiment runs and links them to traces.
+If your app is running and you want live traces, [instrument your app](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) instead.
+
+[ATIF (Agent Trajectory Interchange Format)](https://www.harborframework.com/docs/agents/trajectory-format) is an open schema for recording agent execution traces. [Harbor](https://www.harborframework.com/docs), a benchmark harness for evaluating coding agents, can export ATIF for agent runs from tools like **Claude Code**, **OpenHands**, **Gemini CLI**, and **Codex**.
+
+The `phoenix-client` package converts ATIF v1.0 through v1.7 JSON into OpenTelemetry spans and uploads them to Phoenix. The standalone utility uploads traces only. The Harbor plugin also records experiment runs and links them to traces.
+
+## Install
+
+```bash
+pip install arize-phoenix-client
+```
 
 ## Quick start
 
@@ -29,9 +39,13 @@ print(result)  # Counts of spans received and queued
 If Phoenix is running elsewhere, set `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if it has authentication enabled) before creating the client. See [Connect to Phoenix](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces#connect-to-phoenix).
 </Info>
 
-## Trace hierarchy
+## Verify in Phoenix
 
-Each trajectory gets an AGENT root. Each fresh agent step gets an `iteration N` CHAIN span, with its LLM and TOOL spans as children:
+Open the Phoenix project after upload. You should see an AGENT root span with nested spans for agent steps, model calls, and tool calls.
+
+## What Phoenix creates
+
+Each trajectory becomes one AGENT root. Each fresh agent step becomes an `iteration N` CHAIN span:
 
 ```text
 assistant                  AGENT
@@ -42,15 +56,17 @@ assistant                  AGENT
     gpt-4                  LLM
 ```
 
-Spans use the agent, model, or tool name from ATIF. Context-management steps use `compaction N`; other operational system steps use `system event N`. The original step ID stays in `metadata.atif.step_id`.
+Phoenix uses the agent, model, or tool name from ATIF. The original step ID stays in `metadata.atif.step_id`.
 
-Multi-turn trajectories add `turn N` AGENT spans between the root and iterations. A user message starts a new turn only after agent activity. User prompts, system prompts, and steps marked `is_copied_context: true` contribute context without creating execution spans.
+Multi-turn trajectories add `turn N` AGENT spans between the root and iterations. User prompts, system prompts, and steps marked `is_copied_context: true` add context but do not create execution spans.
 
-An agent step with `llm_call_count: 0` creates no LLM span. It still gets an iteration CHAIN and any declared TOOL spans.
+An agent step with `llm_call_count: 0` creates no LLM span. It still gets a CHAIN span and any TOOL spans.
 
-## Batch uploads and subagent linking
+## Multi-agent runs
 
-When an agent delegates work to a subagent, the ATIF trajectories reference each other via `subagent_trajectory_ref`. Load external parent and child documents yourself and upload them together, with parents before children. The converter automatically nests the child's spans under the parent's matching tool span. The helper does not read referenced files or fetch URLs.
+When an agent delegates work to a subagent, upload the parent and child JSON files together, with parents before children. The helper does not read `trajectory_path`, fetch URLs, or load referenced files.
+
+External references resolve by `session_id` before ATIF v1.7 and by `trajectory_id` in ATIF v1.7. For v1.7 external files, include both `trajectory_path` and the child `trajectory_id` in the reference.
 
 ```python
 with open("parent_trajectory.json") as f:
@@ -64,7 +80,7 @@ upload_atif_trajectories_as_spans(
 )
 ```
 
-The resulting trace looks like this when the reference's observation names a matching `source_call_id`:
+When `source_call_id` matches a tool call, the child nests under that TOOL span:
 
 ```text
 orchestrator               AGENT
@@ -76,31 +92,43 @@ orchestrator               AGENT
           gpt-4            LLM
 ```
 
-Without a matching tool call, the child attaches to the referencing step's CHAIN, or to the parent root if that step has no span. ATIF v1.7 embedded `subagent_trajectories` are included automatically and resolve by `trajectory_id`.
+ATIF v1.7 embedded `subagent_trajectories` are included automatically. If no tool call matches, the child attaches to the referencing CHAIN span, or to the parent root if that step has no span.
 
-The converter rejects duplicate span IDs, unresolved span parents, cross-trace parent links, and cycles before upload.
+## Continued runs
 
-## Continuation merging
+When Harbor splits a long agent run across files, include all continuation files in the same batch. Files with a `session_id` ending in `-cont-N` join the original trace.
 
-When an agent's context window fills up, Harbor splits the session across multiple trajectory files. The continuation file gets a `session_id` ending in `-cont-N`. The converter automatically detects and merges continuations when all trajectory files are included in the same batch, so the full agent session is visible as one trace in Phoenix. The Harbor plugin finds local `continued_trajectory_ref` files and merges them automatically.
+Continuation roots use `<agent> (continuation N)` and carry `metadata.is_continuation = True`. The Harbor plugin follows local `continued_trajectory_ref` files automatically.
 
-Continuation roots use the name `<agent> (continuation N)` and carry `metadata.is_continuation = True`. Copied history contributes to LLM inputs but creates no duplicate execution spans.
+## Details
 
-## Messages and observations
+The details below explain how Phoenix interprets ATIF fields that are not obvious from the span tree. Use them when you need to check reconstructed messages, timing, IDs, or upload limits. For function parameters, see the [Python client API reference](/docs/phoenix/sdk-api-reference/python/arize-phoenix-client).
 
-LLM inputs are reconstructed from ATIF, not copied from provider requests. Every LLM span records `metadata.atif.input_source = "reconstructed"`. ATIF sources `user`, `system`, and `agent` map to message roles `user`, `system`, and `assistant`. The converter does not parse provider-native message formats or interpret tool argument keys.
+<AccordionGroup>
+  <Accordion title="Messages and observations">
+    LLM inputs are reconstructed from ATIF, not copied from provider requests. Every LLM span records `metadata.atif.input_source = "reconstructed"`.
 
-An observation becomes a tool response only when its `source_call_id` matches a declared call. Multiple results for that call stay in order. Feedback without a matching call stays in `input.value` as an `observation` entry with `after_step_id`, without an invented message role. Only known-role messages appear in `llm.input_messages`.
+    ATIF sources `user`, `system`, and `agent` map to `user`, `system`, and `assistant` message roles. An observation becomes a tool response only when its `source_call_id` matches a tool call.
 
-Structured text and image parts remain in serialized messages and tool outputs. The converter does not read or upload media bytes. ATIF v1.8 audio fields are not supported.
+    Structured text and image parts remain in serialized messages and tool outputs. The converter does not read or upload media bytes. ATIF v1.8 audio fields are not supported.
+  </Accordion>
 
-## Timing
+  <Accordion title="Timing">
+    ATIF step timestamps describe events, not durations. A CHAIN span covers the preceding fresh event through its own timestamp.
 
-ATIF step timestamps describe events, not durations. A step's CHAIN covers the preceding fresh event through its own timestamp. Unmeasured LLM and TOOL spans are zero-duration events at the step timestamp. Missing or non-monotonic timestamps do not create invented durations.
+    Unmeasured LLM and TOOL spans are zero-duration events. The Harbor plugin can add measured LLM durations from `api_request_times_msec` when the measurements match the fresh LLM steps.
+  </Accordion>
 
-The Harbor plugin can add measured LLM durations from `api_request_times_msec` when the measurements match the fresh LLM steps. The general helper does not interpret arbitrary latency fields. Tool-call array order does not imply serial execution.
+  <Accordion title="IDs and limits">
+    Span IDs are deterministic for the same documents and parent relationships. The standalone helper is not idempotent because Phoenix rejects existing span IDs.
 
-## Attribute mapping
+    The converter rejects duplicate span IDs, unresolved span parents, cross-trace parent links, and cycles before upload.
+
+    Very long sessions can exceed OpenTelemetry attribute size limits because each LLM span includes reconstructed conversation history.
+  </Accordion>
+</AccordionGroup>
+
+## Field mapping
 
 The converter maps ATIF fields to standard [OpenInference](/docs/phoenix/resources/openinference) attributes:
 
@@ -120,18 +148,4 @@ The converter maps ATIF fields to standard [OpenInference](/docs/phoenix/resourc
 | Observations with a matching `source_call_id` | Tool span `output.value` |
 | `final_metrics` | Root span `metadata.final_metrics` |
 
-Agent steps with `llm_call_count = 0` represent deterministic orchestration rather than an LLM inference. Phoenix emits the associated TOOL spans without creating a synthetic LLM span for that step. Only LLM spans carry `llm.*` attributes, and root-level `final_metrics` stay in metadata to avoid counting tokens twice.
-
-## Deterministic IDs
-
-IDs are deterministic for the same documents and parent relationships. The converter uses session and document identities, with content hashes for ATIF v1.7 documents that lack a document ID. Give separate documents distinct `trajectory_id` values when available.
-
-Deterministic IDs do not make this helper's upload idempotent. Phoenix rejects a batch containing an existing span ID. The Harbor plugin handles replay by querying stored IDs and uploading only missing spans; the standalone helper does not.
-
-## Known limitations
-
-Each LLM span includes the full reconstructed conversation history in `input.value` and its known-role messages in `llm.input_messages`. For very long sessions (roughly 16+ turns with dense tool calls), this can exceed OpenTelemetry attribute size limits, causing span data to be truncated or rejected. This matches the behavior of real-time instrumentors and is a known platform-wide limitation.
-
-## API reference
-
-For full parameter documentation, see the [API reference](https://arize-phoenix.readthedocs.io/en/latest/api/helpers.html#module-client.helpers.atif).
+Agent steps with `llm_call_count = 0` emit TOOL spans without a synthetic LLM span. Only LLM spans carry `llm.*` attributes.

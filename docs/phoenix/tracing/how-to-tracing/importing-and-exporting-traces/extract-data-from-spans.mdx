@@ -1,17 +1,20 @@
 ---
-title: "Export data and query spans"
-description: Export trace data from Phoenix for analysis, evaluation, and backup.
+title: "Export and query spans"
+description: "Export Phoenix spans to dataframes, query span attributes, and include annotations when you need feedback or evaluation data."
 ---
 
 import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
 
+Use this page when traces are already in Phoenix and you want to analyze them in code.
 
-## Options for exporting data from Phoenix
+You will learn how to export spans to a dataframe, query the span fields you need, and include annotations such as human feedback or evaluation results.
 
-| Method                                                                                                                                                                | Description                                       | Helpful for                                                                                                                                    |
-| :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Download all spans as a dataframe](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#download-all-spans-as-a-dataframe) | Exports all spans in a project as a dataframe     | Filtering spans locally with pandas before evaluation.                                                                                         |
-| [Span queries](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#run-span-queries)                                      | Exports specific spans or traces based on filters | Pulling the spans you need from Phoenix before evaluation.                                                                                     |
+Phoenix gives you two main export paths:
+
+| Method | Use when |
+|---|---|
+| `get_spans_dataframe` | You want all matching spans as a pandas dataframe. |
+| `SpanQuery` | You want Phoenix to filter, select, explode, or concatenate span attributes before returning a dataframe. |
 
 ## Connect to Phoenix
 
@@ -23,322 +26,215 @@ from phoenix.client import Client
 client = Client()
 ```
 
-## Download all spans as a dataframe
+## Export spans to a dataframe
 
-Use `get_spans_dataframe` when you want to filter or join spans locally with pandas.
+Use `get_spans_dataframe` when you want to filter, join, or evaluate spans locally with pandas.
 
 ```python
 from phoenix.client import Client
 
 client = Client()
 
-# Download all spans from your default project
-client.spans.get_spans_dataframe()
+# Download spans from the default project
+spans = client.spans.get_spans_dataframe()
 
-# Download all spans from a specific project
-client.spans.get_spans_dataframe(project_identifier="my-project")
+# Download spans from a specific project
+spans = client.spans.get_spans_dataframe(project_identifier="my-project")
 ```
 
-## Run span queries
+Limit exports by time when you only need a recent window.
+
+```python
+from datetime import datetime, timedelta
+from phoenix.client import Client
+
+client = Client()
+
+start = datetime.now() - timedelta(days=7)
+end = datetime.now()
+
+spans = client.spans.get_spans_dataframe(start_time=start, end_time=end)
+```
+
+## Query spans
 
 Use `SpanQuery` when you want Phoenix to filter or reshape spans before returning a dataframe.
 
 <Check>
-The `.where()` filter expression uses the same language as the filter bar in the Phoenix dashboard. See the [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions) reference for the full language. It can help to test your filter in the dashboard before moving it to code.
-
+The `.where()` filter expression uses the same language as the Phoenix filter bar. See [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions) for the full reference.
 </Check>
 
-The following query pulls all retriever spans and selects the input value. The result is a dataframe with the input values for all retriever spans.
-
-```python
-from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
-
-client = Client()
-
-query = SpanQuery().where(
-    # Filter for the `RETRIEVER` span kind.
-    # The filter condition is a valid Python boolean expression.
-    "span_kind == 'RETRIEVER'",
-).select(
-    # Extract the span attribute `input.value`, which contains the query for the
-    # retriever. Rename it as the `input` column in the output dataframe.
-    input="input.value",
-)
-
-# The Phoenix client can run this query and return the dataframe.
-client.spans.get_spans_dataframe(query=query)
-```
-
 <Info>
-**Dataframe index** By default, the result dataframe is indexed by `span_id`. If `.explode()` is used, the index from the exploded list is added to create a multi-index on the result dataframe. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
-
+By default, result dataframes are indexed by `span_id`. If you use `.explode()`, Phoenix adds the exploded list index to the dataframe index. For `retrieval.documents`, that added index is named `document_position`.
 </Info>
 
-### Specify a time range
-
-By default, queries collect spans from your Phoenix instance up to the request limit. Use `start_time` and `end_time` when you want a narrower time window.
+This query returns retriever spans with their input value.
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
-from datetime import datetime, timedelta
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 
-# Get spans from the last 7 days only
-start = datetime.now() - timedelta(days=7)
+query = (
+    SpanQuery()
+    .where("span_kind == 'RETRIEVER'")
+    .select("input.value")
+    .rename(**{"input.value": "input"})
+)
 
-# Get spans to exclude the last 24 hours
-end = datetime.now() - timedelta(days=1)
-
-phoenix_df = client.spans.get_spans_dataframe(start_time=start, end_time=end)
+retriever_spans = client.spans.get_spans_dataframe(query=query)
 ```
 
-### Specify a project
-
-By default, queries run against the default project or the project set by `PHOENIX_PROJECT`. `PHOENIX_PROJECT_NAME` is still supported as an alias. Pass `project_identifier` when you want a specific project by name or ID.
+Use the same pattern to combine filters, selected fields, and output column names.
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 
-# Get spans from a project
-client.spans.get_spans_dataframe(project_identifier="my-project")
-
-# Use SpanQuery with a specific project
-query = SpanQuery().where("span_kind == 'CHAIN'").select(input="input.value")
-client.spans.get_spans_dataframe(query=query, project_identifier="my-project")
-```
-
-### Query retrieved documents
-
-You can extract retrieved documents into a dataframe with one row per retrieved document. In the example below, `input` is the retriever query, `context` is the document text, and `document_position` is the zero-based index in each span's list of retrieved documents.
-
-The dataframe can be used directly as input for [pre-built evaluations](/docs/phoenix/evaluation/pre-built-metrics).
-
-| context.span\_id | document\_position | input                                            | context                                                |
-| :---------------- | :------------------ | :------------------------------------------------ | :-------------------------------------------------------- |
-| 5B8EF798A381     | 0                  | What was the author's motivation for writing ... | In fact, I decided to write a book about ...             |
-| 5B8EF798A381     | 1                  | What was the author's motivation for writing ... | I started writing essays again, and wrote a bunch of ... |
-| ...              | ...                | ...                                              | ...                                                      |
-| E19B7EC3GG02     | 0                  | What did the author learn about ...              | The good part was that I got paid huge amounts of ...    |
-
-Use `.explode()` to split each retrieved document into its own row.
-
-```python expandable
-from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
-
-client = Client()
-
-query = SpanQuery().where(
-    # Filter for the `RETRIEVER` span kind.
-    # The filter condition is a valid Python boolean expression.
-    "span_kind == 'RETRIEVER'",
-).select(
-    # Extract the span attribute `input.value`, which contains the query for the
-    # retriever. Rename it as the `input` column in the output dataframe.
-    input="input.value",
-).explode(
-    # Specify the span attribute `retrieval.documents` which contains a list of
-    # objects and explode the list. Extract the `document.content` attribute from
-    # each object and rename it as the `context` column in the output dataframe.
-    "retrieval.documents",
-    context="document.content",
+query = (
+    SpanQuery()
+    .where("span_kind == 'RETRIEVER' and 'programming' in input.value")
+    .select("input.value", "output.value")
+    .rename(**{"input.value": "input", "output.value": "output"})
 )
 
-# The Phoenix client can run this query and return the dataframe.
-client.spans.get_spans_dataframe(query=query)
+matching_spans = client.spans.get_spans_dataframe(query=query)
 ```
 
-### Explode attributes
+## Extract retrieved documents
 
-Add more fields to `.explode()` when you want each retrieved document row to include more document attributes. The example below includes both the document text and the document score. Use keyword arguments to name the output columns.
-
-```python
-query = SpanQuery().explode(
-    "retrieval.documents",
-    context="document.content",
-    score="document.score",
-)
-```
-
-### Apply filters
-
-The `.where()` method accepts a filter expression and returns only the spans that match it. The same expressions work in the span and trace filter bars in the Phoenix UI.
-
-```python
-query = SpanQuery().where(
-    "span_kind == 'RETRIEVER' and 'programming' in input.value"
-)
-```
-
-The filter expression reference covers attribute access, annotation access, substring search, `is None`, and operators for spans, traces, and sessions.
-
-<Card title="Filter Expressions" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions" icon="filter" horizontal>
-  The span, trace, and session filter language, including fields, attributes, annotations, substring search, `is None`, and more.
-</Card>
-
-### Extract attributes
-
-Select span attributes by listing them inside `.select()`.
-
-```python
-query = SpanQuery().select(
-    "input.value",
-    "output.value",
-)
-```
-
-#### Rename output columns
-
-Use keyword arguments to rename columns in the dataframe. The example below returns two columns named `input` and `output` instead of the original attribute names.
-
-```python
-query = SpanQuery().select(
-    input="input.value",
-    output="output.value",
-)
-```
-
-#### Use arbitrary output column names
-
-Use Python dictionary unpacking when an output column name contains spaces or symbols.
-
-```python
-query = SpanQuery().select(**{
-    "Value (Input)": "input.value",
-    "Value (Output)": "output.value",
-})
-```
-
-### Advanced usage
-
-#### Concatenate values
-
-Use `.concat()` when you want one row per span and a single column that joins values from a list attribute. The default separator is two newline characters. The example below joins all `document.content` values into a column named `context`.
-
-```python
-query = SpanQuery().concat(
-    "retrieval.documents",
-    context="document.content",
-)
-```
-
-#### Use a custom separator
-
-Pass a custom separator when you want to control how the values are joined.
-
-```python
-query = SpanQuery().concat(
-    "retrieval.documents",
-    context="document.content",
-).with_concat_separator(
-    separator="\n************\n",
-)
-```
-
-#### Use parent ID as the index
-
-Set the child dataframe index to the parent span ID when you want to join child spans back to their parent spans. Phoenix treats a selected column named `span_id` as the output dataframe index.
-
-```python
-query = SpanQuery().select(
-    span_id="parent_id",
-    output="output.value",
-)
-```
-
-#### Join a span to its parent
-
-Run one query for parent spans and one query for child spans, then join the resulting dataframes with pandas.
-
-```python
-import pandas as pd
-from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
-
-client = Client()
-
-parent_df = client.spans.get_spans_dataframe(query=query_for_parent_spans)
-child_df = client.spans.get_spans_dataframe(query=query_for_child_spans)
-
-pd.concat(
-    [parent_df, child_df],
-    axis=1,        # joining on the row indices
-    join="inner",  # inner-join by the indices of the dataframes
-)
-```
-
-### Use data for evaluation
-
-#### Extract input and output from LLM spans
-
-To learn more about extracting span attributes, see [Extract attributes](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#extract-attributes).
+Use `.explode()` when a span attribute contains a list. The example below returns one row per retrieved document.
 
 ```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 
-query = SpanQuery().where(
-    "span_kind == 'LLM'",
-).select(
-    input="input.value",
-    output="output.value",
+query = (
+    SpanQuery()
+    .where("span_kind == 'RETRIEVER'")
+    .select("input.value")
+    .rename(**{"input.value": "input"})
+    .explode(
+        "retrieval.documents",
+        context="document.content",
+        score="document.score",
+    )
 )
 
-# The Phoenix client can run this query and return a dataframe.
-client.spans.get_spans_dataframe(query=query)
+retrieved_documents = client.spans.get_spans_dataframe(query=query)
 ```
 
-### Correctness evaluations
+## Join spans for evaluation
 
-Use the following query to build a dataframe for [Correctness evaluations](/docs/phoenix/evaluation/pre-built-metrics/correctness). The query joins root span input and output with retrieved document context.
+Run separate queries when evaluation data lives on different spans, then join the dataframes with pandas.
 
-```python expandable
-import pandas as pd
+```python
 from phoenix.client import Client
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 client = Client()
 
-query_for_root_span = SpanQuery().where(
-    "parent_id is None",   # Filter for root spans
-).select(
-    input="input.value",   # Input contains the user's question
-    output="output.value", # Output contains the LLM's answer
+root_query = (
+    SpanQuery()
+    .where("parent_id is None")
+    .select("input.value", "output.value")
+    .rename(**{"input.value": "input", "output.value": "output"})
 )
 
-query_for_retrieved_documents = SpanQuery().where(
-    "span_kind == 'RETRIEVER'",  # Filter for RETRIEVER span
-).select(
-    # Rename parent_id as span_id. This turns the parent_id
-    # values into the index of the output dataframe.
-    span_id="parent_id",
-).concat(
-    "retrieval.documents",
-    context="document.content",
+retriever_query = (
+    SpanQuery()
+    .where("span_kind == 'RETRIEVER'")
+    .concat("retrieval.documents", context="document.content")
+    .with_index("parent_id")
 )
 
-root_df = client.spans.get_spans_dataframe(query=query_for_root_span)
-docs_df = client.spans.get_spans_dataframe(query=query_for_retrieved_documents)
+root_spans = client.spans.get_spans_dataframe(query=root_query)
+retriever_context = client.spans.get_spans_dataframe(query=retriever_query)
 
-# Perform an inner join on the two sets of spans.
-pd.concat(
-    [root_df, docs_df],
-    axis=1,
-    join="inner",
+evaluation_data = root_spans.join(retriever_context, how="inner")
+```
+
+Use the resulting dataframe with [pre-built evaluations](/docs/phoenix/evaluation/pre-built-metrics) such as correctness or retrieval relevance.
+
+## SpanQuery patterns
+
+Use these methods together when you need more control over the dataframe shape.
+
+| Method | What it does |
+|---|---|
+| `.where("span_kind == 'LLM'")` | Filters spans before data is returned. |
+| `.select("input.value")` | Selects span attributes. |
+| `.rename(**{"input.value": "input"})` | Renames output columns. |
+| `.explode("retrieval.documents", context="document.content")` | Returns one row per item in a list attribute. |
+| `.concat("retrieval.documents", context="document.content")` | Keeps one row per span and joins list values into one column. |
+| `.with_index("parent_id")` | Sets the dataframe index so child spans can be joined to parent spans. |
+
+`project_identifier` can be a project name or ID. If you omit it, Phoenix uses the default project or the project set by `PHOENIX_PROJECT`.
+
+## Export annotated spans
+
+Use annotation filters when you want spans that already have human feedback or evaluator results. You can filter by annotation presence, score, or label.
+
+```python
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
+
+client = Client()
+
+query = SpanQuery().where("annotations['correctness']")
+# query = SpanQuery().where("annotations['correctness'].score == 1")
+# query = SpanQuery().where("annotations['correctness'].label == 'correct'")
+
+spans = client.spans.get_spans_dataframe(
+    query=query,
+    project_identifier="default",
 )
 ```
 
-The output dataframe has the question in `input`, the answer in `output`, and the joined retrieved documents in `context`.
+To filter by trace-level annotations, use `trace_annotations`.
 
-| context.span\_id | input                               | output                     | context                                            |
-| :---------------- | :----------------------------------- | :-------------------------- | :---------------------------------------------------- |
-| CDBC4CE34        | What was the author's trick for ... | The author's trick for ... | Even then it took me several years to understand ... |
-| ...              | ...                                 | ...                        | ...                                                  |
+```python
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
+
+client = Client()
+
+query = SpanQuery().where("trace_annotations['quality'].score >= 0.5")
+
+spans = client.spans.get_spans_dataframe(
+    query=query,
+    project_identifier="default",
+)
+```
+
+Pull the matching span annotations and join them with the span dataframe.
+
+```python
+annotations = client.spans.get_span_annotations_dataframe(
+    spans_dataframe=spans,
+    project_identifier="default",
+)
+
+annotated_spans = annotations.join(spans, how="left")
+```
+
+You can also fetch annotations by span ID.
+
+```python
+annotations = client.spans.get_span_annotations_dataframe(
+    span_ids=list(spans.index),
+    project_identifier="default",
+)
+```
+
+## Learn more
+
+- **Filter spans before export:** use the same filter language in the Phoenix UI and in `SpanQuery`. See [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions).
+- **Pull traces from the terminal:** use the CLI when you want JSON output for debugging, shell scripts, or handoff to a coding agent. See [Retrieve traces with the CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli).
+- **Evaluate exported data:** use exported inputs, outputs, retrieved documents, and annotations with [pre-built evaluations](/docs/phoenix/evaluation/pre-built-metrics).
+- **Move trace data into Phoenix:** use [Import existing traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces) when span data starts outside Phoenix.

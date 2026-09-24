@@ -18,7 +18,7 @@ Phoenix uses [OpenInference semantic conventions](/docs/phoenix/tracing/concepts
 | **OpenInference** | Nowhere | Send spans to Phoenix. |
 | **OpenTelemetry GenAI** | Phoenix ingest | Send spans to Phoenix over OTLP. |
 | **OpenLIT or OpenLLMetry** | Your app, before export | Add the matching OpenInference span processor. |
-| **Exported or historical traces** | Import step | Use [Import and export traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces). |
+| **Exported or historical traces** | Import step | Use [Import existing traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces). |
 | **Custom convention** | Your instrumentation pipeline | Map your attributes to OpenInference, or write a custom span processor. |
 
 Translation maps source attributes, such as `gen_ai.*` or OpenLIT/OpenLLMetry fields, to OpenInference attributes such as `openinference.span.kind`, `llm.input_messages`, and `llm.token_count.*`. Phoenix uses those OpenInference fields to render the trace UI.
@@ -141,10 +141,10 @@ After traces arrive, open the trace in Phoenix and check:
 * **Target format:** Phoenix renders AI traces from [OpenInference semantic conventions](/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions), including span kind, messages, token counts, tool calls, retrieval documents, sessions, users, and metadata.
 * **Processor order:** OpenLIT and OpenLLMetry translation must run before export. See [Span processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor).
 * **Tracing pipeline:** See [OpenTelemetry and OpenInference](/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview) for how tracers, processors, exporters, and OpenInference fit together.
-* **Historical traces:** Use [Import and export traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces) when traces already exist outside the live OTLP pipeline.
+* **Historical traces:** Use [Import existing traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces) when traces already exist outside the live OTLP pipeline.
 
 ## Next step
 
-Next, import existing trace data or export spans from Phoenix:
+Next, import existing trace data into Phoenix:
 
-<Card title="Next: Import and export traces" icon="arrow-right" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces" />
+<Card title="Next: Import existing traces" icon="arrow-right" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces" />

@@ -5,7 +5,12 @@ description: "Load existing OpenInference trace data into Phoenix."
 
 import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
 
-Phoenix can load existing trace data when the data follows the [OpenInference](/docs/phoenix/resources/openinference) trace format. Use the client when you want to add spans to an existing Phoenix project. Use `TraceDataset` when you want to inspect a saved trace dataframe in a local notebook.
+Use this page when you already have trace data somewhere else and want to bring it into Phoenix. This page is not for instrumenting a new app.
+
+There are two paths:
+
+- Upload spans into a Phoenix project when you have a dataframe of [OpenInference](/docs/phoenix/resources/openinference) spans.
+- Open saved traces locally when you have a saved trace dataframe and want to inspect it in a temporary Phoenix app.
 
 ## Connect to Phoenix
 
@@ -31,6 +36,16 @@ except SpanCreationError as error:
 ```
 
 The dataframe must contain the span fields Phoenix needs, including span context, timing, status, and OpenInference attributes.
+
+<Tip>
+Phoenix rejects duplicate span IDs. If you are copying spans that already exist in Phoenix, regenerate span and trace IDs first:
+
+```python
+from phoenix.client.helpers.spans import uniquify_spans_dataframe
+
+df = uniquify_spans_dataframe(df)
+```
+</Tip>
 
 ## Launch a local Phoenix instance with saved traces
 
@@ -65,3 +80,9 @@ dataset_id = trace_dataset.save(directory="/my_saved_traces/")
 reloaded = px.TraceDataset.load(dataset_id, directory="/my_saved_traces/")
 px.launch_app(trace=reloaded)
 ```
+
+## Related workflows
+
+- [Import agent trajectories](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories): saved agent runs from Harbor, Claude Code, OpenHands, or other ATIF-compatible tools.
+- [Export and query spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans): dataframe exports, span queries, annotation exports, and evaluation datasets.
+- [Retrieve traces with the CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli): terminal debugging, JSON exports, shell pipelines, and coding-agent handoff.
