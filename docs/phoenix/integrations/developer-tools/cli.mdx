@@ -4,7 +4,7 @@ sidebarTitle: "CLI"
 description: The px command gives any coding agent with a terminal direct access to your traces, spans, datasets, experiments, and prompts.
 ---
 
-`px` is how a coding agent works with Phoenix once tracing is running. It needs only a shell, so it works in every agent, and the [`phoenix-cli` skill](/docs/phoenix/integrations/developer-tools/skills) teaches the agent which commands to reach for. The agent reads your traces with it and records what it finds; the fix lands in your code.
+`px` is an ordinary command-line tool for your Phoenix instance. You run it yourself, and because it needs nothing but a shell, any coding agent can run it too, which is what makes it the simplest way to give one access to your traces. The [`phoenix-cli` skill](/docs/phoenix/integrations/developer-tools/skills) is what teaches an agent which of these commands to reach for.
 
 Not connected yet? [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) covers `px setup`, which wires a project to Phoenix and waits for a real trace.
 
@@ -24,9 +24,9 @@ Point it at your instance with `PHOENIX_ENDPOINT`, plus `PHOENIX_API_KEY` if aut
 export PHOENIX_ENDPOINT=http://localhost:6006
 ```
 
-## How an agent uses it
+## Debugging a failure
 
-A debugging pass runs in the same order every time.
+Whether you type these or an agent does, a pass runs in the same order.
 
 **1. Narrow to the failures.** This prints the trace and span ids the next step needs.
 
