@@ -56,7 +56,6 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
     eval_session_work_status_check,
     eval_work_status_check,
-    live_eval_session_work_index_predicate,
     live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
     terminal_eval_work_index_predicate,
@@ -3839,14 +3838,7 @@ class EvalSessionWorkUnit(HasId):
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
-        Index(
-            "uq_eval_session_work_units_live_key",
-            "project_session_rowid",
-            "project_evaluator_id",
-            unique=True,
-            postgresql_where=text(live_eval_session_work_index_predicate()),
-            sqlite_where=text(live_eval_session_work_index_predicate()),
-        ),
+        UniqueConstraint("project_session_rowid", "project_evaluator_id"),
         Index(
             "ix_eval_session_work_units_claimable",
             "status",
@@ -3859,11 +3851,6 @@ class EvalSessionWorkUnit(HasId):
             "updated_at",
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
-        ),
-        Index(
-            "ix_eval_session_work_units_terminal_watermark",
-            "project_session_rowid",
-            "project_evaluator_id",
         ),
     )
 
@@ -3901,14 +3888,7 @@ class EvalTraceWorkUnit(HasId):
     project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
 
     __table_args__ = (
-        Index(
-            "uq_eval_trace_work_units_live_key",
-            "trace_rowid",
-            "project_evaluator_id",
-            unique=True,
-            postgresql_where=text(live_eval_session_work_index_predicate()),
-            sqlite_where=text(live_eval_session_work_index_predicate()),
-        ),
+        UniqueConstraint("trace_rowid", "project_evaluator_id"),
         Index(
             "ix_eval_trace_work_units_claimable",
             "status",
@@ -3921,10 +3901,5 @@ class EvalTraceWorkUnit(HasId):
             "updated_at",
             postgresql_where=text(terminal_eval_session_work_index_predicate()),
             sqlite_where=text(terminal_eval_session_work_index_predicate()),
-        ),
-        Index(
-            "ix_eval_trace_work_units_terminal_watermark",
-            "trace_rowid",
-            "project_evaluator_id",
         ),
     )

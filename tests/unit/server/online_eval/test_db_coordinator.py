@@ -685,64 +685,6 @@ async def test_session_claim_excludes_declined_decisions(db: DbSessionFactory) -
     assert [unit.work_unit_id for unit in claimed] == [unit_ids[2]]
 
 
-@pytest.mark.parametrize("terminal_kind", ["exhausted_error", "expired"])
-async def test_session_no_result_terminal_history_allows_replacement(
-    db: DbSessionFactory,
-    terminal_kind: str,
-) -> None:
-    project_session_id, (unit_id,) = await _seed_session_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
-    async with db() as session:
-        original = await session.get(models.EvalSessionWorkUnit, unit_id)
-        assert original is not None
-        scheduled_at = original.evaluated_through
-    if terminal_kind == "exhausted_error":
-        async with db() as session:
-            await session.execute(
-                update(models.EvalSessionWorkUnit)
-                .where(models.EvalSessionWorkUnit.id == unit_id)
-                .values(attempts=MAX_ATTEMPTS - 1)
-            )
-    (claimed,) = await coordinator.claim(claimed_by="session-consumer", limit=1)
-
-    if terminal_kind == "exhausted_error":
-        assert await coordinator.fail(
-            work_unit_id=unit_id,
-            claimed_by=claimed.claimed_by,
-            error="no writable result",
-        )
-    else:
-        assert await coordinator.expire(
-            work_unit_id=unit_id,
-            claimed_by=claimed.claimed_by,
-            error="EVALUATOR_VERSION_MISSING",
-        )
-
-    async with db() as session:
-        terminal = await session.get(models.EvalSessionWorkUnit, unit_id)
-        assert terminal is not None
-        assert terminal.status == ("FAILED" if terminal_kind == "exhausted_error" else "EXPIRED")
-        assert terminal.evaluated_through == scheduled_at
-        replacement = models.EvalSessionWorkUnit(
-            project_session_rowid=terminal.project_session_rowid,
-            project_evaluator_id=terminal.project_evaluator_id,
-            evaluated_through=terminal.evaluated_through,
-        )
-        session.add(replacement)
-        await session.flush()
-        replacement_id = replacement.id
-        annotations = (
-            await session.scalars(
-                select(models.ProjectSessionAnnotation).where(
-                    models.ProjectSessionAnnotation.project_session_id == project_session_id
-                )
-            )
-        ).all()
-
-    assert replacement_id != unit_id
-    assert annotations == []
-
-
 @pytest.mark.postgres_only
 async def test_claim_skips_rows_locked_by_a_concurrent_transaction(
     postgresql_engine: AsyncEngine,

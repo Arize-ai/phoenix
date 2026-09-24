@@ -329,11 +329,14 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_session_work_units_claimable",
             "ix_eval_session_work_units_project_evaluator_id",
             "ix_eval_session_work_units_terminal",
-            "ix_eval_session_work_units_terminal_watermark",
-            "uq_eval_session_work_units_live_key",
         }
+        unique_key = _constraint_name(
+            "uq_eval_session_work_units_project_session_rowid_project_evaluator_id",
+            db_backend,
+        )
         constraint_names = {
             "pk_eval_session_work_units",
+            unique_key,
             _constraint_name(
                 "fk_eval_session_work_units_project_session_rowid_project_sessions",
                 db_backend,
@@ -345,7 +348,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "ck_eval_session_work_units_`valid_eval_work_status`",
         }
         if db_backend == "postgresql":
-            index_names.add("pk_eval_session_work_units")
+            index_names.update({"pk_eval_session_work_units", unique_key})
         elif db_backend == "sqlite":
             index_names.add("sqlite_autoindex_eval_session_work_units_1")
         else:
@@ -391,11 +394,14 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_trace_work_units_claimable",
             "ix_eval_trace_work_units_project_evaluator_id",
             "ix_eval_trace_work_units_terminal",
-            "ix_eval_trace_work_units_terminal_watermark",
-            "uq_eval_trace_work_units_live_key",
         }
+        unique_key = _constraint_name(
+            "uq_eval_trace_work_units_trace_rowid_project_evaluator_id",
+            db_backend,
+        )
         constraint_names = {
             "pk_eval_trace_work_units",
+            unique_key,
             _constraint_name(
                 "fk_eval_trace_work_units_trace_rowid_traces",
                 db_backend,
@@ -407,7 +413,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
             "ck_eval_trace_work_units_`valid_eval_work_status`",
         }
         if db_backend == "postgresql":
-            index_names.add("pk_eval_trace_work_units")
+            index_names.update({"pk_eval_trace_work_units", unique_key})
         elif db_backend == "sqlite":
             index_names.add("sqlite_autoindex_eval_trace_work_units_1")
         else:

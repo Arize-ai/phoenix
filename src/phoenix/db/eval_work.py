@@ -45,11 +45,6 @@ def live_eval_work_index_predicate() -> str:
     return _status_in(LIVE_EVAL_WORK_STATUSES)
 
 
-def live_eval_session_work_index_predicate() -> str:
-    """SQL text selecting session work and decisions that hold their dedup key."""
-    return _status_in((*LIVE_EVAL_WORK_STATUSES, *SESSION_DECLINED_STATUSES))
-
-
 def terminal_eval_work_index_predicate() -> str:
     """SQL text selecting span work that reached an outcome."""
     return _status_in(TERMINAL_EVAL_WORK_STATUSES)

@@ -1,19 +1,17 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from importlib import import_module
 from secrets import token_hex
-from typing import Sequence, cast
+from typing import Sequence
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import Table, delete, event, func, select, text, update
+from sqlalchemy import delete, event, func, select, text, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.config import get_env_online_eval_max_session_outstanding
 from phoenix.db import models
-from phoenix.db.eval_work import live_eval_session_work_index_predicate
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import sweeper as sweeper_module
@@ -65,34 +63,6 @@ async def _seed_criteria(
             .values(created_at=_now() - timedelta(days=1))
         )
     return evaluator_id, project_evaluator_id
-
-
-def test_live_key_predicate_is_single_sourced() -> None:
-    """The sweeper's conflict target, the model's index, and the migration that creates
-    it must stay textually identical: Postgres matches ``ON CONFLICT ... WHERE`` to a
-    partial index by predicate equivalence. It is a status set alone, so the retry budget
-    can change without a migration.
-    """
-    migration = import_module(
-        "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
-    )
-    predicate = live_eval_session_work_index_predicate()
-    live_key_table = cast(Table, models.EvalSessionWorkUnit.__table__)
-    live_key_index = next(
-        index
-        for index in live_key_table.indexes
-        if index.name == "uq_eval_session_work_units_live_key"
-    )
-
-    assert "attempts" not in predicate
-    assert "ERROR" in predicate
-    assert "FILTERED_OUT" in predicate
-    assert "SAMPLED_OUT" in predicate
-    assert str(live_key_index.dialect_options["postgresql"]["where"]) == predicate
-    assert str(live_key_index.dialect_options["sqlite"]["where"]) == predicate
-    session_target = sweeper_module._SWEEP_TARGETS["SESSION"]
-    assert str(session_target.live_work_index_predicate) == predicate
-    assert migration._LIVE_EVAL_SESSION_WORK_PREDICATE == predicate
 
 
 async def test_materialization_rechecks_eligibility_at_write_time(
@@ -617,12 +587,12 @@ async def _advance_liveness(
         )
 
 
-async def test_terminal_history_re_materializes_only_after_new_ingest(
+async def test_failed_work_is_re_offered_only_after_new_ingest(
     db: DbSessionFactory,
 ) -> None:
-    """Work that will never run again — FAILED, EXPIRED — carries the ingest
-    scheduling snapshot in ``evaluated_through``. Replacing it without newer ingest
-    just repeats the same scheduling attempt every tick.
+    """Work that ended without a result — FAILED, EXPIRED — carries the ingest
+    scheduling snapshot in ``evaluated_through``. Re-offering it without newer ingest
+    would just repeat the same scheduling attempt every tick.
     """
     project_id, project_session_id, _ = await _add_session_liveness(
         db,
@@ -635,25 +605,37 @@ async def test_terminal_history_re_materializes_only_after_new_ingest(
 
     async with db() as session:
         await session.execute(
-            update(models.EvalSessionWorkUnit).values(status="FAILED", attempts=MAX_ATTEMPTS)
+            update(models.EvalSessionWorkUnit).values(
+                status="FAILED",
+                attempts=MAX_ATTEMPTS,
+                error="provider failed",
+                claimed_by="consumer",
+                claimed_at=_now(),
+                created_at=_now() - timedelta(days=2),
+            )
         )
     await sweeper._tick()
     await sweeper._tick()
     assert await _work_statuses(db) == ["FAILED"]
 
-    await _advance_liveness(db, project_session_id, _now() - timedelta(seconds=30))
+    new_ingest_at = _now() - timedelta(seconds=30)
+    await _advance_liveness(db, project_session_id, new_ingest_at)
     await sweeper._tick()
     await sweeper._tick()
-    assert await _work_statuses(db) == ["FAILED", "PENDING"]
+    async with db() as session:
+        (unit,) = (await session.scalars(select(models.EvalSessionWorkUnit))).all()
+    assert unit.status == "PENDING"
+    assert unit.evaluated_through == new_ingest_at
+    assert unit.attempts == 0
+    assert unit.error is None
+    assert unit.claimed_by is None
+    assert unit.claimed_at is None
+    assert unit.created_at > new_ingest_at
 
     async with db() as session:
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.status == "PENDING")
-            .values(status="EXPIRED")
-        )
+        await session.execute(update(models.EvalSessionWorkUnit).values(status="EXPIRED"))
     await sweeper._tick()
-    assert await _work_statuses(db) == ["FAILED", "EXPIRED"]
+    assert await _work_statuses(db) == ["EXPIRED"]
 
 
 async def test_quiet_session_predating_criterion_creation_is_not_live(

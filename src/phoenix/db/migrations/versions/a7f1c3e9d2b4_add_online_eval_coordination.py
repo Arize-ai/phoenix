@@ -23,9 +23,6 @@ _EVAL_SESSION_WORK_STATUS_CHECK = (
     "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
 )
 _LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
-_LIVE_EVAL_SESSION_WORK_PREDICATE = (
-    "status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT')"
-)
 _TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED')"
 _TERMINAL_EVAL_SESSION_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST')"
 
@@ -102,14 +99,7 @@ def _create_session_work_units_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-    )
-    op.create_index(
-        "uq_eval_session_work_units_live_key",
-        "eval_session_work_units",
-        ["project_session_rowid", "project_evaluator_id"],
-        unique=True,
-        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
-        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sa.UniqueConstraint("project_session_rowid", "project_evaluator_id"),
     )
     op.create_index(
         "ix_eval_session_work_units_claimable",
@@ -124,11 +114,6 @@ def _create_session_work_units_table() -> None:
         ["updated_at"],
         postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
         sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
-    )
-    op.create_index(
-        "ix_eval_session_work_units_terminal_watermark",
-        "eval_session_work_units",
-        ["project_session_rowid", "project_evaluator_id"],
     )
     op.create_index(
         "ix_eval_session_work_units_project_evaluator_id",
@@ -182,14 +167,7 @@ def _create_trace_work_units_table() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-    )
-    op.create_index(
-        "uq_eval_trace_work_units_live_key",
-        "eval_trace_work_units",
-        ["trace_rowid", "project_evaluator_id"],
-        unique=True,
-        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
-        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sa.UniqueConstraint("trace_rowid", "project_evaluator_id"),
     )
     op.create_index(
         "ix_eval_trace_work_units_claimable",
@@ -204,11 +182,6 @@ def _create_trace_work_units_table() -> None:
         ["updated_at"],
         postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
         sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
-    )
-    op.create_index(
-        "ix_eval_trace_work_units_terminal_watermark",
-        "eval_trace_work_units",
-        ["trace_rowid", "project_evaluator_id"],
     )
     op.create_index(
         "ix_eval_trace_work_units_project_evaluator_id",
@@ -533,20 +506,12 @@ def downgrade() -> None:
     op.drop_index(
         "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
     )
-    op.drop_index(
-        "ix_eval_trace_work_units_terminal_watermark",
-        table_name="eval_trace_work_units",
-    )
     op.drop_index("ix_eval_trace_work_units_terminal", table_name="eval_trace_work_units")
     op.drop_index("ix_eval_trace_work_units_claimable", table_name="eval_trace_work_units")
     op.drop_table("eval_trace_work_units")
 
     op.drop_index(
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
-    )
-    op.drop_index(
-        "ix_eval_session_work_units_terminal_watermark",
-        table_name="eval_session_work_units",
     )
     op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
     op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")

@@ -1352,6 +1352,8 @@ CHECK (status IN (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_eval_session_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_session_work_units_project_session_rowid_project_evaluator_id
+        UNIQUE (project_session_rowid, project_evaluator_id),
     CONSTRAINT fk_eval_session_work_units_project_evaluator_id_project_evaluators
         FOREIGN KEY (project_evaluator_id)
         REFERENCES project_evaluators (id)
@@ -1369,11 +1371,6 @@ CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_wor
     (project_evaluator_id);
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST');
-CREATE INDEX ix_eval_session_work_units_terminal_watermark ON eval_session_work_units
-    (project_session_rowid, project_evaluator_id);
-CREATE UNIQUE INDEX uq_eval_session_work_units_live_key ON eval_session_work_units
-    (project_session_rowid, project_evaluator_id)
-    WHERE status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT');
 
 
 -- Table: eval_trace_work_units
@@ -1404,6 +1401,8 @@ CHECK (status IN (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_eval_trace_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_trace_work_units_trace_rowid_project_evaluator_id
+        UNIQUE (trace_rowid, project_evaluator_id),
     CONSTRAINT fk_eval_trace_work_units_project_evaluator_id_project_evaluators
         FOREIGN KEY (project_evaluator_id)
         REFERENCES project_evaluators (id)
@@ -1420,11 +1419,6 @@ CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON eval_trace_work_un
     (project_evaluator_id);
 CREATE INDEX ix_eval_trace_work_units_terminal ON eval_trace_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'CONTENT_LOST');
-CREATE INDEX ix_eval_trace_work_units_terminal_watermark ON eval_trace_work_units
-    (trace_rowid, project_evaluator_id);
-CREATE UNIQUE INDEX uq_eval_trace_work_units_live_key ON eval_trace_work_units
-    (trace_rowid, project_evaluator_id)
-    WHERE status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT');
 
 
 -- Table: eval_work_units
