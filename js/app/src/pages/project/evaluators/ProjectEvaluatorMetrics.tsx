@@ -2,6 +2,10 @@ import { memo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex } from "@phoenix/components";
+import {
+  type ProjectEvaluatorResultAnnotation,
+  useProjectEvaluatorResultAnnotations,
+} from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import {
   DeferredProjectMetricPanel,
@@ -18,8 +22,6 @@ import type {
   EvaluationTarget,
   ProjectEvaluatorMetrics_projectEvaluator$key,
 } from "./__generated__/ProjectEvaluatorMetrics_projectEvaluator.graphql";
-import type { ProjectEvaluatorResultAnnotation } from "./useProjectEvaluatorResultAnnotations";
-import { useProjectEvaluatorResultAnnotations } from "./useProjectEvaluatorResultAnnotations";
 
 function getAnnotationLevel(
   evaluationTarget: EvaluationTarget
