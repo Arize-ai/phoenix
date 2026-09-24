@@ -124,9 +124,9 @@ class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
     ``produced_through_id`` is a position in that log: every span at or below it has
-    been offered to every enabled SPAN project evaluator. Session work is materialized from
-    entity state instead, by ``EvalSweeper`` — a session becomes eligible when it
-    goes quiet, which no position in an arrival log can express.
+    been offered to every enabled SPAN project evaluator. Session and trace work are
+    materialized from entity state instead, by ``EvalSweeper`` — a session or trace
+    becomes eligible when it goes quiet, which no position in an arrival log can express.
     """
 
     def __init__(
