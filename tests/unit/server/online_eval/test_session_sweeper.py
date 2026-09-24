@@ -7,7 +7,7 @@ from typing import Sequence, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from sqlalchemy import Table, delete, event, func, select, update
+from sqlalchemy import Table, delete, event, func, select, text, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -269,93 +269,49 @@ async def test_materializes_with_501_schedulable_criteria(
     assert work_count == 501
 
 
-@pytest.mark.postgres_only
-async def test_materialization_locks_idle_evaluators_before_due_evaluators_and_sessions(
-    postgresql_engine: AsyncEngine,
+async def test_watermark_reaches_a_full_page_or_the_due_horizon(
+    db: DbSessionFactory,
 ) -> None:
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    async with db() as session:
-        idle_project = await _add_project(session)
-    _, first_criteria_id = await _seed_criteria(db, idle_project.id, evaluation_target="SESSION")
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
-    _, second_session_id, _ = await _add_session_liveness(
-        db,
-        age_seconds=600,
-        project_id=project_id,
-    )
-    _, due_criteria_id = await _seed_criteria(
-        db,
-        project_id,
-        evaluation_target="SESSION",
-    )
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    """A full page advances its evaluators to the newest activity it reached; a short page
+    advances every evaluator to its due horizon."""
+    project_id, _, oldest_activity_at = await _add_session_liveness(db, age_seconds=700)
+    await _add_session_liveness(db, age_seconds=600, project_id=project_id)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    await _set_delay(db, project_evaluator_id, 300)
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    materialization_started = asyncio.Event()
-    materialization_backend_pid: int | None = None
 
-    async def materialize() -> tuple[int, int | None]:
-        nonlocal materialization_backend_pid
+    async def sweep_page(limit: int) -> datetime:
         async with db() as session:
-            materialization_backend_pid = await session.scalar(select(func.pg_backend_pid()))
-            assert materialization_backend_pid is not None
+            project_evaluators = await sweeper._load_evaluators(session)
             database_now = await sweeper._database_now(session)
-            materialization_started.set()
-            return await sweeper._sweep(session, database_now)
-
-    async with db() as publication_session:
-        publication_backend_pid = await publication_session.scalar(select(func.pg_backend_pid()))
-        assert publication_backend_pid is not None
-        assert (
-            await publication_session.scalar(
-                select(models.ProjectEvaluator.id)
-                .where(models.ProjectEvaluator.id == first_criteria_id)
-                .with_for_update()
+            await sweeper._load_eligible_pairs(
+                session,
+                database_now,
+                project_evaluators,
+                limit=limit,
             )
-            == first_criteria_id
-        )
-        materialization = asyncio.create_task(materialize())
-        await materialization_started.wait()
+        return database_now
 
-        async def wait_for_publication_to_block_materialization() -> Sequence[int]:
-            assert materialization_backend_pid is not None
-            while True:
-                async with db() as observer:
-                    blocking_pids = await observer.scalar(
-                        select(func.pg_blocking_pids(materialization_backend_pid))
-                    )
-                if blocking_pids:
-                    return cast(Sequence[int], blocking_pids)
-                await asyncio.sleep(0)
-
-        blocking_pids = await asyncio.wait_for(
-            wait_for_publication_to_block_materialization(),
-            timeout=5,
-        )
-        assert publication_backend_pid in blocking_pids
-        assert (
-            await publication_session.scalar(
-                select(models.ProjectEvaluator.id)
-                .where(models.ProjectEvaluator.id == due_criteria_id)
-                .with_for_update(nowait=True)
+    async def swept_through_at() -> datetime | None:
+        async with db() as session:
+            return await session.scalar(
+                select(models.ProjectEvaluator.swept_through_at).where(
+                    models.ProjectEvaluator.id == project_evaluator_id
+                )
             )
-            == due_criteria_id
-        )
-        assert (
-            await publication_session.scalar(
-                select(models.ProjectSession.id)
-                .where(models.ProjectSession.id == second_session_id)
-                .with_for_update(nowait=True)
-            )
-            == second_session_id
-        )
 
-    inserted_count, _ = await asyncio.wait_for(materialization, timeout=5)
-    assert inserted_count == 4
+    await sweep_page(limit=1)
+    assert await swept_through_at() == oldest_activity_at
+
+    database_now = await sweep_page(limit=2)
+    assert await swept_through_at() == database_now - timedelta(seconds=300)
 
 
 @pytest.mark.postgres_only
-async def test_evaluator_deleted_mid_page_does_not_advance_the_watermark(
+async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
     postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
@@ -369,52 +325,56 @@ async def test_evaluator_deleted_mid_page_does_not_advance_the_watermark(
         project_id,
         evaluation_target="SESSION",
     )
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    materialization_started = asyncio.Event()
-    materialization_backend_pid: int | None = None
+    sweeper = EvalSweeper(
+        db,
+        evaluation_target="SESSION",
+        max_outstanding=_MAX_OUTSTANDING,
+        tick_interval_seconds=0,
+    )
+    tick = sweeper._tick
 
-    async def materialize() -> tuple[int, int | None]:
-        nonlocal materialization_backend_pid
-        async with db() as session:
-            materialization_backend_pid = await session.scalar(select(func.pg_backend_pid()))
-            assert materialization_backend_pid is not None
-            database_now = await sweeper._database_now(session)
-            materialization_started.set()
-            return await sweeper._sweep(session, database_now)
+    async def tick_once() -> None:
+        sweeper._running = False
+        await tick()
 
-    async with db() as deletion_session:
-        deletion_backend_pid = await deletion_session.scalar(select(func.pg_backend_pid()))
-        assert deletion_backend_pid is not None
-        await deletion_session.execute(
-            delete(models.ProjectEvaluator).where(
-                models.ProjectEvaluator.id == deleted_project_evaluator_id
+    monkeypatch.setattr(sweeper, "_tick", tick_once)
+    sweeper._running = True
+
+    async def wait_until_blocked_by(backend_pid: int) -> None:
+        while True:
+            async with db() as observer:
+                if await observer.scalar(
+                    text(
+                        "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+                        "WHERE :pid = ANY(pg_blocking_pids(pid)))"
+                    ),
+                    {"pid": backend_pid},
+                ):
+                    return
+            await asyncio.sleep(0)
+
+    with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
+        async with db() as deletion_session:
+            deletion_backend_pid = await deletion_session.scalar(select(func.pg_backend_pid()))
+            assert deletion_backend_pid is not None
+            await deletion_session.execute(
+                delete(models.ProjectEvaluator).where(
+                    models.ProjectEvaluator.id == deleted_project_evaluator_id
+                )
             )
-        )
-        materialization = asyncio.create_task(materialize())
-        await materialization_started.wait()
+            run = asyncio.create_task(sweeper._run())
+            await asyncio.wait_for(wait_until_blocked_by(deletion_backend_pid), timeout=5)
+        await asyncio.wait_for(run, timeout=5)
 
-        async def wait_for_the_delete_to_block_materialization() -> Sequence[int]:
-            assert materialization_backend_pid is not None
-            while True:
-                async with db() as observer:
-                    blocking_pids = await observer.scalar(
-                        select(func.pg_blocking_pids(materialization_backend_pid))
-                    )
-                if blocking_pids:
-                    return cast(Sequence[int], blocking_pids)
-                await asyncio.sleep(0)
-
-        blocking_pids = await asyncio.wait_for(
-            wait_for_the_delete_to_block_materialization(),
-            timeout=5,
-        )
-        assert deletion_backend_pid in blocking_pids
-
-    inserted_count, _ = await asyncio.wait_for(materialization, timeout=5)
-    assert inserted_count == 0
+    (record,) = [record for record in caplog.records if record.name == sweeper_module.__name__]
+    assert record.levelno == logging.WARNING
+    assert (
+        "SESSION evaluation sweep rolled back: a project evaluator or session on its page "
+        "was deleted before its work was inserted"
+    ) in record.getMessage()
     async with db() as session:
-        work_count = await session.scalar(
-            select(func.count()).select_from(models.EvalSessionWorkUnit)
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
         assert (
             await session.scalar(
@@ -424,12 +384,22 @@ async def test_evaluator_deleted_mid_page_does_not_advance_the_watermark(
             )
             is None
         )
-    assert work_count == 0
+
+    await tick()
 
     async with db() as session:
-        database_now = await sweeper._database_now(session)
-        inserted_count, _ = await sweeper._sweep(session, database_now)
-    assert inserted_count == 1
+        scheduled_project_evaluator_ids = list(
+            await session.scalars(select(models.EvalSessionWorkUnit.project_evaluator_id))
+        )
+        assert (
+            await session.scalar(
+                select(models.ProjectEvaluator.swept_through_at).where(
+                    models.ProjectEvaluator.id == surviving_project_evaluator_id
+                )
+            )
+            is not None
+        )
+    assert scheduled_project_evaluator_ids == [surviving_project_evaluator_id]
 
 
 async def test_session_with_null_liveness_is_never_eligible(
