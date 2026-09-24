@@ -29,8 +29,9 @@ _DROPPED = "DROPPED"
 class ProjectEvaluatorRunCounts:
     """How much evaluation work a project evaluator has produced, and when.
 
-    Counts cover every evaluation grain and reach back only as far as the online-eval
-    retention window, after which completed work is reaped.
+    Counts cover every evaluation grain. Span counts reach back only as far as the
+    online-eval retention window, after which completed span work is reaped; session and
+    trace counts cover all time.
     """
 
     queued: int = 0

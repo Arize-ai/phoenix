@@ -3653,11 +3653,11 @@ class AgentSessionSnapshot(HasId):
 
 
 class ProjectEvaluator(HasId):
-    """Attaches an evaluator to a project for online evaluation: which spans or
+    """Attaches an evaluator to a project for online evaluation: which spans, traces or
     sessions to match, how they are sampled, and the annotation name results are
-    written under. evaluation_target picks which of the two this row governs, and
-    the fields that apply differ with it — sampling and filter_condition shape span
-    selection, evaluation_delay_seconds shapes session selection."""
+    written under. filter_condition and sampling_rate apply to every evaluation_target;
+    evaluation_delay_seconds applies to TRACE and SESSION, which are evaluated once no
+    new span has arrived for that long."""
 
     __tablename__ = "project_evaluators"
     project_id: Mapped[int] = mapped_column(
@@ -3721,8 +3721,8 @@ class ProjectEvaluator(HasId):
 class EvalWorkLease(HasId):
     """A named single-holder lease for a materializer that has no position to keep.
 
-    The session sweeper decides what to materialize from session state rather than from
-    the span arrival log, so it needs mutual exclusion and nothing else. A lease is
+    The session and trace sweepers decide what to materialize from entity state rather
+    than from the span arrival log, so they need mutual exclusion and nothing else. A lease is
     held while heartbeat_at stays fresh; once it goes stale another holder may take it.
     """
 

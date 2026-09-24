@@ -1,11 +1,11 @@
 """Online-eval producer daemon.
 
 Materializes span-level eval work units from enabled project evaluators.
-The producer runs on every replica but self-elects each tick via the
-``eval_work_cursors`` CAS lease, so exactly one replica per evaluation target
-scans spans and writes work rows at a time. Each tick: renew the lease, reap
-expired/aged work rows, scan the lag-gated span id window per project evaluator, and
-idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
+The producer runs on every replica. The ``eval_work_cursors`` lease keeps one replica
+scanning at a time so scans aren't repeated; correctness rests on the unique
+(span, evaluator, config) work-unit key, which absorbs duplicate inserts. Each tick:
+renew the lease, reap expired/aged work rows, scan the lag-gated span id window per
+project evaluator, and insert surviving work units. A slow-cadence
 backstop sweep re-covers a bounded id window behind the watermark to catch spans
 that became visible after their window was scanned.
 """
