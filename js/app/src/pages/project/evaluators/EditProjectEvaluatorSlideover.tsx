@@ -5,6 +5,7 @@ import { useRevalidator } from "react-router";
 import invariant from "tiny-invariant";
 
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
 import type { SandboxConfigOption } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
@@ -28,7 +29,6 @@ import {
 import type { EditProjectEvaluatorSlideoverQuery } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverQuery.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateCodeMutation.graphql";
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
-import { CodeAuthoringFields } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
@@ -458,7 +458,6 @@ function EditLlmProjectEvaluatorContent({
               <ProjectEvaluatorScopePanel
                 projectId={evaluator.project.id}
                 scope={scope}
-                showScopeFields={false}
               />
             }
           />
@@ -496,6 +495,7 @@ function EditCodeProjectEvaluator({
   const initialInputMapping = evaluator.inputMapping as EvaluatorInputMapping;
   const [scope, setScope] = useState(() => getScope(evaluator));
   const [error, setError] = useState<string>();
+  const clearError = () => setError(undefined);
   // See the LLM edit path: the details page loader must re-run after a save.
   const { revalidate } = useRevalidator();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
@@ -559,19 +559,13 @@ function EditCodeProjectEvaluator({
             codeDefinition={
               <CodeAuthoringFields
                 language={language}
-                onLanguageChange={() => undefined}
                 isLanguageDisabled
                 sandboxConfigs={sandboxConfigs}
                 selectedSandboxConfigId={sandboxConfigId}
-                onSandboxChange={(nextSandboxConfigId) => {
-                  setError(undefined);
-                  setSandboxConfigId(nextSandboxConfigId);
-                }}
+                onSandboxChange={setSandboxConfigId}
                 sourceCode={sourceCode}
-                onSourceCodeChange={(nextSourceCode) => {
-                  setError(undefined);
-                  setSourceCode(nextSourceCode);
-                }}
+                onSourceCodeChange={setSourceCode}
+                onFieldChange={clearError}
               />
             }
             inlineCode={{
@@ -583,6 +577,7 @@ function EditCodeProjectEvaluator({
             onScopeChange={setScope}
             isSubmitting={isUpdating}
             error={error}
+            onFieldChange={clearError}
             onSubmit={() => {
               setError(undefined);
               const state = store.getState();
