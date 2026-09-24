@@ -93,13 +93,12 @@ def test_backward_compatibility() -> None:
         "cumulative_token_count.completion",
     )
 
-    # The query should internally convert to new field names
-    query_dict = query.to_dict()
-    assert "select" in query_dict
-    select_dict = query_dict["select"]
-    assert "span_id" in select_dict
-    assert "trace_id" in select_dict
-    assert "cumulative_llm_token_count_completion" in select_dict
+    # The keys convert to the new field names; the labels stay as the server would label them
+    assert query.to_dict()["select"] == {
+        "context.span_id": {"key": "span_id"},
+        "context.trace_id": {"key": "trace_id"},
+        "cumulative_token_count.completion": {"key": "cumulative_llm_token_count_completion"},
+    }
 
 
 def test_empty_key_validation() -> None:
