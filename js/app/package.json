@@ -18,6 +18,7 @@
     "dev:server:init": "pnpm dev:server --with-trace-fixtures=llama_index_rag --with-projects=SESSIONS-DEMO --force-fixture-ingestion",
     "dev:server:offline": "python -m phoenix.server.main serve --dev --debug --dev-vite-port ${VITE_PORT:-5173}",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
+    "dev:datagen": "set -a && source ./.env && set +a && uv run phoenix datagen --endpoint http://localhost:${PHOENIX_PORT:-6006}",
     "dev:ui": "set -a && source ./.env && set +a && pnpm run build:static && pnpm run build:relay && vite",
     "ensure:env": "test -f .env || printf 'export PHOENIX_TELEMETRY_ENABLED=False\n' > .env",
     "eval": "PHOENIX_HOST=${PHOENIX_HOST:-http://localhost:6006} vitest run --config phoenix.vitest.config.ts",
