@@ -1,0 +1,312 @@
+---
+title: "Set up projects and sessions"
+sidebarTitle: "Set up projects and sessions"
+description: "Route traces to Phoenix projects and group related traces into sessions."
+---
+
+Use this page to send traces to the right project and group related traces into sessions. Projects decide where traces land. Sessions connect related traces inside a project, such as turns in the same conversation.
+
+On this page, you'll learn how to:
+
+* Route traces to a Phoenix project
+* Group related traces into sessions with `session.id`
+* Add `user.id` and review sessions in Phoenix
+
+Projects and sessions are the two grouping levels Phoenix uses after spans arrive:
+
+* **Project:** the top-level place where traces land. Use projects to separate applications, environments, tenants, or workflows.
+* **Session:** a group of related traces inside one project. In a chatbot, each turn can create its own trace. Tag those traces with the same `session.id` to view the conversation as one unit.
+
+<Frame caption="Projects show trace and session counts for each Phoenix project">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/projects-sessions-overview-20260924.jpg" alt="Phoenix projects page showing project cards with trace and session counts" />
+</Frame>
+
+## Projects
+
+Phoenix sends traces to the `default` project unless you set a project name. Set the project before spans are created so every span in the trace is routed to the right project.
+
+Choose the setup path that matches how you configure tracing. Each path sets the same project routing; you do not need to use all of them together.
+
+<Tabs>
+  <Tab title="Phoenix OTEL">
+    Pass `project_name` to `register()` when you configure tracing in code:
+
+    ```python
+    from phoenix.otel import register
+
+    tracer_provider = register(
+        project_name="my-project-name",
+    )
+    ```
+
+    You can also set `PHOENIX_PROJECT` before you initialize tracing:
+
+    ```python
+    import os
+
+    os.environ["PHOENIX_PROJECT"] = "my-project-name"
+    ```
+
+    `PHOENIX_PROJECT_NAME` is still supported as an alias, but `PHOENIX_PROJECT` takes precedence when both are set.
+
+    <Warning>
+    Set the project before instrumentation is initialized. If your app already created a tracer provider, changing the environment variable will not move existing spans to another project.
+    </Warning>
+  </Tab>
+
+  <Tab title="OpenTelemetry directly">
+    If you are using Phoenix as a collector and running your application separately, set the project name in the `Resource` attributes for the trace provider.
+
+    ```python expandable
+    from openinference.semconv.resource import ResourceAttributes
+    from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+    from opentelemetry import trace as trace_api
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk import trace as trace_sdk
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+    resource = Resource(attributes={
+        ResourceAttributes.PROJECT_NAME: "my-project-name"
+    })
+    tracer_provider = trace_sdk.TracerProvider(resource=resource)
+    span_exporter = OTLPSpanExporter(endpoint="http://phoenix:6006/v1/traces")
+    span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
+    tracer_provider.add_span_processor(span_processor=span_processor)
+    trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+
+    LlamaIndexInstrumentor().instrument()
+    ```
+  </Tab>
+
+  <Tab title="HTTP header">
+    If you are using a configuration-based OpenTelemetry tool, such as an OTEL Collector or a framework that does not let you set resource attributes in code, route traces to a Phoenix project with the `x-project-name` HTTP header on OTLP HTTP exports.
+
+    The header takes precedence over the `openinference.project.name` resource attribute, so every span in the request is assigned to the named project.
+
+    **Using `OTEL_EXPORTER_OTLP_HEADERS`:**
+
+    ```bash
+    export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:6006"
+    export OTEL_EXPORTER_OTLP_HEADERS="x-project-name=my-project"
+    ```
+
+    **Using an OTEL Collector `otlphttp` exporter:**
+
+    ```yaml
+    exporters:
+      otlphttp:
+        endpoint: "http://phoenix:6006"
+        headers:
+          x-project-name: "my-project"
+    ```
+
+    **Setting the header in Python directly:**
+
+    ```python
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+    exporter = OTLPSpanExporter(
+        endpoint="http://localhost:6006/v1/traces",
+        headers={"x-project-name": "my-project"},
+    )
+    ```
+
+    <Note>
+    The `x-project-name` header is only supported by the HTTP OTLP endpoint (`/v1/traces`). If you use gRPC, set the project name with the `openinference.project.name` resource attribute instead.
+    </Note>
+  </Tab>
+</Tabs>
+
+Projects work by setting the OpenInference project resource attribute. Phoenix uses that project name to group traces. For OTLP over HTTP, the `x-project-name` header can override the resource attribute.
+
+### Switch projects in a notebook
+
+Most applications should send traces to one project. In a notebook, you can temporarily associate spans with another project. This is useful when you want evaluation traces to go to a separate project.
+
+```python
+from openinference.instrumentation import dangerously_using_project
+
+with dangerously_using_project("my-eval-project"):
+    run_evaluations()
+```
+
+## Sessions
+
+Use sessions to group traces from the same conversation. Each turn can create its own trace, and Phoenix links those traces when they share the same non-empty `session.id`.
+
+Set `session.id` before the traced work runs. Add `user.id` when you want Phoenix to show the user for the session. The Sessions view shows first input, last output, user ID, annotations, trace count, latency, token usage, and cost.
+
+### Add session ID
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    Install Phoenix OTEL and the OpenAI instrumentor:
+
+    ```bash
+    pip install "arize-phoenix-otel>=0.16.0" openai openinference-instrumentation-openai
+    ```
+
+    Register tracing, then wrap each model call with `using_session`.
+
+    ```python
+    import uuid
+
+    from openai import OpenAI
+    from phoenix.otel import register, using_session
+
+    register(project_name="chatbot", auto_instrument=True)
+
+    client = OpenAI()
+    session_id = str(uuid.uuid4())
+
+    def assistant(messages: list[dict], session_id: str):
+        with using_session(session_id=session_id):
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    *messages,
+                ],
+            )
+        return response.choices[0].message
+
+    messages = [{"role": "user", "content": "Hi, I'm Bob."}]
+    response = assistant(messages, session_id=session_id)
+
+    messages = messages + [
+        {"role": "assistant", "content": response.content or ""},
+        {"role": "user", "content": "What's my name?"},
+    ]
+    response = assistant(messages, session_id=session_id)
+    ```
+
+    <Note>
+    `using_session` is importable from `phoenix.otel` in `arize-phoenix-otel` 0.16.0 and later. On older versions, import it from `openinference.instrumentation`.
+    </Note>
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    Install Phoenix OTEL and the OpenAI instrumentor:
+
+    ```bash
+    npm install @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai openai
+    ```
+
+    Register tracing, then add the session ID to the active OpenTelemetry context.
+
+    ```typescript
+    import OpenAI from "openai";
+    import {
+      context,
+      register,
+      registerInstrumentations,
+      setSession,
+    } from "@arizeai/phoenix-otel";
+    import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+
+    register({ projectName: "chatbot" });
+
+    const instrumentation = new OpenAIInstrumentation();
+    instrumentation.manuallyInstrument(OpenAI);
+    registerInstrumentations({ instrumentations: [instrumentation] });
+
+    const client = new OpenAI();
+
+    type Message = { role: "user" | "assistant" | "system"; content: string };
+
+    async function assistant(params: {
+      messages: Message[];
+      sessionId: string;
+    }) {
+      return context.with(
+        setSession(context.active(), { sessionId: params.sessionId }),
+        async () => {
+          const chatCompletion = await client.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: params.messages,
+          });
+          return chatCompletion.choices[0].message;
+        }
+      );
+    }
+
+    const sessionId = crypto.randomUUID();
+    let messages: Message[] = [{ role: "user", content: "Hi, I'm Tim." }];
+
+    const response = await assistant({ messages, sessionId });
+    messages = [
+      ...messages,
+      { role: "assistant", content: response.content ?? "" },
+      { role: "user", content: "What's my name?" },
+    ];
+
+    await assistant({ messages, sessionId });
+    ```
+  </Tab>
+</Tabs>
+
+### Add user ID
+
+Add `user.id` when you want Phoenix to show which user a session belongs to. Phoenix displays the first non-null `user.id` it finds in the session.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.otel import using_attributes
+
+    with using_attributes(
+        session_id="session-abc",
+        user_id="user-123",
+    ):
+        run_agent()
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { context, setSession, setUser } from "@arizeai/phoenix-otel";
+
+    let ctx = setSession(context.active(), { sessionId: "session-abc" });
+    ctx = setUser(ctx, { userId: "user-123" });
+
+    await context.with(ctx, async () => runAgent());
+    ```
+  </Tab>
+</Tabs>
+
+### LangChain session metadata
+
+For LangChain, pass one of these keys in run metadata. The OpenInference LangChain integration maps it to `session.id`, which Phoenix uses for sessions:
+
+* `session_id`
+* `thread_id`
+* `conversation_id`
+
+## View sessions
+
+You can view sessions for a project from the **Sessions** tab. Phoenix shows recent sessions, first input, last output, user ID, annotations, latency, total tokens, total cost, and trace count.
+
+<Frame caption="View all sessions in a project">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ca93711f-image.jpeg" alt="Phoenix sessions table showing sessions within a project" />
+</Frame>
+
+Open a session to inspect its trace history. If the traces contain input and output attributes, Phoenix shows the conversation history.
+
+<Frame caption="Session details view">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/8afa6160-image.jpeg" alt="Phoenix session details view showing trace history for a session" />
+</Frame>
+
+## Example notebooks
+
+| Use case | Language | Link |
+| :-- | :-- | :-- |
+| OpenAI tracing with sessions | Python | [Open in Colab](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb), [View on GitHub](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai_sessions_tutorial.ipynb) |
+| LlamaIndex tracing with sessions | Python | [Open in Colab](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/project_sessions_llama_index_query_engine.ipynb), [View on GitHub](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/project_sessions_llama_index_query_engine.ipynb) |
+| OpenAI tracing with sessions | TS/JS | [View on GitHub](https://github.com/Arize-ai/phoenix/blob/main/js/examples/notebooks/tracing_openai_sessions_tutorial.ipynb) |
+
+## Next step
+
+Next, add custom context to your spans, such as metadata, tags, prompt templates, events, and exceptions.
+
+<Card title="Next: Customize your traces" icon="arrow-right" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans" />

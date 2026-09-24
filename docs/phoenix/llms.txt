@@ -50,8 +50,7 @@
 
 - [Set up tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel): Configure Phoenix OTEL and connect Python or TypeScript apps to Phoenix
 - [Instrument Your App](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument): Use OpenInference decorators and manual span creation
-- [Setup Projects](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects): Create projects to organize traces
-- [Setup Sessions](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions): Configure multi-turn session tracking
+- [Set up projects and sessions](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions): Route traces to projects and group related traces into sessions
 
 ### Metadata & Annotations
 

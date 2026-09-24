@@ -114,8 +114,7 @@
               {
                 "group": "Go deeper",
                 "pages": [
-                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
-                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions",
+                  "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions",
                   "docs/phoenix/tracing/concepts-tracing/translating-conventions",
                   "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
                   "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
@@ -1700,6 +1699,14 @@
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing",
       "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions",
+      "destination": "/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/add-metadata",

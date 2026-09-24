@@ -273,7 +273,7 @@ Set session, user, metadata, and tags on the active context before the traced wo
   </Tab>
 </Tabs>
 
-Use the same `session.id` for every turn in a conversation. See [Set up sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions).
+Use the same `session.id` for every turn in a conversation. See [Set up projects and sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions#sessions).
 
 If you create raw OpenTelemetry spans inside that context, copy the propagated attributes onto the span yourself. OpenInference instrumentors and `OITracer` do this automatically. See [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) and [TypeScript context attributes](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes).
 
