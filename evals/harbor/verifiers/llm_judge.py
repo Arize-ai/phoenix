@@ -15,7 +15,7 @@ JUDGE_MODEL = os.environ.get("PHOENIX_EVAL_JUDGE_MODEL", "gpt-5-nano")
 
 _REFERENCE_TEMPLATE = """You are grading the final reply of an AI agent that was asked a question about data in an observability tool. You are given the reference answer.
 
-Decide whether the reply commits to the same final answer as the reference. Wording, formatting, units, extra correct context, and rounding to the reference's precision do not matter. The reply does not match when it states a different value, hedges between candidate answers, answers a different question, or gives no answer.
+Decide whether the reply's conclusion semantically matches the reference after applying the grading notes. Treat the grading notes as authoritative. Wording, formatting, explanations, units, extra correct context, and rounding to the reference's precision do not matter. A reply does not match when its conclusion differs, remains uncertain between incompatible candidates, answers a different question, or gives no answer. Mentioning the reference is insufficient if the reply rejects it or ultimately chooses another answer.
 {{notes}}
 [BEGIN REFERENCE ANSWER]
 {{reference}}
@@ -25,7 +25,7 @@ Decide whether the reply commits to the same final answer as the reference. Word
 {{reply}}
 [END AGENT REPLY]
 
-Does the reply commit to the same final answer as the reference?"""
+Does the reply's conclusion semantically match the reference after applying the grading notes?"""
 
 
 def matches_reference(reply: str, reference: str, notes: str = "") -> Score:
@@ -36,7 +36,7 @@ def matches_reference(reply: str, reference: str, notes: str = "") -> Score:
         prompt_template=_REFERENCE_TEMPLATE,
         choices={"match": 1.0, "mismatch": 0.0},
     )
-    guidance = f"\nAdditional guidance: {notes.strip()}\n" if notes.strip() else ""
+    guidance = f"\nAuthoritative grading notes: {notes.strip()}\n" if notes.strip() else ""
     scores = evaluator.evaluate(
         {"reply": reply or "(empty reply)", "reference": reference, "notes": guidance}
     )
