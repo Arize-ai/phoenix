@@ -111,10 +111,12 @@ const ProjectEvaluatorInputMappingSection = ({
 };
 
 /**
- * The left definition panel for a code project evaluator, laid out the same
- * way as {@link ProjectLlmEvaluatorFormSections}: name and description, then
- * the scope, then the definition — either the code authoring fields and the
- * input mapping, or a summary of the existing evaluator being attached.
+ * The left definition panel for a code project evaluator. When authoring code
+ * (`codeDefinition` given) it is laid out the same way as
+ * {@link ProjectLlmEvaluatorFormSections}: name and description, then the
+ * scope, then the code authoring fields and the input mapping. When attaching
+ * an existing evaluator there is no name to edit, so a summary card of that
+ * evaluator stands in for the name and the scope follows it.
  */
 export const ProjectCodeEvaluatorFormSections = ({
   codeEvaluatorName,
