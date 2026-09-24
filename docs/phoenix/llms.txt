@@ -74,7 +74,7 @@
 - [Cost Tracking](https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking): Monitor LLM token usage and cost trends
 - [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions): Filter spans and sessions with Python-style expressions — operators, attribute and annotation access, session aggregates
 - [Advanced Tracing Patterns](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Use OpenTelemetry and OpenInference patterns when you need more control over what Phoenix receives
-- [Masking Span Attributes](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes): Hide sensitive data in traces via environment variables
+- [Mask and Redact Data](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes): Hide or redact sensitive span data before Phoenix receives it
 - [Multimodal Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Capture image, audio, and multimodal data in traces
 
 ## Evaluation

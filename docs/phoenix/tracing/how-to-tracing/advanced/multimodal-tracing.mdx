@@ -1,67 +1,107 @@
 ---
 title: "Capture multimodal traces"
 sidebarTitle: "Capture multimodal traces"
-description: "Phoenix supports displaying images that are included in LLM traces."
+description: "Show image content from LLM requests in Phoenix traces."
 ---
+
+Use this page when your LLM request includes an image and you want Phoenix to show that image in the span details. Phoenix reads image content from OpenInference message attributes, including image URLs and base64 image URLs.
 
 <Frame>
   <img src="https://arize.com/wp-content/uploads/2024/08/multimodal_gallery.gif" alt="Phoenix trace view showing image content inside a multimodal LLM trace" />
 </Frame>
 
-## View images in Phoenix
+## What Phoenix displays
 
-1. [Connect to a Phoenix instance](/docs/phoenix/get-started).
+Phoenix displays image content when an LLM span has `llm.input_messages.*.message.contents.*.message_content` attributes with `type="image"` and an image URL. OpenInference auto-instrumentors set these attributes for supported providers.
 
-2. Instrument your application.
+If you create spans manually, use the same OpenInference attributes so Phoenix can render the image instead of showing only raw keys.
 
-3. Include a base64 UTF-8 encoded image or an image URL in the LLM request.
+## Auto-instrument an image request
 
-## Example
+Install Phoenix OTEL, the OpenAI instrumentor, and the OpenAI SDK.
 
 ```bash
 pip install -q arize-phoenix arize-phoenix-otel openinference-instrumentation-openai openai
 ```
 
+Run Phoenix locally if you do not already have a Phoenix instance.
+
+```bash
+uvx arize-phoenix serve
+```
+
+Set `OPENAI_API_KEY`, then run an image request.
+
 ```python
-import os
-
-if "PHOENIX_COLLECTOR_ENDPOINT" not in os.environ:
-    import phoenix as px
-
-    px.launch_app().view()
-
-from phoenix.otel import register
-tracer_provider = register(project_name="multimodal-tracing")
-
 from openinference.instrumentation.openai import OpenAIInstrumentor
-OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
-
 from openai import OpenAI
+from phoenix.otel import register
+
+tracer_provider = register(project_name="multimodal-tracing")
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 
 client = OpenAI()
 
 response = client.chat.completions.create(
-  model="gpt-4o",
-  messages=[
-    {
-      "role": "user",
-      "content": [
-        {"type": "text", "text": "What's in this image?"},
+    model="gpt-4o-mini",
+    messages=[
         {
-          "type": "image_url",
-          "image_url": {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
-          },
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What is in this image?"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/640px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+                    },
+                },
+            ],
         },
-      ],
-    }
-  ],
-  max_tokens=300,
+    ],
+    max_tokens=300,
 )
+
+print(response.choices[0].message.content)
 ```
 
-You should see your image appear in Phoenix:
+Open the `multimodal-tracing` project in Phoenix. The LLM span should show the input text and image in the span details.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/cd6e069b-image.jpeg" alt="Phoenix span details showing an image in the LLM input" />
 </Frame>
+
+## Add image attributes manually
+
+Use manual attributes only when an auto-instrumentor does not cover your provider or framework.
+
+```python
+from opentelemetry import trace
+from phoenix.otel import register
+
+register(project_name="manual-multimodal-tracing")
+tracer = trace.get_tracer("manual-multimodal-example")
+
+image_url = "https://example.com/receipt.png"
+
+with tracer.start_as_current_span("inspect-image") as span:
+    span.set_attributes(
+        {
+            "openinference.span.kind": "LLM",
+            "llm.input_messages.0.message.role": "user",
+            "llm.input_messages.0.message.contents.0.message_content.type": "text",
+            "llm.input_messages.0.message.contents.0.message_content.text": "Read this receipt.",
+            "llm.input_messages.0.message.contents.1.message_content.type": "image",
+            "llm.input_messages.0.message.contents.1.message_content.image.image.url": image_url,
+        }
+    )
+```
+
+## Keep payloads small
+
+Use image URLs when possible. Base64 image URLs can make spans large, so use `OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH` to cap them.
+
+```bash
+export OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH=8000
+```
+
+To avoid storing image content, set `OPENINFERENCE_HIDE_INPUT_IMAGES=true`. See [Mask and redact data](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes).

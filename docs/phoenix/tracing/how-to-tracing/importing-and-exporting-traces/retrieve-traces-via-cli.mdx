@@ -5,7 +5,7 @@ description: "Fetch Phoenix traces and sessions from the command line for debugg
 
 Use the Phoenix CLI when you want trace data in your terminal, a file, or another tool.
 
-Use it for quick debugging, bulk trace export, shell pipelines, and coding-agent workflows.
+You will learn how to list recent traces, fetch one trace, inspect sessions, save JSON, and pipe output to tools like `jq`.
 
 ## Install
 
@@ -43,6 +43,7 @@ The CLI uses the shape `px <resource> <action> [arguments] [options]`.
 | `px project list` | Phoenix projects | Terminal |
 | `px trace list [directory]` | Recent traces | Terminal, or one JSON file per trace when you pass a directory |
 | `px trace get <trace-id>` | One trace | Terminal, or a file with `--file` |
+| `px span list` | Recent or filtered spans | Terminal, or a JSON file when you pass a file path |
 | `px session list` | Sessions in a project | Terminal |
 | `px session get <session-id>` | One session and its traces | Terminal |
 
@@ -50,13 +51,14 @@ Useful options:
 
 | Option | Use when |
 |---|---|
-| `--limit <number>` | Limit how many traces or sessions are returned. |
-| `--last-n-minutes <number>` | Fetch recent traces from a rolling time window. |
-| `--since <timestamp>` and `--until <timestamp>` | Fetch traces from an ISO 8601 time range. |
+| `--limit <number>` | Limit how many traces, spans, or sessions are returned. |
+| `--last-n-minutes <number>` | Fetch recent traces or spans from a rolling time window. |
+| `--since <timestamp>` and `--until <timestamp>` | Fetch traces or spans from an ISO 8601 time range. |
 | `--project <name-or-id>` | Override `PHOENIX_PROJECT` for one command. |
 | `--format pretty \| json \| raw` | Choose terminal view, formatted JSON, or compact JSON. |
 | `--no-progress` | Remove progress output when piping to `jq` or another tool. |
-| `--include-annotations` | Include reviewer or evaluator annotations in trace output. |
+| `--include-annotations` | Include reviewer or evaluator annotations. |
+| `--include-notes` | Include notes added in Phoenix or with `px trace add-note`, `px span add-note`, or `px session add-note`. |
 
 ## List recent traces
 
@@ -100,6 +102,30 @@ Include annotations when you need reviewer or evaluator results.
 px trace get abc123def456 --include-annotations --format json
 ```
 
+Include notes separately when you want reviewer notes.
+
+```bash
+px trace get abc123def456 --include-notes --format json
+```
+
+## Fetch spans
+
+Use `px span list` when you want to inspect the spans inside traces without fetching full trace trees.
+
+```bash
+px span list --limit 20
+px span list --span-kind LLM --limit 10
+px span list --status-code ERROR --limit 20
+px span list --trace-id abc123def456 --format raw --no-progress | jq .
+```
+
+Filter by attributes when you know the field you need.
+
+```bash
+px span list --attribute llm.model_name:gpt-4 --limit 10
+px span list --attribute session.id:my-chat-session-001 --limit 20
+```
+
 ## Fetch sessions
 
 Sessions group related traces, such as turns in a conversation.
@@ -114,6 +140,13 @@ Pipe raw session output when you want to script against it.
 ```bash
 px session list --format raw --no-progress | jq '.[].session_id'
 px session get my-chat-session-001 --format raw | jq '.session.traces[].trace_id'
+```
+
+Include session annotations or notes when you need reviewer context.
+
+```bash
+px session get my-chat-session-001 --include-annotations --format json
+px session get my-chat-session-001 --include-notes --format json
 ```
 
 ## Output fields
@@ -185,13 +218,9 @@ List projects when you need the exact name.
 px project list
 ```
 
-## Related
+## Learn more
 
-<CardGroup cols={2}>
-  <Card title="CLI reference" icon="rectangle-terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
-    Full command reference for `px`.
-  </Card>
-  <Card title="Export and query spans" icon="database" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
-    Pull Phoenix span data into Python.
-  </Card>
-</CardGroup>
+- **Use the full CLI reference:** see [`@arizeai/phoenix-cli`](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) for every `px` command and option.
+- **Export spans into Python:** use [Export and query spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) when you want pandas dataframes instead of terminal output.
+- **Filter spans and traces:** use [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions) when you need the filter language used by the UI and query APIs.
+- **Connect coding agents:** use [Coding agents](/docs/phoenix/integrations/developer-tools/coding-agents) when you want an agent to fetch traces and debug failures.

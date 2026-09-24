@@ -1,72 +1,77 @@
 ---
-title: "Mask span attributes"
-sidebarTitle: "Mask span attributes"
-description: "Hide sensitive span data or limit large attributes before Phoenix receives them."
+title: "Mask and redact data"
+sidebarTitle: "Mask and redact data"
+description: "Hide or redact sensitive span data before Phoenix receives it."
 ---
 
-Use OpenInference trace configuration to hide sensitive inputs, outputs, prompts, tool definitions, images, and embedding vectors before Phoenix receives spans. You can set the configuration with environment variables or in code.
+Use masking when spans include data that Phoenix should not store. OpenInference applies these rules before spans are exported, so masked values do not reach Phoenix.
 
-The OpenInference instrumentors read the environment variables below. They also accept a `TraceConfig` object when you want the setting to live in code.
+Masking can hide broad OpenInference fields, such as inputs, outputs, prompts, tool definitions, images, and embedding vectors. Redaction can rewrite specific values inside attributes, such as email addresses or other PII.
 
-The available settings are:
+## Choose a method
 
-| Environment Variable Name                        | Effect                                                       | Type | Default |
-| :------------------------------------------------ | :------------------------------------------------------------ | :---- | :------- |
-| OPENINFERENCE\_HIDE\_INPUTS                      | Hides input value, all input messages & embedding input text | bool | False   |
-| OPENINFERENCE\_HIDE\_OUTPUTS                     | Hides output value & all output messages                     | bool | False   |
-| OPENINFERENCE\_HIDE\_INPUT\_MESSAGES             | Hides all input messages & embedding input text              | bool | False   |
-| OPENINFERENCE\_HIDE\_OUTPUT\_MESSAGES            | Hides all output messages                                    | bool | False   |
-| OPENINFERENCE\_HIDE\_INPUT\_IMAGES                | Hides images from input messages                             | bool | False   |
-| OPENINFERENCE\_HIDE\_INPUT\_TEXT                 | Hides text from input messages & input embeddings            | bool | False   |
-| OPENINFERENCE\_HIDE\_OUTPUT\_TEXT                | Hides text from output messages                              | bool | False   |
-| OPENINFERENCE\_HIDE\_EMBEDDING\_VECTORS          | Hides returned embedding vectors                             | bool | False   |
-| OPENINFERENCE\_HIDE\_LLM\_INVOCATION\_PARAMETERS | Hides LLM invocation parameters                              | bool | False   |
-| OPENINFERENCE\_HIDE\_LLM\_PROMPTS                | Hides LLM prompts span attributes                            | bool | False   |
-| OPENINFERENCE\_HIDE\_LLM\_TOOLS                  | Hides tool definitions advertised to the LLM (`llm.tools.*`)  | bool | False   |
-| OPENINFERENCE\_BASE64\_IMAGE\_MAX\_LENGTH        | Limits characters of a base64 encoding of an image           | int  | 32,000  |
+| If you need to... | Use... |
+| :--- | :--- |
+| Apply the same rule in every environment | Environment variables |
+| Keep masking next to one instrumentor setup | `TraceConfig` in code |
+| Redact specific text inside attributes | A custom exporter |
+| Skip a code path entirely | `suppress_tracing` |
 
-Note: `OPENINFERENCE_HIDE_LLM_TOOLS` is also applied when `OPENINFERENCE_HIDE_INPUTS` is enabled, consistent with how `OPENINFERENCE_HIDE_INPUT_MESSAGES` and `OPENINFERENCE_HIDE_LLM_PROMPTS` behave.
+If you set a value in both code and the environment, code wins. If neither is set, OpenInference uses the default value.
 
-You can set this configuration in three ways:
+## Environment variables
 
-* Set environment variables.
+Set environment variables before your app initializes tracing.
 
-* Define the configuration in code.
+```bash
+export OPENINFERENCE_HIDE_INPUTS=true
+export OPENINFERENCE_HIDE_OUTPUTS=true
+export OPENINFERENCE_HIDE_INPUT_IMAGES=true
+export OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH=8000
+```
 
-* Do nothing and use the default values.
+Common options:
 
-If you use both environment variables and code, Phoenix applies the settings in this order:
+| Environment variable | Effect | Default |
+| :--- | :--- | :--- |
+| `OPENINFERENCE_HIDE_INPUTS` | Hides span input values, input messages, prompts, and LLM tools | `false` |
+| `OPENINFERENCE_HIDE_OUTPUTS` | Hides span output values and output messages | `false` |
+| `OPENINFERENCE_HIDE_INPUT_MESSAGES` | Hides all LLM input messages | `false` |
+| `OPENINFERENCE_HIDE_OUTPUT_MESSAGES` | Hides all LLM output messages | `false` |
+| `OPENINFERENCE_HIDE_INPUT_IMAGES` | Hides images from LLM input messages and span-level input images | `false` |
+| `OPENINFERENCE_HIDE_INPUT_TEXT` | Redacts text in LLM input messages | `false` |
+| `OPENINFERENCE_HIDE_OUTPUT_TEXT` | Redacts text in LLM output messages | `false` |
+| `OPENINFERENCE_HIDE_EMBEDDING_VECTORS` | Hides embedding vectors | `false` |
+| `OPENINFERENCE_HIDE_PROMPTS` | Redacts legacy `llm.prompts` attributes | `false` |
+| `OPENINFERENCE_HIDE_LLM_TOOLS` | Hides tool definitions advertised to the LLM | `false` |
+| `OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH` | Redacts base64 image URLs longer than this many characters | `32000` |
 
-  * Values set in the `TraceConfig` in code
+<Note>
+Python also supports `OPENINFERENCE_HIDE_LLM_INVOCATION_PARAMETERS`, `OPENINFERENCE_HIDE_CHOICES`, `OPENINFERENCE_HIDE_EMBEDDINGS_TEXT`, and `OPENINFERENCE_HIDE_EMBEDDINGS_VECTORS`.
+</Note>
 
-  * Environment variables
+## Configure in code
 
-  * Default values
-
-The examples below set these values in code for OpenAI instrumentation. OpenInference applies the same config shape across supported instrumentors.
+Use code when one instrumentor needs different masking than the rest of the process. The examples below use OpenAI, but supported OpenInference instrumentors follow the same pattern.
 
 <Tabs>
-
   <Tab title="Python" icon="python">
 
     ```python
     from openinference.instrumentation import TraceConfig
+    from openinference.instrumentation.openai import OpenAIInstrumentor
+    from phoenix.otel import register
+
+    tracer_provider = register(project_name="redacted-app")
+
     config = TraceConfig(
-        hide_inputs=...,
-        hide_outputs=...,
-        hide_input_messages=...,
-        hide_output_messages=...,
-        hide_input_images=...,
-        hide_input_text=...,
-        hide_output_text=...,
-        hide_embedding_vectors=...,
-        hide_llm_invocation_parameters=...,
-        hide_llm_prompts=...,
-        hide_llm_tools=...,
-        base64_image_max_length=...,
+        hide_inputs=True,
+        hide_outputs=True,
+        hide_input_images=True,
+        hide_llm_tools=True,
+        base64_image_max_length=8_000,
     )
 
-    from openinference.instrumentation.openai import OpenAIInstrumentor
     OpenAIInstrumentor().instrument(
         tracer_provider=tracer_provider,
         config=config,
@@ -77,24 +82,33 @@ The examples below set these values in code for OpenAI instrumentation. OpenInfe
 
   <Tab title="TypeScript" icon="js">
 
-    ```javascript
-    /**
-    * Everything left out of here will fallback to
-    * environment variables then defaults
-    */
+    ```typescript
+    import OpenAI from "openai";
+    import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
+    import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+
+    register({ projectName: "redacted-app" });
+
     const traceConfig = {
       hideInputs: true,
       hideLLMTools: true,
-    }
+      hideInputImages: true,
+      base64ImageMaxLength: 8_000,
+    };
 
-    const instrumentation = new OpenAIInstrumentation({ traceConfig })
+    const instrumentation = new OpenAIInstrumentation({ traceConfig });
+    instrumentation.manuallyInstrument(OpenAI);
+
+    registerInstrumentations({
+      instrumentations: [instrumentation],
+    });
     ```
 
   </Tab>
 
   <Tab title="Go" icon="golang">
 
-    Use `instrumentation.TraceConfig` and pass it to the provider instrumentor with `WithTraceConfig`. A value set in code replaces the value from the environment for that instrumentor, which matches the Python and JavaScript precedence rules.
+    Use `instrumentation.TraceConfig` and pass it to the provider instrumentor with `WithTraceConfig`.
 
     ```go
     import (
@@ -117,8 +131,101 @@ The examples below set these values in code for OpenAI instrumentation. OpenInfe
     )
     ```
 
-    The Anthropic Go instrumentor uses the same shape: `option.WithMiddleware(anthropicotel.Middleware(otel.Tracer(...), anthropicotel.WithTraceConfig(instrumentation.TraceConfig{...})))`. See [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go) for full setup.
+    The Anthropic Go instrumentor uses the same `WithTraceConfig` pattern. See [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go) for full setup.
 
   </Tab>
 
 </Tabs>
+
+## Redact specific PII
+
+Use a custom exporter when you need to keep the span but rewrite sensitive text inside attributes. Add the exporter before your app starts traced work.
+
+```python
+import re
+from collections.abc import Sequence
+from typing import Any
+
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from phoenix.otel import BatchSpanProcessor, HTTPSpanExporter, register
+
+
+PATTERNS = [
+    (re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"), "[email]"),
+    (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[ssn]"),
+]
+
+
+def redact_text(value: str) -> str:
+    for pattern, replacement in PATTERNS:
+        value = pattern.sub(replacement, value)
+    return value
+
+
+def redact_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return redact_text(value)
+    if isinstance(value, (list, tuple)):
+        return [redact_text(item) if isinstance(item, str) else item for item in value]
+    return value
+
+
+def redact_span(span: ReadableSpan) -> ReadableSpan:
+    attributes = {
+        key: redact_value(value)
+        for key, value in (span.attributes or {}).items()
+    }
+    return ReadableSpan(
+        name=span.name,
+        context=span.context,
+        parent=span.parent,
+        resource=span.resource,
+        attributes=attributes,
+        events=span.events,
+        links=span.links,
+        kind=span.kind,
+        status=span.status,
+        start_time=span.start_time,
+        end_time=span.end_time,
+        instrumentation_scope=span.instrumentation_scope,
+    )
+
+
+class RedactingSpanExporter(SpanExporter):
+    def __init__(self, exporter: SpanExporter) -> None:
+        self._exporter = exporter
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        return self._exporter.export([redact_span(span) for span in spans])
+
+    def shutdown(self) -> None:
+        self._exporter.shutdown()
+
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
+        return self._exporter.force_flush(timeout_millis=timeout_millis)
+
+
+tracer_provider = register(project_name="redacted-app")
+tracer_provider.add_span_processor(
+    BatchSpanProcessor(
+        span_exporter=RedactingSpanExporter(HTTPSpanExporter())
+    )
+)
+```
+
+<Frame caption="Redacted input, output, and metadata in Phoenix">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/redacted-span-attributes-focused-20260924.png"
+    alt="Phoenix span details showing redacted input, output, and metadata values"
+    width="460"
+  />
+</Frame>
+
+Add more patterns to `PATTERNS` for your own data. If regex is not enough, call a PII detector inside `redact_text` and return the redacted string.
+
+## What masking does not do
+
+Masking changes span attributes before export. It does not change the request your app sends to the model provider.
+
+For code that should not be traced at all, use [suppression](/docs/phoenix/tracing/how-to-tracing/advanced#suppress-tracing).
