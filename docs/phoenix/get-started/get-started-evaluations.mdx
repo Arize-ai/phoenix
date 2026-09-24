@@ -38,7 +38,7 @@ with a travel support prompt, and tell me which examples scored lowest and why.
   <Step title={<span className="step-title">Start with a handful of examples</span>}>
     A dataset is a fixed set of examples you test every change against.
 
-    1. Download [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/datasets/travel-support.csv). Three travel support questions with the answer each one should get.
+    1. Download [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv). Three travel support questions with the answer each one should get.
     2. Go to **Datasets** and click **New Dataset**.
     3. Drop the file on the upload area. Phoenix accepts `.csv` and `.jsonl`.
     4. Map `question` to **input** and `expected_answer` to **output**, then create the dataset.
@@ -133,3 +133,5 @@ with a travel support prompt, and tell me which examples scored lowest and why.
 [Datasets and Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) covers building datasets, comparing variants, and tracking quality over time.
 
 For evaluators, [Server Evals](/docs/phoenix/evaluation/server-evals/overview) covers UI-managed evaluators, and the [Evaluation](/docs/phoenix/evaluation/evals) section covers writing your own.
+
+[PXI](/docs/phoenix/pxi) can do this flow for you: curating a dataset, running the experiment, and reading the results.
