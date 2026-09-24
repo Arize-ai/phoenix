@@ -52,7 +52,6 @@ from phoenix.db.eval_work import (
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
-from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
@@ -628,7 +627,6 @@ class EvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        await reap_lapsed_leases(session, self._target.work_unit_model)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None

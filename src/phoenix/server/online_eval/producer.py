@@ -36,7 +36,6 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.eval_work import TERMINAL_EVAL_WORK_STATUSES, live_eval_work_index_predicate
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     annotation_identifier,
     config_fingerprint,
@@ -350,8 +349,6 @@ class OnlineEvalProducer(DaemonTask):
         # regardless of age — they must remain to block backstop resurrection.
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
-            if mutations_allowed:
-                await reap_lapsed_leases(session, models.EvalWorkUnit)
             await session.execute(
                 delete(models.EvalWorkUnit).where(
                     models.EvalWorkUnit.status.in_(TERMINAL_EVAL_WORK_STATUSES),

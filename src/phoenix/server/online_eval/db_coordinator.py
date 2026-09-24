@@ -68,27 +68,23 @@ def work_unit_lease_lapsed(
 async def reap_lapsed_leases(
     session: AsyncSession,
     work_unit_model: _WorkUnitModel,
+    *,
+    now: datetime,
+    max_attempts: int,
 ) -> None:
-    """Terminalize RUNNING work whose lease lapsed with no attempts left.
-
-    Consumers give a claim back themselves on every path they survive; this covers the
-    ones they do not — a replica killed mid-evaluation leaves a RUNNING row that no
-    consumer will ever reclaim, because reclaiming it would exceed the retry budget.
-    Reaping is lifecycle work, so it is spelled here rather than in each materializer;
-    the materializers call it from their own tick because they already hold the
-    single-writer lease that makes it safe to run unguarded.
-    """
-    now = await _database_now(session)
+    """Fail RUNNING work whose lease lapsed with no attempts left: a consumer killed
+    mid-evaluation leaves such a row, and no consumer may reclaim it without exceeding
+    the retry budget."""
     await session.execute(
         update(work_unit_model)
         .where(
             work_unit_model.status == "RUNNING",
-            work_unit_model.attempts >= MAX_ATTEMPTS - 1,
+            work_unit_model.attempts >= max_attempts - 1,
             work_unit_lease_lapsed(now, work_unit_model),
         )
         .values(
             status="FAILED",
-            attempts=MAX_ATTEMPTS,
+            attempts=max_attempts,
             error=func.coalesce(work_unit_model.error, LEASE_ATTEMPTS_EXHAUSTED_ERROR),
         )
     )
@@ -154,6 +150,9 @@ class DbEvalWorkCoordinator:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
             now = await _database_now(session)
+            await reap_lapsed_leases(
+                session, work_unit_model, now=now, max_attempts=self._max_attempts
+            )
             candidates = select(work_unit_model.id).where(self._claimable(now))
             candidates = candidates.order_by(work_unit_model.id).limit(limit)
             claim_values = {

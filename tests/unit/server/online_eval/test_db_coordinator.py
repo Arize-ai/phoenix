@@ -13,6 +13,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import db_coordinator as db_coordinator_module
 from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
     LEASE_TTL_SECONDS,
     TERMINAL_METRICS_WINDOW_SECONDS,
     PublicationClaimLostError,
@@ -454,9 +455,37 @@ async def test_lapsed_lease_with_exhausted_attempts_is_not_claimable(
 
     assert await coordinator.claim(claimed_by="consumer-2", limit=1) == []
     row = await _get_unit(db, unit_id)
-    assert row.status == "RUNNING"
+    assert row.status == "FAILED"
     assert row.claimed_by == "consumer-1"
     assert row.attempts == 1
+    assert row.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
+
+
+async def test_claim_fails_lapsed_running_work_with_no_attempts_left(
+    db: DbSessionFactory,
+) -> None:
+    lapsed_id, fresh_id = await _seed_work_units(db, 2)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    async with db() as session:
+        for unit_id, claimed_at in ((lapsed_id, lapsed), (fresh_id, datetime.now(timezone.utc))):
+            await session.execute(
+                update(models.EvalWorkUnit)
+                .where(models.EvalWorkUnit.id == unit_id)
+                .values(
+                    status="RUNNING",
+                    claimed_at=claimed_at,
+                    claimed_by="stopped-consumer",
+                    attempts=MAX_ATTEMPTS - 1,
+                )
+            )
+
+    assert await DbEvalWorkCoordinator(db).claim(claimed_by="consumer", limit=2) == []
+
+    reaped = await _get_unit(db, lapsed_id)
+    assert reaped.status == "FAILED"
+    assert reaped.attempts == MAX_ATTEMPTS
+    assert reaped.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
+    assert (await _get_unit(db, fresh_id)).status == "RUNNING"
 
 
 async def test_lapsed_unit_is_claimed_exactly_max_attempts_times(db: DbSessionFactory) -> None:
@@ -620,15 +649,15 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
     async with db() as session:
         exhausted_lease = await session.get(models.EvalSessionWorkUnit, unit_ids[1])
         assert exhausted_lease is not None
-        assert exhausted_lease.status == "RUNNING"
-        assert exhausted_lease.attempts == MAX_ATTEMPTS - 1
-        assert exhausted_lease.error is None
+        assert exhausted_lease.status == "FAILED"
+        assert exhausted_lease.attempts == MAX_ATTEMPTS
+        assert exhausted_lease.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
 
     lag = await coordinator.lag()
     assert lag.pending_count == 0
-    assert lag.running_count == 2
+    assert lag.running_count == 1
     assert lag.retryable_error_count == 1
-    assert lag.exhausted_error_count == 1
+    assert lag.exhausted_error_count == 2
     assert lag.oldest_actionable_age_seconds is not None
     assert 100.0 <= lag.oldest_actionable_age_seconds < 300.0
 

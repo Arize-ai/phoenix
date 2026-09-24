@@ -28,10 +28,6 @@ from phoenix.server.api.evaluators import ContainsEvaluator
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
-from phoenix.server.online_eval.coordinator import (
-    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
-    LEASE_TTL_SECONDS,
-)
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
@@ -970,78 +966,6 @@ async def test_reaper_deletes_aged_terminal_work_outside_the_lookback(
     assert remaining.get(ids["done_inside"]) == ("DONE", None)
     assert ids["exhausted_error_outside"] not in remaining
     assert remaining.get(ids["retryable_error_outside"]) == ("ERROR", None)
-
-
-async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(
-    db: DbSessionFactory,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
-    now = _now()
-    lapsed = now - timedelta(seconds=LEASE_TTL_SECONDS + 1)
-
-    async with db() as session:
-        lapsed_unit = models.EvalWorkUnit(
-            span_rowid=span.id,
-            evaluator_id=evaluator_id,
-            project_evaluator_id=project_evaluator_id,
-            config_fingerprint=f"fp-{token_hex(8)}",
-            status="RUNNING",
-            attempts=MAX_ATTEMPTS - 1,
-            claimed_at=lapsed,
-            claimed_by="consumer-1",
-        )
-        failed_lapsed_unit = models.EvalWorkUnit(
-            span_rowid=span.id,
-            evaluator_id=evaluator_id,
-            project_evaluator_id=project_evaluator_id,
-            config_fingerprint=f"fp-{token_hex(8)}",
-            status="RUNNING",
-            attempts=MAX_ATTEMPTS - 1,
-            error="provider failed",
-            claimed_at=lapsed,
-            claimed_by="consumer-1",
-        )
-        fresh_unit = models.EvalWorkUnit(
-            span_rowid=span.id,
-            evaluator_id=evaluator_id,
-            project_evaluator_id=project_evaluator_id,
-            config_fingerprint=f"fp-{token_hex(8)}",
-            status="RUNNING",
-            attempts=MAX_ATTEMPTS - 1,
-            claimed_at=now,
-            claimed_by="consumer-1",
-        )
-        session.add_all([lapsed_unit, failed_lapsed_unit, fresh_unit])
-        await session.flush()
-        lapsed_id, failed_lapsed_id, fresh_id = (
-            lapsed_unit.id,
-            failed_lapsed_unit.id,
-            fresh_unit.id,
-        )
-
-    producer = OnlineEvalProducer(db)
-    await producer._reap(now, span.id)
-
-    async with db() as session:
-        lapsed_row = await session.get(models.EvalWorkUnit, lapsed_id)
-        failed_lapsed_row = await session.get(models.EvalWorkUnit, failed_lapsed_id)
-        fresh_row = await session.get(models.EvalWorkUnit, fresh_id)
-    assert lapsed_row is not None
-    assert lapsed_row.status == "FAILED"
-    assert lapsed_row.attempts == MAX_ATTEMPTS
-    assert lapsed_row.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
-    assert failed_lapsed_row is not None
-    assert failed_lapsed_row.status == "FAILED"
-    assert failed_lapsed_row.attempts == MAX_ATTEMPTS
-    assert failed_lapsed_row.error == "provider failed"
-    assert fresh_row is not None
-    assert fresh_row.status == "RUNNING"
-    competitor = DbEvalWorkCoordinator(db)
-    assert await competitor.claim(claimed_by="consumer-2", limit=2) == []
 
 
 async def test_admission_gate_skips_materialization(
