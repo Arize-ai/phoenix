@@ -2,6 +2,7 @@
 # `-e docker -k 1` through HARBOR_ARGS, or create a reduced job file for a subset.
 tasks:
   - path: evals/harbor/tasks/error-analysis
+  - path: evals/harbor/tasks/prompt-hill-climb
 agents:
   - name: phoenix-chat-agent
     import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent

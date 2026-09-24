@@ -8,7 +8,7 @@ compare the conditions in the Phoenix UI.
 
 | Job file | Question it answers | Tasks | Phoenix dataset |
 | --- | --- | --- | --- |
-| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis? CI runs this. | `tasks/error-analysis` | `pxi-benchmark` |
+| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/error-analysis`, `tasks/prompt-hill-climb` | `pxi-benchmark` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
@@ -16,7 +16,7 @@ compare the conditions in the Phoenix UI.
 | `agents/` | PXI and the Claude Code or Codex configurations for the MCP server and px |
 | `environments/` | The shared Dockerfile and the fixture script for each database |
 | `jobs/` | One configuration file for each benchmark |
-| `tasks/` | The `error-analysis/` task and the tasks under `trail-benchmark-dev/` |
+| `tasks/` | The `error-analysis/` and `prompt-hill-climb/` tasks and the tasks under `trail-benchmark-dev/` |
 | `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
@@ -215,6 +215,17 @@ gcloud storage cp --cache-control=no-store phoenix.db \
   gs://arize-phoenix-assets/evals/harbor/error-analysis/phoenix.db
 RESEED=1 make harbor-stage HARBOR_CLI=0
 ```
+
+`tasks/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
+dataset, `banking_saas_dataset_clean` (28 examples, half of them expecting a `REFUSED:`
+string). The agent writes an exact-match evaluator and attaches it to the dataset, runs the
+empty prompt as a baseline experiment and iterates until an experiment passes all 28
+examples, then compares its first and last experiments and records what it learned on the
+last one. The verifiers probe the evaluator with fenced, padded, altered, and empty outputs,
+require the last experiment to score 28/28, and check the comparison against the database:
+the two experiments named, the examples that moved, the compare link, and a metadata note
+that preserves what was there. Its fixture lives at
+`gs://arize-phoenix-assets/evals/harbor/prompt-hill-climb/phoenix.db`.
 
 ## Test an unreleased client plugin
 
