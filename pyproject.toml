@@ -345,6 +345,7 @@ exclude = [
   # Staging copies evals.harbor.verifiers to /opt/verifier for task solutions to import.
   "evals/harbor/tasks/[^/]+/environment/",
   "evals/harbor/tasks/trail-benchmark-dev/",
+  "evals/harbor/tasks/pxi/",
   "examples/",
   "packages/",
   "scripts/",
@@ -375,6 +376,7 @@ module = [
   "authlib.*",
   "google.*",
   "harbor.*",
+  "rewardkit",
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",

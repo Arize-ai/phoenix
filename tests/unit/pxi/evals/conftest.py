@@ -1,5 +1,3 @@
-"""Test-only import path setup for the top-level PXI eval harness."""
-
 from __future__ import annotations
 
 import sys

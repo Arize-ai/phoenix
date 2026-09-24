@@ -37,6 +37,7 @@ def trajectory_from_ui_messages(
     agent_version: str,
     model_name: str | None,
     spans: list[TurnSpan] | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> Trajectory:
     index = _SpanIndex.build(spans or [])
     steps: list[Step] = []
@@ -60,6 +61,7 @@ def trajectory_from_ui_messages(
         agent=Agent(name=agent_name, version=agent_version, model_name=model_name),
         steps=steps,
         final_metrics=_final_metrics(steps),
+        extra=extra,
     )
 
 
