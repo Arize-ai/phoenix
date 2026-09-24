@@ -36,32 +36,25 @@ The `/mcp` endpoint requires **Phoenix 19.0.0 or later**. On older servers, upgr
 
 Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix acts as its own authorization server and supports dynamic client registration, so there is nothing to pre-configure. Add the server, and your client opens a browser window where you log in with your Phoenix account. Tokens are scoped to your user's permissions. If your Phoenix runs without authentication, no login happens.
 
-<Tip>
-  The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) writes the config below for Claude Code, Codex, Gemini CLI, Cursor, OpenCode, and VS Code, and infers your endpoint:
+The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) writes the config for you and infers your endpoint:
 
-  ```bash
-  px setup mcp --agent claude   # or codex, gemini, cursor, opencode, vscode
-  ```
+```bash
+px setup mcp --agent claude   # or codex, gemini, cursor, opencode, vscode
+```
 
-  For Gemini CLI and a user-wide VS Code install, the `gemini` or `code` command must be on your `PATH`.
-</Tip>
+For Gemini CLI and a user-wide VS Code install, the `gemini` or `code` command must be on your `PATH`.
 
-Replace `http://localhost:6006` with your Phoenix endpoint in every example below.
+To write the config by hand, or for a client `px` does not cover, use the steps below. Replace `http://localhost:6006` with your Phoenix endpoint in every example.
 
 <AccordionGroup>
   <Accordion title="Claude Code">
     Fastest: install the [Claude Code plugin](#plugins), which registers this server and the Phoenix skills together. To add the server alone:
 
-    <Steps>
-      <Step title="Add the Phoenix MCP server">
-        ```bash
-        claude mcp add --transport http phoenix http://localhost:6006/mcp
-        ```
-      </Step>
-      <Step title="Log in">
-        Run `/mcp` inside Claude Code, select **phoenix**, and complete the browser login.
-      </Step>
-    </Steps>
+    ```bash
+    claude mcp add --transport http phoenix http://localhost:6006/mcp
+    ```
+
+    Then run `/mcp` inside Claude Code, select **phoenix**, and complete the browser login.
   </Accordion>
 
   <Accordion title="Codex (OpenAI)">
@@ -78,99 +71,68 @@ Replace `http://localhost:6006` with your Phoenix endpoint in every example belo
     Launch `codex` and run `/mcp` to verify the server is connected.
   </Accordion>
 
-  <Accordion title="Cursor">
-    <Steps>
-      <Step title="Add the Phoenix MCP server">
-        Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
+  <Accordion title="Cursor, VS Code, and OpenCode">
+    Add the server to the client's MCP config. Each one prompts you to log in via the browser on first use.
 
-        ```json
-        {
-          "mcpServers": {
-            "phoenix": {
-              "url": "http://localhost:6006/mcp"
-            }
-          }
+    In **Cursor**, add it to `~/.cursor/mcp.json`, or project `.cursor/mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "phoenix": {
+          "url": "http://localhost:6006/mcp"
         }
-        ```
-      </Step>
-      <Step title="Log in">
-        Cursor prompts you to log in via the browser on first use.
-      </Step>
-    </Steps>
-  </Accordion>
+      }
+    }
+    ```
 
-  <Accordion title="VS Code">
-    <Steps>
-      <Step title="Add the Phoenix MCP server">
-        Run `MCP: Add Server` from the Command Palette, or add to `.vscode/mcp.json`:
+    In **VS Code**, add it to `.vscode/mcp.json`, or run `MCP: Add Server` from the Command Palette:
 
-        ```json
-        {
-          "servers": {
-            "phoenix": {
-              "type": "http",
-              "url": "http://localhost:6006/mcp"
-            }
-          }
+    ```json
+    {
+      "servers": {
+        "phoenix": {
+          "type": "http",
+          "url": "http://localhost:6006/mcp"
         }
-        ```
-      </Step>
-      <Step title="Log in">
-        VS Code walks you through the browser login when the server first starts.
-      </Step>
-    </Steps>
+      }
+    }
+    ```
+
+    In **OpenCode**, add it to `~/.config/opencode/opencode.json`, or project `opencode.json`:
+
+    ```json
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "mcp": {
+        "phoenix": {
+          "type": "remote",
+          "url": "http://localhost:6006/mcp",
+          "enabled": true
+        }
+      }
+    }
+    ```
   </Accordion>
 
   <Accordion title="Gemini CLI">
-    <Steps>
-      <Step title="Add the Phoenix MCP server">
-        Gemini CLI ships an `mcp add` that mirrors Claude Code's flags:
+    Gemini CLI ships an `mcp add` that mirrors Claude Code's flags:
 
-        ```bash
-        gemini mcp add --scope user --transport http phoenix http://localhost:6006/mcp
-        ```
+    ```bash
+    gemini mcp add --scope user --transport http phoenix http://localhost:6006/mcp
+    ```
 
-        Use `--scope project` instead to write `.gemini/settings.json` in the current directory, so run it from the repository root.
-      </Step>
-      <Step title="Trust the folder">
-        Gemini CLI disables every MCP server, including user-level ones, in a folder you haven't trusted. Trust the folder when Gemini prompts, then run `gemini mcp list` to confirm **phoenix** shows as connected.
-      </Step>
-      <Step title="Log in">
-        Run `/mcp` inside Gemini CLI, select **phoenix**, and complete the browser login.
-      </Step>
-    </Steps>
+    Use `--scope project` instead to write `.gemini/settings.json` in the current directory, so run it from the repository root.
+
+    Gemini CLI disables every MCP server, including user-level ones, in a folder you haven't trusted. Trust the folder when Gemini prompts, then run `gemini mcp list` to confirm **phoenix** shows as connected. Finally, run `/mcp` inside Gemini CLI, select **phoenix**, and complete the browser login.
 
     <Note>
       This is **Gemini CLI**, Google's terminal agent. **Antigravity** is a separate tool that also writes under `~/.gemini/` and uses an API key.
     </Note>
   </Accordion>
 
-  <Accordion title="OpenCode">
-    <Steps>
-      <Step title="Add the Phoenix MCP server">
-        Add to `~/.config/opencode/opencode.json` (or project `opencode.json`):
-
-        ```json
-        {
-          "$schema": "https://opencode.ai/config.json",
-          "mcp": {
-            "phoenix": {
-              "type": "remote",
-              "url": "http://localhost:6006/mcp",
-              "enabled": true
-            }
-          }
-        }
-        ```
-      </Step>
-      <Step title="Log in">
-        OpenCode prompts you to log in via the browser on first use.
-      </Step>
-    </Steps>
-  </Accordion>
-
   <Accordion title="Antigravity">
-    Antigravity configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys) and add to `~/.gemini/config/mcp_config.json` (or open **Manage MCP Servers → View raw config** from the agent panel):
+    Antigravity configures remote MCP servers with an API key. Create a [Phoenix API key](/docs/phoenix/settings/api-keys) and add to `~/.gemini/config/mcp_config.json`, or open **Manage MCP Servers → View raw config** from the agent panel:
 
     ```json
     {
@@ -461,69 +423,21 @@ The Phoenix Docs MCP server lets AI assistants search and retrieve the Phoenix d
 https://arizeai-433a7140.mintlify.app/mcp
 ```
 
-<AccordionGroup>
-  <Accordion title="Claude Code">
-    ```bash
-    claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
-    ```
+Add it under the name `phoenix-docs`, alongside the `phoenix` server rather than in place of it:
 
-    This adds it for the current directory. Add `--scope user` to make it available in all projects. Run `claude mcp list` to verify.
-  </Accordion>
+```bash
+claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
+```
 
-  <Accordion title="Cursor">
-    Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`), then restart Cursor and confirm the server appears in MCP settings:
+That adds it for the current directory. Add `--scope user` to make it available in all projects, then run `claude mcp list` to verify. Other clients take the same config shapes as [Connect](#connect), with this URL and the name `phoenix-docs`:
 
-    ```json
-    {
-      "mcpServers": {
-        "phoenix-docs": {
-          "url": "https://arizeai-433a7140.mintlify.app/mcp"
-        }
-      }
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="VS Code">
-    Run `MCP: Add Server` from the Command Palette, or add to `.vscode/mcp.json`, then run `MCP: List Servers` to verify:
-
-    ```json
-    {
-      "servers": {
-        "phoenix-docs": {
-          "type": "http",
-          "url": "https://arizeai-433a7140.mintlify.app/mcp"
-        }
-      }
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="Windsurf">
-    Add to `~/.codeium/windsurf/mcp_config.json`, then refresh MCP servers from the MCP settings:
-
-    ```json
-    {
-      "mcpServers": {
-        "phoenix-docs": {
-          "serverUrl": "https://arizeai-433a7140.mintlify.app/mcp"
-        }
-      }
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="Claude Desktop">
-    Add a custom connector in Claude Desktop's connector settings:
-
-    - **Name**: `Phoenix Docs`
-    - **URL**: `https://arizeai-433a7140.mintlify.app/mcp`
-  </Accordion>
-
-  <Accordion title="Other clients">
-    Any client that supports streamable HTTP works. Configure the URL as `https://arizeai-433a7140.mintlify.app/mcp`.
-  </Accordion>
-</AccordionGroup>
+| Client | Where it goes | Key |
+| ------ | ------------- | --- |
+| Cursor | `~/.cursor/mcp.json`, or project `.cursor/mcp.json` | `mcpServers.phoenix-docs.url`. Restart Cursor and confirm the server appears in MCP settings. |
+| VS Code | `.vscode/mcp.json`, or `MCP: Add Server` from the Command Palette | `servers.phoenix-docs`, with `"type": "http"` and `url`. Run `MCP: List Servers` to verify. |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers.phoenix-docs.serverUrl`. Refresh MCP servers from the MCP settings. |
+| Claude Desktop | Connector settings | A custom connector named `Phoenix Docs` with this URL. |
+| Other clients | Anywhere the client keeps MCP config | Any client that supports streamable HTTP works. Configure the URL directly. |
 
 Client reference docs: [Claude Code MCP](https://code.claude.com/docs/en/mcp), [Cursor MCP](https://cursor.com/docs/context/mcp), [VS Code MCP servers](https://code.visualstudio.com/docs/copilot/chat/mcp-servers), [Windsurf MCP](https://docs.windsurf.com/windsurf/cascade/mcp).
 
@@ -546,8 +460,8 @@ The Phoenix MCP Server (`@arizeai/phoenix-mcp`) is a local stdio server, launche
     Restart your Claude Code session to start using the Phoenix MCP tools.
   </Accordion>
 
-  <Accordion title="Claude Desktop">
-    In **Settings → Developer → Edit Config**, add the following, then save the file and relaunch Claude Desktop:
+  <Accordion title="Claude Desktop, Cursor, and other stdio clients">
+    Claude Desktop and Cursor take the same entry. In **Claude Desktop**, open **Settings → Developer → Edit Config**, add the following, then save the file and relaunch. In **Cursor**, add it to `~/.cursor/mcp.json`, or project `.cursor/mcp.json`:
 
     ```json
     {
@@ -566,37 +480,11 @@ The Phoenix MCP Server (`@arizeai/phoenix-mcp`) is a local stdio server, launche
       }
     }
     ```
-  </Accordion>
 
-  <Accordion title="Cursor">
-    Add to `~/.cursor/mcp.json` (or project `.cursor/mcp.json`):
-
-    ```json
-    {
-      "mcpServers": {
-        "phoenix": {
-          "command": "npx",
-          "args": [
-            "-y",
-            "@arizeai/phoenix-mcp@latest",
-            "--baseUrl",
-            "https://my-phoenix.com",
-            "--apiKey",
-            "your-api-key"
-          ]
-        }
-      }
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="Other clients">
-    Any client that supports stdio MCP servers works. Configure it to run
+    Any other client that supports stdio MCP servers works. Configure it to run
     `npx -y @arizeai/phoenix-mcp@latest --baseUrl <your-phoenix-url> --apiKey <your-api-key>`.
   </Accordion>
-</AccordionGroup>
 
-<AccordionGroup>
   <Accordion title="What it can do">
     It manages:
 

@@ -1,6 +1,6 @@
 ---
 title: "Arize Phoenix for Agents"
-sidebarTitle: "Overview"
+sidebarTitle: "Set Up Your Agent"
 description: Debug and evaluate your AI agent from your editor by giving your coding agent the same Phoenix data you see in the UI.
 ---
 
@@ -11,55 +11,27 @@ Show me the latest traces in my default project and summarize any errors
 ```
 
 ```text
-Debug my agent's tool-call failures. Use Phoenix CLI to inspect traces, recent experiments, and relevant prompts, then summarize root causes.
-```
-
-```text
-Which experiments ran on my agent-inputs dataset this week, and how did their scores compare?
-```
-
-```text
-Find the slowest LLM spans in my support-agent project and break down where the latency comes from
-```
-
-```text
 Pull my rag-pipeline prompt and suggest improvements based on recent trace failures
 ```
 
-Your coding agent can also set up tracing for you: see the agent-assisted path in [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing).
-
 <Note>
-This section sets up your coding agent to **operate on Phoenix**. To instead **trace your sessions with a coding agent** (turns, tool calls, and token costs), see [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code).
+This sets up your coding agent to **operate on Phoenix**. To instead **trace your sessions with a coding agent** (turns, tool calls, and token costs), see [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code).
 </Note>
 
 ## Set up your agent
 
-Pick the row for your agent. Each path installs the same three pieces: the `px` CLI, the MCP server, and skills.
+Pick the row for your agent. Each path installs the same three pieces: the [`px` CLI](/docs/phoenix/integrations/developer-tools/cli) for terminal access to your Phoenix data, the [MCP server](/docs/phoenix/integrations/mcp) for clients that prefer a tool protocol, and [skills](/docs/phoenix/integrations/developer-tools/skills) that teach the agent Phoenix's conventions.
 
 | Agent | Setup |
 | --- | --- |
-| Claude Code | Install the [Claude Code plugin](/docs/phoenix/integrations/mcp#plugins). It registers the MCP server and the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so the only piece left is the [CLI](/docs/phoenix/integrations/developer-tools/cli). |
+| Claude Code | Install the [Claude Code plugin](/docs/phoenix/integrations/mcp#plugins). It registers the MCP server and three skills: `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`. Add the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup skills` for the rest of the [skills](/docs/phoenix/integrations/developer-tools/skills). |
 | Codex | Install the [Codex plugin](/docs/phoenix/integrations/mcp#plugins). It registers the MCP server; add the [CLI](/docs/phoenix/integrations/developer-tools/cli) and [skills](/docs/phoenix/integrations/developer-tools/skills) yourself. |
 | Cursor, VS Code, Gemini CLI, OpenCode | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup mcp --agent <agent>` and `px setup skills`. |
 | Any other agent | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), add the [MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) from its per-client steps, and install [skills](/docs/phoenix/integrations/developer-tools/skills) with `npx skills add`. |
 
 The plugins are optional. They bundle the MCP and skills steps into one install that stays up to date, and require **Phoenix 19.0.0 or later**. Neither includes the [Phoenix Docs MCP](/docs/phoenix/integrations/mcp#phoenix-docs-mcp) for documentation lookup, so add it separately if you want it.
 
-## How it connects
-
-Here is what each of those three pieces gives your agent:
-
-<CardGroup cols={3}>
-  <Card title="CLI" icon="terminal" href="/docs/phoenix/integrations/developer-tools/cli">
-    Terminal access to traces, experiments, datasets, and prompts. The best default for agents with a shell.
-  </Card>
-  <Card title="MCP Servers" icon="plug" href="/docs/phoenix/integrations/mcp">
-    Phoenix data and documentation inside any MCP client, including IDEs and chat apps.
-  </Card>
-  <Card title="Skills" icon="wand-magic-sparkles" href="/docs/phoenix/integrations/developer-tools/skills">
-    Reusable instructions so agents apply Phoenix best practices consistently.
-  </Card>
-</CardGroup>
+Your coding agent can also set up tracing for you: see the agent-assisted path in [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing).
 
 ## Find your Phoenix endpoint
 
@@ -83,18 +55,3 @@ export PHOENIX_API_KEY=your-api-key              # API key (if auth enabled)
 <Tip>
 Keep API keys out of committed config files. Prefer environment variables and local-only config.
 </Tip>
-
-## Docs and source code in `node_modules`
-
-Phoenix's TypeScript packages ship docs and source code inside `node_modules` once installed, so your agent can look up accurate API signatures, implementations, and usage examples for the SDK version your project actually uses, without relying on the public website:
-
-```text
-node_modules/@arizeai/phoenix-client/docs/
-node_modules/@arizeai/phoenix-client/src/
-
-node_modules/@arizeai/phoenix-evals/docs/
-node_modules/@arizeai/phoenix-evals/src/
-
-node_modules/@arizeai/phoenix-otel/docs/
-node_modules/@arizeai/phoenix-otel/src/
-```
