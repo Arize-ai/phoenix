@@ -39,7 +39,7 @@ This is the workflow the `phoenix-cli` skill drives, and the reason to hand `px`
   </Step>
 
   <Step title="Read one in full">
-    Fetch a single trace or span to see inputs, outputs, and timing.
+    Fetch a single trace, or narrow to the LLM calls inside it.
 
     ```bash
     px trace get <trace-id> --project my-app
@@ -48,34 +48,28 @@ This is the workflow the `phoenix-cli` skill drives, and the reason to hand `px`
   </Step>
 
   <Step title="Record what you found">
-    Annotate spans and traces so the judgement is stored alongside the data.
+    Write the judgement back, so it sits with the data for whoever opens that trace next.
 
     ```bash
     px span annotate <span-id> --name correctness --label incorrect --score 0
     px trace add-note <trace-id> --text "Tool called with an empty query"
     ```
   </Step>
-
-  <Step title="Turn failures into a test set">
-    Inspect the datasets and experiments you are testing changes against.
-
-    ```bash
-    px dataset list
-    px dataset get travel-support
-    px experiment list --dataset travel-support
-    px experiment get <experiment-id>
-    ```
-  </Step>
-
-  <Step title="Work on the prompt">
-    Read the prompt a run used, and its versions.
-
-    ```bash
-    px prompt list
-    px prompt get my-prompt
-    ```
-  </Step>
 </Steps>
+
+Annotations and notes are the only things `px` writes. It reads datasets, experiments, and prompts, but it does not create or edit them. Build a dataset and run an experiment from the UI, as in [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations), or in code with the SDK.
+
+## Look up what you are testing against
+
+When the agent needs the contents of a dataset, the results of a run, or the text of a prompt:
+
+```bash
+px dataset get travel-support        # the examples in a dataset
+px experiment get <experiment-id>    # every run and score from one experiment
+px prompt get my-prompt              # a prompt's current version
+```
+
+To see what exists first: `px dataset list`, `px experiment list --dataset travel-support`, `px prompt list`.
 
 ## Everything else
 
