@@ -4,7 +4,7 @@ sidebarTitle: "Overview"
 description: Debug and evaluate your AI agent from your editor by giving your coding agent the same Phoenix data you see in the UI.
 ---
 
-Connect Claude Code, Codex, Cursor, VS Code, Windsurf, or any other coding agent to Phoenix, and it can read your traces, experiments, datasets, and prompts, then act on them. You ask in plain language:
+Connect Claude Code, Codex, Cursor, VS Code, Windsurf, or any other coding agent to Phoenix, and it can read your traces, experiments, datasets, and prompts, then act on them. You can ask things like:
 
 ```text
 Show me the latest traces in my default project and summarize any errors
@@ -32,9 +32,22 @@ Your coding agent can also set up tracing for you: see the agent-assisted path i
 This section sets up your coding agent to **operate on Phoenix**. To instead **trace your sessions with a coding agent** (turns, tool calls, and token costs), see [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code).
 </Note>
 
+## Set up your agent
+
+Pick the row for your agent. Each path installs the same three pieces: the `px` CLI, the MCP server, and skills.
+
+| Agent | Setup |
+| --- | --- |
+| Claude Code | Install the [Claude Code plugin](/docs/phoenix/integrations/mcp#plugins). It registers the MCP server and the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so the only piece left is the [CLI](/docs/phoenix/integrations/developer-tools/cli). |
+| Codex | Install the [Codex plugin](/docs/phoenix/integrations/mcp#plugins). It registers the MCP server; add the [CLI](/docs/phoenix/integrations/developer-tools/cli) and [skills](/docs/phoenix/integrations/developer-tools/skills) yourself. |
+| Cursor, VS Code, Gemini CLI, OpenCode | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup mcp --agent <agent>` and `px setup skills`. |
+| Any other agent | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), add the [MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) from its per-client steps, and install [skills](/docs/phoenix/integrations/developer-tools/skills) with `npx skills add`. |
+
+The plugins are optional. They bundle the MCP and skills steps into one install that stays up to date, and require **Phoenix 19.0.0 or later**. Neither includes the [Phoenix Docs MCP](/docs/phoenix/integrations/mcp#phoenix-docs-mcp) for documentation lookup, so add it separately if you want it.
+
 ## How it connects
 
-Phoenix connects to a coding agent through three pieces. Most setups use all three:
+Here is what each of those three pieces gives your agent:
 
 <CardGroup cols={3}>
   <Card title="CLI" icon="terminal" href="/docs/phoenix/integrations/developer-tools/cli">
@@ -48,19 +61,6 @@ Phoenix connects to a coding agent through three pieces. Most setups use all thr
   </Card>
 </CardGroup>
 
-## Set up your agent
-
-Pick the row for your agent. Each path ends with all three pieces installed.
-
-| Agent | Setup |
-| --- | --- |
-| Claude Code | Install the [Claude Code plugin](/docs/phoenix/integrations/mcp#plugins). It registers the MCP server and the `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` skills, so the only piece left is the [CLI](/docs/phoenix/integrations/developer-tools/cli). |
-| Codex | Install the [Codex plugin](/docs/phoenix/integrations/mcp#plugins). It registers the MCP server; add the [CLI](/docs/phoenix/integrations/developer-tools/cli) and [skills](/docs/phoenix/integrations/developer-tools/skills) yourself. |
-| Cursor, VS Code, Gemini CLI, OpenCode | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup mcp --agent <agent>` and `px setup skills`. |
-| Any other agent | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), add the [MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) from its per-client steps, and install [skills](/docs/phoenix/integrations/developer-tools/skills) with `npx skills add`. |
-
-The plugins are optional. They bundle the MCP and skills steps into one install that stays up to date, and require **Phoenix 19.0.0 or later**. Neither includes the [Phoenix Docs MCP](/docs/phoenix/integrations/mcp#phoenix-docs-mcp) for documentation lookup, so add it separately if you want it.
-
 ## Find your Phoenix endpoint
 
 Every setup needs the **endpoint** of your Phoenix instance: the base URL you open Phoenix at in the browser, with no trailing slash and no path such as `/mcp` or `/v1`. Go to the **Settings** page in your Phoenix instance to find your endpoint and, if auth is enabled, to create an **API key**.
@@ -70,7 +70,7 @@ Every setup needs the **endpoint** of your Phoenix instance: the base URL you op
 | Local Phoenix (`phoenix serve`) | `http://localhost:6006` | `http://localhost:6006/mcp` |
 | Deployed Phoenix | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
 
-Enter the endpoint column, never the `/mcp` column. The plugins and the `px` CLI append `/mcp` themselves. A local Phoenix works with the defaults everywhere; the API key is only required when auth is enabled.
+Give the plugins and the `px` CLI the endpoint column. They append `/mcp` themselves, so pasting the `/mcp` column would produce `/mcp/mcp`, which does not exist. Registering a server by hand is the exception: `claude mcp add` and the per-client steps on the [MCP](/docs/phoenix/integrations/mcp) page take the full `/mcp` URL, since you are naming the server's exact address. A local Phoenix works with the defaults everywhere; the API key is only required when auth is enabled.
 
 The `px` CLI and the Codex plugin read the endpoint from your shell:
 
