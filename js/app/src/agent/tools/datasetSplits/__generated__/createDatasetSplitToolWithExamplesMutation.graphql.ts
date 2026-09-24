@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cfbaff4e1887b9ac82ad93ad0c87c15c>>
+ * @generated SignedSource<<29dae2d73f6bfc4a3cfc30dc6eaeff5e>>
  * @lightSyntaxTransform
  */
 
@@ -16,7 +16,6 @@ export type CreateDatasetSplitWithExamplesInput = {
   name: string;
 };
 export type createDatasetSplitToolWithExamplesMutation$variables = {
-  connections: ReadonlyArray<string>;
   input: CreateDatasetSplitWithExamplesInput;
 };
 export type createDatasetSplitToolWithExamplesMutation$data = {
@@ -43,162 +42,116 @@ export type createDatasetSplitToolWithExamplesMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connections"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
   {
-    "kind": "Variable",
-    "name": "input",
-    "variableName": "input"
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
   }
 ],
-v3 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "color",
   "storageKey": null
 },
-v6 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DatasetSplit",
-  "kind": "LinkedField",
-  "name": "datasetSplit",
-  "plural": false,
-  "selections": [
-    (v3/*:: as any*/),
-    (v4/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "description",
-      "storageKey": null
-    },
-    (v5/*:: as any*/)
-  ],
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DatasetExample",
-  "kind": "LinkedField",
-  "name": "examples",
-  "plural": true,
-  "selections": [
-    (v3/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DatasetSplit",
-      "kind": "LinkedField",
-      "name": "datasetSplits",
-      "plural": true,
-      "selections": [
-        (v3/*:: as any*/),
-        (v4/*:: as any*/),
-        (v5/*:: as any*/)
-      ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
+v4 = [
+  {
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
+      }
     ],
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "createDatasetSplitToolWithExamplesMutation",
+    "concreteType": "DatasetSplitMutationPayloadWithExamples",
+    "kind": "LinkedField",
+    "name": "createDatasetSplitWithExamples",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "DatasetSplitMutationPayloadWithExamples",
+        "args": null,
+        "concreteType": "DatasetSplit",
         "kind": "LinkedField",
-        "name": "createDatasetSplitWithExamples",
+        "name": "datasetSplit",
         "plural": false,
         "selections": [
-          (v6/*:: as any*/),
-          (v7/*:: as any*/)
+          (v1/*:: as any*/),
+          (v2/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
+          },
+          (v3/*:: as any*/)
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "DatasetExample",
+        "kind": "LinkedField",
+        "name": "examples",
+        "plural": true,
+        "selections": [
+          (v1/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetSplit",
+            "kind": "LinkedField",
+            "name": "datasetSplits",
+            "plural": true,
+            "selections": [
+              (v1/*:: as any*/),
+              (v2/*:: as any*/),
+              (v3/*:: as any*/)
+            ],
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*:: as any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "createDatasetSplitToolWithExamplesMutation",
+    "selections": (v4/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "createDatasetSplitToolWithExamplesMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "DatasetSplitMutationPayloadWithExamples",
-        "kind": "LinkedField",
-        "name": "createDatasetSplitWithExamples",
-        "plural": false,
-        "selections": [
-          (v6/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "prependNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "datasetSplit",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connections"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "DatasetSplitEdge"
-              }
-            ]
-          },
-          (v7/*:: as any*/)
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v4/*:: as any*/)
   },
   "params": {
     "cacheID": "9dd6a8d2e25de16870fdead1ebedcb0a",
@@ -211,6 +164,6 @@ return {
 };
 })();
 
-(node as any).hash = "43c87835c6fcb88a09c6eccc0ecbeaf5";
+(node as any).hash = "fc3bbc78612f00e284a36a5cabff38c5";
 
 export default node;

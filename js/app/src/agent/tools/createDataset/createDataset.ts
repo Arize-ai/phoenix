@@ -1,10 +1,6 @@
 import { commitMutation, graphql } from "react-relay";
 
 import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
-import {
-  DATASET_PICKER_CONNECTION_KEYS,
-  getRootConnectionIds,
-} from "@phoenix/agent/shared/relayConnections";
 import { commitAddDatasetExamples } from "@phoenix/agent/tools/datasetExamples";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
@@ -13,21 +9,13 @@ import type { CreateDatasetInput, CreateDatasetResult } from "./types";
 
 /**
  * Returns every field a mounted surface renders for a dataset so the new
- * record is complete in the Relay store: the datasets table row, the dataset
- * page header, and the dataset pickers (`DatasetSelect_dataset` plus the
- * `splits` the with-splits picker reads). The new node is appended to the
- * picker connections the same way `CreateDatasetForm` does; the datasets
- * table is refetched through the agent data-change bridge because its
- * connection is keyed by the user's current sort and filter.
+ * record is complete in the Relay store. Mounted dataset lists refetch through
+ * the agent data-change bridge after creation.
  */
 const mutation = graphql`
-  mutation createDatasetToolMutation(
-    $input: CreateDatasetInput!
-    $connections: [ID!]!
-  ) {
+  mutation createDatasetToolMutation($input: CreateDatasetInput!) {
     createDataset(input: $input) {
-      dataset
-        @appendNode(connections: $connections, edgeTypeName: "DatasetEdge") {
+      dataset {
         id
         name
         description
@@ -72,7 +60,6 @@ function commitCreate(
       mutation,
       variables: {
         input: { name, description, metadata: {} },
-        connections: getRootConnectionIds(DATASET_PICKER_CONNECTION_KEYS),
       },
       onCompleted: (response, errors) => {
         const message = errors?.find((error) => error.message)?.message;

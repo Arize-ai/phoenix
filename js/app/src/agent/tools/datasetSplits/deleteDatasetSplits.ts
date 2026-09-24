@@ -5,33 +5,23 @@ import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
 } from "@phoenix/agent/shared/pendingDatasetWrite";
-import {
-  DATASET_SPLIT_CONNECTION_KEYS,
-  getRootConnectionIds,
-} from "@phoenix/agent/shared/relayConnections";
 import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
 
 import type { deleteDatasetSplitsToolMutation } from "./__generated__/deleteDatasetSplitsToolMutation.graphql";
 import { fetchSplitsByNames } from "./listSplits";
-import { refreshDatasetSplits } from "./refreshDatasetSplits";
 import type { DeleteDatasetSplitsInput } from "./types";
 
 /**
- * Removes the deleted splits from the manage-splits list. The root
- * `datasetSplits` list is refetched separately on success (see
- * {@link refreshDatasetSplits}). Example rows that carried a deleted split are
- * refreshed through the agent data-change bridge; the records are not
+ * Mounted split lists and example rows refetch through the agent data-change
+ * bridge after deletion. Deleted records are not
  * `@deleteRecord`-ed because `DatasetExample.datasetSplits` is a non-null
  * list and a deleted node would read back as `null` inside it.
  */
 const mutation = graphql`
-  mutation deleteDatasetSplitsToolMutation(
-    $input: DeleteDatasetSplitInput!
-    $connections: [ID!]!
-  ) {
+  mutation deleteDatasetSplitsToolMutation($input: DeleteDatasetSplitInput!) {
     deleteDatasetSplits(input: $input) {
       datasetSplits {
-        id @deleteEdge(connections: $connections)
+        id
         name
       }
     }
@@ -65,10 +55,8 @@ export async function commitDeleteDatasetSplits({
     mutation,
     variables: {
       input: { datasetSplitIds: ids },
-      connections: getRootConnectionIds(DATASET_SPLIT_CONNECTION_KEYS),
     },
-    onSuccess: async () => {
-      await refreshDatasetSplits();
+    onSuccess: () => {
       emitAgentDataChange({ entity: "datasetSplits" });
       return `Deleted split(s): ${splitNames.join(", ")}.`;
     },

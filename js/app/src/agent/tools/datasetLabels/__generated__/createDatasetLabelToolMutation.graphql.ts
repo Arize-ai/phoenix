@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59ead594f3488db72636873b81c67303>>
+ * @generated SignedSource<<b50eaceda47cb0ab57a6c5c920a81ef6>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,6 @@ export type CreateDatasetLabelInput = {
   name: string;
 };
 export type createDatasetLabelToolMutation$variables = {
-  connections: ReadonlyArray<string>;
   input: CreateDatasetLabelInput;
 };
 export type createDatasetLabelToolMutation$data = {
@@ -43,169 +42,123 @@ export type createDatasetLabelToolMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connections"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
   {
-    "kind": "Variable",
-    "name": "input",
-    "variableName": "input"
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
   }
 ],
-v3 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "color",
   "storageKey": null
 },
-v6 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DatasetLabel",
-  "kind": "LinkedField",
-  "name": "datasetLabel",
-  "plural": false,
-  "selections": [
-    (v3/*:: as any*/),
-    (v4/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "description",
-      "storageKey": null
-    },
-    (v5/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "usageCount",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "Dataset",
-  "kind": "LinkedField",
-  "name": "datasets",
-  "plural": true,
-  "selections": [
-    (v3/*:: as any*/),
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "DatasetLabel",
-      "kind": "LinkedField",
-      "name": "labels",
-      "plural": true,
-      "selections": [
-        (v3/*:: as any*/),
-        (v4/*:: as any*/),
-        (v5/*:: as any*/)
-      ],
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
+v4 = [
+  {
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
+      }
     ],
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "createDatasetLabelToolMutation",
+    "concreteType": "CreateDatasetLabelMutationPayload",
+    "kind": "LinkedField",
+    "name": "createDatasetLabel",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "CreateDatasetLabelMutationPayload",
+        "args": null,
+        "concreteType": "DatasetLabel",
         "kind": "LinkedField",
-        "name": "createDatasetLabel",
+        "name": "datasetLabel",
         "plural": false,
         "selections": [
-          (v6/*:: as any*/),
-          (v7/*:: as any*/)
+          (v1/*:: as any*/),
+          (v2/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
+          },
+          (v3/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "usageCount",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "datasets",
+        "plural": true,
+        "selections": [
+          (v1/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetLabel",
+            "kind": "LinkedField",
+            "name": "labels",
+            "plural": true,
+            "selections": [
+              (v1/*:: as any*/),
+              (v2/*:: as any*/),
+              (v3/*:: as any*/)
+            ],
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*:: as any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "createDatasetLabelToolMutation",
+    "selections": (v4/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "createDatasetLabelToolMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "CreateDatasetLabelMutationPayload",
-        "kind": "LinkedField",
-        "name": "createDatasetLabel",
-        "plural": false,
-        "selections": [
-          (v6/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "prependNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "datasetLabel",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connections"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "DatasetLabelEdge"
-              }
-            ]
-          },
-          (v7/*:: as any*/)
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v4/*:: as any*/)
   },
   "params": {
     "cacheID": "e7d2dd78fed07eff26f76bdfa13fb7df",
@@ -218,6 +171,6 @@ return {
 };
 })();
 
-(node as any).hash = "f50d080905c0675dd33438b07e38e891";
+(node as any).hash = "07afaa0803bbb1e4e240db7eb84315b8";
 
 export default node;

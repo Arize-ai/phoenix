@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c84f1507820db0c5438d248d23bf43ad>>
+ * @generated SignedSource<<ea9f556eb4defdd8be88483efd6871dd>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,6 @@ export type CreateDatasetSplitInput = {
   name: string;
 };
 export type createDatasetSplitToolMutation$variables = {
-  connections: ReadonlyArray<string>;
   input: CreateDatasetSplitInput;
 };
 export type createDatasetSplitToolMutation$data = {
@@ -34,131 +33,87 @@ export type createDatasetSplitToolMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "connections"
-},
-v1 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "input"
-},
-v2 = [
+var v0 = [
   {
-    "kind": "Variable",
-    "name": "input",
-    "variableName": "input"
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
   }
 ],
-v3 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DatasetSplit",
-  "kind": "LinkedField",
-  "name": "datasetSplit",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "description",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "color",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": [
-      (v0/*:: as any*/),
-      (v1/*:: as any*/)
+v1 = [
+  {
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
+      }
     ],
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "createDatasetSplitToolMutation",
+    "concreteType": "DatasetSplitMutationPayload",
+    "kind": "LinkedField",
+    "name": "createDatasetSplit",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "DatasetSplitMutationPayload",
+        "args": null,
+        "concreteType": "DatasetSplit",
         "kind": "LinkedField",
-        "name": "createDatasetSplit",
+        "name": "datasetSplit",
         "plural": false,
         "selections": [
-          (v3/*:: as any*/)
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "color",
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*:: as any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "createDatasetSplitToolMutation",
+    "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [
-      (v1/*:: as any*/),
-      (v0/*:: as any*/)
-    ],
+    "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "createDatasetSplitToolMutation",
-    "selections": [
-      {
-        "alias": null,
-        "args": (v2/*:: as any*/),
-        "concreteType": "DatasetSplitMutationPayload",
-        "kind": "LinkedField",
-        "name": "createDatasetSplit",
-        "plural": false,
-        "selections": [
-          (v3/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "filters": null,
-            "handle": "prependNode",
-            "key": "",
-            "kind": "LinkedHandle",
-            "name": "datasetSplit",
-            "handleArgs": [
-              {
-                "kind": "Variable",
-                "name": "connections",
-                "variableName": "connections"
-              },
-              {
-                "kind": "Literal",
-                "name": "edgeTypeName",
-                "value": "DatasetSplitEdge"
-              }
-            ]
-          }
-        ],
-        "storageKey": null
-      }
-    ]
+    "selections": (v1/*:: as any*/)
   },
   "params": {
     "cacheID": "5d4b496912af3a1afc151db7e370a08a",
@@ -171,6 +126,6 @@ return {
 };
 })();
 
-(node as any).hash = "ea21e65b4a225a3a2ceb2969dd91e27b";
+(node as any).hash = "8a755cef14f02b6f538c3aa38f57080f";
 
 export default node;

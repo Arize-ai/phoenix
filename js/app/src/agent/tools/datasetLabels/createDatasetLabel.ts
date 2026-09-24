@@ -1,34 +1,23 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
 } from "@phoenix/agent/shared/pendingDatasetWrite";
-import {
-  DATASET_LABEL_CONNECTION_KEYS,
-  getRootConnectionIds,
-} from "@phoenix/agent/shared/relayConnections";
 
 import type { createDatasetLabelToolMutation } from "./__generated__/createDatasetLabelToolMutation.graphql";
 import { DEFAULT_DATASET_LABEL_COLOR } from "./constants";
 import type { CreateDatasetLabelInput } from "./types";
 
 /**
- * Mirrors `useDatasetLabelMutations`: the new label is prepended to every
- * mounted label list, and the datasets it was attached to come back with
- * their full `labels` so the dataset page header and table chips update.
+ * Returns the attached datasets with their full `labels` so normalized records
+ * update. Mounted label lists refetch through the agent data-change bridge.
  */
 const mutation = graphql`
-  mutation createDatasetLabelToolMutation(
-    $input: CreateDatasetLabelInput!
-    $connections: [ID!]!
-  ) {
+  mutation createDatasetLabelToolMutation($input: CreateDatasetLabelInput!) {
     createDatasetLabel(input: $input) {
-      datasetLabel
-        @prependNode(
-          connections: $connections
-          edgeTypeName: "DatasetLabelEdge"
-        ) {
+      datasetLabel {
         id
         name
         description
@@ -73,10 +62,10 @@ export function commitCreateDatasetLabel({
         color: color ?? DEFAULT_DATASET_LABEL_COLOR,
         datasetIds: attach ? [datasetId] : null,
       },
-      connections: getRootConnectionIds(DATASET_LABEL_CONNECTION_KEYS),
     },
     onSuccess: (response) => {
       const labelName = response.createDatasetLabel.datasetLabel.name;
+      emitAgentDataChange({ entity: "datasetLabels" });
       return attach
         ? `Created label "${labelName}" and attached it to this dataset.`
         : `Created label "${labelName}".`;

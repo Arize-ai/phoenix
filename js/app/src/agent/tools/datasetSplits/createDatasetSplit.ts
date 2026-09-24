@@ -2,37 +2,22 @@ import { commitMutation, graphql } from "react-relay";
 
 import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import type { DatasetWriteApplyResult } from "@phoenix/agent/shared/pendingDatasetWrite";
-import {
-  DATASET_SPLIT_CONNECTION_KEYS,
-  getRootConnectionIds,
-} from "@phoenix/agent/shared/relayConnections";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { createDatasetSplitToolMutation } from "./__generated__/createDatasetSplitToolMutation.graphql";
 import type { createDatasetSplitToolWithExamplesMutation } from "./__generated__/createDatasetSplitToolWithExamplesMutation.graphql";
 import { DEFAULT_DATASET_SPLIT_COLOR } from "./constants";
-import { refreshDatasetSplits } from "./refreshDatasetSplits";
 import type { CreateDatasetSplitInput } from "./types";
 
 /**
- * Both mutations mirror `useDatasetSplitMutations`: the new split is
- * prepended to the manage-splits dialog list. The with-examples variant also
- * returns each seeded example's `datasetSplits`, which is what the examples
- * table renders as split chips. The root `datasetSplits` list (the Splits
- * filter and assign-to-split menus) is refetched separately on success; see
- * {@link refreshDatasetSplits} for why a payload-level `query { }` cannot do it.
+ * The with-examples variant returns each seeded example's `datasetSplits`,
+ * which the examples table renders as split chips. Mounted split lists
+ * refetch through the agent data-change bridge.
  */
 const createMutation = graphql`
-  mutation createDatasetSplitToolMutation(
-    $input: CreateDatasetSplitInput!
-    $connections: [ID!]!
-  ) {
+  mutation createDatasetSplitToolMutation($input: CreateDatasetSplitInput!) {
     createDatasetSplit(input: $input) {
-      datasetSplit
-        @prependNode(
-          connections: $connections
-          edgeTypeName: "DatasetSplitEdge"
-        ) {
+      datasetSplit {
         id
         name
         description
@@ -45,14 +30,9 @@ const createMutation = graphql`
 const createWithExamplesMutation = graphql`
   mutation createDatasetSplitToolWithExamplesMutation(
     $input: CreateDatasetSplitWithExamplesInput!
-    $connections: [ID!]!
   ) {
     createDatasetSplitWithExamples(input: $input) {
-      datasetSplit
-        @prependNode(
-          connections: $connections
-          edgeTypeName: "DatasetSplitEdge"
-        ) {
+      datasetSplit {
         id
         name
         description
@@ -85,9 +65,8 @@ export function commitCreateDatasetSplit({
 }: CreateDatasetSplitInput): Promise<DatasetWriteApplyResult> {
   const resolvedColor = color ?? DEFAULT_DATASET_SPLIT_COLOR;
   const seedCount = exampleIds?.length ?? 0;
-  const connections = getRootConnectionIds(DATASET_SPLIT_CONNECTION_KEYS);
   return new Promise((resolve) => {
-    const onCompleted = async (
+    const onCompleted = (
       datasetSplitName: string | undefined,
       errors: readonly { message?: string }[] | null | undefined
     ) => {
@@ -96,7 +75,6 @@ export function commitCreateDatasetSplit({
         resolve({ ok: false, error: message });
         return;
       }
-      await refreshDatasetSplits();
       emitAgentDataChange({ entity: "datasetSplits" });
       resolve({
         ok: true,
@@ -118,10 +96,9 @@ export function commitCreateDatasetSplit({
               color: resolvedColor,
               exampleIds,
             },
-            connections,
           },
           onCompleted: (response, errors) =>
-            void onCompleted(
+            onCompleted(
               response.createDatasetSplitWithExamples.datasetSplit.name,
               errors
             ),
@@ -134,10 +111,9 @@ export function commitCreateDatasetSplit({
       mutation: createMutation,
       variables: {
         input: { name, description: description ?? null, color: resolvedColor },
-        connections,
       },
       onCompleted: (response, errors) =>
-        void onCompleted(response.createDatasetSplit.datasetSplit.name, errors),
+        onCompleted(response.createDatasetSplit.datasetSplit.name, errors),
       onError: (error) => resolve({ ok: false, error: error.message }),
     });
   });
