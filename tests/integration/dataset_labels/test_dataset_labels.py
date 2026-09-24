@@ -90,8 +90,8 @@ class TestDatasetLabelCRUD:
         client.delete(f"v1/dataset_labels/{label['id']}")
         assert client.get(f"v1/dataset_labels/{label['id']}").status_code == 404
 
-    def test_invalid_label_id_is_422(self, _app: _AppInfo) -> None:
-        assert _httpx_client(_app).get("v1/dataset_labels/not-a-global-id").status_code == 422
+    def test_unknown_label_name_is_404(self, _app: _AppInfo) -> None:
+        assert _httpx_client(_app).get("v1/dataset_labels/not-a-global-id").status_code == 404
 
 
 class TestDatasetLabelMembership:

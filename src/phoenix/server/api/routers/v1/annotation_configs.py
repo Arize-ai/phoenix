@@ -331,7 +331,7 @@ async def create_annotation_config(
     dependencies=[Depends(is_not_locked)],
     operation_id="updateAnnotationConfig",
     summary="Update an annotation configuration by ID or name",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([404]),
 )
 async def update_annotation_config(
     request: Request,
@@ -369,7 +369,7 @@ async def update_annotation_config(
     "/annotation_configs/{config_id}",
     operation_id="deleteAnnotationConfig",
     summary="Delete an annotation configuration by ID or name",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([404]),
 )
 async def delete_annotation_config(
     request: Request,

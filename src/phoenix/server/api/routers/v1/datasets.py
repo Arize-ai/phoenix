@@ -213,7 +213,7 @@ class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
     "/datasets/{id}",
     operation_id="getDataset",
     summary="Get dataset by ID or name",
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([404]),
 )
 async def get_dataset(
     request: Request,

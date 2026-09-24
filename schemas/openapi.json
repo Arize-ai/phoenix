@@ -246,14 +246,14 @@
             "description": "Not Found"
           },
           "422": {
+            "description": "Validation Error",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       },
@@ -308,14 +308,14 @@
             "description": "Not Found"
           },
           "422": {
+            "description": "Validation Error",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -2495,14 +2495,14 @@
             "description": "Not Found"
           },
           "422": {
+            "description": "Validation Error",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
