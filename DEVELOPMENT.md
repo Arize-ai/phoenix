@@ -85,7 +85,7 @@ If a step fails, consult the detailed setup instructions below.
 pnpm dev:datagen   # from js/app
 ```
 
-It sources `js/app/.env` and sends traces to `http://localhost:${PHOENIX_PORT:-6006}`. `mprocs` has no notion of service dependencies, so the script polls the server's `/readyz` endpoint (printing `waiting for Phoenix ...` every two seconds) and only launches datagen once the server and its database are up. If the server later restarts, exports that fail in the meantime are logged as `OTLP export failed` warnings and that trace is skipped; traffic resumes once the server is back.
+It sources `js/app/.env` and sends traces to `http://localhost:${PHOENIX_PORT:-6006}`. It starts at the same time as the server; exports that fail while the server is still booting are logged as `OTLP export failed` warnings and that trace is skipped, so a few warnings at startup are expected; traffic flows once the server is up.
 
 - **Stop or restart it** from the `mprocs` UI: select the `datagen` process and press `x` to stop, `s` to start, or `r` to restart.
 - **Authentication:** if `PHOENIX_ENABLE_AUTH` is on, create a system API key in the Phoenix UI and add `PHOENIX_API_KEY=<key>` to `js/app/.env`. Without it every export fails with `401 Unauthorized`.
