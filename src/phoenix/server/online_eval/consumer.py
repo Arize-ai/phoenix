@@ -1,13 +1,15 @@
 """Online-eval consumer daemon.
 
 Runs on every replica; instances compete for work through coordinator claims.
-Each cycle claims a batch of work units and awaits the whole batch before claiming
-again. The batch size bounds fetched work; shared semaphores bound evaluation and
-database-phase concurrency across every target's consumers:
-hydrate behind the staleness guard (stale units are expired, never executed),
-evaluate with lease heartbeats, write annotations, then complete — or fail
-with a cooldown. Shutdown gives in-flight evals a grace period, then cancels
-stragglers before sandbox teardown.
+A consumer claims only as many work units as it holds evaluator permits for, up
+to the claim batch size, and claims again as soon as a permit frees up. The
+evaluator semaphore is shared across every target's consumers, so it bounds the
+work units a replica runs at once; a shared database semaphore bounds
+database-phase concurrency. Each unit is hydrated behind the staleness guard
+(stale units are expired, never executed), evaluated with lease heartbeats,
+annotated, then completed — or failed with a cooldown. Shutdown stops claiming,
+gives in-flight units a grace period, then cancels stragglers before sandbox
+teardown.
 """
 
 from __future__ import annotations
@@ -149,17 +151,22 @@ class OnlineEvalConsumer(DaemonTask):
         self._publish_metrics = get_env_enable_prometheus()
 
     async def _run(self) -> None:
+        loop = asyncio.get_running_loop()
+        next_metrics_at = loop.time()
         while self._running:
+            started = False
             try:
-                await self._cycle()
+                started = await self._cycle()
             except Exception:
                 logger.exception("Online-eval consumer cycle failed")
-            if self._publish_metrics:
+            if self._publish_metrics and loop.time() >= next_metrics_at:
+                next_metrics_at = loop.time() + self._tick_interval_seconds
                 try:
                     await self._publish_queue_metrics()
                 except Exception:
                     logger.exception("Online-eval queue metrics publish failed")
-            await asyncio.sleep(self._tick_interval_seconds)
+            if not started:
+                await asyncio.sleep(self._tick_interval_seconds)
 
     async def _publish_queue_metrics(self) -> None:
         await self._run_db(self._publish_queue_metrics_with_slot)
@@ -177,50 +184,65 @@ class OnlineEvalConsumer(DaemonTask):
         )
 
     async def stop(self) -> None:
-        self._running = False
+        await super().stop()
         if self._pending_tasks:
             _, pending = await asyncio.wait(set(self._pending_tasks), timeout=DRAIN_TIMEOUT_SECONDS)
             for task in pending:
                 task.cancel()
             if pending:
                 await asyncio.gather(*pending, return_exceptions=True)
-        await super().stop()
 
-    async def _cycle(self) -> None:
+    async def _cycle(self) -> bool:
+        """Claim as many units as this consumer holds evaluator permits for, start each
+        one with its own permit, and return whether any work started."""
         if self._db.should_not_insert_or_update:
-            return
-        units = await self._run_db(
-            lambda: self._coordinator.claim(
-                claimed_by=self._consumer_id,
-                limit=self._claim_batch_size,
-            )
-        )
-        if not units:
-            return
+            return False
+        permits = await self._acquire_permits()
         try:
-            configurations = await self._executor.hydrate_configuration_snapshots(units)
-            # Nothing awaits between here and the last create_task, so every claimed
-            # unit is covered either by this handler or by its own task.
-            tasks = [
-                asyncio.create_task(self._process_unit(unit, configuration))
-                for unit, configuration in zip(units, configurations, strict=True)
-            ]
-        except asyncio.CancelledError:
-            # Batch hydration runs before any task exists, so stop()'s drain cannot
-            # see these claims; releasing them keeps a shutdown from charging an
-            # attempt to work that never started.
-            for unit in units:
-                await self._release_claim(unit)
-            raise
-        for task in tasks:
-            self._pending_tasks.add(task)
-            task.add_done_callback(self._pending_tasks.discard)
-        # asyncio.wait does not propagate this task's cancellation to the unit
-        # tasks; a shutdown mid-cycle leaves them to the stop() drain.
-        done, _ = await asyncio.wait(tasks)
-        for task in done:
-            if not task.cancelled() and (exc := task.exception()) is not None:
-                logger.error("Online-eval work unit task failed", exc_info=exc)
+            units = await self._run_db(
+                lambda: self._coordinator.claim(
+                    claimed_by=self._consumer_id,
+                    limit=permits,
+                )
+            )
+            if not units:
+                return False
+            try:
+                configurations = await self._executor.hydrate_configuration_snapshots(units)
+            except asyncio.CancelledError:
+                # Batch hydration runs before any task exists, so stop()'s drain cannot
+                # see these claims; releasing them keeps a shutdown from charging an
+                # attempt to work that never started.
+                for unit in units:
+                    await self._release_claim(unit)
+                raise
+            for unit, configuration in zip(units, configurations, strict=True):
+                task = asyncio.create_task(self._process_unit(unit, configuration))
+                permits -= 1
+                self._pending_tasks.add(task)
+                task.add_done_callback(self._unit_finished)
+            # A failed batch hydration releases its claims; back off rather than
+            # re-claim the same units at once.
+            return not any(isinstance(c, SharedHydrationFailure) for c in configurations)
+        finally:
+            for _ in range(permits):
+                self._evaluator_semaphore.release()
+
+    async def _acquire_permits(self) -> int:
+        """Wait for one evaluator permit, then take any others that are free without
+        waiting, up to the claim batch size."""
+        await self._evaluator_semaphore.acquire()
+        permits = 1
+        while permits < self._claim_batch_size and not self._evaluator_semaphore.locked():
+            await self._evaluator_semaphore.acquire()
+            permits += 1
+        return permits
+
+    def _unit_finished(self, task: asyncio.Task[None]) -> None:
+        self._pending_tasks.discard(task)
+        self._evaluator_semaphore.release()
+        if not task.cancelled() and (exc := task.exception()) is not None:
+            logger.error("Online-eval work unit task failed", exc_info=exc)
 
     async def _run_db(self, operation: Callable[[], Awaitable[_T]]) -> _T:
         if self._db_semaphore is None:
@@ -273,45 +295,6 @@ class OnlineEvalConsumer(DaemonTask):
             claimed_by=self._consumer_id,
         )
 
-    async def _acquire_with_heartbeat(
-        self,
-        unit: ClaimedWorkUnit,
-        semaphore: asyncio.Semaphore,
-    ) -> None:
-        """Acquire a permit while keeping the lease alive. The queue is unbounded —
-        the execution deadline only starts once a permit is held — but the lease
-        started at claim time, so an unheartbeated wait silently loses the claim."""
-        acquisition = asyncio.create_task(semaphore.acquire())
-        heartbeat_enabled = True
-        while True:
-            try:
-                done, _ = await asyncio.wait({acquisition}, timeout=HEARTBEAT_INTERVAL_SECONDS)
-            except BaseException:
-                # A permit granted while the wait was being torn down still has to
-                # be handed back, or the limiter leaks capacity on every shutdown.
-                if acquisition.done():
-                    if not acquisition.cancelled() and acquisition.exception() is None:
-                        semaphore.release()
-                else:
-                    await _cancel_and_await(acquisition)
-                raise
-            if done:
-                await acquisition
-                return
-            if not heartbeat_enabled:
-                continue
-            try:
-                if not await self._heartbeat(unit.work_unit_id):
-                    logger.warning(
-                        f"Online-eval work unit {unit.work_unit_id} heartbeat stopped after "
-                        "its claim was lost while queued for an evaluator permit"
-                    )
-                    heartbeat_enabled = False
-            except Exception:
-                logger.exception(
-                    f"Heartbeat failed for queued online-eval work unit {unit.work_unit_id}"
-                )
-
     async def _execute_unit(
         self,
         unit: ClaimedWorkUnit,
@@ -351,11 +334,7 @@ class OnlineEvalConsumer(DaemonTask):
                     )
                 return
             hydrated_work_unit = hydrated
-            await self._acquire_with_heartbeat(unit, self._evaluator_semaphore)
-            try:
-                await self._evaluate_with_heartbeat(unit, hydrated)
-            finally:
-                self._evaluator_semaphore.release()
+            await self._evaluate_with_heartbeat(unit, hydrated)
         except OnlineEvalStoragePaused:
             released = await self._retry_transition(
                 action="pause",
