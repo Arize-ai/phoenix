@@ -66,7 +66,7 @@ class QueueLag:
     """Observable backlog; all counts are zero when no work rows exist.
     ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is
     None when that backlog is empty. ``expired_count`` covers every retirement without
-    an outcome: EXPIRED, SUPERSEDED, CONTENT_LOST, and DROPPED."""
+    an outcome: EXPIRED, SUPERSEDED, and CONTENT_LOST."""
 
     pending_count: int
     running_count: int
