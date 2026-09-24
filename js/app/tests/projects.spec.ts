@@ -400,6 +400,57 @@ test.describe.serial("Projects", () => {
     ).toHaveCount(0);
   });
 
+  test("creating an evaluator from the gallery lands on the evaluator list", async ({
+    page,
+  }) => {
+    const galleryProjectName = `gallery-project-${randomUUID().slice(0, 8)}`;
+    const evaluatorName = `gallery-evaluator-${randomUUID().slice(0, 8)}`;
+    await createProject(
+      page,
+      galleryProjectName,
+      "Project evaluator gallery creation test"
+    );
+
+    await page.getByRole("tab", { name: "Evaluators" }).click();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+
+    await page.getByRole("button", { name: "Browse eval gallery" }).click();
+    const gallery = page.getByRole("dialog", { name: "Evaluator gallery" });
+    await expect(gallery).toBeVisible();
+
+    // Dismissing the creation slideover returns to the gallery it was
+    // launched from.
+    await gallery
+      .getByRole("button", { name: "Customize this evaluator" })
+      .click();
+    const createDialog = page.getByRole("dialog", {
+      name: /^Create “.+” evaluator$/,
+    });
+    await expect(createDialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(createDialog).not.toBeVisible();
+    await expect(gallery).toBeVisible();
+
+    // Creating one ends the journey on the list, showing the new evaluator.
+    await gallery
+      .getByRole("button", { name: "Customize this evaluator" })
+      .click();
+    await expect(createDialog).toBeVisible();
+    await createDialog.getByLabel("Name").first().fill(evaluatorName);
+    await createDialog
+      .getByRole("button", { name: "Create", exact: true })
+      .click();
+    await expect(createDialog).not.toBeVisible();
+    await expect(gallery).not.toBeVisible();
+    await expect(page).toHaveURL(EVALUATORS_URL);
+    await expect(
+      page
+        .getByRole("table", { name: "Project evaluators" })
+        .getByRole("row")
+        .filter({ hasText: evaluatorName })
+    ).toBeVisible();
+  });
+
   test("project table remains usable after mutation workflows", async ({
     page,
   }) => {

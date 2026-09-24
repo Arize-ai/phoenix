@@ -50,11 +50,15 @@ export function ProjectEvaluatorsPage() {
   ) => {
     setGallerySelection(selection);
   };
+  // return to project evaluator list after create
+  const onEvaluatorCreated = () => {
+    setGallerySelection(null);
+  };
   const paths = useProjectEvaluatorPaths();
   return (
     // Wraps the gallery too: the gallery's own add-evaluator menu shares the
     // menu component that reads this context.
-    <ProjectEvaluatorProvider value={{ openGallery }}>
+    <ProjectEvaluatorProvider value={{ openGallery, onEvaluatorCreated }}>
       <main
         css={css`
           flex: 1 1 auto;
