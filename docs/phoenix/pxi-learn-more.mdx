@@ -10,17 +10,17 @@ Reference for [PXI](/docs/phoenix/pxi). Start there for what it does and how to 
 
 ## What it can do
 
-### Skills
+### Example capabilities
 
-A **skill** is a reusable procedure for one Phoenix workflow: what to look at, in what order, and what the output should be. PXI loads the matching one on demand.
-
-| Skill | What it does |
+| You can ask PXI to | Try asking |
 | --- | --- |
-| **Prompt playground** | Co-author and optimize prompts, with every edit shown as a diff to approve. |
-| **Evaluator authoring** | Draft and refine LLM-as-a-judge and code evaluators against your data. |
-| **Datasets** | Turn the failures you find into curated datasets, splits, and labels for experiments and evals. |
-| **Experiments** | Run and read experiments over a dataset to compare prompt or model changes. |
-| **GraphQL queries** | Query the Phoenix API with GraphQL for custom analysis, or get working queries for your own scripts, built on schema patterns that skip introspection. |
+| Co-author and optimize a prompt, with every edit shown as a diff you approve | *Tighten this system prompt so it stops apologizing before answering* |
+| Draft and refine an LLM-as-a-judge or code evaluator against your data | *Write an evaluator that flags answers with no citation* |
+| Turn the failures you find into a curated dataset, with splits and labels | *Add every failing trace from today to a dataset called regressions* |
+| Run and read experiments over a dataset to compare prompt or model changes | *Rerun the last experiment with the new prompt and compare the scores* |
+| Query the Phoenix API with GraphQL for custom analysis, or hand you a working query for your own scripts | *Which projects had the most errors this week?* |
+
+Each of these is backed by a **skill**, a reusable procedure for one Phoenix workflow that PXI loads on demand: what to look at, in what order, and what the output should be.
 
 ### Filing GitHub issues
 
