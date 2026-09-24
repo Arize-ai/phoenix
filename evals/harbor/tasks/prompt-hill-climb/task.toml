@@ -1,0 +1,62 @@
+schema_version = "1.3"
+multi_step_reward_strategy = "mean"
+artifacts = ["/var/lib/phoenix-eval/server.log"]
+
+[task]
+name = "arize/phoenix-prompt-hill-climb"
+description = "The agent writes an exact-match evaluator for a text-to-SQL dataset, hill-climbs a prompt from empty until every example passes, then compares the first and last experiments"
+keywords = ["pxi", "experiments", "evaluators", "prompt_optimization"]
+
+[metadata]
+fixture = "prompt-hill-climb"
+
+[environment]
+os = "linux"
+cpus = 2
+memory_mb = 4096
+# Add hosts in the job or agent configuration to keep this task's dataset version stable
+# across providers and operators.
+network_mode = "allowlist"
+build_timeout_sec = 1200.0
+
+[environment.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+
+# Start Phoenix as root so it can read the fixture before the unprivileged agent runs.
+[environment.healthcheck]
+command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
+timeout_sec = 180.0
+retries = 2
+
+# Prevent the agent from reading /data/phoenix.db directly.
+[agent]
+user = "agent"
+
+# The verifier needs public access because agent host allowances do not apply during
+# verification and its LLM judge calls an external provider.
+[verifier]
+network_mode = "public"
+
+[[steps]]
+name = "step_01_create_evaluator"
+min_reward = 1.0
+[steps.agent]
+timeout_sec = 1200.0
+[steps.verifier]
+timeout_sec = 300.0
+
+[[steps]]
+name = "step_02_hill_climb"
+min_reward = 1.0
+[steps.agent]
+timeout_sec = 3600.0
+[steps.verifier]
+timeout_sec = 300.0
+
+[[steps]]
+name = "step_03_compare"
+[steps.agent]
+timeout_sec = 1200.0
+[steps.verifier]
+timeout_sec = 300.0
