@@ -15,17 +15,9 @@ npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-evals
 ```
 
 ```text
-Create a Phoenix dataset called "travel-support" with these three examples,
-mapping question to input and expected_answer to output:
-
-  question: "My flight was cancelled. What are my options?"
-  expected_answer: "Offer rebooking on the next available flight and explain refund eligibility."
-
-  question: "Can I bring a carry-on plus a backpack?"
-  expected_answer: "State the carry-on allowance and confirm a personal item is included."
-
-  question: "I need to change the name on my ticket."
-  expected_answer: "Explain that name changes require verification and may incur a fee."
+Download https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv
+and create a Phoenix dataset called "travel-support" from it, mapping the
+question column to input and expected_answer to output.
 
 Then write an LLM-as-a-judge evaluator that scores whether a reply answers the
 question and matches the expected answer. Run an experiment over the dataset
