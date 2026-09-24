@@ -209,7 +209,7 @@ class Spans:
         Spans are fetched page by page from the span list endpoint, sorted by start
         time, newest first. The query's ``where`` is evaluated by the server, and its
         ``select``, ``explode``, ``concat``, ``rename`` and ``with_index`` are applied
-        to the result. Requires Phoenix server >= 20.16.0.
+        to the result. Requires Phoenix server >= 20.17.0.
 
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
@@ -242,16 +242,21 @@ class Spans:
             )
         if project_identifier and project_name:
             raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
-        spans = self.get_spans(
-            project_identifier=project_identifier or project_name or "default",
-            start_time=normalized_start_time,
-            end_time=normalized_end_time,
-            filter=query.to_dict().get("filter", {}).get("condition"),
-            root_spans_only=root_spans_only,
-            sort="start_time",
-            limit=limit,
-            timeout=timeout,
-        )
+        try:
+            spans = self.get_spans(
+                project_identifier=project_identifier or project_name or "default",
+                start_time=normalized_start_time,
+                end_time=normalized_end_time,
+                filter=query.to_dict().get("filter", {}).get("condition"),
+                root_spans_only=root_spans_only,
+                sort="start_time",
+                limit=limit,
+                timeout=timeout,
+            )
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code != 404:
+                raise
+            spans = []  # an unknown project exported an empty dataframe before
         return spans_to_dataframe(spans, query)
 
     def get_span_annotations_dataframe(
@@ -531,10 +536,10 @@ class Spans:
                 Requires Phoenix server >= 14.9.0.
             filter (Optional[str]): A span filter expression, as documented at
                 https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions,
-                ANDed with the other filters. Requires Phoenix server >= 20.16.0.
+                ANDed with the other filters. Requires Phoenix server >= 20.17.0.
             root_spans_only (Optional[bool]): When True, return only root spans: spans
                 with no parent id plus orphans whose parent is not in the database.
-                Requires Phoenix server >= 20.16.0.
+                Requires Phoenix server >= 20.17.0.
             sort (Optional[Literal["id", "start_time"]]): Which field orders the
                 result. The default, ``"id"``, is insertion order;
                 ``"start_time"`` is when each span started, with ties broken by id.
@@ -1523,7 +1528,7 @@ class AsyncSpans:
         Spans are fetched page by page from the span list endpoint, sorted by start
         time, newest first. The query's ``where`` is evaluated by the server, and its
         ``select``, ``explode``, ``concat``, ``rename`` and ``with_index`` are applied
-        to the result. Requires Phoenix server >= 20.16.0.
+        to the result. Requires Phoenix server >= 20.17.0.
 
         Returns:
             pd.DataFrame: A pandas DataFrame containing the retrieved spans.
@@ -1556,16 +1561,21 @@ class AsyncSpans:
             )
         if project_identifier and project_name:
             raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
-        spans = await self.get_spans(
-            project_identifier=project_identifier or project_name or "default",
-            start_time=normalized_start_time,
-            end_time=normalized_end_time,
-            filter=query.to_dict().get("filter", {}).get("condition"),
-            root_spans_only=root_spans_only,
-            sort="start_time",
-            limit=limit,
-            timeout=timeout,
-        )
+        try:
+            spans = await self.get_spans(
+                project_identifier=project_identifier or project_name or "default",
+                start_time=normalized_start_time,
+                end_time=normalized_end_time,
+                filter=query.to_dict().get("filter", {}).get("condition"),
+                root_spans_only=root_spans_only,
+                sort="start_time",
+                limit=limit,
+                timeout=timeout,
+            )
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code != 404:
+                raise
+            spans = []  # an unknown project exported an empty dataframe before
         return spans_to_dataframe(spans, query)
 
     async def get_span_annotations_dataframe(
@@ -1845,10 +1855,10 @@ class AsyncSpans:
                 Requires Phoenix server >= 14.9.0.
             filter (Optional[str]): A span filter expression, as documented at
                 https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions,
-                ANDed with the other filters. Requires Phoenix server >= 20.16.0.
+                ANDed with the other filters. Requires Phoenix server >= 20.17.0.
             root_spans_only (Optional[bool]): When True, return only root spans: spans
                 with no parent id plus orphans whose parent is not in the database.
-                Requires Phoenix server >= 20.16.0.
+                Requires Phoenix server >= 20.17.0.
             sort (Optional[Literal["id", "start_time"]]): Which field orders the
                 result. The default, ``"id"``, is insertion order;
                 ``"start_time"`` is when each span started, with ties broken by id.

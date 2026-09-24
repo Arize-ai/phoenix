@@ -175,7 +175,7 @@ def test_get_spans_dataframe_empty_result_keeps_shape() -> None:
     assert dataframe.empty
     assert dataframe.index.name == "context.span_id"
     assert list(dataframe.columns) == _LEGACY_COLUMNS
-    assert str(dataframe.dtypes["start_time"]) == "datetime64[ns, UTC]"
+    assert set(map(str, dataframe.dtypes)) == {"object"}, "legacy left an empty frame untyped"
 
 
 def test_get_spans_dataframe_sends_the_where_clause_as_a_filter_expression() -> None:

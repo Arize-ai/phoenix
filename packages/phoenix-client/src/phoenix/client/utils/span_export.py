@@ -44,6 +44,11 @@ _TIMESTAMP_COLUMNS = ("start_time", "end_time")
 
 _ATTRIBUTES_PREFIX = "attributes."
 
+_SPAN_KIND_ATTRIBUTE = "openinference.span.kind"
+
+_SUBSCRIPT_ROOTS = {"attributes": (), "metadata": ("metadata",)}
+"""Names a subscript projection may start from, with the attribute path each stands for."""
+
 _UNAVAILABLE_FIELDS = (
     "cumulative_llm_token_count_completion",
     "cumulative_llm_token_count_prompt",
@@ -84,6 +89,10 @@ def spans_to_dataframe(
     Without ``select``, ``explode`` or ``concat`` every span field and attribute is a
     column, indexed by span id while keeping the id as a column. With any of them, only
     the projected columns remain and the index column is dropped, as the legacy export did.
+
+    A span without the exploded array is dropped. A span without the concatenated array
+    is dropped too, unless the query also explodes, in which case its concat columns are
+    left empty; both follow the legacy export.
     """
     plan = query.to_dict() if query else {}
     if not any(step in plan for step in ("select", "explode", "concat")):
@@ -91,7 +100,12 @@ def spans_to_dataframe(
     return _rename(_projected_export(spans, plan), plan)
 
 
+_ALIASED_COLUMNS = {"span_id": _SPAN_ID, "trace_id": _TRACE_ID}
+"""Short column labels the legacy export renamed to their ``context.`` form."""
+
+
 def _rename(df: "pd.DataFrame", plan: Mapping[str, Any]) -> "pd.DataFrame":
+    df = df.rename(columns=_ALIASED_COLUMNS)
     if rename := plan.get("rename"):
         return df.rename(columns=dict(rename))
     return df
@@ -104,13 +118,13 @@ def _full_export(spans: Sequence[v1.Span]) -> "pd.DataFrame":
         [_span_fields(span) for span in spans],
         columns=list(SPAN_EXPORT_COLUMNS),
     ).set_index(_SPAN_ID, drop=False)
-    for column in _TIMESTAMP_COLUMNS:
-        df[column] = pd.to_datetime(df[column], utc=True, format="ISO8601")
     if df.empty:
         return df
-    attributes = pd.DataFrame.from_records(
-        [nest_span_attributes(span.get("attributes") or {}) for span in spans]
-    ).set_axis(df.index, axis=0)
+    for column in _TIMESTAMP_COLUMNS:
+        df[column] = pd.to_datetime(df[column], utc=True, format="ISO8601")
+    attributes = pd.DataFrame.from_records([_span_attributes(span) for span in spans]).set_axis(
+        df.index, axis=0
+    )
     return pd.concat([df, attributes.add_prefix(_ATTRIBUTES_PREFIX)], axis=1)
 
 
@@ -136,22 +150,25 @@ def _projected_export(spans: Sequence[v1.Span], plan: Mapping[str, Any]) -> "pd.
             base.setdefault(key, record.project(key))
         if concat:
             concatenated = record.concat(concat)
-            if concatenated is None:
+            if concatenated is None and not explode:
                 continue
-            base.update(concatenated)
+            base.update(concatenated or {})
         if explode:
             for exploded in record.explode(explode):
-                rows.append({**base, **exploded})
+                rows.append({**exploded, **base})
         else:
             rows.append(base)
 
-    columns = list(
-        dict.fromkeys([*index_keys, *select, *_known_labels(explode), *_known_labels(concat)])
-    )
-    df = pd.DataFrame.from_records(rows, columns=columns if not rows else None)
-    for column in _TIMESTAMP_COLUMNS:
-        if column in df.columns:
-            df[column] = pd.to_datetime(df[column], utc=True, format="ISO8601")
+    known = [*index_keys, *select, *_known_labels(explode), *_known_labels(concat)]
+    df = pd.DataFrame.from_records(rows)
+    for column in known:
+        if column not in df.columns:
+            df[column] = pd.Series(dtype=object, index=df.index)
+    df = df[list(dict.fromkeys([*known, *df.columns]))]
+    if not df.empty:
+        for column in _TIMESTAMP_COLUMNS:
+            if column in df.columns:
+                df[column] = pd.to_datetime(df[column], utc=True, format="ISO8601")
     return df.set_index(index_keys)
 
 
@@ -176,7 +193,7 @@ class _SpanRecord:
 
     def __init__(self, span: v1.Span) -> None:
         self.fields = _span_fields(span)
-        self.attributes = nest_span_attributes(span.get("attributes") or {})
+        self.attributes = _span_attributes(span)
 
     def project(self, key: str) -> Any:
         key = _canonical(key)
@@ -245,6 +262,17 @@ def _span_fields(span: v1.Span) -> dict[str, Any]:
     }
 
 
+def _span_attributes(span: v1.Span) -> dict[str, Any]:
+    """The span's attributes re-nested, with the span kind restored as an attribute.
+
+    Ingestion stores ``openinference.span.kind`` among the attributes and the legacy
+    export kept it there, but the span list endpoint lifts it out into ``span_kind``.
+    """
+    return nest_span_attributes(
+        {_SPAN_KIND_ATTRIBUTE: span["span_kind"], **(span.get("attributes") or {})}
+    )
+
+
 def _latency_ms(fields: Mapping[str, Any]) -> Optional[float]:
     import pandas as pd
 
@@ -259,7 +287,8 @@ def _lookup(attributes: Mapping[str, Any], key: str) -> Any:
     """Resolve a projection key against nested attributes.
 
     Accepts the dotted form (``output.value``), the same with an ``attributes.`` prefix,
-    and the subscript form the server DSL also allows (``attributes['output']['value']``).
+    and the subscript forms the server DSL also allows (``attributes['output']['value']``,
+    ``metadata['key']``).
     """
     if "[" in key:
         return _lookup_subscript(attributes, key)
@@ -281,9 +310,9 @@ def _lookup_subscript(attributes: Mapping[str, Any], expression: str) -> Any:
         else:
             raise ValueError(f"invalid projection: {expression}")
         node = node.value
-    if not isinstance(node, ast.Name) or node.id != "attributes":
+    if not isinstance(node, ast.Name) or node.id not in _SUBSCRIPT_ROOTS:
         raise ValueError(f"invalid projection: {expression}")
-    return get_attribute_value(attributes, ".".join(keys))
+    return get_attribute_value(attributes, ".".join([*_SUBSCRIPT_ROOTS[node.id], *keys]))
 
 
 def _flatten(mapping: Mapping[str, Any], prefix: str = "") -> Iterator[tuple[str, Any]]:
