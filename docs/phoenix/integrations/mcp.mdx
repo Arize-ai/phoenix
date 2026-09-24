@@ -3,7 +3,7 @@ title: "MCP Servers"
 description: Connect Claude Code, Cursor, VS Code, and any other MCP client to your live Phoenix data and the Phoenix documentation.
 ---
 
-Phoenix has two [MCP](https://modelcontextprotocol.io/) servers. The Remote MCP Server is built into Phoenix at `/mcp` and gives an agent your projects, traces, sessions, datasets, experiments, prompts, and annotations. The Phoenix Docs MCP is a hosted server that answers questions from this documentation. Run one or both.
+Phoenix has two [MCP](https://modelcontextprotocol.io/) servers: one for your data, one for this documentation. Run one or both.
 
 | Server | What it does | When to use |
 | --- | --- | --- |
@@ -18,8 +18,6 @@ The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) reaches the sa
 The server is your [Phoenix endpoint](/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint) plus `/mcp`, so `http://localhost:6006/mcp` for a local Phoenix. It requires Phoenix 19.0.0 or later; on older servers, use the [npm package](#phoenix-mcp-server-npm).
 
 ### Connect
-
-Clients authenticate with **OAuth** (authorization code + PKCE). Phoenix is its own authorization server and supports dynamic client registration, so there is nothing to pre-configure: add the server and your client opens a browser login, with tokens scoped to your permissions. A Phoenix running without authentication needs no login.
 
 The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) writes the config for you and infers your endpoint:
 
@@ -151,11 +149,11 @@ To write the config by hand, or for a client `px` does not cover, use the steps 
   </Accordion>
 </AccordionGroup>
 
-Then, in your client, list its MCP servers: `/mcp` in Claude Code or Codex, `claude mcp list` from a shell, or the client's MCP settings. `phoenix` shows as connected. With auth enabled, the first use opens a browser login.
+Then list your client's MCP servers, with `/mcp` in Claude Code or Codex or `claude mcp list` from a shell. `phoenix` shows as connected. With auth enabled, first use opens a browser login; there is nothing to pre-configure.
 
 ### What your agent can do with it
 
-The server presents seven tools. The agent finds an operation with `search` or `tags`, checks its parameters with `get_schema`, then runs Python in `execute` that chains as many operations as the task needs, filtering and joining the results before they reach its context window. The catalog is generated from the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview), around 116 operations, so it always matches what your Phoenix version can do. `load_skill` pulls in a Phoenix [skill](/docs/phoenix/integrations/developer-tools/skills) before the agent works in its domain.
+Everything the [Phoenix REST API](/docs/phoenix/sdk-api-reference/rest-api/overview) can do, around 116 operations, which the agent composes in a single call. [How it works](#how-it-works) has the tool list.
 
 Example prompt:
 
@@ -167,9 +165,9 @@ On a fresh Phoenix, ask it to list your projects; it comes back with one, named 
 
 ## Phoenix Docs MCP
 
-The Phoenix Docs MCP server lets AI assistants search and retrieve the Phoenix documentation in real time. Run it alongside the [Remote MCP Server](#remote-mcp-server) so your assistant can answer questions from the docs as well as your Phoenix instance. No authentication is required. Neither plugin includes it.
+Answers questions from this documentation. No authentication. Neither plugin includes it, so add it separately.
 
-This is an endpoint for a client to connect to, not a page to visit. Opening it in a browser returns the server's tool manifest as JSON, which is the server working correctly. Paste it into a client instead:
+This is an endpoint for a client, not a page: a browser shows its tool manifest as JSON. Paste it into a client:
 
 ```text
 https://arizeai-433a7140.mintlify.app/mcp
@@ -316,7 +314,7 @@ Code mode relies on [Monty's](https://github.com/pydantic/monty) security model 
 
 #### Mounting your own skills
 
-`PHOENIX_SKILLS_PATHS` serves your own [Agent Skills](https://agentskills.io/specification) alongside Phoenix's built-in ones. Point `PHOENIX_SKILLS_PATHS` at one or more skill directories, or at directories containing skills, on the Phoenix server. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
+Point `PHOENIX_SKILLS_PATHS` at one or more skill directories on the Phoenix server to serve your own [Agent Skills](https://agentskills.io/specification) alongside the built-in ones. Use absolute paths in deployments: a relative path resolves against the directory the server was started from, not `PHOENIX_WORKING_DIR`.
 
 ```bash
 PHOENIX_SKILLS_PATHS=/opt/skills/team-analysis,/srv/agents/skills
@@ -369,7 +367,7 @@ Each skill is a directory whose name matches the `name` in its `SKILL.md` frontm
 **Maintenance mode.** `@arizeai/phoenix-mcp` continues to receive bug fixes, but new capabilities land in the [Remote MCP Server](#remote-mcp-server). Use it when your Phoenix version doesn't serve `/mcp`, or when your client can only reach a local process.
 </Warning>
 
-The Phoenix MCP Server (`@arizeai/phoenix-mcp`) is a local stdio server, launched with `npx`, that connects AI assistants directly to your Phoenix instance. In every client, pass your Phoenix endpoint with `--baseUrl` and an [API key](/docs/phoenix/settings/api-keys) with `--apiKey` (for a local instance, `--baseUrl http://localhost:6006`).
+A local stdio server launched with `npx`. In every client, pass your endpoint with `--baseUrl` and an [API key](/docs/phoenix/settings/api-keys) with `--apiKey`.
 
 <AccordionGroup>
   <Accordion title="Claude Code">
