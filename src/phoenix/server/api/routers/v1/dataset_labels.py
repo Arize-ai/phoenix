@@ -19,6 +19,7 @@ from phoenix.server.api.routers.v1.utils import (
     ResponseBody,
     add_errors_to_responses,
     get_dataset_by_identifier,
+    get_dataset_label_by_identifier,
 )
 from phoenix.server.api.types.DatasetLabel import DatasetLabel as DatasetLabelNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -199,13 +200,12 @@ async def list_dataset_labels(
 )
 async def get_dataset_label(
     request: Request,
-    label_id: str = Path(description="The ID of the dataset label"),
+    label_id: str = Path(
+        description="The dataset label identifier: either label ID or label name."
+    ),
 ) -> GetDatasetLabelResponseBody:
-    label_rowid = _get_dataset_label_rowid(label_id)
     async with request.app.state.db() as session:
-        dataset_label = await session.get(models.DatasetLabel, label_rowid)
-        if dataset_label is None:
-            raise HTTPException(status_code=404, detail="Dataset label not found")
+        dataset_label = await get_dataset_label_by_identifier(session, label_id)
         return GetDatasetLabelResponseBody(data=_db_to_api_dataset_label(dataset_label))
 
 
@@ -270,10 +270,10 @@ async def create_dataset_label(
 async def update_dataset_label(
     request: Request,
     request_body: UpdateDatasetLabelRequestBody,
-    label_id: str = Path(description="The ID of the dataset label"),
+    label_id: str = Path(
+        description="The dataset label identifier: either label ID or label name."
+    ),
 ) -> UpdateDatasetLabelResponseBody:
-    label_rowid = _get_dataset_label_rowid(label_id)
-
     patch = {
         column.key: patch_value
         for column, patch_value, column_is_nullable in (
@@ -287,10 +287,11 @@ async def update_dataset_label(
         raise HTTPException(status_code=422, detail="No fields to update")
 
     async with request.app.state.db() as session:
+        dataset_label = await get_dataset_label_by_identifier(session, label_id)
         try:
             dataset_label = await session.scalar(
                 update(models.DatasetLabel)
-                .where(models.DatasetLabel.id == label_rowid)
+                .where(models.DatasetLabel.id == dataset_label.id)
                 .values(**patch)
                 .returning(models.DatasetLabel)
             )
@@ -322,17 +323,15 @@ async def update_dataset_label(
 )
 async def delete_dataset_label(
     request: Request,
-    label_id: str = Path(description="The ID of the dataset label"),
+    label_id: str = Path(
+        description="The dataset label identifier: either label ID or label name."
+    ),
 ) -> Response:
-    label_rowid = _get_dataset_label_rowid(label_id)
     async with request.app.state.db() as session:
-        deleted = await session.scalar(
-            delete(models.DatasetLabel)
-            .where(models.DatasetLabel.id == label_rowid)
-            .returning(models.DatasetLabel.id)
+        dataset_label = await get_dataset_label_by_identifier(session, label_id)
+        await session.execute(
+            delete(models.DatasetLabel).where(models.DatasetLabel.id == dataset_label.id)
         )
-        if deleted is None:
-            raise HTTPException(status_code=404, detail="Dataset label not found")
     return Response(status_code=204)
 
 
@@ -397,14 +396,14 @@ async def add_dataset_label_to_dataset(
     dataset_identifier: str = Path(
         description="The dataset identifier: either the dataset ID (GlobalID) or its name.",
     ),
-    label_id: str = Path(description="The ID of the dataset label to apply"),
+    label_id: str = Path(
+        description="The dataset label identifier: either label ID or label name."
+    ),
 ) -> AddDatasetLabelToDatasetResponseBody:
-    label_rowid = _get_dataset_label_rowid(label_id)
     async with request.app.state.db() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        dataset_label = await session.get(models.DatasetLabel, label_rowid)
-        if dataset_label is None:
-            raise HTTPException(status_code=404, detail="Dataset label not found")
+        dataset_label = await get_dataset_label_by_identifier(session, label_id)
+        label_rowid = dataset_label.id
         data = _db_to_api_dataset_label(dataset_label)
         already_applied = await session.scalar(
             select(models.DatasetsDatasetLabel).where(
@@ -448,11 +447,13 @@ async def remove_dataset_label_from_dataset(
     dataset_identifier: str = Path(
         description="The dataset identifier: either the dataset ID (GlobalID) or its name.",
     ),
-    label_id: str = Path(description="The ID of the dataset label to remove"),
+    label_id: str = Path(
+        description="The dataset label identifier: either label ID or label name."
+    ),
 ) -> Response:
-    label_rowid = _get_dataset_label_rowid(label_id)
     async with request.app.state.db() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
+        label_rowid = (await get_dataset_label_by_identifier(session, label_id)).id
         await session.execute(
             delete(models.DatasetsDatasetLabel).where(
                 models.DatasetsDatasetLabel.dataset_id == dataset.id,

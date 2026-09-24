@@ -119,9 +119,9 @@ async def test_crud_operations(
     assert get_by_name_response.status_code == 200
     assert get_by_name_response.json()["data"] == created_config
 
-    # Update the annotation config
+    # Update the annotation config by name
     update_response = await httpx_client.put(
-        f"/v1/annotation_configs/{config_id}",
+        "/v1/annotation_configs/config-name",
         json=update_config,
     )
     assert update_response.status_code == 200
@@ -130,8 +130,8 @@ async def test_crud_operations(
     expected_updated_config["id"] = config_id
     assert updated_config == expected_updated_config
 
-    # Delete the annotation config
-    delete_response = await httpx_client.delete(f"/v1/annotation_configs/{config_id}")
+    # Delete the annotation config by its updated name
+    delete_response = await httpx_client.delete("/v1/annotation_configs/updated-config-name")
     assert delete_response.status_code == 200
     assert delete_response.json()["data"] == expected_updated_config
 

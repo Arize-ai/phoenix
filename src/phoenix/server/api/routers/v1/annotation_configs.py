@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, RootModel
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -34,6 +33,7 @@ from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
+    get_annotation_config_by_identifier,
     get_project_by_identifier,
 )
 from phoenix.server.api.types.AnnotationConfig import (
@@ -286,16 +286,7 @@ async def get_annotation_config_by_name_or_id(
     config_identifier: str = Path(..., description="ID or name of the annotation configuration"),
 ) -> GetAnnotationConfigResponseBody:
     async with request.app.state.db() as session:
-        query = select(models.AnnotationConfig)
-        # Try to interpret the identifier as an integer ID; if not, use it as a name.
-        try:
-            db_id = _get_annotation_config_db_id(config_identifier)
-            query = query.where(models.AnnotationConfig.id == db_id)
-        except ValueError:
-            query = query.where(models.AnnotationConfig.name == config_identifier)
-        config = await session.scalar(query)
-        if not config:
-            raise HTTPException(status_code=404, detail="Annotation configuration not found")
+        config = await get_annotation_config_by_identifier(session, config_identifier)
         return GetAnnotationConfigResponseBody(data=db_to_api_annotation_config(config))
 
 
@@ -339,24 +330,18 @@ async def create_annotation_config(
     "/annotation_configs/{config_id}",
     dependencies=[Depends(is_not_locked)],
     operation_id="updateAnnotationConfig",
-    summary="Update an annotation configuration",
+    summary="Update an annotation configuration by ID or name",
+    responses=add_errors_to_responses([404, 422]),
 )
 async def update_annotation_config(
     request: Request,
     data: CreateAnnotationConfigData,
-    config_id: str = Path(..., description="ID of the annotation configuration"),
+    config_id: str = Path(
+        ..., description="The annotation configuration identifier: either ID or name."
+    ),
 ) -> UpdateAnnotationConfigResponseBody:
     input_config = data.root
     _reserve_note_annotation_name(input_config)
-
-    config_gid = GlobalID.from_id(config_id)
-    if config_gid.type_name not in (
-        CategoricalAnnotationConfigType.__name__,
-        ContinuousAnnotationConfigType.__name__,
-        FreeformAnnotationConfigType.__name__,
-    ):
-        raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
-    config_rowid = int(config_gid.node_id)
 
     try:
         db_config = _to_db_annotation_config(input_config)
@@ -364,9 +349,7 @@ async def update_annotation_config(
         raise HTTPException(status_code=400, detail=str(error))
 
     async with request.app.state.db() as session:
-        existing_config = await session.get(models.AnnotationConfig, config_rowid)
-        if not existing_config:
-            raise HTTPException(status_code=404, detail="Annotation configuration not found")
+        existing_config = await get_annotation_config_by_identifier(session, config_id)
 
         existing_config.name = input_config.name
         existing_config.config = db_config
@@ -385,37 +368,24 @@ async def update_annotation_config(
 @router.delete(
     "/annotation_configs/{config_id}",
     operation_id="deleteAnnotationConfig",
-    summary="Delete an annotation configuration",
+    summary="Delete an annotation configuration by ID or name",
+    responses=add_errors_to_responses([404, 422]),
 )
 async def delete_annotation_config(
     request: Request,
-    config_id: str = Path(..., description="ID of the annotation configuration"),
+    config_id: str = Path(
+        ..., description="The annotation configuration identifier: either ID or name."
+    ),
 ) -> DeleteAnnotationConfigResponseBody:
-    try:
-        config_gid = GlobalID.from_id(config_id)
-    except Exception:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Invalid annotation configuration ID format: {config_id}",
-        )
-    if config_gid.type_name not in (
-        CategoricalAnnotationConfigType.__name__,
-        ContinuousAnnotationConfigType.__name__,
-        FreeformAnnotationConfigType.__name__,
-    ):
-        raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
-    config_rowid = int(config_gid.node_id)
     async with request.app.state.db() as session:
-        stmt = (
-            delete(models.AnnotationConfig)
-            .where(models.AnnotationConfig.id == config_rowid)
-            .returning(models.AnnotationConfig)
+        annotation_config = await get_annotation_config_by_identifier(session, config_id)
+        data = db_to_api_annotation_config(annotation_config)
+        await session.execute(
+            delete(models.AnnotationConfig).where(
+                models.AnnotationConfig.id == annotation_config.id
+            )
         )
-        annotation_config = await session.scalar(stmt)
-        if annotation_config is None:
-            raise HTTPException(status_code=404, detail="Annotation configuration not found")
-        await session.commit()
-    return DeleteAnnotationConfigResponseBody(data=db_to_api_annotation_config(annotation_config))
+    return DeleteAnnotationConfigResponseBody(data=data)
 
 
 @router.get(
@@ -538,7 +508,7 @@ async def assign_annotation_config_to_project(
     """
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
-        config = await _get_annotation_config_by_identifier(session, config_identifier)
+        config = await get_annotation_config_by_identifier(session, config_identifier)
         # Serialize before mutating the session so the response is unaffected by the commit
         # expiring the ORM instance.
         data = db_to_api_annotation_config(config)
@@ -596,7 +566,7 @@ async def unassign_annotation_config_from_project(
     """
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
-        config = await _get_annotation_config_by_identifier(session, config_identifier)
+        config = await get_annotation_config_by_identifier(session, config_identifier)
         await session.execute(
             delete(models.ProjectAnnotationConfig).where(
                 models.ProjectAnnotationConfig.project_id == project.id,
@@ -703,36 +673,6 @@ async def set_project_annotation_configs(
         await session.commit()
 
     return SetProjectAnnotationConfigsResponseBody(next_cursor=None, data=data)
-
-
-async def _get_annotation_config_by_identifier(
-    session: AsyncSession,
-    config_identifier: str,
-) -> models.AnnotationConfig:
-    """
-    Get an annotation configuration by its GlobalID or name.
-
-    Args:
-        session: The database session.
-        config_identifier: The annotation config GlobalID or name.
-
-    Returns:
-        The annotation config object.
-
-    Raises:
-        HTTPException: 404 if the annotation config is not found.
-    """
-    query = select(models.AnnotationConfig)
-    # Try to interpret the identifier as a GlobalID; if not, use it as a name.
-    try:
-        db_id = _get_annotation_config_db_id(config_identifier)
-        query = query.where(models.AnnotationConfig.id == db_id)
-    except ValueError:
-        query = query.where(models.AnnotationConfig.name == config_identifier)
-    config = await session.scalar(query)
-    if config is None:
-        raise HTTPException(status_code=404, detail="Annotation configuration not found")
-    return config
 
 
 def _get_annotation_config_db_id(config_gid: str) -> int:

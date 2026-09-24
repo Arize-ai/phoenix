@@ -6,7 +6,6 @@ from typing import Annotated, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BeforeValidator, Field
 from sqlalchemy import delete, insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
@@ -21,6 +20,7 @@ from phoenix.server.api.routers.v1.utils import (
     ResponseBody,
     add_errors_to_responses,
     get_project_by_identifier,
+    get_session_by_identifier,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
@@ -145,29 +145,6 @@ class DeleteSessionsRequestBody(V1RoutesBaseModel):
     )
 
 
-async def _get_session_by_identifier(
-    session: AsyncSession,
-    session_identifier: str,
-) -> models.ProjectSession:
-    row_id = _parse_session_global_id(session_identifier)
-    if row_id is not None:
-        project_session = await session.get(models.ProjectSession, row_id)
-        if project_session is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Session with ID {session_identifier} not found",
-            )
-    else:
-        stmt = select(models.ProjectSession).filter_by(session_id=session_identifier)
-        project_session = await session.scalar(stmt)
-        if project_session is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Session with session_id {session_identifier} not found",
-            )
-    return project_session
-
-
 def _to_trace_data(trace: models.Trace) -> SessionTraceData:
     return SessionTraceData(
         id=str(GlobalID(TraceNodeType.__name__, str(trace.id))),
@@ -209,7 +186,7 @@ async def get_session(
     ),
 ) -> GetSessionResponseBody:
     async with request.app.state.db.read() as db_session:
-        project_session = await _get_session_by_identifier(db_session, session_identifier)
+        project_session = await get_session_by_identifier(db_session, session_identifier)
         traces_stmt = (
             select(models.Trace)
             .filter_by(project_session_rowid=project_session.id)
@@ -247,27 +224,12 @@ async def delete_session(
         description="The session identifier: either a GlobalID or user-provided session_id string.",
     ),
 ) -> None:
-    row_id = _parse_session_global_id(session_identifier)
     async with request.app.state.db() as session:
-        if row_id is not None:
-            where_clause = models.ProjectSession.id == row_id
-            error_detail = f"Session with ID '{session_identifier}' not found"
-        else:
-            where_clause = models.ProjectSession.session_id == session_identifier
-            error_detail = f"Session with session_id '{session_identifier}' not found"
-
-        delete_stmt = (
-            delete(models.ProjectSession)
-            .where(where_clause)
-            .returning(models.ProjectSession.project_id)
+        project_session = await get_session_by_identifier(session, session_identifier)
+        project_id = project_session.project_id
+        await session.execute(
+            delete(models.ProjectSession).where(models.ProjectSession.id == project_session.id)
         )
-        project_id = await session.scalar(delete_stmt)
-
-        if project_id is None:
-            raise HTTPException(
-                status_code=404,
-                detail=error_detail,
-            )
 
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))
     return None

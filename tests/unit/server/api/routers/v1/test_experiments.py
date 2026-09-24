@@ -261,17 +261,37 @@ async def test_reading_experiments(
     assert all(experiment[key] == value for key, value in expected.items())
 
 
-async def test_listing_experiments_on_empty_dataset(
+async def test_listing_experiments_on_nonexistent_dataset_404s(
     httpx_client: httpx.AsyncClient,
     dataset_with_experiments_without_runs: Any,
 ) -> None:
     dataset_gid = GlobalID("Dataset", "0")
 
     response = await httpx_client.get(f"v1/datasets/{dataset_gid}/experiments")
+    assert response.status_code == 404
+
+
+async def test_listing_and_creating_experiments_by_dataset_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    upload = await httpx_client.post(
+        "v1/datasets/upload?sync=true",
+        json={"action": "create", "name": "named-dataset", "inputs": [{"q": "Q"}]},
+    )
+    assert upload.status_code == 200
+    dataset_id = upload.json()["data"]["dataset_id"]
+
+    response = await httpx_client.get("v1/datasets/named-dataset/experiments")
     assert response.status_code == 200
-    experiments = response.json()["data"]
-    [experiment["id"] for experiment in experiments]
-    assert len(experiments) == 0, "Both experiments are associated with Dataset with ID 1"
+    assert response.json()["data"] == []
+
+    response = await httpx_client.post("v1/datasets/named-dataset/experiments", json={})
+    assert response.status_code == 200
+    assert response.json()["data"]["dataset_id"] == dataset_id
+
+    response = await httpx_client.get("v1/datasets/named-dataset/experiments")
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 1
 
 
 async def test_listing_experiments_by_dataset(

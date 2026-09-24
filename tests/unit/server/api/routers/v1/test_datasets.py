@@ -1135,23 +1135,62 @@ async def test_delete_dataset(
         (await httpx_client.delete(url)).raise_for_status()
 
 
+async def test_dataset_routes_accept_the_dataset_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "named dataset", 2)
+
+    response = await httpx_client.get("v1/datasets/named dataset")
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == dataset_id
+    assert response.json()["data"]["example_count"] == 2
+
+    response = await httpx_client.get("v1/datasets/named dataset/examples")
+    assert response.status_code == 200
+    assert response.json()["data"]["dataset_id"] == dataset_id
+    assert len(response.json()["data"]["examples"]) == 2
+
+    response = await httpx_client.get("v1/datasets/named dataset/versions")
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 1
+
+    response = await httpx_client.get("v1/datasets/named dataset/csv")
+    assert response.status_code == 200
+    assert "named%20dataset.csv" in response.headers["content-disposition"]
+
+    response = await httpx_client.get("v1/datasets/named dataset/jsonl")
+    assert response.status_code == 200
+
+    response = await httpx_client.delete("v1/datasets/named dataset")
+    assert response.status_code == 204
+    assert (await httpx_client.get(f"v1/datasets/{dataset_id}")).status_code == 404
+
+
+async def test_dataset_routes_404_on_an_unknown_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.get("v1/datasets/no-such-dataset")
+    assert response.status_code == 404
+    assert "no-such-dataset" in response.text
+
+
 async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     global_id = GlobalID("Dataset", str(0))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 404
-    assert response.content.decode() == f"No dataset with id {global_id} can be found."
+    assert response.content.decode() == f"Dataset with ID {global_id} not found"
 
 
-async def test_get_dataset_examples_404s_with_invalid_global_id(
+async def test_get_dataset_examples_422s_with_a_global_id_of_another_type(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     global_id = GlobalID("InvalidDataset", str(0))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
-    assert response.status_code == 404
-    assert "refers to a InvalidDataset" in response.content.decode()
+    assert response.status_code == 422
+    assert f"Invalid Dataset identifier: {global_id}" in response.content.decode()
 
 
 async def test_get_dataset_examples_404s_with_nonexistent_version_id(
@@ -4890,15 +4929,29 @@ async def test_update_dataset_split_not_found(
     assert response.status_code == 404
 
 
-async def test_update_dataset_split_invalid_id(
+async def test_update_dataset_split_unknown_name(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_422", 1)
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_404", 1)
     response = await httpx_client.patch(
         url=f"/v1/datasets/{dataset_id}/splits/not-a-global-id",
         json={"name": "x"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 404
+
+
+async def test_update_dataset_split_by_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_patch_name", 1)
+    split = await _create_split(httpx_client, dataset_id, "train")
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/train",
+        json={"add_example_ids": example_ids},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == split["id"]
+    assert await _list_split_counts(httpx_client, dataset_id) == {"train": 1}
 
 
 async def test_update_dataset_split_duplicate_name_conflict(
@@ -4996,12 +5049,22 @@ async def test_delete_dataset_split_not_found(
     assert response.status_code == 404
 
 
-async def test_delete_dataset_split_invalid_id(
+async def test_delete_dataset_split_unknown_name(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_422", 1)
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_404", 1)
     response = await httpx_client.delete(f"/v1/datasets/{dataset_id}/splits/not-a-global-id")
-    assert response.status_code == 422
+    assert response.status_code == 404
+
+
+async def test_delete_dataset_split_by_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_name", 1)
+    await _create_split(httpx_client, dataset_id, "train")
+    response = await httpx_client.delete(f"/v1/datasets/{dataset_id}/splits/train")
+    assert response.status_code == 204
+    assert await _list_split_counts(httpx_client, dataset_id) == {}
 
 
 # ---------------------------------------------------------------------------

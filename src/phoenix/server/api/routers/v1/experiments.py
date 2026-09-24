@@ -36,6 +36,7 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     add_text_csv_content_to_responses,
+    get_dataset_by_identifier,
 )
 
 router = APIRouter(tags=["experiments"], include_in_schema=True)
@@ -124,23 +125,10 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 async def create_experiment(
     request: Request,
     request_body: CreateExperimentRequestBody,
-    dataset_id: str = Path(..., title="Dataset ID"),
+    dataset_id: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
 ) -> CreateExperimentResponseBody:
-    try:
-        dataset_globalid = GlobalID.from_id(dataset_id)
-    except Exception as e:
-        raise HTTPException(
-            detail=f"Invalid dataset ID format: {dataset_id}",
-            status_code=422,
-        ) from e
-    try:
-        dataset_rowid = from_global_id_with_expected_type(dataset_globalid, "Dataset")
-    except ValueError:
-        raise HTTPException(
-            detail="Dataset with ID {dataset_globalid} does not exist",
-            status_code=404,
-        )
-
     dataset_version_globalid_str = request_body.version_id
     if dataset_version_globalid_str is not None:
         try:
@@ -161,15 +149,10 @@ async def create_experiment(
             )
 
     async with request.app.state.db() as session:
-        result = (
-            await session.execute(select(models.Dataset).where(models.Dataset.id == dataset_rowid))
-        ).scalar()
-        if result is None:
-            raise HTTPException(
-                detail=f"Dataset with ID {dataset_globalid} does not exist",
-                status_code=404,
-            )
-        dataset_name = result.name
+        dataset = await get_dataset_by_identifier(session, dataset_id)
+        dataset_rowid = dataset.id
+        dataset_globalid = GlobalID("Dataset", str(dataset_rowid))
+        dataset_name = dataset.name
         if dataset_version_globalid_str is None:
             dataset_version_result = await session.execute(
                 select(models.DatasetVersion)
@@ -778,7 +761,9 @@ async def get_incomplete_runs(
 )
 async def list_experiments(
     request: Request,
-    dataset_id: str = Path(..., title="Dataset ID"),
+    dataset_id: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
     cursor: Optional[str] = Query(
         default=None,
         description="Cursor for pagination (base64-encoded experiment ID)",
@@ -787,21 +772,8 @@ async def list_experiments(
         default=50, description="The max number of experiments to return at a time.", gt=0
     ),
 ) -> ListExperimentsResponseBody:
-    try:
-        dataset_gid = GlobalID.from_id(dataset_id)
-    except Exception as e:
-        raise HTTPException(
-            detail=f"Invalid dataset ID format: {dataset_id}",
-            status_code=422,
-        ) from e
-    try:
-        dataset_rowid = from_global_id_with_expected_type(dataset_gid, "Dataset")
-    except ValueError:
-        raise HTTPException(
-            detail=f"Dataset with ID {dataset_gid} does not exist",
-            status_code=404,
-        )
     async with request.app.state.db() as session:
+        dataset_rowid = (await get_dataset_by_identifier(session, dataset_id)).id
         query = (
             select(models.Experiment)
             .where(models.Experiment.dataset_id == dataset_rowid)

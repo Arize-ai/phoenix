@@ -65,6 +65,7 @@ from .utils import (
     add_errors_to_responses,
     add_text_csv_content_to_responses,
     get_dataset_by_identifier,
+    get_dataset_split_by_identifier,
     parse_cursor_rowid,
 )
 
@@ -171,7 +172,7 @@ async def list_datasets(
 @router.delete(
     "/datasets/{id}",
     operation_id="deleteDatasetById",
-    summary="Delete dataset by ID",
+    summary="Delete dataset by ID or name",
     status_code=204,
     responses=add_errors_to_responses(
         [
@@ -181,26 +182,18 @@ async def list_datasets(
     ),
 )
 async def delete_dataset(
-    request: Request, id: str = Path(description="The ID of the dataset to delete.")
+    request: Request,
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
 ) -> None:
-    if id:
-        try:
-            dataset_id = from_global_id_with_expected_type(
-                GlobalID.from_id(id),
-                DATASET_NODE_NAME,
-            )
-        except ValueError:
-            raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
-    else:
-        raise HTTPException(detail="Missing Dataset ID", status_code=422)
-    project_names_stmt = get_project_names_for_datasets(dataset_id)
-    eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
-    stmt = (
-        delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
-    )
     async with request.app.state.db() as session:
-        project_names = await session.scalars(project_names_stmt)
-        eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+        dataset_id = (await get_dataset_by_identifier(session, id)).id
+        project_names = await session.scalars(get_project_names_for_datasets(dataset_id))
+        eval_trace_ids = await session.scalars(get_eval_trace_ids_for_datasets(dataset_id))
+        stmt = (
+            delete(models.Dataset)
+            .where(models.Dataset.id == dataset_id)
+            .returning(models.Dataset.id)
+        )
         if (await session.scalar(stmt)) is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
     tasks = BackgroundTasks()
@@ -219,44 +212,29 @@ class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
 @router.get(
     "/datasets/{id}",
     operation_id="getDataset",
-    summary="Get dataset by ID",
-    responses=add_errors_to_responses([404]),
+    summary="Get dataset by ID or name",
+    responses=add_errors_to_responses([404, 422]),
 )
 async def get_dataset(
-    request: Request, id: str = Path(description="The ID of the dataset")
+    request: Request,
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
 ) -> GetDatasetResponseBody:
-    try:
-        dataset_id = GlobalID.from_id(id)
-    except Exception as e:
-        raise HTTPException(
-            detail=f"Invalid dataset ID format: {id}",
-            status_code=422,
-        ) from e
-
-    if (type_name := dataset_id.type_name) != DATASET_NODE_NAME:
-        raise HTTPException(detail=f"ID {dataset_id} refers to a f{type_name}", status_code=404)
     async with request.app.state.db() as session:
-        result = await session.execute(
-            select(models.Dataset, models.Dataset.example_count).filter(
-                models.Dataset.id == int(dataset_id.node_id)
+        dataset = await get_dataset_by_identifier(session, id)
+        example_count = await session.scalar(
+            select(models.Dataset.example_count).where(models.Dataset.id == dataset.id)
+        )
+        return GetDatasetResponseBody(
+            data=DatasetWithExampleCount(
+                id=str(GlobalID(DATASET_NODE_NAME, str(dataset.id))),
+                name=dataset.name,
+                description=dataset.description,
+                metadata=dataset.metadata_,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+                example_count=example_count or 0,
             )
         )
-        dataset_query = result.first()
-        dataset = dataset_query[0] if dataset_query else None
-        example_count = dataset_query[1] if dataset_query else 0
-        if dataset is None:
-            raise HTTPException(detail=f"Dataset with ID {dataset_id} not found", status_code=404)
-
-        dataset = DatasetWithExampleCount(
-            id=str(dataset_id),
-            name=dataset.name,
-            description=dataset.description,
-            metadata=dataset.metadata_,
-            created_at=dataset.created_at,
-            updated_at=dataset.updated_at,
-            example_count=example_count,
-        )
-        return GetDatasetResponseBody(data=dataset)
 
 
 class DatasetVersion(V1RoutesBaseModel):
@@ -278,7 +256,7 @@ class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
 )
 async def list_dataset_versions(
     request: Request,
-    id: str = Path(description="The ID of the dataset"),
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
     cursor: Optional[str] = Query(
         default=None,
         description="Cursor for pagination",
@@ -287,37 +265,22 @@ async def list_dataset_versions(
         default=10, description="The max number of dataset versions to return at a time", gt=0
     ),
 ) -> ListDatasetVersionsResponseBody:
-    if id:
-        try:
-            dataset_id = from_global_id_with_expected_type(
-                GlobalID.from_id(id),
-                DATASET_NODE_NAME,
-            )
-        except ValueError:
-            raise HTTPException(
-                detail=f"Invalid Dataset ID: {id}",
-                status_code=422,
-            )
-    else:
-        raise HTTPException(
-            detail="Missing Dataset ID",
-            status_code=422,
-        )
-    stmt = (
-        select(models.DatasetVersion)
-        .where(models.DatasetVersion.dataset_id == dataset_id)
-        .order_by(models.DatasetVersion.id.desc())
-        .limit(limit + 1)
-    )
-    if cursor:
-        dataset_version_id = parse_cursor_rowid(cursor, DATASET_VERSION_NODE_NAME)
-        max_dataset_version_id = (
-            select(models.DatasetVersion.id)
-            .where(models.DatasetVersion.id == dataset_version_id)
-            .where(models.DatasetVersion.dataset_id == dataset_id)
-        ).scalar_subquery()
-        stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
     async with request.app.state.db() as session:
+        dataset_id = (await get_dataset_by_identifier(session, id)).id
+        stmt = (
+            select(models.DatasetVersion)
+            .where(models.DatasetVersion.dataset_id == dataset_id)
+            .order_by(models.DatasetVersion.id.desc())
+            .limit(limit + 1)
+        )
+        if cursor:
+            dataset_version_id = parse_cursor_rowid(cursor, DATASET_VERSION_NODE_NAME)
+            max_dataset_version_id = (
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.id == dataset_version_id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+            ).scalar_subquery()
+            stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
         data = [
             DatasetVersion(
                 version_id=str(GlobalID(DATASET_VERSION_NODE_NAME, str(version.id))),
@@ -1322,7 +1285,7 @@ class ListDatasetExamplesResponseBody(ResponseBody[ListDatasetExamplesData]):
 )
 async def get_dataset_examples(
     request: Request,
-    id: str = Path(description="The ID of the dataset"),
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -1334,14 +1297,6 @@ async def get_dataset_examples(
         description="List of dataset split identifiers (GlobalIDs or names) to filter by",
     ),
 ) -> ListDatasetExamplesResponseBody:
-    try:
-        dataset_gid = GlobalID.from_id(id)
-    except Exception as e:
-        raise HTTPException(
-            detail=f"Invalid dataset ID format: {id}",
-            status_code=422,
-        ) from e
-
     if version_id:
         try:
             version_gid = GlobalID.from_id(version_id)
@@ -1353,22 +1308,11 @@ async def get_dataset_examples(
     else:
         version_gid = None
 
-    if (dataset_type := dataset_gid.type_name) != "Dataset":
-        raise HTTPException(detail=f"ID {dataset_gid} refers to a {dataset_type}", status_code=404)
-
     if version_gid and (version_type := version_gid.type_name) != "DatasetVersion":
         raise HTTPException(detail=f"ID {version_gid} refers to a {version_type}", status_code=404)
 
     async with request.app.state.db() as session:
-        if (
-            resolved_dataset_id := await session.scalar(
-                select(models.Dataset.id).where(models.Dataset.id == int(dataset_gid.node_id))
-            )
-        ) is None:
-            raise HTTPException(
-                detail=f"No dataset with id {dataset_gid} can be found.",
-                status_code=404,
-            )
+        resolved_dataset_id = (await get_dataset_by_identifier(session, id)).id
 
         # Subquery to find the maximum created_at for each dataset_example_id
         # timestamp tiebreaks are resolved by the largest id
@@ -1844,15 +1788,10 @@ async def update_dataset_split(
     dataset_identifier: str = Path(
         description="The dataset identifier: either dataset ID or dataset name."
     ),
-    split_id: str = Path(description="The ID (GlobalID) of the dataset split."),
+    split_id: str = Path(
+        description="The dataset split identifier: either split ID or split name."
+    ),
 ) -> UpdateDatasetSplitResponseBody:
-    try:
-        split_rowid = from_global_id_with_expected_type(
-            GlobalID.from_id(split_id), DATASET_SPLIT_NODE_NAME
-        )
-    except Exception:
-        raise HTTPException(detail=f"Invalid dataset split ID: {split_id}", status_code=422)
-
     # Validate provided scalar fields up front so an invalid value fails before any DB work.
     fields_set = request_body.model_fields_set
     new_name: Optional[str] = None
@@ -1868,11 +1807,8 @@ async def update_dataset_split(
 
     async with request.app.state.db() as session:
         dataset = await get_dataset_by_identifier(session, dataset_identifier)
-        split = await session.get(models.DatasetSplit, split_rowid)
-        if split is None:
-            raise HTTPException(
-                detail=f"Dataset split with ID {split_id} not found", status_code=404
-            )
+        split = await get_dataset_split_by_identifier(session, split_id)
+        split_rowid = split.id
 
         # Perform all reads before mutating the split: subsequent queries would
         # otherwise autoflush pending changes and surface integrity errors
@@ -1958,28 +1894,17 @@ async def delete_dataset_split(
     dataset_identifier: str = Path(
         description="The dataset identifier: either dataset ID or dataset name."
     ),
-    split_id: str = Path(description="The ID (GlobalID) of the dataset split."),
+    split_id: str = Path(
+        description="The dataset split identifier: either split ID or split name."
+    ),
 ) -> None:
-    try:
-        split_rowid = from_global_id_with_expected_type(
-            GlobalID.from_id(split_id), DATASET_SPLIT_NODE_NAME
-        )
-    except Exception:
-        raise HTTPException(detail=f"Invalid dataset split ID: {split_id}", status_code=422)
     async with request.app.state.db() as session:
         # Confirm the dataset exists so the path is meaningful, then delete the
         # split globally. Its example memberships are removed via ON DELETE
         # CASCADE; the underlying examples are left untouched.
         await get_dataset_by_identifier(session, dataset_identifier)
-        deleted_id = await session.scalar(
-            delete(models.DatasetSplit)
-            .where(models.DatasetSplit.id == split_rowid)
-            .returning(models.DatasetSplit.id)
-        )
-        if deleted_id is None:
-            raise HTTPException(
-                detail=f"Dataset split with ID {split_id} not found", status_code=404
-            )
+        split = await get_dataset_split_by_identifier(session, split_id)
+        await session.execute(delete(models.DatasetSplit).where(models.DatasetSplit.id == split.id))
 
 
 @router.get(
@@ -1996,7 +1921,7 @@ async def delete_dataset_split(
 async def get_dataset_csv(
     request: Request,
     response: Response,
-    id: str = Path(description="The ID of the dataset"),
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -2004,10 +1929,6 @@ async def get_dataset_csv(
         ),
     ),
 ) -> Response:
-    try:
-        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
-    except Exception as e:
-        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
     dataset_version_id: Optional[int] = None
     if version_id:
         try:
@@ -2020,7 +1941,8 @@ async def get_dataset_csv(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            dataset = await get_dataset_by_identifier(session, id)
+            dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
@@ -2056,7 +1978,7 @@ async def get_dataset_csv(
 async def get_dataset_jsonl(
     request: Request,
     response: Response,
-    id: str = Path(description="The ID of the dataset"),
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -2064,10 +1986,6 @@ async def get_dataset_jsonl(
         ),
     ),
 ) -> bytes:
-    try:
-        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
-    except Exception as e:
-        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
     dataset_version_id: Optional[int] = None
     if version_id:
         try:
@@ -2080,7 +1998,8 @@ async def get_dataset_jsonl(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            dataset = await get_dataset_by_identifier(session, id)
+            dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
@@ -2113,7 +2032,7 @@ async def get_dataset_jsonl(
 async def get_dataset_jsonl_openai_ft(
     request: Request,
     response: Response,
-    id: str = Path(description="The ID of the dataset"),
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -2121,10 +2040,6 @@ async def get_dataset_jsonl_openai_ft(
         ),
     ),
 ) -> bytes:
-    try:
-        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
-    except Exception as e:
-        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
     dataset_version_id: Optional[int] = None
     if version_id:
         try:
@@ -2137,7 +2052,8 @@ async def get_dataset_jsonl_openai_ft(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            dataset = await get_dataset_by_identifier(session, id)
+            dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
@@ -2168,7 +2084,7 @@ async def get_dataset_jsonl_openai_ft(
 async def get_dataset_jsonl_openai_evals(
     request: Request,
     response: Response,
-    id: str = Path(description="The ID of the dataset"),
+    id: str = Path(description="The dataset identifier: either dataset ID or dataset name."),
     version_id: Optional[str] = Query(
         default=None,
         description=(
@@ -2176,10 +2092,6 @@ async def get_dataset_jsonl_openai_evals(
         ),
     ),
 ) -> bytes:
-    try:
-        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
-    except Exception as e:
-        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
     dataset_version_id: Optional[int] = None
     if version_id:
         try:
@@ -2192,7 +2104,8 @@ async def get_dataset_jsonl_openai_evals(
             ) from e
     try:
         async with request.app.state.db() as session:
-            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            dataset = await get_dataset_by_identifier(session, id)
+            dataset_id, dataset_name = dataset.id, dataset.name
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
@@ -2328,15 +2241,6 @@ def _get_content_jsonl_openai_evals(revisions: list[models.DatasetExampleRevisio
         )
     records.seek(0)
     return records.read()
-
-
-async def _get_dataset_name(*, session: Any, dataset_id: int) -> DatasetName:
-    dataset_name: Optional[str] = await session.scalar(
-        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-    )
-    if not dataset_name:
-        raise ValueError("Dataset does not exist.")
-    return dataset_name
 
 
 async def _get_split_names_by_example_id(

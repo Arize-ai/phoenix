@@ -4,13 +4,26 @@ from fastapi import HTTPException
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.relay import GlobalID
+from sqlalchemy.orm import InstrumentedAttribute
+from strawberry.relay import GlobalID, Node
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.types.AnnotationConfig import (
+    CategoricalAnnotationConfig as CategoricalAnnotationConfigNodeType,
+)
+from phoenix.server.api.types.AnnotationConfig import (
+    ContinuousAnnotationConfig as ContinuousAnnotationConfigNodeType,
+)
+from phoenix.server.api.types.AnnotationConfig import (
+    FreeformAnnotationConfig as FreeformAnnotationConfigNodeType,
+)
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
+from phoenix.server.api.types.DatasetLabel import DatasetLabel as DatasetLabelNodeType
+from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 
 from .models import V1RoutesBaseModel
 
@@ -142,90 +155,96 @@ def add_text_csv_content_to_responses(
     return output_responses
 
 
-async def get_project_by_identifier(
+ModelType = TypeVar("ModelType", bound=models.Base)
+
+
+async def _get_entity_by_identifier(
     session: AsyncSession,
-    project_identifier: str,
-) -> models.Project:
+    model: type[ModelType],
+    node_types: tuple[type[Node], ...],
+    name_column: InstrumentedAttribute[str],
+    identifier: str,
+) -> ModelType:
     """
-    Get a project by its ID or name.
-
-    Args:
-        session: The database session.
-        project_identifier: The project ID or name.
-
-    Returns:
-        The project object.
+    Resolve a path identifier to a row of ``model``. The identifier is a GlobalID
+    of one of ``node_types`` or a value of ``name_column``, which must be unique.
 
     Raises:
-        HTTPException: If the identifier format is invalid or the project is not found.
+        HTTPException: 422 for a GlobalID of another node type, 404 when no row matches.
     """
-    # Try to parse as a GlobalID first
+    label = model.__name__
     try:
-        id_ = from_global_id_with_expected_type(
-            GlobalID.from_id(project_identifier),
-            ProjectNodeType.__name__,
-        )
+        global_id = GlobalID.from_id(identifier)
     except Exception:
-        try:
-            name = project_identifier
-        except HTTPException:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid project identifier format: {project_identifier}",
-            )
-        stmt = select(models.Project).filter_by(name=name)
-        project = await session.scalar(stmt)
-        if project is None:
+        row = await session.scalar(select(model).where(name_column == identifier))
+        if row is None:
             raise HTTPException(
                 status_code=404,
-                detail=f"Project with name {name} not found",
+                detail=f"{label} with {name_column.key} {identifier!r} not found",
             )
-    else:
-        project = await session.get(models.Project, id_)
-        if project is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Project with ID {project_identifier} not found",
-            )
-    return project
-
-
-async def get_dataset_by_identifier(
-    session: AsyncSession,
-    dataset_identifier: str,
-) -> models.Dataset:
-    """
-    Get a dataset by its ID or name.
-
-    Args:
-        session: The database session.
-        dataset_identifier: The dataset ID (GlobalID) or name.
-
-    Returns:
-        The dataset object.
-
-    Raises:
-        HTTPException: If the identifier format is invalid or the dataset is not found.
-    """
-    # Try to parse as a GlobalID first; otherwise, treat the identifier as a name.
-    try:
-        id_ = from_global_id_with_expected_type(
-            GlobalID.from_id(dataset_identifier),
-            DatasetNodeType.__name__,
+        return row
+    if global_id.type_name not in {node_type.__name__ for node_type in node_types}:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid {label} identifier: {identifier}",
         )
-    except Exception:
-        stmt = select(models.Dataset).filter_by(name=dataset_identifier)
-        dataset = await session.scalar(stmt)
-        if dataset is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Dataset with name {dataset_identifier} not found",
-            )
-    else:
-        dataset = await session.get(models.Dataset, id_)
-        if dataset is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Dataset with ID {dataset_identifier} not found",
-            )
-    return dataset
+    row = await session.get(model, int(global_id.node_id))
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"{label} with ID {identifier} not found")
+    return row
+
+
+async def get_project_by_identifier(session: AsyncSession, identifier: str) -> models.Project:
+    return await _get_entity_by_identifier(
+        session, models.Project, (ProjectNodeType,), models.Project.name, identifier
+    )
+
+
+async def get_dataset_by_identifier(session: AsyncSession, identifier: str) -> models.Dataset:
+    return await _get_entity_by_identifier(
+        session, models.Dataset, (DatasetNodeType,), models.Dataset.name, identifier
+    )
+
+
+async def get_dataset_label_by_identifier(
+    session: AsyncSession, identifier: str
+) -> models.DatasetLabel:
+    return await _get_entity_by_identifier(
+        session, models.DatasetLabel, (DatasetLabelNodeType,), models.DatasetLabel.name, identifier
+    )
+
+
+async def get_dataset_split_by_identifier(
+    session: AsyncSession, identifier: str
+) -> models.DatasetSplit:
+    return await _get_entity_by_identifier(
+        session, models.DatasetSplit, (DatasetSplitNodeType,), models.DatasetSplit.name, identifier
+    )
+
+
+async def get_annotation_config_by_identifier(
+    session: AsyncSession, identifier: str
+) -> models.AnnotationConfig:
+    return await _get_entity_by_identifier(
+        session,
+        models.AnnotationConfig,
+        (
+            CategoricalAnnotationConfigNodeType,
+            ContinuousAnnotationConfigNodeType,
+            FreeformAnnotationConfigNodeType,
+        ),
+        models.AnnotationConfig.name,
+        identifier,
+    )
+
+
+async def get_session_by_identifier(
+    session: AsyncSession, identifier: str
+) -> models.ProjectSession:
+    return await _get_entity_by_identifier(
+        session,
+        models.ProjectSession,
+        (ProjectSessionNodeType,),
+        models.ProjectSession.session_id,
+        identifier,
+    )
