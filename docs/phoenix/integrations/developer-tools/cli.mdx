@@ -74,7 +74,7 @@ Experiment ids are opaque, as above, so take them from `experiment list`. Datase
 | `px project` | Projects |
 | `px session` | Multi-turn sessions |
 | `px annotation-config` | Annotation label schemas |
-| `px trace-annotations`, `px span-annotations`, `px session-annotations` | Bulk deletion of stored annotations. Each takes only `delete`, and requires `--all` or a `--start-time`/`--end-time` window. |
+| `px trace-annotations`, `px span-annotations`, `px session-annotations` | Bulk deletion of stored annotations. Each takes only `delete`, needs `--all` or a `--start-time`/`--end-time` window, and refuses to run unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set. |
 | `px api graphql` | Read-only GraphQL queries against the Phoenix API. Mutations are rejected. |
 | `px docs` | Workflow docs for coding agents |
 | `px auth`, `px profile` | Credentials and saved endpoints |
