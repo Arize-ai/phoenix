@@ -4,7 +4,7 @@ sidebarTitle: "CLI"
 description: The px command gives any coding agent with a terminal direct access to your traces, spans, datasets, experiments, and prompts.
 ---
 
-`px` is how a coding agent works with Phoenix once tracing is running. It needs only a shell, so it works in every agent, and the [`phoenix-cli` skill](/docs/phoenix/integrations/developer-tools/skills) teaches the agent which commands to reach for.
+`px` is how a coding agent works with Phoenix once tracing is running. It needs only a shell, so it works in every agent, and the [`phoenix-cli` skill](/docs/phoenix/integrations/developer-tools/skills) teaches the agent which commands to reach for. The agent reads your traces with it and records what it finds; the fix lands in your code.
 
 Not connected yet? [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) covers `px setup`, which wires a project to Phoenix and waits for a real trace.
 
@@ -24,52 +24,48 @@ Point it at your instance with `PHOENIX_ENDPOINT`, plus `PHOENIX_API_KEY` if aut
 export PHOENIX_ENDPOINT=http://localhost:6006
 ```
 
-## The debugging loop
+## How an agent uses it
 
-This is the workflow the `phoenix-cli` skill drives, and the reason to hand `px` to an agent.
+A debugging pass runs in the same order every time.
 
-<Steps>
-  <Step title="Find what broke">
-    Pull recent traces, or filter spans down to the failures.
-
-    ```bash
-    px trace list --project my-app --limit 20
-    px span list --project my-app --status-code ERROR
-    ```
-  </Step>
-
-  <Step title="Read one in full">
-    Fetch a single trace, or narrow to the LLM calls inside it.
-
-    ```bash
-    px trace get <trace-id> --project my-app
-    px span list --project my-app --span-kind LLM --limit 5
-    ```
-  </Step>
-
-  <Step title="Record what you found">
-    Write the judgement back, so it sits with the data for whoever opens that trace next.
-
-    ```bash
-    px span annotate <span-id> --name correctness --label incorrect --score 0
-    px trace add-note <trace-id> --text "Tool called with an empty query"
-    ```
-  </Step>
-</Steps>
-
-Annotations and notes are the only things `px` writes. It reads datasets, experiments, and prompts, but it does not create or edit them. Build a dataset and run an experiment from the UI, as in [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations), or in code with the SDK.
-
-## Look up what you are testing against
-
-When the agent needs the contents of a dataset, the results of a run, or the text of a prompt:
+**1. Narrow to the failures.** This prints the trace and span ids the next step needs.
 
 ```bash
-px dataset get travel-support        # the examples in a dataset
-px experiment get <experiment-id>    # every run and score from one experiment
-px prompt get my-prompt              # a prompt's current version
+px span list --project my-app --status-code ERROR --limit 10
 ```
 
-To see what exists first: `px dataset list`, `px experiment list --dataset travel-support`, `px prompt list`.
+Swap `--status-code ERROR` for `--span-kind LLM` to look at model calls instead, and add `--format json` to pipe results into `jq` rather than reading a table. Set `PHOENIX_PROJECT` once to drop `--project` everywhere.
+
+**2. Open one in full.** A trace expands into every span inside it, with inputs, outputs, and timing.
+
+```bash
+px trace get 3b59e7fdc86dd3d8ccf951403882b5ec --project my-app
+```
+
+**3. Record what you found,** so it stays attached to the trace for whoever opens it next.
+
+```bash
+px span annotate 6099f08961d12ae9 --name correctness --label incorrect --score 0
+px trace add-note 3b59e7fdc86dd3d8ccf951403882b5ec --text "Tool called with an empty query"
+```
+
+Both take the OpenTelemetry id, 16 hex characters for a span and 32 for a trace. That is `context.span_id` and `context.trace_id` in `px span list --format json`, and not the opaque id shown elsewhere. Pass `--identifier` to have a repeat call overwrite its own annotation instead of stacking another.
+
+**4. Fix it in the code.** `px` stops here, and annotations plus notes are the whole of what it writes. The agent is already in your editor, so the change goes there; your next run sends fresh traces to Phoenix, and step 1 starts again.
+
+## Checking a change
+
+`px` reads datasets, experiments, and prompts so an agent can see what a change is measured against. It cannot create or edit them: build a dataset and run an experiment from the UI, as in [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations), or in code with the SDK.
+
+```bash
+px dataset list                              # names, ids, and example counts
+px dataset get travel-support                # the examples inside one dataset
+px experiment list --dataset travel-support  # runs against that dataset
+px experiment get RXhwZXJpbWVudDoxMQ==       # per-example scores from one run
+px prompt get my-prompt                      # the prompt's current version
+```
+
+Experiment ids are opaque, as above, so take them from `experiment list`. Datasets and prompts also accept their name.
 
 ## Everything else
 
