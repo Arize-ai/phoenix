@@ -11,26 +11,22 @@ Phoenix is the open source product offered by Arize. Run it locally from your te
 
 ## Agent-assisted setup (Recommended)
 
+Start Phoenix, or point at an existing deployment.
+
+```bash
+uvx arize-phoenix serve
+```
+
 <Card>
   <Tabs>
     <Tab title="Run px setup">
-      Start Phoenix, or point at an existing deployment.
-
-      ```bash
-      uvx arize-phoenix serve
-      ```
-
-      Then, from your project root:
+      From your project root:
 
       ```bash
       npx -y @arizeai/phoenix-cli setup
       ```
 
-      Follow the prompts. It asks for a project name and API key if needed, writes `.env.phoenix`, hands instrumentation to Claude Code, Codex, Cursor, or OpenCode, and doesn't finish until a real trace arrives.
-
-      When it finishes, open your project in Phoenix and select the **Traces** tab. You should see one trace per request, and clicking into one shows the spans, prompts, responses, and timing.
-
-      See the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) page for a global install, supported agents, CI flags, and troubleshooting.
+      It asks for a project name, hands instrumentation to your coding agent, and finishes when a real trace arrives. Then open your project's **Traces** tab.
     </Tab>
 
     <Tab title="Ask your coding agent">
@@ -40,18 +36,8 @@ Phoenix is the open source product offered by Arize. Run it locally from your te
       npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
       ```
 
-      Start Phoenix, then paste the prompt below from your project root.
-
-      ```bash
-      uvx arize-phoenix serve
-      ```
-
       ```text
-      Use the Phoenix tracing skill to instrument this application.
-
-      First inspect the codebase and identify the LLM providers, frameworks,
-      package manager, and existing OpenTelemetry setup. Then propose the
-      Phoenix instrumentation plan before changing code.
+      Use the Phoenix tracing skill to instrument this application. Inspect the codebase and propose the plan before changing code.
       ```
 
       If your agent cannot install skills, use the [Phoenix tracing setup prompt](https://raw.githubusercontent.com/Arize-ai/phoenix/main/docs/PROMPT.md) instead.
