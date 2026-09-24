@@ -37,6 +37,7 @@ TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
 _WorkUnitModel = (
     type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
 )
+_TargetModel = type[models.Span] | type[models.ProjectSession] | type[models.Trace]
 _DATABASE_NOW = object()
 
 
@@ -103,12 +104,15 @@ class DbEvalWorkCoordinator:
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
+            self._target_model: _TargetModel = models.Span
         elif evaluation_target == "SESSION":
             self._work_unit_model = models.EvalSessionWorkUnit
             self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
+            self._target_model = models.ProjectSession
         elif evaluation_target == "TRACE":
             self._work_unit_model = models.EvalTraceWorkUnit
             self._target_row_column = models.EvalTraceWorkUnit.trace_rowid
+            self._target_model = models.Trace
         else:
             raise ValueError(
                 f"Online evaluation work coordination does not support {evaluation_target}"
@@ -247,7 +251,19 @@ class DbEvalWorkCoordinator:
         write: PublicationWrite,
     ) -> None:
         work_unit_model = self._work_unit_model
+        target_model = self._target_model
         async with self._db() as session:
+            # Deletes lock the target, then cascade to the work unit; lock in the same order.
+            await session.execute(
+                select(target_model.id)
+                .where(
+                    target_model.id
+                    == select(self._target_row_column)
+                    .where(work_unit_model.id == work_unit_id)
+                    .scalar_subquery()
+                )
+                .with_for_update(read=True, key_share=True)
+            )
             project_evaluator_id = await session.scalar(
                 select(work_unit_model.project_evaluator_id)
                 .where(

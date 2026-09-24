@@ -4,7 +4,7 @@ from secrets import token_hex
 from typing import Optional
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
@@ -822,11 +822,73 @@ async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
 
 @pytest.mark.postgres_only
 @pytest.mark.parametrize("evaluation_target", ["SPAN", "SESSION", "TRACE"])
-async def test_publish_waits_on_no_row_but_its_work_unit(
+async def test_target_delete_waits_for_publication(
     postgresql_engine: AsyncEngine,
     evaluation_target: models.EvaluationTarget,
 ) -> None:
-    """Span ingest and the sweepers hold evaluator, session, and trace rows."""
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    if evaluation_target == "SPAN":
+        (unit_id,) = await _seed_work_units(db, 1)
+    elif evaluation_target == "SESSION":
+        _, (unit_id,) = await _seed_session_work_units(db, 1)
+    else:
+        _, _, (unit_id,) = await _seed_trace_work_units(db, 1)
+    target_model, annotation_model, target_column = {
+        "SPAN": (models.Span, models.SpanAnnotation, "span_rowid"),
+        "SESSION": (models.ProjectSession, models.ProjectSessionAnnotation, "project_session_id"),
+        "TRACE": (models.Trace, models.TraceAnnotation, "trace_rowid"),
+    }[evaluation_target]
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
+    (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
+    fenced = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _write(session: AsyncSession) -> None:
+        fenced.set()
+        await release.wait()
+        session.add(
+            annotation_model(
+                **{target_column: claim.target_rowid},
+                name="quality",
+                label=None,
+                score=1.0,
+                explanation=None,
+                metadata_={},
+                annotator_kind="LLM",
+                identifier=claim.identifier,
+                source="API",
+                user_id=None,
+            )
+        )
+        await session.flush()
+
+    async def _delete_target() -> None:
+        async with db() as session:
+            await session.execute(delete(target_model).where(target_model.id == claim.target_rowid))
+
+    publication = asyncio.create_task(
+        coordinator.publish(
+            work_unit_id=unit_id,
+            claimed_by=claim.claimed_by,
+            write=_write,
+        )
+    )
+    await fenced.wait()
+    deletion = asyncio.create_task(_delete_target())
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(asyncio.shield(deletion), timeout=0.1)
+    release.set()
+    await publication
+    await deletion
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize("evaluation_target", ["SPAN", "SESSION", "TRACE"])
+async def test_publish_does_not_wait_on_ingest_or_sweeper_row_locks(
+    postgresql_engine: AsyncEngine,
+    evaluation_target: models.EvaluationTarget,
+) -> None:
+    """The sweepers lock evaluator rows; span ingest updates session and trace rows."""
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     if evaluation_target == "SPAN":
         (unit_id,) = await _seed_work_units(db, 1, project_session=True)
@@ -842,8 +904,9 @@ async def test_publish_waits_on_no_row_but_its_work_unit(
         wrote.set()
 
     async with db() as holding_session:
-        for model in (models.ProjectEvaluator, models.ProjectSession, models.Trace):
-            await holding_session.execute(select(model.id).with_for_update())
+        await holding_session.execute(select(models.ProjectEvaluator.id).with_for_update())
+        for model in (models.ProjectSession, models.Trace):
+            await holding_session.execute(select(model.id).with_for_update(key_share=True))
         await asyncio.wait_for(
             coordinator.publish(
                 work_unit_id=unit_id,

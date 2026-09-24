@@ -122,10 +122,9 @@ class EvalWorkCoordinator(Protocol):
     ) -> None:
         """Fence a claimed unit for publication and run ``write`` in that transaction.
 
-        The fence locks the unit's row for the transaction, requiring it to still be owned
-        and RUNNING, then requires its project evaluator to be enabled. Deleting the unit's
-        target cascades to that row, so a deletion either waits for the write or leaves
-        nothing to fence.
+        The fence holds the unit's target against deletion and locks the unit, which must
+        still be owned and RUNNING, then requires its project evaluator to be enabled. A
+        deletion of the target either waits for the write or leaves nothing to fence.
 
         Raises ``PublicationClaimLostError`` when the fence fails. Does not complete the
         unit — publication and completion are separate steps, so a lost acknowledgement
