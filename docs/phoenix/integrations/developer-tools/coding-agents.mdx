@@ -1,10 +1,10 @@
 ---
 title: "Arize Phoenix for Agents"
 sidebarTitle: "Set Up Your Agent"
-description: Debug and evaluate your AI agent from your editor by giving your coding agent the same Phoenix data you see in the UI.
+description: Connect your coding agent to Phoenix so it can instrument your app, read the traces that come back, and act on what it finds.
 ---
 
-Connect Claude Code, Codex, Cursor, VS Code, Windsurf, or any other coding agent to Phoenix, and it can read your traces, experiments, datasets, and prompts, then act on them. You can ask things like:
+Connect Claude Code, Codex, Cursor, or any other coding agent to Phoenix. It can add tracing to your app, read the traces that come back, and act on what it finds. You ask in plain language:
 
 ```text
 Show me the latest traces in my default project and summarize any errors
@@ -15,23 +15,33 @@ Pull my rag-pipeline prompt and suggest improvements based on recent trace failu
 ```
 
 <Note>
-This page connects your coding agent **to** Phoenix, so it can read and act on your traces. If you want the reverse, Phoenix **recording your coding agent's own work** as traces (its turns, tool calls, and token costs), see [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code).
+This connects your coding agent **to** Phoenix. To have Phoenix **record your coding agent's own work** as traces (its turns, tool calls, and token costs), see [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code).
 </Note>
 
-## Set up your agent
+## Connect your agent
 
-Pick the row for your agent. Each path installs the same three pieces: the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) for terminal access to your Phoenix data, the [MCP server](/docs/phoenix/integrations/mcp) for clients that prefer a tool protocol, and [skills](/docs/phoenix/integrations/developer-tools/skills) that teach the agent Phoenix's conventions.
+Pick your row. Each path gives the agent the same three pieces: the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli), the [MCP server](/docs/phoenix/integrations/mcp), and [skills](/docs/phoenix/integrations/developer-tools/skills).
 
 | Agent | Setup |
 | --- | --- |
-| Claude Code | Install the [Claude Code plugin](#plugins). It registers the MCP server and three skills: `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`. Add the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup skills` for the rest of the [skills](/docs/phoenix/integrations/developer-tools/skills). |
+| Claude Code | Install the [Claude Code plugin](#plugins). It registers the MCP server and three skills: `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`. Add the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup skills` for the rest. |
 | Codex | Install the [Codex plugin](#plugins). It registers the MCP server; add the [CLI](/docs/phoenix/integrations/developer-tools/cli) and [skills](/docs/phoenix/integrations/developer-tools/skills) yourself. |
 | Cursor, VS Code, Gemini CLI, OpenCode | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup mcp --agent <agent>` and `px setup skills`. |
 | Any other agent | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), add the [MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) from its per-client steps, and install [skills](/docs/phoenix/integrations/developer-tools/skills) with `npx skills add`. |
 
-Neither plugin includes the [Phoenix Docs MCP](/docs/phoenix/integrations/mcp#phoenix-docs-mcp) for documentation lookup, so add it separately if you want it.
+Neither plugin includes the [Phoenix Docs MCP](/docs/phoenix/integrations/mcp#phoenix-docs-mcp) for documentation lookup. Add it separately if you want it.
 
-Your coding agent can also set up tracing for you: see the agent-assisted path in [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing).
+Then ask your agent:
+
+```text
+List my Phoenix projects
+```
+
+A fresh Phoenix has exactly one project, named `default`, so that is the answer you should get back. This works before you have sent a single trace.
+
+## Let it instrument your app
+
+Your agent can now add tracing for you. The agent-assisted path in [Observe Your Agent](/docs/phoenix/get-started/get-started-tracing) hands it a prompt that installs the SDK, wires your app to Phoenix, and confirms a real trace landed. Once traces are flowing, the questions at the top of this page have something to answer.
 
 ## Find your Phoenix endpoint
 
@@ -58,7 +68,7 @@ Keep API keys out of committed config files. Prefer environment variables and lo
 
 ## Plugins
 
-The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each plugin bundles the MCP and skills steps into one install that stays up to date, and requires **Phoenix 19.0.0 or later**. They are optional: the [per-client MCP steps](/docs/phoenix/integrations/mcp#connect) work for Claude Code and Codex too.
+The Phoenix repository is a plugin marketplace for Claude Code and Codex. Each plugin bundles the MCP and skills steps into one install that stays up to date, and requires **Phoenix 19.0.0 or later**. They are optional: the [per-client MCP steps](/docs/phoenix/integrations/mcp#remote-mcp-server) work for Claude Code and Codex too.
 
 <AccordionGroup>
   <Accordion title="Claude Code plugin">
