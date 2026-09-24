@@ -743,7 +743,7 @@ def _to_any_value(value: Any) -> OtlpAnyValue:
 
 
 @router.get(
-    "/projects/{project_identifier:identifier}/spans/otlpv1",
+    "/projects/{project_identifier:path}/spans/otlpv1",
     operation_id="spanSearch",
     summary="Search spans with simple filters (no DSL)",
     description="Return spans within a project filtered by time range. "
@@ -982,7 +982,7 @@ def _span_next_cursor(span: models.Span, sort: SpanSort) -> str:
 
 
 @router.get(
-    "/projects/{project_identifier:identifier}/spans",
+    "/projects/{project_identifier:path}/spans",
     operation_id="getSpans",
     summary="List spans with simple filters (no DSL)",
     description="Return spans within a project filtered by time range. "
@@ -1415,7 +1415,7 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
 
 
 @router.post(
-    "/projects/{project_identifier:identifier}/spans",
+    "/projects/{project_identifier:path}/spans",
     dependencies=[Depends(is_not_locked)],
     operation_id="createSpans",
     summary="Create spans",

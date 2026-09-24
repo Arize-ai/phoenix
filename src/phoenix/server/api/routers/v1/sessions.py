@@ -174,7 +174,7 @@ def _to_session_data(
 
 
 @router.get(
-    "/sessions/{session_identifier:identifier}",
+    "/sessions/{session_identifier:path}",
     operation_id="getSession",
     summary="Get session by ID or session_id",
     responses=add_errors_to_responses([404, 422]),
@@ -204,7 +204,7 @@ async def get_session(
 
 
 @router.delete(
-    "/sessions/{session_identifier:identifier}",
+    "/sessions/{session_identifier:path}",
     operation_id="deleteSession",
     summary="Delete a session by identifier",
     description=(
@@ -298,7 +298,7 @@ async def delete_sessions(
 
 
 @router.get(
-    "/projects/{project_identifier:identifier}/sessions",
+    "/projects/{project_identifier:path}/sessions",
     operation_id="listProjectSessions",
     summary="List sessions for a project",
     responses=add_errors_to_responses([400, 404, 422]),

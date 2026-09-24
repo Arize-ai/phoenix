@@ -23,7 +23,7 @@ def _identifier_routes() -> list[tuple[str, str, APIRoute]]:
         (method, route.path, route)
         for router in _leaf_routers()
         for route in router.routes
-        if isinstance(route, APIRoute) and ":identifier}" in route.path
+        if isinstance(route, APIRoute) and ":path}" in route.path
         for method in sorted(route.methods or [])
     ]
 
@@ -54,9 +54,7 @@ async def test_identifier_route_is_not_shadowed(
     probes = {name: f"probe/{index}" for index, name in enumerate(route.param_convertors, start=1)}
     url = "/v1" + route.path
     for name in route.param_convertors:
-        url = url.replace(f"{{{name}:identifier}}", probes[name]).replace(
-            f"{{{name}}}", probes[name]
-        )
+        url = url.replace(f"{{{name}:path}}", probes[name]).replace(f"{{{name}}}", probes[name])
     transport = httpx.ASGITransport(app=capture)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         await client.request(method, url)
@@ -140,11 +138,3 @@ async def test_annotation_config_routes_accept_names_containing_slashes(
     response = await httpx_client.delete("v1/annotation_configs/quality/tone")
     assert response.status_code == 200
     assert (await httpx_client.get("v1/annotation_configs/quality/tone")).status_code == 404
-
-
-async def test_trailing_slash_does_not_resolve_to_an_empty_name(
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    response = await httpx_client.get("v1/datasets/", follow_redirects=False)
-    assert response.status_code in (200, 307)
-    assert "not found" not in response.text

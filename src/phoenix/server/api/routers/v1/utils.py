@@ -5,7 +5,6 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
-from starlette.convertors import Convertor, register_url_convertor
 from starlette.routing import BaseRoute
 from strawberry.relay import GlobalID, Node
 from typing_extensions import TypeAlias, assert_never
@@ -160,37 +159,13 @@ def add_text_csv_content_to_responses(
 ModelType = TypeVar("ModelType", bound=models.Base)
 
 
-class IdentifierConvertor(Convertor[str]):
-    """
-    Path converter for name-or-ID path parameters, used as ``{name:identifier}``.
-
-    Names may contain slashes, so the converter matches greedily across
-    segments like Starlette's ``path`` converter, but it rejects the empty
-    string so that a trailing slash still redirects instead of resolving to
-    a nameless entity. Because it is greedy, a route ending in an identifier
-    also matches URLs of its sibling sub-routes; ``order_identifier_routes``
-    puts the more specific routes first so the sibling wins.
-    """
-
-    regex = ".+"
-
-    def convert(self, value: str) -> str:
-        return value
-
-    def to_string(self, value: str) -> str:
-        return value
-
-
-register_url_convertor("identifier", IdentifierConvertor())
-
-
 def order_identifier_routes(router: APIRouter) -> None:
     """
     Reorder a router's routes in place so that no route is shadowed by a
     greedier one. Routes without an ``identifier`` parameter keep their
     relative order and come first. Among routes with one, those with more
-    path segments come first, so ``/datasets/{d:identifier}/examples`` is
-    tried before ``/datasets/{d:identifier}`` swallows ``/datasets/foo/examples``.
+    path segments come first, so ``/datasets/{d:path}/examples`` is
+    tried before ``/datasets/{d:path}`` swallows ``/datasets/foo/examples``.
 
     Routes are matched in registration order across routers too, so a router
     whose routes end in an identifier must be included after the routers that
@@ -199,7 +174,7 @@ def order_identifier_routes(router: APIRouter) -> None:
 
     def key(route: BaseRoute) -> tuple[int, int]:
         path = getattr(route, "path", "")
-        if ":identifier}" not in path:
+        if ":path}" not in path:
             return (0, 0)
         return (1, -path.count("/"))
 
