@@ -28,7 +28,7 @@ Phoenix is the open source product offered by Arize. Run it locally from your te
 
       Follow the prompts. It asks for a project name and API key if needed, writes `.env.phoenix`, hands instrumentation to Claude Code, Codex, Cursor, or OpenCode, and doesn't finish until a real trace arrives.
 
-      When it finishes, open the **Traces** view in Phoenix. You should see one trace per request, and clicking into one shows the spans, prompts, responses, and timing.
+      When it finishes, open your project in Phoenix and select the **Traces** tab. You should see one trace per request, and clicking into one shows the spans, prompts, responses, and timing.
 
       See the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) page for a global install, supported agents, CI flags, and troubleshooting.
     </Tab>
@@ -79,7 +79,7 @@ Use this path when you want to add the tracing code yourself.
   <Step title={<span className="step-title">Set up tracing</span>}>
     <Tabs>
       <Tab title="Python">
-    Install Phoenix's tracing helper, OpenAI, and the OpenInference OpenAI instrumentor.
+    Install Phoenix's tracing helper, OpenAI, and the OpenInference OpenAI instrumentor. The tracing packages need Python 3.10 or later; on an older Python, `pip` installs outdated versions without warning.
 
     ```bash
     pip install -U arize-phoenix-otel openai openinference-instrumentation-openai
@@ -267,7 +267,7 @@ Use this path when you want to add the tracing code yourself.
   </Step>
 
   <Step title={<span className="step-title">Look at the trace in Phoenix</span>}>
-    Once the runs complete, head back to Phoenix and navigate to the **Traces** view. You should see one trace per request. Click into a trace to inspect the spans, prompts, responses, timing, and errors.
+    Once the runs complete, head back to Phoenix, open your project, and select the **Traces** tab. You should see one trace per request. Click into a trace to inspect the spans, prompts, responses, timing, and errors.
 
     <Frame caption="Traces from the support assistant">
       <img
