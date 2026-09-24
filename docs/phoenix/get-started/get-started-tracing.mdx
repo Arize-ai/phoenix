@@ -28,6 +28,8 @@ Phoenix is the open source product offered by Arize. Run it locally from your te
 
       Follow the prompts. It asks for a project name and API key if needed, writes `.env.phoenix`, hands instrumentation to Claude Code, Codex, Cursor, or OpenCode, and doesn't finish until a real trace arrives.
 
+      When it finishes, open the **Traces** view in Phoenix. You should see one trace per request, and clicking into one shows the spans, prompts, responses, and timing.
+
       See the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) page for a global install, supported agents, CI flags, and troubleshooting.
     </Tab>
 
@@ -38,7 +40,11 @@ Phoenix is the open source product offered by Arize. Run it locally from your te
       npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
       ```
 
-      Start Phoenix, then paste this from your project root:
+      Start Phoenix, then paste the prompt below from your project root.
+
+      ```bash
+      uvx arize-phoenix serve
+      ```
 
       ```text
       Use the Phoenix tracing skill to instrument this application.
@@ -274,7 +280,7 @@ Use this path when you want to add the tracing code yourself.
 
 ## Learn more about traces
 
-Next, convert selected traces into a dataset and run experiments to compare agent or prompt changes. See the [Get Started guide for Evals](/docs/phoenix/get-started/get-started-evaluations).
+Next, score your agent's output with an evaluator. [Evaluate Your Agent](/docs/phoenix/get-started/get-started-evaluations) starts from a dataset you can download, and shows how to build one from these traces instead once you want to test against real failures.
 
 Other ways to read your traces:
 
