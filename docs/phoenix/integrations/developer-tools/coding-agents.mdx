@@ -20,7 +20,7 @@ This page connects your coding agent **to** Phoenix, so it can read and act on y
 
 ## Set up your agent
 
-Pick the row for your agent. Each path installs the same three pieces: the [`px` CLI](/docs/phoenix/integrations/developer-tools/cli) for terminal access to your Phoenix data, the [MCP server](/docs/phoenix/integrations/mcp) for clients that prefer a tool protocol, and [skills](/docs/phoenix/integrations/developer-tools/skills) that teach the agent Phoenix's conventions.
+Pick the row for your agent. Each path installs the same three pieces: the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) for terminal access to your Phoenix data, the [MCP server](/docs/phoenix/integrations/mcp) for clients that prefer a tool protocol, and [skills](/docs/phoenix/integrations/developer-tools/skills) that teach the agent Phoenix's conventions.
 
 | Agent | Setup |
 | --- | --- |
@@ -42,7 +42,7 @@ Every setup needs the **endpoint** of your Phoenix instance: the base URL you op
 | Local Phoenix (`phoenix serve`) | `http://localhost:6006` | `http://localhost:6006/mcp` |
 | Deployed Phoenix | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
 
-Give the plugins and the `px` CLI the endpoint column. They append `/mcp` themselves, so pasting the `/mcp` column would produce `/mcp/mcp`, which does not exist. Registering a server by hand is the exception: `claude mcp add` and the per-client steps on the [MCP](/docs/phoenix/integrations/mcp) page take the full `/mcp` URL, since you are naming the server's exact address. A local Phoenix works with the defaults everywhere; the API key is only required when auth is enabled.
+Give the plugins and the `px` CLI the endpoint column. They append `/mcp` themselves, so pasting the `/mcp` column would produce `/mcp/mcp`, which does not exist. Registering a server by hand is the exception: `claude mcp add` and the per-client steps on the [MCP Servers](/docs/phoenix/integrations/mcp) page take the full `/mcp` URL, since you are naming the server's exact address. A local Phoenix works with the defaults everywhere; the API key is only required when auth is enabled.
 
 The `px` CLI and the Codex plugin read the endpoint from your shell:
 
