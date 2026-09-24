@@ -4,11 +4,10 @@ import { graphql, useFragment } from "react-relay";
 import {
   type AnnotationOptimizationConfig,
   toAnnotationOptimizationConfig,
-} from "@phoenix/components/annotation";
+} from "@phoenix/components/annotation/optimizationUtils";
 
 import type { useProjectEvaluatorResultAnnotationsFragment$key } from "./__generated__/useProjectEvaluatorResultAnnotationsFragment.graphql";
 
-/** One annotation an evaluator's runs write, with its optimization metadata. */
 export type ProjectEvaluatorResultAnnotation = {
   /** The name the persisted annotations carry. */
   name: string;
