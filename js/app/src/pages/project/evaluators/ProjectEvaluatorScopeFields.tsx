@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 
 import {
@@ -44,27 +43,19 @@ import {
 } from "@phoenix/pages/project/TraceFilterConditionField";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-/**
- * The target, sampling, delay, and filter fields wired to a scope object.
- * `children` renders additional fields at the end of the first row, after
- * every setting the scope persists.
- */
+/** The target, sampling, delay, and filter fields wired to a scope object. */
 export const ProjectEvaluatorScopeFieldGroup = ({
   projectId,
   scope,
   onScopeChange,
   onFilterValidityChange,
   isTargetDisabled = false,
-  fillSampling = false,
-  children,
 }: {
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
   onFilterValidityChange?: (isValid: boolean) => void;
   isTargetDisabled?: boolean;
-  fillSampling?: boolean;
-  children?: ReactNode;
 }) => {
   const isDelayedTarget = hasEvaluationDelay(scope.targetType);
   const evaluatorStore = useEvaluatorStoreInstance();
@@ -94,7 +85,7 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         <ProjectEvaluatorSamplingField
           // A filled slider takes the whole row, which would wrap the delay
           // field onto a line of its own.
-          fill={fillSampling && !isDelayedTarget}
+          fill={!isDelayedTarget}
           value={scope.samplingRate}
           onChange={(samplingRate) => onScopeChange({ ...scope, samplingRate })}
         />
@@ -106,7 +97,6 @@ export const ProjectEvaluatorScopeFieldGroup = ({
             }
           />
         ) : null}
-        {children}
       </Flex>
       {isDelayedTarget ? (
         <Text size="XS" color="text-500">
