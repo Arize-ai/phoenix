@@ -5,7 +5,7 @@
 [tool.cibuildwheel]
 # Anything not listed installs from the sdist, which needs a C toolchain --
 # currently musllinux and PyPy, and whatever gets dropped from here.
-build = "cp310-macosx* cp311-macosx* cp312-macosx* cp313-macosx* cp314-macosx* cp310-manylinux* cp311-manylinux* cp312-manylinux* cp313-manylinux* cp314-manylinux* cp310-win* cp311-win* cp312-win* cp313-win* cp314-win*"
+build = "cp311-macosx* cp312-macosx* cp313-macosx* cp314-macosx* cp311-manylinux* cp312-manylinux* cp313-manylinux* cp314-manylinux* cp311-win* cp312-win* cp313-win* cp314-win*"
 
 # test-sources must carry everything the suite reads from cwd:
 # tests/extensions.py imports SQLEAN_VERSION from setup.py, which reads README.md

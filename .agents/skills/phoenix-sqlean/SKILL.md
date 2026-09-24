@@ -110,7 +110,7 @@ sqlean moves its own pin.
 - Settings are in `cibuildwheel.toml`, steps in `phoenix-sqlean-build.yml` — a `workflow_call`
   workflow that both `build-sqlean` in `publish.yaml` and CI's `wheel` job invoke, so a PR runs
   the build a release runs.
-- The matrix is cp310–cp314 across Linux x86_64/aarch64, macOS x86_64/arm64, Windows AMD64/ARM64,
+- The matrix is cp311–cp314 across Linux x86_64/aarch64, macOS x86_64/arm64, Windows AMD64/ARM64,
   plus an sdist of the C sources. A misspelled key in the toml errors; a misspelled `CIBW_*` env
   var is a silent no-op.
 - **An empty `CIBW_*` is an override, not a no-op.** It replaces the toml's value with
@@ -118,8 +118,7 @@ sqlean moves its own pin.
   included. Hence the `cibw-*` inputs reach the environment only when non-empty.
 - **`test-sources` resolves against cibuildwheel's working directory, not `package-dir`** — hence
   the workspace-root unpack, which the shared workflow puts under CI.
-- CI's `test` matrix compiles in place across every OS/arch pair the publish job ships;
-  `windows-11-arm` skips 3.10 — CPython publishes no Windows ARM64 build for it. It never runs
+- CI's `test` matrix compiles in place across every OS/arch pair the publish job ships. It never runs
   cibuildwheel, which is what the `wheel` job is for.
 - Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
   creates it, `sqlean-sources` skips and nothing builds.

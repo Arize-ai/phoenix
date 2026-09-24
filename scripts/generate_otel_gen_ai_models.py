@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #     "datamodel-code-generator[http,ruff]==0.57.0",
 # ]
@@ -146,7 +146,7 @@ def main() -> int:
                 "--output-model-type",
                 "pydantic_v2.BaseModel",
                 "--target-python-version",
-                "3.10",
+                "3.11",
                 "--use-annotated",
                 "--use-double-quotes",
                 "--use-standard-collections",
