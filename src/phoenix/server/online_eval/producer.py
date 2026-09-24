@@ -1,7 +1,7 @@
 """Online-eval producer daemon.
 
 Materializes span-level eval work units from enabled project evaluators.
-The producer runs on every replica. The ``eval_work_cursors`` lease keeps one replica
+The producer runs on every replica. The ``span-producer`` lease keeps one replica
 scanning at a time so scans aren't repeated; correctness rests on the unique
 (span, evaluator, config) work-unit key, which absorbs duplicate inserts. Each tick:
 take the lease, delete aged terminal work rows, scan the lag-gated span id window per
