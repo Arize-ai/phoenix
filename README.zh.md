@@ -120,6 +120,8 @@ Phoenix 容器镜像已发布在 [Docker Hub](https://hub.docker.com/r/arizephoe
   <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FArize-ai%2Fphoenix%2Fmain%2Fazuredeploy.json"><img src="https://aka.ms/deploytoazurebutton" alt="Deploy to Azure" height="30"></a>
   &nbsp;
   <a href="https://arize.com/docs/phoenix/self-hosting/deployment-options/aws-with-cloudformation"><img src="https://img.shields.io/badge/Deploy%20to-AWS-FF9900?logo=amazonwebservices&logoColor=white&labelColor=232F3E" alt="Deploy to AWS" height="30"></a>
+  &nbsp;
+  <a href="https://zop.dev/zopday/app/deploy?image=arizephoenix/phoenix&port=6006"><img src="https://zop.dev/deploytozopday-inkhard.svg" alt="Deploy to ZopDay" height="30"></a>
 </p>
 
 > [!NOTE]
