@@ -106,10 +106,8 @@
             "group": "Instrument",
             "icon": "telescope",
             "pages": [
-              "docs/phoenix/tracing/llm-traces",
               "docs/phoenix/tracing/concepts-tracing/what-are-traces",
               "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel",
-              "docs/phoenix/integrations",
               "docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument",
               "docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans",
               "docs/phoenix/tracing/how-to-tracing/cost-tracking",
@@ -119,36 +117,13 @@
                   "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects",
                   "docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions",
                   "docs/phoenix/tracing/concepts-tracing/translating-conventions",
-                  {
-                    "group": "Import and export traces",
-                    "pages": [
-                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
-                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
-                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
-                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
-                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
-                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli"
-                    ]
-                  },
-                  {
-                    "group": "OpenTelemetry and OpenInference",
-                    "pages": [
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/overview",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/signals",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/resource",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling",
-                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector"
-                    ]
-                  },
+                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
+                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
+                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
+                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
+                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
+                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli",
+                  "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
                   "docs/phoenix/tracing/how-to-tracing/advanced",
                   "docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes",
                   "docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing"
@@ -393,28 +368,6 @@
                   "docs/phoenix/settings/sandboxes/daytona",
                   "docs/phoenix/settings/sandboxes/vercel",
                   "docs/phoenix/settings/sandboxes/modal"
-                ]
-              }
-            ]
-          },
-          {
-            "group": "Concepts",
-            "icon": "lightbulb",
-            "pages": [
-              "docs/phoenix/user-guide",
-              "docs/phoenix/production-guide",
-              "docs/phoenix/environments",
-              {
-                "group": "Prompts",
-                "pages": [
-                  "docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts",
-                  "docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics"
-                ]
-              },
-              {
-                "group": "Datasets & Experiments",
-                "pages": [
-                  "docs/phoenix/datasets-and-experiments/concepts-datasets"
                 ]
               }
             ]
@@ -1179,6 +1132,52 @@
         ]
       },
       {
+        "tab": "Concepts",
+        "icon": "lightbulb",
+        "groups": [
+          {
+            "group": "OpenTelemetry and OpenInference",
+            "pages": [
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/overview",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/signals",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/resource",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling",
+              "docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector"
+            ]
+          },
+          {
+            "group": "Phoenix",
+            "pages": [
+              "docs/phoenix/user-guide",
+              "docs/phoenix/production-guide",
+              "docs/phoenix/environments"
+            ]
+          },
+          {
+            "group": "Prompts",
+            "pages": [
+              "docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts",
+              "docs/phoenix/prompt-engineering/concepts-prompts/context-engineering-basics"
+            ]
+          },
+          {
+            "group": "Datasets & Experiments",
+            "pages": [
+              "docs/phoenix/datasets-and-experiments/concepts-datasets"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Self-Hosting",
         "icon": "server",
         "pages": [
@@ -1687,12 +1686,16 @@
   },
   "redirects": [
     {
+      "source": "/docs/phoenix/tracing/llm-traces",
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
+    },
+    {
       "source": "/docs/phoenix/tracing/features-tracing",
-      "destination": "/docs/phoenix/tracing/llm-traces"
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing",
-      "destination": "/docs/phoenix/tracing/llm-traces"
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/setup-tracing",
@@ -1856,7 +1859,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-interact-with-traces",
-      "destination": "/docs/phoenix/tracing/llm-traces"
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/save-and-load-traces",
@@ -1864,7 +1867,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/instrumentation",
-      "destination": "/docs/phoenix/tracing/llm-traces"
+      "destination": "/docs/phoenix/tracing/concepts-tracing/what-are-traces"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/customize-spans/filtering-spans",

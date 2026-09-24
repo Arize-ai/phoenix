@@ -24,7 +24,7 @@
 
 ## Tracing
 
-- [Instrument your app](https://arize.com/docs/phoenix/tracing/llm-traces): Overview of tracing and links to setup, instrumentation, span customization, import/export, cost tracking, and trace inspection
+- [Tracing Concepts](https://arize.com/docs/phoenix/tracing/concepts-tracing/what-are-traces): Understand traces, spans, span kinds, attributes, setup options, and common trace inspection workflows
 
 ### Tutorial
 
@@ -38,7 +38,7 @@
 - [Projects](https://arize.com/docs/phoenix/tracing/llm-traces/projects): Organize traces by environment, application, or team
 - [Sessions](https://arize.com/docs/phoenix/tracing/llm-traces/sessions): Group related traces into multi-turn conversational sessions
 - [Annotating Traces](https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces): Attach feedback, labels, and scores to traces for quality tracking
-- [Metrics](https://arize.com/docs/phoenix/tracing/llm-traces/metrics): Monitor latency, token usage, cost, and error rates across traces
+- [Project Metrics](https://arize.com/docs/phoenix/tracing/llm-traces/metrics): Monitor latency, token usage, cost, errors, and annotation scores for a project
 
 ### Observe
 
@@ -76,7 +76,7 @@
 
 - [Cost Tracking](https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking): Monitor LLM token usage and cost trends
 - [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions): Filter spans and sessions with Python-style expressions — operators, attribute and annotation access, session aggregates
-- [Advanced Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Suppress tracing, filter spans before export, and find advanced tracing guides
+- [Advanced Tracing Patterns](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Use OpenTelemetry and OpenInference patterns when you need more control over what Phoenix receives
 - [Masking Span Attributes](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes): Hide sensitive data in traces via environment variables
 - [Multimodal Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Capture image, audio, and multimodal data in traces
 

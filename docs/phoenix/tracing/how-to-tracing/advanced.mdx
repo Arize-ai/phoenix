@@ -1,12 +1,26 @@
 ---
-title: "Advanced tracing"
-sidebarTitle: "Control tracing"
-description: "Suppress tracing, filter spans before export, and configure advanced trace behavior."
+title: "Advanced tracing patterns"
+sidebarTitle: "Advanced tracing patterns"
+description: "Use OpenTelemetry and OpenInference patterns when you need more control over what Phoenix receives."
 ---
 
-Use these options when you need tighter control over which spans Phoenix receives.
+Use these patterns when your basic tracing setup works, but you need more control over what Phoenix receives or how traces connect across your system.
+
+Phoenix tracing uses OpenTelemetry to create, process, and export spans. It uses OpenInference to describe AI work, such as LLM calls, tool calls, retrieval, and agent steps. The pages below explain the practical pieces you are most likely to need when a standard setup is not enough.
 
 <CardGroup cols={2}>
+  <Card title="OpenTelemetry and OpenInference" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview" icon="book-open">
+    Learn how Phoenix tracing uses OpenTelemetry and OpenInference
+  </Card>
+  <Card title="Context propagation" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation" icon="share-2">
+    Keep spans connected across services, threads, and async work
+  </Card>
+  <Card title="Sampling" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling" icon="filter">
+    Reduce trace volume while keeping useful production visibility
+  </Card>
+  <Card title="OpenTelemetry Collector" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector" icon="route">
+    Process, route, sample, or redact spans before they reach Phoenix
+  </Card>
   <Card title="Mask span attributes" href="/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes" icon="eye-slash">
     Hide sensitive span attributes before they are logged to Phoenix
   </Card>
@@ -14,6 +28,25 @@ Use these options when you need tighter control over which spans Phoenix receive
     Trace images, audio, and other multimodal data
   </Card>
 </CardGroup>
+
+## Choose the right pattern
+
+| If you need to... | Use... |
+| :--- | :--- |
+| Understand how Phoenix reads AI trace data | [OpenTelemetry and OpenInference](/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview) |
+| Keep one trace connected across services or background work | [Context propagation](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation) |
+| Send fewer traces from an app with high traffic | [Sampling](/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling) |
+| Process traces outside your app before export | [OpenTelemetry Collector](/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector) |
+| Hide sensitive values before Phoenix receives spans | [Mask span attributes](/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes) |
+| Skip spans that should not be traced | [Suppress tracing](#suppress-tracing) or [filter spans before export](#filter-spans-before-export) |
+
+## How the pieces fit
+
+OpenTelemetry defines the tracing pipeline. Your application creates spans, a span processor prepares them for export, and an exporter sends them to Phoenix or to an OpenTelemetry Collector.
+
+OpenInference defines the AI fields inside those spans. Phoenix uses OpenInference span kinds and attributes to show LLM calls, tools, retrievers, agents, inputs, outputs, token counts, sessions, and users in the UI.
+
+You usually do not need to configure every OpenTelemetry component yourself. Start with [Auto-instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel) or [Manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument), then use the patterns on this page when you need more control.
 
 ## Suppress tracing
 

@@ -4,7 +4,21 @@ sidebarTitle: "Tracing concepts"
 description: "Learn how traces, spans, span kinds, attributes, and the Phoenix tracing pipeline fit together."
 ---
 
+import AgentAssistedOnboardingPrereq from "../../../snippets/agent-assisted-onboarding-prereq.mdx";
+
+Phoenix collects traces from AI applications over OpenTelemetry. You can send traces with Phoenix OTEL, an OpenInference integration, or manual spans.
+
+<AgentAssistedOnboardingPrereq />
+
 Tracing records what happens inside an LLM application. A trace can show model calls, retrieval, tool calls, agent steps, inputs, outputs, timing, token counts, errors, and metadata.
+
+For example, a single user request can include document retrieval, embedding generation, a model call, tool calls, and response generation. Phoenix accepts traces over the OpenTelemetry Protocol, or OTLP, and works with frameworks, SDKs, and providers such as [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), [LangChain](/docs/phoenix/integrations/python/langchain), [DSPy](/docs/phoenix/integrations/python/dspy/dspy-tracing), [OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Bedrock](/docs/phoenix/integrations/llm-providers/amazon-bedrock), [Mistral](/docs/phoenix/integrations/llm-providers/mistralai), and [Vertex](/docs/phoenix/integrations/llm-providers/vertexai).
+
+<Frame caption="View the execution path for your LLM application">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" alt="Phoenix trace details view showing spans in an LLM application trace" />
+</Frame>
+
+Trace data helps you find performance and reliability issues in your application. After Phoenix receives traces, use [Observe](/docs/phoenix/observe/explore-traces) to inspect projects, sessions, filters, metrics, and dashboards.
 
 Use this page to understand the data Phoenix receives before you instrument your app.
 
@@ -29,6 +43,19 @@ Second, an exporter sends spans out of your application. With Phoenix OTEL, the 
 Third, Phoenix receives spans as a collector and shows them in the UI. When you start Phoenix locally or connect to a remote Phoenix instance, Phoenix can receive spans from applications that export traces to it.
 
 Phoenix receives traces over OpenTelemetry Protocol, or OTLP. Phoenix supports OTLP over HTTP, and Phoenix OTEL can configure the exporter for you.
+
+## What you can inspect
+
+Phoenix stores span details that help you debug LLM application behavior:
+
+* **Latency**: Find slow LLM, retriever, tool, and custom spans.
+* **Token usage and cost**: See which LLM calls use the most tokens and estimated cost.
+* **Errors**: Review exceptions, rate limits, and failed tool calls.
+* **Retrieved documents**: Check document text, scores, and order returned by retrievers.
+* **Embeddings**: Review embedding input text and model attributes used during retrieval.
+* **LLM parameters**: Check model name, temperature, system prompts, and other invocation settings.
+* **Prompt templates**: See template text, versions, and variables when you send them.
+* **Tools and function calls**: Inspect available tool schemas, selected tools, tool messages, and function-call inputs.
 
 ## Projects
 
@@ -252,10 +279,51 @@ if __name__ == "__main__":
 ## Next steps
 
 <CardGroup cols={2}>
-  <Card title="Connect your app" icon="plug" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
-    Set up Phoenix OTEL and send your first traces.
+  <Card title="Quickstart" icon="rocket" href="/docs/phoenix/get-started/get-started-tracing">
+    Send your first traces to Phoenix
+  </Card>
+  <Card title="Auto-instrumentation" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+    Configure Phoenix OTEL and connect your app
+  </Card>
+  <Card title="Choose an integration" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
+    Pick the framework, provider, or tool you want to trace
+  </Card>
+  <Card title="Manual instrumentation" icon="code" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Add custom spans with decorators and wrappers
+  </Card>
+  <Card title="Customize spans" icon="tags" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans">
+    Add users, sessions, metadata, tags, and prompt-template attributes
   </Card>
   <Card title="OpenTelemetry and OpenInference" icon="book-open" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview">
-    Read the deeper reference for standards, exporters, resources, and span processors.
+    Read the deeper reference for standards, exporters, resources, and span processors
+  </Card>
+</CardGroup>
+
+## Organize and inspect traces
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
+    Group traces by application or environment
+  </Card>
+  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
+    Group related traces into multi-turn conversations
+  </Card>
+  <Card title="Query and export spans" icon="database" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
+    Export spans to a dataframe or query spans with the SDK
+  </Card>
+  <Card title="Import and export traces" icon="file-export" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces">
+    Move trace data between Phoenix instances and external systems
+  </Card>
+  <Card title="Run evaluations" icon="chart-line" href="/docs/phoenix/get-started/get-started-evaluations">
+    Score your traces with LLM-as-a-judge evaluators
+  </Card>
+  <Card title="Cost tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
+    Track token usage and estimated cost
+  </Card>
+  <Card title="Advanced tracing patterns" icon="sliders" href="/docs/phoenix/tracing/how-to-tracing/advanced">
+    Use OpenTelemetry and OpenInference patterns when basic tracing is not enough
+  </Card>
+  <Card title="Observe traces" icon="magnifying-glass-chart" href="/docs/phoenix/observe/explore-traces">
+    Inspect trace data after your app sends it to Phoenix
   </Card>
 </CardGroup>

@@ -1,6 +1,6 @@
 ---
 title: "Sessions"
-description: Track and analyze multi-turn conversations.
+description: Track and review multi-turn conversations in Phoenix.
 sidebarTitle: "Track sessions"
 ---
 
@@ -8,27 +8,34 @@ sidebarTitle: "Track sessions"
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/sessions.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
 </Frame>
 
-Sessions enable tracking and organizing related traces across multi-turn conversations with your AI application. When building conversational AI, maintaining context between interactions is critical - Sessions make this possible from an observability perspective.
+Sessions group traces that belong to the same conversation or user journey. Use sessions to review multi-turn behavior in order instead of opening each trace separately.
 
-With Sessions in Phoenix, you can:
+With sessions in Phoenix, you can:
 
-* Track the entire history of a conversation in a single thread
+* Review each turn in a conversation-style view
 
-* View conversations in a chatbot-like UI showing inputs and outputs of each turn
+* Search sessions to find specific users or interactions
 
-* Search through sessions to find specific interactions
+* Track token usage, cost, latency, and trace count across the conversation
 
-* Track token usage and latency per conversation
+* Attach and review session-level annotations
 
-This feature is particularly valuable for applications where context builds over time, like chatbots, virtual assistants, or any other multi-turn interaction. By tagging spans with a consistent session ID, you create a connected view that reveals how your application performs across an entire user journey.
+To create a session, tag related spans with the same session ID. Phoenix then shows those traces together so you can review the full interaction.
 
-## Next Steps
+## What sessions show
 
-<CardGroup cols={2}>
-  <Card title="Setup Sessions" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
+The Sessions table shows the session ID, first input, last output, user ID, annotation summaries, start time, end time, p50 and p99 trace latency, total tokens, total cost, and total trace count. Open a session to review its traces and turns in order.
+
+## Next steps
+
+<CardGroup cols={3}>
+  <Card title="Set up sessions" icon="gear" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
     Configure session tracking in your application
   </Card>
-  <Card title="Setup Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
+  <Card title="Set up projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
     Organize traces into separate projects
+  </Card>
+  <Card title="Filter traces" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Find sessions with filter expressions
   </Card>
 </CardGroup>
