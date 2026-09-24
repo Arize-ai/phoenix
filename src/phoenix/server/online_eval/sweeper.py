@@ -49,6 +49,7 @@ from phoenix.db.eval_work import (
 )
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     config_fingerprint,
@@ -81,9 +82,6 @@ _TRACE_SWEEP_LEASE_NAME = "trace-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _LOCK_TIMEOUT_MILLISECONDS = 500
 _LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, deadlock_detected
-# Only work terminated within this window feeds the watermark-lag gauge; the table has
-# no retention, so an unbounded aggregate would scan more rows on every tick forever.
-_WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
 
 _EntityModel = type[models.ProjectSession] | type[models.Trace]
 _WorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
@@ -970,7 +968,7 @@ class EvalSweeper(DaemonTask):
             .where(
                 work_unit_model.status == "DONE",
                 work_unit_model.updated_at
-                >= database_now - timedelta(seconds=_WATERMARK_LAG_WINDOW_SECONDS),
+                >= database_now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),
                 entity_model.last_span_ingested_at.is_not(None),
             )
         )
