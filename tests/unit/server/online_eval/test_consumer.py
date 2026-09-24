@@ -40,6 +40,7 @@ from phoenix.db.types.prompts import (
     PromptTools,
 )
 from phoenix.server.api.evaluators import ContainsEvaluator, SandboxPayloadTooLargeError
+from phoenix.server.api.helpers.dataset_helpers import span_eval_context
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -86,7 +87,6 @@ from phoenix.server.online_eval.executor import (
     HydrationFailureReason,
     OnlineEvalExecutor,
     session_eval_context,
-    span_eval_context,
     trace_eval_context,
 )
 from phoenix.server.online_eval.failure_policy import is_transient_error
