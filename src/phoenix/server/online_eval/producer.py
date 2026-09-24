@@ -164,14 +164,14 @@ class OnlineEvalProducer(DaemonTask):
         if cursor is None:
             return
         if not mutations_allowed:
-            await self._reap(now, cursor.produced_through_id, mutations_allowed=False)
+            await self._reap(now, cursor.produced_through_id)
             return
         cursor = await self._clamp_cursor(cursor)
         if cursor is None:
             return
         produced_through_id = cursor.produced_through_id
 
-        await self._reap(now, produced_through_id, mutations_allowed=True)
+        await self._reap(now, produced_through_id)
 
         observed_high_water_id = cursor.observed_high_water_id
         pending_observation = (
@@ -336,8 +336,6 @@ class OnlineEvalProducer(DaemonTask):
         self,
         now: datetime,
         produced_through_id: int,
-        *,
-        mutations_allowed: bool = True,
     ) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
