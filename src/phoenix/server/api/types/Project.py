@@ -34,6 +34,7 @@ from phoenix.db.trace_aggregates import (
     TRACE_ROWID,
     representative_root_span_by_trace,
 )
+from phoenix.db.types.annotation_configs import as_output_configs
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -48,6 +49,7 @@ from phoenix.server.api.helpers.evaluator_results import (
     latest_evaluator_annotations,
     primary_result_annotation,
 )
+from phoenix.server.api.helpers.evaluators import result_annotation_names
 from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
@@ -423,12 +425,35 @@ class Project(Node):
                 models.ProjectEvaluator.id,
             )
         )
-        if filter and (value := filter.value.strip()):
+        if filter and filter.col and filter.value and (value := filter.value.strip()):
             column = getattr(models.ProjectEvaluator, filter.col.value)
             # `name` is an Identifier-typed column; compare it as text so LIKE applies.
             stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
+        annotation_names = filter.annotation_names if filter else None
+        if annotation_names:
+            # Project evaluator identifiers cannot contain dots.
+            candidate_names = {name.partition(".")[0] for name in annotation_names}
+            stmt = stmt.where(
+                sqlalchemy_cast(models.ProjectEvaluator.name, String).in_(candidate_names)
+            )
         async with info.context.db.read() as session:
             records = list(await session.scalars(stmt))
+        if annotation_names:
+            evaluators = await info.context.data_loaders.evaluator_by_id.load_many(
+                [record.evaluator_id for record in records]
+            )
+            requested_names = set(annotation_names)
+            records = [
+                record
+                for record, evaluator in zip(records, evaluators)
+                if evaluator is not None
+                and requested_names.intersection(
+                    result_annotation_names(
+                        record.name.root,
+                        as_output_configs(getattr(evaluator, "output_configs", None)),
+                    )
+                )
+            ]
         return connection_from_list(
             data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
             args=args,
