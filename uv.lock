@@ -19,9 +19,6 @@ arize-phoenix-otel = "2099-12-31T00:00:00Z"
 arize-phoenix-sqlean = "2099-12-31T00:00:00Z"
 openinference-instrumentation = "2099-12-31T00:00:00Z"
 openinference-semantic-conventions = "2099-12-31T00:00:00Z"
-pydantic-monty = "2026-09-26T00:00:00Z"
-pydantic-monty-client = "2026-09-26T00:00:00Z"
-pydantic-monty-runtime = "2026-09-26T00:00:00Z"
 
 [manifest]
 members = [
