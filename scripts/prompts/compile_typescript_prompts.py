@@ -23,7 +23,7 @@ class ClassificationEvaluatorConfig(BaseModel):
     description: str
     optimization_direction: Literal["minimize", "maximize", "neutral"]
     messages: list[PromptMessage]
-    choices: dict[str, float]
+    choices: list[str] | dict[str, float]
 
 
 CLASSIFICATION_EVALUATOR_CONFIG_FILE_TEMPLATE = """\
@@ -86,8 +86,11 @@ def get_template_file_contents(config_name: str, config: ClassificationEvaluator
     template = Template(CLASSIFICATION_EVALUATOR_CONFIG_FILE_TEMPLATE)
     evaluator_name = config.name
     description = config.description
-    choices = {label: int(score) for label, score in config.choices.items()}
-    choices_json = json.dumps(choices, indent=2)
+    if isinstance(config.choices, list):
+        choices_json = json.dumps(config.choices, indent=2)
+    else:
+        choices = {label: int(score) for label, score in config.choices.items()}
+        choices_json = json.dumps(choices, indent=2)
     template_content = convert_mustache_variables_to_camel_case(config.messages[0].content.strip())
     optimization_direction = config.optimization_direction.upper()
     content = template.render(
