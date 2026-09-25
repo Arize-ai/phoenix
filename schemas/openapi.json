@@ -7112,10 +7112,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Return only the project with exactly this name. Unlike the path identifier, the name may contain any character.",
+              "description": "Return only the project with exactly this name.",
               "title": "Name"
             },
-            "description": "Return only the project with exactly this name. Unlike the path identifier, the name may contain any character."
+            "description": "Return only the project with exactly this name."
           }
         ],
         "responses": {
