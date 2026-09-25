@@ -1,153 +1,124 @@
-import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import { css } from "@emotion/react";
+import type { Meta, StoryFn } from "@storybook/react";
+import type { ReactNode } from "react";
 
 import {
   Button,
+  FloatingToolbarContainer,
   Group,
   Icon,
   IconButton,
   Icons,
   Separator,
-  ToggleButton,
+  Text,
   Toolbar,
 } from "@phoenix/components";
 
-/**
- * Toolbar
- * ========
- * A container for a set of interactive controls such as buttons or toggle buttons.
- * Inspired by the React Aria `Toolbar` pattern: https://react-spectrum.adobe.com/react-aria/Toolbar.html
- *
- * This story demonstrates both horizontal and vertical orientations, as well as the use of `Separator`s
- * to visually divide groups of controls.
- */
+import { OptionGrid } from "../../utils/OptionGrid";
 
-const meta: Meta<typeof Toolbar> = {
+/**
+ * A row or column of controls that the arrow keys move between, so the whole
+ * set is one tab stop. Every Phoenix toolbar acts on a table selection and
+ * floats over the table in a `FloatingToolbarContainer`.
+ *
+ * A `Separator` divides groups of controls; give it the orientation opposite
+ * the toolbar's, since it does not read the toolbar's own.
+ */
+const meta: Meta = {
   title: "Design System/Actions/Toolbar",
+  tags: ["updated", "unreviewed", "complete"],
   component: Toolbar,
-  subcomponents: { Separator },
+  subcomponents: { FloatingToolbarContainer, Separator },
   parameters: {
     layout: "centered",
-    docs: {
-      description: {
-        component:
-          "A toolbar is a container for a set of interactive controls. It supports horizontal or vertical orientation and arrow-key navigation between its children.",
-      },
-    },
-  },
-  tags: ["legacy", "unreviewed"],
-  argTypes: {
-    orientation: {
-      control: { type: "select" },
-      options: ["horizontal", "vertical"],
-    },
+    controls: { disable: true },
   },
 };
 
 export default meta;
 
-type Story = StoryObj<typeof meta>;
-
-type ToolbarStoryArgs = {
-  orientation?: "horizontal" | "vertical";
-};
-
-const Template: StoryFn<ToolbarStoryArgs> = (args) => {
-  const separatorOrientation =
-    args.orientation === "vertical" ? "horizontal" : "vertical";
-
+function SelectionToolbar() {
   return (
-    <Toolbar aria-label="Text formatting" {...args}>
-      {/* Style group */}
-      <Group aria-label="Style">
-        <ToggleButton aria-label="Bold">
-          <b>B</b>
-        </ToggleButton>
-        <ToggleButton aria-label="Italic">
-          <i>I</i>
-        </ToggleButton>
-        <ToggleButton aria-label="Underline">
-          <u>U</u>
-        </ToggleButton>
-      </Group>
-
-      <Separator orientation={separatorOrientation} />
-
-      {/* Clipboard group */}
-      <Group aria-label="Clipboard">
-        <Button>Copy</Button>
-        <Button>Paste</Button>
-        <Button>Cut</Button>
-      </Group>
-
-      <Separator orientation={separatorOrientation} />
-
-      {/* Example icon button */}
-      <IconButton aria-label="Info">
-        <Icon svg={<Icons.InfoFilled />} />
-      </IconButton>
-    </Toolbar>
-  );
-};
-
-export const Default: Story = {
-  render: Template,
-  args: {
-    orientation: "horizontal",
-  },
-};
-
-const IconOnlyTemplate: StoryFn<ToolbarStoryArgs> = (args) => {
-  const separatorOrientation =
-    args.orientation === "vertical" ? "horizontal" : "vertical";
-  return (
-    <Toolbar aria-label="Tools" {...args}>
-      <Group aria-label="Select">
+    <FloatingToolbarContainer>
+      <Toolbar aria-label="Example selection">
+        <IconButton size="M" aria-label="Clear selection">
+          <Icon svg={<Icons.Close />} />
+        </IconButton>
+        <Text>3 examples selected</Text>
         <Button
-          aria-label="Grid"
-          leadingVisual={<Icon svg={<Icons.Grid />} />}
-        />
-        <Button
-          aria-label="Lasso"
-          leadingVisual={<Icon svg={<Icons.AlertTriangle />} />}
-        />
-        <Button
-          aria-label="Edit"
-          leadingVisual={<Icon svg={<Icons.Edit />} />}
-        />
-        <Button
-          aria-label="Delete"
+          variant="danger"
+          size="M"
           leadingVisual={<Icon svg={<Icons.Trash />} />}
-        />
-      </Group>
-      <Separator orientation={separatorOrientation} />
-      <Group aria-label="Draw">
-        <Button
-          aria-label="Settings"
-          leadingVisual={<Icon svg={<Icons.Settings />} />}
-        />
-        <Button
-          aria-label="Info"
-          leadingVisual={<Icon svg={<Icons.Info />} />}
-        />
-      </Group>
-    </Toolbar>
+        >
+          Delete
+        </Button>
+      </Toolbar>
+    </FloatingToolbarContainer>
   );
-};
+}
 
-export const Vertical: Story = {
-  render: IconOnlyTemplate,
-  args: {
-    orientation: "vertical",
-  },
-};
+function TableFrame({ children }: { children: ReactNode }) {
+  return (
+    <div
+      css={css`
+        position: relative;
+        width: 400px;
+        height: 120px;
+      `}
+    >
+      {children}
+    </div>
+  );
+}
 
-/** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: Story = {
-  tags: ["!dev", "!autodocs"],
-  // Seven controls in a row are wider than the frame at 1:1.
-  parameters: { thumbnail: { scale: 0.7 } },
-  render: Template,
-  args: {
-    orientation: "horizontal",
-  },
-};
+export const Default: StoryFn = () => (
+  <TableFrame>
+    <SelectionToolbar />
+  </TableFrame>
+);
+Default.tags = ["!dev"];
+
+const ORIENTATIONS = [
+  { label: "horizontal", code: true },
+  { label: "vertical", code: true },
+] as const;
+
+export const Orientations: StoryFn = () => (
+  <OptionGrid
+    rows={ORIENTATIONS}
+    renderCell={({ label: orientation }) => (
+      <Toolbar
+        aria-label="Annotation config selection"
+        orientation={orientation}
+      >
+        <IconButton size="M" aria-label="Clear selection">
+          <Icon svg={<Icons.Close />} />
+        </IconButton>
+        <Separator
+          orientation={orientation === "horizontal" ? "vertical" : "horizontal"}
+        />
+        <Group aria-label="Selected configs">
+          <Button size="M" leadingVisual={<Icon svg={<Icons.Edit />} />}>
+            Edit
+          </Button>
+          <Button
+            variant="danger"
+            size="M"
+            leadingVisual={<Icon svg={<Icons.Trash />} />}
+          >
+            Delete
+          </Button>
+        </Group>
+      </Toolbar>
+    )}
+  />
+);
+Orientations.tags = ["!dev"];
+
+export const Thumbnail: StoryFn = () => (
+  <TableFrame>
+    <SelectionToolbar />
+  </TableFrame>
+);
+Thumbnail.tags = ["!dev", "!autodocs"];
+Thumbnail.parameters = { thumbnail: { scale: 0.7 } };
