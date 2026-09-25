@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
@@ -12,10 +13,6 @@ import {
   BATCH_SPAN_ANNOTATE_TOOL_NAME,
   type PendingBatchSpanAnnotate,
 } from "@phoenix/agent/tools/batchSpanAnnotate";
-import type {
-  CodeEvaluatorDraftSnapshot,
-  PendingCodeEvaluatorEdit,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { CREATE_DATASET_TOOL_NAME } from "@phoenix/agent/tools/createDataset";
 import {
   DELETE_DATASET_TOOL_NAME,
@@ -41,24 +38,22 @@ import {
   DOCS_FILESYSTEM_QUERY_TOOL_NAME,
   DOCS_SEARCH_TOOL_NAME,
 } from "@phoenix/agent/tools/docs";
-import type {
-  LLMEvaluatorDraftSnapshot,
-  PendingLlmEvaluatorEdit,
-} from "@phoenix/agent/tools/llmEvaluatorDraft";
 import {
   PATCH_EXPERIMENT_TOOL_NAME,
   type PendingPatchExperiment,
 } from "@phoenix/agent/tools/patchExperiment";
-import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
-import type {
-  PendingPromptEdit,
-  PendingPromptInstanceRemoval,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
-import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
-import { EXECUTE_BROWSER_ACTION_TOOL_NAME } from "@phoenix/agent/uiOperations/executeBrowserActionTool";
+import {
+  renderUIOperationCatalog,
+  searchUIOperations,
+} from "@phoenix/agent/uiOperations/catalog";
+import {
+  EXECUTE_BROWSER_ACTION_TOOL_NAME,
+  SCRIPT_REJECTED_OUTPUT,
+} from "@phoenix/agent/uiOperations/executeBrowserActionTool";
+import { playgroundPromptOperations } from "@phoenix/agent/uiOperations/operations/playgroundPrompt";
 import { SEARCH_BROWSER_ACTIONS_TOOL_NAME } from "@phoenix/agent/uiOperations/searchBrowserActionsTool";
+import { Flex, Text } from "@phoenix/components";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -76,48 +71,18 @@ const containerCSS = css`
   width: 100%;
 `;
 
-const storyNoteCSS = css`
-  margin-bottom: var(--global-dimension-size-200);
-  padding: var(--global-dimension-size-150);
-  border: 1px solid var(--global-color-gray-300);
-  border-radius: var(--global-rounding-small);
-  background: var(--global-color-gray-100);
-  color: var(--global-text-color-900);
-  font-size: 12px;
-  line-height: 1.5;
-
-  strong {
-    display: block;
-    margin-bottom: var(--global-dimension-size-50);
-    font-weight: 600;
-  }
-`;
-
-function withElicitationDraft(draft: PendingElicitationDraft) {
-  return (Story: () => React.ReactNode) => (
-    <ElicitationDraftProvider draft={draft}>
-      <Story />
-    </ElicitationDraftProvider>
-  );
-}
+type AgentStore = ReturnType<typeof createAgentStore>;
 
 function AgentStoreStoryProvider({
   children,
-  pendingSave,
   setupStore,
 }: {
-  children: React.ReactNode;
-  pendingSave?: PendingSavePrompt;
-  /** Escape hatch for staging arbitrary pending state on the story's store. */
-  setupStore?: (store: ReturnType<typeof createAgentStore>) => void;
+  children: ReactNode;
+  /** Stages pending state, such as an approval, on this state's store. */
+  setupStore?: (store: AgentStore) => void;
 }) {
   const [store] = useState(() => {
     const store = createAgentStore();
-    if (pendingSave) {
-      store
-        .getState()
-        .setPendingSavePrompt(pendingSave.toolCallId, pendingSave);
-    }
     setupStore?.(store);
     return store;
   });
@@ -129,38 +94,60 @@ function AgentStoreStoryProvider({
   );
 }
 
-function withAgentStore(pendingSave?: PendingSavePrompt) {
-  return (Story: () => React.ReactNode) => (
-    <AgentStoreStoryProvider pendingSave={pendingSave}>
-      <Story />
-    </AgentStoreStoryProvider>
-  );
-}
+/** One labeled state in a tool family's stack. */
+type ToolPartState = {
+  label: string;
+  /** Why the state looks the way it does, when the label alone cannot say. */
+  description?: ReactNode;
+  part: ToolPartType;
+  /** Defaults to open so the body is visible. */
+  defaultOpen?: boolean;
+  setupStore?: (store: AgentStore) => void;
+  elicitationDraft?: PendingElicitationDraft;
+};
 
-function withAgentStoreSetup(
-  setupStore: (store: ReturnType<typeof createAgentStore>) => void
-) {
-  return (Story: () => React.ReactNode) => (
-    <AgentStoreStoryProvider setupStore={setupStore}>
-      <Story />
-    </AgentStoreStoryProvider>
-  );
-}
-
-function ToolPartStoryNote({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function ToolPartStateItem({
+  label,
+  description,
+  part,
+  defaultOpen = true,
+  setupStore,
+  elicitationDraft,
+}: ToolPartState) {
+  const toolPart = <ToolPart part={part} defaultOpen={defaultOpen} />;
   return (
-    <div css={storyNoteCSS}>
-      <strong>{title}</strong>
-      <div>{children}</div>
-    </div>
+    <Flex direction="column" gap="size-100">
+      <Text size="S" color="text-700">
+        {label}
+      </Text>
+      {description ? (
+        <Text size="XS" color="text-500">
+          {description}
+        </Text>
+      ) : null}
+      <AgentStoreStoryProvider setupStore={setupStore}>
+        {elicitationDraft ? (
+          <ElicitationDraftProvider draft={elicitationDraft}>
+            {toolPart}
+          </ElicitationDraftProvider>
+        ) : (
+          toolPart
+        )}
+      </AgentStoreStoryProvider>
+    </Flex>
   );
 }
+
+function ToolPartStates({ states }: { states: ToolPartState[] }) {
+  return (
+    <Flex direction="column" gap="size-400">
+      {states.map((state) => (
+        <ToolPartStateItem key={state.label} {...state} />
+      ))}
+    </Flex>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Mock data helpers
 // ---------------------------------------------------------------------------
@@ -263,13 +250,6 @@ const editPart = makePart({
     new_string: 'const title = "Hello, Phoenix"',
   },
   output: "Edit applied successfully",
-});
-
-const _grepPart = makePart({
-  toolName: "grep",
-  state: "output-available",
-  input: { pattern: "TODO", path: "/workspace/src" },
-  output: "Found 3 matches in 2 files",
 });
 
 const deniedPart = makePart({
@@ -542,178 +522,6 @@ const docsFileSystemQueryRunningPart = makePart({
   input: { command: "head -80 /docs/evaluation/overview.mdx" },
 });
 
-// ---------------------------------------------------------------------------
-// ToolPart stories
-// ---------------------------------------------------------------------------
-
-const toolPartMeta = {
-  title: "Domains/PXI/Tool Part",
-  tags: ["legacy", "unreviewed"],
-  component: ToolPart,
-  // Rolldown can emit one-character helper exports in this large story module.
-  excludeStories: /^[A-Za-z_$]$/,
-  // Open by default so the expanded body is visible; individual stories can
-  // override with `defaultOpen: false`.
-  args: { defaultOpen: true },
-  decorators: [
-    withAgentStore(),
-    (Story) => (
-      <div css={containerCSS}>
-        <Story />
-      </div>
-    ),
-  ],
-  parameters: {
-    contentMaxWidth: 780,
-    contentMode: "bounded",
-    layout: "padded",
-  },
-} satisfies Meta<typeof ToolPart>;
-
-export default toolPartMeta;
-
-type Story = StoryObj<typeof toolPartMeta>;
-
-/** A bash tool call that completed successfully with stdout output. */
-export const BashCompleted: Story = {
-  args: { part: bashCompletedPart },
-};
-
-/** A bash tool call that errored with an error message. */
-export const BashError: Story = {
-  args: { part: bashErrorPart },
-};
-
-/** A bash tool call currently running (input-available state). */
-export const BashRunning: Story = {
-  args: { part: bashRunningPart },
-};
-
-/** A bash tool call still streaming its input. */
-export const BashStreaming: Story = {
-  args: { part: bashStreamingPart },
-};
-
-/** A bash tool call with a multi-line command. */
-export const BashMultilineCommand: Story = {
-  args: { part: bashMultilineCommandPart },
-};
-
-/** A non-bash tool (read) with JSON-rendered input and output. */
-export const ReadTool: Story = {
-  args: { part: readPart },
-};
-
-/** An edit tool call showing a file modification. */
-export const EditTool: Story = {
-  args: { part: editPart },
-};
-
-/** A tool call that was denied by the user. */
-export const Denied: Story = {
-  args: { part: deniedPart },
-};
-
-/** A tool call awaiting user approval. */
-export const ApprovalRequested: Story = {
-  args: { part: approvalRequestedPart },
-};
-
-/** An ask_user tool awaiting the user's response. */
-export const AskUserAwaiting: Story = {
-  args: { part: askUserAwaitingPart },
-};
-
-/** An ask_user tool showing in-progress draft answers and pending questions. */
-export const AskUserDraftInProgress: Story = {
-  args: { part: askUserDraftInProgressPart },
-  decorators: [withElicitationDraft(askUserDraftInProgress)],
-};
-
-/** An ask_user tool with answers received. */
-export const AskUserAnswered: Story = {
-  args: { part: askUserAnsweredPart },
-};
-
-/** An ask_user tool with a custom option selected but left blank. */
-export const AskUserBlankCustom: Story = {
-  args: { part: askUserBlankCustomPart },
-  decorators: [withElicitationDraft(askUserBlankCustomDraft)],
-};
-
-/** An ask_user tool with a final skipped answer. */
-export const AskUserSkipped: Story = {
-  args: { part: askUserSkippedPart },
-};
-
-/** An ask_user tool that errored because the model emitted invalid input. */
-export const AskUserInvalidInput: Story = {
-  args: { part: askUserInvalidInputPart },
-  render: (args) => (
-    <>
-      <ToolPartStoryNote title="Origin: Tool Registry Error Path">
-        This mirrors the registered tool validation path. The tool registry
-        emits an <code>output-error</code> result when <code>ask_user</code>
-        input fails schema parsing, such as an empty <code>questions</code>
-        array.
-      </ToolPartStoryNote>
-      <ToolPart {...args} />
-    </>
-  ),
-};
-
-/** An ask_user tool that errored because the user cancelled the prompt. */
-export const AskUserCancelled: Story = {
-  args: { part: askUserCancelledPart },
-  render: (args) => (
-    <>
-      <ToolPartStoryNote title="Origin: Chat-Side Cancel Flow">
-        This comes from the client chat flow, not the registry. When the user
-        cancels the elicitation carousel, <code>useAgentChat</code> writes back
-        an <code>output-error</code> tool result with the cancellation message.
-      </ToolPartStoryNote>
-      <ToolPart {...args} />
-    </>
-  ),
-};
-
-/** A simulated ask_user recovery failure after the conversation was reopened. */
-export const AskUserResumeFailed: Story = {
-  args: { part: askUserResumeFailedPart },
-  render: (args) => (
-    <>
-      <ToolPartStoryNote title="Origin: Representable UI State Only">
-        This failure is representable in the UI but is not currently emitted by
-        production code. It documents a plausible recovery error if a
-        conversation is reopened after an <code>ask_user</code> call was left
-        unresolved and the ephemeral pending elicitation state cannot be
-        reconstructed.
-      </ToolPartStoryNote>
-      <ToolPart {...args} />
-    </>
-  ),
-};
-
-/** A docs search tool that completed with results. */
-export const DocsSearch: Story = {
-  args: { part: docsSearchPart },
-};
-
-/** A docs search tool currently running. */
-export const DocsSearchRunning: Story = {
-  args: { part: docsSearchRunningPart },
-};
-
-/** A docs filesystem query tool that returned command output. */
-export const DocsFileSystemQuery: Story = {
-  args: { part: docsFileSystemQueryPart },
-};
-
-/** A docs filesystem query tool currently running. */
-export const DocsFileSystemQueryRunning: Story = {
-  args: { part: docsFileSystemQueryRunningPart },
-};
-
 const loadSkillRunningPart = makePart({
   toolName: "load_skill",
   state: "input-available",
@@ -735,42 +543,6 @@ const loadSkillErrorPart = makePart({
   errorText: "Skill 'unknown-skill' not found in the skill registry.",
 });
 
-/** A load_skill tool currently running (shows standard chrome). */
-export const LoadSkillRunning: Story = {
-  args: { part: loadSkillRunningPart },
-};
-
-/**
- * A completed load_skill tool collapsed (quiet variant).
- * Shows minimal chrome with just "Loaded skill phoenix-frontend" label.
- */
-export const LoadSkillCollapsed: Story = {
-  args: { part: loadSkillCompletedPart, defaultOpen: false },
-  render: (args) => (
-    <>
-      <ToolPartStoryNote title="Collapsed State">
-        When collapsed, the quiet variant shows minimal chrome with a subdued
-        label. Click to expand and see the quiet-expanded variant with the
-        lefthand border style.
-      </ToolPartStoryNote>
-      <ToolPart {...args} />
-    </>
-  ),
-};
-
-/**
- * A completed load_skill tool expanded (quiet-expanded variant).
- * Shows lefthand line style like tool groups instead of full chrome.
- */
-export const LoadSkillExpanded: Story = {
-  args: { part: loadSkillCompletedPart },
-};
-
-/** A load_skill tool that failed to find the skill. */
-export const LoadSkillError: Story = {
-  args: { part: loadSkillErrorPart },
-};
-
 const loadSkillReferenceInput = {
   skill_name: "phoenix-graphql",
   reference_name: "project-spans-traces.md",
@@ -782,35 +554,6 @@ const loadSkillReferenceCompletedPart = makePart({
   input: loadSkillReferenceInput,
   output: "# Project spans and traces\n\nQuery spans and traces for a project.",
 });
-
-export const LoadSkillReferenceCollapsed: Story = {
-  args: { part: loadSkillReferenceCompletedPart, defaultOpen: false },
-};
-
-export const LoadSkillReferenceExpanded: Story = {
-  args: { part: loadSkillReferenceCompletedPart },
-};
-
-export const LoadSkillReferenceRunning: Story = {
-  args: {
-    part: makePart({
-      toolName: "load_skill_reference",
-      state: "input-available",
-      input: loadSkillReferenceInput,
-    }),
-  },
-};
-
-export const LoadSkillReferenceError: Story = {
-  args: {
-    part: makePart({
-      toolName: "load_skill_reference",
-      state: "output-error",
-      input: loadSkillReferenceInput,
-      errorText: "Reference not found in the skill registry.",
-    }),
-  },
-};
 
 // ---------------------------------------------------------------------------
 // call_subagent tool mocks
@@ -846,21 +589,6 @@ const callSubagentErrorPart = makePart({
   errorText: "Subagent 'unknown-agent' is not registered.",
 });
 
-/** A call_subagent tool currently delegating to a subagent (summary = name). */
-export const CallSubagentRunning: Story = {
-  args: { part: callSubagentRunningPart },
-};
-
-/** A call_subagent tool that completed with the subagent's result. */
-export const CallSubagentCompleted: Story = {
-  args: { part: callSubagentCompletedPart },
-};
-
-/** A call_subagent tool that failed because the subagent was not found. */
-export const CallSubagentError: Story = {
-  args: { part: callSubagentErrorPart },
-};
-
 // ---------------------------------------------------------------------------
 // execute_browser_action tool mocks
 // ---------------------------------------------------------------------------
@@ -882,47 +610,34 @@ const executeBrowserActionScript = [
   "});",
 ].join("\n");
 
+/**
+ * The script edits the prompt, so it carries a `write_description`: the
+ * model-authored approval prompt the user accepts or rejects in manual edit
+ * mode before the script runs.
+ */
 const executeBrowserActionInput = {
   summary: "Tighten the system prompt on playground instance A.",
   script: executeBrowserActionScript,
+  write_description:
+    'This script will replace the system prompt on playground instance A with "You are a terse expert coding assistant."',
 };
 
-function promptSnapshotFixture(content: string) {
-  return {
-    instanceId: 0,
-    index: 0,
-    label: "A",
-    revision: "prompt-d2f07c04",
-    dirty: false,
-    prompt: null,
-    messages: [
-      { id: 7, role: "system" as const, content },
-      { id: 8, role: "user" as const, content: "{{question}}" },
-    ],
-  };
-}
+const executeBrowserActionAwaitingApprovalToolCallId =
+  "execute-ui-awaiting-approval";
 
 const executeBrowserActionAwaitingApprovalPart = makePart({
   toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
-  toolCallId: "execute-ui-prompt-edit",
+  toolCallId: executeBrowserActionAwaitingApprovalToolCallId,
   state: "input-available",
   input: executeBrowserActionInput,
 });
 
-const executeBrowserActionPendingPromptEdit: PendingPromptEdit = {
-  // Inner operation call id: `<toolCallId>:<sequence>`.
-  toolCallId: "execute-ui-prompt-edit:1",
-  sessionId: "session-playground-demo",
-  instanceId: 0,
-  expectedRevision: "prompt-d2f07c04",
-  before: promptSnapshotFixture(
-    "You are an expert coding assistant. Help users design, write, debug, explain, and improve software with accurate, practical guidance."
-  ),
-  after: promptSnapshotFixture("You are a terse expert coding assistant."),
-  operations: [],
-  accept: async () => undefined,
-  reject: async () => undefined,
-};
+const executeBrowserActionRunningPart = makePart({
+  toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
+  toolCallId: "execute-ui-running",
+  state: "input-available",
+  input: executeBrowserActionInput,
+});
 
 const executeBrowserActionCompletedPart = makePart({
   toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
@@ -931,9 +646,28 @@ const executeBrowserActionCompletedPart = makePart({
   input: executeBrowserActionInput,
   output: [
     "Script completed after 2 ui calls.",
+    "Calls:\n1. playground.prompt.read ok 6ms 418ch\n2. playground.prompt.edit ok 41ms 187ch",
     "Logs:\nediting revision prompt-d2f07c04",
-    'Return value:\n{\n  "ok": true,\n  "output": {\n    "status": "accepted",\n    "acceptedBy": "user",\n    "instanceId": 0,\n    "revision": "prompt-a81f22c9",\n    "message": "Prompt edit applied."\n  }\n}',
+    // Under the approved script, the edit applies without a card of its own,
+    // so it reports `acceptedBy: "auto"`.
+    'Return value:\n{\n  "ok": true,\n  "output": {\n    "status": "accepted",\n    "acceptedBy": "auto",\n    "instanceId": 0,\n    "revision": "prompt-a81f22c9",\n    "message": "Prompt edit applied."\n  }\n}',
   ].join("\n\n"),
+});
+
+const executeBrowserActionRejectedPart = makePart({
+  toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
+  toolCallId: "execute-ui-rejected",
+  state: "output-available",
+  input: executeBrowserActionInput,
+  output: SCRIPT_REJECTED_OUTPUT,
+});
+
+const executeBrowserActionInterruptedPart = makePart({
+  toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
+  toolCallId: "execute-ui-interrupted",
+  state: "output-error",
+  input: executeBrowserActionInput,
+  errorText: "The script run was interrupted.",
 });
 
 const executeBrowserActionStreamingPart = makePart({
@@ -946,37 +680,6 @@ const executeBrowserActionStreamingPart = makePart({
   },
 });
 
-/**
- * An execute_browser_action script paused on an inner prompt-edit approval: the
- * syntax-highlighted script above, the proposed change as a unified diff, and
- * the Accept/Reject actions that resolve the awaiting script.
- */
-export const ExecuteBrowserActionAwaitingPromptEditApproval: Story = {
-  args: { part: executeBrowserActionAwaitingApprovalPart },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store
-        .getState()
-        .setPendingPromptEdit(
-          executeBrowserActionPendingPromptEdit.toolCallId,
-          executeBrowserActionPendingPromptEdit
-        );
-    }),
-  ],
-};
-
-/** An execute_browser_action script that completed, showing logs and the return value. */
-export const ExecuteBrowserActionCompleted: Story = {
-  args: { part: executeBrowserActionCompletedPart },
-  decorators: [withAgentStore()],
-};
-
-/** An execute_browser_action call whose summary and script are still streaming in. */
-export const ExecuteBrowserActionStreaming: Story = {
-  args: { part: executeBrowserActionStreamingPart },
-  decorators: [withAgentStore()],
-};
-
 // ---------------------------------------------------------------------------
 // search_browser_actions tool mocks
 //
@@ -984,36 +687,33 @@ export const ExecuteBrowserActionStreaming: Story = {
 // comments). SearchUIToolDetails renders it verbatim as a highlighted code
 // file inside the collapsing section, instead of the generic renderer's
 // JSON.stringify (which would escape the whole thing onto one line).
+//
+// The catalog is produced by the same production calls the tool makes, so it
+// is the complete operation catalog in its current format. The store mounts
+// the playground prompt operations, standing in for a user on the Prompt
+// Playground; every other operation reports where it becomes available.
 // ---------------------------------------------------------------------------
 
-const searchUICatalog = [
-  "// UIResult = { ok: true; output?: unknown } | { ok: false; error: string }",
-  "",
-  "/**",
-  " * Set the playground time range for scoped views.",
-  " * kind: write; available on the current page.",
-  " */",
-  "ui.timeRange.set(input: { start?: string; end?: string }): Promise<UIResult>;",
-  "",
-  "/**",
-  " * Read a playground prompt instance.",
-  " * kind: read; available on the current page.",
-  " */",
-  "ui.playground.prompt.read(input: { instanceId: number }): Promise<UIResult>;",
-  "",
-  "/**",
-  " * Stage a prompt edit for review.",
-  " * kind: approval; available on the current page. Stages a change the user must accept; the returned promise resolves with the decision.",
-  " */",
-  "ui.playground.prompt.edit(input: { instanceId: number; expectedRevision: string; operations: unknown[] }): Promise<UIResult>;",
-].join("\n");
+function searchUICatalogFixture(query: string): string {
+  const store = createAgentStore();
+  for (const operation of playgroundPromptOperations) {
+    store
+      .getState()
+      .registerClientAction(operation.name, async () => ({ ok: true }));
+  }
+  return renderUIOperationCatalog(
+    searchUIOperations({ agentStore: store, query })
+  );
+}
+
+const searchUIQuery = "playground prompt";
 
 const searchUIResultsPart = makePart({
   toolName: SEARCH_BROWSER_ACTIONS_TOOL_NAME,
   toolCallId: "search-ui-results",
   state: "output-available",
-  input: { query: "playground prompt" },
-  output: searchUICatalog,
+  input: { query: searchUIQuery },
+  output: searchUICatalogFixture(searchUIQuery),
 });
 
 const searchUIRunningPart = makePart({
@@ -1022,354 +722,6 @@ const searchUIRunningPart = makePart({
   state: "input-available",
   input: { query: "evaluator" },
 });
-
-/** A search_browser_actions call whose catalog output renders as a highlighted .d.ts file. */
-export const SearchUIResults: Story = {
-  args: { part: searchUIResultsPart },
-};
-
-/** A search_browser_actions call still running — the query shows in the collapsed preview. */
-export const SearchUIRunning: Story = {
-  args: { part: searchUIRunningPart },
-};
-
-// ---------------------------------------------------------------------------
-// execute_browser_action inner-operation approvals
-//
-// Every approval kind an execute_browser_action script can stage through a `ui.*` call.
-// Grouped so the audit can compare them side by side — in particular the split
-// between operations that render a rich unified diff (prompt edit above,
-// prompt-tool write, evaluator drafts) and those that fall back to a raw-JSON
-// `stringifyToolValue` summary (save prompt, load dataset, instance removal)
-// now that they run through the meta-tool instead of their bespoke tool card.
-// Each inner op is keyed `<executeBrowserActionToolCallId>:<sequence>`; the story stages a
-// pending entry under that key and `useScriptChildApprovals` picks it up.
-// ---------------------------------------------------------------------------
-
-/** An execute_browser_action host part awaiting one inner-operation approval. */
-function executeBrowserActionHostPart(
-  toolCallId: string,
-  summary: string,
-  script: string
-) {
-  return makePart({
-    toolName: EXECUTE_BROWSER_ACTION_TOOL_NAME,
-    toolCallId,
-    state: "input-available",
-    input: { summary, script },
-  });
-}
-
-function makeCodeEvaluatorSnapshot(
-  overrides: Partial<CodeEvaluatorDraftSnapshot> = {}
-): CodeEvaluatorDraftSnapshot {
-  return {
-    mode: "create",
-    evaluatorNodeId: null,
-    name: "hallucination",
-    description: "",
-    language: "PYTHON",
-    sourceCode: "def evaluate(output):\n    return 1.0",
-    sandboxConfigId: "py-sandbox",
-    inputMapping: { pathMapping: {}, literalMapping: {} },
-    testPayload: {
-      input: { question: "Which answer used a tool?" },
-      output: { messages: [{ role: "assistant", content: "Used search" }] },
-      reference: { expectedTool: "search" },
-      metadata: { split: "validation" },
-    },
-    outputConfigs: [],
-    ...overrides,
-  };
-}
-
-function makeLlmEvaluatorSnapshot(
-  overrides: Partial<LLMEvaluatorDraftSnapshot> = {}
-): LLMEvaluatorDraftSnapshot {
-  return {
-    mode: "create",
-    evaluatorNodeId: null,
-    name: "hallucination",
-    description: "",
-    inputMapping: { pathMapping: {}, literalMapping: {} },
-    testPayload: { input: {}, output: {}, reference: {}, metadata: {} },
-    includeExplanation: true,
-    outputConfigs: [],
-    judge: {
-      model: "gpt-4o",
-      provider: "OPENAI",
-      templateFormat: "MUSTACHE",
-      messages: [{ role: "system", content: "Evaluate the output." }],
-      invocationParameters: {},
-      tools: null,
-      toolChoice: null,
-    },
-    ...overrides,
-  };
-}
-
-const executeBrowserActionSavePromptChild = {
-  toolCallId: "execute-ui-save-prompt:1",
-  sessionId: "session-playground-demo",
-  input: { instanceId: 0, description: "Tighten the routing instructions." },
-  preview: {
-    mode: "update",
-    instanceId: 0,
-    label: "Customer support router",
-    promptId: "UHJvbXB0OjEyMw",
-    promptName: "support_router",
-    description: "Tighten the routing instructions.",
-    tags: ["staging"],
-    dirtyBeforeSave: true,
-  },
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingSavePrompt;
-
-/**
- * Routed through execute_browser_action, save-prompt renders the shared ApprovalCard with
- * a labeled, curated payload (prompt name, label, tags) rather than a raw
- * `stringifyToolValue(pending.preview)` dump.
- */
-export const ExecuteBrowserActionAwaitingSavePromptApproval: Story = {
-  args: {
-    part: executeBrowserActionHostPart(
-      "execute-ui-save-prompt",
-      "Save the tightened support-router prompt.",
-      "return await ui.playground.savePrompt({ instanceId: 0 });"
-    ),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store
-        .getState()
-        .setPendingSavePrompt(
-          executeBrowserActionSavePromptChild.toolCallId,
-          executeBrowserActionSavePromptChild
-        );
-    }),
-  ],
-};
-
-const executeBrowserActionLoadDatasetChild = {
-  toolCallId: "execute-ui-load-dataset:1",
-  sessionId: "session-playground-demo",
-  input: { datasetName: "support-conversations", splitName: "validation" },
-  snapshot: {
-    datasetId: "RGF0YXNldDow",
-    splitIds: [],
-    datasetName: "(none)",
-    splitNames: [],
-  },
-  expectedSelection: {
-    datasetId: "RGF0YXNldDox",
-    splitIds: ["U3BsaXQ6MQ"],
-  },
-  expectedRevision: "dataset-rev-1",
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingLoadDataset;
-
-/**
- * Load-dataset through execute_browser_action renders the shared ApprovalCard with a
- * labeled `{ dataset, split }` payload rather than the raw pending input.
- */
-export const ExecuteBrowserActionAwaitingLoadDatasetApproval: Story = {
-  args: {
-    part: executeBrowserActionHostPart(
-      "execute-ui-load-dataset",
-      "Load the support-conversations validation split.",
-      'return await ui.playground.loadDataset({ datasetName: "support-conversations", splitName: "validation" });'
-    ),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store
-        .getState()
-        .setPendingLoadDataset(
-          executeBrowserActionLoadDatasetChild.toolCallId,
-          executeBrowserActionLoadDatasetChild
-        );
-    }),
-  ],
-};
-
-const executeBrowserActionInstanceRemovalChild = {
-  toolCallId: "execute-ui-instance-removal:1",
-  sessionId: "session-playground-demo",
-  instanceId: 1,
-  label: "B",
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingPromptInstanceRemoval;
-
-/** An execute_browser_action inner op removing a playground prompt instance (summary-only). */
-export const ExecuteBrowserActionAwaitingInstanceRemovalApproval: Story = {
-  args: {
-    part: executeBrowserActionHostPart(
-      "execute-ui-instance-removal",
-      "Remove playground prompt instance B.",
-      "return await ui.playground.prompt.removeInstance({ instanceId: 1 });"
-    ),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store
-        .getState()
-        .setPendingPromptInstanceRemoval(
-          executeBrowserActionInstanceRemovalChild.toolCallId,
-          executeBrowserActionInstanceRemovalChild
-        );
-    }),
-  ],
-};
-
-const executeBrowserActionPromptToolWriteChild = {
-  toolCallId: "execute-ui-prompt-tools:1",
-  sessionId: "session-playground-demo",
-  instanceId: 0,
-  expectedRevision: "prompt-d2f07c04",
-  provider: "OPENAI",
-  input: {
-    instanceId: 0,
-    expectedRevision: "prompt-d2f07c04",
-    tools: [
-      {
-        name: "get_weather",
-        description: "Look up the current weather for a city.",
-        parameters: {
-          type: "object",
-          properties: { city: { type: "string" } },
-          required: ["city"],
-        },
-      },
-    ],
-  },
-  before: { instanceId: 0, index: 0, label: "A", entries: [] },
-  after: {
-    instanceId: 0,
-    index: 0,
-    label: "A",
-    entries: [
-      {
-        id: 1,
-        name: "get_weather",
-        text: '{\n  "description": "Look up the current weather for a city.",\n  "parameters": {\n    "type": "object",\n    "properties": { "city": { "type": "string" } },\n    "required": ["city"]\n  }\n}',
-      },
-    ],
-  },
-  summary: {
-    instanceIndex: 0,
-    instanceLabel: "A",
-    created: ["get_weather"],
-    updated: [],
-    deleted: [],
-  },
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingPromptToolWrite;
-
-/** An execute_browser_action inner op writing playground prompt tools (renders a diff). */
-export const ExecuteBrowserActionAwaitingPromptToolWriteApproval: Story = {
-  args: {
-    part: executeBrowserActionHostPart(
-      "execute-ui-prompt-tools",
-      "Add a get_weather tool to playground instance A.",
-      "return await ui.playground.promptTools.write({ instanceId: 0, tools: [ /* ... */ ] });"
-    ),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store
-        .getState()
-        .setPendingPromptToolWrite(
-          executeBrowserActionPromptToolWriteChild.toolCallId,
-          executeBrowserActionPromptToolWriteChild
-        );
-    }),
-  ],
-};
-
-const executeBrowserActionCodeEvaluatorChild = {
-  toolCallId: "execute-ui-code-eval:1",
-  sessionId: "session-playground-demo",
-  before: makeCodeEvaluatorSnapshot(),
-  after: makeCodeEvaluatorSnapshot({
-    sourceCode:
-      "def evaluate(output, reference):\n    used = reference['expectedTool'] in output['messages'][0]['content']\n    return 1.0 if used else 0.0",
-  }),
-  operations: [],
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingCodeEvaluatorEdit;
-
-/** An execute_browser_action inner op editing a code-evaluator draft (renders a diff). */
-export const ExecuteBrowserActionAwaitingCodeEvaluatorEditApproval: Story = {
-  args: {
-    part: executeBrowserActionHostPart(
-      "execute-ui-code-eval",
-      "Rewrite the hallucination evaluator to check tool usage.",
-      "return await ui.evaluators.code.edit({ operations: [ /* ... */ ] });"
-    ),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store
-        .getState()
-        .setPendingCodeEvaluatorEdit(
-          executeBrowserActionCodeEvaluatorChild.toolCallId,
-          executeBrowserActionCodeEvaluatorChild
-        );
-    }),
-  ],
-};
-
-const executeBrowserActionLlmEvaluatorChild = {
-  toolCallId: "execute-ui-llm-eval:1",
-  sessionId: "session-playground-demo",
-  before: makeLlmEvaluatorSnapshot(),
-  after: makeLlmEvaluatorSnapshot({
-    judge: {
-      model: "gpt-4o",
-      provider: "OPENAI",
-      templateFormat: "MUSTACHE",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Grade whether the answer is grounded in the provided reference. Reply with a label.",
-        },
-      ],
-      invocationParameters: {},
-      tools: null,
-      toolChoice: null,
-    },
-  }),
-  operations: [],
-  accept: async () => undefined,
-  reject: async () => undefined,
-} satisfies PendingLlmEvaluatorEdit;
-
-/** An execute_browser_action inner op editing an LLM-evaluator draft (renders a diff). */
-export const ExecuteBrowserActionAwaitingLlmEvaluatorEditApproval: Story = {
-  args: {
-    part: executeBrowserActionHostPart(
-      "execute-ui-llm-eval",
-      "Sharpen the LLM judge system prompt.",
-      "return await ui.evaluators.llm.edit({ operations: [ /* ... */ ] });"
-    ),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store
-        .getState()
-        .setPendingLlmEvaluatorEdit(
-          executeBrowserActionLlmEvaluatorChild.toolCallId,
-          executeBrowserActionLlmEvaluatorChild
-        );
-    }),
-  ],
-};
 
 // ---------------------------------------------------------------------------
 // Dataset write approvals (DatasetWriteApprovalCard)
@@ -1388,371 +740,697 @@ function datasetWritePart(toolName: string, toolCallId: string) {
   });
 }
 
-/** Build a dataset-write story that stages one pending write for review. */
-function datasetWriteStory(
+/** A dataset-write state: the tool call plus the pending write it staged. */
+function datasetWriteState(
+  label: string,
   toolName: string,
   toolCallId: string,
-  preview: PendingDatasetWrite["preview"]
-): Story {
+  preview: PendingDatasetWrite["preview"],
+  description?: string
+): ToolPartState {
   return {
-    args: { part: datasetWritePart(toolName, toolCallId) },
-    decorators: [
-      withAgentStoreSetup((store) => {
-        store.getState().setPendingDatasetWrite(toolCallId, {
-          toolCallId,
-          toolName,
-          preview,
-          accept: async () => undefined,
-          reject: async () => undefined,
-        });
-      }),
-    ],
+    label,
+    description,
+    part: datasetWritePart(toolName, toolCallId),
+    setupStore: (store) => {
+      store.getState().setPendingDatasetWrite(toolCallId, {
+        toolCallId,
+        toolName,
+        preview,
+        accept: async () => undefined,
+        reject: async () => undefined,
+      });
+    },
   };
 }
 
-/** create_dataset awaiting approval. */
-export const DatasetWriteCreate: Story = datasetWriteStory(
-  CREATE_DATASET_TOOL_NAME,
-  "dw-create",
-  {
-    kind: "create",
-    name: "support-conversations",
-    description: "Curated support chats for regression testing.",
-    examples: [
-      {
-        input: { question: "How do I reset my password?" },
-        output: { answer: "Open Settings > Security > Reset password." },
-      },
-    ],
-  }
-);
-
-/** add_dataset_examples awaiting approval. */
-export const DatasetWriteAddExamples: Story = datasetWriteStory(
-  ADD_DATASET_EXAMPLES_TOOL_NAME,
-  "dw-add",
-  {
-    kind: "add",
-    examples: [
-      {
-        input: { question: "Where are my invoices?" },
-        output: { answer: "Billing > Invoices." },
-        metadata: { source: "zendesk" },
-      },
-    ],
-  }
-);
-
-/** create_dataset_split awaiting approval. */
-export const DatasetWriteCreateSplit: Story = datasetWriteStory(
-  CREATE_DATASET_SPLIT_TOOL_NAME,
-  "dw-create-split",
-  {
-    kind: "create-split",
-    name: "validation",
-    description: "Held-out validation rows.",
-    color: "#4CAF50",
-    exampleCount: 42,
-  }
-);
-
-/** set_dataset_example_splits awaiting approval. */
-export const DatasetWriteSetSplits: Story = datasetWriteStory(
-  SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
-  "dw-set-splits",
-  {
-    kind: "set-splits",
-    datasetName: "support-conversations",
-    splitNames: ["validation", "hard-cases"],
-    exampleIds: ["RXhhbXBsZTox", "RXhhbXBsZToy", "RXhhbXBsZToz"],
-  }
-);
-
-/** create_dataset_label awaiting approval. */
-export const DatasetWriteCreateLabel: Story = datasetWriteStory(
-  CREATE_DATASET_LABEL_TOOL_NAME,
-  "dw-create-label",
-  {
-    kind: "create-label",
-    name: "needs-review",
-    description: "Rows a human should double-check.",
-    color: "#FF9800",
-    attachToDataset: true,
-  }
-);
-
-/** set_dataset_labels awaiting approval. */
-export const DatasetWriteSetLabels: Story = datasetWriteStory(
-  SET_DATASET_LABELS_TOOL_NAME,
-  "dw-set-labels",
-  { kind: "set-labels", labelNames: ["golden", "needs-review"] }
-);
-
-/** patch_dataset awaiting approval. */
-export const DatasetWritePatchDataset: Story = datasetWriteStory(
-  PATCH_DATASET_TOOL_NAME,
-  "dw-patch-dataset",
-  {
-    kind: "patch-dataset",
-    changes: {
-      name: "support-conversations-v2",
-      description: "Renamed and re-scoped.",
-    },
-  }
-);
-
-/** patch_dataset_examples awaiting approval. */
-export const DatasetWritePatchExamples: Story = datasetWriteStory(
-  PATCH_DATASET_EXAMPLES_TOOL_NAME,
-  "dw-patch-examples",
-  {
-    kind: "patch-examples",
-    datasetName: "support-conversations",
-    patches: [
-      {
-        exampleId: "RXhhbXBsZTox",
-        output: { answer: "Open Settings > Security > Reset password." },
-      },
-    ],
-  }
-);
-
-/** patch_dataset_split awaiting approval. */
-export const DatasetWritePatchSplit: Story = datasetWriteStory(
-  PATCH_DATASET_SPLIT_TOOL_NAME,
-  "dw-patch-split",
-  {
-    kind: "patch-split",
-    splitName: "validation",
-    changes: { color: "#2196F3" },
-  }
-);
-
-/** add_spans_to_dataset awaiting approval. */
-export const DatasetWriteAddSpans: Story = datasetWriteStory(
-  ADD_SPANS_TO_DATASET_TOOL_NAME,
-  "dw-add-spans",
-  { kind: "add-spans", datasetName: "support-conversations", spanCount: 12 }
-);
-
-/** delete_dataset awaiting approval — carries a permanence danger note. */
-export const DatasetWriteDeleteDataset: Story = datasetWriteStory(
-  DELETE_DATASET_TOOL_NAME,
-  "dw-delete-dataset",
-  { kind: "delete-dataset", datasetName: "support-conversations" }
-);
-
-/** delete_dataset_examples awaiting approval — carries a scope danger note. */
-export const DatasetWriteDeleteExamples: Story = datasetWriteStory(
-  DELETE_DATASET_EXAMPLES_TOOL_NAME,
-  "dw-delete-examples",
-  {
-    kind: "delete-examples",
-    datasetName: "support-conversations",
-    exampleIds: ["RXhhbXBsZTox", "RXhhbXBsZToy"],
-  }
-);
-
-/** delete_dataset_splits awaiting approval — instance-wide danger note. */
-export const DatasetWriteDeleteSplits: Story = datasetWriteStory(
-  DELETE_DATASET_SPLITS_TOOL_NAME,
-  "dw-delete-splits",
-  { kind: "delete-splits", splitNames: ["hard-cases"] }
-);
-
-/** delete_dataset_labels awaiting approval — instance-wide danger note. */
-export const DatasetWriteDeleteLabels: Story = datasetWriteStory(
-  DELETE_DATASET_LABELS_TOOL_NAME,
-  "dw-delete-labels",
-  { kind: "delete-labels", labelNames: ["needs-review"] }
-);
-
 // ---------------------------------------------------------------------------
-// Annotation config write approvals (AnnotationConfigWriteApprovalCard)
+// ToolPart stories
 // ---------------------------------------------------------------------------
 
-/** create_annotation_config awaiting approval. */
-export const AnnotationConfigCreate: Story = {
-  args: {
-    part: makePart({
-      toolName: CREATE_ANNOTATION_CONFIG_TOOL_NAME,
-      toolCallId: "ac-create",
-      state: "input-available",
-      input: {},
-    }),
-  },
+/**
+ * One tool call in the chat transcript: a collapsible row with the tool's
+ * name, a preview of its input and its status, which expands into a body the
+ * tool owns. Most tools have a bespoke body; tools without one fall back to
+ * pretty-printed input and output. A call that stages a change for the user
+ * to accept renders its approval card in the body and opens automatically.
+ *
+ * Each story is one tool family, stacking that family's states in the order
+ * the tool reaches them. `bash` runs preparing, running, awaiting approval,
+ * completed, denied, error; `execute_browser_action` asks before running, so
+ * it runs preparing, awaiting approval, running, completed, rejected,
+ * interrupted. Families with several kinds of call (documentation, skills)
+ * stack each kind's states in turn, and the write
+ * families show each write awaiting approval. Every state renders against its own agent store, so a pending approval
+ * staged for one state never leaks into another.
+ */
+
+const toolPartMeta = {
+  title: "Domains/PXI/Tool Part",
+  tags: ["updated", "unreviewed", "incomplete"],
+  component: ToolPart,
+  // Rolldown can emit one-character helper exports in this large story module.
+  excludeStories: /^[A-Za-z_$]$/,
   decorators: [
-    withAgentStoreSetup((store) => {
-      store.getState().setPendingAnnotationConfigWrite("ac-create", {
-        toolCallId: "ac-create",
-        toolName: CREATE_ANNOTATION_CONFIG_TOOL_NAME,
-        preview: {
-          kind: "create",
-          draft: {
-            type: "categorical",
-            name: "helpfulness",
-            description: "Did the answer resolve the user's problem?",
-            optimizationDirection: "MAXIMIZE",
-            values: [
-              { label: "helpful", score: 1 },
-              { label: "partly", score: 0.5 },
-              { label: "unhelpful", score: 0 },
+    (Story) => (
+      <div css={containerCSS}>
+        <Story />
+      </div>
+    ),
+  ],
+  parameters: {
+    controls: { disable: true },
+    contentMaxWidth: 780,
+    contentMode: "bounded",
+    layout: "padded",
+    themeLayout: "column",
+  },
+} satisfies Meta<typeof ToolPart>;
+
+export default toolPartMeta;
+
+type Story = StoryObj;
+
+/**
+ * `bash` calls from input to result. The approval states are bash calls too:
+ * a command the agent must ask before running renders its approval request
+ * in the bash body, and a denied one keeps the command visible.
+ */
+export const Bash: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        { label: "Preparing", part: bashStreamingPart },
+        { label: "Running", part: bashRunningPart },
+        { label: "Awaiting approval", part: approvalRequestedPart },
+        {
+          label: "Completed",
+          description: "Stdout from a successful command.",
+          part: bashCompletedPart,
+        },
+        {
+          label: "Completed, multi-line command",
+          part: bashMultilineCommandPart,
+        },
+        {
+          label: "Denied",
+          description: "The user declined a destructive command.",
+          part: deniedPart,
+        },
+        { label: "Error", part: bashErrorPart },
+      ]}
+    />
+  ),
+};
+
+/**
+ * Tools without a bespoke body, such as `read` and `edit`, fall back to
+ * pretty-printed JSON input and output.
+ */
+export const GenericTools: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        { label: "Read, completed", part: readPart },
+        { label: "Edit, completed", part: editPart },
+      ]}
+    />
+  ),
+};
+
+/**
+ * `ask_user` pauses the agent on questions for the user. The pending states
+ * show the question carousel; the answered and skipped states show the
+ * recorded answers; the errors come from three different origins.
+ */
+export const AskUser: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        { label: "Awaiting answers", part: askUserAwaitingPart },
+        {
+          label: "Draft in progress",
+          description:
+            "The first question is answered and the second is current.",
+          part: askUserDraftInProgressPart,
+          elicitationDraft: askUserDraftInProgress,
+        },
+        {
+          label: "Custom answer selected but blank",
+          part: askUserBlankCustomPart,
+          elicitationDraft: askUserBlankCustomDraft,
+        },
+        { label: "Answered", part: askUserAnsweredPart },
+        { label: "Skipped", part: askUserSkippedPart },
+        {
+          label: "Error: invalid input",
+          description: (
+            <>
+              The tool registry emits an <code>output-error</code> result when{" "}
+              <code>ask_user</code> input fails schema parsing, such as an empty{" "}
+              <code>questions</code> array.
+            </>
+          ),
+          part: askUserInvalidInputPart,
+        },
+        {
+          label: "Error: cancelled by the user",
+          description: (
+            <>
+              The chat writes back an <code>output-error</code> result when the
+              user cancels the question carousel.
+            </>
+          ),
+          part: askUserCancelledPart,
+        },
+        {
+          label: "Error: could not resume",
+          description:
+            "Representable but not emitted by production today: a recovery error for a question left unresolved when the conversation is reopened, once its pending state cannot be reconstructed.",
+          part: askUserResumeFailedPart,
+        },
+      ]}
+    />
+  ),
+};
+
+// Not `Docs`: that export's id would collide with the autodocs page's id,
+// and the index would silently drop the story.
+/** The documentation tools: search and file-system queries over the docs. */
+export const Documentation: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        { label: "Search, running", part: docsSearchRunningPart },
+        { label: "Search, completed", part: docsSearchPart },
+        {
+          label: "File-system query, running",
+          part: docsFileSystemQueryRunningPart,
+        },
+        {
+          label: "File-system query, completed",
+          part: docsFileSystemQueryPart,
+        },
+      ]}
+    />
+  ),
+};
+
+/**
+ * `load_skill` and `load_skill_reference`. While running or failed they use
+ * the standard chrome; once completed they switch to the quiet variant — a
+ * subdued "Loaded skill …" label when collapsed, and a left-border body like
+ * a tool group when expanded.
+ */
+export const LoadSkill: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        { label: "Skill, running", part: loadSkillRunningPart },
+        {
+          label: "Skill, completed and collapsed",
+          part: loadSkillCompletedPart,
+          defaultOpen: false,
+        },
+        {
+          label: "Skill, completed and expanded",
+          part: loadSkillCompletedPart,
+        },
+        { label: "Skill, error", part: loadSkillErrorPart },
+        {
+          label: "Reference, running",
+          part: makePart({
+            toolName: "load_skill_reference",
+            state: "input-available",
+            input: loadSkillReferenceInput,
+          }),
+        },
+        {
+          label: "Reference, completed and collapsed",
+          part: loadSkillReferenceCompletedPart,
+          defaultOpen: false,
+        },
+        {
+          label: "Reference, completed and expanded",
+          part: loadSkillReferenceCompletedPart,
+        },
+        {
+          label: "Reference, error",
+          part: makePart({
+            toolName: "load_skill_reference",
+            state: "output-error",
+            input: loadSkillReferenceInput,
+            errorText: "Reference not found in the skill registry.",
+          }),
+        },
+      ]}
+    />
+  ),
+};
+
+/** `call_subagent` delegating a task; the collapsed preview is the subagent's name. */
+export const CallSubagent: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        { label: "Running", part: callSubagentRunningPart },
+        { label: "Completed", part: callSubagentCompletedPart },
+        {
+          label: "Error: subagent not registered",
+          part: callSubagentErrorPart,
+        },
+      ]}
+    />
+  ),
+};
+
+/**
+ * `execute_browser_action` runs a script of `ui.*` calls. A script that
+ * changes state carries a `write_description`, and in manual edit mode the
+ * user accepts or rejects the whole script once, before it runs; accepting
+ * covers every state-changing call in it, with no card per call.
+ */
+export const ExecuteBrowserAction: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        {
+          label: "Preparing",
+          description: "The summary and script are still streaming in.",
+          part: executeBrowserActionStreamingPart,
+        },
+        {
+          label: "Awaiting approval",
+          description:
+            "The approval card shows the script's write description. Nothing has run yet.",
+          part: executeBrowserActionAwaitingApprovalPart,
+          setupStore: (store) => {
+            store
+              .getState()
+              .setPendingScriptApproval(
+                executeBrowserActionAwaitingApprovalToolCallId,
+                {
+                  toolCallId: executeBrowserActionAwaitingApprovalToolCallId,
+                  description: executeBrowserActionInput.write_description,
+                  accept: async () => undefined,
+                  reject: async () => undefined,
+                }
+              );
+          },
+        },
+        {
+          label: "Running",
+          description:
+            "After the user accepts, or in bypass mode, the script runs and its changes apply without further approval.",
+          part: executeBrowserActionRunningPart,
+        },
+        {
+          label: "Completed",
+          description: "The script's result and return value.",
+          part: executeBrowserActionCompletedPart,
+        },
+        {
+          label: "Rejected",
+          description:
+            "The user rejected the script, so it never ran. The rejection is the tool's result, not an error.",
+          part: executeBrowserActionRejectedPart,
+        },
+        {
+          label: "Interrupted",
+          description:
+            "Stopping the chat ends a script that is awaiting approval or running.",
+          part: executeBrowserActionInterruptedPart,
+        },
+      ]}
+    />
+  ),
+};
+
+/**
+ * `search_browser_actions` returns the complete `.d.ts`-style catalog of
+ * `ui.*` calls, query matches first, rendered as a highlighted code file.
+ * Each call is marked read or write and says whether it is available on the
+ * current page.
+ */
+export const SearchBrowserActions: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        {
+          label: "Running",
+          description: "The query shows in the collapsed preview.",
+          part: searchUIRunningPart,
+        },
+        { label: "Completed", part: searchUIResultsPart },
+      ]}
+    />
+  ),
+};
+
+/**
+ * Dataset writes awaiting approval, on the dedicated dataset approval card.
+ * Each kind has its own structured action label, and every destructive
+ * (`delete-*`) kind carries a danger note.
+ */
+export const DatasetWrites: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        datasetWriteState(
+          "Create dataset",
+          CREATE_DATASET_TOOL_NAME,
+          "dw-create",
+          {
+            kind: "create",
+            name: "support-conversations",
+            description: "Curated support chats for regression testing.",
+            examples: [
+              {
+                input: { question: "How do I reset my password?" },
+                output: {
+                  answer: "Open Settings > Security > Reset password.",
+                },
+              },
             ],
-          },
-          projectId: "UHJvamVjdDox",
-        },
-        accept: async () => undefined,
-        reject: async () => undefined,
-      } satisfies PendingAnnotationConfigWrite);
-    }),
-  ],
+          }
+        ),
+        datasetWriteState(
+          "Add examples",
+          ADD_DATASET_EXAMPLES_TOOL_NAME,
+          "dw-add",
+          {
+            kind: "add",
+            examples: [
+              {
+                input: { question: "Where are my invoices?" },
+                output: { answer: "Billing > Invoices." },
+                metadata: { source: "zendesk" },
+              },
+            ],
+          }
+        ),
+        datasetWriteState(
+          "Add spans",
+          ADD_SPANS_TO_DATASET_TOOL_NAME,
+          "dw-add-spans",
+          {
+            kind: "add-spans",
+            datasetName: "support-conversations",
+            spanCount: 12,
+          }
+        ),
+        datasetWriteState(
+          "Create split",
+          CREATE_DATASET_SPLIT_TOOL_NAME,
+          "dw-create-split",
+          {
+            kind: "create-split",
+            name: "validation",
+            description: "Held-out validation rows.",
+            color: "#4CAF50",
+            exampleCount: 42,
+          }
+        ),
+        datasetWriteState(
+          "Set example splits",
+          SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
+          "dw-set-splits",
+          {
+            kind: "set-splits",
+            datasetName: "support-conversations",
+            splitNames: ["validation", "hard-cases"],
+            exampleIds: ["RXhhbXBsZTox", "RXhhbXBsZToy", "RXhhbXBsZToz"],
+          }
+        ),
+        datasetWriteState(
+          "Create label",
+          CREATE_DATASET_LABEL_TOOL_NAME,
+          "dw-create-label",
+          {
+            kind: "create-label",
+            name: "needs-review",
+            description: "Rows a human should double-check.",
+            color: "#FF9800",
+            attachToDataset: true,
+          }
+        ),
+        datasetWriteState(
+          "Set labels",
+          SET_DATASET_LABELS_TOOL_NAME,
+          "dw-set-labels",
+          { kind: "set-labels", labelNames: ["golden", "needs-review"] }
+        ),
+        datasetWriteState(
+          "Update dataset",
+          PATCH_DATASET_TOOL_NAME,
+          "dw-patch-dataset",
+          {
+            kind: "patch-dataset",
+            changes: {
+              name: "support-conversations-v2",
+              description: "Renamed and re-scoped.",
+            },
+          }
+        ),
+        datasetWriteState(
+          "Update examples",
+          PATCH_DATASET_EXAMPLES_TOOL_NAME,
+          "dw-patch-examples",
+          {
+            kind: "patch-examples",
+            datasetName: "support-conversations",
+            patches: [
+              {
+                exampleId: "RXhhbXBsZTox",
+                output: {
+                  answer: "Open Settings > Security > Reset password.",
+                },
+              },
+            ],
+          }
+        ),
+        datasetWriteState(
+          "Update split",
+          PATCH_DATASET_SPLIT_TOOL_NAME,
+          "dw-patch-split",
+          {
+            kind: "patch-split",
+            splitName: "validation",
+            changes: { color: "#2196F3" },
+          }
+        ),
+        datasetWriteState(
+          "Delete dataset",
+          DELETE_DATASET_TOOL_NAME,
+          "dw-delete-dataset",
+          { kind: "delete-dataset", datasetName: "support-conversations" }
+        ),
+        datasetWriteState(
+          "Delete examples",
+          DELETE_DATASET_EXAMPLES_TOOL_NAME,
+          "dw-delete-examples",
+          {
+            kind: "delete-examples",
+            datasetName: "support-conversations",
+            exampleIds: ["RXhhbXBsZTox", "RXhhbXBsZToy"],
+          }
+        ),
+        datasetWriteState(
+          "Delete splits",
+          DELETE_DATASET_SPLITS_TOOL_NAME,
+          "dw-delete-splits",
+          { kind: "delete-splits", splitNames: ["hard-cases"] }
+        ),
+        datasetWriteState(
+          "Delete labels",
+          DELETE_DATASET_LABELS_TOOL_NAME,
+          "dw-delete-labels",
+          { kind: "delete-labels", labelNames: ["needs-review"] }
+        ),
+      ]}
+    />
+  ),
 };
 
-/** update_annotation_config awaiting approval — carries a full-replace danger note. */
-export const AnnotationConfigUpdate: Story = {
-  args: {
-    part: makePart({
-      toolName: UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
-      toolCallId: "ac-update",
-      state: "input-available",
-      input: {},
-    }),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store.getState().setPendingAnnotationConfigWrite("ac-update", {
-        toolCallId: "ac-update",
-        toolName: UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
-        preview: {
-          kind: "update",
-          configId: "QW5ub3RhdGlvbkNvbmZpZzox",
-          draft: {
-            type: "continuous",
-            name: "helpfulness",
-            optimizationDirection: "MAXIMIZE",
-            lowerBound: 0,
-            upperBound: 1,
+/**
+ * The other writes to Phoenix records that pause for approval: annotation
+ * configs, span annotations and experiment metadata. Each has its own
+ * approval body.
+ */
+export const AnnotationAndExperimentWrites: Story = {
+  render: () => (
+    <ToolPartStates
+      states={[
+        {
+          label: "Create annotation config, awaiting approval",
+          part: makePart({
+            toolName: CREATE_ANNOTATION_CONFIG_TOOL_NAME,
+            toolCallId: "ac-create",
+            state: "input-available",
+            input: {},
+          }),
+          setupStore: (store) => {
+            store.getState().setPendingAnnotationConfigWrite("ac-create", {
+              toolCallId: "ac-create",
+              toolName: CREATE_ANNOTATION_CONFIG_TOOL_NAME,
+              preview: {
+                kind: "create",
+                draft: {
+                  type: "categorical",
+                  name: "helpfulness",
+                  description: "Did the answer resolve the user's problem?",
+                  optimizationDirection: "MAXIMIZE",
+                  values: [
+                    { label: "helpful", score: 1 },
+                    { label: "partly", score: 0.5 },
+                    { label: "unhelpful", score: 0 },
+                  ],
+                },
+                projectId: "UHJvamVjdDox",
+              },
+              accept: async () => undefined,
+              reject: async () => undefined,
+            } satisfies PendingAnnotationConfigWrite);
           },
         },
-        accept: async () => undefined,
-        reject: async () => undefined,
-      } satisfies PendingAnnotationConfigWrite);
-    }),
-  ],
-};
-
-// ---------------------------------------------------------------------------
-// patch_experiment approval (PatchExperimentToolDetails)
-// ---------------------------------------------------------------------------
-
-/** patch_experiment awaiting approval — renders a per-field before/after diff. */
-export const PatchExperimentAwaitingApproval: Story = {
-  args: {
-    part: makePart({
-      toolName: PATCH_EXPERIMENT_TOOL_NAME,
-      toolCallId: "px-patch",
-      state: "input-available",
-      input: {},
-    }),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store.getState().setPendingPatchExperiment("px-patch", {
-        toolCallId: "px-patch",
-        sessionId: "session-experiment-demo",
-        experimentId: "RXhwZXJpbWVudDox",
-        experimentName: "router-v3",
-        expectedUpdatedAt: "2026-08-11T00:00:00Z",
-        payload: {
-          name: "router-v3-tuned",
-          description: "Tuned routing thresholds after error analysis.",
+        {
+          label: "Update annotation config, awaiting approval",
+          description: "Warns that an update replaces the whole config.",
+          part: makePart({
+            toolName: UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
+            toolCallId: "ac-update",
+            state: "input-available",
+            input: {},
+          }),
+          setupStore: (store) => {
+            store.getState().setPendingAnnotationConfigWrite("ac-update", {
+              toolCallId: "ac-update",
+              toolName: UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
+              preview: {
+                kind: "update",
+                configId: "QW5ub3RhdGlvbkNvbmZpZzox",
+                draft: {
+                  type: "continuous",
+                  name: "helpfulness",
+                  optimizationDirection: "MAXIMIZE",
+                  lowerBound: 0,
+                  upperBound: 1,
+                },
+              },
+              accept: async () => undefined,
+              reject: async () => undefined,
+            } satisfies PendingAnnotationConfigWrite);
+          },
         },
-        diff: [
-          { field: "name", previous: "router-v3", next: "router-v3-tuned" },
-          {
-            field: "description",
-            previous: null,
-            next: "Tuned routing thresholds after error analysis.",
+        {
+          label: "Annotate spans, awaiting approval",
+          description: "Lists the proposed annotations.",
+          part: makePart({
+            toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
+            toolCallId: "bsa-approval",
+            state: "input-available",
+            input: {
+              annotations: [
+                {
+                  spanId: "abcdef0123456789",
+                  name: "helpfulness",
+                  label: "helpful",
+                  score: 1,
+                  explanation: "Directly answered the user's question.",
+                  annotatorKind: "LLM",
+                },
+                {
+                  spanId: "0123456789abcdef",
+                  name: "grounded",
+                  label: "no",
+                  score: 0,
+                  explanation: "Cited a policy that is not in the reference.",
+                  annotatorKind: "LLM",
+                },
+              ],
+            },
+          }),
+          setupStore: (store) => {
+            store.getState().setPendingBatchSpanAnnotate("bsa-approval", {
+              toolCallId: "bsa-approval",
+              sessionId: "session-annotation-demo",
+              annotations: [
+                {
+                  spanId: "abcdef0123456789",
+                  name: "helpfulness",
+                  annotatorKind: "LLM",
+                  label: "helpful",
+                  score: 1,
+                  explanation: "Directly answered the user's question.",
+                  identifier: null,
+                  metadata: null,
+                },
+                {
+                  spanId: "0123456789abcdef",
+                  name: "grounded",
+                  annotatorKind: "LLM",
+                  label: "no",
+                  score: 0,
+                  explanation: "Cited a policy that is not in the reference.",
+                  identifier: null,
+                  metadata: null,
+                },
+              ],
+              accept: async () => undefined,
+              reject: async () => undefined,
+            } satisfies PendingBatchSpanAnnotate);
           },
-        ],
-        accept: async () => undefined,
-        reject: async () => undefined,
-      } satisfies PendingPatchExperiment);
-    }),
-  ],
-};
-
-// ---------------------------------------------------------------------------
-// batch_span_annotate approval (BatchSpanAnnotateToolDetails)
-// ---------------------------------------------------------------------------
-
-/** batch_span_annotate awaiting approval — renders the proposed annotations. */
-export const BatchSpanAnnotateAwaitingApproval: Story = {
-  args: {
-    part: makePart({
-      toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-      toolCallId: "bsa-approval",
-      state: "input-available",
-      input: {
-        annotations: [
-          {
-            spanId: "abcdef0123456789",
-            name: "helpfulness",
-            label: "helpful",
-            score: 1,
-            explanation: "Directly answered the user's question.",
-            annotatorKind: "LLM",
+        },
+        {
+          label: "Update experiment, awaiting approval",
+          description: "Shows a before-and-after diff per changed field.",
+          part: makePart({
+            toolName: PATCH_EXPERIMENT_TOOL_NAME,
+            toolCallId: "px-patch",
+            state: "input-available",
+            input: {},
+          }),
+          setupStore: (store) => {
+            store.getState().setPendingPatchExperiment("px-patch", {
+              toolCallId: "px-patch",
+              sessionId: "session-experiment-demo",
+              experimentId: "RXhwZXJpbWVudDox",
+              experimentName: "router-v3",
+              expectedUpdatedAt: "2026-08-11T00:00:00Z",
+              payload: {
+                name: "router-v3-tuned",
+                description: "Tuned routing thresholds after error analysis.",
+              },
+              diff: [
+                {
+                  field: "name",
+                  previous: "router-v3",
+                  next: "router-v3-tuned",
+                },
+                {
+                  field: "description",
+                  previous: null,
+                  next: "Tuned routing thresholds after error analysis.",
+                },
+              ],
+              accept: async () => undefined,
+              reject: async () => undefined,
+            } satisfies PendingPatchExperiment);
           },
-          {
-            spanId: "0123456789abcdef",
-            name: "grounded",
-            label: "no",
-            score: 0,
-            explanation: "Cited a policy that is not in the reference.",
-            annotatorKind: "LLM",
-          },
-        ],
-      },
-    }),
-  },
-  decorators: [
-    withAgentStoreSetup((store) => {
-      store.getState().setPendingBatchSpanAnnotate("bsa-approval", {
-        toolCallId: "bsa-approval",
-        sessionId: "session-annotation-demo",
-        annotations: [
-          {
-            spanId: "abcdef0123456789",
-            name: "helpfulness",
-            annotatorKind: "LLM",
-            label: "helpful",
-            score: 1,
-            explanation: "Directly answered the user's question.",
-            identifier: null,
-            metadata: null,
-          },
-          {
-            spanId: "0123456789abcdef",
-            name: "grounded",
-            annotatorKind: "LLM",
-            label: "no",
-            score: 0,
-            explanation: "Cited a policy that is not in the reference.",
-            identifier: null,
-            metadata: null,
-          },
-        ],
-        accept: async () => undefined,
-        reject: async () => undefined,
-      } satisfies PendingBatchSpanAnnotate);
-    }),
-  ],
+        },
+      ]}
+    />
+  ),
 };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: Story = {
-  ...BashCompleted,
   tags: ["!dev", "!autodocs"],
   // An expanded tool call at the chat panel's width, shrunk.
   parameters: { thumbnail: { scale: 0.5 } },
+  render: () => (
+    <AgentStoreStoryProvider>
+      <ToolPart part={bashCompletedPart} defaultOpen />
+    </AgentStoreStoryProvider>
+  ),
 };
