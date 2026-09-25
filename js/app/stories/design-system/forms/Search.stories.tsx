@@ -1,16 +1,12 @@
 import type { StoryObj, Meta, StoryFn } from "@storybook/react";
 import { fn } from "storybook/test";
 
-import type { SearchButtonProps, SearchFieldProps } from "@phoenix/components";
+import type { SearchFieldProps } from "@phoenix/components";
 import {
   FieldError,
   Flex,
-  Icon,
-  IconButton,
-  Icons,
   Input,
   Label,
-  SearchButton,
   SearchField,
   Text,
 } from "@phoenix/components";
@@ -18,12 +14,8 @@ import { SearchIcon } from "@phoenix/components/core/field";
 
 /**
  * Search input. `SearchField` is the labeled field: search icon, input, and
- * clear button. `SearchButton`, shown in the `Search Button…` stories, is the
- * compact form for toolbars: a search field at rest as an icon button. Press
- * it and it expands into an S-size search field; blur it while empty and it
- * collapses back. While it holds a query it stays open showing it. Tab rests
- * on the collapsed button without opening anything, and Escape from the empty
- * field hands focus back.
+ * clear button. For a toolbar too tight for an idle field, use
+ * `Search Button`.
  */
 const meta: Meta = {
   title: "Design System/Forms/Search",
@@ -175,72 +167,6 @@ export const Gallery = () => (
     </div>
   </Flex>
 );
-
-type SearchButtonStory = StoryObj<SearchButtonProps>;
-
-/**
- * Shared by every `SearchButton` story: renders the button rather than the
- * meta's `SearchField`, and supplies its label and placeholder.
- */
-const searchButtonStory: SearchButtonStory = {
-  render: (args) => <SearchButton {...args} />,
-  args: {
-    "aria-label": "Search",
-    placeholder: "Search...",
-  },
-};
-
-export const SearchButtonDefault: SearchButtonStory = {
-  ...searchButtonStory,
-};
-
-/** Holding a query, it mounts already expanded rather than hiding the filter. */
-export const SearchButtonWithDefaultValue: SearchButtonStory = {
-  ...searchButtonStory,
-  args: {
-    ...searchButtonStory.args,
-    defaultValue: "temperature",
-  },
-};
-
-/** Borderless, for toolbars made of quiet `IconButton`s. */
-export const SearchButtonQuiet: SearchButtonStory = {
-  ...searchButtonStory,
-  args: {
-    ...searchButtonStory.args,
-    variant: "quiet",
-  },
-};
-
-/**
- * The compact toolbar it exists for: at rest it takes an icon button's
- * footprint beside the other controls, and expands leftward when pressed. The
- * variant follows the neighbors — quiet beside `IconButton`s, default
- * beside bordered `Button`s.
- */
-export const SearchButtonInToolbar: SearchButtonStory = {
-  ...searchButtonStory,
-  args: {
-    ...searchButtonStory.args,
-    variant: "quiet",
-  },
-  render: (args) => (
-    <Flex
-      direction="row"
-      gap="size-100"
-      alignItems="center"
-      justifyContent="end"
-    >
-      <SearchButton {...args} />
-      <IconButton size="S" aria-label="Copy">
-        <Icon svg={<Icons.Duplicate />} />
-      </IconButton>
-      <IconButton size="S" aria-label="Settings">
-        <Icon svg={<Icons.Settings />} />
-      </IconButton>
-    </Flex>
-  ),
-};
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj<SearchFieldProps> = {
