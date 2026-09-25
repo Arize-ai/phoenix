@@ -38,7 +38,6 @@
 - [Projects](https://arize.com/docs/phoenix/tracing/llm-traces/projects): Organize traces by environment, application, or team
 - [Sessions](https://arize.com/docs/phoenix/tracing/llm-traces/sessions): Group related traces into multi-turn conversational sessions
 - [Annotating Traces](https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces): Attach feedback, labels, and scores to traces for quality tracking
-- [View metrics and dashboards](https://arize.com/docs/phoenix/observe/view-metrics-and-dashboards): Monitor latency, token usage, cost, errors, and annotation scores for a project
 
 ### Observe
 
@@ -47,7 +46,7 @@
 - [Filter trace data](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions): Filter spans, traces, and sessions with Python-style expressions
 - [View metrics and dashboards](https://arize.com/docs/phoenix/observe/view-metrics-and-dashboards): Monitor latency, token usage, cost, errors, and annotation scores for a project
 - [Export trace data](https://arize.com/docs/phoenix/observe/export-trace-data): Export spans, query attributes, include annotations, and retrieve traces with the CLI
-- [Share Links to Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls): Create redirect URLs for projects, traces, spans, sessions, and prompt tags
+- [Share links to spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls): Create redirect URLs for projects, traces, spans, sessions, and prompt tags
 
 ### Setup
 

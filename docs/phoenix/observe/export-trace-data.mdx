@@ -16,8 +16,10 @@ Phoenix gives you two main span export paths:
 
 | Method | Use when |
 |---|---|
-| `get_spans_dataframe` | You want all matching spans as a pandas dataframe. |
+| `get_spans_dataframe` | You want matching spans as a pandas dataframe. |
 | `SpanQuery` | You want Phoenix to filter, select, explode, or concatenate span attributes before returning a dataframe. |
+
+`get_spans_dataframe` returns up to `limit` spans. The default limit is `1000`; pass a higher limit when you need a larger export.
 
 ### Connect to Phoenix
 
@@ -42,7 +44,10 @@ client = Client()
 spans = client.spans.get_spans_dataframe()
 
 # Download spans from a specific project
-spans = client.spans.get_spans_dataframe(project_identifier="my-project")
+spans = client.spans.get_spans_dataframe(
+    project_identifier="my-project",
+    limit=10_000,
+)
 ```
 
 Limit exports by time when you only need a recent window.

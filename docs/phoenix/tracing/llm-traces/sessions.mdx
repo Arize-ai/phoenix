@@ -8,23 +8,23 @@ sidebarTitle: "Track sessions"
       <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/sessions.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
 </Frame>
 
-Sessions group traces that belong to the same conversation or user journey. Use sessions to review multi-turn behavior in order instead of opening each trace separately.
+Sessions appear when related traces share the same non-empty `session.id`. Use them to review one conversation or user journey in order.
 
-With sessions in Phoenix, you can:
+## How Phoenix tracks sessions
 
-* Review each turn in a conversation-style view
+Phoenix creates or updates a session when it receives a trace with `session.id`. Each trace is usually one turn or request in the conversation.
 
-* Search sessions to find specific users or interactions
+To create a session, tag related spans with the same `session.id`. Add `user.id` when you want Phoenix to show the user for the session.
 
-* Track token usage, cost, latency, and trace count across the conversation
-
-* Attach and review session-level annotations
-
-To create a session, tag related spans with the same session ID. Phoenix then shows those traces together so you can review the full interaction.
+<Tip>
+If you do not see sessions, check that your app sends `session.id` before the traced work runs.
+</Tip>
 
 ## What sessions show
 
-The Sessions table shows the session ID, first input, last output, user ID, annotation summaries, start time, end time, p50 and p99 trace latency, total tokens, total cost, and total trace count. Open a session to review its traces and turns in order.
+The Sessions table shows the session ID, first input, last output, user ID, annotation summaries, start time, end time, p50 and p99 trace latency, total tokens, total cost, and total trace count.
+
+Open a session to review its traces and turns in order. Use session filters when you need conversations with errors, high cost, many turns, or poor session-level feedback.
 
 ## Next steps
 
@@ -34,5 +34,8 @@ The Sessions table shows the session ID, first input, last output, user ID, anno
   </Card>
   <Card title="Filter trace data" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
     Find sessions with filter expressions
+  </Card>
+  <Card title="Explore traces" icon="magnifying-glass-chart" href="/docs/phoenix/observe/explore-traces">
+    See where sessions fit in the Observe workflow
   </Card>
 </CardGroup>
