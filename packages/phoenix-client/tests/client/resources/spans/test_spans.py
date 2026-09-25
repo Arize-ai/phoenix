@@ -1,4 +1,3 @@
-import json
 import warnings
 from urllib.parse import parse_qs, urlparse
 
@@ -465,11 +464,19 @@ async def test_async_get_spans_with_span_ids_calls_guard_before_request() -> Non
 
 
 def _make_dataframe_handler(expected_root_spans_only: object) -> httpx.MockTransport:
+    project_id = "UHJvamVjdDox"
+
     def handler(request: httpx.Request) -> httpx.Response:
-        assert str(request.url).endswith("/v1/spans")
-        body = json.loads(request.content)
-        assert body["root_spans_only"] == expected_root_spans_only
-        return httpx.Response(200, json={"data": []})
+        path = urlparse(str(request.url)).path
+        if path == "/v1/projects":
+            return httpx.Response(200, json={"data": [{"id": project_id, "name": "default"}]})
+        assert path == f"/v1/projects/{project_id}/spans"
+        params = parse_qs(urlparse(str(request.url)).query)
+        if expected_root_spans_only:
+            assert params["filter"] == ["parent_span is None"]
+        else:
+            assert "filter" not in params
+        return httpx.Response(200, json={"data": [], "next_cursor": None})
 
     return httpx.MockTransport(handler)
 
