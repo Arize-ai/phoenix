@@ -216,6 +216,56 @@ async def test_experiments_api(
     assert not row
 
 
+async def test_experiment_json_and_csv_export_with_errored_run(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    """
+    A run that errored before producing a task output is stored with ``output={}``
+    (no ``task_output`` key). The JSON and CSV exports must still succeed for such an
+    experiment rather than raising ``KeyError`` and returning a 500.
+    """
+    dataset_gid = GlobalID("Dataset", "0")
+    created_experiment = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = created_experiment["id"]
+    experiment_rowid = from_global_id_with_expected_type(
+        GlobalID.from_id(experiment_gid), "Experiment"
+    )
+
+    async with db() as session:
+        session.add(
+            models.ExperimentRun(
+                experiment_id=experiment_rowid,
+                dataset_example_id=0,
+                output={},
+                repetition_number=1,
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+                error="Missing template variable(s): text",
+            )
+        )
+
+    response = await httpx_client.get(f"v1/experiments/{experiment_gid}/json")
+    assert response.status_code == 200
+    runs = json.loads(response.text)
+    assert len(runs) == 1
+    assert runs[0]["output"] is None
+    assert runs[0]["error"] == "Missing template variable(s): text"
+
+    response = await httpx_client.get(f"v1/experiments/{experiment_gid}/csv")
+    assert response.status_code == 200
+    df = pd.read_csv(StringIO(response.text))
+    assert len(df) == 1
+    assert pd.isna(df.iloc[0]["output"])
+    assert df.iloc[0]["error"] == "Missing template variable(s): text"
+
+
 async def test_experiment_404s_with_missing_dataset(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
