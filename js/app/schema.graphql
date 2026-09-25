@@ -2472,6 +2472,7 @@ enum GenerativeProviderKey {
   TOGETHER
   ZAI
   META
+  TYPESAFE
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2623,6 +2624,7 @@ enum ModelProvider {
   TOGETHER
   ZAI
   META
+  TYPESAFE
 }
 
 input ModelsInput {

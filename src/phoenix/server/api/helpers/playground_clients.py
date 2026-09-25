@@ -4061,6 +4061,15 @@ async def _get_builtin_provider_client(
             provider=provider,
         )
 
+    elif provider_key == GenerativeProviderKey.TYPESAFE:
+        # TypeSafe AI's API is a typed evaluation endpoint (Choice, Score and
+        # Noul questions), not a chat completions API, so there is no chat
+        # client to build for it.
+        raise BadRequest(
+            "TypeSafe AI models cannot be run from Phoenix. TypeSafe AI's API is a "
+            "typed evaluation endpoint rather than a chat completions API."
+        )
+
     else:
         assert_never(provider_key)
 

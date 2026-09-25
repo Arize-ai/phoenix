@@ -427,7 +427,9 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "AWS":
       return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
     case "GOOGLE":
-      // TODO: Add Google message support
+    // TODO: Add Google message support
+    case "TYPESAFE":
+      // TypeSafe AI has no chat message format of its own
       return message as ProviderToMessageMap[T];
     default:
       return assertUnreachable(targetProvider);
@@ -465,6 +467,7 @@ type ProviderToMessageMap = {
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;
+  TYPESAFE: JSONLiteral;
 };
 
 /**

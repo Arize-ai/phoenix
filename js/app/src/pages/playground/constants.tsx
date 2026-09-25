@@ -42,4 +42,5 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   TOGETHER: [],
   ZAI: ["glm"],
   META: ["muse"],
+  TYPESAFE: ["jev"],
 };

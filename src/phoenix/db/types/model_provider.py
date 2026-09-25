@@ -140,6 +140,7 @@ class ModelProvider(Enum):
     TOGETHER = "TOGETHER"
     ZAI = "ZAI"
     META = "META"
+    TYPESAFE = "TYPESAFE"
 
 
 def is_sdk_compatible_with_model_provider(
