@@ -1,325 +1,205 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { Text, View } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
+import type { ExpandableContentProps } from "@phoenix/components/core/content/ExpandableContent";
 import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
 
-const meta: Meta<typeof ExpandableContent> = {
+import { OptionGrid } from "../../utils/OptionGrid";
+
+/**
+ * A region that clips content taller than `height` behind a gradient and an
+ * expand button. Content that fits shows no button.
+ *
+ * With the default `expandedBehavior="scroll"` the region keeps its height
+ * and scrolls once expanded, which suits table cells. With `"grow"`, `height`
+ * is a maximum and the expanded region grows to its content and offers a
+ * collapse button, which avoids a scroll area nested in a scrolling page.
+ *
+ * The gradient fades to `overlayBackgroundColor`, which must match the
+ * surface the region sits on. Pass `isExpanded` and `onExpandedChange` to own
+ * the expanded state.
+ */
+const meta: Meta = {
   title: "Design System/Layout/Expandable Content",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: ExpandableContent,
   parameters: {
     layout: "centered",
-    docs: {
-      description: {
-        component: `
-A content wrapper that handles overflowing content with an expandable interface.
-
-- Shows a gradient overlay and "expand" button when content exceeds the specified height
-- Supports both uncontrolled (internal state) and controlled modes
-- Supports fixed-height containers and max-height regions that grow to full height when expanded
-        `,
-      },
-    },
+    controls: { disable: true },
   },
-  argTypes: {
-    height: {
-      control: { type: "number" },
-      description: "The fixed or maximum collapsed height in pixels",
-    },
-    expandedBehavior: {
-      control: { type: "radio" },
-      options: ["scroll", "grow"],
-      description:
-        "Whether expanded content scrolls internally or grows to full height",
-    },
-    overlayBackgroundColor: {
-      control: { type: "text" },
-      description: "Background color used by the expand gradient overlay",
-    },
-    isExpanded: {
-      control: { type: "boolean" },
-      description:
-        "Controlled expanded state. When provided, the component uses this value instead of internal state.",
-    },
-    onExpandedChange: {
-      action: "expandedChange",
-      description: "Callback fired when the expanded state changes",
-    },
-  },
-  decorators: [
-    (Story, { parameters }) => (
-      <div
-        css={css`
-          width: ${parameters.containerWidth ?? 400}px;
-          border: 1px solid var(--global-border-color-default);
-          border-radius: var(--global-rounding-small);
-          background: var(--global-background-color-default);
-        `}
-      >
-        <Story />
-      </div>
-    ),
-  ],
 };
 
 export default meta;
-type Story = StoryObj<typeof ExpandableContent>;
 
-const shortContent =
-  "This is a short piece of content that fits within the container.";
+const shortContent = "The retrieved documents answer the question directly.";
 
-const longContent = `This is a much longer piece of content that will definitely overflow the container boundaries.
-It contains multiple paragraphs of text to demonstrate how the ExpandableContent component handles content
-that exceeds the specified height.
+const longContent = `The assistant retrieved four documents about the refund policy and cited two of them in its answer.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore
-et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
-aliquip ex ea commodo consequat.
+The first citation quotes the thirty-day return window accurately. The second paraphrases the exception for opened items, but omits that the exception applies only to electronics.
 
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+The answer does not mention the restocking fee described in the third document, which a customer asking about refunds would need to know.
 
-This final paragraph ensures we have plenty of content to overflow and demonstrate the expand functionality.`;
+The fourth document, an outdated version of the policy, was retrieved but not cited.`;
 
 const jsonContent = JSON.stringify(
   {
-    user: {
-      id: "12345",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      preferences: {
-        theme: "dark",
-        notifications: true,
-        language: "en-US",
-      },
-    },
-    metadata: {
-      created: "2024-01-15T10:30:00Z",
-      updated: "2024-01-20T14:45:00Z",
-      version: "1.0.0",
-    },
-    items: [
-      { id: 1, name: "Item 1", value: 100 },
-      { id: 2, name: "Item 2", value: 200 },
-      { id: 3, name: "Item 3", value: 300 },
+    model: "gpt-4o",
+    temperature: 0.2,
+    messages: [
+      { role: "system", content: "You answer questions about refunds." },
+      { role: "user", content: "Can I return opened headphones?" },
     ],
+    tools: [{ type: "function", function: { name: "search_policy" } }],
   },
   null,
   2
 );
 
-/**
- * Default state with content that overflows the container.
- * Click the "expand" button to reveal all content.
- */
-export const Default: Story = {
-  args: {
-    height: 100,
-    children: <Text>{longContent}</Text>,
-  },
-};
+const Frame = ({
+  width = 240,
+  background = "var(--global-background-color-default)",
+  children,
+}: {
+  width?: number;
+  background?: string;
+  children: ReactNode;
+}) => (
+  <div
+    css={css`
+      width: ${width}px;
+      border: 1px solid var(--global-border-color-default);
+      border-radius: var(--global-rounding-small);
+      background: ${background};
+      padding: var(--global-dimension-size-100);
+      box-sizing: border-box;
+    `}
+  >
+    {children}
+  </div>
+);
 
-/**
- * Content that fits within the collapsed height.
- * No expand button is shown since there's no overflow.
- */
-export const NoOverflow: Story = {
-  args: {
-    height: 100,
-    children: <Text>{shortContent}</Text>,
-  },
-};
-
-/**
- * Displaying JSON content that overflows.
- * Common use case for displaying API responses or structured data.
- */
-export const JSONContent: Story = {
-  args: {
-    height: 150,
-    children: <JSONBlock value={jsonContent} />,
-  },
-};
-
-/**
- * A smaller collapsed height showing more dramatic overflow.
- */
-export const SmallHeight: Story = {
-  args: {
-    height: 60,
-    children: <Text>{longContent}</Text>,
-  },
-};
-
-/**
- * A larger collapsed height that can show more content before overflowing.
- */
-export const LargeHeight: Story = {
-  args: {
-    height: 200,
-    children: <Text>{longContent}</Text>,
-  },
-};
-
-/**
- * Uses a collapsed max height, then grows to the full content height when expanded.
- * This is useful outside of tables where nested scrolling should be avoided.
- */
-export const MaxHeightGrow: Story = {
-  args: {
-    height: 120,
-    expandedBehavior: "grow",
-    children: <Text>{longContent}</Text>,
-  },
-};
-
-/**
- * Controlled mode where the parent manages the expanded state.
- * Useful when you need to synchronize expansion state across multiple content regions.
- */
-const ControlledTemplate = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
+function Region({
+  initiallyExpanded = false,
+  ...props
+}: Omit<ExpandableContentProps, "isExpanded" | "onExpandedChange"> & {
+  initiallyExpanded?: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
   return (
-    <View>
-      <View
-        padding="size-100"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-      >
-        <Text color="text-700">
-          Controlled state: {isExpanded ? "Expanded" : "Collapsed"}
-        </Text>
-      </View>
-      <ExpandableContent
-        height={100}
-        isExpanded={isExpanded}
-        onExpandedChange={setIsExpanded}
-      >
-        <Text>{longContent}</Text>
-      </ExpandableContent>
-    </View>
+    <ExpandableContent
+      {...props}
+      isExpanded={isExpanded}
+      onExpandedChange={setIsExpanded}
+    />
   );
-};
+}
 
-export const Controlled: Story = {
-  render: () => <ControlledTemplate />,
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "In controlled mode, pass `isExpanded` and `onExpandedChange` to manage state externally.",
-      },
-    },
+export const Default: StoryFn = () => (
+  <Frame width={400}>
+    <ExpandableContent height={100}>
+      <Text>{longContent}</Text>
+    </ExpandableContent>
+  </Frame>
+);
+Default.tags = ["!dev"];
+
+const BEHAVIORS: {
+  label: string;
+  code: true;
+  expandedBehavior: ExpandableContentProps["expandedBehavior"];
+}[] = [
+  { label: '"scroll"', code: true, expandedBehavior: "scroll" },
+  { label: '"grow"', code: true, expandedBehavior: "grow" },
+];
+
+const STATES = [
+  { label: "Fits", content: shortContent, initiallyExpanded: false },
+  { label: "Collapsed", content: longContent, initiallyExpanded: false },
+  { label: "Expanded", content: longContent, initiallyExpanded: true },
+];
+
+export const BehaviorsAndStates: StoryFn = () => (
+  <OptionGrid
+    rows={BEHAVIORS}
+    columns={STATES}
+    alignRows="start"
+    renderCell={(row, column) =>
+      column ? (
+        <Frame>
+          <Region
+            height={120}
+            expandedBehavior={row.expandedBehavior}
+            initiallyExpanded={column.initiallyExpanded}
+          >
+            <Text>{column.content}</Text>
+          </Region>
+        </Frame>
+      ) : null
+    }
+  />
+);
+BehaviorsAndStates.storyName = "Behaviors and States";
+BehaviorsAndStates.tags = ["!dev"];
+BehaviorsAndStates.parameters = { themeLayout: "column" };
+
+const CONTENT_TYPES = [
+  { label: "Text", content: <Text>{longContent}</Text> },
+  { label: "JSON", content: <JSONBlock value={jsonContent} /> },
+];
+
+export const ContentTypes: StoryFn = () => (
+  <OptionGrid
+    rows={CONTENT_TYPES}
+    renderCell={(row) => (
+      <Frame width={320}>
+        <Region height={140}>{row.content}</Region>
+      </Frame>
+    )}
+  />
+);
+ContentTypes.storyName = "Content types";
+ContentTypes.tags = ["!dev"];
+ContentTypes.parameters = { themeLayout: "row" };
+
+const TINTED_SURFACE = "var(--global-color-blue-100)";
+
+const OVERLAY_COLORS = [
+  { label: "Default", code: false, props: {} },
+  {
+    label: `overlayBackgroundColor="${TINTED_SURFACE}"`,
+    code: true,
+    props: { overlayBackgroundColor: TINTED_SURFACE },
   },
-};
+];
 
-/**
- * Multiple ExpandableContent regions in a table-like layout.
- * Demonstrates how the component works in a realistic context.
- */
-const TableLayoutTemplate = () => {
-  return (
-    <div
-      css={css`
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1px;
-        background: var(--global-border-color-default);
-        & > div {
-          background: var(--global-background-color-default);
-          padding: var(--global-dimension-size-100);
-        }
-      `}
-    >
-      <div>
-        <Text weight="heavy">Input</Text>
-      </div>
-      <div>
-        <Text weight="heavy">Output</Text>
-      </div>
-      <div>
-        <ExpandableContent height={80}>
-          <Text>{shortContent}</Text>
-        </ExpandableContent>
-      </div>
-      <div>
-        <ExpandableContent height={80}>
+export const OverlayBackground: StoryFn = () => (
+  <OptionGrid
+    rows={OVERLAY_COLORS}
+    renderCell={(row) => (
+      <Frame width={260} background={TINTED_SURFACE}>
+        <Region height={100} expandedBehavior="grow" {...row.props}>
           <Text>{longContent}</Text>
-        </ExpandableContent>
-      </div>
-      <div>
-        <ExpandableContent height={80}>
-          <JSONBlock value={jsonContent} />
-        </ExpandableContent>
-      </div>
-      <div>
-        <ExpandableContent height={80}>
-          <Text>
-            A moderate amount of text that may or may not overflow depending on
-            the exact styling applied.
-          </Text>
-        </ExpandableContent>
-      </div>
-    </div>
-  );
-};
-
-export const TableLayout: Story = {
-  render: () => <TableLayoutTemplate />,
-  decorators: [
-    (Story) => (
-      <div
-        css={css`
-          width: 600px;
-          border: 1px solid var(--global-border-color-default);
-          border-radius: var(--global-rounding-small);
-          overflow: hidden;
-        `}
-      >
-        <Story />
-      </div>
-    ),
-  ],
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "Multiple ExpandableContent regions in a grid layout, simulating a table with expandable content.",
-      },
-    },
-  },
-};
-
-/**
- * Content that starts expanded (controlled mode).
- */
-export const InitiallyExpanded: Story = {
-  args: {
-    height: 100,
-    isExpanded: true,
-    children: <Text>{longContent}</Text>,
-  },
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "When `isExpanded` is set to `true`, the content starts in its expanded state showing all content.",
-      },
-    },
-  },
-};
+        </Region>
+      </Frame>
+    )}
+  />
+);
+OverlayBackground.storyName = "Overlay Background";
+OverlayBackground.tags = ["!dev"];
+OverlayBackground.parameters = { themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: Story = {
+export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
-  // The thumbnail frame's content box, so the bordered container fits.
-  parameters: { containerWidth: 288 },
-  args: {
-    height: 100,
-    children: <Text>{longContent}</Text>,
-  },
+  render: () => (
+    <Frame width={288}>
+      <ExpandableContent height={100}>
+        <Text>{longContent}</Text>
+      </ExpandableContent>
+    </Frame>
+  ),
 };
