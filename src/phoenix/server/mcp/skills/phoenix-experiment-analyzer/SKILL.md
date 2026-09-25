@@ -12,9 +12,14 @@ metadata:
 # Experiment Analyzer
 
 An experiment is one run of a prompt or pipeline over every example in a dataset, captured with its
-outputs and any evaluator annotations so it can be reviewed and compared later. This skill is the
-**read side**: look at what already ran, compare candidates, and report a verdict with evidence. It
+outputs and any evaluator annotations so it can be reviewed and compared later. Experiments turn
+"this prompt feels better" into evidence: a per-example record you can score, aggregate, and diff
+against an earlier run.
+This skill is the **read side**: look at what already ran, compare candidates, and report a verdict with evidence. It
 does not start runs, author prompts, or design evaluators.
+
+Reading, comparing, recording, and evaluating are run-path agnostic: they apply equally to
+experiments created through the SDK or REST API and to experiments culled from traces.
 
 ## Before You Start: Read What Already Ran
 
@@ -28,9 +33,12 @@ scored.
 
 Pause only if the goal is unclear or a tradeoff needs a human.
 
-1. **Pick the pair.** Use the experiments the user named. If they did not, take the latest complete
-   run as the candidate and the experiment its metadata names as baseline (or the previous complete
-   run on the same dataset version).
+1. **Pick the pair.** Resolve whatever the user used to point at an experiment. A **name** is the
+   experiment's name. A **global ID** is a number which indicates the stable experiment id. A **number** could also refer to the sequence
+   shown in the UI for that dataset: 1 is the oldest run, and each later run gets the next number,
+   in the order they were created. Names can repeat; the id cannot. If they did not point
+   at a pair, take the latest complete run as the candidate and the experiment its metadata names
+   as baseline (or the previous complete run on the same dataset version).
 2. **Read the scaffold.** `metadata` (and sometimes `description`) holds hypothesis, changed
    variable, and baseline. Do not guess the independent variable from the name alone.
 3. **Check they are comparable.** Same dataset, ideally the same dataset version. Both complete,
@@ -38,46 +46,34 @@ Pause only if the goal is unclear or a tradeoff needs a human.
    run makes averages misleading.
 4. **Confirm one axis changed.** Prompt, model, params, tool-guidance, *or* dataset-scope — not
    several at once. If several moved, say so: the diff is still evidence, not a clean ablation.
-5. **Fetch every example for both runs** (see [Getting the data](#getting-the-data-phoenix-mcp)).
-6. **Line them up by example**, not by average. Match `example_id` (and `repetition_number` when
-   repetitions > 1). An averaged score hides the example a change broke. Keep splits separate;
-   never fold a holdout into the headline number.
+5. **Fetch every example for both runs.** For each run, per example you need: `input`,
+   `reference_output`, `output`, `error`, `latency_ms`, token counts, and the evaluator
+   `annotations` (`name`, `label`, `score`, `explanation`).
+6. **Line them up by example**, not by average. The join key is `example_id`, plus
+   `repetition_number` when repetitions > 1. Do that in one pass with the bulk or joined read the
+   surface already gives you, rather than a request per example. If you only have two separate run
+   lists, join those lists on that key. An averaged score hides the example a change broke. Keep
+   splits separate; never fold a holdout into the headline number.
 7. **Read quality, latency, and cost together.** Quality is the evaluator annotations — especially
-   each judgment's **explanation**. Latency is `latency_ms`. Tokens on the JSON are a stand-in for
+   each judgment's **explanation**. Trust
+   aggregates only when the run is complete with zero errors; a half-finished or error-laden run
+   produces misleading summaries.
+   Tokens on the JSON are a stand-in for
    cost when you do not need a dollar figure.
 8. **Report a verdict:** did the hypothesis hold, what happened on all three axes, and a few
-   example ids plus explanations as evidence. Link
-   `<endpoint>/datasets/<dataset-id>/compare?experimentId=<id>&experimentId=<id>`.
-
-## Getting the data (Phoenix MCP)
-
-Phoenix MCP does not have a "compare" tool. You list experiments, download each run as JSON, and
-join the rows yourself.
-
-In **code mode** (the default) REST names are not top-level tools. Use `search` to find them, then
-`call_tool(...)` inside `execute`. `executeSql` is available the same way (or as a direct tool).
-
-1. Resolve the dataset id (`listDatasets` if you only have a name).
-2. `listExperiments` with that `dataset_id`. Read `id`, `name`, `metadata`, and the
-   successful / failed / missing run counts.
-3. `getExperimentJSON` once per experiment you will compare. Each row is one example: `input`,
-   `reference_output`, `output`, `error`, `latency_ms`, token counts, and `annotations`
-   (`name`, `label`, `score`, `explanation`).
-4. Join the two JSON lists on `example_id`. That is the per-example table.
-
-Need a custom aggregate? `describeSqlSchema` with `area="experiments"`, then `executeSql`. Join
-`experiment_run_annotations` carefully: one run can have several annotation rows, so count runs
-with `COUNT(DISTINCT experiment_runs.id)`, not `COUNT(*)`.
+   example ids plus explanations as evidence. 
 
 ## Recording What You Learned
 
-After the verdict, write experiment-level narrative (hypothesis held, tradeoff accepted) into that
-experiment's metadata observations — not only into chat. Per-example scores already live on run
-annotations; do not copy them into metadata.
+After the verdict, record experiment-level narrative (hypothesis held, tradeoff accepted) on that
+experiment when this surface can update metadata. Per-example scores already live on run
+annotations; do not copy them into metadata. If this surface cannot write metadata, put the
+observation in the answer and say it was not saved.
 
-To append an observation, **read** metadata first (`getExperiment`), then `updateExperiment` with
-the **whole** metadata object plus a new timestamped note. A metadata write that omits
-`hypothesis`, `changed variable`, or `baseline` erases the scaffold the next session needs.
+A metadata update replaces the whole metadata object. It does not merge keys. **Read** the current
+metadata first, then write back that object with a new timestamped note added and every existing
+key left intact — `hypothesis`, `changed variable`, and `baseline` among them. A write that sends
+only the new note erases the scaffold the next session needs.
 
 ## Boundaries
 

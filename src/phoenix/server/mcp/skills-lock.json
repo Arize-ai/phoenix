@@ -9,7 +9,7 @@
     "phoenix-experiment-analyzer": {
       "source": "../../../../.agents/skills/phoenix-experiment-analyzer",
       "sourceType": "local",
-      "computedHash": "fa321e083b8335c22bc289270194571f002158822875256e25c78ccff6a40de5"
+      "computedHash": "bd3d78afc0c903ee1998d13e7aedb666b8a528b1dd9e4fc28e3b5c24a0e551ed"
     }
   }
 }
