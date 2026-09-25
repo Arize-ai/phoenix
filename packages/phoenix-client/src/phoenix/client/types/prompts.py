@@ -63,6 +63,7 @@ class PromptVersion:
         metadata: Optional[Mapping[str, Any]] = None,
         model_provider: Literal[
             "OPENAI",
+            "OPENAI_CODEX",
             "AZURE_OPENAI",
             "ANTHROPIC",
             "GOOGLE",
@@ -104,6 +105,7 @@ class PromptVersion:
         self._model_name = model_name
         self._model_provider: Literal[
             "OPENAI",
+            "OPENAI_CODEX",
             "AZURE_OPENAI",
             "ANTHROPIC",
             "GOOGLE",
@@ -228,6 +230,11 @@ class PromptVersion:
             self._invocation_parameters = v1.PromptMetaInvocationParameters(
                 type="meta",
                 meta=v1.PromptMetaInvocationParametersContent(),
+            )
+        elif model_provider == "OPENAI_CODEX":
+            self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=v1.PromptOpenAIInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -559,6 +566,7 @@ SDK: TypeAlias = Literal[
 def _to_sdk(
     model_provider: Literal[
         "OPENAI",
+        "OPENAI_CODEX",
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",
@@ -610,5 +618,7 @@ def _to_sdk(
     if model_provider == "ZAI":
         return "openai"
     if model_provider == "META":
+        return "openai"
+    if model_provider == "OPENAI_CODEX":
         return "openai"
     assert_never(model_provider)

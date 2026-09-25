@@ -722,3 +722,86 @@ describe("enrichMessageWithClientToolMetadata", () => {
     expect(enriched.parts[1]).toBe(message.parts[1]);
   });
 });
+
+describe("buildAgentChatRequestBody codex credentials", () => {
+  const baseOptions = {
+    body: undefined,
+    id: "session-1",
+    messages: [userMessage],
+    capabilities: createDefaultAgentCapabilities(),
+    observability: {
+      storeLocalTraces: false,
+      exportRemoteTraces: false,
+      attachUserId: false,
+      acknowledgedTraceConsent: null,
+    },
+    agentsConfig,
+    permissions: { edits: "manual" as const },
+    contexts: [],
+    codexAccessToken: "eyJ.codex.token",
+  };
+
+  it("attaches the ChatGPT token only for turns on the Codex provider", () => {
+    const codexTurn = buildAgentChatRequestBody({
+      ...baseOptions,
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI_CODEX",
+        modelName: "gpt-5.4",
+      },
+    });
+    expect(codexTurn.credentials).toEqual([
+      { key: "OPENAI_CODEX_ACCESS_TOKEN", value: "eyJ.codex.token" },
+    ]);
+
+    const openAITurn = buildAgentChatRequestBody({
+      ...baseOptions,
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+      },
+    });
+    expect(openAITurn).not.toHaveProperty("credentials");
+
+    const customTurn = buildAgentChatRequestBody({
+      ...baseOptions,
+      modelSelection: {
+        providerType: "custom",
+        providerId: "cp-1",
+        modelName: "gpt-5.4",
+      },
+    });
+    expect(customTurn).not.toHaveProperty("credentials");
+  });
+
+  it("omits credentials for a Codex turn when the browser is not signed in", () => {
+    const body = buildAgentChatRequestBody({
+      ...baseOptions,
+      codexAccessToken: null,
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI_CODEX",
+        modelName: "gpt-5.4",
+      },
+    });
+    expect(body).not.toHaveProperty("credentials");
+  });
+
+  it("sends the GitHub and ChatGPT tokens side by side", () => {
+    const body = buildAgentChatRequestBody({
+      ...baseOptions,
+      agentsConfig: { ...agentsConfig, githubEnabled: true },
+      integrationCredentials: { GITHUB_PERSONAL_ACCESS_TOKEN: "ghp_personal" },
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI_CODEX",
+        modelName: "gpt-5.4",
+      },
+    });
+    expect(body.credentials).toEqual([
+      { key: "GITHUB_PERSONAL_ACCESS_TOKEN", value: "ghp_personal" },
+      { key: "OPENAI_CODEX_ACCESS_TOKEN", value: "eyJ.codex.token" },
+    ]);
+  });
+});

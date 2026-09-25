@@ -8,7 +8,7 @@ from typing import Any, Callable, Literal, Protocol, cast
 
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
 from pydantic_ai.settings import ModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     ModelProvider,
 )
+from phoenix.server.agents.codex import resolve_codex_access_token
 from phoenix.server.agents.exceptions import (
     ProviderConfigError,
     ProviderCredentialsError,
@@ -74,6 +75,43 @@ def _build_openai_model(
     raise ValueError(f"Unsupported OpenAI API type: {openai_api_type}")
 
 
+def _build_openai_codex_model(
+    *,
+    model_name: str,
+    request_credentials: Mapping[str, SecretStr],
+) -> "PydanticAIModel":
+    """The refresh token stays in the browser, so the provider is handed an empty
+    one: a mid-turn 401 surfaces as an error instead of a server-side refresh
+    that would invalidate the browser's single-use refresh token.
+    """
+    from pydantic_ai.models.openai import OpenAIResponsesModel
+    from pydantic_ai.providers.openai_codex import OpenAICodexCredentials, OpenAICodexProvider
+
+    from phoenix.server.agents.codex import account_id_from_token
+
+    access_token = resolve_codex_access_token(request_credentials)
+    if access_token is None:
+        raise ProviderCredentialsError(
+            "This chat uses a ChatGPT subscription, but this browser is not signed in to "
+            "ChatGPT. Sign in under Settings > Assistant, or pick another model."
+        )
+    token = access_token.get_secret_value()
+    account_id = account_id_from_token(token)
+    if not account_id:
+        raise ProviderCredentialsError(
+            "The ChatGPT token does not carry an account id. Sign in to ChatGPT again."
+        )
+    with without_env_vars("OPENAI_*"):
+        codex_provider = OpenAICodexProvider(
+            OpenAICodexCredentials(
+                access_token=token,
+                refresh_token="",
+                account_id=account_id,
+            )
+        )
+    return cast("PydanticAIModel", OpenAIResponsesModel(model_name, provider=codex_provider))
+
+
 def azure_endpoint_to_base_url(azure_endpoint: str) -> str:
     endpoint = azure_endpoint.rstrip("/")
     return (endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1") + "/"
@@ -117,6 +155,10 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
     before building a model for a built-in provider."""
     if provider is ModelProvider.OPENAI:
         return ("OPENAI_API_KEY",)
+    if provider is ModelProvider.OPENAI_CODEX:
+        # Subscription auth: the token comes from the request, never from
+        # secrets or the environment.
+        return ()
     if provider is ModelProvider.AZURE_OPENAI:
         return ("AZURE_OPENAI_API_KEY",)
     if provider is ModelProvider.ANTHROPIC:
@@ -172,8 +214,13 @@ async def build_model(
     db: DbSessionFactory,
     decrypt: Callable[[bytes], bytes],
     tracer_provider: TracerProvider | None = None,
+    request_credentials: Mapping[str, SecretStr] | None = None,
 ) -> OpenInferenceModelWrapper:
-    """Build a ``pydantic_ai`` model."""
+    """Build a ``pydantic_ai`` model.
+
+    ``request_credentials`` are the client-held credentials riding the request;
+    only providers that authenticate per user consult them.
+    """
     if isinstance(model, CustomProviderModelSelection):
         async with db() as session:
             provider = await get_custom_provider(session, model.provider_id)
@@ -192,6 +239,7 @@ async def build_model(
         pydantic_ai_model = _get_pydantic_ai_model_from_builtin_provider(
             model,
             credentials=credentials,
+            request_credentials=request_credentials or {},
         )
     else:
         # See ``_build_openai_model`` for why ``assert_never`` and ``raise``
@@ -369,6 +417,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
     params: BuiltInProviderModelSelection,
     *,
     credentials: Mapping[str, str | None],
+    request_credentials: Mapping[str, SecretStr] | None = None,
 ) -> "PydanticAIModel":
     from openai import AsyncOpenAI
     from pydantic_ai.models.anthropic import AnthropicModel
@@ -398,6 +447,11 @@ def _get_pydantic_ai_model_from_builtin_provider(
             model_name=params.model_name,
             provider=openai_provider,
             openai_api_type="responses",
+        )
+    if params.provider == ModelProvider.OPENAI_CODEX:
+        return _build_openai_codex_model(
+            model_name=params.model_name,
+            request_credentials=request_credentials or {},
         )
     if params.provider == ModelProvider.AZURE_OPENAI:
         api_key = _first_credential(credentials, "AZURE_OPENAI_API_KEY")

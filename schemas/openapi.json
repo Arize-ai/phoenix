@@ -8829,7 +8829,7 @@
           "chat_completions"
         ],
         "summary": "OpenAI-compatible chat completions",
-        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
+        "description": "Creates a chat completion using the OpenAI wire format, proxying to the selected provider with credentials resolved on the server (secret store first, environment second) \u2014 callers never handle provider API keys. Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, openai_codex, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'. Set `stream: true` for server-sent events of `chat.completion.chunk` payloads terminated by `data: [DONE]`. Tool calling is not supported.\n\n**Phoenix is not an AI gateway.** The same server also takes on trace ingestion traffic, so routing production LLM calls through it competes with ingestion. Use this endpoint only to quickly try out different models in non-production environments.",
         "operationId": "createChatCompletion",
         "requestBody": {
           "content": {
@@ -10265,6 +10265,274 @@
         }
       }
     },
+    "/v1/codex/device_auth": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Start Device Auth",
+        "description": "Begin a ChatGPT device-code sign-in for the public Codex client.",
+        "operationId": "startCodexDeviceAuth",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexDeviceAuthStartResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/codex/device_auth/poll": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Poll Device Auth",
+        "description": "One poll of a device-code sign-in. Completes with the token bundle.",
+        "operationId": "pollCodexDeviceAuth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodexDeviceAuthPollRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexDeviceAuthPollResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/codex/refresh": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Refresh",
+        "description": "Rotate the browser's refresh token. Refresh tokens are single-use.",
+        "operationId": "refreshCodexTokens",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodexRefreshRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexTokenBundle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/codex/models": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "List Models",
+        "description": "Models the signed-in ChatGPT subscription can use.",
+        "operationId": "listCodexModels",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodexModelsRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodexModelsResponseBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/arize_phoenix_version": {
       "get": {
         "summary": "Version",
@@ -11500,7 +11768,10 @@
         "properties": {
           "key": {
             "type": "string",
-            "const": "GITHUB_PERSONAL_ACCESS_TOKEN",
+            "enum": [
+              "GITHUB_PERSONAL_ACCESS_TOKEN",
+              "OPENAI_CODEX_ACCESS_TOKEN"
+            ],
             "title": "Key",
             "description": "The credential's secret-key name."
           },
@@ -11545,11 +11816,182 @@
         ],
         "title": "CodeEvaluatorUIContext"
       },
+      "CodexDeviceAuthPollRequestBody": {
+        "properties": {
+          "deviceAuthId": {
+            "type": "string",
+            "title": "Deviceauthid"
+          },
+          "userCode": {
+            "type": "string",
+            "title": "Usercode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deviceAuthId",
+          "userCode"
+        ],
+        "title": "CodexDeviceAuthPollRequestBody"
+      },
+      "CodexDeviceAuthPollResponseBody": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "complete"
+            ],
+            "title": "Status"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodexTokenBundle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "CodexDeviceAuthPollResponseBody"
+      },
+      "CodexDeviceAuthStartResponseBody": {
+        "properties": {
+          "deviceAuthId": {
+            "type": "string",
+            "title": "Deviceauthid"
+          },
+          "userCode": {
+            "type": "string",
+            "title": "Usercode",
+            "description": "One-time code the user types at ``verificationUrl``."
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "title": "Intervalseconds",
+            "description": "Suggested polling interval."
+          },
+          "verificationUrl": {
+            "type": "string",
+            "title": "Verificationurl"
+          },
+          "expiresInSeconds": {
+            "type": "integer",
+            "title": "Expiresinseconds",
+            "description": "The user code expires roughly this long after it was issued.",
+            "default": 900
+          }
+        },
+        "type": "object",
+        "required": [
+          "deviceAuthId",
+          "userCode",
+          "intervalSeconds",
+          "verificationUrl"
+        ],
+        "title": "CodexDeviceAuthStartResponseBody"
+      },
+      "CodexModelsRequestBody": {
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "format": "password",
+            "title": "Accesstoken",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "accessToken"
+        ],
+        "title": "CodexModelsRequestBody"
+      },
+      "CodexModelsResponseBody": {
+        "properties": {
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models",
+            "description": "Model slugs the subscription can use."
+          }
+        },
+        "type": "object",
+        "required": [
+          "models"
+        ],
+        "title": "CodexModelsResponseBody"
+      },
+      "CodexRefreshRequestBody": {
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "format": "password",
+            "title": "Refreshtoken",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "refreshToken"
+        ],
+        "title": "CodexRefreshRequestBody"
+      },
+      "CodexTokenBundle": {
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "title": "Accesstoken"
+          },
+          "refreshToken": {
+            "type": "string",
+            "title": "Refreshtoken"
+          },
+          "idToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idtoken"
+          },
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "accountId"
+        ],
+        "title": "CodexTokenBundle",
+        "description": "The browser-held credential set. Returned once; never stored server-side."
+      },
       "CompactAgentSessionRequestBody": {
         "properties": {
           "model": {
             "$ref": "#/components/schemas/AgentModelSelection",
             "description": "The model the client believes the session is set to. As on the chat route this is a precondition: the summary is generated with the session's persisted selection, and a mismatch is rejected with HTTP 409 and code ``agent_session_model_stale``."
+          },
+          "credentials": {
+            "items": {
+              "$ref": "#/components/schemas/ChatRequestCredential"
+            },
+            "type": "array",
+            "title": "Credentials",
+            "description": "Client-held credentials the summary model needs, as on the chat route (e.g. the ChatGPT subscription token for Codex sessions). Never persisted."
           }
         },
         "type": "object",
@@ -11809,7 +12251,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
+            "description": "Model must be '{provider}:{model_name}' for a built-in provider (one of anthropic, aws, azure_openai, cerebras, deepseek, fireworks, google, groq, meta, minimax, moonshot, ollama, openai, openai_codex, perplexity, together, xai, zai) or 'custom:{provider_id}:{model_name}' for a stored custom provider, e.g. 'openai:gpt-4o' or 'anthropic:claude-sonnet-4-5'."
           },
           "messages": {
             "items": {
@@ -15676,6 +16118,7 @@
         "type": "string",
         "enum": [
           "OPENAI",
+          "OPENAI_CODEX",
           "AZURE_OPENAI",
           "ANTHROPIC",
           "GOOGLE",

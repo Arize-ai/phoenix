@@ -163,6 +163,7 @@ const OPENAI_COMPATIBLE_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
   "AZURE_OPENAI",
   "DEEPSEEK",
   "XAI",
+  "OPENAI_CODEX",
   "AWS",
   "OLLAMA",
   "CEREBRAS",
@@ -1443,6 +1444,7 @@ export const createToolCallForProvider = (
 ): LlmProviderToolCall => {
   switch (provider) {
     case "OPENAI":
+    case "OPENAI_CODEX":
     case "AZURE_OPENAI":
     case "DEEPSEEK":
     case "XAI":

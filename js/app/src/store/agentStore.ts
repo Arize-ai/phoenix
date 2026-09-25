@@ -63,6 +63,27 @@ export type AgentFabMode = "pinned" | "floating";
 export const GITHUB_PAT_CREDENTIAL_KEY =
   "GITHUB_PERSONAL_ACCESS_TOKEN" as const;
 
+/**
+ * Secret-key name under which the ChatGPT (Codex subscription) access token
+ * rides chat requests. Matches the server's `ChatRequestCredentialKey`.
+ */
+export const CODEX_ACCESS_TOKEN_CREDENTIAL_KEY =
+  "OPENAI_CODEX_ACCESS_TOKEN" as const;
+
+/**
+ * ChatGPT/Codex subscription credentials. Persisted only in this browser's
+ * local storage; the server sees the access token ephemerally on each request
+ * and never stores it.
+ */
+export type CodexAuth = {
+  accessToken: string;
+  refreshToken: string;
+  idToken: string | null;
+  accountId: string;
+  /** Unix ms when `accessToken` expires (unverified JWT `exp`), if known. */
+  expiresAt: number | null;
+};
+
 /** Server-provided PXI configuration exposed to the frontend. */
 export type AgentServerConfig = {
   /** Remote collector used for optional agent trace export. */
@@ -361,6 +382,7 @@ export interface AgentProps {
    * never stored server-side. Cleared credentials are removed from the map.
    */
   integrationCredentials: Record<string, string>;
+  codexAuth: CodexAuth | null;
 }
 
 /**
@@ -409,6 +431,7 @@ export interface AgentState extends AgentProps {
     key: string;
     value: string | null;
   }) => void;
+  setCodexAuth: (codexAuth: CodexAuth | null) => void;
 
   // -- Elicitation (ephemeral, not persisted) --
 
@@ -745,6 +768,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     permissions: DEFAULT_AGENT_PERMISSIONS,
     capabilities: createDefaultAgentCapabilities(),
     integrationCredentials: {},
+    codexAuth: null,
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
@@ -913,6 +937,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         false,
         { type: "setIntegrationCredential" }
       );
+    },
+    setCodexAuth: (codexAuth) => {
+      set({ codexAuth }, false, { type: "setCodexAuth" });
     },
 
     // -- Elicitation (ephemeral) --
@@ -1415,6 +1442,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         permissions: state.permissions,
         capabilities: state.capabilities,
         integrationCredentials: state.integrationCredentials,
+        codexAuth: state.codexAuth,
       }),
       merge: mergeAgentPersistedState,
     })

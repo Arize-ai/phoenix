@@ -56,7 +56,12 @@ export type CustomProviderRef = {
 };
 
 export type ModelMenuValue = {
-  provider: GenerativeProviderKey;
+  /**
+   * Built-in provider of the selection. Wider than the catalog's
+   * `GenerativeProviderKey`: the assistant's ChatGPT (Codex) provider has no
+   * catalog entry and is offered by the agent model menu alone.
+   */
+  provider: ModelProvider;
   modelName: string;
   /**
    * Reference to custom provider if using one

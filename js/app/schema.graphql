@@ -2607,6 +2607,7 @@ interface ModelInterface {
 
 enum ModelProvider {
   OPENAI
+  OPENAI_CODEX
   AZURE_OPENAI
   ANTHROPIC
   GOOGLE

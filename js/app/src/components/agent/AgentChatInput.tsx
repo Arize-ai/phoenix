@@ -24,6 +24,7 @@ import {
   type AgentChatSuggestionContext,
   getAgentChatPlaceholder,
 } from "./agentChatPlaceholder";
+import { AgentCodexSignInBanner } from "./AgentCodexSignInBanner";
 import { AgentContextPills } from "./AgentContextPills";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
@@ -172,6 +173,7 @@ export function AgentChatInput({
 
   return (
     <div css={agentChatInputCSS}>
+      <AgentCodexSignInBanner modelMenuValue={modelMenuValue} />
       <div className="agent-chat-input__prompt-stack">
         <div
           className="agent-chat-input__slash-menu-layer"

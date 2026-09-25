@@ -25,6 +25,7 @@ export const BUILT_IN_PROVIDERS = [
   "MOONSHOT",
   "OLLAMA",
   "OPENAI",
+  "OPENAI_CODEX",
   "PERPLEXITY",
   "TOGETHER",
   "XAI",

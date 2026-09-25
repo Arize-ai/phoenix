@@ -109,13 +109,45 @@ class ChatCompletionUsagePromptTokensDetails(TypedDict):
 
 
 class ChatRequestCredential(TypedDict):
-    key: Literal["GITHUB_PERSONAL_ACCESS_TOKEN"]
+    key: Literal["GITHUB_PERSONAL_ACCESS_TOKEN", "OPENAI_CODEX_ACCESS_TOKEN"]
     value: str
 
 
 class CodeEvaluatorUIContext(TypedDict):
     type: Literal["code_evaluator"]
     evaluatorNodeId: NotRequired[str]
+
+
+class CodexDeviceAuthPollRequestBody(TypedDict):
+    deviceAuthId: str
+    userCode: str
+
+
+class CodexDeviceAuthStartResponseBody(TypedDict):
+    deviceAuthId: str
+    userCode: str
+    intervalSeconds: int
+    verificationUrl: str
+    expiresInSeconds: NotRequired[int]
+
+
+class CodexModelsRequestBody(TypedDict):
+    accessToken: str
+
+
+class CodexModelsResponseBody(TypedDict):
+    models: Sequence[str]
+
+
+class CodexRefreshRequestBody(TypedDict):
+    refreshToken: str
+
+
+class CodexTokenBundle(TypedDict):
+    accessToken: str
+    refreshToken: str
+    accountId: str
+    idToken: NotRequired[str]
 
 
 class CreateApiKeyRequestBody(TypedDict):
@@ -1404,6 +1436,7 @@ class AssistantMessageMetadataUsage(TypedDict):
 class BuiltInModelProvider(TypedDict):
     provider: Literal[
         "OPENAI",
+        "OPENAI_CODEX",
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",
@@ -1428,6 +1461,7 @@ class BuiltInProviderModelSelection(TypedDict):
     providerType: Literal["builtin"]
     provider: Literal[
         "OPENAI",
+        "OPENAI_CODEX",
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",
@@ -1476,6 +1510,11 @@ class ChatCompletionUsage(TypedDict):
     completion_tokens: int
     total_tokens: int
     prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
+
+
+class CodexDeviceAuthPollResponseBody(TypedDict):
+    status: Literal["pending", "complete"]
+    tokens: NotRequired[CodexTokenBundle]
 
 
 class ContinuousAnnotationConfigData(TypedDict):
@@ -2022,6 +2061,7 @@ class ChatCompletion(TypedDict):
 
 class CompactAgentSessionRequestBody(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
+    credentials: NotRequired[Sequence[ChatRequestCredential]]
 
 
 class CreateAgentSessionRequestBody(TypedDict):
@@ -2299,6 +2339,7 @@ class PromptChatTemplate(TypedDict):
 class PromptVersionData(TypedDict):
     model_provider: Literal[
         "OPENAI",
+        "OPENAI_CODEX",
         "AZURE_OPENAI",
         "ANTHROPIC",
         "GOOGLE",

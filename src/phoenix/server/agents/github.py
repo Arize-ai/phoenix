@@ -29,7 +29,10 @@ from phoenix.db import models
 
 logger = logging.getLogger(__name__)
 
-ChatRequestCredentialKey: TypeAlias = Literal["GITHUB_PERSONAL_ACCESS_TOKEN"]
+ChatRequestCredentialKey: TypeAlias = Literal[
+    "GITHUB_PERSONAL_ACCESS_TOKEN",
+    "OPENAI_CODEX_ACCESS_TOKEN",
+]
 """Secret-key names accepted as per-request credentials on the chat endpoint.
 
 Typing the wire field with this alias makes pydantic reject unknown keys and

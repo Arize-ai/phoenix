@@ -3,6 +3,7 @@
  */
 export const ModelProviders: Record<ModelProvider, string> = {
   OPENAI: "OpenAI",
+  OPENAI_CODEX: "ChatGPT (Codex)",
   AZURE_OPENAI: "Azure OpenAI",
   ANTHROPIC: "Anthropic",
   GOOGLE: "Google",
@@ -61,6 +62,8 @@ export const ProviderToCredentialsConfigMap: Record<
   ModelProviderCredentialConfig[]
 > = {
   OPENAI: [{ envVarName: "OPENAI_API_KEY", isRequired: true }],
+  // Subscription auth: the browser-held ChatGPT token, not an API key.
+  OPENAI_CODEX: [],
   AZURE_OPENAI: [{ envVarName: "AZURE_OPENAI_API_KEY", isRequired: true }],
   ANTHROPIC: [{ envVarName: "ANTHROPIC_API_KEY", isRequired: true }],
   GOOGLE: [{ envVarName: "GEMINI_API_KEY", isRequired: true }],

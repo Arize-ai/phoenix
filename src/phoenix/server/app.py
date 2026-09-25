@@ -99,6 +99,7 @@ from phoenix.server.api.routers import (
     agent_session_conflict_handler,
     create_agents_router,
     create_auth_router,
+    create_codex_auth_router,
     create_legacy_agents_router,
     create_v1_router,
     oauth2_as_router,
@@ -1149,6 +1150,7 @@ def create_app(
     if not get_env_disable_agent_assistant():
         app.include_router(create_legacy_agents_router(authentication_enabled))
         app.include_router(create_agents_router(authentication_enabled))
+        app.include_router(create_codex_auth_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     app.include_router(auth_md_router)

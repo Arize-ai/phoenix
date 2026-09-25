@@ -3,6 +3,11 @@ import {
   ProviderToCredentialsConfigMap,
 } from "../generativeConstants";
 
+// Ollama needs no key; the ChatGPT (Codex) provider authenticates with a
+// browser-held subscription token rather than a server-side credential.
+const PROVIDERS_WITHOUT_SERVER_CREDENTIALS: ReadonlySet<ModelProvider> =
+  new Set(["OLLAMA", "OPENAI_CODEX"]);
+
 describe("generativeConstants", () => {
   describe("ProviderToCredentialsMap", () => {
     it("should have credentials defined for every provider", () => {
@@ -18,7 +23,7 @@ describe("generativeConstants", () => {
         expect(Array.isArray(ProviderToCredentialsConfigMap[provider])).toBe(
           true
         );
-        if (provider !== "OLLAMA") {
+        if (!PROVIDERS_WITHOUT_SERVER_CREDENTIALS.has(provider)) {
           expect(
             ProviderToCredentialsConfigMap[provider].length
           ).toBeGreaterThan(0);
@@ -49,7 +54,7 @@ describe("generativeConstants", () => {
         const hasRequiredCredential = credentials.some(
           (credential) => credential.isRequired
         );
-        if (provider === "OLLAMA") {
+        if (PROVIDERS_WITHOUT_SERVER_CREDENTIALS.has(provider)) {
           expect(hasRequiredCredential).toBe(false);
         } else {
           expect(hasRequiredCredential).toBe(true);
