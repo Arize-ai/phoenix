@@ -227,6 +227,22 @@ async def test_rest_create_span_note_with_identifier_upserts(
     assert annotations[0].explanation == second_note
 
 
+async def test_query_spans_announces_its_deprecation(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    """``POST /v1/spans`` still answers, but every response carries a Deprecation header."""
+    response = await httpx_client.post(
+        "v1/spans",
+        json={"queries": [{}]},
+        headers={"accept": "application/json"},
+    )
+    assert response.status_code == 200
+    assert response.headers["Deprecation"] == "true"
+    assert 'rel="deprecation"' in response.headers["Link"]
+    assert response.headers["content-type"].startswith("multipart/mixed")
+
+
 @pytest.fixture
 def span_factory() -> Callable[..., models.Span]:
     """Factory for creating spans with sensible defaults."""
