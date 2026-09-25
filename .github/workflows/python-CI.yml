@@ -138,7 +138,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.11", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -163,7 +163,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13", "3.14"]
+        py: ["3.11", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -186,7 +186,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_otel == 'true' }}
     strategy:
       matrix:
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -211,7 +211,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - py: "3.10"
+          - py: "3.11"
             os: ubuntu-latest
           - py: "3.11"
             os: macos-latest
@@ -496,7 +496,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -549,7 +549,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.14"]
+        py: ["3.11", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -587,7 +587,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: ["3.11"]
         db: [sqlite, postgresql]
     steps:
       - name: Checkout repository
@@ -640,7 +640,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: ["3.11"]
         db: [sqlite, postgresql]
         os: [oss-4-core-runner]
     env:
@@ -783,7 +783,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10"]
+        py: ["3.11"]
         pkg: [openai, anthropic, google_genai]
     steps:
       - name: Checkout repository
