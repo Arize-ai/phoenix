@@ -51,6 +51,7 @@ function suite(
         threshold: 0.8,
         value: passed ? 1 : 0,
         sampleCount: results.length,
+        eligibleRunCount: results.length,
         passed,
       },
     ],

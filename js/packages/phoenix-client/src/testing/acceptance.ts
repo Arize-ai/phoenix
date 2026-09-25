@@ -50,7 +50,7 @@ export function createAcceptanceFailureError(
 export function formatAcceptanceResult(result: AcceptanceResult): string {
   const status = result.passed ? "PASS" : "FAIL";
   const value = result.value === null ? "n/a" : result.value.toFixed(3);
-  const sampleLabel = result.sampleCount === 1 ? "sample" : "samples";
+  const runLabel = result.eligibleRunCount === 1 ? "run" : "runs";
   let requirement: string;
   if (result.metric === "average") {
     const cmp = (result.direction ?? "maximize") === "minimize" ? "<=" : ">=";
@@ -59,7 +59,7 @@ export function formatAcceptanceResult(result: AcceptanceResult): string {
     requirement = `pass rate >= ${result.minPassRate.toFixed(3)}`;
   }
   const reason = result.failureReason ? ` - ${result.failureReason}` : "";
-  return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} ${sampleLabel})${reason}`;
+  return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} of ${result.eligibleRunCount} ${runLabel})${reason}`;
 }
 
 function evaluateAcceptanceCriterion({
@@ -69,7 +69,17 @@ function evaluateAcceptanceCriterion({
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
 }): AcceptanceResult {
-  const annotations = collectAnnotations({ criterion, results });
+  const runAnnotations = collectLastAnnotationPerEligibleRun({
+    criterion,
+    results,
+  });
+  const eligibleRunCount = runAnnotations.length;
+  // Runs that did not log the annotation are outside this criterion's
+  // population: suites may log different annotations on different tests, and
+  // a run that errored is already a failed test in the host framework.
+  const annotations = runAnnotations.filter(
+    (annotation): annotation is Annotation => annotation !== undefined
+  );
 
   if (criterion.metric === "average") {
     // Only numeric / boolean scores can be averaged.
@@ -81,17 +91,19 @@ function evaluateAcceptanceCriterion({
         ...criterion,
         value: null,
         sampleCount: 0,
+        eligibleRunCount,
         passed: false,
         failureReason: "no numeric or boolean scores found",
       };
     }
     const direction = criterion.direction ?? "maximize";
-    const value = calculateAverage(scores);
+    const value = calculateAverage({ scores });
     return {
       ...criterion,
       value,
       sampleCount: scores.length,
-      passed: meetsBar(value, criterion.threshold, direction),
+      eligibleRunCount,
+      passed: meetsBar({ value, threshold: criterion.threshold, direction }),
     };
   }
 
@@ -103,43 +115,49 @@ function evaluateAcceptanceCriterion({
       ...criterion,
       value: null,
       sampleCount: 0,
+      eligibleRunCount,
       passed: false,
       failureReason: "no matching annotations found",
     };
   }
-  const passed = annotations.filter((annotation) =>
+  const passingRunCount = annotations.filter((annotation) =>
     criterion.passFn(annotation)
   ).length;
-  const value = passed / annotations.length;
+  const value = passingRunCount / annotations.length;
   return {
     ...criterion,
     value,
     sampleCount: annotations.length,
+    eligibleRunCount,
     passed: value >= criterion.minPassRate,
   };
 }
 
-/** Whether `value` clears `bar` in the given optimization direction. */
-function meetsBar(
-  value: number,
-  bar: number,
-  direction: OptimizationDirection
-): boolean {
-  return direction === "minimize" ? value <= bar : value >= bar;
+/** Whether `value` clears `threshold` in the given optimization direction. */
+function meetsBar({
+  value,
+  threshold,
+  direction,
+}: {
+  value: number;
+  threshold: number;
+  direction: OptimizationDirection;
+}): boolean {
+  return direction === "minimize" ? value <= threshold : value >= threshold;
 }
 
 /**
- * The last annotation matching `annotationName` from each non-skipped run that
- * logged it. One entry per run; runs that never logged the annotation are
- * omitted.
+ * The last annotation matching `annotationName` from each eligible
+ * (non-skipped) run, one entry per run. Runs that never logged the annotation
+ * yield `undefined`, so the array length is the eligible-run count.
  */
-function collectAnnotations({
+function collectLastAnnotationPerEligibleRun({
   criterion,
   results,
 }: {
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
-}): Annotation[] {
+}): (Annotation | undefined)[] {
   return results
     .filter((result) => result.status !== "skipped")
     .map((result) =>
@@ -147,8 +165,7 @@ function collectAnnotations({
         annotations: result.annotations,
         annotationName: criterion.annotationName,
       })
-    )
-    .filter((annotation): annotation is Annotation => annotation !== undefined);
+    );
 }
 
 function findLastAnnotation({
@@ -178,7 +195,11 @@ function isValidScore(score: Annotation["score"]): score is number | boolean {
   );
 }
 
-function calculateAverage(scores: readonly (number | boolean)[]): number {
+function calculateAverage({
+  scores,
+}: {
+  scores: readonly (number | boolean)[];
+}): number {
   const total = scores
     .map(scoreToNumber)
     .reduce((sum, score) => sum + score, 0);

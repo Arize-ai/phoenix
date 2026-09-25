@@ -222,6 +222,10 @@ comparison inside `passFn`:
   the mean.
 - **Duplicate annotations** — if a run logs the same `annotationName` more than
   once, the last one counts.
+- **Which runs count** — a criterion is computed over the runs that logged its
+  annotation. Tests don't all have to log the same annotations, so a run
+  without it is outside that criterion rather than a failure. A test that
+  throws is already a failed test in Vitest / Jest and isn't counted again.
 - **Missing annotations** — an `average` criterion with no numeric/boolean
   scores, or a `passRate` criterion whose annotation was never logged, fails
   with a "no … found" reason rather than passing vacuously.
@@ -233,9 +237,10 @@ comparison inside `passFn`:
 Criteria are evaluated once, after all tests finish. If any fail, the suite
 throws a single aggregated error and the reporter prints an `Acceptance
 Criteria` block listing each criterion's observed value, the bar it needed to
-clear, and its sample count. The reported value is the **mean** for `average`,
-and the **fraction of runs that passed** for `passRate` (so a fully-passing
-`passRate` criterion reads `1.000`).
+clear, and its coverage (`70 of 100 runs`: the runs that logged the annotation
+out of all non-skipped runs). The reported value is the **mean** for `average`,
+and the **fraction of annotated runs that passed** for `passRate` (so a
+fully-passing `passRate` criterion reads `1.000`).
 
 ## Where To Start
 
