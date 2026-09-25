@@ -141,7 +141,7 @@ async def test_app_runs_seeded_criteria_end_to_end(
             assert target_consumer._executor._db_semaphore is consumer._db_semaphore
         assert isinstance(session_sweeper, EvalSweeper)
         assert isinstance(trace_sweeper, EvalSweeper)
-        assert trace_sweeper._lease_name != session_sweeper._lease_name
+        assert trace_sweeper._lease.name != session_sweeper._lease.name
 
         async with db() as session:
             project = await _add_project(session)
@@ -157,24 +157,16 @@ async def test_app_runs_seeded_criteria_end_to_end(
         async with db() as session:
             await session.execute(
                 insert_on_conflict(
-                    {
-                        "evaluation_target": "SPAN",
-                        "consumer_group": "default",
-                        "produced_through_id": 0,
-                    },
-                    table=models.EvalWorkCursor,
+                    {"id": 1, "produced_through_id": 0},
+                    table=models.EvalSpanCursor,
                     dialect=db.dialect,
-                    unique_by=("evaluation_target", "consumer_group"),
+                    unique_by=("id",),
                     on_conflict=OnConflict.DO_NOTHING,
+                    constraint_name="pk_eval_span_cursors",
                 )
             )
             await session.execute(
-                update(models.EvalWorkCursor)
-                .where(
-                    models.EvalWorkCursor.evaluation_target == "SPAN",
-                    models.EvalWorkCursor.consumer_group == "default",
-                )
-                .values(
+                update(models.EvalSpanCursor).values(
                     produced_through_id=0,
                     observed_high_water_id=span.id,
                     observed_at=datetime.now(timezone.utc) - timedelta(seconds=120),

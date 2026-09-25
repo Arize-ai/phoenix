@@ -25,7 +25,6 @@ from sqlalchemy import (
     select,
     text,
     true,
-    type_coerce,
     update,
 )
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
@@ -50,12 +49,12 @@ from phoenix.db.eval_work import (
     terminal_eval_session_work_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
 )
+from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG,
@@ -72,14 +71,10 @@ from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
-SWEEP_LEASE_TTL_SECONDS = 90.0
 SWEEP_INTERVAL_SECONDS = 10.0
 
 TRACE_SWEEP_MAX_OUTSTANDING = 10_000
 
-_CONSUMER_GROUP = "default"
-_SESSION_SWEEP_LEASE_NAME = "session-sweep"
-_TRACE_SWEEP_LEASE_NAME = "trace-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 
 _EntityModel = type[models.ProjectSession] | type[models.Trace]
@@ -110,7 +105,7 @@ class _SweepTarget:
     # The due-horizon watermark advances past rows this gate excludes, so a row it excludes
     # must not become eligible later without new activity.
     is_evaluable: Callable[[], ColumnElement[bool]]
-    lease_name_prefix: str
+    lease_name: str
 
 
 _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
@@ -129,7 +124,7 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
             )
         ),
         is_evaluable=lambda: true(),
-        lease_name_prefix=_SESSION_SWEEP_LEASE_NAME,
+        lease_name="session-sweep",
     ),
     "TRACE": _SweepTarget(
         entity_model=models.Trace,
@@ -146,7 +141,7 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
             )
         ),
         is_evaluable=lambda: true(),
-        lease_name_prefix=_TRACE_SWEEP_LEASE_NAME,
+        lease_name="trace-sweep",
     ),
 }
 
@@ -381,7 +376,6 @@ class EvalSweeper(DaemonTask):
         *,
         evaluation_target: models.EvaluationTarget,
         max_outstanding: int,
-        consumer_group: str = _CONSUMER_GROUP,
         tick_interval_seconds: float = SWEEP_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
@@ -398,14 +392,15 @@ class EvalSweeper(DaemonTask):
         ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
-        self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
         self._max_outstanding = max_outstanding
         self._late_commit_margin = timedelta(seconds=get_env_online_eval_frontier_lag_seconds())
         self._publish_metrics = get_env_enable_prometheus()
-        self._sweeper_id = f"{evaluation_target.lower()}-sweeper-{token_hex(8)}"
-        self._lease_name = f"{target.lease_name_prefix}:{consumer_group}"
-        self._lease_held = False
+        self._lease = MaterializerLease(
+            db,
+            name=target.lease_name,
+            holder=f"{evaluation_target.lower()}-sweeper-{token_hex(8)}",
+        )
 
     async def _run(self) -> None:
         try:
@@ -424,75 +419,14 @@ class EvalSweeper(DaemonTask):
         finally:
             # A second cancellation while stop() drains would abort the release and leave the
             # lease held until its 90 s TTL expires; the shield keeps the release running.
-            await asyncio.shield(asyncio.ensure_future(self._release_lease()))
+            await asyncio.shield(asyncio.ensure_future(self._lease.release()))
 
     async def _tick(self) -> None:
-        mutations_allowed = not self._db.should_not_insert_or_update
-        lease_id = await self._acquire_lease(allow_insert=mutations_allowed)
-        if lease_id is None:
+        if not await self._lease.acquire():
             return
-        if mutations_allowed:
+        if not self._db.should_not_insert_or_update:
             await self._materialize()
-        if not await self._renew_lease(lease_id):
-            self._lease_held = False
-            logger.warning(f"{self._evaluation_target} evaluation sweeper lost its lease")
-
-    async def _acquire_lease(self, *, allow_insert: bool = True) -> Optional[int]:
-        for _ in range(2):
-            async with self._db() as session:
-                database_now = await self._database_now(session)
-                lease_id = await session.scalar(
-                    update(models.EvalWorkLease)
-                    .where(
-                        models.EvalWorkLease.name == self._lease_name,
-                        or_(
-                            models.EvalWorkLease.holder.is_(None),
-                            models.EvalWorkLease.holder == self._sweeper_id,
-                            models.EvalWorkLease.heartbeat_at
-                            < database_now - timedelta(seconds=SWEEP_LEASE_TTL_SECONDS),
-                        ),
-                    )
-                    .values(holder=self._sweeper_id, heartbeat_at=database_now)
-                    .returning(models.EvalWorkLease.id)
-                )
-            if lease_id is not None:
-                self._lease_held = True
-                return lease_id
-            async with self._db() as session:
-                row_exists = await session.scalar(
-                    select(models.EvalWorkLease.id).where(
-                        models.EvalWorkLease.name == self._lease_name
-                    )
-                )
-                if row_exists is not None:
-                    break
-                if not allow_insert:
-                    break
-                await session.execute(
-                    insert_on_conflict(
-                        {"name": self._lease_name},
-                        table=models.EvalWorkLease,
-                        dialect=self._db.dialect,
-                        unique_by=("name",),
-                        on_conflict=OnConflict.DO_NOTHING,
-                    )
-                )
-        self._lease_held = False
-        return None
-
-    async def _renew_lease(self, lease_id: int) -> bool:
-        async with self._db() as session:
-            renewed_at = await self._database_now(session)
-            renewed = await session.scalar(
-                update(models.EvalWorkLease)
-                .where(
-                    models.EvalWorkLease.id == lease_id,
-                    models.EvalWorkLease.holder == self._sweeper_id,
-                )
-                .values(heartbeat_at=renewed_at)
-                .returning(models.EvalWorkLease.id)
-            )
-        return renewed is not None
+        await self._lease.renew()
 
     async def _materialize(self) -> None:
         started_at = time.monotonic()
@@ -501,7 +435,7 @@ class EvalSweeper(DaemonTask):
             ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**labels).inc()
         try:
             async with self._db() as session:
-                database_now = await self._database_now(session)
+                database_now = await current_database_time(session, self._db.dialect)
                 materialized_work_count, eligible_pair_count = await self._sweep(
                     session, database_now
                 )
@@ -518,17 +452,6 @@ class EvalSweeper(DaemonTask):
             ONLINE_EVAL_SWEEP_SUCCESSES.labels(**labels).inc()
             ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**labels).inc(materialized_work_count)
             await self._publish_eligibility_metrics(eligible_pair_count)
-
-    async def _database_now(self, session: AsyncSession) -> datetime:
-        clock = (
-            func.statement_timestamp()
-            if self._db.dialect is SupportedSQLDialect.POSTGRESQL
-            else func.now()
-        )
-        database_now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
-        if database_now is None:
-            raise RuntimeError("Database did not return its current time")
-        return database_now
 
     async def _load_evaluators(self, session: AsyncSession) -> list[_SweepProjectEvaluator]:
         polymorphic_evaluator = with_polymorphic(
@@ -886,7 +809,7 @@ class EvalSweeper(DaemonTask):
             ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG.labels(**self._metric_labels).set(eligible_pair_count)
         try:
             async with self._db.read() as session:
-                database_now = await self._database_now(session)
+                database_now = await current_database_time(session, self._db.dialect)
                 await self._publish_watermark_lag(session, database_now)
         except Exception:
             logger.exception(
@@ -950,20 +873,3 @@ class EvalSweeper(DaemonTask):
                 f"{self._max_outstanding}"
             )
         return budget
-
-    async def _release_lease(self) -> None:
-        if not self._lease_held:
-            return
-        self._lease_held = False
-        try:
-            async with self._db() as session:
-                await session.execute(
-                    update(models.EvalWorkLease)
-                    .where(
-                        models.EvalWorkLease.name == self._lease_name,
-                        models.EvalWorkLease.holder == self._sweeper_id,
-                    )
-                    .values(holder=None, heartbeat_at=None)
-                )
-        except Exception:
-            logger.exception(f"Failed to release {self._evaluation_target} evaluation sweep lease")
