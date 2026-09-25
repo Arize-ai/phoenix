@@ -2,12 +2,16 @@ import { Flex } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
-import { getEvaluatorMappingRowNames } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import {
+  getEvaluatorInputPlaceholder,
+  getEvaluatorMappingRowNames,
+} from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import { escapeFieldNameForReactHookForm } from "@phoenix/components/evaluators/fieldNameUtils";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import {
   dropOtherRecordKindPathMappings,
+  dropPathsShadowedByLiterals,
   type ProjectEvaluatorRecordKind,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
@@ -18,7 +22,8 @@ import {
  *
  * The first three are what the record offers by name, so each reads its own
  * field until pointed elsewhere. Any other variable reads nothing until it is
- * given a path; everything the record holds is reachable under `metadata`.
+ * given a path, unless the evaluator saved text for it; everything the record
+ * holds is reachable under `metadata`.
  */
 export const ProjectEvaluatorInputMapping = ({
   recordKind,
@@ -35,11 +40,19 @@ export const ProjectEvaluatorInputMapping = ({
     // runs on rebuilds these rows without the previous record kind's paths in
     // them.
     filterInitialMapping: (inputMapping) =>
-      dropOtherRecordKindPathMappings(inputMapping, recordKind),
+      dropPathsShadowedByLiterals(
+        dropOtherRecordKindPathMappings(inputMapping, recordKind)
+      ),
     declaredVariables: variables,
+    pathsReplaceLiterals: true,
   });
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
+  );
+  // The form drops a variable's literal once it has a path, and hides a path
+  // a literal overrides, so a literal here is what the variable reads.
+  const literalMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping.literalMapping
   );
   return (
     <Flex direction="column" gap="size-200" width="100%">
@@ -69,7 +82,13 @@ export const ProjectEvaluatorInputMapping = ({
               evaluatorMappingSource={evaluatorMappingSource}
               recordKind={recordKind}
               variableName={variable}
-              isRequired={requiredVariables?.includes(variable) ?? true}
+              placeholder={getEvaluatorInputPlaceholder({
+                variableName: variable,
+                isRequired: requiredVariables?.includes(variable) ?? true,
+                literal: Object.hasOwn(literalMapping, variable)
+                  ? literalMapping[variable]
+                  : undefined,
+              })}
             />
           )}
         />
