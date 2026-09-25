@@ -2,6 +2,7 @@ import type { Environment } from "relay-runtime";
 import { commitMutation, graphql } from "relay-runtime";
 
 import type { createProjectLlmEvaluatorMutation } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export type CreateProjectLLMEvaluatorResult = {
   id: string;
@@ -47,7 +48,15 @@ export function createProjectLlmEvaluator({
         const evaluator = response.createProjectLlmEvaluator.evaluator;
         resolve({ id: evaluator.id, name: evaluator.name });
       },
-      onError: reject,
+      // Relay's network error message wraps the GraphQL errors together with
+      // the full mutation variables; surface only the GraphQL messages.
+      onError: (mutationError) =>
+        reject(
+          new Error(
+            getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
+              mutationError.message
+          )
+        ),
     });
   });
 }
