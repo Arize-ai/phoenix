@@ -658,6 +658,13 @@ const preview: Preview = {
             "Feedback",
             [
               "Overview",
+              "Alert",
+              "Toast",
+              "Progress Bar",
+              "Progress Circle",
+              "Loading",
+              "Skeleton",
+              "Timer",
               "*",
               "Empty states",
               ["Overview", "Empty State", "Empty State Graphic", "In Context"],
