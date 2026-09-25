@@ -636,7 +636,6 @@ const preview: Preview = {
             "Layout",
             ["Overview"],
             "Icons",
-            ["Overview"],
             "Actions",
             ["Overview"],
             "Menus",
