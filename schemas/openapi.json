@@ -7098,6 +7098,24 @@
               "title": "Name Contains"
             },
             "description": "Return only projects whose name contains this substring (case-insensitive)."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only the project with exactly this name.",
+              "title": "Name"
+            },
+            "description": "Return only the project with exactly this name."
           }
         ],
         "responses": {
