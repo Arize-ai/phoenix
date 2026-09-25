@@ -40,7 +40,7 @@ Every setup needs the **endpoint** of your Phoenix instance: the base URL you op
 | Local Phoenix (`phoenix serve`) | `http://localhost:6006` | `http://localhost:6006/mcp` |
 | Deployed Phoenix | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
 
-The plugins and the `px` CLI take the endpoint and append `/mcp` themselves, so do not add it. Registering a server by hand, with `claude mcp add` or the per-client steps on the [MCP Servers](/docs/phoenix/integrations/mcp) page, takes the full `/mcp` URL. A local Phoenix works with the defaults; the API key is only needed when auth is on.
+The plugins and the `px` CLI take the endpoint and append `/mcp` themselves, so do not add it. Registering a server by hand, with `claude mcp add` or the per-client steps on the [MCP Server](/docs/phoenix/integrations/mcp) page, takes the full `/mcp` URL. A local Phoenix works with the defaults; the API key is only needed when auth is on.
 
 The `px` CLI and the Codex plugin read the endpoint from your shell:
 
