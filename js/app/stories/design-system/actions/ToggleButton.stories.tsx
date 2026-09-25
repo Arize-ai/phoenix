@@ -1,161 +1,264 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
-import { useState } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
+import type { ToggleButtonProps } from "@phoenix/components";
 import {
-  Card,
+  Flex,
   Icon,
   Icons,
   ToggleButton,
   ToggleButtonGroup,
-  type ToggleButtonGroupProps,
-  View,
 } from "@phoenix/components";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
 /**
- * ToggleButton is a button with a selected state that persists between
- * presses. `ToggleButtonGroup` arranges several of them as one segmented
- * control with single or multiple selection; the `Group…` stories render it.
+ * A button that stays pressed until it is pressed again, for turning on a
+ * mode that stays on, such as annotating a span or taking notes.
+ *
+ * `ToggleButtonGroup` joins several toggle buttons into one bar and sets
+ * their size. It allows single or multiple selection and, unlike
+ * `SegmentedControl`, can be left with nothing selected. For a compact
+ * choice that always has exactly one selection, use `SegmentedControl`.
+ *
+ * Some options are accepted but not styled yet: size `L` has no height or
+ * padding, so it is smaller than `S`, and a group given
+ * `orientation="vertical"` still lays its buttons out in a row.
  */
-export default {
+const meta: Meta = {
   title: "Design System/Actions/Toggle Button",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: ToggleButton,
+  subcomponents: { ToggleButtonGroup },
   parameters: {
     layout: "centered",
-  },
-} as Meta<typeof ToggleButton>;
-
-const Template: StoryFn<typeof ToggleButton> = (args) => {
-  const [selected, setSelected] = useState(args.isSelected);
-  return (
-    <ToggleButton
-      {...args}
-      isSelected={selected}
-      onPress={() => setSelected(!selected)}
-    />
-  );
-};
-
-export const Basic = {
-  render: Template,
-
-  args: {
-    children: "Click Me",
-    isSelected: false,
+    controls: { disable: true },
   },
 };
 
-export const Selected = {
-  render: Template,
+export default meta;
 
-  args: {
-    children: "Selected Button",
-    isSelected: true,
-  },
-};
+export const Default: StoryFn = () => (
+  <ToggleButton size="S" leadingVisual={<Icon svg={<Icons.Edit2 />} />}>
+    Annotate Session
+  </ToggleButton>
+);
+Default.tags = ["!dev"];
 
-export const WithIcon = {
-  render: Template,
+const SIZES: NonNullable<ToggleButtonProps["size"]>[] = ["S", "M", "L"];
 
-  args: {
-    children: "With Icon",
-    isSelected: false,
-    leadingVisual: <Icon svg={<Icons.PlusCircle />} />,
-  },
-};
-
-export const Disabled = {
-  render: Template,
-
-  args: {
-    children: "Disabled Button",
-    isSelected: false,
-    isDisabled: true,
-    onPress: () => {},
-  },
-};
-
-const GroupTemplate: StoryFn<ToggleButtonGroupProps> = (args) => (
-  <Card title="ToggleButtonGroup">
-    <View width="600px" padding="size-200">
-      <ToggleButtonGroup aria-label="ToggleButtonGroup" {...args}>
-        <ToggleButton aria-label="Option 1" id="1">
-          Option 1
-        </ToggleButton>
-        <ToggleButton aria-label="Option 2" id="2">
-          Option 2
-        </ToggleButton>
-        <ToggleButton aria-label="Option 3" id="3">
-          Option 3
-        </ToggleButton>
-      </ToggleButtonGroup>
-    </View>
-  </Card>
+const SELECTION_ROWS = [false, true].flatMap((isSelected) =>
+  SIZES.map((size) => ({
+    label: `${isSelected ? "selected" : "unselected"} · ${size}`,
+    code: true,
+    isSelected,
+    size,
+  }))
 );
 
-export const GroupDefault: Meta<typeof ToggleButtonGroup> = {
-  render: GroupTemplate,
-  args: {
-    size: "M",
-    isDisabled: false,
-    defaultSelectedKeys: ["1", "3"],
-    selectionMode: "multiple",
+const CONTENT_COLUMNS: {
+  label: string;
+  props: Partial<ToggleButtonProps>;
+  children?: ReactNode;
+}[] = [
+  { label: "Plain", props: {}, children: "Annotate" },
+  {
+    label: "Leading visual",
+    props: { leadingVisual: <Icon svg={<Icons.Edit2 />} /> },
+    children: "Annotate",
   },
-  argTypes: {
-    size: {
-      control: { type: "select", options: ["S", "M", "L"] },
-    },
-    selectionMode: {
-      control: { type: "select", options: ["single", "multiple"] },
+  {
+    label: "Trailing visual",
+    props: { trailingVisual: <Icon svg={<Icons.Edit2 />} /> },
+    children: "Annotate",
+  },
+  {
+    label: "Icon only",
+    props: {
+      "aria-label": "Live",
+      leadingVisual: <Icon svg={<Icons.Play />} />,
     },
   },
-};
+];
 
-const GroupAsIconTemplate: StoryFn<ToggleButtonGroupProps> = (args) => (
-  <Card title="ToggleButtonGroup">
-    <View width="600px" padding="size-200">
-      <ToggleButtonGroup aria-label="ToggleButtonGroupWithIcons" {...args}>
-        <ToggleButton aria-label="Option 1" id="1">
-          <Icon svg={<Icons.InfoFilled />} />
+export const SelectionAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={SELECTION_ROWS}
+    columns={CONTENT_COLUMNS}
+    renderCell={(row, column) =>
+      column ? (
+        <ToggleButton
+          size={row.size}
+          defaultSelected={row.isSelected}
+          {...column.props}
+        >
+          {column.children}
         </ToggleButton>
-        <ToggleButton aria-label="Option 2" id="2">
-          <Icon svg={<Icons.InfoFilled />} />
-        </ToggleButton>
-        <ToggleButton aria-label="Option 3" id="3">
-          <Icon svg={<Icons.InfoFilled />} />
-        </ToggleButton>
-      </ToggleButtonGroup>
-    </View>
-  </Card>
+      ) : null
+    }
+  />
 );
+SelectionAndSizes.storyName = "Selection and Sizes";
+SelectionAndSizes.tags = ["!dev"];
+SelectionAndSizes.parameters = { themeLayout: "column" };
 
-export const GroupAsIcon: Meta<typeof ToggleButtonGroup> = {
-  render: GroupAsIconTemplate,
-  args: {
-    size: "M",
-    isDisabled: false,
-    defaultSelectedKeys: ["1", "3"],
-    selectionMode: "multiple",
-  },
-  argTypes: {
-    size: {
-      control: { type: "select" },
-      options: ["S", "M", "L"],
-    },
-    selectionMode: {
-      control: { type: "select" },
-      options: ["single", "multiple"],
-    },
-  },
+const STATES: { label: string; props: Partial<ToggleButtonProps> }[] = [
+  { label: "", props: {} },
+  { label: "isDisabled", props: { isDisabled: true } },
+];
+
+export const ContentAndStates: StoryFn = () => (
+  <OptionGrid
+    rows={[false, true].flatMap((isSelected) =>
+      STATES.map((state) => {
+        const selection = isSelected ? "selected" : "unselected";
+        return {
+          label: state.label ? `${selection} · ${state.label}` : selection,
+          code: true,
+          isSelected,
+          props: state.props,
+        };
+      })
+    )}
+    columns={CONTENT_COLUMNS}
+    renderCell={(row, column) =>
+      column ? (
+        <ToggleButton
+          defaultSelected={row.isSelected}
+          {...row.props}
+          {...column.props}
+        >
+          {column.children}
+        </ToggleButton>
+      ) : null
+    }
+  />
+);
+ContentAndStates.storyName = "Content and States";
+ContentAndStates.tags = ["!dev"];
+ContentAndStates.parameters = { themeLayout: "column" };
+
+const INTEGRATIONS = [
+  { id: "openai", name: "OpenAI" },
+  { id: "anthropic", name: "Anthropic" },
+  { id: "langchain", name: "LangChain" },
+];
+
+const CHART_TYPES = [
+  { id: "column", name: "Vertical bars", svg: <Icons.ChartNoAxesColumn /> },
+  { id: "bar", name: "Horizontal bars", svg: <Icons.ChartBarDecreasing /> },
+  { id: "line", name: "Line", svg: <Icons.ChartLine /> },
+];
+
+type GroupRenderProps = Partial<ComponentProps<typeof ToggleButtonGroup>> & {
+  isMultiSelect?: boolean;
 };
+
+const GROUP_CONTENT: {
+  label: string;
+  renderGroup: (props: GroupRenderProps) => ReactNode;
+}[] = [
+  {
+    label: "Text",
+    renderGroup: ({ isMultiSelect, ...props }) => (
+      <ToggleButtonGroup
+        aria-label="Integration"
+        selectionMode={isMultiSelect ? "multiple" : "single"}
+        defaultSelectedKeys={
+          isMultiSelect ? ["openai", "langchain"] : ["openai"]
+        }
+        {...props}
+      >
+        {INTEGRATIONS.map(({ id, name }) => (
+          <ToggleButton key={id} id={id}>
+            {name}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+    ),
+  },
+  {
+    label: "Icon only",
+    renderGroup: ({ isMultiSelect, ...props }) => (
+      <ToggleButtonGroup
+        aria-label="Chart type"
+        selectionMode={isMultiSelect ? "multiple" : "single"}
+        defaultSelectedKeys={isMultiSelect ? ["column", "line"] : ["column"]}
+        {...props}
+      >
+        {CHART_TYPES.map(({ id, name, svg }) => (
+          <ToggleButton
+            key={id}
+            id={id}
+            aria-label={name}
+            leadingVisual={<Icon svg={svg} />}
+          />
+        ))}
+      </ToggleButtonGroup>
+    ),
+  },
+];
+
+export const GroupSizes: StoryFn = () => (
+  <OptionGrid
+    rows={SIZES.map((size) => ({ label: size, code: true, size }))}
+    columns={GROUP_CONTENT}
+    renderCell={(row, column) => column?.renderGroup({ size: row.size })}
+  />
+);
+GroupSizes.tags = ["!dev"];
+GroupSizes.parameters = { themeLayout: "column" };
+
+const GROUP_MODES: { label: string; props: GroupRenderProps }[] = [
+  { label: "Single select", props: {} },
+  { label: "Multi select", props: { isMultiSelect: true } },
+];
+
+const GROUP_STATES: { label: string; props: GroupRenderProps }[] = [
+  { label: "", props: {} },
+  { label: "disabled", props: { isDisabled: true } },
+];
+
+export const GroupStates: StoryFn = () => (
+  <OptionGrid
+    rows={GROUP_MODES.flatMap((mode) =>
+      GROUP_STATES.map((state) => ({
+        label: state.label ? `${mode.label}, ${state.label}` : mode.label,
+        props: { ...mode.props, ...state.props },
+      }))
+    )}
+    columns={GROUP_CONTENT}
+    renderCell={(row, column) => column?.renderGroup(row.props)}
+  />
+);
+GroupStates.storyName = "Group States";
+GroupStates.tags = ["!dev"];
+GroupStates.parameters = { themeLayout: "column" };
+
+export const GroupOrientations: StoryFn = () => (
+  <OptionGrid
+    rows={(["horizontal", "vertical"] as const).map((orientation) => ({
+      label: orientation,
+      code: true,
+      orientation,
+    }))}
+    columns={GROUP_CONTENT}
+    renderCell={(row, column) =>
+      column?.renderGroup({ orientation: row.orientation })
+    }
+  />
+);
+GroupOrientations.storyName = "Group Orientations";
+GroupOrientations.tags = ["!dev"];
+GroupOrientations.parameters = { themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: StoryObj<typeof ToggleButton> = {
+export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
   render: () => (
-    <div style={{ display: "flex", gap: "var(--global-dimension-size-100)" }}>
+    <Flex direction="row" gap="size-100">
       <ToggleButton defaultSelected>Selected</ToggleButton>
       <ToggleButton>Unselected</ToggleButton>
-    </div>
+    </Flex>
   ),
 };
