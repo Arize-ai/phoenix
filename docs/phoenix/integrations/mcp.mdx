@@ -6,13 +6,13 @@ description: Connect Claude Code, Cursor, VS Code, or any MCP client to your liv
 The Remote [MCP](https://modelcontextprotocol.io/) Server (beta) is built into Phoenix at `/mcp`, so any MCP client can read and act on your Phoenix data with nothing to install. Agents with a shell can reach the same data through the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli); see [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server).
 
 <Note>
-**Want your agent to search these docs too?** Add the hosted Phoenix Docs MCP, no authentication needed. It is a separate server, and neither plugin includes it:
+**Want your agent to search these docs too?** Add the Phoenix Docs MCP, a separate hosted server with no login:
 
 ```bash
 claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
 ```
 
-For other clients, use the same config shape as below with the URL `https://arizeai-433a7140.mintlify.app/mcp`. Opening that URL in a browser shows a JSON tool manifest, which means it is working; it is not a page.
+Other clients: same config as below, with that URL.
 </Note>
 
 ## Remote MCP Server
