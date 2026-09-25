@@ -1227,6 +1227,7 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
+            read_only=read_only,
             external_skills=external_skills,
         )
         # The guard reads scope["user"], so it is installed exactly when the
