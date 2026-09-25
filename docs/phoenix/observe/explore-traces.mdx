@@ -1,78 +1,210 @@
 ---
 title: "Explore traces"
 description: Inspect traces, spans, sessions, metrics, and dashboards after Phoenix receives trace data.
-sidebarTitle: "Explore your traces"
+sidebarTitle: "Explore traces"
 ---
 
-After your application sends traces to Phoenix, open Observe to inspect stored trace data, find failures, review sessions, and share links with your team.
+Use Observe after Phoenix receives traces from your app. Open a project to find slow, failed, or costly requests, inspect spans and sessions, and review metrics over time. Use PXI when you want help investigating, or fetch trace data in code when you need analysis outside Phoenix.
 
-## Ways to inspect traces
+## Choose an investigation path
 
-You can inspect traces in the Phoenix UI, fetch them in code, or ask an agent to investigate them.
+Use PXI for guided investigation, the UI for manual inspection, and code or CLI access when you need trace data outside Phoenix.
 
-| Path | Use it when... |
-| :--- | :--- |
-| Phoenix UI | You want to browse projects, traces, spans, sessions, dashboards, and filters. |
-| Phoenix client or CLI | You want to fetch traces, spans, or sessions for scripts, notebooks, or eval workflows. |
-| PXI | You want to ask a Phoenix agent to investigate trace data, for example why a trace failed. |
-| Coding agent with MCP or skills | You want Claude Code, Codex, Cursor, or another coding agent to query Phoenix while it works in your repo. |
+<Tabs>
+  <Tab title="By PXI">
+    Use [PXI](/docs/phoenix/pxi) when you are looking at trace data and want help finding the cause of a failure, slowdown, or bad eval result.
 
-For code access, start with [Retrieve traces with the CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli) or [Export and query spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans). For agent workflows, see [PXI](/docs/phoenix/pxi) and [Coding agents](/docs/phoenix/integrations/developer-tools/coding-agents).
+    <Steps>
+      <Step title="Open trace data">
+        Open a project, trace, or session in Phoenix.
+      </Step>
+      <Step title="Open PXI">
+        Open PXI from the page you are viewing. PXI uses that page as context for the investigation.
 
-<CardGroup cols={2}>
-  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/llm-traces/projects">
-    Organize traces and annotations by application, environment, or workflow
-  </Card>
-  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/llm-traces/sessions">
-    Review multi-turn conversations and user journeys
-  </Card>
-  <Card title="Filters" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
-    Narrow spans, traces, and sessions with filter expressions
-  </Card>
-  <Card title="Dashboards" icon="chart-line" href="/docs/phoenix/observe/dashboards">
-    Select a project and review its metric charts
-  </Card>
-  <Card title="Project metrics" icon="chart-line" href="/docs/phoenix/tracing/llm-traces/metrics">
-    Review latency, token usage, costs, errors, and annotation scores
-  </Card>
-  <Card title="Share links" icon="link" href="/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls">
-    Link to projects, traces, spans, sessions, prompt tags, and dataset examples
-  </Card>
-</CardGroup>
+        <Frame caption="PXI can use the Phoenix page you have open as context">
+          <img
+            src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/pxi-observe-20260925.png"
+            alt="PXI panel open in Phoenix with a user request, tool calls, and evidence used by the assistant"
+          />
+        </Frame>
+      </Step>
+      <Step title="Ask a focused question">
+        Ask about one failure, session, trend, or eval gap.
+
+        Good questions:
+
+        - "Why did this trace fail?"
+        - "Why did this session go off track?"
+        - "Find slow or expensive spans in this project."
+        - "What eval should I add for this failure pattern?"
+      </Step>
+      <Step title="Check the evidence">
+        Review the traces, spans, and tool results PXI used before you act on the answer. See [PXI](/docs/phoenix/pxi) for setup and model configuration.
+      </Step>
+    </Steps>
+
+    Want a walkthrough? Watch [Triaging Agent Errors with Phoenix and PXI](https://www.youtube.com/watch?v=iF25CqJv4tA).
+  </Tab>
+  <Tab title="By UI">
+    <Frame caption="Phoenix project view for exploring spans, traces, sessions, and metrics">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/observe-project-traces-20260924.png"
+        alt="Phoenix project page with span table, trace tabs, filter controls, and project metrics"
+      />
+    </Frame>
+
+    1. Open **Tracing**, then choose the project that receives your app traces.
+    2. Use the time range picker and filters to narrow the table.
+    3. Choose **Spans** for one operation, **Traces** for a full request, **Sessions** for a conversation, or **Metrics** for trends.
+    4. Open a row to inspect inputs, outputs, attributes, errors, timing, token counts, cost, and annotations.
+  </Tab>
+  <Tab title="By code">
+    1. Choose how you want to fetch data. Use the CLI for terminal work, or use the Phoenix client, REST API, or GraphQL API from a script or notebook.
+    2. Fetch spans or traces from the project you want to inspect.
+    3. Use the result for analysis, evals, CI checks, exports, or debugging.
+
+    Start with [Export trace data](/docs/phoenix/observe/export-trace-data), which covers Phoenix client exports and CLI retrieval.
+  </Tab>
+  <Tab title="By coding agent">
+    1. Give the agent access to Phoenix through the CLI, MCP, or Phoenix skills.
+    2. Ask it to fetch the traces, spans, or sessions related to the issue it is fixing.
+    3. Have it use the trace evidence while changing code, adding evals, or writing a debugging note.
+
+    See [Coding agents](/docs/phoenix/integrations/developer-tools/coding-agents), [Remote MCP](/docs/phoenix/integrations/remote-mcp), or [Export trace data](/docs/phoenix/observe/export-trace-data#retrieve-traces-with-the-cli).
+  </Tab>
+</Tabs>
 
 ## Start from a project
 
 Projects are the main container for trace data. Open a project to review the spans, traces, and sessions collected from one application or environment.
 
-Use the table views to move between different levels of detail:
+Use these views together when you investigate trace data.
 
-- **Spans** show individual operations, such as LLM calls, retrieval steps, tool calls, and custom spans.
-- **Traces** show full request paths from the root span through child spans.
-- **Sessions** group related traces from the same conversation or user journey.
+<Tabs>
+  <Tab title="Traces">
+    <Frame caption="Traces view for a Phoenix project">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/observe-project-traces-view-20260925.png"
+        alt="Phoenix Traces view showing trace volume, trace latency, trace annotation score charts, and a trace table"
+      />
+    </Frame>
 
-Open a row to inspect details such as inputs, outputs, attributes, timing, errors, annotations, and tool call data.
+    The **Traces** view shows one row for each request your app handled. Open a trace to see the full span tree, including LLM calls, retrieval steps, tool calls, custom spans, timing, inputs, outputs, errors, and annotations.
 
-## Narrow what you see
+    Start here when a request failed, produced a bad answer, took too long, or cost more than expected.
 
-Use the project time range and table filter bars to focus the view. Filter expressions can target span fields, trace rollups, session aggregates, attributes, metadata, and annotations.
+    <Tip>
+      Open PXI from a trace when you want help finding which span explains the failure.
+    </Tip>
+  </Tab>
+  <Tab title="Spans">
+    <Frame caption="Spans view for a Phoenix project">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/observe-project-spans-view-20260925.png"
+        alt="Phoenix Spans view showing span traffic, filter controls, span rows, and project stats"
+      />
+    </Frame>
 
-<Card title="Filter expressions" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
-  See supported fields, operators, and examples for spans, traces, and sessions
-</Card>
+    The **Spans** view shows individual operations inside traces. Use it when you want to search across many LLM calls, retriever spans, tool calls, or custom spans without opening each trace first.
+
+    Start here when you already know the kind of operation you care about, such as `span_kind == 'LLM'`, `span_kind == 'RETRIEVER'`, or a slow span.
+  </Tab>
+  <Tab title="Sessions">
+    <Frame caption="Sessions view for a Phoenix project">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ca93711f-image.jpeg"
+        alt="Phoenix sessions table showing sessions within a project"
+      />
+    </Frame>
+
+    The **Sessions** view groups traces from the same conversation or user journey when your app sends `session.id`. Open a session to read turns in order and see how behavior changes across the conversation.
+
+    Start here when users report that an agent went off track, forgot context, or failed after several turns.
+  </Tab>
+  <Tab title="Metrics">
+    <Frame caption="Metrics view for a Phoenix project">
+      <img
+        src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/observe-project-metrics-view-llama-index-20260925.png"
+        alt="Phoenix Metrics view showing project charts for traces, latency, cost, tokens, errors, and annotation scores"
+      />
+    </Frame>
+
+    The **Metrics** view shows project trends before you open individual rows. Use it to check trace volume, latency, cost, token usage, LLM and tool errors, and annotation scores.
+
+    Start here when you see a spike or drop and need to find the traces behind it.
+  </Tab>
+</Tabs>
+
+## Find the traces that matter
+
+Start broad, then narrow the table with time range and filters. Use the project time range first, then add filters for the failure pattern you are investigating.
+
+| Goal | View | Filter |
+| :--- | :--- | :--- |
+| LLM calls only | Spans | `span_kind == 'LLM'` |
+| Retriever calls only | Spans | `span_kind == 'RETRIEVER'` |
+| Slow spans | Spans | `latency_ms > 1000` |
+| Long or costly traces | Traces | `token_count_total > 5000` or `total_cost > 0.25` |
+| Failed traces | Traces | `error_count > 0` or `any(span.status_code == 'ERROR' for span in spans)` |
+| Poor span eval results | Spans | `annotations['correctness'].label == 'incorrect'` |
+| Poor trace eval results | Traces | `trace_annotations['quality'].score < 0.5` |
+| Support or keyword issues | Spans or traces | `'refund' in input.value` for spans, or `'refund' in input` for traces |
+
+See [Filter trace data](/docs/phoenix/tracing/how-to-tracing/filter-expressions) for the full field list and filter syntax.
+
+## Inspect a row
+
+Open a span, trace, or session row when you need the evidence behind a behavior. The detail panel shows the recorded input and output, span attributes, timing, errors, token and cost data, events, notes, and annotations.
+
+<Frame caption="Trace detail view with nested spans and span attributes">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/trace-span-attributes-20260924.png"
+    alt="Phoenix trace detail view showing nested spans for retrieval, embedding, reranking, and response generation, with span attributes for the selected embedding span"
+  />
+</Frame>
+
+Use **Attributes** when you need the exact OpenInference fields Phoenix received. Use **Annotations** when you need human feedback, evaluator labels, or reviewer notes attached to the row.
+
+## Investigate a failure
+
+1. Start in **Metrics** if you see a spike in latency, cost, errors, or low annotation scores.
+2. Filter the **Traces** or **Sessions** table to find examples from that time period.
+3. Open a row and check the root span, failed child spans, slow spans, tool calls, and annotations.
+4. Ask PXI a focused question, or export the trace data when you need notebook analysis, CI checks, or a coding-agent handoff.
+5. Save useful failures as dataset examples when you want to run experiments or regression tests.
+
+<Frame caption="Use Metrics to spot a spike, then open the traces behind it">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/observe-project-metrics-view-llama-index-20260925.png"
+    alt="Phoenix Metrics view showing trace volume, latency, cost, and model cost charts"
+  />
+</Frame>
+
+Related workflows:
+
+- [Create datasets](/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets) from important examples for evals, experiments, and regression tests.
+- [Export trace data](/docs/phoenix/observe/export-trace-data) when you need spans, traces, sessions, and annotations in code or the terminal.
+
+### Prove the fix worked
+
+Use this workflow after you find a failure pattern and want to confirm that a prompt or app change improved production behavior.
+
+<iframe
+  className="w-full aspect-video rounded-xl"
+  src="https://www.youtube.com/embed/biMD5LHdXQk"
+  title="Proving a Prompt Fix Works in Production with Phoenix's PXI"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin"
+  allowfullscreen
+></iframe>
 
 ## Review metrics over time
 
 Use dashboards and metrics when you need a project-level view before reading individual traces. The dashboard includes charts for trace volume, latency, estimated cost, token usage, LLM and tool span errors, and annotation scores.
 
-<CardGroup cols={2}>
-  <Card title="Project dashboards" icon="chart-line" href="/docs/phoenix/observe/dashboards">
-    Open the Dashboards page and select a project
-  </Card>
-  <Card title="Project metrics" icon="chart-line" href="/docs/phoenix/tracing/llm-traces/metrics">
-    Review the default charts included in each project dashboard
-  </Card>
-</CardGroup>
+See [View metrics and dashboards](/docs/phoenix/observe/view-metrics-and-dashboards) for the default charts included in each project dashboard.
 
 <Info>
-If you need custom monitoring, alerting, or business dashboards on top of trace data, see [Arize AX](https://arize.com/docs/ax/observe).
+Phoenix supports trace inspection, PXI-assisted investigation, project metrics, dashboards, and data export. For custom metrics, monitors, alerts, Signal, and managed production workflows, use [Arize AX](https://arize.com/docs/ax/observe).
 </Info>

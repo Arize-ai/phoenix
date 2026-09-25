@@ -38,12 +38,15 @@
 - [Projects](https://arize.com/docs/phoenix/tracing/llm-traces/projects): Organize traces by environment, application, or team
 - [Sessions](https://arize.com/docs/phoenix/tracing/llm-traces/sessions): Group related traces into multi-turn conversational sessions
 - [Annotating Traces](https://arize.com/docs/phoenix/tracing/llm-traces/how-to-annotate-traces): Attach feedback, labels, and scores to traces for quality tracking
-- [Project Metrics](https://arize.com/docs/phoenix/tracing/llm-traces/metrics): Monitor latency, token usage, cost, errors, and annotation scores for a project
+- [View metrics and dashboards](https://arize.com/docs/phoenix/observe/view-metrics-and-dashboards): Monitor latency, token usage, cost, errors, and annotation scores for a project
 
 ### Observe
 
-- [Explore Traces](https://arize.com/docs/phoenix/observe/explore-traces): Inspect projects, traces, spans, sessions, filters, metrics, dashboards, and shared links
-- [Project Dashboards](https://arize.com/docs/phoenix/observe/dashboards): Monitor trace volume, latency, cost, token use, errors, and annotation scores
+- [Explore traces](https://arize.com/docs/phoenix/observe/explore-traces): Use PXI, the UI, code, or coding agents to investigate Phoenix trace data
+- [Track sessions](https://arize.com/docs/phoenix/tracing/llm-traces/sessions): Group related traces into multi-turn conversations and user journeys
+- [Filter trace data](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions): Filter spans, traces, and sessions with Python-style expressions
+- [View metrics and dashboards](https://arize.com/docs/phoenix/observe/view-metrics-and-dashboards): Monitor latency, token usage, cost, errors, and annotation scores for a project
+- [Export trace data](https://arize.com/docs/phoenix/observe/export-trace-data): Export spans, query attributes, include annotations, and retrieve traces with the CLI
 - [Share Links to Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls): Create redirect URLs for projects, traces, spans, sessions, and prompt tags
 
 ### Setup
@@ -65,9 +68,6 @@
 ### Import & Export
 
 - [Import existing traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces): Import OpenInference trace data from external sources into Phoenix
-- [Import agent trajectories](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories): Upload ATIF agent trajectories and visualize them as Phoenix traces
-- [Export and query spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans): Export spans, query attributes, and include annotations for analysis
-- [Retrieve Traces via CLI](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli): Query traces from the command line
 
 ### Advanced Tracing
 
@@ -323,6 +323,7 @@
 ### Evaluation Integrations
 
 - [Harbor](https://arize.com/docs/phoenix/integrations/evaluation-integrations/harbor): Record Harbor agent benchmarks as Phoenix experiments with rewards, infrastructure status, and ATIF traces
+- [Import ATIF agent trajectories](https://arize.com/docs/phoenix/integrations/evaluation-integrations/importing-atif-trajectories): Upload saved ATIF agent trajectories and visualize them as Phoenix traces
 - [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Use Cleanlab TLM confidence scores to flag untrustworthy LLM outputs in Phoenix
 - [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers for GenAI evaluation workflows
 - [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents and RAG pipelines using Ragas metrics alongside Phoenix tracing

@@ -118,9 +118,6 @@
                   "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
                   "docs/phoenix/tracing/concepts-tracing/translating-conventions",
                   "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
-                  "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli",
                   "docs/phoenix/tracing/how-to-tracing/advanced",
                   "docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes",
                   "docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing"
@@ -133,11 +130,10 @@
             "icon": "chart-line",
             "pages": [
               "docs/phoenix/observe/explore-traces",
-              "docs/phoenix/tracing/llm-traces/projects",
               "docs/phoenix/tracing/llm-traces/sessions",
               "docs/phoenix/tracing/how-to-tracing/filter-expressions",
-              "docs/phoenix/tracing/llm-traces/metrics",
-              "docs/phoenix/observe/dashboards",
+              "docs/phoenix/observe/view-metrics-and-dashboards",
+              "docs/phoenix/observe/export-trace-data",
               "docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls"
             ]
           },
@@ -262,6 +258,7 @@
                 "group": "Integrations",
                 "pages": [
                   "docs/phoenix/integrations/evaluation-integrations/harbor",
+                  "docs/phoenix/integrations/evaluation-integrations/importing-atif-trajectories",
                   "docs/phoenix/evaluation/integrations/pytest",
                   "docs/phoenix/evaluation/integrations/vitest-jest"
                 ]
@@ -829,6 +826,7 @@
             "icon": "clipboard-check",
             "pages": [
               "docs/phoenix/integrations/evaluation-integrations/harbor",
+              "docs/phoenix/integrations/evaluation-integrations/importing-atif-trajectories",
               "docs/phoenix/integrations/evaluation-integrations/cleanlab",
               "docs/phoenix/integrations/evaluation-integrations/mlflow",
               "docs/phoenix/integrations/evaluation-integrations/ragas",
@@ -1716,7 +1714,27 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
-      "destination": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans"
+      "destination": "/docs/phoenix/observe/export-trace-data#export-annotated-spans"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
+      "destination": "/docs/phoenix/observe/export-trace-data"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli",
+      "destination": "/docs/phoenix/observe/export-trace-data#retrieve-traces-with-the-cli"
+    },
+    {
+      "source": "/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
+      "destination": "/docs/phoenix/integrations/evaluation-integrations/importing-atif-trajectories"
+    },
+    {
+      "source": "/docs/phoenix/tracing/llm-traces/metrics",
+      "destination": "/docs/phoenix/observe/view-metrics-and-dashboards"
+    },
+    {
+      "source": "/docs/phoenix/observe/dashboards",
+      "destination": "/docs/phoenix/observe/view-metrics-and-dashboards"
     },
     {
       "source": "/docs/phoenix/tracing/concepts-tracing/how-tracing-works",

@@ -1,5 +1,6 @@
 ---
-title: "Import agent trajectories"
+title: "Import ATIF agent trajectories"
+sidebarTitle: "Import ATIF agent trajectories"
 description: "Convert saved ATIF agent trajectories into Phoenix traces."
 ---
 
@@ -36,7 +37,7 @@ print(result)  # Counts of spans received and queued
 ```
 
 <Info>
-If Phoenix is running elsewhere, set `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if it has authentication enabled) before creating the client. See [Connect to Phoenix](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces#connect-to-phoenix).
+If Phoenix is running elsewhere, set `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` if it has authentication enabled before creating the client. See [Connect to Phoenix](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces#connect-to-phoenix).
 </Info>
 
 ## Verify in Phoenix
@@ -149,3 +150,9 @@ The converter maps ATIF fields to standard [OpenInference](/docs/phoenix/resourc
 | `final_metrics` | Root span `metadata.final_metrics` |
 
 Agent steps with `llm_call_count = 0` emit TOOL spans without a synthetic LLM span. Only LLM spans carry `llm.*` attributes.
+
+## Related workflows
+
+- [Harbor](/docs/phoenix/integrations/evaluation-integrations/harbor): record Harbor benchmark runs as Phoenix experiments with rewards and ATIF traces.
+- [Import existing traces](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces): load OpenInference span data into Phoenix.
+- [Explore traces](/docs/phoenix/observe/explore-traces): inspect the uploaded trajectory spans in Phoenix.

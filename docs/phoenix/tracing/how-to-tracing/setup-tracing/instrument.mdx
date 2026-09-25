@@ -10,7 +10,7 @@ If a supported model client or framework already has an OpenInference integratio
 
 ## Add spans with a coding agent
 
-`px setup` can connect your app to Phoenix and hand the tracing work to a supported coding agent. After setup, ask the agent to wrap custom tools or application steps with manual spans.
+`px setup` can connect your app to Phoenix and hand tracing work to a supported coding agent. Ask the agent to add manual spans, then verify that the custom span appears in Phoenix.
 
 <Steps>
   <Step title="Start Phoenix">
@@ -35,12 +35,16 @@ If a supported model client or framework already has an OpenInference integratio
     </CodeGroup>
   </Step>
 
-  <Step title="Ask for manual spans">
+  <Step title="Ask the agent to add manual spans">
     Ask your coding agent to wrap custom logic with Phoenix manual spans:
 
     ```text
     Add manual spans around my custom tool functions and agent steps using Phoenix and OpenInference conventions. Verify that traces arrive in Phoenix.
     ```
+  </Step>
+
+  <Step title="Verify the custom span">
+    Run the app path that uses the custom tool or agent step. Open the project in Phoenix, then look for a new span with the name your agent added. A tool span should use `openinference.span.kind: TOOL`; a broader app step usually uses `openinference.span.kind: CHAIN`.
   </Step>
 </Steps>
 

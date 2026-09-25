@@ -1,0 +1,75 @@
+---
+title: "View metrics and dashboards"
+sidebarTitle: "View metrics and dashboards"
+description: Review latency, token usage, cost, errors, annotation scores, and project dashboards for Phoenix trace data.
+---
+
+Use metrics and dashboards when you want to see whether latency, cost, errors, token usage, or annotation scores changed before you open individual traces.
+
+Phoenix project metrics are predefined. Each project has a **Metrics** tab, and the global **Dashboards** page lets you select a project and review the same kind of project-level trends.
+
+## Open project metrics
+
+Open a project and select **Metrics**. Use the time range control to focus on the period you want to review.
+
+<Frame caption="Predefined metrics dashboard for a Phoenix project">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/observe-project-metrics-20260924.png"
+    alt="Phoenix project metrics dashboard showing trace volume, latency, token usage, cost, and annotation score charts"
+  />
+</Frame>
+
+## Open dashboards
+
+In the Phoenix app, select **Dashboards** from the sidebar. Choose a project from the project dropdown, then set the time range for the charts.
+
+Phoenix remembers your last selected dashboard project and opens it the next time you return to Dashboards.
+
+<Frame caption="Phoenix project dashboard">
+  <img
+    src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/observe-project-dashboard-20260924.png"
+    alt="Phoenix dashboard page with project selector, time range controls, and predefined trace metric charts"
+  />
+</Frame>
+
+## What Phoenix shows
+
+Phoenix indexes traces for metrics after they are sent to a project. Each project dashboard includes these charts by default:
+
+- **Traces** over time
+- **Trace latency** percentiles
+- **Cost** estimated in USD
+- **Top models by cost**
+- **Top models by tokens**
+- **Token usage** by prompt and completion
+- **Prompt token details** by input, cache, and audio parts
+- **Completion token details** including output, reasoning, and audio parts
+- **LLM spans** over time
+- **LLM span errors** over time
+- **Tool spans** over time
+- **Tool span errors** over time
+- **Span annotation scores**
+- **Trace annotation scores**
+- **Session annotation scores**
+
+## When to use metrics and dashboards
+
+Use metrics and dashboards to spot changes in trace data, such as latency spikes, cost changes, tool failures, or falling annotation scores. Use the project tables and filters when you need to find the traces behind those changes.
+
+<Info>
+Phoenix supports trace inspection, PXI-assisted investigation, project metrics, dashboards, and data export. For custom metrics, monitors, alerts, Signal, and managed production workflows, use [Arize AX](https://arize.com/docs/ax/observe).
+</Info>
+
+## Next steps
+
+<CardGroup cols={3}>
+  <Card title="Explore traces" icon="magnifying-glass-chart" href="/docs/phoenix/observe/explore-traces">
+    Inspect spans, traces, sessions, filters, and shared links
+  </Card>
+  <Card title="Filter trace data" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/filter-expressions">
+    Find the spans, traces, and sessions behind a metric change
+  </Card>
+  <Card title="Add annotations" icon="code" href="/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/capture-feedback">
+    Add scores, labels, and LLM evals to your traces
+  </Card>
+</CardGroup>

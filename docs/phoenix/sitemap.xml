@@ -101,15 +101,11 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/llm-traces/metrics</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/observe/explore-traces</loc>
     <lastmod>2026-09-19T00:00:00+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/observe/dashboards</loc>
+    <loc>https://arize.com/docs/phoenix/observe/view-metrics-and-dashboards</loc>
     <lastmod>2026-09-19T00:00:00+00:00</lastmod>
   </url>
   <url>
@@ -161,15 +157,11 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories</loc>
+    <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/importing-atif-trajectories</loc>
     <lastmod>2026-04-14T18:01:33+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
-    <loc>https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli</loc>
+    <loc>https://arize.com/docs/phoenix/observe/export-trace-data</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>

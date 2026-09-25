@@ -6,9 +6,9 @@ description: "Auto-instrument supported frameworks and model clients with Phoeni
 
 Start where tracing is automatic. Install the OpenInference instrumentor for your model client or AI framework, attach it once, and calls are traced.
 
-## Auto-instrument with a coding agent
+## Agent-assisted setup
 
-`px setup` connects your app to Phoenix, hands instrumentation to your coding agent, and verifies that traces arrive.
+`px setup` connects your app to Phoenix, hands instrumentation to your coding agent, and verifies that traces arrive. The agent prefers OpenInference auto-instrumentation for supported SDKs and adds manual spans only when custom logic needs them.
 
 <Steps>
   <Step title={<span className="step-title">Start Phoenix</span>}>
@@ -32,9 +32,23 @@ Start where tracing is automatic. Install the OpenInference instrumentor for you
     ```
     </CodeGroup>
   </Step>
+
+  <Step title={<span className="step-title">Choose an agent</span>}>
+    When prompted, choose Claude Code, Codex, Cursor, or OpenCode. `px setup` opens the agent with Phoenix connection details and an instrumentation task.
+
+    If no supported agent is available, choose the prompt-copy or manual option and follow the instructions.
+  </Step>
+
+  <Step title={<span className="step-title">Verify traces</span>}>
+    Trigger one LLM call when setup asks. `px setup` waits for Phoenix to receive a real trace before it marks instrumentation as verified.
+  </Step>
 </Steps>
 
-During setup, choose Claude Code, Codex, Cursor, or OpenCode. When prompted to install agent skills, answer yes. You can also run `px setup skills` later. For CI, unsupported agents, and setup flags, see [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup).
+<Note>
+**Optional agent setup**
+
+Most users can follow the steps above. Use [Coding Agents](/docs/phoenix/integrations/developer-tools/coding-agents) only if you want to configure Phoenix plugins, MCP, or skills yourself outside of `px setup`. For CI, unsupported agents, and setup flags, see [Agent-Assisted Setup](/docs/phoenix/agent-assisted-setup).
+</Note>
 
 You can also start from the Phoenix UI. In a project with no traces, open **Spans** or **Traces**, choose **Trace your app**, then pick the integration that matches your stack.
 

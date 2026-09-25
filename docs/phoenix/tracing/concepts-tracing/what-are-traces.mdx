@@ -21,7 +21,7 @@ Together, OpenTelemetry and OpenInference give Phoenix [30+ tracing integrations
 
 1. **Instrumentation** captures work in your application as spans. You can use an OpenInference integration or add spans manually.
 2. **An exporter** sends those spans to Phoenix over OTLP. In Python, Phoenix OTEL's `register()` configures the exporter, and `auto_instrument=True` turns on installed OpenInference instrumentors.
-3. **The Phoenix collector** receives the spans, groups them into traces, and shows them in Observe. Use [Explore your traces](/docs/phoenix/observe/explore-traces) to inspect, filter, and debug them.
+3. **The Phoenix collector** receives the spans, groups them into traces, and shows them in Observe. Use [Explore traces](/docs/phoenix/observe/explore-traces) to inspect, filter, and debug them.
 
 <Frame caption="Phoenix receives traces over OTLP">
   <img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" alt="Applications export traces over OTLP to the Phoenix server." />
