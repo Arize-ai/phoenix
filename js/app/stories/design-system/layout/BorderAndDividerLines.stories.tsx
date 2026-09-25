@@ -1,18 +1,15 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
-import {
-  Divider,
-  fadedDividerBottomCSS,
-  fadedDividerLeftCSS,
-  fadedDividerRightCSS,
-  fadedDividerTopCSS,
-  Flex,
-} from "@phoenix/components";
+import type { DividerSize, DividerVariant } from "@phoenix/components";
+import { Divider, fadedDividerBottomCSS, Flex } from "@phoenix/components";
+
+import { OptionGrid } from "../../utils/OptionGrid";
 
 const meta: Meta = {
   title: "Design System/Layout/Border and divider lines",
-  tags: ["legacy", "unreviewed"],
+  component: Divider,
+  tags: ["updated", "incomplete", "unreviewed"],
   parameters: {
     layout: "centered",
     themeLayout: "column",
@@ -29,12 +26,13 @@ const tokenBoxCSS = css`
   font-size: var(--global-dimension-font-size-75);
 `;
 
-const labelCSS = css`
-  color: var(--global-text-color-secondary);
-  margin-top: var(--global-dimension-size-100);
+const dividerFrameCSS = css`
+  padding: var(--global-dimension-size-100);
+  border: 1px dashed var(--global-border-color-default);
+  border-radius: var(--global-rounding-small);
+  font-size: var(--global-dimension-font-size-75);
 `;
 
-/** Border color tokens. Docs only. */
 export const BorderVsDivider: StoryFn = () => (
   <Flex direction="row" gap="size-400" wrap justifyContent="center">
     <div
@@ -53,240 +51,153 @@ export const BorderVsDivider: StoryFn = () => (
   </Flex>
 );
 BorderVsDivider.parameters = { themeLayout: "row" };
+BorderVsDivider.tags = ["!dev"];
 
-/** Border size tokens. Docs only. */
+const borderSizes = [
+  { label: "thin", code: true },
+  { label: "thick", code: true },
+] as const;
+
 export const BorderSizes: StoryFn = () => (
-  <Flex direction="row" gap="size-400" wrap justifyContent="center">
-    <div
-      css={css`
-        ${tokenBoxCSS}
-        border: var(--global-border-size-thin) solid
-          var(--global-border-color-default);
-      `}
-    >
-      <div>thin</div>
-      <div css={labelCSS}>1px</div>
-    </div>
-    <div
-      css={css`
-        ${tokenBoxCSS}
-        border: var(--global-border-size-thick) solid
-          var(--global-border-color-default);
-      `}
-    >
-      <div>thick</div>
-      <div css={labelCSS}>2px</div>
-    </div>
-  </Flex>
+  <OptionGrid
+    columns={borderSizes}
+    justifyCells="center"
+    renderCell={(_, column) => (
+      <div
+        css={css`
+          ${tokenBoxCSS}
+          border: var(--global-border-size-${column?.label}) solid
+            var(--global-border-color-default);
+        `}
+      />
+    )}
+  />
 );
 BorderSizes.parameters = { themeLayout: "row" };
 BorderSizes.tags = ["!dev"];
 
-/** Rounding tokens (border-radius). Docs only. */
+const roundings = [
+  { label: "xsmall", code: true },
+  { label: "small", code: true },
+  { label: "medium", code: true },
+  { label: "large", code: true },
+  { label: "full", code: true },
+] as const;
+
 export const BorderRounding: StoryFn = () => (
-  <Flex
-    direction="row"
-    gap="size-400"
-    wrap
-    alignItems="start"
-    justifyContent="center"
-  >
-    {(
-      [
-        ["xsmall", "2px"],
-        ["small", "4px"],
-        ["medium", "8px"],
-        ["large", "16px"],
-        ["full", "9999px"],
-      ] as const
-    ).map(([name, value]) => (
+  <OptionGrid
+    columns={roundings}
+    justifyCells="center"
+    renderCell={(_, column) => (
       <div
-        key={name}
         css={css`
           ${tokenBoxCSS}
           border: 1px solid var(--global-border-color-default);
-          border-radius: var(--global-rounding-${name});
+          border-radius: var(--global-rounding-${column?.label});
         `}
-      >
-        <div>{name}</div>
-        <div css={labelCSS}>{value}</div>
-      </div>
-    ))}
-  </Flex>
+      />
+    )}
+  />
 );
 BorderRounding.tags = ["!dev"];
 
-const hBoxCSS = (
-  dividerCSS: ReturnType<typeof css>,
-  width: number | string
-) => css`
-  ${dividerCSS}
-  width: ${typeof width === "number" ? `${width}px` : width};
-  height: var(--global-dimension-size-400);
-  background: var(--global-background-color-default);
-  margin-bottom: var(--global-dimension-size-400);
-`;
+const dividerVariants: readonly {
+  label: DividerVariant;
+  code: true;
+}[] = [
+  { label: "solid", code: true },
+  { label: "fading", code: true },
+];
 
-const vBoxCSS = (
-  dividerCSS: ReturnType<typeof css>,
-  height: number | string
-) => css`
-  ${dividerCSS}
-  width: var(--global-dimension-size-400);
-  height: ${typeof height === "number" ? `${height}px` : height};
-  background: var(--global-background-color-default);
-  margin-right: var(--global-dimension-size-400);
-`;
+const dividerSizes: readonly {
+  label: string;
+  code?: boolean;
+  size?: DividerSize;
+}[] = [
+  { label: "No size" },
+  { label: "xs", code: true, size: "xs" },
+  { label: "sm", code: true, size: "sm" },
+  { label: "md", code: true, size: "md" },
+];
 
-const containerHCSS = (width: number | string) => css`
-  border-left: 1px solid var(--global-border-color-default);
-  border-right: 1px solid var(--global-border-color-default);
-  padding: var(--global-dimension-size-400) 0;
-  width: ${typeof width === "number" ? `${width}px` : width};
-  margin: var(--global-dimension-size-200) var(--global-dimension-size-400);
-`;
-
-const containerVCSS = (height: number | string) => css`
-  border-top: 1px solid var(--global-border-color-default);
-  border-bottom: 1px solid var(--global-border-color-default);
-  padding: 0 var(--global-dimension-size-400);
-  height: ${typeof height === "number" ? `${height}px` : height};
-  margin: var(--global-dimension-size-400) var(--global-dimension-size-200);
-`;
-
-const innerHBoxCSS = (dividerCSS: ReturnType<typeof css>) => css`
-  ${dividerCSS}
-  width: 100%;
-  height: var(--global-dimension-size-0);
-  background: var(--global-background-color-default);
-`;
-
-const innerVBoxCSS = (dividerCSS: ReturnType<typeof css>) => css`
-  ${dividerCSS}
-  height: 100%;
-  width: var(--global-dimension-size-0);
-  background: var(--global-background-color-default);
-`;
-
-/** A single horizontal faded divider. Docs only; hidden from sidebar. */
-export const BasicExample: StoryFn = () => (
-  <div css={containerHCSS(300)}>
-    <div css={innerHBoxCSS(fadedDividerTopCSS)} />
-  </div>
+export const DividerVariantsAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={dividerVariants}
+    columns={dividerSizes}
+    cellWidth="160px"
+    renderCell={(row, column) => (
+      <div css={dividerFrameCSS}>
+        Above
+        <Divider variant={row.label} size={column?.size} />
+        Below
+      </div>
+    )}
+  />
 );
+DividerVariantsAndSizes.tags = ["!dev"];
 
-BasicExample.tags = ["!dev"];
+const orientations = [
+  { label: "horizontal", code: true },
+  { label: "vertical", code: true },
+] as const;
 
-export const HorizontalDivider: StoryFn = () => (
-  <Flex direction="column" alignItems="center">
-    {[300, 420, 900].flatMap((w) => [
-      <div key={`top-bare-${w}`} css={hBoxCSS(fadedDividerTopCSS, w)} />,
-      <div key={`top-contained-${w}`} css={containerHCSS(w)}>
-        <div css={innerHBoxCSS(fadedDividerTopCSS)} />
-      </div>,
-    ])}
-    {[300, 420, 900].flatMap((w) => [
-      <div key={`bottom-bare-${w}`} css={hBoxCSS(fadedDividerBottomCSS, w)} />,
-      <div key={`bottom-contained-${w}`} css={containerHCSS(w)}>
-        <div css={innerHBoxCSS(fadedDividerBottomCSS)} />
-      </div>,
-    ])}
-  </Flex>
+export const DividerVariantsAndOrientations: StoryFn = () => (
+  <OptionGrid
+    rows={dividerVariants}
+    columns={orientations}
+    cellWidth="200px"
+    renderCell={(row, column) =>
+      column?.label === "vertical" ? (
+        <div
+          css={css`
+            ${dividerFrameCSS}
+            display: flex;
+            align-items: center;
+            height: 80px;
+          `}
+        >
+          Before
+          <Divider variant={row.label} orientation="vertical" size="sm" />
+          After
+        </div>
+      ) : (
+        <div css={dividerFrameCSS}>
+          Above
+          <Divider variant={row.label} size="sm" />
+          Below
+        </div>
+      )
+    }
+  />
 );
+DividerVariantsAndOrientations.tags = ["!dev"];
 
-export const VerticalDivider: StoryFn = () => (
-  <Flex direction="row" alignItems="center">
-    {[320, 600, 900].flatMap((h) => [
-      <div key={`left-bare-${h}`} css={vBoxCSS(fadedDividerLeftCSS, h)} />,
-      <div key={`left-contained-${h}`} css={containerVCSS(h)}>
-        <div css={innerVBoxCSS(fadedDividerLeftCSS)} />
-      </div>,
-    ])}
-    {[320, 600, 900].flatMap((h) => [
-      <div key={`right-bare-${h}`} css={vBoxCSS(fadedDividerRightCSS, h)} />,
-      <div key={`right-contained-${h}`} css={containerVCSS(h)}>
-        <div css={innerVBoxCSS(fadedDividerRightCSS)} />
-      </div>,
-    ])}
-  </Flex>
+const fadeWidths = [
+  { label: "300px", code: true, width: 300 },
+  { label: "420px", code: true, width: 420 },
+  { label: "800px", code: true, width: 800 },
+] as const;
+
+export const FadeWidths: StoryFn = () => (
+  <OptionGrid
+    rows={fadeWidths}
+    renderCell={(row) => (
+      <div
+        css={css`
+          ${fadedDividerBottomCSS}
+          width: ${row.width}px;
+          height: var(--global-dimension-size-400);
+          border-left: 1px dashed var(--global-border-color-default);
+          border-right: 1px dashed var(--global-border-color-default);
+        `}
+      />
+    )}
+  />
 );
-
-/** Full-viewport horizontal — 100vw bars. Canvas only; hidden from docs. */
-export const FullVWHorizontal: StoryFn = () => (
-  <Flex direction="column" alignItems="center">
-    <div css={hBoxCSS(fadedDividerTopCSS, "100vw")} />
-    <div css={hBoxCSS(fadedDividerBottomCSS, "100vw")} />
-  </Flex>
-);
-FullVWHorizontal.parameters = { docs: { disable: true } };
-
-/** Full-viewport vertical — 100vh bars. Canvas only; hidden from docs. */
-export const FullVHVertical: StoryFn = () => (
-  <Flex direction="row" alignItems="center">
-    <div css={vBoxCSS(fadedDividerLeftCSS, "100vh")} />
-    <div css={vBoxCSS(fadedDividerRightCSS, "100vh")} />
-  </Flex>
-);
-FullVHVertical.parameters = { docs: { disable: true } };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Divider Component Stories
-// ─────────────────────────────────────────────────────────────────────────────
-
-const dividerContainerCSS = css`
-  width: 300px;
-  padding: var(--global-dimension-size-200);
-  background: var(--global-background-color-default);
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-small);
-  text-align: center;
-`;
-
-/** Divider component variants: solid (default) and fading. Docs only. */
-export const DividerSolidVsFade: StoryFn = () => (
-  <Flex direction="row" gap="size-400" wrap justifyContent="center">
-    <div css={dividerContainerCSS}>
-      solid (default)
-      <Divider size="sm" />
-      Uses --global-border-color-default
-    </div>
-    <div css={dividerContainerCSS}>
-      fading
-      <Divider size="sm" variant="fading" />
-      Gradient fades at edges
-    </div>
-  </Flex>
-);
-
-/** Divider component sizes: xs, sm, md. Docs only. */
-export const DividerSizes: StoryFn = () => (
-  <Flex direction="row" gap="size-400" wrap justifyContent="center">
-    <div css={dividerContainerCSS}>
-      no size (no margin)
-      <Divider variant="fading" />
-      0px vertical margin
-    </div>
-    <div css={dividerContainerCSS}>
-      size="xs"
-      <Divider variant="fading" size="xs" />
-      4px vertical margin
-    </div>
-    <div css={dividerContainerCSS}>
-      size="sm"
-      <Divider variant="fading" size="sm" />
-      8px vertical margin
-    </div>
-    <div css={dividerContainerCSS}>
-      size="md"
-      <Divider variant="fading" size="md" />
-      16px vertical margin
-    </div>
-  </Flex>
-);
-DividerSizes.tags = ["!dev"];
+FadeWidths.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
-  render: () => <BorderVsDivider />,
+  render: BorderVsDivider,
 };

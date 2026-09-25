@@ -47,34 +47,22 @@ Visual separators that create hierarchy between content sections. Two patterns a
 1. **`<Divider />` component** — use for inline separation between content
 2. **`fadedDivider*CSS` mixins** — use for container borders on existing elements (toolbars, panels)
 
-> Docs mode omits `Full Viewport` stories, which stretch to 100% VW/VH,
-> and are useful for testing behavior at the extremes.
-
 ### Divider Component
 
 The `<Divider />` component renders a semantic `<hr>` element for inline separation.
 
-#### Variants
-
-<Canvas of={BorderStories.DividerSolidVsFade} />
-
 - **`solid`** (default) — 1px line using `--global-border-color-default`
 - **`fading`** — gradient that fades to transparent at edges
 
-#### Sizes
+The `size` prop adds margin on both sides of the line: `xs` 4px, `sm` 8px,
+`md` 16px, and none when omitted.
 
-The `size` prop adds vertical margin around the divider:
+<Canvas of={BorderStories.DividerVariantsAndSizes} />
 
-- **(omitted)** — no vertical margin
-- **`xs`** — 4px vertical margin
-- **`sm`** — 8px vertical margin
-- **`md`** — 16px vertical margin
+`orientation="vertical"` draws the line at the height of its container, with
+`size` adding margin to its left and right.
 
-<Canvas of={BorderStories.DividerSizes} />
-
-### Fade values
-
-Fade distance is clamped between 48px minimum and 128px maximum, with 15% as the preferred value. This prevents the fade from being too short in narrow containers or too long in wide ones.
+<Canvas of={BorderStories.DividerVariantsAndOrientations} />
 
 ### CSS Mixins (fadedDivider\*CSS)
 
@@ -89,6 +77,12 @@ line on a given edge via `::after`:
 
 The element must form a stacking context — `position: relative` is included automatically.
 
-### Mixin example
+### Fade distance
 
-<Canvas of={BorderStories.BasicExample} />
+The fading variant and the mixins share one gradient, whose fade distance is
+`clamp(48px, 15%, 128px)`: the 48px minimum below 320px, 15% of the length up
+to about 850px, and the 128px maximum beyond that. At 300px the fade is held
+at its minimum; at 420px and 800px it is 15% of the length, the second near
+the maximum, where it stops growing.
+
+<Canvas of={BorderStories.FadeWidths} />
