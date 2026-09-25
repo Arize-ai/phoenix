@@ -17,6 +17,7 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
     _ToolKwargs,
     _ToolKwargsConversion,
     _ToolResultContentPartConversion,
+    create_prompt_version_from_anthropic,
     to_chat_messages_and_kwargs,
 )
 from phoenix.client.types.prompts import PromptVersion
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from anthropic.types import (
         MessageParam,
         TextBlockParam,
+        ToolChoiceNoneParam,
         ToolParam,
         ToolResultBlockParam,
         ToolUseBlockParam,
@@ -193,12 +195,36 @@ class TestToolKwargs:
                     "disable_parallel_tool_use": True,
                 },
             },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": {"type": "none"},
+            },
         ],
     )
     def test_round_trip(self, obj: _ToolKwargs) -> None:
         x: Optional[v1.PromptTools] = _ToolKwargsConversion.from_anthropic(obj)
         new_obj: _ToolKwargs = _ToolKwargsConversion.to_anthropic(x)
         assert not DeepDiff(obj, new_obj)
+
+    def test_tool_choice_none_keeps_tools(self) -> None:
+        """The playground sends `tool_choice: none` together with the tools, so a
+        captured prompt must replay with both, not drop the tools."""
+        tools: list[ToolParam] = [_tool(), _tool()]
+        tool_choice: ToolChoiceNoneParam = {"type": "none"}
+        obj = cast(
+            "MessageCreateParamsBase",
+            {
+                "model": _str(),
+                "max_tokens": 1024,
+                "messages": [{"role": "user", "content": _str()}],
+                "tools": tools,
+                "tool_choice": tool_choice,
+            },
+        )
+        prompt = create_prompt_version_from_anthropic(obj)
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert not DeepDiff(tools, kwargs.get("tools"))
+        assert kwargs.get("tool_choice") == tool_choice
 
 
 class TestInvocationParametersConversion:
