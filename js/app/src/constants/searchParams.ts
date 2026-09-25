@@ -75,6 +75,12 @@ export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
 
+/**
+ * The template category the project evaluator gallery opens on. Uses the
+ * stable GraphQL enum value rather than the display label.
+ */
+export const PROJECT_EVALUATOR_GALLERY_CATEGORY_PARAM = "category";
+
 /** Ordered ProjectEvaluator Relay ids selected on the compare page. */
 export const PROJECT_EVALUATOR_COMPARE_PARAM = "evaluatorId";
 
