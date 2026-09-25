@@ -117,9 +117,13 @@ Use these views together when you investigate trace data.
       />
     </Frame>
 
-    The **Sessions** view groups traces from the same conversation or user journey when your app sends `session.id`. Open a session to read turns in order and see how behavior changes across the conversation.
+    The **Sessions** view appears when related traces share the same non-empty `session.id`. Open a session to read turns in order and see how behavior changes across the conversation.
 
     Start here when users report that an agent went off track, forgot context, or failed after several turns.
+
+    The table shows the session ID, first input, last output, user ID, annotations, latency, total tokens, total cost, and trace count. If you do not see sessions, check that your app sends `session.id` before the traced work runs.
+
+    See [set up projects and sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects-and-sessions#sessions) to add `session.id` and `user.id` to traces.
   </Tab>
   <Tab title="Metrics">
     <Frame caption="Metrics view for a Phoenix project">

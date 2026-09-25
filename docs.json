@@ -130,7 +130,6 @@
             "icon": "chart-line",
             "pages": [
               "docs/phoenix/observe/explore-traces",
-              "docs/phoenix/tracing/llm-traces/sessions",
               "docs/phoenix/tracing/how-to-tracing/filter-expressions",
               "docs/phoenix/observe/view-metrics-and-dashboards",
               "docs/phoenix/observe/export-trace-data",
