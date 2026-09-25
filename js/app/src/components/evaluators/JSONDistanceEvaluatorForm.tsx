@@ -69,12 +69,6 @@ export const JSONDistanceEvaluatorForm = () => {
     return unregister;
   }, [store, triggerValidation]);
 
-  // Determine initial mode based on existing values
-  const expectedDefaultMode =
-    getValues("literalMapping.expected") != null ? "literal" : "path";
-  const actualDefaultMode =
-    getValues("literalMapping.actual") != null ? "literal" : "path";
-
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="column" gap="size-100">
@@ -82,8 +76,8 @@ export const JSONDistanceEvaluatorForm = () => {
           fieldName="expected"
           label="Expected"
           description="The expected JSON string."
-          defaultMode={expectedDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Expected"
@@ -96,8 +90,8 @@ export const JSONDistanceEvaluatorForm = () => {
           fieldName="actual"
           label="Actual"
           description="The actual JSON string to compare."
-          defaultMode={actualDefaultMode}
           control={control}
+          getValues={getValues}
           setValue={setValue}
           pathOptions={allExampleKeys}
           pathPlaceholder="Map an example field to Actual"
