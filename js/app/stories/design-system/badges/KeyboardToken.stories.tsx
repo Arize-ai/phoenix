@@ -1,93 +1,67 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import { KeyboardToken } from "@phoenix/components/core/KeyboardToken";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
 /**
- * KeyboardToken visually represents a keyboard key or shortcut, styled to look like a keyboard key.
- * Useful for documentation, tooltips, or UI hints where you want to show keyboard commands.
+ * A keyboard key or shortcut, drawn as a raised key. Its text is set in
+ * uppercase, so `j` and `esc` read as the keys a reader presses.
  *
- * ## Usage
- * ```tsx
- * <KeyboardToken>⌘</KeyboardToken>
- * <KeyboardToken>Ctrl</KeyboardToken>
- * <KeyboardToken>Shift + Enter</KeyboardToken>
- * ```
- *
- * ## Features
- * - Styled with design tokens for consistency
- * - Supports custom children (text or symbols)
- * - Can be used inline with text
+ * - **default** — a shortcut offered in a tooltip, a menu item or a command
+ *   palette footer
+ * - **quiet** — a shortcut inside dense chrome, such as the side
+ *   navigation's search item, where the raised key would compete with the
+ *   labels around it
  */
-const meta: Meta<typeof KeyboardToken> = {
+const meta: Meta = {
   title: "Design System/Badges/Keyboard Token",
   component: KeyboardToken,
+  tags: ["updated", "unreviewed", "complete"],
   parameters: {
     layout: "centered",
-    docs: {
-      description: {
-        component:
-          "A component for displaying keyboard keys or shortcuts in a visually distinct way.",
-      },
-    },
-  },
-  tags: ["legacy", "unreviewed"],
-  argTypes: {
-    children: {
-      control: "text",
-      description: "The key or shortcut to display",
-      table: {
-        type: { summary: "ReactNode" },
-      },
-    },
+    controls: { disable: true },
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof KeyboardToken>;
 
-/**
- * Default usage with a single key.
- */
-export const Default: Story = {
-  args: {
-    children: "⌘",
-  },
-};
+const VARIANTS: { label: "default" | "quiet"; code: true }[] = [
+  { label: "default", code: true },
+  { label: "quiet", code: true },
+];
 
-/**
- * Shows a common keyboard shortcut.
- */
-export const Shortcut: Story = {
-  args: {
-    children: "Ctrl + S",
-  },
-};
+const CONTENT: { label: string; text: string }[] = [
+  { label: "Empty", text: "" },
+  { label: "Letter", text: "j" },
+  { label: "Symbol", text: "↵" },
+  { label: "Word", text: "esc" },
+  { label: "Chord", text: "⌘⇧K" },
+];
 
-/**
- * Shows a multi-key combination.
- */
-export const MultiKey: Story = {
-  args: {
-    children: "Shift + Enter",
-  },
-};
+export const Default: StoryFn = () => <KeyboardToken>esc</KeyboardToken>;
+Default.tags = ["!dev"];
 
-/**
- * Shows the component inline with text.
- */
-export const InlineWithText: Story = {
-  render: (args) => (
-    <span>
-      Press <KeyboardToken {...args} /> to save your work.
-    </span>
-  ),
-  args: {
-    children: "Ctrl + S",
-  },
-};
+export const VariantsAndContent: StoryFn = () => (
+  <OptionGrid
+    rows={VARIANTS}
+    columns={CONTENT}
+    renderCell={(variant, content) => (
+      <KeyboardToken variant={variant.label}>{content?.text}</KeyboardToken>
+    )}
+  />
+);
+VariantsAndContent.tags = ["!dev"];
+VariantsAndContent.parameters = { themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: Story = {
-  ...InlineWithText,
+export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
+  render: () => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <KeyboardToken>j</KeyboardToken>
+      <KeyboardToken>k</KeyboardToken>
+      <KeyboardToken>esc</KeyboardToken>
+    </div>
+  ),
 };
