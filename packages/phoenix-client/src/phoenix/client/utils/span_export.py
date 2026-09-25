@@ -11,7 +11,11 @@ from typing_extensions import TypeGuard
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.spans import SpanQuery
-from phoenix.client.utils.attributes import get_attribute_value, nest_span_attributes
+from phoenix.client.utils.attributes import (
+    flatten,
+    flatten_semantic_conventions,
+    get_attribute_value,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -36,8 +40,6 @@ SPAN_EXPORT_COLUMNS = (
 _TIMESTAMP_COLUMNS = ("start_time", "end_time")
 
 _ATTRIBUTES_PREFIX = "attributes."
-
-_SPAN_KIND_ATTRIBUTE = "openinference.span.kind"
 
 _SUBSCRIPT_ROOTS = {"attributes": (), "metadata": ("metadata",)}
 """Names a subscript projection may start from, with the attribute path each stands for."""
@@ -119,9 +121,9 @@ def _full_export(spans: Sequence[v1.Span]) -> "pd.DataFrame":
         return df
     for column in _TIMESTAMP_COLUMNS:
         df[column] = pd.to_datetime(df[column], utc=True, format="ISO8601")
-    attributes = pd.DataFrame.from_records([_span_attributes(span) for span in spans]).set_axis(
-        df.index, axis=0
-    )
+    attributes = pd.DataFrame.from_records(
+        [flatten_semantic_conventions(_stored_attributes(span)) for span in spans]
+    ).set_axis(df.index, axis=0)
     return pd.concat([df, attributes.add_prefix(_ATTRIBUTES_PREFIX)], axis=1)
 
 
@@ -186,11 +188,11 @@ def _strip_attributes_prefix(key: str) -> str:
 
 
 class _SpanRecord:
-    """One span's fields and nested attributes, projected the way the server's DSL did."""
+    """One span's fields and stored attributes, projected the way the server's DSL did."""
 
     def __init__(self, span: v1.Span) -> None:
         self.fields = _span_fields(span)
-        self.attributes = _span_attributes(span)
+        self.attributes = _stored_attributes(span)
 
     def project(self, key: str) -> Any:
         key = _canonical(key)
@@ -223,7 +225,7 @@ class _SpanRecord:
                     if (value := get_attribute_value(element, key)) is not None
                 }
             else:
-                values = dict(_flatten(element))
+                values = dict(flatten(element))
             yield {position_column: position, **values}
 
     def concat(self, concat: Mapping[str, Any]) -> Optional[dict[str, str]]:
@@ -259,15 +261,9 @@ def _span_fields(span: v1.Span) -> dict[str, Any]:
     }
 
 
-def _span_attributes(span: v1.Span) -> dict[str, Any]:
-    """The span's attributes re-nested, with the span kind restored as an attribute.
-
-    Ingestion stores ``openinference.span.kind`` among the attributes and the legacy
-    export kept it there, but the span list endpoint lifts it out into ``span_kind``.
-    """
-    return nest_span_attributes(
-        {_SPAN_KIND_ATTRIBUTE: span["span_kind"], **(span.get("attributes") or {})}
-    )
+def _stored_attributes(span: v1.Span) -> dict[str, Any]:
+    """The span's attributes as stored, which ``get_spans_dataframe`` asks the server for."""
+    return dict(span.get("attributes") or {})
 
 
 def _latency_ms(fields: Mapping[str, Any]) -> Optional[float]:
@@ -309,16 +305,12 @@ def _lookup_subscript(attributes: Mapping[str, Any], expression: str) -> Any:
         node = node.value
     if not isinstance(node, ast.Name) or node.id not in _SUBSCRIPT_ROOTS:
         raise ValueError(f"invalid projection: {expression}")
-    return get_attribute_value(attributes, ".".join([*_SUBSCRIPT_ROOTS[node.id], *keys]))
-
-
-def _flatten(mapping: Mapping[str, Any], prefix: str = "") -> Iterator[tuple[str, Any]]:
-    for key, value in mapping.items():
-        path = f"{prefix}.{key}" if prefix else key
-        if _is_mapping(value):
-            yield from _flatten(value, path)
-        else:
-            yield path, value
+    value: Any = attributes
+    for key in [*_SUBSCRIPT_ROOTS[node.id], *keys]:
+        if not _is_mapping(value):
+            return None
+        value = value.get(key)
+    return value
 
 
 __all__ = ["SPAN_EXPORT_COLUMNS", "convert_spans_to_dataframe"]

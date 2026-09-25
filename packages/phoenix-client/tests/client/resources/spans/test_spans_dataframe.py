@@ -1,4 +1,3 @@
-import json
 from typing import Any
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
@@ -24,18 +23,24 @@ _LEGACY_COLUMNS = [
 ]
 
 _SEMANTIC_ATTRIBUTES: dict[str, Any] = {
-    "openinference.span.kind": "LLM",
-    "llm.input_messages.0.message.role": "user",
-    "llm.input_messages.0.message.content": "hi",
-    "llm.input_messages.1.message.role": "assistant",
-    "llm.input_messages.1.message.content": "hello",
-    "retrieval.documents.0.document.content": "doc a",
-    "retrieval.documents.0.document.metadata": json.dumps({"source": "a"}),
-    "retrieval.documents.1.document.content": "doc b",
-    "llm.token_count.total": 7,
-    "metadata": json.dumps({"tenant": "acme"}),
-    "custom.nested.key": "value",
+    "openinference": {"span": {"kind": "LLM"}},
+    "llm": {
+        "input_messages": [
+            {"message": {"role": "user", "content": "hi"}},
+            {"message": {"role": "assistant", "content": "hello"}},
+        ],
+        "token_count": {"total": 7},
+    },
+    "retrieval": {
+        "documents": [
+            {"document": {"content": "doc a", "metadata": {"source": "a"}}},
+            {"document": {"content": "doc b"}},
+        ]
+    },
+    "metadata": {"tenant": "acme"},
+    "custom": {"nested": {"key": "value"}},
 }
+"""Attributes as the server stores them, which is how ``get_spans_dataframe`` requests them."""
 
 
 def _span(
@@ -200,6 +205,14 @@ def test_get_spans_dataframe_asks_the_server_to_sort_by_start_time() -> None:
     assert _query_params(requests[0])["sort"] == ["start_time"]
 
 
+def test_get_spans_dataframe_asks_for_attributes_as_stored() -> None:
+    client, requests = _client_returning([{"data": [_span(0)], "next_cursor": None}])
+
+    Spans(client).get_spans_dataframe(project_identifier="my-project")
+
+    assert _query_params(requests[0])["attributes_format"] == ["nested"]
+
+
 def test_get_spans_dataframe_empty_result_keeps_shape() -> None:
     client, _ = _client_returning([{"data": [], "next_cursor": None}])
 
@@ -293,7 +306,11 @@ def test_get_spans_dataframe_for_an_unknown_project_name_is_empty() -> None:
 
 
 def test_get_spans_dataframe_select_keeps_only_the_projected_columns() -> None:
-    attributes = {"input.value": "hi", "output.value": "yo", "llm.token_count.total": 7}
+    attributes = {
+        "input": {"value": "hi"},
+        "output": {"value": "yo"},
+        "llm": {"token_count": {"total": 7}},
+    }
     client, _ = _client_returning(
         [{"data": [_span(0, attributes=attributes)], "next_cursor": None}]
     )
@@ -388,7 +405,7 @@ def test_get_spans_dataframe_concat_joins_documents() -> None:
 
 
 def test_get_spans_dataframe_rename_and_index() -> None:
-    attributes = {"input.value": "hi"}
+    attributes = {"input": {"value": "hi"}}
     client, _ = _client_returning(
         [{"data": [_span(0, attributes=attributes)], "next_cursor": None}]
     )

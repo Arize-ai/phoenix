@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from base64 import b64decode, b64encode
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Optional
@@ -234,7 +234,7 @@ UNNESTABLE_METADATA: Mapping[str, Any] = {
     "1.2.3": "abc",
     "x.y": {"z.a": {"b.c": 321}},
 }
-"""Keys with dots or only digits, which the span list endpoint's flattening cannot preserve."""
+"""Keys with dots or only digits, which only survive when attributes come back as stored."""
 
 ABC_PROJECT_ROWS: Sequence[SpanRow] = (
     _row(
@@ -320,27 +320,9 @@ def _is_list(value: Any) -> TypeGuard[list[Any]]:
     return isinstance(value, list)
 
 
-def flatten(attributes: Mapping[str, Any], prefix: str = "") -> Iterator[tuple[str, Any]]:
-    """Flatten nested attributes the way the span list endpoint does.
-
-    Dicts become dotted paths, lists that hold dicts become indexed paths, other lists
-    stay whole and ``None`` is dropped.
-    """
-    for key, value in attributes.items():
-        path = f"{prefix}.{key}" if prefix else key
-        if _is_mapping(value):
-            yield from flatten(value, path)
-        elif _is_list(value) and any(_is_mapping(item) for item in value):
-            for index, item in enumerate(value):
-                if _is_mapping(item):
-                    yield from flatten(item, f"{path}.{index}")
-        elif value is not None:
-            yield path, value
-
-
 def _payload(row: SpanRow) -> dict[str, Any]:
-    attributes = dict(flatten(row.attributes))
-    span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
+    """The span as the list endpoint returns it with ``attributes_format=nested``: as stored."""
+    span_kind = row.attributes.get("openinference", {}).get("span", {}).get("kind", "UNKNOWN")
     return {
         "id": f"Span:{row.span_id}",
         "name": row.name,
@@ -351,7 +333,7 @@ def _payload(row: SpanRow) -> dict[str, Any]:
         "end_time": row.end_time,
         "status_code": row.status_code,
         "status_message": row.status_message,
-        "attributes": attributes,
+        "attributes": row.attributes,
         "events": [],
     }
 
@@ -417,6 +399,7 @@ class FakeSpanListServer:
         assert route, url.path
         project = _project_name(unquote(route.group(1)))
         assert params.get("sort") == ["start_time"], params
+        assert params.get("attributes_format") == ["nested"], params
         rows = [row for row in self.rows if row.project == project]
         if not rows:
             return httpx.Response(404, json={"detail": f"project {project!r} not found"})
@@ -463,15 +446,6 @@ def _parse(timestamp: str) -> datetime:
 
 _LATENCY = {"Latency (milliseconds)": "latency_ms"}
 _DOCUMENTS = "retrieval.documents"
-
-unnestable_metadata_keys = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "The span list endpoint flattens metadata into dotted paths, so a key that itself "
-        "contains dots or is all digits, such as 'a.b.c' and '1.2.3' in the abc project, "
-        "cannot be re-nested as the one key it was."
-    ),
-)
 
 
 def _export(
@@ -560,7 +534,6 @@ def _select_all_expected(metadata: Any) -> pd.DataFrame:
     ).set_index("context.span_id", drop=False)
 
 
-@unnestable_metadata_keys
 def test_select_all() -> None:
     actual, _ = _export(SpanQuery())
     expected = _select_all_expected({"a.b.c": 123, "1.2.3": "abc", "x.y": {"z.a": {"b.c": 321}}})
@@ -870,7 +843,6 @@ def test_filter_on_metadata_cast_as_int() -> None:
     _assert_same_frame(actual, expected)
 
 
-@unnestable_metadata_keys
 def test_filter_on_metadata_substring_search() -> None:
     actual, _ = _where(SpanQuery().select("metadata['1.2.3']"), "'b' in metadata['1.2.3']", ["345"])
     expected = pd.DataFrame(
@@ -882,7 +854,6 @@ def test_filter_on_metadata_substring_search() -> None:
     _assert_same_frame(actual, expected)
 
 
-@unnestable_metadata_keys
 def test_filter_on_metadata_cast_as_str() -> None:
     actual, _ = _where(
         SpanQuery().select("metadata['1.2.3']"), "'b' in str(metadata['1.2.3'])", ["345"]
@@ -896,7 +867,6 @@ def test_filter_on_metadata_cast_as_str() -> None:
     _assert_same_frame(actual, expected)
 
 
-@unnestable_metadata_keys
 def test_filter_on_metadata_using_subscript_key() -> None:
     actual, _ = _where(
         SpanQuery().select("metadata['1.2.3']"), "metadata['1.2.3'] == 'abc'", ["345"]
@@ -910,7 +880,6 @@ def test_filter_on_metadata_using_subscript_key() -> None:
     _assert_same_frame(actual, expected)
 
 
-@unnestable_metadata_keys
 def test_filter_on_metadata_using_subscript_keys_list_with_single_key() -> None:
     actual, _ = _where(
         SpanQuery().select("metadata[['1.2.3']]"), "metadata[['1.2.3']] == 'abc'", ["345"]
@@ -924,7 +893,6 @@ def test_filter_on_metadata_using_subscript_keys_list_with_single_key() -> None:
     _assert_same_frame(actual, expected)
 
 
-@unnestable_metadata_keys
 def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys() -> None:
     actual, _ = _where(
         SpanQuery().select("metadata[['x.y', 'z.a']]"),
@@ -1128,13 +1096,6 @@ def test_explode_documents_with_select_and_non_ascii_kwargs() -> None:
     _assert_same_frame(actual, expected)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "An empty dict leaves no trace in the span list endpoint's flattened attributes, so "
-        "the documents after it move up a position."
-    ),
-)
 def test_explode_documents_keeps_the_position_of_empty_documents() -> None:
     actual, _ = _export(
         SpanQuery().explode(_DOCUMENTS, content="document.content", score="document.score"),
