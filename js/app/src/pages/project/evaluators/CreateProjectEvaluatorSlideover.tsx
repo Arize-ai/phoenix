@@ -61,6 +61,7 @@ import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
 } from "@phoenix/types";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type SeededLlmEvaluatorInitialState = {
   name: string;
@@ -490,7 +491,12 @@ function AttachCodeProjectEvaluatorDialog({
                 )
               );
           },
-          onError: (mutationError) => setError(mutationError.message),
+          onError: (mutationError) =>
+            setError(
+              getErrorMessagesFromRelayMutationError(mutationError)?.join(
+                "\n"
+              ) ?? mutationError.message
+            ),
         });
       }}
     />
