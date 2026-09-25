@@ -1,253 +1,179 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import type { ReactNode } from "react";
 
 import { Badge, Icon, Icons } from "@phoenix/components";
-import type { BadgeProps } from "@phoenix/components/core/badge";
+import type {
+  BadgeOverflowMode,
+  BadgeProps,
+  BadgeVariant,
+} from "@phoenix/components/core/badge";
 
-const meta: Meta<typeof Badge> = {
-  title: "Design System/Badges/Badge",
-  component: Badge,
-  parameters: {
-    layout: "centered",
-  },
-  tags: ["legacy", "unreviewed"],
-  argTypes: {
-    variant: {
-      control: "select",
-      options: ["default", "info", "success", "warning", "danger"],
-    },
-    size: {
-      control: "select",
-      options: ["S", "M", "L"],
-    },
-    overflowMode: {
-      control: "select",
-      options: ["wrap", "truncate"],
-    },
-  },
-};
-
-export default meta;
-type Story = StoryObj<typeof Badge>;
+import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
- * The default badge with neutral styling. Use for general-purpose metadata
- * like archived, deleted, paused, draft, not started, or ended statuses.
- */
-export const Default: Story = {
-  args: {
-    children: "Archived",
-    variant: "default",
-  },
-};
-
-/**
- * Informative badges use blue to convey active or in-progress states.
- * Use for: active, in use, live, published.
- */
-export const Info: Story = {
-  args: {
-    variant: "info",
-    children: "Active",
-  },
-};
-
-/**
- * Success badges use green to convey positive outcomes.
- * Use for: approved, complete, success, new, purchased, licensed.
- */
-export const Success: Story = {
-  args: {
-    variant: "success",
-    children: "Approved",
-  },
-};
-
-/**
- * Warning badges use orange to convey caution or pending action.
- * Use for: pending, request, needs review, expiring.
- */
-export const Warning: Story = {
-  args: {
-    variant: "warning",
-    children: "Pending",
-  },
-};
-
-/**
- * Danger badges use red to convey errors or critical states.
- * Use for: error, alert, rejected, failed.
- */
-export const Danger: Story = {
-  args: {
-    variant: "danger",
-    children: "Failed",
-  },
-};
-
-const rowCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-`;
-
-const columnCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-/**
- * All semantic variants displayed together. When badges have a semantic meaning,
- * they should use the appropriate variant color to help convey that meaning at a glance.
+ * A compact status or metadata label. Choose the variant from what the label
+ * means, so its color conveys that meaning at a glance:
  *
  * - **default** (neutral) — archived, deleted, paused, draft, not started, ended
  * - **info** (informative) — active, in use, live, published
  * - **success** (positive) — approved, complete, success, new, purchased, licensed
  * - **warning** (notice) — pending, request, needs review, expiring
  * - **danger** (negative) — error, alert, rejected, failed
- */
-export const AllVariants: Story = {
-  render: () => (
-    <div css={rowCSS}>
-      <Badge variant="default">Archived</Badge>
-      <Badge variant="info">Active</Badge>
-      <Badge variant="success">Approved</Badge>
-      <Badge variant="warning">Pending</Badge>
-      <Badge variant="danger">Failed</Badge>
-    </div>
-  ),
-};
-
-/**
- * Badges come in three sizes: small, medium, and large.
- * The small size is the default and most frequently used option.
- * Use the other sizes sparingly to create a hierarchy of importance on a page.
- */
-export const Sizes: Story = {
-  render: () => (
-    <div css={rowCSS}>
-      <Badge variant="success" size="S">
-        Small
-      </Badge>
-      <Badge variant="success" size="M">
-        Medium
-      </Badge>
-      <Badge variant="success" size="L">
-        Large
-      </Badge>
-    </div>
-  ),
-};
-
-/**
- * Badges can include an icon alongside text for added visual context.
- * Always prefer text labels over icon-only badges for clarity.
- */
-export const WithIcon: Story = {
-  render: () => (
-    <div css={rowCSS}>
-      <Badge variant="success">
-        <Icon svg={<Icons.Checkmark />} />
-        Licensed
-      </Badge>
-      <Badge variant="danger">
-        <Icon svg={<Icons.Close />} />
-        Rejected
-      </Badge>
-      <Badge variant="info">
-        <Icon svg={<Icons.Info />} />
-        Published
-      </Badge>
-    </div>
-  ),
-};
-
-/**
- * When a badge's label is too long for the available horizontal space,
- * it wraps to form another line by default (`overflowMode="wrap"`).
  *
- * Set `overflowMode="truncate"` to truncate with an ellipsis instead.
+ * `S` is the default size and the one most pages need; use `M` and `L`
+ * sparingly, to set a badge apart from the ones around it.
  */
-export const OverflowModes: Story = {
-  render: () => (
-    <div css={columnCSS}>
-      <div>
-        <p
-          css={css(
-            `margin-bottom: 8px; color: var(--global-text-color-700); font-size: 12px;`
-          )}
-        >
-          overflowMode=&quot;wrap&quot; (default)
-        </p>
-        <div css={css(`width: 120px;`)}>
-          <Badge variant="info">24 days left in trial</Badge>
-        </div>
-      </div>
-      <div>
-        <p
-          css={css(
-            `margin-bottom: 8px; color: var(--global-text-color-700); font-size: 12px;`
-          )}
-        >
-          overflowMode=&quot;truncate&quot;
-        </p>
-        <div css={css(`width: 120px;`)}>
-          <Badge variant="info" overflowMode="truncate">
-            24 days left in trial
-          </Badge>
-        </div>
-      </div>
-    </div>
-  ),
-};
-
-/**
- * All sizes across all variants for a complete visual reference.
- */
-export const SizesByVariant: Story = {
-  render: () => {
-    const variants: BadgeProps["variant"][] = [
-      "default",
-      "info",
-      "success",
-      "warning",
-      "danger",
-    ];
-    const sizes: BadgeProps["size"][] = ["S", "M", "L"];
-    return (
-      <div css={columnCSS}>
-        {variants.map((variant) => (
-          <div key={variant} css={rowCSS}>
-            {sizes.map((size) => (
-              <Badge key={`${variant}-${size}`} variant={variant} size={size}>
-                {variant} {size}
-              </Badge>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
+const meta: Meta = {
+  title: "Design System/Badges/Badge",
+  component: Badge,
+  tags: ["updated", "unreviewed", "complete"],
+  parameters: {
+    layout: "centered",
+    controls: { disable: true },
   },
 };
 
-/** Five badges do not fit one row of the card; center the wrapped rows. */
+export default meta;
+
+const VARIANTS: {
+  label: BadgeVariant;
+  code: true;
+  text: string;
+  icon: ReactNode;
+}[] = [
+  { label: "default", code: true, text: "Paused", icon: <Icons.StopCircle /> },
+  { label: "info", code: true, text: "Active", icon: <Icons.Info /> },
+  {
+    label: "success",
+    code: true,
+    text: "Approved",
+    icon: <Icons.CheckmarkCircle />,
+  },
+  {
+    label: "warning",
+    code: true,
+    text: "Pending",
+    icon: <Icons.AlertTriangle />,
+  },
+  { label: "danger", code: true, text: "Failed", icon: <Icons.CloseCircle /> },
+];
+
+const SIZES: { label: BadgeProps["size"] & string; code: true }[] = [
+  { label: "S", code: true },
+  { label: "M", code: true },
+  { label: "L", code: true },
+];
+
+const CONTENT: { label: string; withIcon: boolean }[] = [
+  { label: "Text", withIcon: false },
+  { label: "Leading icon", withIcon: true },
+];
+
+const OVERFLOW_MODES: { label: BadgeOverflowMode; code: true }[] = [
+  { label: "wrap", code: true },
+  { label: "truncate", code: true },
+];
+
+const LENGTHS: { label: string; text: string }[] = [
+  { label: "Empty", text: "" },
+  { label: "1 character", text: "3" },
+  { label: "Regular", text: "Active" },
+  { label: "Long", text: "24 days left in trial" },
+];
+
+export const Default: StoryFn = () => <Badge>Archived</Badge>;
+Default.tags = ["!dev"];
+
+export const VariantsAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={VARIANTS}
+    columns={SIZES}
+    renderCell={(variant, size) => (
+      <Badge variant={variant.label} size={size?.label}>
+        {variant.text}
+      </Badge>
+    )}
+  />
+);
+VariantsAndSizes.tags = ["!dev"];
+VariantsAndSizes.parameters = { themeLayout: "column" };
+
+export const ContentAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={CONTENT}
+    columns={SIZES}
+    renderCell={(content, size) => (
+      <Badge variant="success" size={size?.label}>
+        {content.withIcon ? <Icon svg={<Icons.CheckmarkCircle />} /> : null}
+        Approved
+      </Badge>
+    )}
+  />
+);
+ContentAndSizes.tags = ["!dev"];
+ContentAndSizes.parameters = { themeLayout: "column" };
+
+export const ContentAndVariants: StoryFn = () => (
+  <OptionGrid
+    rows={VARIANTS}
+    columns={CONTENT}
+    renderCell={(variant, content) => (
+      <Badge variant={variant.label}>
+        {content?.withIcon ? <Icon svg={variant.icon} /> : null}
+        {variant.text}
+      </Badge>
+    )}
+  />
+);
+ContentAndVariants.tags = ["!dev"];
+ContentAndVariants.parameters = { themeLayout: "column" };
+
+const containerCSS = css`
+  width: 100%;
+`;
+
+/**
+ * The badge wraps a label too long for its container by default.
+ * `overflowMode="truncate"` is meant to keep it on one line with an
+ * ellipsis, but it only stops the wrap: the badge grows past its container
+ * to the full width of its label and shows no ellipsis.
+ */
+export const ContentLength: StoryFn = () => (
+  <OptionGrid
+    rows={OVERFLOW_MODES}
+    columns={LENGTHS}
+    cellWidth="80px"
+    alignRows="start"
+    renderCell={(overflowMode, length) => (
+      <div css={containerCSS}>
+        <Badge variant="info" overflowMode={overflowMode.label}>
+          {length?.text}
+        </Badge>
+      </div>
+    )}
+  />
+);
+ContentLength.tags = ["!dev"];
+ContentLength.parameters = { themeLayout: "column" };
+
 const thumbnailRowCSS = css`
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: var(--global-dimension-size-100);
 `;
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: Story = {
+export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
   render: () => (
-    <div css={[rowCSS, thumbnailRowCSS]}>
-      <Badge variant="default">Archived</Badge>
-      <Badge variant="info">Active</Badge>
-      <Badge variant="success">Approved</Badge>
-      <Badge variant="warning">Pending</Badge>
-      <Badge variant="danger">Failed</Badge>
+    <div css={thumbnailRowCSS}>
+      {VARIANTS.map((variant) => (
+        <Badge key={variant.label} variant={variant.label}>
+          {variant.text}
+        </Badge>
+      ))}
     </div>
   ),
 };
