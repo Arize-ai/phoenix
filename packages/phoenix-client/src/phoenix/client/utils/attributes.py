@@ -1,11 +1,4 @@
-"""Re-nest span attributes the way the server's dataframe export does.
-
-The ``GET /v1/projects/{id}/spans`` route returns attributes fully flattened
-(``"llm.input_messages.0.message.role"``), while the legacy ``POST /v1/spans``
-dataframe export keeps each semantic-convention key as one column holding a
-structured value. This mirrors ``phoenix.trace.attributes`` on the server so
-both paths produce the same columns; keep the two in sync.
-"""
+"""Re-nest span attributes the way the server's dataframe export does."""
 
 from __future__ import annotations
 
