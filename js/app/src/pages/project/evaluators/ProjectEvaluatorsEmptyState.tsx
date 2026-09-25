@@ -3,12 +3,12 @@ import { type ReactNode, Suspense, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
-  Button,
   Flex,
   Icon,
   IconButton,
   Icons,
   Link,
+  LinkButton,
   Skeleton,
   Text,
 } from "@phoenix/components";
@@ -18,8 +18,10 @@ import type {
   projectEvaluatorCategoryCardsQuery$data,
 } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorCategoryCardsQuery.graphql";
 import { BuildProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
-import { useProjectEvaluatorContext } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  useProjectEvaluatorCreationPaths,
+  useProjectEvaluatorPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { PROJECT_EVALUATOR_CATEGORIES } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
 
 const MAX_CATEGORY_TEMPLATES = 3;
@@ -41,7 +43,6 @@ type ProjectEvaluatorCategoryCardTemplate =
 
 export function ProjectEvaluatorsEmptyState() {
   const paths = useProjectEvaluatorPaths();
-  const { openGallery } = useProjectEvaluatorContext();
   return (
     <Flex
       direction="column"
@@ -56,12 +57,10 @@ export function ProjectEvaluatorsEmptyState() {
         </Suspense>
       </ErrorBoundary>
       <Flex direction="row" gap="size-100" wrap="wrap" justifyContent="center">
-        <BuildProjectEvaluatorMenu size="S" creationPaths={paths.creation} />
-        {/* The gallery is modal state, not a destination, so this opens it
-            without navigating. */}
-        <Button size="S" variant="primary" onPress={() => openGallery()}>
+        <BuildProjectEvaluatorMenu size="S" />
+        <LinkButton size="S" variant="primary" to={paths.gallery()}>
           Browse eval gallery
-        </Button>
+        </LinkButton>
       </Flex>
     </Flex>
   );
@@ -82,7 +81,7 @@ function CategoryCards({
   templates: readonly ProjectEvaluatorCategoryCardTemplate[];
 }) {
   const paths = useProjectEvaluatorPaths();
-  const { openGallery } = useProjectEvaluatorContext();
+  const creationPaths = useProjectEvaluatorCreationPaths();
   // Keep the full track mounted so native scrolling can animate continuously
   // between neighboring groups of cards.
   const categoryCardListRef = useRef<HTMLUListElement>(null);
@@ -170,26 +169,20 @@ function CategoryCards({
                   aria-hidden={isCategoryVisible ? undefined : true}
                   inert={isCategoryVisible ? undefined : true}
                 >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openGallery({ kind: "category", category: value })
-                    }
-                    css={categorySummaryButtonCSS}
-                  >
+                  <Link to={paths.gallery(value)} css={categorySummaryLinkCSS}>
                     <Text weight="heavy" color="inherit">
                       {label}
                     </Text>
                     <Text size="S" color="text-700">
                       {description}
                     </Text>
-                  </button>
+                  </Link>
                   {categoryTemplates.length > 0 ? (
                     <ul css={templateLinkListCSS}>
                       {categoryTemplates.map((template) => (
                         <li key={template.name}>
                           <Link
-                            to={paths.newLlmFromTemplate(template.name)}
+                            to={creationPaths.newLlmFromTemplate(template.name)}
                             css={templateLinkCSS}
                           >
                             <Text size="XS" color="inherit">
@@ -374,19 +367,22 @@ const categoryCardCSS = css`
   border-radius: var(--global-rounding-small);
   transition: background-color 0.15s ease;
 
-  &:has(> button:hover) {
+  /* The summary is a Link, whose wrapper must be the flex item that
+     stretches the summary to the card's height, above the template links. */
+  > .link-container {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &:has(> .link-container a:hover) {
     background-color: var(--global-card-header-background-color-hover);
   }
 `;
 
-const categorySummaryButtonCSS = css`
-  /* Opens the gallery rather than navigating, so it is a card-sized button and
-     carries the control reset an anchor did not need. */
-  appearance: none;
-  background: none;
-  border: none;
-  font: inherit;
-  text-align: start;
+const categorySummaryLinkCSS = css`
+  /* A card-sized link into the gallery, opened on this category. */
+  text-decoration: none;
   cursor: pointer;
 
   box-sizing: border-box;
@@ -402,7 +398,7 @@ const categorySummaryButtonCSS = css`
   border-radius: var(--global-rounding-small) var(--global-rounding-small) 0 0;
   color: var(--global-text-color-900);
 
-  /* Stretch this button without wrapping the sibling template links. */
+  /* Stretch this link without wrapping the sibling template links. */
   &::after {
     content: "";
     position: absolute;
