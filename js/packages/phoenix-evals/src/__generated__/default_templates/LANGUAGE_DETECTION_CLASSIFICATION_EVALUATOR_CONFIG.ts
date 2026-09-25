@@ -1,0 +1,68 @@
+// This file is generated. Do not edit by hand.
+
+import type { ClassificationEvaluatorConfig } from "../types";
+
+export const LANGUAGE_DETECTION_CLASSIFICATION_EVALUATOR_CONFIG: ClassificationEvaluatorConfig = {
+  name: "language_detection",
+  description: "Detect the primary natural language used throughout a conversation session. This eval is purely descriptive — it does not judge whether the language used was correct, expected, or consistent with anything else.",
+  optimizationDirection: "NEUTRAL",
+  template: [
+    {
+      role: "user",
+      content: `
+You are an expert evaluator identifying the primary natural language used in a given source text.
+
+The source text is the sequence of turns exchanged between the user and the assistant, in chronological order. It does not include tool calls, tool results, or retrieved documents. Treat the session as a whole: you are identifying the language that carries the majority of substantive content, not judging any single turn in isolation.
+
+Your task is descriptive only. Do NOT judge whether the assistant responded in the correct, expected, or appropriate language. Do NOT judge whether the user's and the assistant's languages matched each other. Do NOT judge quality, fluency, or correctness of the language used. Only identify the primary language.
+
+<rubric>
+
+Choose exactly one label for the primary language:
+
+ENGLISH - The majority of substantive natural-language content is English.
+
+MANDARIN_CHINESE - The majority of substantive natural-language content is Mandarin Chinese, written in Simplified or Traditional characters. Cantonese and other Sinitic languages are not Mandarin.
+
+HINDI - The majority of substantive natural-language content is Hindi.
+
+SPANISH - The majority of substantive natural-language content is Spanish. Portuguese is not Spanish.
+
+FRENCH - The majority of substantive natural-language content is French.
+
+OTHER - The primary language is anything else, including Japanese, Arabic, Russian, German, Portuguese, Korean, Italian, Cantonese, Ukrainian, Greek, and any language not listed above. Also choose OTHER when the session contains no identifiable natural-language content at all (only code, structured data, emoji, numbers, or URLs).
+
+</rubric>
+
+Apply these rules when deciding:
+
+1. This is a description, not a judgment. Never treat a language as right, wrong, expected, or inconsistent — just record which label fits the primary language.
+2. Do not list every language present. A session may contain several languages. Report only the one that carries the most substantive content.
+3. Primary language requires majority substance, not majority turns. Nine short turns in one language plus one long, detailed turn in another may still make the latter primary if it carries most of the substantive content.
+4. Exclude proper nouns, brand names, code identifiers, and single loanwords or acronyms commonly used across languages (for example "OK", "AI", "URL") that appear inside an otherwise different-language passage. These do not count as a separate language on their own.
+5. Ignore code snippets, markup, math notation, and structured data (JSON, tables, and similar) when identifying languages. Natural-language prose inside comments or explanations still counts.
+6. Treat messages that are genuinely too short, ambiguous, or entirely non-linguistic (a single emoji, a number, a URL) as uninformative. Do not let them decide the primary language on their own.
+7. When a case is borderline — a possible loanword versus a genuine second language, a short ambiguous message — do not let that fragment change the primary language. Only a language you are confident is genuinely present can be primary.
+8. If the majority language is not English, Mandarin Chinese, Hindi, Spanish, or French, choose other. If there is no identifiable natural-language content, choose other.
+
+<data>
+
+<session>
+{{session}}
+</session>
+
+</data>
+
+In the explanation, go through the source text and note the language of each substantive piece of content, then say which language carries the majority of that content. Then set the label to exactly one of: english, mandarin_chinese, hindi, spanish, french, other.
+`,
+    },
+  ],
+  choices: [
+  "english",
+  "mandarin_chinese",
+  "hindi",
+  "spanish",
+  "french",
+  "other"
+],
+};

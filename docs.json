@@ -231,6 +231,7 @@
                       "docs/phoenix/evaluation/pre-built-metrics/refusal",
                       "docs/phoenix/evaluation/pre-built-metrics/toxicity",
                       "docs/phoenix/evaluation/pre-built-metrics/user-friction",
+                      "docs/phoenix/evaluation/pre-built-metrics/language-detection",
                       "docs/phoenix/evaluation/pre-built-metrics/pii-detection",
                       "docs/phoenix/evaluation/pre-built-metrics/exact-match",
                       "docs/phoenix/evaluation/pre-built-metrics/matches-regex",
