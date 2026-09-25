@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "storybook/test";
 
 import { Button } from "@phoenix/components/core/button/Button";
 import { IconButton } from "@phoenix/components/core/button/IconButton";
@@ -8,7 +9,9 @@ import {
   AlertTriangle,
   ChevronRight,
   Close,
+  Duplicate,
   Edit,
+  MoreHorizontal,
   Plus,
   Search,
   Settings,
@@ -17,7 +20,7 @@ import {
 
 const meta: Meta = {
   title: "Design System/Actions/Icon Button",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: IconButton,
   parameters: {
     layout: "centered",
@@ -25,58 +28,43 @@ const meta: Meta = {
       type: "figma",
       url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=66-247",
     },
-  },
-  argTypes: {
-    size: {
-      control: { type: "select" },
-      options: ["XS", "S", "M"],
-    },
-    color: {
-      control: { type: "select" },
-      options: [
-        "text-300",
-        "text-500",
-        "text-700",
-        "text-900",
-        "blue-600",
-        "red-600",
-        "green-600",
-        "orange-600",
-        "inherit",
-      ],
-    },
-    isDisabled: {
-      control: { type: "boolean" },
-    },
+    controls: { disable: true },
   },
 };
 
 export default meta;
 
-export const Default = {
-  args: {
-    children: <Icon svg={<Search />} />,
-    "aria-label": "Search",
-  },
-};
-
 export const Sizes = () => (
   <div
     css={css`
       display: flex;
-      align-items: center;
-      gap: var(--global-dimension-size-200);
+      align-items: end;
+      gap: var(--global-dimension-size-300);
     `}
   >
-    <IconButton size="XS" aria-label="Extra small search">
-      <Icon svg={<Search />} />
-    </IconButton>
-    <IconButton size="S" aria-label="Small search">
-      <Icon svg={<Search />} />
-    </IconButton>
-    <IconButton size="M" aria-label="Medium search">
-      <Icon svg={<Search />} />
-    </IconButton>
+    {(["XS", "S", "M"] as const).map((size) => (
+      <div
+        key={size}
+        css={css`
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: var(--global-dimension-size-100);
+        `}
+      >
+        <IconButton size={size} aria-label="Copy">
+          <Icon svg={<Duplicate />} />
+        </IconButton>
+        <span
+          css={css`
+            font-size: var(--global-font-size-xs);
+            color: var(--global-text-color-500);
+          `}
+        >
+          {size}
+        </span>
+      </div>
+    ))}
   </div>
 );
 
@@ -110,89 +98,32 @@ export const DifferentIcons = () => (
     <IconButton aria-label="Next">
       <Icon svg={<ChevronRight />} />
     </IconButton>
+    <IconButton aria-label="More actions">
+      <Icon svg={<MoreHorizontal />} />
+    </IconButton>
   </div>
 );
 
-export const Disabled = {
-  args: {
-    children: <Icon svg={<Settings />} />,
-    isDisabled: true,
-    "aria-label": "Settings (disabled)",
-  },
-};
-
-export const CustomStyling = {
-  args: {
-    children: <Icon svg={<Search />} />,
-    "aria-label": "Custom search",
-    css: css`
-      --global-text-color-700: var(--global-color-blue-600);
-      &[data-hovered] {
-        background-color: var(--global-color-blue-100);
-        --global-text-color-900: var(--global-color-blue-800);
-      }
-    `,
-  },
-};
-
-export const SizeVariations = () => (
+/**
+ * Pressable and disabled. Presses are logged in the Actions panel; the
+ * disabled button ignores them.
+ */
+export const Interactive = () => (
   <div
     css={css`
       display: flex;
       align-items: center;
-      gap: var(--global-dimension-size-300);
+      gap: var(--global-dimension-size-200);
     `}
   >
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--global-dimension-size-100);
-      `}
-    >
-      <IconButton size="S" aria-label="Small add">
-        <Icon svg={<Plus />} />
-      </IconButton>
-      <span
-        css={css`
-          font-size: var(--global-font-size-xs);
-          color: var(--global-text-color-500);
-        `}
-      >
-        Small
-      </span>
-    </div>
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--global-dimension-size-100);
-      `}
-    >
-      <IconButton size="M" aria-label="Medium edit">
-        <Icon svg={<Edit />} />
-      </IconButton>
-      <span
-        css={css`
-          font-size: var(--global-font-size-xs);
-          color: var(--global-text-color-500);
-        `}
-      >
-        Medium
-      </span>
-    </div>
+    <IconButton aria-label="Settings" onPress={fn()}>
+      <Icon svg={<Settings />} />
+    </IconButton>
+    <IconButton aria-label="Settings" isDisabled onPress={fn()}>
+      <Icon svg={<Settings />} />
+    </IconButton>
   </div>
 );
-
-export const Interactive = {
-  args: {
-    children: <Icon svg={<Search />} />,
-    "aria-label": "Interactive search",
-    onPress: () => alert("IconButton pressed!"),
-  },
-};
 
 export const ButtonColors = () => (
   <div
@@ -283,6 +214,12 @@ export const SizeComparison = () => (
     </div>
   </div>
 );
+
+Sizes.tags = ["!dev"];
+DifferentIcons.tags = ["!dev"];
+Interactive.tags = ["!dev"];
+ButtonColors.tags = ["!dev"];
+SizeComparison.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
