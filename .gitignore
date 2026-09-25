@@ -112,3 +112,6 @@ helm/charts/*.tgz
 
 # pi extensions
 .pi/extensions/
+
+# Claude plugin eval run output (claude plugin eval)
+/plugins/claude/arize-phoenix/evals/results/
