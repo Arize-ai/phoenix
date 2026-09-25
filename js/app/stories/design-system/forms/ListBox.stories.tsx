@@ -4,7 +4,7 @@ import type { ListBoxProps } from "@phoenix/components";
 import { ListBox, ListBoxItem } from "@phoenix/components";
 
 const meta: Meta = {
-  title: "Design System/Navigation/List Box",
+  title: "Design System/Forms/List Box",
   tags: ["legacy", "unreviewed"],
   component: ListBox,
   parameters: { controls: { disable: true } },

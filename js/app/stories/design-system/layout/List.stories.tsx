@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { List, ListItem } from "@phoenix/components";
 
 const meta: Meta<typeof List> = {
-  title: "Design System/Navigation/List",
+  title: "Design System/Layout/List",
   component: List,
   parameters: {
     layout: "centered",
