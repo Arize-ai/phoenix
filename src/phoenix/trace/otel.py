@@ -67,6 +67,32 @@ def coerce_otlp_span_attributes(
         yield key, value
 
 
+_MESSAGE_NAMESPACES = (SpanAttributes.LLM_INPUT_MESSAGES, SpanAttributes.LLM_OUTPUT_MESSAGES)
+
+
+def _merge_synthesized_attributes(
+    raw_attributes: dict[str, Any],
+    synthesized: Mapping[str, Any],
+) -> None:
+    """Fill in OpenInference attributes synthesized from ``gen_ai.*`` without
+    overriding any the span already carries.
+
+    Message namespaces are skipped wholesale once the span has written into them:
+    their keys are positional, and a client-side mapping can number messages
+    differently from the synthesized one (see #14961), so filling gaps key by key
+    would splice the two into messages that were never emitted.
+    """
+    occupied_namespaces = tuple(
+        f"{namespace}."
+        for namespace in _MESSAGE_NAMESPACES
+        if any(key.startswith(f"{namespace}.") for key in raw_attributes)
+    )
+    for key, value in synthesized.items():
+        if key.startswith(occupied_namespaces):
+            continue
+        raw_attributes.setdefault(key, value)
+
+
 def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     trace_id = cast(TraceID, _decode_identifier(otlp_span.trace_id))
     span_id = cast(SpanID, _decode_identifier(otlp_span.span_id))
@@ -76,28 +102,7 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     end_time = _decode_unix_nano(otlp_span.end_time_unix_nano)
 
     raw_attributes = dict(_decode_key_values(otlp_span.attributes))
-    # Synthesize OpenInference attrs from any OTel gen_ai.* semconv attributes.
-    # ``setdefault`` means existing OI attributes win — relevant for spans that
-    # were dual-emitted by an instrumentation that already set OI keys directly.
-    #
-    # The message namespaces (``llm.input_messages.*``, ``llm.output_messages.*``)
-    # are positional, not scalar, so a per-key ``setdefault`` is unsafe there: if
-    # the client's mapping is already present but incomplete -- e.g. it dropped
-    # a message the synthesized mapping has -- gap-filling per key mixes two
-    # mappings with different index bases into messages that never existed
-    # (a system prompt spliced in under a client-authored ``role: user``, and a
-    # user message duplicated). The client's mapping, even incomplete, is at
-    # least internally consistent, so treat each namespace atomically: skip all
-    # synthesized keys under it once the client has written anything there.
-    occupied_message_namespaces = tuple(
-        f"{prefix}."
-        for prefix in (SpanAttributes.LLM_INPUT_MESSAGES, SpanAttributes.LLM_OUTPUT_MESSAGES)
-        if any(key.startswith(f"{prefix}.") for key in raw_attributes)
-    )
-    for key, value in get_openinference_attributes(raw_attributes).items():
-        if key.startswith(occupied_message_namespaces):
-            continue
-        raw_attributes.setdefault(key, value)
+    _merge_synthesized_attributes(raw_attributes, get_openinference_attributes(raw_attributes))
     attributes = unflatten(load_json_strings(coerce_otlp_span_attributes(raw_attributes.items())))
     span_kind = SpanKind(get_attribute_value(attributes, OPENINFERENCE_SPAN_KIND))
 
