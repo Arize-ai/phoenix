@@ -59,20 +59,21 @@
               "docs/phoenix/get-started/get-started-tracing",
               "docs/phoenix/get-started/get-started-evaluations",
               {
-                "group": "PXI",
-                "tag": "BETA",
-                "pages": [
-                  "docs/phoenix/pxi",
-                  "docs/phoenix/pxi-learn-more"
-                ]
-              },
-              {
                 "group": "Arize Phoenix for Agents",
+                "expanded": true,
                 "pages": [
                   "docs/phoenix/integrations/developer-tools/coding-agents",
                   "docs/phoenix/integrations/developer-tools/cli",
                   "docs/phoenix/integrations/mcp",
                   "docs/phoenix/integrations/developer-tools/skills"
+                ]
+              },
+              {
+                "group": "PXI",
+                "tag": "BETA",
+                "pages": [
+                  "docs/phoenix/pxi",
+                  "docs/phoenix/pxi-learn-more"
                 ]
               },
               "docs/phoenix/phoenix-demo"
