@@ -16,7 +16,7 @@ from starlette.exceptions import HTTPException
 from phoenix.server.app import AppConfig, Static
 
 
-def _static(directory: Path) -> Static:
+def _static(directory: Path, *, dev_vite_url: str = "http://localhost:5173") -> Static:
     return Static(
         directory=directory,
         app_config=AppConfig(
@@ -25,6 +25,7 @@ def _static(directory: Path) -> Static:
             authentication_enabled=False,
             auth_error_messages={},
             oauth2_idps=[],
+            dev_vite_url=dev_vite_url,
         ),
     )
 
@@ -55,3 +56,12 @@ async def test_files_that_exist_are_still_served(tmp_path: Path) -> None:
     static = _static(tmp_path)
     response = await static.get_response("real.txt", _scope("/real.txt"))
     assert response.status_code == 200
+
+
+async def test_development_index_uses_configured_vite_url(tmp_path: Path) -> None:
+    vite_url = "https://vite.feature.phoenix.localhost"
+    static = _static(tmp_path, dev_vite_url=vite_url)
+    response = await static.get_response("", _scope("/"))
+    body = bytes(response.body).decode()
+    assert f"{vite_url}/@vite/client" in body
+    assert f"{vite_url}/index.tsx" in body

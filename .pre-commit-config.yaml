@@ -28,25 +28,25 @@ repos:
         name: oxfmt (app)
         entry: pnpm --dir app run fmt
         language: system
-        files: ^app/.*\.(jsx?|tsx?|css|md|json|ya?ml)$
+        files: ^app/.*\.([cm]?jsx?|[cm]?tsx?|css|md|json|ya?ml)$
         pass_filenames: false
       - id: oxfmt-js
         name: oxfmt (js)
         entry: pnpm --dir js run fmt
         language: system
-        files: ^js/.*\.(jsx?|tsx?|md|json|ya?ml)$
+        files: ^js/.*\.([cm]?jsx?|[cm]?tsx?|md|json|ya?ml)$
         pass_filenames: false
       - id: oxlint-app
         name: oxlint (app)
         entry: pnpm --dir app run lint
         language: system
-        files: ^app/.*\.[jt]sx?$
+        files: ^app/.*\.[cm]?[jt]sx?$
         pass_filenames: false
       - id: oxlint-js
         name: oxlint (js)
         entry: pnpm --dir js run lint
         language: system
-        files: ^js/.*\.[jt]sx?$
+        files: ^js/.*\.[cm]?[jt]sx?$
         pass_filenames: false
       - id: forbid-commit-to-local-main-branch
         name: Check branch before committing

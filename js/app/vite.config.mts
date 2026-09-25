@@ -39,7 +39,9 @@ export default defineConfig(() => {
     plugins,
     publicDir: resolve(__dirname, "static"),
     server: {
+      host: process.env.VITE_HOST || "localhost",
       port: parseInt(process.env.VITE_PORT || "5173"),
+      strictPort: true,
       warmup: {
         clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
       },

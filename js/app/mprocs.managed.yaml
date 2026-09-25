@@ -1,0 +1,16 @@
+# Process list for `make dev-session`. The supervisor (js/scripts/dev-sessions.mts)
+# starts mprocs with this file and sets PHOENIX_DEV_* for the exec subcommand,
+# which wraps each process in its Portless route.
+procs:
+  api:
+    shell: 'exec "${PHOENIX_DEV_NODE:-node}" --disable-warning=ExperimentalWarning ../scripts/dev-sessions.mts exec api'
+    stop: SIGTERM
+
+  frontend:
+    shell: 'exec "${PHOENIX_DEV_NODE:-node}" --disable-warning=ExperimentalWarning ../scripts/dev-sessions.mts exec frontend'
+    stop: SIGTERM
+
+# mprocs forwards Ctrl+C to the focused process by default, which only
+# interrupts the API and leaves everything else running. Quit instead.
+keymap_procs:
+  <C-c>: { c: quit }
