@@ -270,12 +270,6 @@ class Spans:
     ) -> "pd.DataFrame":
         """Retrieves spans based on the provided filter conditions.
 
-        Spans are fetched page by page from the span list endpoint, newest first by
-        start time, until ``limit`` spans are collected. The query's ``where`` condition
-        is evaluated by the server; its ``select``, ``explode``, ``concat``, ``rename``
-        and ``with_index`` steps are applied to the result by
-        :func:`~phoenix.client.helpers.spans.convert_spans_to_dataframe`.
-        Requires Phoenix server >= 20.17.0.
 
         Args:
             query (Optional[SpanQuery]): A SpanQuery object defining the query criteria.
@@ -1606,12 +1600,6 @@ class AsyncSpans:
     ) -> "pd.DataFrame":
         """Retrieves spans based on the provided filter conditions.
 
-        Spans are fetched page by page from the span list endpoint, newest first by
-        start time, until ``limit`` spans are collected. The query's ``where`` condition
-        is evaluated by the server; its ``select``, ``explode``, ``concat``, ``rename``
-        and ``with_index`` steps are applied to the result by
-        :func:`~phoenix.client.helpers.spans.convert_spans_to_dataframe`.
-        Requires Phoenix server >= 20.17.0.
 
         Args:
             query (Optional[SpanQuery]): A SpanQuery object defining the query criteria.

@@ -1,11 +1,4 @@
-"""Shape spans from ``GET /v1/projects/{id}/spans`` into a dataframe.
-
-The dataframe keeps the columns and index of the deprecated ``POST /v1/spans``
-export so existing notebooks keep working, and a :class:`SpanQuery`'s
-``select``, ``explode``, ``concat``, ``rename`` and ``with_index`` are applied
-here in pandas. The query's ``where`` is not applied here: the server evaluates
-it through the ``filter`` query parameter.
-"""
+"""Shape spans from ``GET /v1/projects/{id}/spans`` into a dataframe."""
 
 from __future__ import annotations
 

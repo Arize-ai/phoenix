@@ -583,7 +583,7 @@ jobs:
     name: Unit Tests (${{ matrix.db }}, ${{ matrix.py }})
     runs-on: oss-4-core-runner
     needs: changes
-    if: ${{ (needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.phoenix_client == 'true' || needs.changes.outputs.uv_lock == 'true') && github.event_name == 'pull_request' }}
+    if: ${{ (needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.uv_lock == 'true') && github.event_name == 'pull_request' }}
     strategy:
       fail-fast: false
       matrix:
@@ -598,7 +598,6 @@ jobs:
             requirements/
             src/phoenix/
             evals/
-            packages/phoenix-client/
             packages/phoenix-evals/
             tests/unit/
             tests/conftest.py

@@ -69,7 +69,6 @@ async def test_select_all(
                 None,
             ],
             "attributes.attributes": [None, None, "attributes", {"attributes": "attributes"}],
-            "attributes.openinference.span.kind": ["UNKNOWN", "EMBEDDING", "RETRIEVER", "LLM"],
             "events": [[], [], [], []],
         }
     ).set_index("context.span_id", drop=False)

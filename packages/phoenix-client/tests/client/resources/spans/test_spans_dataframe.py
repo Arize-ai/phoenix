@@ -248,7 +248,9 @@ def test_get_spans_dataframe_resolves_the_project_name_through_the_project_list(
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return _project_lookup(request) or httpx.Response(200, json={"data": []})
+        return _project_lookup(request) or httpx.Response(
+            200, json={"data": [], "next_cursor": None}
+        )
 
     client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
     Spans(client).get_spans_dataframe(project_identifier="team/alpha?x#y")
@@ -267,7 +269,7 @@ def test_get_spans_dataframe_uses_a_project_id_as_is() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json={"data": [], "next_cursor": None})
 
     client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
     Spans(client).get_spans_dataframe(project_identifier=_PROJECT_ID)
@@ -280,7 +282,7 @@ def test_get_spans_dataframe_for_an_unknown_project_name_is_empty() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json={"data": [], "next_cursor": None})
 
     client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
     dataframe = Spans(client).get_spans_dataframe(project_identifier="nobody")
