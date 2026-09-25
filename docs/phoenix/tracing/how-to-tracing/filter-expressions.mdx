@@ -23,10 +23,6 @@ Session filters are available in Phoenix **19.18.0** and newer.
 | Python client dataframe export | Yes. `SpanQuery().where(...)` sends the filter to `POST /v1/spans` | No filter surface | Not yet |
 | REST list and search endpoints | Discrete query params only. No filter expression | `filter` query param on `GET /v1/projects/{project_identifier}/traces` | `filter` query param on `GET /v1/projects/{project_identifier}/sessions` |
 
-Span filter expressions on the REST list endpoints are tracked in
-[#15099](https://github.com/Arize-ai/phoenix/issues/15099); trace and session filters in the
-clients are tracked in [#15112](https://github.com/Arize-ai/phoenix/issues/15112).
-
 <Info>
 The **Experiment Compare** view has its own filter language for filtering experiment runs,
 separate from the span, trace, and session filter languages.
