@@ -1,15 +1,26 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
-import { Fragment, type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
+import { Fragment } from "react";
 
-import { Flex, OverflowRow, Switch, Token, View } from "@phoenix/components";
+import { OverflowRow, Token, View } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
+/**
+ * A single line of items that hides whatever does not fit behind a `+N`
+ * badge, which opens the hidden items in a popover. When not even the first
+ * item fits, every item goes behind the badge rather than one showing cut
+ * off. With `isExpanded` the row wraps onto as many lines as it needs
+ * instead.
+ */
 const meta: Meta = {
   title: "Design System/Layout/Overflow Row",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: OverflowRow,
   parameters: {
     layout: "centered",
+    controls: { disable: true },
   },
 };
 
@@ -37,14 +48,15 @@ const COLORS = [
   "var(--global-color-chartreuse-600)",
 ];
 
-/**
- * With `boxless`, each token renders behind a `StopPropagation` guard — a
- * boxless `display: contents` wrapper, the structure the annotation pills
- * render through. The row must resolve through the wrappers to find the boxes.
- */
-const Tokens = ({ boxless = false }: { boxless?: boolean }) => (
+const Tokens = ({
+  count = LABELS.length,
+  boxless = false,
+}: {
+  count?: number;
+  boxless?: boolean;
+}) => (
   <>
-    {LABELS.map((label, index) => {
+    {LABELS.slice(0, count).map((label, index) => {
       const Wrapper = boxless ? StopPropagation : Fragment;
       return (
         <Wrapper key={label}>
@@ -57,65 +69,79 @@ const Tokens = ({ boxless = false }: { boxless?: boolean }) => (
   </>
 );
 
-const Template = ({
-  width,
-  children = <Tokens />,
-}: {
-  width: number;
-  children?: ReactNode;
-}) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  return (
-    <Flex direction="column" gap="size-200">
-      <Switch isSelected={isExpanded} onChange={setIsExpanded}>
-        Expanded
-      </Switch>
-      <View
-        borderWidth="thin"
-        borderColor="default"
-        borderRadius="medium"
-        padding="size-100"
-        width={`${width}px`}
-      >
-        <OverflowRow isExpanded={isExpanded}>{children}</OverflowRow>
-      </View>
-    </Flex>
-  );
-};
+const Frame = ({ width, children }: { width: number; children: ReactNode }) => (
+  <View
+    borderWidth="thin"
+    borderColor="default"
+    borderRadius="medium"
+    padding="size-100"
+    width={`${width}px`}
+  >
+    {children}
+  </View>
+);
 
-export const Default: StoryFn = () => <Template width={320} />;
+export const Default: StoryFn = () => (
+  <Frame width={320}>
+    <OverflowRow>
+      <Tokens />
+    </OverflowRow>
+  </Frame>
+);
+Default.tags = ["!dev"];
 
-export const Narrow: StoryFn = () => <Template width={160} />;
+const FITS = [
+  { label: "Fits", width: 320, count: 3 },
+  { label: "Overflows", width: 320, count: LABELS.length },
+  { label: "Room for one item", width: 160, count: LABELS.length },
+  { label: "Narrower than one item", width: 80, count: LABELS.length },
+];
 
-export const FitsWithoutOverflow: StoryFn = () => <Template width={900} />;
+const EXPANSION = [
+  { label: "Collapsed", code: false, isExpanded: false },
+  { label: "isExpanded", code: true, isExpanded: true },
+];
+
+export const Widths: StoryFn = () => (
+  <OptionGrid
+    rows={FITS}
+    columns={EXPANSION}
+    alignRows="start"
+    renderCell={(row, column) => (
+      <Frame width={row.width}>
+        <OverflowRow isExpanded={column?.isExpanded}>
+          <Tokens count={row.count} />
+        </OverflowRow>
+      </Frame>
+    )}
+  />
+);
+Widths.tags = ["!dev"];
+Widths.parameters = { themeLayout: "column" };
 
 /**
- * Narrower than a single token: every item goes to the badge rather than one
- * rendering cut off.
+ * Items may sit behind wrappers that lay out no box of their own, such as the
+ * event guard around each annotation pill. The row measures the items through
+ * them and clamps the same way.
  */
-export const BadgeOnly: StoryFn = () => <Template width={80} />;
-
-/** Items behind boxless event guards still clamp behind the badge. */
-export const BoxlessItemWrappers: StoryFn = () => (
-  <Template width={320}>
-    <Tokens boxless />
-  </Template>
+export const WrappedItems: StoryFn = () => (
+  <Frame width={320}>
+    <OverflowRow>
+      <Tokens boxless />
+    </OverflowRow>
+  </Frame>
 );
+WrappedItems.storyName = "Wrapped Items";
+WrappedItems.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
   render: () => (
-    <View
-      borderWidth="thin"
-      borderColor="default"
-      borderRadius="medium"
-      padding="size-100"
-      width="288px"
-    >
+    <Frame width={288}>
       <OverflowRow>
         <Tokens />
       </OverflowRow>
-    </View>
+    </Frame>
   ),
 };
