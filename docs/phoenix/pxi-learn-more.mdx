@@ -9,42 +9,27 @@ Reference for [PXI](/docs/phoenix/pxi). Start there for what it does and how to 
 
 ## What it can do
 
-### Example capabilities
-
 | You can ask PXI to | Try asking |
 | --- | --- |
-| Co-author and optimize a prompt, with every edit shown as a diff you approve | *Tighten this system prompt so it stops apologizing before answering* |
+| Co-author and optimize a prompt, each edit shown as a diff you approve | *Tighten this system prompt so it stops apologizing before answering* |
 | Draft and refine an LLM-as-a-judge or code evaluator against your data | *Write an evaluator that flags answers with no citation* |
-| Turn the failures you find into a curated dataset, with splits and labels | *Add every failing trace from today to a dataset called regressions* |
-| Run and read experiments over a dataset to compare prompt or model changes | *Rerun the last experiment with the new prompt and compare the scores* |
-| Query the Phoenix API with GraphQL for custom analysis, or hand you a working query for your own scripts | *Which projects had the most errors this week?* |
+| Turn the failures you find into a dataset, with splits and labels | *Add every failing trace from today to a dataset called regressions* |
+| Run and read experiments to compare prompt or model changes | *Rerun the last experiment with the new prompt and compare the scores* |
+| Query the Phoenix API with GraphQL, or hand you a working query | *Which projects had the most errors this week?* |
 
-Each of these is backed by a **skill**, a reusable procedure for one Phoenix workflow that PXI loads on demand: what to look at, in what order, and what the output should be.
+Each row is backed by a **skill**, a reusable procedure for one Phoenix workflow that PXI loads on demand.
 
-### Filing GitHub issues
-
-When PXI finds a real defect it can file a GitHub issue linking the relevant traces, backed by [GitHub's hosted MCP server](https://github.com/github/github-mcp-server).
-
-Add a [fine-grained token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with **Issues read/write** under **Settings → Assistant → Tools → GitHub**. The token stays in your browser and issues are filed as you. In the terminal, set `githubPersonalAccessToken` in `~/.px/settings.json`. Creating an issue is approval-gated.
+**File GitHub issues.** When PXI finds a real defect it can file an issue linking the relevant traces, through [GitHub's MCP server](https://github.com/github/github-mcp-server). Add a [fine-grained token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with **Issues read/write** under **Settings → Assistant → Tools → GitHub**, or set `githubPersonalAccessToken` in `~/.px/settings.json` for the terminal. Issues are filed as you, after approval.
 
 ## Conversations
 
-Chats are saved on the server, not the browser tab, so a conversation survives a reload and is the same session in the panel or the `pxi` client. The panel header lists past chats to continue, rename, or delete. Mark a chat **temporary** and it is never written to history.
+Chats are saved on the server, so a conversation survives a reload and is the same session in the panel or the `pxi` client. The panel header lists past chats to continue, rename, or delete; a **temporary** chat is never saved. On any message, **Rewind** drops it and everything after, and **Branch** forks a new chat from that point.
 
-Every message carries a control to change course:
-
-- **Rewind** drops that message and everything after it.
-- **Branch** forks a new chat from that point, leaving the current one untouched.
-
-Retention is set under **Settings → Assistant → Chats & data**. See [agent session retention](/docs/phoenix/settings/data-retention#agent-session-retention).
-
-### Over the API
-
-Sessions are also exposed as REST routes under `/v1/agent_sessions`, and rewind, branch, and delete as GraphQL mutations. See the [Agent Sessions API reference](/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions).
+Retention is set under **Settings → Assistant → Chats & data**; see [agent session retention](/docs/phoenix/settings/data-retention#agent-session-retention). Sessions are also exposed under `/v1/agent_sessions`; see the [Agent Sessions API](/docs/phoenix/sdk-api-reference/rest-api/api-reference/agent-sessions/list-sessions).
 
 ## The terminal client
 
-The same server-side agent in your terminal, shipped with the Phoenix CLI. Credentials, skills, and permissions come from the server, as in [Models](#bring-your-own-model).
+The same server-side agent in your terminal, shipped with the Phoenix CLI. Credentials, skills, and permissions come from the server.
 
 ```bash
 # run without installing
@@ -58,13 +43,7 @@ export PHOENIX_ENDPOINT=http://localhost:6006   # and PHOENIX_API_KEY if auth is
 pxi --provider OPENAI --model gpt-5.4
 ```
 
-Requires Phoenix **20.0.0 or newer** and a configured model provider. It preflights the model catalog on launch and fails with a clear error rather than on first send.
-
-See the [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#pxi) for every flag. Capability flags are still subject to server settings: `--enable-subagents` does nothing when `PHOENIX_AGENTS_DISABLE_BASH=true`.
-
-### Slash commands
-
-Inside the chat, lines beginning with `/` are handled locally and never sent to the model. `/help` lists them; `/compact` summarizes completed turns into a checkpoint so later turns load less history. See the [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#pxi) for the full set.
+Requires Phoenix **20.0.0 or newer** and a configured model provider. Lines beginning with `/` are handled locally: `/help` lists them, `/compact` summarizes earlier turns. See the [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli#pxi) for every flag and command.
 
 ## Configuration
 
@@ -74,67 +53,38 @@ PXI runs on your model provider and your API key. Set credentials for Anthropic,
 
 ### Permissions and approval
 
-Agent assistance is opt-in. PXI can be turned off completely, runs under an explicit permission model, and reaches the internet only when you let it.
+Agent assistance is opt-in.
 
-- **Turn it fully off.** Disable PXI per deployment
-  (`PHOENIX_DISABLE_AGENT_ASSISTANT=true`), per instance
-  (**Settings → Assistant → Permissions → Assistant access**), or per browser
-  (**Settings → Assistant → General → Use assistant**).
-- **State-changing actions are approval-gated.** Saving a prompt, writing dataset examples, submitting an evaluator: each arrives as a diff or card you accept. Read-only actions run freely.
-- **Web grounding is per session.** The globe button in the chat input lets PXI consult the internet, and only appears when an administrator allows it.
-- **Choose where it lives.** Pinned to the top nav, or a floating button under **Settings → Assistant → General**.
+- **Turn it off** per deployment (`PHOENIX_DISABLE_AGENT_ASSISTANT=true`), per instance (**Settings → Assistant → Permissions**), or per browser (**Settings → Assistant → General**).
+- **State-changing actions wait for you.** Saving a prompt, writing dataset examples, or submitting an evaluator arrives as a diff or card you accept. Read-only actions run freely. **Bypass Approval** applies edits without asking and shows a warning while active.
+- **Web access is per session**, through the globe button in the chat input, and only when an administrator allows it.
 
-| Edit-approval mode | Behavior |
-| --- | --- |
-| **Manual Approval** *(default)* | PXI proposes the change as a reviewable diff and waits. Nothing is applied until you click **Accept**. |
-| **Bypass Approval** | Edits are applied without asking. The selector shows a warning treatment while active. |
+### Privacy and tracing
 
-## Privacy and tracing
+PXI runs inside the Phoenix process you already run, against your data, calling your model provider with your key. Arize is not in the request path. Docs lookups go to the public Phoenix docs MCP server when external resources are allowed.
 
-### Where your data goes
-
-PXI runs **inside the Phoenix process you are already running**:
-
-- Tool calls execute against your Phoenix server and your data. No separate Arize service is involved.
-- The LLM is **your model provider**, called with **your API key**. Arize is not in the request path.
-- Documentation lookups go to the Mintlify-hosted Phoenix docs MCP server when external resources are allowed, the same public docs you can read in a browser, serving docs only.
-- Remote trace export happens **only if every gate is enabled**: a remote collector is configured, an administrator allows export in system settings, and the user enables it in personal settings.
-
-### Trace recording & observability
-
-PXI can record conversations as Phoenix traces. Administrators control this under **Settings → Assistant**; by default neither local persistence nor remote export is on. Local traces go to the `assistant_agent` project.
-
-**Attach your identity (opt-in).** Session traces are anonymous by default. Enable **Attach your email to session traces** under **Settings → Assistant → Tracing & privacy**, or pass `--attach-user-id` in the terminal.
-
-### Safety limits
-
-- **Verify before you act.** PXI can apply filters, edit prompts, and run bash. Review proposed changes, especially prompt edits.
-- **Bash runs on the server**, in an in-process virtual shell with networking disabled and scoped to a scratch workspace. It reaches no host machine, container, or the internet. Set `PHOENIX_AGENTS_DISABLE_BASH=true` to remove it.
+- **Bash runs on the server** in an in-process virtual shell with no network, scoped to a scratch workspace. `PHOENIX_AGENTS_DISABLE_BASH=true` removes it.
 - **PXI sees whatever the signed-in user can see**, so be deliberate about pointing it at sensitive production data.
-- **Treat outputs as suggestions.** PXI hallucinates, especially on long traces or unfamiliar frameworks.
+- **Conversations can be recorded as traces** in the `assistant_agent` project. Off by default; administrators control it under **Settings → Assistant**. Remote export needs a configured collector, an administrator setting, and the user's opt-in. Attach your email under **Tracing & privacy**, or pass `--attach-user-id` in the terminal.
+- **Treat outputs as suggestions.** PXI makes mistakes, especially on long traces or unfamiliar frameworks.
 
 ### Configuration reference
 
 | Environment variable | Effect |
 | --- | --- |
 | `PHOENIX_DISABLE_AGENT_ASSISTANT=true` | Disable PXI for the whole deployment (requires restart). |
-| `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including the Phoenix docs MCP lookups. |
-| `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
-| `PHOENIX_AGENTS_DISABLE_BASH=true` | Remove PXI's server-side bash tool. This strips bash from the assistant, disables subagents (and hides the subagents toggle in **Settings → Assistant**), and rejects the headless terminal agent, which depends on it. To turn PXI off entirely use `PHOENIX_DISABLE_AGENT_ASSISTANT`. |
-| `PHOENIX_AGENTS_DISABLE_GITHUB=true` | Disable PXI's GitHub issue tools and hide the GitHub settings UI. |
-| `PHOENIX_AGENTS_GITHUB_MCP_URL` | Base URL of the GitHub MCP server (default `https://api.githubcopilot.com/mcp/`). Point at a self-hosted `github-mcp-server` for GitHub Enterprise Server or air-gapped deployments. |
-| `GITHUB_PERSONAL_ACCESS_TOKEN` | Server-side fallback GitHub token, used when a request carries no personal token and no workspace secret is configured. |
-| `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local PXI tracing, remote trace export, and signed-in user email attribution for every user, regardless of workspace or browser settings. Configure the remote collector variables below before enabling it. |
+| `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including docs MCP lookups. |
+| `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable web search and fetch, leaving other external resources on. |
+| `PHOENIX_AGENTS_DISABLE_BASH=true` | Remove server-side bash. Also disables subagents and the headless terminal agent, which depend on it. |
+| `PHOENIX_AGENTS_DISABLE_GITHUB=true` | Disable GitHub issue tools and hide the GitHub settings UI. |
+| `PHOENIX_AGENTS_GITHUB_MCP_URL` | GitHub MCP server URL (default `https://api.githubcopilot.com/mcp/`). Point at a self-hosted server for GitHub Enterprise or air-gapped deployments. |
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | Server-side fallback GitHub token when no personal token or workspace secret is set. |
+| `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local tracing, remote export, and email attribution for every user. Configure the collector variables first. |
 | `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
 | `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |
-| `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project name for locally recorded assistant traces (default `assistant_agent`). |
+| `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project for locally recorded assistant traces (default `assistant_agent`). |
 
-When `phoenix serve` starts, it prints the assistant's effective configuration
-as part of the boot banner: whether the agent is enabled, the trace project,
-local and remote trace settings, web access, and whether server-side bash is
-on, so you can confirm what a deployment resolved to. A malformed
-`PHOENIX_AGENTS_*` value fails the server at startup, before migrations run,
-rather than surfacing later at request time.
+`phoenix serve` prints the resolved assistant configuration in its boot banner. A malformed `PHOENIX_AGENTS_*` value fails startup before migrations run.
 
 ## Feedback
 
