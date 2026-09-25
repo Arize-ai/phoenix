@@ -12,10 +12,7 @@ import { Text } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import { toastCSS } from "@phoenix/components/core/toast/styles";
 import { ToastPositioner } from "@phoenix/components/core/toast/ToastPositioner";
-import {
-  type NotificationParams,
-  toastQueue,
-} from "@phoenix/contexts/NotificationContext";
+import type { NotificationParams } from "@phoenix/contexts/NotificationContext";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
 
 const iconFromVariant = (
@@ -110,7 +107,7 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
                     // close on click by default
                     const closeOnClick = action.closeOnClick ?? true;
                     const close = () => {
-                      toastQueue?.close(toast.key);
+                      state?.close(toast.key);
                     };
                     // pass close callback to action for manual close ability
                     action.onClick(close);
