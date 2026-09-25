@@ -5849,6 +5849,22 @@
               "title": "Filter"
             },
             "description": "Span filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND."
+          },
+          {
+            "name": "attributes_format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "flattened",
+                "nested"
+              ],
+              "type": "string",
+              "description": "Shape of each span's `attributes`: `flattened` uses dotted keys; `nested` returns them as a nested JSON object.",
+              "default": "flattened",
+              "title": "Attributes Format"
+            },
+            "description": "Shape of each span's `attributes`: `flattened` uses dotted keys; `nested` returns them as a nested JSON object."
           }
         ],
         "responses": {

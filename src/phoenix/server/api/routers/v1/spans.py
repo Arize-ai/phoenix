@@ -39,7 +39,7 @@ from phoenix.server.authorization import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
-from phoenix.trace.attributes import flatten, unflatten
+from phoenix.trace.attributes import flatten, get_attribute_value, unflatten
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.dsl.filter import SpanFilter, SpanFilterError
 from phoenix.trace.schemas import (
@@ -1066,6 +1066,13 @@ async def span_search(
             "Combined with other filters using AND."
         ),
     ),
+    attributes_format: Literal["flattened", "nested"] = Query(
+        default="flattened",
+        description=(
+            "Shape of each span's `attributes`: `flattened` uses dotted keys; `nested` returns "
+            "them as a nested JSON object."
+        ),
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -1184,10 +1191,17 @@ async def span_search(
                 )
             )
 
-        attributes = {
-            k: v for k, v in flatten(span_orm.attributes or dict(), recurse_on_sequence=True)
-        }
-        openinference_span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
+        attributes: dict[str, Any]
+        if attributes_format == "nested":
+            attributes = dict(span_orm.attributes or {})
+            openinference_span_kind = (
+                get_attribute_value(attributes, "openinference.span.kind") or "UNKNOWN"
+            )
+        else:
+            attributes = {
+                k: v for k, v in flatten(span_orm.attributes or dict(), recurse_on_sequence=True)
+            }
+            openinference_span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
 
         result_spans.append(
             Span(
