@@ -35,6 +35,32 @@ describe("the binding preview", () => {
     container.remove();
   });
 
+  it("lists the three defaults first, then the evaluator's other variables", async () => {
+    await act(async () => {
+      root.render(
+        <EvaluatorInputVariablesContext.Provider value={["context", "input"]}>
+          <BindingPreview
+            context={getSampleSpanEvaluationContext().context}
+            grain="span"
+            inputMapping={{
+              pathMapping: { context: "metadata.name" },
+              literalMapping: {},
+            }}
+            isSampleContext={false}
+          />
+        </EvaluatorInputVariablesContext.Provider>
+      );
+    });
+
+    const keywords = [...container.querySelectorAll(".binding-row__keyword")];
+    expect(keywords.map((node) => node.textContent)).toEqual([
+      "input",
+      "output",
+      "metadata",
+      "context",
+    ]);
+  });
+
   it("renders each slot beside the path it reads", async () => {
     await act(async () => {
       root.render(
