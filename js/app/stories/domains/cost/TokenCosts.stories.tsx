@@ -1,289 +1,139 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Suspense } from "react";
 import { Pressable } from "react-aria";
 
-import { Loading, RichTooltip, TooltipTrigger } from "@phoenix/components";
+import {
+  RichTooltip,
+  Text,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 
 /**
- * TokenCosts displays a cost value with an icon. When composed with tooltips,
- * it can show detailed breakdowns of cost usage by token type and prompt/completion.
+ * TokenCosts displays a cost in dollars. Where a breakdown is available it is
+ * the trigger of a tooltip that splits the cost by prompt, completion and
+ * token type.
+ *
+ * This entry shows the cost itself and how its tooltip opens. The tooltip's
+ * content, `TokenCostsDetails`, is the cost side of `Token Details
+ * Breakdown`, and every shape it takes is documented there.
  */
 const meta = {
   title: "Domains/Cost/Token Costs",
   component: TokenCosts,
   parameters: {
     layout: "centered",
+    themeLayout: "row",
+    controls: { disable: true },
     design: {
       type: "figma",
       url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=569-583",
     },
   },
-  tags: ["legacy", "unreviewed"],
-  argTypes: {
-    children: {
-      control: "number",
-      description: "The cost value to display",
-    },
-    size: {
-      control: "select",
-      options: ["S", "M"],
-      description: "Size of the cost display",
-    },
-  },
+  tags: ["updated", "unreviewed", "incomplete"],
+  args: { children: 0.0342, size: "M" },
 } satisfies Meta<typeof TokenCosts>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/**
- * Basic cost display without tooltip.
- */
-export const Default: Story = {
-  args: {
-    children: 0.0342,
-    size: "M",
-  },
-};
+type CostValue = { label: string; value: number | null };
+
+/** The formatting cases: two decimals, under a cent, and no cost. */
+const VALUES: CostValue[] = [
+  { label: "High — 2.45", value: 2.45 },
+  { label: "Low — 0.001, under a cent", value: 0.001 },
+  { label: "No cost — null", value: null },
+];
+
+const SIZES: { label: string; size: "M" | "S" }[] = [
+  { label: "Default (M)", size: "M" },
+  { label: "Small (S)", size: "S" },
+];
 
 /**
- * Small size cost display.
+ * Both sizes against each kind of value. A cost of a cent or more shows two
+ * decimals, a smaller one reads "<$0.01", and a missing cost shows "--".
+ * Tables and session lists use the small size; the default is for headers
+ * and summaries.
  */
-export const Small: Story = {
-  args: {
-    children: 0.0156,
-    size: "S",
-  },
-};
-
-/**
- * High cost value.
- */
-export const HighCost: Story = {
-  args: {
-    children: 2.45,
-    size: "M",
-  },
-};
-
-/**
- * Very low cost value.
- */
-export const LowCost: Story = {
-  args: {
-    children: 0.001,
-    size: "M",
-  },
-};
-
-/**
- * Cost with null value (shows "--").
- */
-export const NullValue: Story = {
-  args: {
-    children: null,
-    size: "M",
-  },
-};
-
-/**
- * Cost with basic tooltip breakdown.
- */
-export const WithBasicTooltip: Story = {
-  render: (args) => (
-    <TooltipTrigger>
-      <Pressable>
-        <TokenCosts {...args} />
-      </Pressable>
-      <RichTooltip>
-        <TokenCostsDetails total={0.0342} prompt={0.023} completion={0.0112} />
-      </RichTooltip>
-    </TooltipTrigger>
+export const SizesAndValues: Story = {
+  name: "Sizes and Values",
+  render: () => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `auto repeat(${VALUES.length}, auto)`,
+        columnGap: 32,
+        rowGap: 16,
+        alignItems: "center",
+      }}
+    >
+      <div />
+      {VALUES.map(({ label }) => (
+        <Text key={label} size="S" color="text-700">
+          {label}
+        </Text>
+      ))}
+      {SIZES.map(({ label, size }) => [
+        <Text key={label} size="S" color="text-700">
+          {label}
+        </Text>,
+        ...VALUES.map(({ label: valueLabel, value }) => (
+          <TokenCosts key={`${label}-${valueLabel}`} size={size}>
+            {value}
+          </TokenCosts>
+        )),
+      ])}
+    </div>
   ),
-  args: {
-    children: 0.0342,
-    size: "M",
-  },
 };
 
 /**
- * Cost with comprehensive tooltip breakdown showing token types.
+ * How a cost opens its breakdown, as the span, trace and session cost cells
+ * compose it: the cost is a pressable button and the breakdown opens beside
+ * it. Held open through the trigger, so hovering or leaving the cost does not
+ * close it. What the breakdown can contain is documented in `Token Details
+ * Breakdown`.
  */
-export const WithDetailedTooltip: Story = {
-  render: (args) => (
-    <TooltipTrigger>
-      <Pressable>
-        <TokenCosts {...args} />
-      </Pressable>
-      <RichTooltip>
-        <TokenCostsDetails
-          total={0.157}
-          prompt={0.096}
-          completion={0.061}
-          promptDetails={{
-            input: 0.045,
-            cache_read: 0.012,
-            cache_write: 0.008,
-            tool: 0.021,
-            audio: 0.01,
-          }}
-          completionDetails={{
-            output: 0.035,
-            reasoning: 0.016,
-            function_calls: 0.01,
-          }}
-        />
-      </RichTooltip>
-    </TooltipTrigger>
-  ),
-  args: {
-    children: 0.157,
-    size: "M",
-  },
-};
-
-/**
- * Small cost with tooltip.
- */
-export const SmallWithTooltip: Story = {
-  render: (args) => (
-    <TooltipTrigger>
-      <Pressable>
-        <TokenCosts {...args} />
-      </Pressable>
-      <RichTooltip>
-        <TokenCostsDetails total={0.0156} prompt={0.0089} completion={0.0067} />
-      </RichTooltip>
-    </TooltipTrigger>
-  ),
-  args: {
-    children: 0.0156,
-    size: "S",
-  },
-};
-
-/**
- * Cost with loading state in tooltip.
- */
-export const WithLoadingTooltip: Story = {
-  render: (args) => (
-    <TooltipTrigger>
-      <Pressable>
-        <TokenCosts {...args} />
-      </Pressable>
-      <RichTooltip>
-        <Suspense fallback={<Loading />}>
+export const WithTooltip: Story = {
+  name: "With Tooltip",
+  render: () => (
+    // The open tooltip is portaled and takes no layout space, so reserve
+    // room for it beside the cost.
+    <div
+      style={{ display: "flex", alignItems: "center", width: 440, height: 480 }}
+    >
+      <TooltipTrigger isOpen>
+        <Pressable>
+          <TokenCosts role="button" tabIndex={0}>
+            {0.157}
+          </TokenCosts>
+        </Pressable>
+        <RichTooltip placement="end">
+          <TooltipArrow />
           <TokenCostsDetails
-            total={0.089}
-            prompt={0.052}
-            completion={0.037}
+            total={0.157}
+            prompt={0.096}
+            completion={0.061}
             promptDetails={{
-              input: 0.025,
-              cache_read: 0.015,
-              tool: 0.012,
+              input: 0.045,
+              cache_read: 0.012,
+              cache_write: 0.008,
+              tool: 0.021,
+              audio: 0.01,
             }}
             completionDetails={{
-              output: 0.025,
-              reasoning: 0.012,
+              output: 0.035,
+              reasoning: 0.016,
+              function_calls: 0.01,
             }}
           />
-        </Suspense>
-      </RichTooltip>
-    </TooltipTrigger>
+        </RichTooltip>
+      </TooltipTrigger>
+    </div>
   ),
-  args: {
-    children: 0.089,
-    size: "M",
-  },
-};
-
-/**
- * Cost showing prompt-only breakdown.
- */
-export const PromptOnlyTooltip: Story = {
-  render: (args) => (
-    <TooltipTrigger>
-      <Pressable>
-        <TokenCosts {...args} />
-      </Pressable>
-      <RichTooltip>
-        <TokenCostsDetails
-          prompt={0.0234}
-          promptDetails={{
-            input: 0.018,
-            tool: 0.0054,
-          }}
-        />
-      </RichTooltip>
-    </TooltipTrigger>
-  ),
-  args: {
-    children: 0.0234,
-    size: "M",
-  },
-};
-
-/**
- * Cost showing completion-only breakdown.
- */
-export const CompletionOnlyTooltip: Story = {
-  render: (args) => (
-    <TooltipTrigger>
-      <Pressable>
-        <TokenCosts {...args} />
-      </Pressable>
-      <RichTooltip>
-        <TokenCostsDetails
-          completion={0.0412}
-          completionDetails={{
-            output: 0.0312,
-            reasoning: 0.01,
-          }}
-        />
-      </RichTooltip>
-    </TooltipTrigger>
-  ),
-  args: {
-    children: 0.0412,
-    size: "M",
-  },
-};
-
-/**
- * High-cost scenario with detailed breakdown.
- */
-export const HighCostDetailed: Story = {
-  render: (args) => (
-    <TooltipTrigger>
-      <Pressable>
-        <TokenCosts {...args} />
-      </Pressable>
-      <RichTooltip>
-        <TokenCostsDetails
-          total={2.45}
-          prompt={1.23}
-          completion={1.22}
-          promptDetails={{
-            input: 0.45,
-            cache_read: 0.23,
-            cache_write: 0.15,
-            tool: 0.28,
-            audio: 0.12,
-          }}
-          completionDetails={{
-            output: 0.67,
-            reasoning: 0.35,
-            function_calls: 0.2,
-          }}
-        />
-      </RichTooltip>
-    </TooltipTrigger>
-  ),
-  args: {
-    children: 2.45,
-    size: "M",
-  },
 };
 
 /**

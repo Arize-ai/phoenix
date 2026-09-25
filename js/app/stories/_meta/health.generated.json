@@ -1,15 +1,15 @@
 {
   "generatedBy": "pnpm lint:stories",
   "totals": {
-    "files": 141
+    "files": 140
   },
   "tags": {
-    "legacy": 131,
-    "updated": 5,
+    "legacy": 125,
+    "updated": 10,
     "complete": 1,
-    "incomplete": 4,
+    "incomplete": 9,
     "reviewed": 0,
-    "unreviewed": 136,
+    "unreviewed": 135,
     "unused": 5
   },
   "sectionsWithDocsPage": [
@@ -39,7 +39,7 @@
     "Domains/App shell": 6,
     "Domains/Auth": 1,
     "Domains/Cost": 3,
-    "Domains/Experiments": 6,
+    "Domains/Experiments": 5,
     "Domains/Playground": 2,
     "Domains/Prompts": 1,
     "Domains/PXI": 14,
