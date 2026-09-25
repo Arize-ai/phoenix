@@ -15,6 +15,7 @@ from sqlalchemy import (
     Float,
     Insert,
     Integer,
+    and_,
     case,
     cast,
     column,
@@ -31,7 +32,6 @@ from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
-from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.selectable import ScalarSelect, Subquery
 from typing_extensions import assert_never
 
@@ -41,10 +41,6 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.eval_work import (
-    LIVE_EVAL_WORK_STATUSES,
-    SESSION_DECLINED_STATUSES,
-    TERMINAL_EVAL_SESSION_WORK_STATUSES,
-    live_eval_session_work_index_predicate,
     live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
 )
@@ -73,6 +69,9 @@ SWEEP_INTERVAL_SECONDS = 10.0
 TRACE_SWEEP_MAX_OUTSTANDING = 10_000
 
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
+# Work that ended without a result is offered again once its entity has newer activity.
+# DONE and declined rows are final.
+_REOFFERED_STATUSES = ("FAILED", "EXPIRED", "CONTENT_LOST")
 
 _EntityModel = type[models.ProjectSession] | type[models.Trace]
 _WorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
@@ -95,7 +94,6 @@ class _SweepTarget:
     sample_key_column: str
     work_unit_model: _WorkUnitModel
     work_unit_target_column: str
-    live_work_index_predicate: TextClause
     filtered_entity_rowids_subquery: Callable[
         [str, Sequence[int], Sequence[int]], ScalarSelect[int]
     ]
@@ -112,7 +110,6 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
         sample_key_column="session_id",
         work_unit_model=models.EvalSessionWorkUnit,
         work_unit_target_column="project_session_rowid",
-        live_work_index_predicate=text(live_eval_session_work_index_predicate()),
         filtered_entity_rowids_subquery=lambda condition, project_rowids, candidate_rowids: (
             get_filtered_session_rowids_subquery(
                 condition,
@@ -129,7 +126,6 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
         sample_key_column="trace_id",
         work_unit_model=models.EvalTraceWorkUnit,
         work_unit_target_column="trace_rowid",
-        live_work_index_predicate=text(live_eval_session_work_index_predicate()),
         filtered_entity_rowids_subquery=lambda condition, project_rowids, candidate_rowids: (
             get_filtered_trace_rowids_subquery(
                 condition,
@@ -211,32 +207,6 @@ def _project_evaluator_relation(
     )
 
 
-def _holds_live_key(work_unit: Any) -> ColumnElement[bool]:
-    holds: ColumnElement[bool] = work_unit.status.in_(
-        (*LIVE_EVAL_WORK_STATUSES, *SESSION_DECLINED_STATUSES)
-    )
-    return holds
-
-
-def _live_work_exists(
-    target: _SweepTarget,
-    project_evaluator_relation: Subquery,
-) -> ColumnElement[bool]:
-    """Whether the entity still holds a live dedup key for this criterion."""
-    live_work = aliased(target.work_unit_model)
-    return (
-        select(1)
-        .select_from(live_work)
-        .where(
-            getattr(live_work, target.work_unit_target_column) == target.entity_model.id,
-            live_work.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
-            _holds_live_key(live_work),
-        )
-        .correlate(target.entity_model, project_evaluator_relation)
-        .exists()
-    )
-
-
 def _eligible_pairs_relation(
     target: _SweepTarget,
     project_evaluators: Sequence[_SweepProjectEvaluator],
@@ -245,33 +215,7 @@ def _eligible_pairs_relation(
 ) -> Subquery:
     project_evaluator_relation = _project_evaluator_relation(project_evaluators, dialect)
     entity_model = target.entity_model
-    target_column = target.work_unit_target_column
-    successful_work = aliased(target.work_unit_model)
-    terminal_work = aliased(target.work_unit_model)
-    terminal_watermark = (
-        select(func.max(terminal_work.evaluated_through))
-        .where(
-            getattr(terminal_work, target_column) == entity_model.id,
-            terminal_work.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
-            terminal_work.status.in_(
-                (*TERMINAL_EVAL_SESSION_WORK_STATUSES, *SESSION_DECLINED_STATUSES)
-            ),
-        )
-        .correlate(entity_model, project_evaluator_relation)
-        .scalar_subquery()
-    )
-    successful_result_exists = (
-        select(1)
-        .select_from(successful_work)
-        .where(
-            getattr(successful_work, target_column) == entity_model.id,
-            successful_work.project_evaluator_id
-            == project_evaluator_relation.c.project_evaluator_id,
-            successful_work.status == "DONE",
-        )
-        .correlate(entity_model, project_evaluator_relation)
-        .exists()
-    )
+    work = aliased(target.work_unit_model)
     if dialect is SupportedSQLDialect.SQLITE:
         due_at = (
             cast(func.julianday(entity_model.last_span_ingested_at), Float) * 86_400
@@ -299,54 +243,79 @@ def _eligible_pairs_relation(
             getattr(entity_model, target.entity_project_id_column)
             == project_evaluator_relation.c.project_id,
         )
+        .outerjoin(
+            work,
+            and_(
+                getattr(work, target.work_unit_target_column) == entity_model.id,
+                work.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
+            ),
+        )
         .where(
             target.is_evaluable(),
             entity_model.last_span_ingested_at.is_not(None),
             entity_model.last_span_ingested_at >= project_evaluator_relation.c.sweep_floor,
             due_at <= current_time,
-            ~successful_result_exists,
-            ~_live_work_exists(target, project_evaluator_relation),
             or_(
-                terminal_watermark.is_(None),
-                terminal_watermark < entity_model.last_span_ingested_at,
+                work.id.is_(None),
+                _reofferable(work, entity_model.last_span_ingested_at),
             ),
         )
         .subquery("eligible_pairs")
     )
 
 
-def _work_insert_statement(
+def _work_write_statement(
     target: _SweepTarget,
     decisions: Sequence[dict[str, Any]],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Insert scheduling decisions, skipping any whose key already holds live work."""
+    """Write scheduling decisions: insert a row for a new pair, or re-offer the pair's
+    row in place when it ended without a result before the entity's latest activity."""
     work_unit_model = target.work_unit_model
     index_elements = (
         getattr(work_unit_model, target.work_unit_target_column),
         work_unit_model.project_evaluator_id,
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
-        return (
-            insert_postgresql(work_unit_model)
-            .values(decisions)
-            .on_conflict_do_nothing(
-                index_elements=index_elements,
-                index_where=target.live_work_index_predicate,
-            )
-            .returning(work_unit_model.status)
-        )
+        statement = insert_postgresql(work_unit_model).values(decisions)
+        excluded = statement.excluded
+        return statement.on_conflict_do_update(
+            index_elements=index_elements,
+            set_=_reoffer_values(excluded),
+            where=_reofferable(work_unit_model, excluded.evaluated_through),
+        ).returning(work_unit_model.status)
     if dialect is SupportedSQLDialect.SQLITE:
-        return (
-            insert_sqlite(work_unit_model)
-            .values(decisions)
-            .on_conflict_do_nothing(
-                index_elements=index_elements,
-                index_where=target.live_work_index_predicate,
-            )
-            .returning(work_unit_model.status)
-        )
+        sqlite_statement = insert_sqlite(work_unit_model).values(decisions)
+        sqlite_excluded = sqlite_statement.excluded
+        return sqlite_statement.on_conflict_do_update(
+            index_elements=index_elements,
+            set_=_reoffer_values(sqlite_excluded),
+            where=_reofferable(work_unit_model, sqlite_excluded.evaluated_through),
+        ).returning(work_unit_model.status)
     assert_never(dialect)
+
+
+def _reoffer_values(excluded: Any) -> dict[str, Any]:
+    """The new decision, with the retry state of the previous offer cleared."""
+    return {
+        "status": excluded.status,
+        "evaluated_through": excluded.evaluated_through,
+        "attempts": 0,
+        "error": None,
+        "claimed_at": None,
+        "claimed_by": None,
+        "cooldown_until": None,
+        "created_at": excluded.created_at,
+        "updated_at": excluded.updated_at,
+    }
+
+
+def _reofferable(work_unit: Any, activity_through: Any) -> ColumnElement[bool]:
+    reofferable: ColumnElement[bool] = and_(
+        work_unit.status.in_(_REOFFERED_STATUSES),
+        work_unit.evaluated_through < activity_through,
+    )
+    return reofferable
 
 
 class EvalSweeper(DaemonTask):
@@ -628,9 +597,9 @@ class EvalSweeper(DaemonTask):
         if not decisions:
             return 0, eligible_pair_count
         try:
-            inserted_statuses = (
+            written_statuses = (
                 await session.scalars(
-                    _work_insert_statement(
+                    _work_write_statement(
                         target,
                         decisions,
                         self._db.dialect,
@@ -639,7 +608,7 @@ class EvalSweeper(DaemonTask):
             ).all()
         except IntegrityError as error:
             raise _PageRowDeletedError(str(error.orig)) from error
-        return inserted_statuses.count("PENDING"), eligible_pair_count
+        return written_statuses.count("PENDING"), eligible_pair_count
 
     async def _advance_watermarks_to_due_horizon(
         self,

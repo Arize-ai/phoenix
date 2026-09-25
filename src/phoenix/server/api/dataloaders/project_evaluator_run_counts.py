@@ -26,11 +26,11 @@ _FAILED = "FAILED"
 
 @dataclass(frozen=True)
 class ProjectEvaluatorRunCounts:
-    """How much evaluation work a project evaluator has produced, and when.
+    """How many spans, traces, and sessions a project evaluator has evaluated, and when.
 
-    Counts cover every evaluation grain. Span counts reach back only as far as the
-    online-eval retention window, after which completed span work is reaped; session and
-    trace counts cover all time.
+    Each target counts once, in the bucket of its work unit's current state. Span counts
+    reach back only as far as the online-eval retention window, after which completed
+    span work is reaped; session and trace counts cover all time.
     """
 
     queued: int = 0
