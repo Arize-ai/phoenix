@@ -79,6 +79,8 @@ async function createProject(
 const EVALUATORS_URL = /\/projects\/[^/]+\/evaluators(\?|$)/;
 const NEW_LLM_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/new\/llm(\?|$)/;
 const EVALUATOR_GALLERY_URL = /\/projects\/[^/]+\/evaluators\/gallery(\?|$)/;
+const GALLERY_AGENTS_CATEGORY_URL =
+  /\/projects\/[^/]+\/evaluators\/gallery\?.*\bcategory=AGENTS\b/;
 const GALLERY_TEMPLATE_EVALUATOR_URL =
   /\/projects\/[^/]+\/evaluators\/gallery\/new\/template\/[^/?]+(\?|$)/;
 const EDIT_EVALUATOR_URL = /\/projects\/[^/]+\/evaluators\/[^/]+\/edit(\?|$)/;
@@ -418,21 +420,26 @@ test.describe.serial("Projects", () => {
     await expect(page).toHaveURL(EVALUATORS_URL);
 
     // The gallery is a route of its own, so it is linkable and closable with
-    // the browser's back button. A category card opens it on that category.
+    // the browser's back button.
     const gallery = page.getByRole("dialog", { name: "Evaluator gallery" });
-    await page.getByRole("link", { name: /^Agents/ }).click();
-    await expect(page).toHaveURL(/\/evaluators\/gallery\?.*category=AGENTS/);
+    await page.getByRole("link", { name: "Browse eval gallery" }).click();
+    await expect(page).toHaveURL(EVALUATOR_GALLERY_URL);
     await expect(gallery).toBeVisible();
     await page.goBack();
     await expect(gallery).not.toBeVisible();
     await expect(page).toHaveURL(EVALUATORS_URL);
 
-    await page.getByRole("link", { name: "Browse eval gallery" }).click();
-    await expect(page).toHaveURL(EVALUATOR_GALLERY_URL);
+    // A category card opens the gallery on that category's first template.
+    // Deliberately not the default card: custom evaluators sort ahead of the
+    // templates, and other specs create them on the shared server, so the
+    // default card is not reliably a template.
+    await page.getByRole("link", { name: /^Agents/ }).click();
+    await expect(page).toHaveURL(GALLERY_AGENTS_CATEGORY_URL);
     await expect(gallery).toBeVisible();
 
     // Dismissing the creation slideover returns to the gallery it was
-    // launched from: the slideover nests under the gallery route.
+    // launched from, still on its category: the slideover nests under the
+    // gallery route and keeps its search.
     await gallery
       .getByRole("button", { name: "Customize this evaluator" })
       .click();
@@ -443,7 +450,7 @@ test.describe.serial("Projects", () => {
     await expect(createDialog).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(createDialog).not.toBeVisible();
-    await expect(page).toHaveURL(EVALUATOR_GALLERY_URL);
+    await expect(page).toHaveURL(GALLERY_AGENTS_CATEGORY_URL);
     await expect(gallery).toBeVisible();
 
     // Creating one ends the journey on the list, showing the new evaluator.
