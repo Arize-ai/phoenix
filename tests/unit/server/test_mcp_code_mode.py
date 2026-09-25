@@ -265,7 +265,7 @@ async def test_guest_memory_limit_is_enforced(provider: MontyPoolSandboxProvider
 
 async def test_guest_duration_limit_is_enforced() -> None:
     """A compute-bound block is stopped by the guest duration limit."""
-    async with _standalone_provider(limits={"max_duration_secs": 1.0}) as provider:
+    async with _standalone_provider(limits={"max_feed_duration_secs": 1.0}) as provider:
         with pytest.raises(MontyRuntimeError) as exc_info:
             await provider.run("while True:\n    pass")
         assert "time limit" in str(exc_info.value).lower()
@@ -274,7 +274,7 @@ async def test_guest_duration_limit_is_enforced() -> None:
 async def test_turn_timeout_reports_a_tool_error() -> None:
     """``request_timeout`` reclaims a worker before its longer guest limit."""
     async with _standalone_provider(
-        limits={"max_duration_secs": 60.0}, request_timeout=2.0
+        limits={"max_feed_duration_secs": 60.0}, request_timeout=2.0
     ) as provider:
         with pytest.raises(ToolError, match="stopped responding"):
             await provider.run("while True:\n    pass")
@@ -299,7 +299,7 @@ async def test_total_timeout_bounds_a_block_dominated_by_tool_calls() -> None:
 
     code = "i = 0\nwhile i < 30:\n    r = await call_tool('t', {})\n    i = i + 1\nreturn i"
     async with _standalone_provider(
-        limits={"max_duration_secs": 60.0},
+        limits={"max_feed_duration_secs": 60.0},
         request_timeout=60.0,
         total_timeout=3.0,
     ) as provider:
@@ -465,7 +465,7 @@ async def test_concurrent_runs_all_complete(provider: MontyPoolSandboxProvider) 
 async def test_saturated_pool_reports_a_tool_error() -> None:
     """Overload is reported as a busy sandbox instead of queueing without bound."""
     async with _standalone_provider(
-        limits={"max_duration_secs": 3.0},
+        limits={"max_feed_duration_secs": 3.0},
         max_processes=1,
         checkout_timeout=0.5,
     ) as provider:
@@ -487,7 +487,7 @@ async def test_cancelled_run_releases_its_worker_within_the_guest_limit() -> Non
     """
     limit = 2.0
     async with _standalone_provider(
-        limits={"max_duration_secs": limit},
+        limits={"max_feed_duration_secs": limit},
         max_processes=1,
         checkout_timeout=10.0,
     ) as provider:
@@ -547,7 +547,7 @@ async def test_runtime_close_forces_pool_close_after_grace_period(
 ) -> None:
     monkeypatch.setattr("phoenix.server.monty_runtime.SHUTDOWN_GRACE_TIMEOUT", 0.1)
     runtime = MontyRuntime()
-    provider = MontyPoolSandboxProvider(runtime=runtime, limits={"max_duration_secs": 3.0})
+    provider = MontyPoolSandboxProvider(runtime=runtime, limits={"max_feed_duration_secs": 3.0})
     running = asyncio.create_task(provider.run("while True:\n    pass"))
     try:
         await asyncio.sleep(0.5)
