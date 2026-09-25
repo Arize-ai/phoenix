@@ -367,7 +367,15 @@ const categoryCardCSS = css`
   border-radius: var(--global-rounding-small);
   transition: background-color 0.15s ease;
 
-  &:has(> button:hover) {
+  /* The summary is a Link, whose wrapper must be the flex item that
+     stretches the summary to the card's height, above the template links. */
+  > .link-container {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &:has(> .link-container a:hover) {
     background-color: var(--global-card-header-background-color-hover);
   }
 `;
