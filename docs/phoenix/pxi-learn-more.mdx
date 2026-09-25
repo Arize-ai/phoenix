@@ -61,12 +61,12 @@ Agent assistance is opt-in.
 
 ### Privacy and tracing
 
-PXI runs inside the Phoenix process you already run, against your data, calling your model provider with your key. Arize is not in the request path. Docs lookups go to the public Phoenix docs MCP server when external resources are allowed.
+PXI runs inside your Phoenix process, on your data, with your model key. Arize is not in the request path.
 
-- **Bash runs on the server** in an in-process virtual shell with no network, scoped to a scratch workspace. `PHOENIX_AGENTS_DISABLE_BASH=true` removes it.
-- **PXI sees whatever the signed-in user can see**, so be deliberate about pointing it at sensitive production data.
-- **Conversations can be recorded as traces** in the `assistant_agent` project. Off by default; administrators control it under **Settings → Assistant**. Remote export needs a configured collector, an administrator setting, and the user's opt-in. Attach your email under **Tracing & privacy**, or pass `--attach-user-id` in the terminal.
-- **Treat outputs as suggestions.** PXI makes mistakes, especially on long traces or unfamiliar frameworks.
+- **Bash** runs in a sandboxed shell on the server with no network. `PHOENIX_AGENTS_DISABLE_BASH=true` removes it.
+- **PXI sees whatever you can see**, so be deliberate on sensitive data.
+- **Chats can be recorded as traces** in the `assistant_agent` project. Off by default; administrators turn it on under **Settings → Assistant**.
+- **PXI makes mistakes.** Treat its output as suggestions.
 
 ### Configuration reference
 
