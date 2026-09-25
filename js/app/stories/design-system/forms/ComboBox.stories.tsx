@@ -8,9 +8,11 @@ import {
   ComboBoxItem,
 } from "@phoenix/components/core/combobox/ComboBox";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
 const meta: Meta = {
   title: "Design System/Forms/Combo Box",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: ComboBox,
   argTypes: {
     label: {
@@ -78,6 +80,7 @@ const Template: StoryFn<ComboBoxProps<object>> = (args) => (
 );
 
 export const Default = {
+  tags: ["!dev"],
   render: Template,
 
   args: {
@@ -86,6 +89,7 @@ export const Default = {
 };
 
 export const KeyboardNavigation = {
+  tags: ["!dev"],
   render: () => (
     <View width="300px">
       <Flex direction="column" gap="size-100">
@@ -106,68 +110,82 @@ export const KeyboardNavigation = {
   ),
 };
 
-export function Gallery() {
+const FLAVORS = ["Chocolate", "Mint", "Strawberry", "Vanilla"];
+
+const STATES: { label: string; props: Partial<ComboBoxProps<object>> }[] = [
+  { label: "empty", props: {} },
+  { label: "populated", props: { defaultSelectedKey: "mint" } },
+  {
+    label: "read only",
+    props: { isReadOnly: true, defaultSelectedKey: "mint" },
+  },
+  {
+    label: "disabled",
+    props: { isDisabled: true, defaultSelectedKey: "mint" },
+  },
+  {
+    label: "error",
+    props: { errorMessage: "Pick a flavor that is in stock" },
+  },
+];
+
+const SIZES = (["S", "M", "L"] as const).map((size) => ({
+  label: size,
+  code: true,
+  size,
+}));
+
+function FlavorComboBox(props: Partial<ComboBoxProps<object>>) {
   return (
-    <Flex direction="column" gap="size-200">
-      <ComboBox label="Ice cream flavor">
-        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-          Chocolate
+    <ComboBox label="Ice cream flavor" width="200px" {...props}>
+      {FLAVORS.map((flavor) => (
+        <ComboBoxItem
+          key={flavor}
+          // React Aria reads an item's id, not React's key, so a
+          // selection can only be set on items that have one.
+          id={flavor.toLowerCase()}
+          textValue={flavor}
+        >
+          {flavor}
         </ComboBoxItem>
-        <ComboBoxItem textValue="Mint" key={"mint"}>
-          Mint
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-          Strawberry
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-          Vanilla
-        </ComboBoxItem>
-      </ComboBox>
-      <ComboBox label="Ice cream flavor (Invalid)" isInvalid>
-        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-          Chocolate
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Mint" key={"mint"}>
-          Mint
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-          Strawberry
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-          Vanilla
-        </ComboBoxItem>
-      </ComboBox>
-      <ComboBox label="Ice cream flavor (Disabled)" isDisabled>
-        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-          Chocolate
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Mint" key={"mint"}>
-          Mint
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-          Strawberry
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-          Vanilla
-        </ComboBoxItem>
-      </ComboBox>
-      <ComboBox label="Ice cream flavor (L)" size="L">
-        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-          Chocolate
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Mint" key={"mint"}>
-          Mint
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-          Strawberry
-        </ComboBoxItem>
-        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-          Vanilla
-        </ComboBoxItem>
-      </ComboBox>
-    </Flex>
+      ))}
+    </ComboBox>
   );
 }
+
+export const StatesAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={STATES}
+    columns={SIZES}
+    cellWidth={"200px"}
+    alignRows="start"
+    renderCell={(state, size) => (
+      <FlavorComboBox size={size?.size} {...state.props} />
+    )}
+  />
+);
+StatesAndSizes.parameters = { themeLayout: "column" };
+StatesAndSizes.tags = ["!dev"];
+
+const SLOTS: { label: string; props: Partial<ComboBoxProps<object>> }[] = [
+  { label: "Bare", props: {} },
+  { label: "Description", props: { description: "Shown on the menu page" } },
+];
+
+export const StatesAndSlots: StoryFn = () => (
+  <OptionGrid
+    rows={STATES}
+    columns={SLOTS}
+    cellWidth={"200px"}
+    alignRows="start"
+    renderCell={(state, slot) => (
+      <FlavorComboBox {...slot?.props} {...state.props} />
+    )}
+  />
+);
+StatesAndSlots.storyName = "States and Slots";
+StatesAndSlots.parameters = { themeLayout: "column" };
+StatesAndSlots.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj<ComboBoxProps<object>> = {
