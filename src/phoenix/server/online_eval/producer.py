@@ -1,11 +1,11 @@
 """Online-eval producer daemon.
 
 Materializes span-level eval work units from enabled project evaluators.
-The producer runs on every replica but self-elects each tick via the
-``eval_work_cursors`` CAS lease, so exactly one replica per evaluation target
-scans spans and writes work rows at a time. Each tick: renew the lease, reap
-expired/aged work rows, scan the lag-gated span id window per project evaluator, and
-idempotently insert surviving (span, evaluator, config) work units. A slow-cadence
+The producer runs on every replica. The ``eval_work_cursors`` lease keeps one replica
+scanning at a time so scans aren't repeated; correctness rests on the unique
+(span, evaluator, config) work-unit key, which absorbs duplicate inserts. Each tick:
+renew the lease, reap expired/aged work rows, scan the lag-gated span id window per
+project evaluator, and insert surviving work units. A slow-cadence
 backstop sweep re-covers a bounded id window behind the watermark to catch spans
 that became visible after their window was scanned.
 """
@@ -124,9 +124,9 @@ class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
     ``produced_through_id`` is a position in that log: every span at or below it has
-    been offered to every enabled SPAN project evaluator. Session work is materialized from
-    entity state instead, by ``EvalSweeper`` — a session becomes eligible when it
-    goes quiet, which no position in an arrival log can express.
+    been offered to every enabled SPAN project evaluator. Session and trace work are
+    materialized from entity state instead, by ``EvalSweeper`` — a session or trace
+    becomes eligible when it goes quiet, which no position in an arrival log can express.
     """
 
     def __init__(
