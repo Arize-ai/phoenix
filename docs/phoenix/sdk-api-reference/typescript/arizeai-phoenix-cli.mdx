@@ -883,6 +883,48 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes    # Skip the pro
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
+### `px secret set [key]`
+
+Create or update Phoenix secrets (encrypted LLM provider credentials such as `OPENAI_API_KEY`) in one atomic `PUT /v1/secrets`. Requires an **admin** API key.
+
+Secret values are never accepted on the command line — anything in argv is recorded in shell history and visible through `ps` and CI logs. The value for `<key>` is read from stdin (piped, or a hidden prompt on a terminal) or from `--value-file`; batches come from `--from-env` (environment variable names) or `--env-file` (a dotenv file). Output and errors name only the affected keys.
+
+```bash
+printf '%s' "$OPENAI_API_KEY" | px secret set OPENAI_API_KEY            # Value from stdin
+px secret set OPENAI_API_KEY                                             # Hidden prompt on a terminal
+px secret set ANTHROPIC_API_KEY --value-file ./anthropic.key             # Value from a file
+px secret set --from-env OPENAI_API_KEY --from-env ANTHROPIC_API_KEY     # Copy from the environment by name
+px secret set --env-file ./secrets.env --format raw --no-progress | jq -r '.upserted_keys[]'  # Dotenv batch
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--value-file <path>` | Read the value for `<key>` from a file (`-` for stdin) | stdin |
+| `--from-env <NAME>` | Set secret `NAME` to the value of environment variable `NAME` (repeatable) | — |
+| `--env-file <path>` | Set every `KEY=value` line of a dotenv file (`-` for stdin; repeatable) | — |
+| `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+When a key appears in more than one source, the positional `<key>` wins over `--from-env`, which wins over `--env-file`. Passing `KEY=value` as the argument, an empty value, or an unset `--from-env` variable exits `INVALID_ARGUMENT` before any request is made, and the offending text is never echoed. `json`/`raw` output is `{"upserted_keys": [...], "deleted_keys": [...]}`.
+
+### `px secret delete <keys...>`
+
+Delete one or more secrets in a single atomic request. Requires an **admin** API key. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed. Deleting a key that does not exist succeeds silently.
+
+```bash
+px secret delete OPENAI_API_KEY                            # Interactive confirmation
+px secret delete OPENAI_API_KEY ANTHROPIC_API_KEY --yes    # Skip the prompt (scripts/agents)
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
 ### `px auth login`
 
 Log in with the browser-based OAuth flow and store tokens on the selected profile. The login URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in, and the CLI refreshes expiring access tokens automatically for REST, GraphQL, and PXI requests.

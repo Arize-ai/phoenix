@@ -228,6 +228,18 @@ describe("Phoenix CLI", () => {
     ).toContain("delete");
   });
 
+  it("should register set and delete subcommands for secret", () => {
+    const program = createProgram();
+    const secretCommand = program.commands.find(
+      (command) => command.name() === "secret"
+    );
+
+    expect(secretCommand).toBeDefined();
+    expect(secretCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["set", "delete"])
+    );
+  });
+
   it("should register delete subcommand for prompt", () => {
     const program = createProgram();
     const promptCommand = program.commands.find(
