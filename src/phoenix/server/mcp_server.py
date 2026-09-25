@@ -465,6 +465,7 @@ def build_phoenix_mcp_server(
     monty_consumer: "MontyConsumer" = "mcp",
     read_only: bool = False,
     db: "DbSessionFactory",
+    graphql_tools: bool = False,
     skills_roots: Sequence[Path] = (),
     external_skills: Sequence[Skill] = (),
 ) -> tuple[FastMCP, Optional[MontyPoolSandboxProvider]]:
@@ -484,6 +485,9 @@ def build_phoenix_mcp_server(
         read_only: Derive tools from GET routes, plus the routes that create
             span, trace, and session notes.
         db: Session factory for the analytics SQL tools.
+        graphql_tools: Register the GraphQL schema and query tools. Off by
+            default: a consumer that reaches GraphQL another way must not carry
+            a second, ungated path to it.
         skills_roots: Directories whose skill folders this consumer receives.
             Empty by default: no skill tools, and no skill instructions
             advertised.
@@ -546,6 +550,10 @@ def build_phoenix_mcp_server(
     from phoenix.server.mcp.sql.tools import register_analytics_sql_tools
 
     register_analytics_sql_tools(mcp, db=db)
+    if graphql_tools:
+        from phoenix.server.mcp.graphql.tools import register_graphql_tools
+
+        register_graphql_tools(mcp, app=app)
     if skills:
         register_skill_tools(mcp, skills)
     return mcp, sandbox_provider
@@ -568,6 +576,7 @@ def create_phoenix_mcp_app(
         monty_runtime=monty_runtime,
         code_mode=get_env_mcp_code_mode(),
         db=db,
+        graphql_tools=True,
         skills_roots=(SHARED_SKILLS_ROOT,),
         external_skills=external_skills,
     )
