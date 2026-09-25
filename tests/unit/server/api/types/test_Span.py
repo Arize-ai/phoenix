@@ -13,11 +13,11 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.api.helpers.dataset_helpers import span_eval_context
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.online_eval.executor import span_eval_context
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient

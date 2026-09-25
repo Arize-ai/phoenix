@@ -8,7 +8,13 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
+from phoenix.server.api.input_types.CreateDatasetFromSpansInput import (
+    MAX_SPANS_PER_DATASET_EXPORT,
+)
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.online_eval.coordinator import ClaimedWorkUnit
+from phoenix.server.online_eval.executor import _load_span_context
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -367,6 +373,179 @@ async def test_add_span_to_dataset(
             }
         }
     }
+
+
+class TestCreateDatasetFromSpans:
+    MUTATION = """
+      mutation ($input: CreateDatasetFromSpansInput!) {
+        createDatasetFromSpans(input: $input) {
+          dataset {
+            name
+            metadata
+            examples {
+              edges {
+                example: node {
+                  span {
+                    id
+                  }
+                  revision {
+                    input
+                    output
+                    metadata
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    @staticmethod
+    def _input(**overrides: Any) -> dict[str, Any]:
+        return {
+            "projectId": str(GlobalID(type_name="Project", node_id="1")),
+            "name": "exported spans",
+            **overrides,
+        }
+
+    @staticmethod
+    def _example_span_ids(data: Any) -> list[str]:
+        return [
+            edge["example"]["revision"]["metadata"]["span_id"]
+            for edge in data["createDatasetFromSpans"]["dataset"]["examples"]["edges"]
+        ]
+
+    async def test_exports_the_latest_matching_spans(
+        self,
+        gql_client: AsyncGraphQLClient,
+        spans: list[models.Span],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "input": self._input(
+                    filterCondition="span_kind == 'LLM' or span_kind == 'RETRIEVER'",
+                    limit=1,
+                    metadata={"source": "project_evaluator"},
+                )
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        dataset = response.data["createDatasetFromSpans"]["dataset"]
+        assert dataset["name"] == "exported spans"
+        assert dataset["metadata"] == {"source": "project_evaluator"}
+        # The retriever and LLM spans start together; the later-ingested one wins the tie.
+        assert self._example_span_ids(response.data) == ["3"]
+
+    async def test_an_empty_filter_exports_every_span_in_the_project(
+        self,
+        gql_client: AsyncGraphQLClient,
+        spans: list[models.Span],
+    ) -> None:
+        response = await gql_client.execute(query=self.MUTATION, variables={"input": self._input()})
+        assert not response.errors
+        assert sorted(self._example_span_ids(response.data)) == ["1", "2", "3"]
+
+    async def test_examples_match_the_context_online_evaluation_builds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        spans: list[models.Span],
+        span_annotation: None,
+    ) -> None:
+        """An evaluator run on an exported example must see what it sees on the span."""
+        response = await gql_client.execute(query=self.MUTATION, variables={"input": self._input()})
+        assert not response.errors
+        assert response.data is not None
+        edges = response.data["createDatasetFromSpans"]["dataset"]["examples"]["edges"]
+        assert len(edges) == len(spans)
+        async with db() as session:
+            for edge in edges:
+                span_rowid = int(GlobalID.from_id(edge["example"]["span"]["id"]).node_id)
+                online_context = await _load_span_context(
+                    session,
+                    _claimed_span_unit(span_rowid),
+                    project_id=1,
+                    target_vocabularies={},
+                )
+                assert isinstance(online_context, tuple)
+                context, _ = online_context
+                revision = edge["example"]["revision"]
+                example_context = dataset_example_eval_context(
+                    input=revision["input"],
+                    output=revision["output"],
+                    metadata=revision["metadata"],
+                )
+                assert example_context == context
+
+    async def test_no_matching_spans_is_rejected_without_creating_a_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        spans: list[models.Span],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"input": self._input(filterCondition="span_kind == 'TOOL'")},
+        )
+        assert response.errors
+        assert "No spans" in response.errors[0].message
+        async with db() as session:
+            assert await session.scalar(select(func.count(models.Dataset.id))) == 0
+
+    async def test_an_invalid_filter_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        spans: list[models.Span],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"input": self._input(filterCondition="span_kind ==")},
+        )
+        assert response.errors
+        assert "Invalid filter condition" in response.errors[0].message
+
+    @pytest.mark.parametrize("limit", [0, MAX_SPANS_PER_DATASET_EXPORT + 1])
+    async def test_a_limit_out_of_range_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        spans: list[models.Span],
+        limit: int,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION, variables={"input": self._input(limit=limit)}
+        )
+        assert response.errors
+        assert "limit must be between" in response.errors[0].message
+
+    async def test_a_duplicate_name_returns_conflict(
+        self,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: None,
+        spans: list[models.Span],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION, variables={"input": self._input(name="empty dataset")}
+        )
+        assert response.errors
+        assert "already exists" in response.errors[0].message
+
+
+def _claimed_span_unit(span_rowid: int) -> ClaimedWorkUnit:
+    return ClaimedWorkUnit(
+        work_unit_id=1,
+        evaluation_target="SPAN",
+        target_rowid=span_rowid,
+        evaluator_id=1,
+        project_evaluator_id=1,
+        config_fingerprint="fingerprint",
+        identifier="online:fingerprint",
+        attempts=0,
+        claimed_by="consumer",
+        lease_expires_at=datetime.now(timezone.utc),
+    )
 
 
 class TestPatchDatasetExamples:

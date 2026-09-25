@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional, cast
@@ -11,7 +11,6 @@ from openinference.semconv.trace import (
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager, joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
@@ -23,13 +22,13 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.dataset_helpers import (
-    get_dataset_example_input,
-    get_dataset_example_metadata,
-    get_dataset_example_output,
+    SPAN_EVAL_CONTEXT_LOAD_OPTIONS,
+    span_eval_context,
 )
 from phoenix.server.api.helpers.expected_outputs import set_expected_output
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
+from phoenix.server.api.input_types.CreateDatasetFromSpansInput import CreateDatasetFromSpansInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
@@ -48,9 +47,12 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
+from phoenix.server.span_filters import select_project_span_rowids
+from phoenix.trace.dsl.filter import SpanFilter, SpanFilterError, validate_span_filter_condition
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 _MAX_REPORTED_EXAMPLE_IDS = 10
@@ -157,6 +159,69 @@ async def _insert_dataset_examples(
         raise
 
 
+async def _insert_span_examples(
+    session: AsyncSession,
+    *,
+    dataset_id: int,
+    dataset_version_id: int,
+    span_rowids: Collection[int],
+) -> None:
+    """
+    Adds one example per span to the dataset, linked to its span, with a CREATE
+    revision in the given version.
+
+    Each example holds the span's evaluation context, loaded the way online
+    evaluation loads it, so an evaluator run on the example sees what it would
+    see on the span.
+    """
+    spans = (
+        await session.scalars(
+            select(models.Span)
+            .where(models.Span.id.in_(span_rowids))
+            .order_by(models.Span.id)
+            .options(*SPAN_EVAL_CONTEXT_LOAD_OPTIONS)
+        )
+    ).all()
+    if set(span_rowids) - {span.id for span in spans}:
+        raise NotFound("Some spans could not be found")
+
+    DatasetExample = models.DatasetExample
+    dataset_example_rowids = (
+        await session.scalars(
+            insert(DatasetExample).returning(DatasetExample.id),
+            [
+                {
+                    DatasetExample.dataset_id.key: dataset_id,
+                    DatasetExample.span_rowid.key: span.id,
+                }
+                for span in spans
+            ],
+        )
+    ).all()
+    assert len(dataset_example_rowids) == len(spans)
+    assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
+    DatasetExampleRevision = models.DatasetExampleRevision
+
+    revisions = []
+    for dataset_example_rowid, span in zip(dataset_example_rowids, spans):
+        context = span_eval_context(
+            span,
+            trace_id=span.trace.trace_id,
+            annotations=span.span_annotations,
+        )
+        revisions.append(
+            {
+                DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
+                DatasetExampleRevision.dataset_version_id.key: dataset_version_id,
+                DatasetExampleRevision.input.key: context["input"],
+                DatasetExampleRevision.output.key: context["output"],
+                DatasetExampleRevision.metadata_.key: context["metadata"],
+                DatasetExampleRevision.revision_kind.key: "CREATE",
+            }
+        )
+    await session.execute(insert(DatasetExampleRevision), revisions)
+
+
 @strawberry.type
 class DatasetMutationPayload:
     dataset: Dataset
@@ -198,6 +263,71 @@ class DatasetMutationMixin:
                 # integrity error here means that name is already taken.
                 raise Conflict(f"A dataset named {name!r} already exists.")
             assert dataset is not None
+        info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
+        return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def create_dataset_from_spans(
+        self,
+        info: Info[Context, None],
+        input: CreateDatasetFromSpansInput,
+    ) -> DatasetMutationPayload:
+        """
+        Creates a dataset from the latest spans in a project that match a span filter,
+        selected the way online span evaluators select the spans they score.
+        """
+        project_rowid = from_global_id_with_expected_type(
+            global_id=input.project_id, expected_type_name=Project.__name__
+        )
+        try:
+            validate_span_filter_condition(input.filter_condition)
+        except SpanFilterError as error:
+            raise BadRequest(f"Invalid filter condition: {error}")
+        except Exception:
+            raise BadRequest("Invalid filter condition: unable to compile for supported databases")
+        span_filter = SpanFilter(condition=input.filter_condition)
+        name = input.name
+        description = input.description if input.description is not UNSET else None
+        async with info.context.db() as session:
+            if await session.get(models.Project, project_rowid) is None:
+                raise NotFound(f"Unknown project: {input.project_id}")
+            span_rowids = (
+                await session.scalars(
+                    select_project_span_rowids(project_rowid, span_filter)
+                    .order_by(models.Span.start_time.desc(), models.Span.id.desc())
+                    .limit(input.limit)
+                )
+            ).all()
+            if not span_rowids:
+                raise BadRequest("No spans in this project match the filter condition.")
+            try:
+                dataset = await session.scalar(
+                    insert(models.Dataset)
+                    .values(
+                        name=name,
+                        description=description,
+                        metadata_=input.metadata or {},
+                        user_id=info.context.user_id,
+                    )
+                    .returning(models.Dataset)
+                )
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"A dataset named {name!r} already exists.")
+            assert dataset is not None
+            dataset_version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                description=None,
+                metadata_={},
+                user_id=info.context.user_id,
+            )
+            session.add(dataset_version)
+            await session.flush()
+            await _insert_span_examples(
+                session,
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                span_rowids=span_rowids,
+            )
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
@@ -268,69 +398,11 @@ class DatasetMutationMixin:
             )
             session.add(dataset_version)
             await session.flush()
-            spans = (
-                (
-                    await session.scalars(
-                        select(models.Span)
-                        .outerjoin(
-                            models.SpanAnnotation,
-                            models.Span.id == models.SpanAnnotation.span_rowid,
-                        )
-                        .outerjoin(models.User, models.SpanAnnotation.user_id == models.User.id)
-                        .order_by(
-                            models.Span.id,
-                            models.SpanAnnotation.name,
-                            models.User.username,
-                        )
-                        .where(models.Span.id.in_(span_rowids))
-                        .options(
-                            joinedload(models.Span.trace),
-                            contains_eager(models.Span.span_annotations).contains_eager(
-                                models.SpanAnnotation.user
-                            ),
-                        )
-                    )
-                )
-                .unique()
-                .all()
-            )
-            if span_rowids - {span.id for span in spans}:
-                raise NotFound("Some spans could not be found")
-
-            DatasetExample = models.DatasetExample
-            dataset_example_rowids = (
-                await session.scalars(
-                    insert(DatasetExample).returning(DatasetExample.id),
-                    [
-                        {
-                            DatasetExample.dataset_id.key: dataset_rowid,
-                            DatasetExample.span_rowid.key: span.id,
-                        }
-                        for span in spans
-                    ],
-                )
-            ).all()
-            assert len(dataset_example_rowids) == len(spans)
-            assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
-            DatasetExampleRevision = models.DatasetExampleRevision
-
-            await session.execute(
-                insert(DatasetExampleRevision),
-                [
-                    {
-                        DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
-                        DatasetExampleRevision.dataset_version_id.key: dataset_version.id,
-                        DatasetExampleRevision.input.key: get_dataset_example_input(span),
-                        DatasetExampleRevision.output.key: get_dataset_example_output(span),
-                        DatasetExampleRevision.metadata_.key: get_dataset_example_metadata(
-                            span,
-                            trace_id=span.trace.trace_id,
-                            annotations=span.span_annotations,
-                        ),
-                        DatasetExampleRevision.revision_kind.key: "CREATE",
-                    }
-                    for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
-                ],
+            await _insert_span_examples(
+                session,
+                dataset_id=dataset_rowid,
+                dataset_version_id=dataset_version.id,
+                span_rowids=span_rowids,
             )
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
