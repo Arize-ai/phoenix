@@ -23,6 +23,10 @@ tenacity
 tiktoken
 typing-extensions
 vcrpy>=8.3
+# Registers the WASM sandbox adapter, whose probe_dependencies imports wasmtime.
+# Without it CI never seeds the default WASM config and never exercises any path
+# behind SANDBOX_ADAPTERS.get("WASM"), which a developer with the extras does.
+wasmtime>=15.0
 pytest-smtpd
 freezegun
 aiosqlite>=0.22.1
