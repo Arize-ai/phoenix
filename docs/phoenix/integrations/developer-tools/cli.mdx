@@ -10,9 +10,11 @@ description: Let any coding agent query your Phoenix traces, datasets, experimen
 
 Both reach the same Phoenix data, and running both is fine.
 
+- **CLI**: best when your agent has a shell. Every step is a visible `px` command you can rerun yourself, and it works in scripts and CI.
+- **MCP server**: best when your agent has no shell, such as Claude Desktop, or you want it to chain many operations in one call with nothing installed. The Claude Code and Codex plugins set it up for you.
+
 | | Phoenix CLI (`px`) | [MCP server](/docs/phoenix/integrations/mcp) |
 | --- | --- | --- |
-| Pick it when | Your agent has a terminal and you want to see each command it runs, or you are scripting in CI | Your agent has no shell (Claude Desktop), you use the Claude Code or Codex plugin, or you want nothing installed |
 | Client needs | The ability to run shell commands | MCP support, a config entry, and a login |
 | Setup | Install, set `PHOENIX_ENDPOINT` | `px setup mcp --agent <agent>` |
 | Surface | The `px` commands | Around 116 operations, composed in one `execute` call |
