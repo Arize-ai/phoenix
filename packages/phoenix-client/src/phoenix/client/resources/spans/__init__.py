@@ -5,7 +5,18 @@ import logging
 import warnings
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+    cast,
+    overload,
+)
 
 import httpx
 from typing_extensions import TypeAlias
@@ -105,6 +116,43 @@ SpanNoteData = v1.SpanNoteData
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 _SPAN_PAGE_SIZE = 100
+
+
+def _span_from_json(item: Mapping[str, Any]) -> v1.Span:
+    context = item["context"]
+    span = v1.Span(
+        name=item["name"],
+        context=v1.SpanContext(trace_id=context["trace_id"], span_id=context["span_id"]),
+        span_kind=item["span_kind"],
+        start_time=item["start_time"],
+        end_time=item["end_time"],
+        status_code=item["status_code"],
+    )
+    if "id" in item:
+        span["id"] = item["id"]
+    if "parent_id" in item:
+        span["parent_id"] = item["parent_id"]
+    if "status_message" in item:
+        span["status_message"] = item["status_message"]
+    if "attributes" in item:
+        span["attributes"] = item["attributes"]
+    if "events" in item:
+        span["events"] = [_span_event_from_json(event) for event in item["events"]]
+    return span
+
+
+def _span_event_from_json(item: Mapping[str, Any]) -> v1.SpanEvent:
+    event = v1.SpanEvent(name=item["name"], timestamp=item["timestamp"])
+    if "attributes" in item:
+        event["attributes"] = item["attributes"]
+    return event
+
+
+def _spans_page_from_json(body: Mapping[str, Any]) -> v1.SpansResponseBody:
+    return v1.SpansResponseBody(
+        data=[_span_from_json(item) for item in body["data"]],
+        next_cursor=body["next_cursor"],
+    )
 
 
 def _span_list_params(
@@ -560,7 +608,6 @@ class Spans:
         order: Optional[SortOrder] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.SpansResponseBody:
-        """Fetch one page of spans; ``get_spans`` follows ``next_cursor`` across pages."""
         response = self._client.get(
             url=f"v1/projects/{project_identifier}/spans",
             params=_span_list_params(
@@ -582,7 +629,7 @@ class Spans:
             timeout=timeout,
         )
         response.raise_for_status()
-        return cast(v1.SpansResponseBody, response.json())
+        return _spans_page_from_json(response.json())
 
     def get_spans(
         self,
@@ -1885,7 +1932,6 @@ class AsyncSpans:
         order: Optional[SortOrder] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.SpansResponseBody:
-        """Fetch one page of spans; ``get_spans`` follows ``next_cursor`` across pages."""
         response = await self._client.get(
             url=f"v1/projects/{project_identifier}/spans",
             params=_span_list_params(
@@ -1907,7 +1953,7 @@ class AsyncSpans:
             timeout=timeout,
         )
         response.raise_for_status()
-        return cast(v1.SpansResponseBody, response.json())
+        return _spans_page_from_json(response.json())
 
     async def get_spans(
         self,
