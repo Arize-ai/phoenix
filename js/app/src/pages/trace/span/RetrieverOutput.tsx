@@ -14,7 +14,7 @@ import {
 } from "@phoenix/components/markdown";
 import type { AttributeDocument } from "@phoenix/openInference/tracing/types";
 
-import { RetrievalEvaluationLabel } from "../../project/RetrievalEvaluationLabel";
+import { RetrievalMetricLabel } from "../../project/RetrievalMetricLabel";
 import { DocumentItem } from "../DocumentItem";
 import { useSpanInfoCardProps } from "../SpanInfoCardsContext";
 import { defaultCardProps } from "./constants";
@@ -73,17 +73,17 @@ export function RetrieverOutput({
                 {retrievalMetrics.map((retrievalMetric) => {
                   return (
                     <Fragment key={retrievalMetric.evaluationName}>
-                      <RetrievalEvaluationLabel
+                      <RetrievalMetricLabel
                         name={retrievalMetric.evaluationName}
                         metric="ndcg"
                         score={retrievalMetric.ndcg}
                       />
-                      <RetrievalEvaluationLabel
+                      <RetrievalMetricLabel
                         name={retrievalMetric.evaluationName}
                         metric="precision"
                         score={retrievalMetric.precision}
                       />
-                      <RetrievalEvaluationLabel
+                      <RetrievalMetricLabel
                         name={retrievalMetric.evaluationName}
                         metric="hit"
                         score={retrievalMetric.hit}
