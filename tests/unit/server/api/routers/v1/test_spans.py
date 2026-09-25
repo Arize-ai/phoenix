@@ -1,6 +1,6 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 from uuid import UUID
 
 import httpx
@@ -1055,6 +1055,61 @@ async def test_span_search_pagination(
             assert isinstance(span.end_time, datetime)
             assert isinstance(span.attributes, dict)
             assert isinstance(span.status_code, str)
+
+
+async def test_span_search_filter_expression(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/search-test/spans", params={"filter": "name == 'span-1'"}
+    )
+    assert resp.is_success
+    assert [span["name"] for span in resp.json()["data"]] == ["span-1"]
+
+
+async def test_span_search_filter_expression_matches_root_spans(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/search-test/spans", params={"filter": "parent_span is None"}
+    )
+    assert resp.is_success
+    assert len(resp.json()["data"]) == 3
+
+
+async def test_span_search_filter_expression_combines_with_field_filters(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"filter": "span_kind == 'CHAIN'", "name": "span-2"},
+    )
+    assert resp.is_success
+    assert [span["name"] for span in resp.json()["data"]] == ["span-2"]
+
+
+async def test_span_search_filter_expression_paginates(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    params: dict[str, Union[str, int]] = {"filter": "name != 'span-1'", "limit": 1}
+    first = await httpx_client.get("v1/projects/search-test/spans", params=params)
+    assert first.is_success
+    assert first.json()["next_cursor"]
+    second = await httpx_client.get(
+        "v1/projects/search-test/spans", params={**params, "cursor": first.json()["next_cursor"]}
+    )
+    assert second.is_success
+    names = [first.json()["data"][0]["name"], second.json()["data"][0]["name"]]
+    assert sorted(names) == ["span-0", "span-2"]
+    assert second.json()["next_cursor"] is None
+
+
+async def test_span_search_rejects_invalid_filter_expression(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/search-test/spans", params={"filter": "name =="})
+    assert resp.status_code == 400
+    assert "invalid span filter expression" in resp.text
 
 
 @pytest.fixture
