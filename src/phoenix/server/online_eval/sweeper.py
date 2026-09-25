@@ -52,7 +52,6 @@ from phoenix.db.eval_work import (
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
-from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
     config_fingerprint,
     sample_key,
@@ -432,12 +431,9 @@ class EvalSweeper(DaemonTask):
         lease_id = await self._acquire_lease(allow_insert=mutations_allowed)
         if lease_id is None:
             return
-        renewed = (
-            await self._materialize_and_renew(lease_id)
-            if mutations_allowed
-            else await self._renew_lease(lease_id)
-        )
-        if not renewed:
+        if mutations_allowed:
+            await self._materialize()
+        if not await self._renew_lease(lease_id):
             self._lease_held = False
             logger.warning(f"{self._evaluation_target} evaluation sweeper lost its lease")
 
@@ -498,32 +494,17 @@ class EvalSweeper(DaemonTask):
             )
         return renewed is not None
 
-    async def _materialize_and_renew(self, lease_id: int) -> bool:
+    async def _materialize(self) -> None:
         started_at = time.monotonic()
         labels = self._metric_labels
         if self._publish_metrics:
             ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**labels).inc()
-        materialized_work_count = 0
-        eligible_pair_count: Optional[int] = None
-        renewed: Optional[int] = None
         try:
             async with self._db() as session:
                 database_now = await self._database_now(session)
                 materialized_work_count, eligible_pair_count = await self._sweep(
                     session, database_now
                 )
-                renewed_at = await self._database_now(session)
-                renewed = await session.scalar(
-                    update(models.EvalWorkLease)
-                    .where(
-                        models.EvalWorkLease.id == lease_id,
-                        models.EvalWorkLease.holder == self._sweeper_id,
-                    )
-                    .values(heartbeat_at=renewed_at)
-                    .returning(models.EvalWorkLease.id)
-                )
-                if renewed is None:
-                    await session.rollback()
         except Exception:
             if self._publish_metrics:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
@@ -534,13 +515,9 @@ class EvalSweeper(DaemonTask):
                     time.monotonic() - started_at
                 )
         if self._publish_metrics:
-            if renewed is None:
-                ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
-            else:
-                ONLINE_EVAL_SWEEP_SUCCESSES.labels(**labels).inc()
-                ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**labels).inc(materialized_work_count)
-                await self._publish_eligibility_metrics(eligible_pair_count)
-        return renewed is not None
+            ONLINE_EVAL_SWEEP_SUCCESSES.labels(**labels).inc()
+            ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**labels).inc(materialized_work_count)
+            await self._publish_eligibility_metrics(eligible_pair_count)
 
     async def _database_now(self, session: AsyncSession) -> datetime:
         clock = (
@@ -628,7 +605,6 @@ class EvalSweeper(DaemonTask):
         database_now: datetime,
     ) -> tuple[int, Optional[int]]:
         """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        await reap_lapsed_leases(session, self._target.work_unit_model)
         work_budget = await self._admission_budget(session)
         if work_budget == 0:
             return 0, None
@@ -902,9 +878,9 @@ class EvalSweeper(DaemonTask):
     async def _publish_eligibility_metrics(self, eligible_pair_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
 
-        Reporting is not materialization: this runs after the work has been committed
-        and the lease renewed, over its own read session, so a failing aggregate costs
-        a stale gauge rather than the sweep that already succeeded.
+        Reporting is not materialization: this runs after the work has been committed,
+        over its own read session, so a failing aggregate costs a stale gauge rather than
+        the sweep that already succeeded.
         """
         if eligible_pair_count is not None:
             ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG.labels(**self._metric_labels).set(eligible_pair_count)

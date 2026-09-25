@@ -17,10 +17,6 @@ from phoenix.db.eval_work import live_eval_session_work_index_predicate
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import sweeper as sweeper_module
-from phoenix.server.online_eval.coordinator import (
-    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
-    LEASE_TTL_SECONDS,
-)
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
     STALE_FINGERPRINT_ERROR,
@@ -461,48 +457,6 @@ async def test_storage_pause_renews_lease_without_materializing(
     assert work_count == 0
     assert project_session.last_span_ingested_at == last_span_ingested_at
     assert lease.holder == sweeper._sweeper_id
-
-
-async def test_terminalizes_exhausted_lapsed_session_lease(
-    db: DbSessionFactory,
-) -> None:
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    await sweeper._tick()
-    async with db() as session:
-        unit_id = await session.scalar(
-            select(models.EvalSessionWorkUnit.id).where(
-                models.EvalSessionWorkUnit.project_session_rowid == project_session_id
-            )
-        )
-        assert unit_id is not None
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_id)
-            .values(
-                status="RUNNING",
-                claimed_at=_now() - timedelta(seconds=LEASE_TTL_SECONDS + 1),
-                claimed_by="stopped-consumer",
-                attempts=MAX_ATTEMPTS - 1,
-            )
-        )
-
-    await sweeper._tick()
-
-    async with db() as session:
-        units = (
-            await session.scalars(
-                select(models.EvalSessionWorkUnit)
-                .where(models.EvalSessionWorkUnit.project_session_rowid == project_session_id)
-                .order_by(models.EvalSessionWorkUnit.id)
-            )
-        ).all()
-    (terminal,) = units
-    assert terminal.id == unit_id
-    assert terminal.status == "FAILED"
-    assert terminal.attempts == MAX_ATTEMPTS
-    assert terminal.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
 
 
 async def test_retained_long_delay_pairs_do_not_block_later_due_pair(
@@ -1000,7 +954,7 @@ async def test_outstanding_work_ceiling_defers_eligible_pair(
     assert session_id == project_session_id
 
 
-async def test_lost_lease_rolls_back_sweep(
+async def test_sweep_is_kept_when_the_lease_is_lost_mid_tick(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -1008,20 +962,18 @@ async def test_lost_lease_rolls_back_sweep(
     project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
     await _seed_criteria(db, project_id, evaluation_target="SESSION")
     sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    acquire_lease = sweeper._acquire_lease
+    materialize = sweeper._materialize
 
-    async def acquire_then_lose_lease(**kwargs: bool) -> int | None:
-        lease_id = await acquire_lease(**kwargs)
-        assert lease_id is not None
+    async def lose_lease_then_materialize() -> None:
         async with db() as session:
             await session.execute(
                 update(models.EvalWorkLease)
-                .where(models.EvalWorkLease.id == lease_id)
+                .where(models.EvalWorkLease.name == sweeper._lease_name)
                 .values(holder="replacement-sweeper")
             )
-        return lease_id
+        await materialize()
 
-    monkeypatch.setattr(sweeper, "_acquire_lease", acquire_then_lose_lease)
+    monkeypatch.setattr(sweeper, "_materialize", lose_lease_then_materialize)
     with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
         await sweeper._tick()
 
@@ -1029,7 +981,7 @@ async def test_lost_lease_rolls_back_sweep(
         work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
-    assert work_count == 0
+    assert work_count == 1
     assert "SESSION evaluation sweeper lost its lease" in caplog.text
 
 
