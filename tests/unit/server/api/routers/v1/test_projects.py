@@ -639,21 +639,25 @@ class TestProjects:
                 f"Project at index {i} should have ID {projects[i].id}, got {project_id}"
             )
 
-    async def test_list_projects_name_filter(
+    @pytest.fixture
+    async def projects_with_delimiters_in_their_names(
         self,
-        httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
-    ) -> None:
-        """The ``name`` parameter matches one project exactly, including names with URL delimiters."""
+    ) -> list[str]:
         names = ["team/app", "team/app?v=2", "Team/App", "team app", "100% done"]
         async with db() as session:
             for name in names:
                 session.add(models.Project(name=name, description=token_hex(8)))
             await session.flush()
+        return names
 
-        url = "v1/projects"
-        for name in names:
-            response = await httpx_client.get(url, params={"name": name})
+    async def test_name_matches_exactly_one_project_even_when_it_contains_url_delimiters(
+        self,
+        httpx_client: httpx.AsyncClient,
+        projects_with_delimiters_in_their_names: list[str],
+    ) -> None:
+        for name in projects_with_delimiters_in_their_names:
+            response = await httpx_client.get("v1/projects", params={"name": name})
             assert response.status_code == 200, (
                 f"GET /projects with name={name!r} should return 200, got "
                 f"{response.status_code}: {response.text}"
@@ -664,13 +668,25 @@ class TestProjects:
             )
             assert body["next_cursor"] is None
 
-        response = await httpx_client.get(url, params={"name": "team"})
+    async def test_name_does_not_match_a_partial_project_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        projects_with_delimiters_in_their_names: list[str],
+    ) -> None:
+        response = await httpx_client.get("v1/projects", params={"name": "team"})
         assert response.status_code == 200
-        assert response.json()["data"] == [], "a partial name must not match"
+        assert response.json()["data"] == []
 
-        response = await httpx_client.get(url, params={"name": "team/app", "name_contains": "V=2"})
+    async def test_name_combines_with_name_contains_using_and(
+        self,
+        httpx_client: httpx.AsyncClient,
+        projects_with_delimiters_in_their_names: list[str],
+    ) -> None:
+        response = await httpx_client.get(
+            "v1/projects", params={"name": "team/app", "name_contains": "V=2"}
+        )
         assert response.status_code == 200
-        assert response.json()["data"] == [], "name and name_contains combine with AND"
+        assert response.json()["data"] == []
 
     async def test_list_projects_name_contains_filter(
         self,

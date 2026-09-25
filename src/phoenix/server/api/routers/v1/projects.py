@@ -98,7 +98,7 @@ async def get_projects(
     ),
     name: Optional[str] = Query(
         default=None,
-        description="Return only the project with exactly this name. Unlike the path identifier, the name may contain any character.",  # noqa: E501
+        description="Return only the project with exactly this name.",
     ),
 ) -> GetProjectsResponseBody:
     """

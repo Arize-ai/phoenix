@@ -11488,7 +11488,7 @@ export interface operations {
                 include_dataset_evaluator_projects?: boolean;
                 /** @description Return only projects whose name contains this substring (case-insensitive). */
                 name_contains?: string | null;
-                /** @description Return only the project with exactly this name. Unlike the path identifier, the name may contain any character. */
+                /** @description Return only the project with exactly this name. */
                 name?: string | null;
             };
             header?: never;
