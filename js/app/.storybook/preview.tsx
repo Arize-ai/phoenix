@@ -12,6 +12,7 @@ import {
 import type { Preview } from "@storybook/react";
 import React, { useEffect, useMemo, useState } from "react";
 import { UNSAFE_PortalProvider } from "react-aria/PortalProvider";
+import { createPortal } from "react-dom";
 import { MemoryRouter } from "react-router";
 import { GLOBALS_UPDATED, SET_GLOBALS } from "storybook/internal/core-events";
 import { addons as previewAddons } from "storybook/preview-api";
@@ -433,6 +434,45 @@ function ThemedDocsContainer(props: DocsContainerProps) {
 }
 
 /**
+ * Re-homes the story's React Aria portals into a host on `document.body`
+ * that carries the story's theme classes.
+ *
+ * A layer the story launches (a popover, menu, tooltip or modal) portals out
+ * of the themed surface. On `document.body` it would resolve its tokens from
+ * `:root`, which every `GlobalStyles` also writes, so in `Both` mode each
+ * panel's layers took whichever theme mounted last. The host sits where the
+ * portal would have gone, so the layer's positioning is unchanged; only its
+ * theme scope moves. Children mount once the host exists, so the first
+ * portal already has its home.
+ */
+function ThemedPortalHost({
+  children,
+  theme,
+}: {
+  children: React.ReactNode;
+  theme: ProviderTheme;
+}) {
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+  return (
+    <>
+      {createPortal(
+        <div
+          ref={setHost}
+          className={`theme theme--${theme}`}
+          data-testid="story-portal-host"
+        />,
+        document.body
+      )}
+      {host && (
+        <UNSAFE_PortalProvider getContainer={() => host}>
+          {children}
+        </UNSAFE_PortalProvider>
+      )}
+    </>
+  );
+}
+
+/**
  * Renders a single story wrapped in theme providers, scoping theme CSS
  * via class names on the container div (not document.body).
  */
@@ -469,7 +509,7 @@ function ThemedStory({
                 data-testid="story-content"
                 style={getStoryContentStyle(frame.width, frame.maxWidth)}
               >
-                {children}
+                <ThemedPortalHost theme={theme}>{children}</ThemedPortalHost>
               </div>
             </div>
           </div>
