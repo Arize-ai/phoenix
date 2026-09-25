@@ -686,7 +686,7 @@ def test_limit() -> None:
 
 
 def test_limit_with_select_statement() -> None:
-    """The legacy export left this order to the database; the client sorts newest first."""
+    """Newest first by start time, as the legacy export ordered."""
     actual, _ = _export(SpanQuery().select("context.span_id"), limit=2)
     expected = pd.DataFrame(
         {
