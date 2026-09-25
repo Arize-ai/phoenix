@@ -488,7 +488,7 @@ describe("TimeRangeProvider", () => {
     expect(renderedLocations.at(-1)).toBe("?timeRangeKey=15m");
   });
 
-  it("replaces history for ordinary setTimeRange writes", () => {
+  it("pushes ordinary setTimeRange writes so Back restores the prior range", () => {
     const renderedTimeRanges: OpenTimeRangeWithKey[] = [];
     const renderedLocations: string[] = [];
     let setTimeRange: TimeRangeContextType["setTimeRange"] | null = null;
@@ -522,11 +522,8 @@ describe("TimeRangeProvider", () => {
       navigate?.(-1);
     });
 
-    expect(renderedTimeRanges.at(-1)).toMatchObject({
-      timeRangeKey: "custom",
-      start,
-      end,
-    });
-    expect(renderedLocations.at(-1)).toBe(customLocation);
+    expect(customLocation).toContain("timeRangeStart=");
+    expect(renderedTimeRanges.at(-1)?.timeRangeKey).toBe("15m");
+    expect(renderedLocations.at(-1)).toBe("?timeRangeKey=15m");
   });
 });
