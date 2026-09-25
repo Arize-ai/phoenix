@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
     GET_PROJECTS_BY_NAME,
+    GET_SPANS_ATTRIBUTES_FORMAT,
     GET_SPANS_BY_ATTRIBUTE,
     GET_SPANS_FILTER_EXPRESSION,
     GET_SPANS_FILTERS,
@@ -153,6 +154,7 @@ def _span_list_params(
     filter: Optional[str],
     sort: Optional[SpanSort],
     order: Optional[SortOrder],
+    attributes_format: Optional[Literal["flattened", "nested"]] = None,
 ) -> dict[str, Union[int, str, Sequence[str]]]:
     """Query parameters for one page of ``GET /v1/projects/{id}/spans``."""
     params: dict[str, Union[int, str, Sequence[str]]] = {"limit": limit}
@@ -182,6 +184,8 @@ def _span_list_params(
         params["order"] = order
     if cursor:
         params["cursor"] = cursor
+    if attributes_format:
+        params["attributes_format"] = attributes_format
     return params
 
 
@@ -303,6 +307,7 @@ class Spans:
         query = query if query else SpanQuery()
         condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
         self._guard.require(GET_SPANS_SORT)
+        self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
         if condition:
             self._guard.require(GET_SPANS_FILTER_EXPRESSION)
         project_id = self._project_id(
@@ -318,6 +323,7 @@ class Spans:
                 start_time=_normalize_datetime(start_time),
                 end_time=_normalize_datetime(end_time),
                 filter=condition,
+                attributes_format="nested",
                 sort="start_time",
                 timeout=timeout,
             )
@@ -591,6 +597,7 @@ class Spans:
         filter: Optional[str] = None,
         sort: Optional[SpanSort] = None,
         order: Optional[SortOrder] = None,
+        attributes_format: Optional[Literal["flattened", "nested"]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.SpansResponseBody:
         response = self._client.get(
@@ -610,6 +617,7 @@ class Spans:
                 filter=filter,
                 sort=sort,
                 order=order,
+                attributes_format=attributes_format,
             ),
             headers={"accept": "application/json"},
             timeout=timeout,
@@ -1633,6 +1641,7 @@ class AsyncSpans:
         query = query if query else SpanQuery()
         condition = _span_filter_condition(query, root_spans_only=bool(root_spans_only))
         await self._guard.require(GET_SPANS_SORT)
+        await self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
         if condition:
             await self._guard.require(GET_SPANS_FILTER_EXPRESSION)
         project_id = await self._project_id(
@@ -1648,6 +1657,7 @@ class AsyncSpans:
                 start_time=_normalize_datetime(start_time),
                 end_time=_normalize_datetime(end_time),
                 filter=condition,
+                attributes_format="nested",
                 sort="start_time",
                 timeout=timeout,
             )
@@ -1921,6 +1931,7 @@ class AsyncSpans:
         filter: Optional[str] = None,
         sort: Optional[SpanSort] = None,
         order: Optional[SortOrder] = None,
+        attributes_format: Optional[Literal["flattened", "nested"]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> v1.SpansResponseBody:
         response = await self._client.get(
@@ -1940,6 +1951,7 @@ class AsyncSpans:
                 filter=filter,
                 sort=sort,
                 order=order,
+                attributes_format=attributes_format,
             ),
             headers={"accept": "application/json"},
             timeout=timeout,

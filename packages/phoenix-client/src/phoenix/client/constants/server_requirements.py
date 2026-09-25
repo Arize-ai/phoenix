@@ -163,3 +163,10 @@ GET_PROJECTS_BY_NAME = ParameterRequirement(
     route="GET /v1/projects",
     min_server_version=Version(20, 17, 0),
 )
+
+GET_SPANS_ATTRIBUTES_FORMAT = ParameterRequirement(
+    parameter_name="attributes_format",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(20, 17, 0),
+)

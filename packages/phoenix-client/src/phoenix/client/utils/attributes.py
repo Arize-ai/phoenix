@@ -1,15 +1,16 @@
-"""Re-nest span attributes the way the server's dataframe export does."""
+"""Shape stored span attributes the way the server's dataframe export did."""
 
 from __future__ import annotations
 
 import inspect
 import json
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import Any, Union, cast
 
 from openinference.semconv import trace
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
+from typing_extensions import TypeGuard
 
 _JSON_STRING_ATTRIBUTES = (
     DocumentAttributes.DOCUMENT_METADATA,
@@ -34,31 +35,113 @@ _SEMANTIC_CONVENTIONS: list[str] = sorted(
 _SEPARATOR = "."
 
 
-def nest_span_attributes(attributes: Mapping[str, Any]) -> dict[str, Any]:
-    """Turn flattened span attributes into the nested shape of the legacy dataframe export."""
-    return _unflatten(_load_json_strings(attributes.items()))
+def flatten_semantic_conventions(attributes: Mapping[str, Any]) -> dict[str, Any]:
+    """Nest stored attributes with each semantic-convention key kept as one dotted key.
 
-
-def get_attribute_value(attributes: Mapping[str, Any], key: str) -> Any:
-    """Look up a dotted ``key`` in nested attributes.
-
-    Works on both the fully nested shape and the one :func:`nest_span_attributes`
-    produces, where a semantic-convention key such as ``document.content`` is a single
-    dotted key: at each level the longest dotted prefix present is followed first.
+    Mirrors ``_flatten_semantic_conventions`` behind the deprecated ``POST /v1/spans``
+    export: custom attributes stay nested, ``metadata``-like values stay whole.
     """
-    if key in attributes:
-        return attributes[key]
-    segments = key.split(_SEPARATOR)
-    for split in range(len(segments) - 1, 0, -1):
-        prefix = _SEPARATOR.join(segments[:split])
-        child = attributes.get(prefix)
-        if isinstance(child, Mapping):
-            value = get_attribute_value(
-                cast(Mapping[str, Any], child), _SEPARATOR.join(segments[split:])
+    return _unflatten(
+        _load_json_strings(
+            flatten(attributes, recurse_on_sequence=True, json_string_attributes=True)
+        )
+    )
+
+
+def get_attribute_value(attributes: Any, key: str) -> Any:
+    """Walk nested ``attributes`` along the dotted ``key``, as the server DSL did."""
+    if not _is_mapping(attributes):
+        return None
+    *parents, last = key.split(_SEPARATOR)
+    for parent in parents:
+        attributes = attributes.get(parent)
+        if not (attributes and _is_mapping(attributes)):
+            return None
+    return attributes.get(last)
+
+
+def flatten(
+    obj: Union[Mapping[str, Any], Iterable[Any]],
+    *,
+    prefix: str = "",
+    recurse_on_sequence: bool = False,
+    json_string_attributes: bool = False,
+) -> Iterator[tuple[str, Any]]:
+    """Flatten nested attributes into dotted key-value pairs, as ``phoenix.trace.attributes`` does.
+
+    Sequences of mappings are flattened by index only when ``recurse_on_sequence`` is set;
+    other sequences stay whole. With ``json_string_attributes``, mapping values under
+    ``metadata``-like keys are dumped to JSON strings instead of being flattened.
+    """
+    if _is_mapping(obj):
+        yield from _flatten_mapping(
+            obj,
+            prefix=prefix,
+            recurse_on_sequence=recurse_on_sequence,
+            json_string_attributes=json_string_attributes,
+        )
+    else:
+        yield from _flatten_sequence(
+            obj,
+            prefix=prefix,
+            recurse_on_sequence=recurse_on_sequence,
+            json_string_attributes=json_string_attributes,
+        )
+
+
+def _flatten_mapping(
+    mapping: Mapping[str, Any],
+    *,
+    prefix: str,
+    recurse_on_sequence: bool,
+    json_string_attributes: bool,
+) -> Iterator[tuple[str, Any]]:
+    for key, value in mapping.items():
+        prefixed_key = f"{prefix}{_SEPARATOR}{key}" if prefix else key
+        if _is_mapping(value):
+            if json_string_attributes and prefixed_key.endswith(_JSON_STRING_ATTRIBUTES):
+                yield prefixed_key, json.dumps(value)
+            else:
+                yield from _flatten_mapping(
+                    value,
+                    prefix=prefixed_key,
+                    recurse_on_sequence=recurse_on_sequence,
+                    json_string_attributes=json_string_attributes,
+                )
+        elif isinstance(value, Sequence) and not isinstance(value, str) and recurse_on_sequence:
+            sequence: Sequence[Any] = value
+            yield from _flatten_sequence(
+                sequence,
+                prefix=prefixed_key,
+                recurse_on_sequence=recurse_on_sequence,
+                json_string_attributes=json_string_attributes,
             )
-            if value is not None:
-                return value
-    return None
+        elif value is not None:
+            yield prefixed_key, value
+
+
+def _flatten_sequence(
+    sequence: Iterable[Any],
+    *,
+    prefix: str,
+    recurse_on_sequence: bool,
+    json_string_attributes: bool,
+) -> Iterator[tuple[str, Any]]:
+    if isinstance(sequence, str) or not any(_is_mapping(item) for item in sequence):
+        yield prefix, sequence
+    for index, item in enumerate(sequence):
+        if not _is_mapping(item):
+            continue
+        yield from _flatten_mapping(
+            item,
+            prefix=f"{prefix}{_SEPARATOR}{index}" if prefix else f"{index}",
+            recurse_on_sequence=recurse_on_sequence,
+            json_string_attributes=json_string_attributes,
+        )
+
+
+def _is_mapping(value: Any) -> TypeGuard[Mapping[str, Any]]:
+    return isinstance(value, Mapping)
 
 
 def _load_json_strings(key_values: Iterable[tuple[str, Any]]) -> Iterator[tuple[str, Any]]:
@@ -152,4 +235,4 @@ def _walk(trie: _Trie, *, prefix: str = "") -> Iterator[tuple[str, Any]]:
         yield from _walk(trie[branch], prefix=new_prefix)
 
 
-__all__ = ["get_attribute_value", "nest_span_attributes"]
+__all__ = ["flatten", "flatten_semantic_conventions", "get_attribute_value"]
