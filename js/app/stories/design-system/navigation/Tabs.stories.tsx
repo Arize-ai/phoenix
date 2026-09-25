@@ -1,7 +1,8 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import type { ReactNode } from "react";
 
 import {
-  Card,
+  Counter,
   Icon,
   IconButton,
   Icons,
@@ -10,15 +11,29 @@ import {
   TabList,
   TabPanel,
   Tabs,
+  Text,
   View,
 } from "@phoenix/components";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
+/**
+ * A set of panels shown one at a time, chosen from a bar of tabs. The bar is
+ * horizontal by default, with an underline under the selected tab, or
+ * vertical, with a filled pill behind it. `LazyTabPanel` is a `TabPanel` that
+ * renders its content only while its tab is selected.
+ *
+ * Hover and keyboard focus are drawn only while the pointer or focus is on a
+ * tab, so they are not shown here.
+ */
 const meta: Meta = {
   title: "Design System/Navigation/Tabs",
-  tags: ["legacy", "unreviewed"],
   component: Tabs,
+  subcomponents: { TabList, Tab, TabPanel, LazyTabPanel },
+  tags: ["updated", "unreviewed", "incomplete"],
   parameters: {
     layout: "centered",
+    controls: { disable: true },
     design: {
       type: "figma",
       url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=527-1453",
@@ -28,218 +43,210 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn = (args) => (
-  <Card title="Basic Tabs">
-    <View width="600px" padding="size-200">
-      <Tabs {...args}>
-        <TabList>
-          <Tab id="tab1">Tab 1</Tab>
-          <Tab id="tab2">Tab 2</Tab>
-          <Tab id="tab3">Tab 3</Tab>
-        </TabList>
-        <TabPanel padded id="tab1">
-          Content for Tab 1
+type SpanTab = { id: string; name: string; count?: number };
+
+const SPAN_TABS: SpanTab[] = [
+  { id: "info", name: "Info" },
+  { id: "attributes", name: "Attributes" },
+  { id: "events", name: "Events", count: 3 },
+];
+
+const PROJECT_TABS = ["Spans", "Traces", "Sessions", "Metrics", "Config"];
+
+const TAB_STATES: {
+  label: string;
+  selectedKey: string;
+  disabledKeys: string[];
+}[] = [
+  { label: "Unselected", selectedKey: "info", disabledKeys: [] },
+  { label: "Selected", selectedKey: "attributes", disabledKeys: [] },
+  { label: "Disabled", selectedKey: "info", disabledKeys: ["attributes"] },
+];
+
+const ORIENTATIONS: {
+  label: "horizontal" | "vertical";
+  code: true;
+}[] = [
+  { label: "horizontal", code: true },
+  { label: "vertical", code: true },
+];
+
+const PADDING: { label: string; code: true; padded: boolean }[] = [
+  { label: "false", code: true, padded: false },
+  { label: "true", code: true, padded: true },
+];
+
+const TAB_COUNTS: { label: string; names: string[] }[] = [
+  { label: "1 tab", names: PROJECT_TABS.slice(0, 1) },
+  { label: "3 tabs", names: PROJECT_TABS.slice(0, 3) },
+  {
+    label: "12 tabs",
+    names: [
+      ...PROJECT_TABS,
+      "Annotations",
+      "Evaluators",
+      "Datasets",
+      "Experiments",
+      "Prompts",
+      "Playground",
+      "Settings",
+    ],
+  },
+];
+
+function SpanTabList({ extra }: { extra?: ReactNode }) {
+  return (
+    <TabList aria-label="Span details" extra={extra}>
+      {SPAN_TABS.map((tab) => (
+        <Tab key={tab.id} id={tab.id}>
+          {tab.name}
+          {tab.count != null ? (
+            <>
+              {" "}
+              <Counter>{tab.count}</Counter>
+            </>
+          ) : null}
+        </Tab>
+      ))}
+    </TabList>
+  );
+}
+
+function StateTabs({
+  orientation,
+  selectedKey,
+  disabledKeys,
+}: {
+  orientation: "horizontal" | "vertical";
+  selectedKey: string;
+  disabledKeys: string[];
+}) {
+  return (
+    <Tabs
+      orientation={orientation}
+      selectedKey={selectedKey}
+      disabledKeys={disabledKeys}
+    >
+      <SpanTabList />
+    </Tabs>
+  );
+}
+
+export const Default: StoryFn = () => (
+  <View width="480px" height="160px">
+    <Tabs>
+      <SpanTabList />
+      {SPAN_TABS.map((tab) => (
+        <TabPanel key={tab.id} id={tab.id} padded>
+          <Text>{tab.name} for the selected span</Text>
         </TabPanel>
-        <TabPanel padded id="tab2">
-          Content for Tab 2
-        </TabPanel>
-        <TabPanel padded id="tab3">
-          Content for Tab 3
-        </TabPanel>
-      </Tabs>
-    </View>
-  </Card>
+      ))}
+    </Tabs>
+  </View>
 );
+Default.tags = ["!dev"];
+Default.parameters = { themeLayout: "column" };
 
-export const Default = {
-  render: Template,
-  args: {},
-};
-
-const DisabledTemplate: StoryFn = (args) => (
-  <Card title="Tabs with Disabled State">
-    <View width="600px" padding="size-200">
-      <Tabs {...args}>
-        <TabList>
-          <Tab id="tab1">Tab 1</Tab>
-          <Tab id="tab2" isDisabled>
-            Tab 2 (Disabled)
-          </Tab>
-          <Tab id="tab3">Tab 3</Tab>
-        </TabList>
-        <TabPanel padded id="tab1">
-          Content for Tab 1
-        </TabPanel>
-        <TabPanel padded id="tab2">
-          Content for Tab 2
-        </TabPanel>
-        <TabPanel padded id="tab3">
-          Content for Tab 3
-        </TabPanel>
-      </Tabs>
-    </View>
-  </Card>
+/**
+ * The state is that of the Attributes tab.
+ */
+export const OrientationsAndStates: StoryFn = () => (
+  <OptionGrid
+    rows={ORIENTATIONS}
+    columns={TAB_STATES}
+    alignRows="start"
+    renderCell={(orientation, state) => (
+      <StateTabs
+        orientation={orientation.label}
+        selectedKey={state?.selectedKey ?? "info"}
+        disabledKeys={state?.disabledKeys ?? []}
+      />
+    )}
+  />
 );
+OrientationsAndStates.tags = ["!dev"];
+OrientationsAndStates.parameters = { themeLayout: "column" };
 
-export const WithDisabledTab = {
-  render: DisabledTemplate,
-  args: {},
-};
-
-const LazyLoadingTemplate: StoryFn = (args) => (
-  <Card title="Lazy Loading Tabs">
-    <View width="600px" padding="size-200">
-      <Tabs {...args}>
-        <TabList>
-          <Tab id="tab1">Tab 1</Tab>
-          <Tab id="tab2">Tab 2</Tab>
-          <Tab id="tab3">Tab 3</Tab>
-        </TabList>
-        <LazyTabPanel padded id="tab1">
-          Content for Tab 1 (Lazy Loaded)
-        </LazyTabPanel>
-        <LazyTabPanel padded id="tab2">
-          Content for Tab 2 (Lazy Loaded)
-        </LazyTabPanel>
-        <LazyTabPanel padded id="tab3">
-          Content for Tab 3 (Lazy Loaded)
-        </LazyTabPanel>
-      </Tabs>
-    </View>
-  </Card>
+export const PanelPadding: StoryFn = () => (
+  <OptionGrid
+    rows={ORIENTATIONS}
+    columns={PADDING}
+    alignRows="start"
+    renderCell={(orientation, padding) => (
+      <View
+        width="320px"
+        height="120px"
+        borderColor="default"
+        borderWidth="thin"
+      >
+        <Tabs orientation={orientation.label}>
+          <TabList aria-label="Span details">
+            <Tab id="info">Info</Tab>
+            <Tab id="attributes">Attributes</Tab>
+          </TabList>
+          <TabPanel id="info" padded={padding?.padded}>
+            <Text>Info for the selected span</Text>
+          </TabPanel>
+          <TabPanel id="attributes" padded={padding?.padded}>
+            <Text>Attributes for the selected span</Text>
+          </TabPanel>
+        </Tabs>
+      </View>
+    )}
+  />
 );
+PanelPadding.tags = ["!dev"];
+PanelPadding.parameters = { themeLayout: "column" };
 
-export const LazyLoading = {
-  render: LazyLoadingTemplate,
-  args: {},
-};
-
-const ComplexContentTemplate: StoryFn = (args) => (
-  <Card title="Tabs with Complex Content">
-    <View width="600px" padding="size-200">
-      <Tabs {...args}>
-        <TabList>
-          <Tab id="details">Details</Tab>
-          <Tab id="settings">Settings</Tab>
-          <Tab id="advanced">Advanced</Tab>
-        </TabList>
-        <TabPanel id="details">
-          <h3>Product Details</h3>
-          <p>
-            This is a detailed description of the product with multiple
-            paragraphs of text.
-          </p>
-          <p>It can contain rich content and complex layouts.</p>
-        </TabPanel>
-        <TabPanel id="settings">
-          <h3>Settings Panel</h3>
-          <ul>
-            <li>Setting 1</li>
-            <li>Setting 2</li>
-            <li>Setting 3</li>
-          </ul>
-        </TabPanel>
-        <TabPanel id="advanced">
-          <h3>Advanced Options</h3>
-          <div>
-            <p>Advanced configuration options go here.</p>
-            <button onClick={() => alert("Advanced action clicked!")}>
-              Perform Action
-            </button>
-          </div>
-        </TabPanel>
-      </Tabs>
-    </View>
-  </Card>
+export const TabCount: StoryFn = () => (
+  <OptionGrid
+    rows={TAB_COUNTS}
+    renderCell={(count) => (
+      <View width="480px">
+        <Tabs>
+          <TabList aria-label="Project">
+            {count.names.map((name) => (
+              <Tab key={name} id={name}>
+                {name}
+              </Tab>
+            ))}
+          </TabList>
+        </Tabs>
+      </View>
+    )}
+  />
 );
+TabCount.tags = ["!dev"];
+TabCount.parameters = { themeLayout: "column" };
 
-export const ComplexContent = {
-  render: ComplexContentTemplate,
-  args: {},
-};
-
-const OrientationTemplate: StoryFn = (args) => (
-  <Card title="Vertical Tabs">
-    <View width="600px" padding="size-200">
-      <Tabs {...args} orientation="vertical">
-        <TabList>
-          <Tab id="tab1">Tab 1</Tab>
-          <Tab id="tab2">Tab 2</Tab>
-          <Tab id="tab3">Tab 3</Tab>
-        </TabList>
-        <TabPanel padded id="tab1">
-          Content for Tab 1
-        </TabPanel>
-        <TabPanel padded id="tab2">
-          Content for Tab 2
-        </TabPanel>
-        <TabPanel padded id="tab3">
-          Content for Tab 3
-        </TabPanel>
-      </Tabs>
-    </View>
-  </Card>
+export const Extra: StoryFn = () => (
+  <View width="480px">
+    <Tabs>
+      <SpanTabList
+        extra={
+          <IconButton size="S" aria-label="Collapse all sections">
+            <Icon svg={<Icons.RowCollapse />} />
+          </IconButton>
+        }
+      />
+    </Tabs>
+  </View>
 );
-
-export const VerticalOrientation = {
-  render: OrientationTemplate,
-  args: {},
-};
-
-const ExtraTemplate: StoryFn = (args) => (
-  <Card title="Tabs with an Extra Slot">
-    <View width="600px" padding="size-200">
-      <Tabs {...args}>
-        <TabList
-          extra={
-            <IconButton size="S" aria-label="Collapse all">
-              <Icon svg={<Icons.RowCollapse />} />
-            </IconButton>
-          }
-        >
-          <Tab id="tab1">Tab 1</Tab>
-          <Tab id="tab2">Tab 2</Tab>
-          <Tab id="tab3">Tab 3</Tab>
-        </TabList>
-        <TabPanel padded id="tab1">
-          Content for Tab 1
-        </TabPanel>
-        <TabPanel padded id="tab2">
-          Content for Tab 2
-        </TabPanel>
-        <TabPanel padded id="tab3">
-          Content for Tab 3
-        </TabPanel>
-      </Tabs>
-    </View>
-  </Card>
-);
-
-export const WithExtra = {
-  render: ExtraTemplate,
-  args: {},
-};
+Extra.tags = ["!dev"];
+Extra.parameters = { themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail = {
+export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
   render: () => (
     <View width="100%">
       <Tabs>
-        <TabList>
-          <Tab id="details">Details</Tab>
-          <Tab id="settings">Settings</Tab>
-          <Tab id="advanced">Advanced</Tab>
-        </TabList>
-        <TabPanel padded id="details">
-          Content for Details
-        </TabPanel>
-        <TabPanel padded id="settings">
-          Content for Settings
-        </TabPanel>
-        <TabPanel padded id="advanced">
-          Content for Advanced
-        </TabPanel>
+        <SpanTabList />
+        {SPAN_TABS.map((tab) => (
+          <TabPanel key={tab.id} id={tab.id} padded>
+            <Text>{tab.name} for the selected span</Text>
+          </TabPanel>
+        ))}
       </Tabs>
     </View>
   ),
