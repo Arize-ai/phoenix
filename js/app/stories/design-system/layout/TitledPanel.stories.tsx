@@ -1,176 +1,170 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import type { ComponentProps, ReactNode } from "react";
 import { Group, Panel } from "react-resizable-panels";
 
-import { Button, Card, Text, Token, View } from "@phoenix/components";
+import { Button, Flex, Text, Token, View } from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
+/**
+ * A panel of a resizable `Group` with a title bar that collapses and expands
+ * it. `resizable` adds a separator above the panel, so the first panel in a
+ * group must not be resizable. Controls in `extra` sit outside the collapse
+ * toggle and stay usable while the panel is collapsed.
+ *
+ * `disabled` turns off collapsing, `bordered={false}` drops the title bar's
+ * bottom rule and the separator's line, and `headingLevel` puts the title in
+ * the page's heading outline.
+ */
 const meta: Meta = {
   title: "Design System/Layout/Titled Panel",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: TitledPanel,
   parameters: {
     layout: "centered",
+    controls: { disable: true },
   },
 };
 
-const bodyStyle = { width: "600px", height: "300px" };
-
 export default meta;
 
-const Template: StoryFn = (args) => (
-  <Card title="TitledPanel">
-    <View {...bodyStyle}>
-      <Group orientation="vertical">
-        <TitledPanel title="Regular Panel">
-          <View padding="size-200">
-            <Text>This is a non-resizable panel with title</Text>
-          </View>
-        </TitledPanel>
-        <TitledPanel title="Basic Panel" resizable {...args}>
-          <View padding="size-200">
-            <Text>This is a basic panel with a title</Text>
-          </View>
-        </TitledPanel>
-      </Group>
-    </View>
-  </Card>
+type TitledPanelProps = ComponentProps<typeof TitledPanel>;
+
+const Frame = ({
+  width,
+  height,
+  children,
+}: {
+  width: string;
+  height: string;
+  children: ReactNode;
+}) => (
+  <View
+    width={width}
+    height={height}
+    borderWidth="thin"
+    borderColor="default"
+    borderRadius="medium"
+  >
+    {children}
+  </View>
 );
 
-export const Default: Meta<typeof TitledPanel> = {
-  render: Template,
-  args: {},
-};
-
-const WithCustomContentTemplate: StoryFn = (args) => (
-  <Card title="TitledPanel with Custom Content">
-    <View {...bodyStyle}>
-      <Group orientation="vertical">
-        <Panel>
-          <View padding="size-200">
-            <Text>This is a regular panel with some content</Text>
-          </View>
-        </Panel>
-        <TitledPanel title="Custom Content Panel" resizable {...args}>
-          <View padding="size-200">
-            <h3>Custom Content</h3>
-            <p>
-              This panel contains custom content with different styling and
-              layout.
-            </p>
-          </View>
-        </TitledPanel>
-      </Group>
-    </View>
-  </Card>
+const Body = ({ children }: { children: ReactNode }) => (
+  <View padding="size-200">
+    <Text>{children}</Text>
+  </View>
 );
 
-export const WithCustomContent: Meta<typeof TitledPanel> = {
-  render: WithCustomContentTemplate,
-  args: {},
-};
-
-const MultiplePanelsTemplate: StoryFn = (args) => (
-  <Card title="Multiple TitledPanels">
-    <View {...bodyStyle}>
-      <Group orientation="vertical">
-        <TitledPanel title="Regular Panel">
-          <View padding="size-200">
-            <Text>This is the main content panel</Text>
-          </View>
-        </TitledPanel>
-        <TitledPanel resizable title="First Titled Panel" {...args}>
-          <View padding="size-200">
-            <Text>This is the first titled panel</Text>
-          </View>
-        </TitledPanel>
-        <TitledPanel resizable title="Second Titled Panel" {...args}>
-          <View padding="size-200">
-            <Text>This is the second titled panel</Text>
-          </View>
-        </TitledPanel>
-        <TitledPanel resizable title="Third Titled Panel" {...args}>
-          <View padding="size-200">
-            <Text>This is the third titled panel</Text>
-          </View>
-        </TitledPanel>
-      </Group>
-    </View>
-  </Card>
+export const Default: StoryFn = () => (
+  <Frame width="480px" height="280px">
+    <Group orientation="vertical">
+      <TitledPanel
+        title="Prompts"
+        extra={<Button size="S">Compare</Button>}
+        panelProps={{ minSize: "15%" }}
+      >
+        <Body>You are a helpful assistant.</Body>
+      </TitledPanel>
+      <TitledPanel resizable title="Output" panelProps={{ minSize: "15%" }}>
+        <Body>The capital of France is Paris.</Body>
+      </TitledPanel>
+    </Group>
+  </Frame>
 );
+Default.tags = ["!dev"];
+Default.parameters = { themeLayout: "column" };
 
-export const MultiplePanels: Meta<typeof TitledPanel> = {
-  render: MultiplePanelsTemplate,
-  args: {},
-};
+const OPTIONS: {
+  label: string;
+  code?: boolean;
+  props: Omit<TitledPanelProps, "children">;
+}[] = [
+  { label: "Default", props: { title: "Inputs" } },
+  {
+    label: "extra",
+    code: true,
+    props: { title: "Inputs", extra: <Button size="S">Select dataset</Button> },
+  },
+  {
+    label: "Title node",
+    props: {
+      title: (
+        <Flex direction="row" gap="size-100" alignItems="center">
+          Inputs
+          <Token color="var(--global-color-seafoam-600)">3 variables</Token>
+        </Flex>
+      ),
+    },
+  },
+  {
+    label: "bordered={false}",
+    code: true,
+    props: { title: "Inputs", bordered: false },
+  },
+  { label: "disabled", code: true, props: { title: "Inputs", disabled: true } },
+];
 
-const WithCustomTitleTemplate: StoryFn = (args) => (
-  <Card title="TitledPanel with Custom Title">
-    <View {...bodyStyle}>
-      <Group orientation="vertical">
-        <Panel>
-          <View padding="size-200">
-            <Text>This is the main content area</Text>
-          </View>
-        </Panel>
-        <TitledPanel
-          title={
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--global-dimension-size-100)",
-              }}
+const COLLAPSE = [
+  { label: "Expanded", defaultSize: "60%" },
+  { label: "Collapsed", defaultSize: "0%" },
+];
+
+export const OptionsAndCollapse: StoryFn = () => (
+  <OptionGrid
+    rows={OPTIONS}
+    columns={COLLAPSE}
+    renderCell={(row, column) => (
+      <Frame width="260px" height="140px">
+        <Group orientation="vertical">
+          <TitledPanel
+            {...row.props}
+            panelProps={{ defaultSize: column?.defaultSize }}
+          >
+            <Body>question, context</Body>
+          </TitledPanel>
+          <Panel>
+            <Body>Output</Body>
+          </Panel>
+        </Group>
+      </Frame>
+    )}
+  />
+);
+OptionsAndCollapse.storyName = "Options and Collapse";
+OptionsAndCollapse.tags = ["!dev"];
+OptionsAndCollapse.parameters = { themeLayout: "column" };
+
+const STACK = ["Prompts", "Inputs", "Output", "Experiment"];
+
+export const StackedPanels: StoryFn = () => (
+  <OptionGrid
+    columns={[
+      { label: "Bordered", bordered: true },
+      { label: "bordered={false}", code: true, bordered: false },
+    ]}
+    renderCell={(_, column) => (
+      <Frame width="280px" height="320px">
+        <Group orientation="vertical">
+          {STACK.map((title, index) => (
+            <TitledPanel
+              key={title}
+              title={title}
+              resizable={index > 0}
+              bordered={column?.bordered}
             >
-              <span>Custom Title</span>
-              <Token color="green">New</Token>
-            </div>
-          }
-          {...args}
-        >
-          <div style={{ padding: "var(--global-dimension-size-200)" }}>
-            This panel has a custom title with additional elements
-          </div>
-        </TitledPanel>
-      </Group>
-    </View>
-  </Card>
+              <Body>{title} content</Body>
+            </TitledPanel>
+          ))}
+        </Group>
+      </Frame>
+    )}
+  />
 );
-
-export const WithCustomTitle: Meta<typeof TitledPanel> = {
-  render: WithCustomTitleTemplate,
-  args: {},
-};
-
-const WithActionsTemplate: StoryFn = (args) => (
-  <Card title="TitledPanel with Actions">
-    <View {...bodyStyle}>
-      <Group orientation="vertical">
-        <TitledPanel
-          title="Prompts"
-          extra={<Button size="S">Compare</Button>}
-          {...args}
-        >
-          <View padding="size-200">
-            <Text>
-              Actions stay clickable without toggling the panel, even while
-              collapsed
-            </Text>
-          </View>
-        </TitledPanel>
-        <TitledPanel resizable title="Output" {...args}>
-          <View padding="size-200">
-            <Text>This is the output panel</Text>
-          </View>
-        </TitledPanel>
-      </Group>
-    </View>
-  </Card>
-);
-
-export const WithActions: Meta<typeof TitledPanel> = {
-  render: WithActionsTemplate,
-  args: {},
-};
+StackedPanels.storyName = "Stacked Panels";
+StackedPanels.tags = ["!dev"];
+StackedPanels.parameters = { themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
