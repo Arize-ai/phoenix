@@ -1,15 +1,17 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
-import { useState } from "react";
+import type { ReactNode } from "react";
 
+import type {
+  DisclosureGroupProps,
+  DisclosureProps,
+  DisclosureTriggerProps,
+} from "@phoenix/components";
 import {
-  type DisclosureArrowProps,
-  type DisclosureProps,
-  type DisclosureTriggerProps,
   Card,
+  Counter,
   Disclosure,
   DisclosureArrow,
   DisclosureGroup,
-  type DisclosureGroupProps,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
@@ -17,192 +19,316 @@ import {
   View,
 } from "@phoenix/components";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
 /**
  * A disclosure shows and hides a section of content under a trigger.
- * `DisclosureGroup` coordinates several disclosures as an accordion, and
- * `Disclosure`, `DisclosureTrigger` and `DisclosurePanel` build each item.
+ * `Disclosure`, `DisclosureTrigger` and `DisclosurePanel` build each item, and
+ * `DisclosureGroup` stacks several of them as an accordion. A `Disclosure`
+ * starts expanded unless given `defaultExpanded={false}`, and a group lets
+ * several items stay open at once unless given
+ * `allowsMultipleExpanded={false}`.
  *
- * Every disclosure surface in Phoenix — cards, accordions, table row
- * expanders, trees, collapsible panels — marks its state with the same part,
- * `DisclosureArrow`, a rotating chevron. The `Arrow` stories document that
- * part on its own for surfaces that render it outside a `DisclosureTrigger`.
+ * Every disclosure surface in Phoenix (cards, accordions, table row
+ * expanders, trees, collapsible panels) marks its state with the same
+ * rotating chevron, `DisclosureArrow`. Surfaces that do not use a
+ * `DisclosureTrigger` render it on its own.
  */
 const meta: Meta = {
   title: "Design System/Layout/Disclosure",
-  tags: ["legacy", "unreviewed"],
-  component: DisclosureGroup,
+  tags: ["updated", "unreviewed", "incomplete"],
+  component: Disclosure,
+  subcomponents: {
+    DisclosureGroup,
+    DisclosureTrigger,
+    DisclosurePanel,
+    DisclosureArrow,
+  },
   parameters: {
     layout: "centered",
+    controls: { disable: true },
   },
 };
 
 export default meta;
 
-const Template: StoryFn<DisclosureGroupProps> = (args) => (
-  <Card title="Disclosure">
-    <View width="600px">
-      <DisclosureGroup {...args}>
-        <Disclosure id="content">
-          <DisclosureTrigger>First Item Title</DisclosureTrigger>
-          <DisclosurePanel>
-            <Text>First Item Content</Text>
-          </DisclosurePanel>
-        </Disclosure>
-        <Disclosure id="content-2">
-          <DisclosureTrigger>Second Item Title</DisclosureTrigger>
-          <DisclosurePanel>
-            <Text>Second Item Content</Text>
-          </DisclosurePanel>
-        </Disclosure>
-      </DisclosureGroup>
-    </View>
-  </Card>
+const CELL_WIDTH = "260px";
+
+const Frame = ({
+  width = CELL_WIDTH,
+  children,
+}: {
+  width?: string;
+  children: ReactNode;
+}) => (
+  <View
+    width={width}
+    borderWidth="thin"
+    borderColor="default"
+    borderRadius="medium"
+  >
+    {children}
+  </View>
 );
 
-export const Default: Meta<typeof DisclosureGroup> = {
-  render: Template,
-  args: { allowsMultipleExpanded: false, isDisabled: false },
-};
-
-const SingleItemStory: StoryFn<DisclosureProps> = (args) => (
-  <Disclosure id="content" {...args}>
-    <DisclosureTrigger>Content Title</DisclosureTrigger>
+const Item = ({
+  id,
+  title,
+  triggerProps,
+  ...props
+}: Omit<DisclosureProps, "children"> & {
+  title: ReactNode;
+  triggerProps?: Omit<DisclosureTriggerProps, "children">;
+}) => (
+  <Disclosure id={id} {...props}>
+    <DisclosureTrigger arrowPosition="start" {...triggerProps}>
+      {title}
+    </DisclosureTrigger>
     <DisclosurePanel>
-      <Text>Content</Text>
+      <View padding="size-200">
+        <Text>Attributes recorded on the span.</Text>
+      </View>
     </DisclosurePanel>
   </Disclosure>
 );
 
-export const SingleItem = SingleItemStory.bind({
-  args: {
-    defaultExpanded: true,
-    isExpanded: undefined,
-    isDisabled: false,
-    size: "L",
-  },
-  argTypes: {
-    isExpanded: {
-      control: { type: "boolean" },
-    },
-    size: {
-      control: { type: "radio" },
-      options: ["M", "L"],
-    },
-  },
-});
-
-const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
-  <Card title="Disclosure">
-    <View width="600px">
-      <DisclosureGroup>
-        <Disclosure id="content" {...args}>
-          <DisclosureTrigger {...args}>
-            Content Title
-            <span
-              style={{
-                color: "var(--global-text-color-500)",
-                border: "1px solid var(--global-text-color-500)",
-                borderRadius: "12px",
-                padding: "var(--global-dimension-size-100)",
-                height: "8px",
-                width: "16px",
-                lineHeight: "0px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              1
-            </span>
-          </DisclosureTrigger>
-          <DisclosurePanel>
-            <Text>Content</Text>
-          </DisclosurePanel>
-        </Disclosure>
-      </DisclosureGroup>
-    </View>
+export const Default: StoryFn = () => (
+  <Card title="Span" width="360px">
+    <DisclosureGroup defaultExpandedKeys={["attributes"]}>
+      <Item id="attributes" title="Attributes" />
+      <Item id="events" title="Events" />
+    </DisclosureGroup>
   </Card>
 );
+Default.tags = ["!dev"];
 
-export const ExtraTitleContent = ExtraTitleContentStory.bind({
-  args: {
-    justifyContent: "start",
-    arrowPosition: "end",
-  },
-  argTypes: {
-    arrowPosition: {
-      control: { type: "radio" },
-      options: ["start", "end"],
-    },
-    justifyContent: {
-      control: { type: "radio" },
-      options: ["space-between", "start"],
-    },
-  },
-});
+const EXPANSION = [
+  { label: "expanded", code: true, defaultExpanded: true },
+  { label: "collapsed", code: true, defaultExpanded: false },
+];
 
-const ArrowTemplate: StoryFn<DisclosureArrowProps> = (args) => (
-  <View padding="size-200">
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <DisclosureArrow {...args} />
-      <Text>Section Title</Text>
-    </Flex>
-  </View>
+const ARROW_POSITIONS: {
+  label: string;
+  code: true;
+  arrowPosition: DisclosureTriggerProps["arrowPosition"];
+}[] = [
+  { label: "start", code: true, arrowPosition: "start" },
+  { label: "end", code: true, arrowPosition: "end" },
+  { label: "none", code: true, arrowPosition: "none" },
+];
+
+export const ArrowPositions: StoryFn = () => (
+  <OptionGrid
+    rows={ARROW_POSITIONS}
+    columns={EXPANSION}
+    renderCell={(row, column) => (
+      <Frame>
+        <Item
+          id="attributes"
+          title="Attributes"
+          defaultExpanded={column?.defaultExpanded}
+          triggerProps={{ arrowPosition: row.arrowPosition }}
+        />
+      </Frame>
+    )}
+  />
 );
+ArrowPositions.storyName = "Arrow Positions";
+ArrowPositions.tags = ["!dev"];
+ArrowPositions.parameters = { themeLayout: "column" };
 
-type ArrowStory = StoryObj<typeof DisclosureArrow>;
+const STATES: { label: string; props: Partial<DisclosureProps> }[] = [
+  { label: "Default", props: {} },
+  { label: "Disabled", props: { isDisabled: true } },
+];
 
-const arrowArgTypes: ArrowStory["argTypes"] = {
-  position: {
-    control: { type: "radio" },
-    options: ["start", "end"],
+export const States: StoryFn = () => (
+  <OptionGrid
+    rows={STATES}
+    columns={EXPANSION}
+    renderCell={(row, column) => (
+      <Frame>
+        <Item
+          id="attributes"
+          title="Attributes"
+          defaultExpanded={column?.defaultExpanded}
+          {...row.props}
+        />
+      </Frame>
+    )}
+  />
+);
+States.tags = ["!dev"];
+States.parameters = { themeLayout: "column" };
+
+const SIZES = (["S", "M", "L"] as const).map((size) => ({
+  label: size,
+  code: true,
+  size,
+}));
+
+const SIZE_OWNERS = [
+  { label: "DisclosureGroup size", code: true, owner: "group" },
+  { label: "Disclosure size", code: true, owner: "disclosure" },
+] as const;
+
+/**
+ * Size is styled in two places only: `S` on a `DisclosureGroup` tightens its
+ * triggers' padding, and `L` on a `Disclosure` gives its trigger a fixed,
+ * taller height. Every other combination renders at the default size.
+ */
+export const Sizes: StoryFn = () => (
+  <OptionGrid
+    rows={SIZES}
+    columns={SIZE_OWNERS}
+    renderCell={(row, column) => (
+      <Frame>
+        <DisclosureGroup
+          size={column?.owner === "group" ? row.size : undefined}
+        >
+          {["Attributes", "Events"].map((title) => (
+            <Item
+              key={title}
+              id={title}
+              title={title}
+              size={column?.owner === "disclosure" ? row.size : undefined}
+            />
+          ))}
+        </DisclosureGroup>
+      </Frame>
+    )}
+  />
+);
+Sizes.tags = ["!dev"];
+Sizes.parameters = { themeLayout: "column" };
+
+const TRIGGER_LAYOUTS: {
+  label: string;
+  code: true;
+  props: Omit<DisclosureTriggerProps, "children">;
+  title: ReactNode;
+}[] = [
+  {
+    label: 'justifyContent="start"',
+    code: true,
+    props: { justifyContent: "start" },
+    title: (
+      <>
+        Annotations
+        <Counter variant="quiet">4</Counter>
+      </>
+    ),
   },
-};
+  {
+    label: 'justifyContent="space-between"',
+    code: true,
+    props: { justifyContent: "space-between" },
+    title: (
+      <>
+        Annotations
+        <Counter variant="quiet">4</Counter>
+      </>
+    ),
+  },
+  {
+    label: 'direction="column"',
+    code: true,
+    props: { direction: "column", alignItems: "start" },
+    title: (
+      <>
+        <Text weight="heavy">Reasoning</Text>
+        <Text size="XS" color="text-700">
+          1,204 tokens
+        </Text>
+      </>
+    ),
+  },
+];
 
-/**
- * `DisclosureArrow`, the canonical collapse / expand affordance. Rotates
- * right → down when placed at the start of a label.
- */
-export const ArrowStartPosition: ArrowStory = {
-  name: "Arrow",
-  render: ArrowTemplate,
-  args: { isExpanded: false, position: "start" },
-  argTypes: arrowArgTypes,
-};
+export const TriggerLayouts: StoryFn = () => (
+  <OptionGrid
+    rows={TRIGGER_LAYOUTS}
+    renderCell={(row) => (
+      <Frame>
+        <Item
+          id="trigger"
+          title={row.title}
+          defaultExpanded={false}
+          triggerProps={row.props}
+        />
+      </Frame>
+    )}
+  />
+);
+TriggerLayouts.storyName = "Trigger Layouts";
+TriggerLayouts.tags = ["!dev"];
+TriggerLayouts.parameters = { themeLayout: "column" };
 
-/**
- * End-positioned arrows (right side of a trigger) rotate down → up.
- */
-export const ArrowEndPosition: ArrowStory = {
-  name: "Arrow End Position",
-  render: ArrowTemplate,
-  args: { isExpanded: false, position: "end" },
-  argTypes: arrowArgTypes,
-};
+const GROUP_MODES: {
+  label: string;
+  code: true;
+  props: Partial<DisclosureGroupProps>;
+}[] = [
+  {
+    label: "allowsMultipleExpanded",
+    code: true,
+    props: { defaultExpandedKeys: ["input", "output"] },
+  },
+  {
+    label: "allowsMultipleExpanded={false}",
+    code: true,
+    props: { allowsMultipleExpanded: false, defaultExpandedKeys: ["input"] },
+  },
+];
 
-const ArrowInteractiveStory: StoryFn<DisclosureArrowProps> = (args) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  return (
-    <button
-      className="button--reset"
-      onClick={() => setIsExpanded(!isExpanded)}
-      style={{ cursor: "pointer" }}
-      aria-expanded={isExpanded}
-    >
+export const GroupExpansion: StoryFn = () => (
+  <OptionGrid
+    columns={GROUP_MODES}
+    renderCell={(_, column) => (
+      <Frame>
+        <DisclosureGroup {...column?.props}>
+          {["Input", "Output", "Metadata"].map((title) => (
+            <Item key={title} id={title.toLowerCase()} title={title} />
+          ))}
+        </DisclosureGroup>
+      </Frame>
+    )}
+  />
+);
+GroupExpansion.storyName = "Group Expansion";
+GroupExpansion.tags = ["!dev"];
+GroupExpansion.parameters = { themeLayout: "column" };
+
+const ARROW_ROWS = (["start", "end"] as const).map((position) => ({
+  label: position,
+  code: true,
+  position,
+}));
+
+const ARROW_COLUMNS = [
+  { label: "collapsed", code: true, isExpanded: false },
+  { label: "expanded", code: true, isExpanded: true },
+];
+
+export const Arrow: StoryFn = () => (
+  <OptionGrid
+    rows={ARROW_ROWS}
+    columns={ARROW_COLUMNS}
+    renderCell={(row, column) => (
       <Flex direction="row" gap="size-100" alignItems="center">
-        <DisclosureArrow {...args} isExpanded={isExpanded} />
-        <Text>Click to toggle</Text>
+        {row.position === "start" ? (
+          <DisclosureArrow position="start" isExpanded={!!column?.isExpanded} />
+        ) : null}
+        <Text>Section title</Text>
+        {row.position === "end" ? (
+          <DisclosureArrow position="end" isExpanded={!!column?.isExpanded} />
+        ) : null}
       </Flex>
-    </button>
-  );
-};
-
-export const ArrowInteractive: ArrowStory = {
-  name: "Arrow Interactive",
-  render: ArrowInteractiveStory,
-  args: { position: "start" },
-  argTypes: arrowArgTypes,
-};
+    )}
+  />
+);
+Arrow.tags = ["!dev"];
+Arrow.parameters = { themeLayout: "row" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
