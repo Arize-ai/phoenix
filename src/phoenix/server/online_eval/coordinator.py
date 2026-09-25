@@ -7,7 +7,7 @@ Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --complete--> DONE
                        RUNNING --fail-----> ERROR, or FAILED once the retry budget is spent
-                       RUNNING --expire---> EXPIRED | SUPERSEDED | CONTENT_LOST
+                       RUNNING --expire---> EXPIRED | CONTENT_LOST
                        RUNNING --release--> PENDING
     RUNNING (lease lapsed) --> reclaimable, or FAILED when no attempts remain
     ERROR (cooldown elapsed) --> retried
@@ -32,7 +32,7 @@ LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
 # session and trace work is never deleted, so all-time aggregates would grow without bound.
 TERMINAL_METRICS_WINDOW_SECONDS = 86_400.0
 
-RetiredWorkStatus = Literal["EXPIRED", "SUPERSEDED", "CONTENT_LOST"]
+RetiredWorkStatus = Literal["EXPIRED", "CONTENT_LOST"]
 
 PublicationWrite = Callable[[AsyncSession], Awaitable[None]]
 """Writes one unit's results, inside the transaction that fenced its publication."""
@@ -50,15 +50,12 @@ class PublicationClaimLostError(Exception):
 
 @dataclass(frozen=True)
 class ClaimedWorkUnit:
-    """A leased work unit with an idempotent annotation identifier."""
+    """A leased work unit: one project evaluator to run against one target row."""
 
     work_unit_id: int
     evaluation_target: models.EvaluationTarget
     target_rowid: int
-    evaluator_id: int
     project_evaluator_id: int
-    config_fingerprint: str
-    identifier: str
     attempts: int
     claimed_by: str
     lease_expires_at: datetime
@@ -70,7 +67,7 @@ class QueueLag:
 
     ``pending_count``, ``running_count`` and ``retryable_error_count`` are the current
     live work. ``exhausted_error_count`` (FAILED) and ``expired_count`` (every retirement
-    without an outcome: EXPIRED, SUPERSEDED, and CONTENT_LOST) count work that
+    without an outcome: EXPIRED and CONTENT_LOST) count work that
     reached that status within the last ``TERMINAL_METRICS_WINDOW_SECONDS``.
     ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is None
     when that backlog is empty."""

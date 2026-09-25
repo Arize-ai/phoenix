@@ -19,7 +19,6 @@ from phoenix.server.app import _db
 from phoenix.server.online_eval import sweeper as sweeper_module
 from phoenix.server.online_eval.derivation import (
     MAX_ATTEMPTS,
-    STALE_FINGERPRINT_ERROR,
     ResolvedProjectEvaluator,
     sample_key,
 )
@@ -182,7 +181,7 @@ async def test_materializes_due_session_with_activity_snapshot(
         db,
         age_seconds=600,
     )
-    evaluator_id, project_evaluator_id = await _seed_criteria(
+    _, project_evaluator_id = await _seed_criteria(
         db,
         project_id,
         evaluation_target="SESSION",
@@ -209,7 +208,6 @@ async def test_materializes_due_session_with_activity_snapshot(
         live_work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
-    assert unit.evaluator_id == evaluator_id
     assert unit.project_evaluator_id == project_evaluator_id
     assert unit.evaluated_through == last_span_ingested_at
     assert unit.status == "PENDING"
@@ -658,83 +656,6 @@ async def test_terminal_history_re_materializes_only_after_new_ingest(
     assert await _work_statuses(db) == ["FAILED", "EXPIRED"]
 
 
-async def test_stale_fingerprint_expiration_does_not_close_the_watermark(
-    db: DbSessionFactory,
-) -> None:
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
-    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    await _set_delay(db, project_evaluator_id, 10)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    await sweeper._tick()
-    async with db() as session:
-        await session.execute(
-            update(models.EvalSessionWorkUnit).values(
-                status="SUPERSEDED",
-                error=STALE_FINGERPRINT_ERROR,
-            )
-        )
-
-    await sweeper._tick()
-
-    assert await _work_statuses(db) == ["PENDING"]
-
-
-async def test_unit_superseded_by_an_edit_is_not_re_offered_below_the_scan_floor(
-    db: DbSessionFactory,
-) -> None:
-    """Edits apply to future activity: a unit superseded mid-flight is not re-offered
-    under the new configuration once its session is below the scan floor."""
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
-    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    await _set_delay(db, project_evaluator_id, 10)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    await sweeper._tick()
-    async with db() as session:
-        await session.execute(
-            update(models.EvalSessionWorkUnit).values(
-                status="SUPERSEDED",
-                error=STALE_FINGERPRINT_ERROR,
-            )
-        )
-    await _rename_project_evaluator(db, project_evaluator_id)
-
-    await sweeper._tick()
-    await sweeper._tick()
-
-    assert await _work_statuses(db) == ["SUPERSEDED"]
-
-
-async def test_stale_fingerprint_revival_selects_one_row_per_dedup_key(
-    db: DbSessionFactory,
-) -> None:
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
-    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    await _set_delay(db, project_evaluator_id, 10)
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    await sweeper._tick()
-    async with db() as session:
-        work = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
-        work.status = "SUPERSEDED"
-        work.error = STALE_FINGERPRINT_ERROR
-        session.add(
-            models.EvalSessionWorkUnit(
-                project_session_rowid=work.project_session_rowid,
-                evaluator_id=work.evaluator_id,
-                project_evaluator_id=work.project_evaluator_id,
-                config_fingerprint=work.config_fingerprint,
-                evaluated_through=work.evaluated_through,
-                status="SUPERSEDED",
-                error=STALE_FINGERPRINT_ERROR,
-            )
-        )
-
-    await sweeper._tick()
-    assert await _work_statuses(db) == ["PENDING", "SUPERSEDED"]
-
-    await sweeper._tick()
-    assert await _work_statuses(db) == ["PENDING", "SUPERSEDED"]
-
-
 async def test_quiet_session_predating_criterion_creation_is_not_live(
     db: DbSessionFactory,
 ) -> None:
@@ -794,7 +715,7 @@ async def _rename_project_evaluator(
     db: DbSessionFactory,
     project_evaluator_id: int,
 ) -> None:
-    """Edit the evaluator's configuration, which moves its config fingerprint."""
+    """Edit the evaluator's configuration."""
     async with db() as session:
         await session.execute(
             update(models.ProjectEvaluator)
@@ -812,60 +733,27 @@ async def test_edited_criterion_does_not_re_sweep_history_below_its_watermark(
     await sweeper._tick()
 
     async with db() as session:
-        original_fingerprint = await session.scalar(
-            select(models.EvalSessionWorkUnit.config_fingerprint)
-        )
+        original_unit_id = await session.scalar(select(models.EvalSessionWorkUnit.id))
         swept_through_at = await session.scalar(
             select(models.ProjectEvaluator.swept_through_at).where(
                 models.ProjectEvaluator.id == project_evaluator_id
             )
         )
-    assert original_fingerprint is not None
+    assert original_unit_id is not None
     assert swept_through_at is not None
 
     await _rename_project_evaluator(db, project_evaluator_id)
     await sweeper._tick()
 
     async with db() as session:
-        fingerprints = list(
+        unit_ids = list(
             await session.scalars(
-                select(models.EvalSessionWorkUnit.config_fingerprint).where(
+                select(models.EvalSessionWorkUnit.id).where(
                     models.EvalSessionWorkUnit.project_session_rowid == project_session_id
                 )
             )
         )
-    assert fingerprints == [original_fingerprint]
-
-
-async def test_session_ingested_above_the_watermark_is_swept_after_an_edit(
-    db: DbSessionFactory,
-) -> None:
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
-    await sweeper._tick()
-
-    async with db() as session:
-        original_fingerprint = await session.scalar(
-            select(models.EvalSessionWorkUnit.config_fingerprint)
-        )
-    assert original_fingerprint is not None
-
-    await _rename_project_evaluator(db, project_evaluator_id)
-    await _advance_liveness(db, project_session_id, _now() - timedelta(seconds=320))
-    await sweeper._tick()
-
-    async with db() as session:
-        fingerprints = list(
-            await session.scalars(
-                select(models.EvalSessionWorkUnit.config_fingerprint)
-                .where(models.EvalSessionWorkUnit.project_session_rowid == project_session_id)
-                .order_by(models.EvalSessionWorkUnit.id)
-            )
-        )
-    assert len(fingerprints) == 2
-    assert fingerprints[0] == original_fingerprint
-    assert fingerprints[1] != original_fingerprint
+    assert unit_ids == [original_unit_id]
 
 
 async def test_session_without_liveness_becomes_live_after_new_activity(
@@ -1128,15 +1016,11 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
         value for value in compiled.params.values() if not isinstance(value, (list, tuple))
     }
     assert {criterion.project_evaluator_id for criterion in project_evaluator} <= bound_scalars
-    assert {criterion.fingerprint for criterion in project_evaluator} <= bound_scalars
 
     await sweeper._tick()
 
     async with db() as session:
         units = (await session.scalars(select(models.EvalSessionWorkUnit))).all()
-    fingerprints = {
-        criterion.project_evaluator_id: criterion.fingerprint for criterion in project_evaluator
-    }
     assert {
         (unit.project_evaluator_id, unit.project_session_rowid): unit.status for unit in units
     } == {
@@ -1145,7 +1029,6 @@ async def test_filtered_and_unfiltered_criteria_schedule_independently(
         (filtered_criteria_id, matching_session_id): "PENDING",
         (filtered_criteria_id, excluded_session_id): "FILTERED_OUT",
     }
-    assert all(unit.config_fingerprint == fingerprints[unit.project_evaluator_id] for unit in units)
 
 
 async def test_session_sampling_decisions_are_deterministic_and_idempotent(
@@ -1279,7 +1162,7 @@ async def test_materializes_due_trace_with_activity_snapshot(
         db,
         age_seconds=600,
     )
-    evaluator_id, project_evaluator_id = await _seed_criteria(
+    _, project_evaluator_id = await _seed_criteria(
         db,
         project_id,
         evaluation_target="TRACE",
@@ -1310,7 +1193,6 @@ async def test_materializes_due_trace_with_activity_snapshot(
         session_work_count = await session.scalar(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
-    assert unit.evaluator_id == evaluator_id
     assert unit.project_evaluator_id == project_evaluator_id
     assert unit.evaluated_through == last_span_ingested_at
     assert unit.status == "PENDING"

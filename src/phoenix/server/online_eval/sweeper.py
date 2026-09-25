@@ -15,7 +15,6 @@ from sqlalchemy import (
     Float,
     Insert,
     Integer,
-    String,
     case,
     cast,
     column,
@@ -44,16 +43,14 @@ from phoenix.db import models
 from phoenix.db.eval_work import (
     LIVE_EVAL_WORK_STATUSES,
     SESSION_DECLINED_STATUSES,
+    TERMINAL_EVAL_SESSION_WORK_STATUSES,
     live_eval_session_work_index_predicate,
     live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
-from phoenix.server.online_eval.derivation import (
-    config_fingerprint,
-    sample_key,
-)
+from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.prometheus import (
@@ -150,8 +147,6 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
 class _SweepProjectEvaluator:
     project_evaluator_id: int
     project_id: int
-    evaluator_id: int
-    fingerprint: str
     delay_seconds: int
     created_at: datetime
     sweep_floor: datetime
@@ -176,8 +171,6 @@ def _project_evaluator_relation(
         row_parameters = {
             f"{prefix}_project_evaluator_id": project_evaluator.project_evaluator_id,
             f"{prefix}_project_id": project_evaluator.project_id,
-            f"{prefix}_evaluator_id": project_evaluator.evaluator_id,
-            f"{prefix}_config_fingerprint": project_evaluator.fingerprint,
             f"{prefix}_delay_seconds": project_evaluator.delay_seconds,
             f"{prefix}_sweep_floor": project_evaluator.sweep_floor,
             f"{prefix}_sampling_rate": project_evaluator.sampling_rate,
@@ -192,21 +185,17 @@ def _project_evaluator_relation(
                 f"CAST({placeholders[0]} AS INTEGER)",
                 f"CAST({placeholders[1]} AS INTEGER)",
                 f"CAST({placeholders[2]} AS INTEGER)",
-                f"CAST({placeholders[3]} AS VARCHAR)",
-                f"CAST({placeholders[4]} AS INTEGER)",
-                f"CAST({placeholders[5]} AS {timestamp_type})",
-                f"CAST({placeholders[6]} AS FLOAT)",
+                f"CAST({placeholders[3]} AS {timestamp_type})",
+                f"CAST({placeholders[4]} AS FLOAT)",
             ]
         rows.append(f"({', '.join(placeholders)})")
     statement = text(
         "SELECT "
         "sc.column1 AS project_evaluator_id, "
         "sc.column2 AS project_id, "
-        "sc.column3 AS evaluator_id, "
-        "sc.column4 AS config_fingerprint, "
-        "sc.column5 AS delay_seconds, "
-        "sc.column6 AS sweep_floor, "
-        "sc.column7 AS sampling_rate "
+        "sc.column3 AS delay_seconds, "
+        "sc.column4 AS sweep_floor, "
+        "sc.column5 AS sampling_rate "
         f"FROM (VALUES {', '.join(rows)}) AS sc"
     )
     return (
@@ -214,8 +203,6 @@ def _project_evaluator_relation(
         .columns(
             column("project_evaluator_id", Integer),
             column("project_id", Integer),
-            column("evaluator_id", Integer),
-            column("config_fingerprint", String),
             column("delay_seconds", Integer),
             column("sweep_floor", models.UtcTimeStamp()),
             column("sampling_rate", Float),
@@ -242,8 +229,7 @@ def _live_work_exists(
         .select_from(live_work)
         .where(
             getattr(live_work, target.work_unit_target_column) == target.entity_model.id,
-            live_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
-            live_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
+            live_work.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
             _holds_live_key(live_work),
         )
         .correlate(target.entity_model, project_evaluator_relation)
@@ -266,10 +252,9 @@ def _eligible_pairs_relation(
         select(func.max(terminal_work.evaluated_through))
         .where(
             getattr(terminal_work, target_column) == entity_model.id,
-            terminal_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
-            terminal_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
+            terminal_work.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
             terminal_work.status.in_(
-                ("DONE", "FAILED", "EXPIRED", "CONTENT_LOST", *SESSION_DECLINED_STATUSES)
+                (*TERMINAL_EVAL_SESSION_WORK_STATUSES, *SESSION_DECLINED_STATUSES)
             ),
         )
         .correlate(entity_model, project_evaluator_relation)
@@ -280,8 +265,8 @@ def _eligible_pairs_relation(
         .select_from(successful_work)
         .where(
             getattr(successful_work, target_column) == entity_model.id,
-            successful_work.evaluator_id == project_evaluator_relation.c.evaluator_id,
-            successful_work.config_fingerprint == project_evaluator_relation.c.config_fingerprint,
+            successful_work.project_evaluator_id
+            == project_evaluator_relation.c.project_evaluator_id,
             successful_work.status == "DONE",
         )
         .correlate(entity_model, project_evaluator_relation)
@@ -304,8 +289,6 @@ def _eligible_pairs_relation(
             entity_model.id.label("entity_rowid"),
             getattr(entity_model, target.sample_key_column).label("sample_identity"),
             project_evaluator_relation.c.project_evaluator_id,
-            project_evaluator_relation.c.evaluator_id,
-            project_evaluator_relation.c.config_fingerprint,
             project_evaluator_relation.c.sampling_rate,
             entity_model.last_span_ingested_at.label("evaluated_through"),
             due_at.label("effective_due_time"),
@@ -341,8 +324,7 @@ def _work_insert_statement(
     work_unit_model = target.work_unit_model
     index_elements = (
         getattr(work_unit_model, target.work_unit_target_column),
-        work_unit_model.evaluator_id,
-        work_unit_model.config_fingerprint,
+        work_unit_model.project_evaluator_id,
     )
     if dialect is SupportedSQLDialect.POSTGRESQL:
         return (
@@ -493,8 +475,6 @@ class EvalSweeper(DaemonTask):
                 _SweepProjectEvaluator(
                     project_evaluator_id=project_evaluator.id,
                     project_id=project_evaluator.project_id,
-                    evaluator_id=project_evaluator.evaluator_id,
-                    fingerprint=config_fingerprint(resolved),
                     delay_seconds=project_evaluator.evaluation_delay_seconds,
                     created_at=project_evaluator.created_at,
                     sweep_floor=(project_evaluator.swept_through_at or project_evaluator.created_at)
@@ -532,18 +512,12 @@ class EvalSweeper(DaemonTask):
         if work_budget == 0:
             return 0, None
         project_evaluators = await self._load_evaluators(session)
-        materialized_work_count, eligible_pair_count = await self._load_eligible_pairs(
+        return await self._load_eligible_pairs(
             session,
             database_now,
             project_evaluators,
             limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
         )
-        await self._revive_stale_fingerprint_work(
-            session,
-            project_evaluators,
-            limit=work_budget - materialized_work_count,
-        )
-        return materialized_work_count, eligible_pair_count
 
     async def _load_eligible_pairs(
         self,
@@ -633,9 +607,7 @@ class EvalSweeper(DaemonTask):
             decisions.append(
                 {
                     target.work_unit_target_column: row.entity_rowid,
-                    "evaluator_id": row.evaluator_id,
                     "project_evaluator_id": row.project_evaluator_id,
-                    "config_fingerprint": row.config_fingerprint,
                     "evaluated_through": row.evaluated_through,
                     "status": status,
                 }
@@ -668,71 +640,6 @@ class EvalSweeper(DaemonTask):
         except IntegrityError as error:
             raise _PageRowDeletedError(str(error.orig)) from error
         return inserted_statuses.count("PENDING"), eligible_pair_count
-
-    async def _revive_stale_fingerprint_work(
-        self,
-        session: AsyncSession,
-        project_evaluators: Sequence[_SweepProjectEvaluator],
-        *,
-        limit: int,
-    ) -> None:
-        """Re-offer work expired against a configuration the evaluator has moved back to."""
-        if not project_evaluators or limit <= 0:
-            return
-        work_unit_model = self._target.work_unit_model
-        target_column = getattr(work_unit_model, self._target.work_unit_target_column)
-        relation = _project_evaluator_relation(project_evaluators, self._db.dialect)
-        expired_against_the_current_configuration = (
-            select(1)
-            .select_from(relation)
-            .where(
-                relation.c.project_evaluator_id == work_unit_model.project_evaluator_id,
-                relation.c.config_fingerprint == work_unit_model.config_fingerprint,
-            )
-            .correlate(work_unit_model)
-            .exists()
-        )
-        other_work = aliased(work_unit_model)
-        dedup_key_taken = (
-            select(1)
-            .select_from(other_work)
-            .where(
-                getattr(other_work, self._target.work_unit_target_column) == target_column,
-                other_work.evaluator_id == work_unit_model.evaluator_id,
-                other_work.config_fingerprint == work_unit_model.config_fingerprint,
-                other_work.id != work_unit_model.id,
-                or_(other_work.status == "DONE", _holds_live_key(other_work)),
-            )
-            .correlate(work_unit_model)
-            .exists()
-        )
-        revivable = (
-            select(func.min(work_unit_model.id))
-            .where(
-                work_unit_model.status == "SUPERSEDED",
-                expired_against_the_current_configuration,
-                ~dedup_key_taken,
-            )
-            .group_by(
-                target_column,
-                work_unit_model.evaluator_id,
-                work_unit_model.config_fingerprint,
-            )
-            .order_by(func.min(work_unit_model.id))
-            .limit(limit)
-        )
-        await session.execute(
-            update(work_unit_model)
-            .where(work_unit_model.id.in_(revivable))
-            .values(
-                status="PENDING",
-                attempts=0,
-                error=None,
-                claimed_by=None,
-                claimed_at=None,
-                cooldown_until=None,
-            )
-        )
 
     async def _advance_watermarks_to_due_horizon(
         self,

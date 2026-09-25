@@ -3,7 +3,7 @@ from importlib import import_module
 from secrets import token_hex
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.orm import selectinload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -49,14 +49,12 @@ async def _seed_span_evaluator_and_criteria(db: DbSessionFactory) -> tuple[int, 
 
 
 async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         work_unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint="fp-1",
         )
         session.add(work_unit)
         await session.flush()
@@ -68,7 +66,6 @@ async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -
             .where(models.EvalWorkUnit.id == work_unit_id)
             .options(
                 selectinload(models.EvalWorkUnit.span),
-                selectinload(models.EvalWorkUnit.evaluator),
                 selectinload(models.EvalWorkUnit.project_evaluator),
             )
         )
@@ -79,48 +76,17 @@ async def test_eval_work_unit_defaults_and_relationships(db: DbSessionFactory) -
         assert fetched.claimed_by is None
         assert fetched.cooldown_until is None
         assert fetched.span.id == span_rowid
-        assert fetched.evaluator.id == evaluator_id
         assert fetched.project_evaluator.id == project_evaluator_id
 
 
-async def test_eval_work_unit_distinct_fingerprints_coexist(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
-    async with db() as session:
-        session.add_all(
-            [
-                models.EvalWorkUnit(
-                    span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
-                    project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-a",
-                ),
-                models.EvalWorkUnit(
-                    span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
-                    project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-b",
-                ),
-            ]
-        )
-        await session.flush()
-        count = await session.scalar(
-            select(func.count())
-            .select_from(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.span_rowid == span_rowid)
-        )
-        assert count == 2
-
-
 async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         session.add(
             models.EvalWorkUnit(
                 span_rowid=span_rowid,
-                evaluator_id=evaluator_id,
                 project_evaluator_id=project_evaluator_id,
-                config_fingerprint="fp-dup",
             )
         )
         await session.flush()
@@ -130,25 +96,21 @@ async def test_eval_work_unit_work_key_is_unique(db: DbSessionFactory) -> None:
             session.add(
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
                     project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-dup",
                 )
             )
             await session.flush()
 
 
 async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     with pytest.raises(_INTEGRITY_ERRORS):
         async with db() as session:
             session.add(
                 models.EvalWorkUnit(
                     span_rowid=span_rowid,
-                    evaluator_id=evaluator_id,
                     project_evaluator_id=project_evaluator_id,
-                    config_fingerprint="fp-bad-status",
                     status="BOGUS",
                 )
             )
@@ -156,14 +118,12 @@ async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> No
 
 
 async def test_eval_work_unit_accepts_expired_status(db: DbSessionFactory) -> None:
-    span_rowid, evaluator_id, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
+    span_rowid, _, project_evaluator_id = await _seed_span_evaluator_and_criteria(db)
 
     async with db() as session:
         work_unit = models.EvalWorkUnit(
             span_rowid=span_rowid,
-            evaluator_id=evaluator_id,
             project_evaluator_id=project_evaluator_id,
-            config_fingerprint="fp-expired",
             status="EXPIRED",
         )
         session.add(work_unit)
@@ -204,14 +164,11 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
         )
         session.add(project_evaluator)
         await session.flush()
-        evaluator_id = evaluator.id
         project_evaluator_id = project_evaluator.id
         session.add(
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session_id,
-                evaluator_id=evaluator_id,
                 project_evaluator_id=project_evaluator_id,
-                config_fingerprint="fp-session",
                 evaluated_through=evaluated_through,
             )
         )
@@ -224,13 +181,11 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
         work_unit = await session.scalar(
             select(models.EvalSessionWorkUnit).options(
                 selectinload(models.EvalSessionWorkUnit.project_session),
-                selectinload(models.EvalSessionWorkUnit.evaluator),
                 selectinload(models.EvalSessionWorkUnit.project_evaluator),
             )
         )
         assert work_unit is not None
         assert work_unit.project_session.id == project_session_id
-        assert work_unit.evaluator.id == evaluator_id
         assert work_unit.project_evaluator.id == project_evaluator_id
         assert work_unit.evaluated_through == evaluated_through
         assert work_unit.status == "PENDING"

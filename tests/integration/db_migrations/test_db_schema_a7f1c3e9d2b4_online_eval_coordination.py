@@ -275,9 +275,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         column_names = {
             "id",
             "span_rowid",
-            "evaluator_id",
             "project_evaluator_id",
-            "config_fingerprint",
             "status",
             "claimed_at",
             "claimed_by",
@@ -289,15 +287,13 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         }
         index_names = {
             "ix_eval_work_units_claimable",
-            "ix_eval_work_units_evaluator_id",
             "ix_eval_work_units_project_evaluator_id",
             "ix_eval_work_units_terminal",
         }
         constraint_names = {
             "pk_eval_work_units",
-            "uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint",
+            "uq_eval_work_units_span_rowid_project_evaluator_id",
             "fk_eval_work_units_span_rowid_spans",
-            "fk_eval_work_units_evaluator_id_evaluators",
             "fk_eval_work_units_project_evaluator_id_project_evaluators",
             "ck_eval_work_units_`valid_eval_work_status`",
         }
@@ -305,7 +301,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             index_names.update(
                 {
                     "pk_eval_work_units",
-                    "uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint",
+                    "uq_eval_work_units_span_rowid_project_evaluator_id",
                 }
             )
         elif db_backend == "sqlite":
@@ -331,7 +327,6 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_eval_session_work_units_claimable",
-            "ix_eval_session_work_units_evaluator_id",
             "ix_eval_session_work_units_project_evaluator_id",
             "ix_eval_session_work_units_terminal",
             "ix_eval_session_work_units_terminal_watermark",
@@ -341,10 +336,6 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "pk_eval_session_work_units",
             _constraint_name(
                 "fk_eval_session_work_units_project_session_rowid_project_sessions",
-                db_backend,
-            ),
-            _constraint_name(
-                "fk_eval_session_work_units_evaluator_id_evaluators",
                 db_backend,
             ),
             _constraint_name(
@@ -365,9 +356,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "project_session_rowid",
-                    "evaluator_id",
                     "project_evaluator_id",
-                    "config_fingerprint",
                     "evaluated_through",
                     "status",
                     "claimed_at",
@@ -400,7 +389,6 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
     def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> _TableSchemaInfo:
         index_names = {
             "ix_eval_trace_work_units_claimable",
-            "ix_eval_trace_work_units_evaluator_id",
             "ix_eval_trace_work_units_project_evaluator_id",
             "ix_eval_trace_work_units_terminal",
             "ix_eval_trace_work_units_terminal_watermark",
@@ -410,10 +398,6 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
             "pk_eval_trace_work_units",
             _constraint_name(
                 "fk_eval_trace_work_units_trace_rowid_traces",
-                db_backend,
-            ),
-            _constraint_name(
-                "fk_eval_trace_work_units_evaluator_id_evaluators",
                 db_backend,
             ),
             _constraint_name(
@@ -434,9 +418,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
                 {
                     "id",
                     "trace_rowid",
-                    "evaluator_id",
                     "project_evaluator_id",
-                    "config_fingerprint",
                     "evaluated_through",
                     "status",
                     "claimed_at",

@@ -82,7 +82,7 @@ from phoenix.server.online_eval.coordinator import (
     RetiredWorkStatus,
 )
 from phoenix.server.online_eval.derivation import (
-    STALE_FINGERPRINT_ERROR,
+    annotation_identifier,
     config_fingerprint,
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition
@@ -134,7 +134,6 @@ class HydrationFailureReason(str, Enum):
     EVALUATOR_MISSING = "EVALUATOR_MISSING"
     EVALUATOR_VERSION_MISSING = "EVALUATOR_VERSION_MISSING"
     SANDBOX_RUNTIME_UNAVAILABLE = "SANDBOX_RUNTIME_UNAVAILABLE"
-    CONFIG_FINGERPRINT_MISMATCH = STALE_FINGERPRINT_ERROR
     SPAN_MISSING = "SPAN_MISSING"
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_PROJECT_MISMATCH = "SESSION_PROJECT_MISMATCH"
@@ -164,11 +163,8 @@ class HydrationFailure:
 
     @property
     def terminal_status(self) -> RetiredWorkStatus:
-        """The status the unit is retired with. Two lifecycle reasons get their own, on
-        every grain: the configuration moved under the unit, or the subject had no
-        content left to evaluate by the time it was hydrated."""
-        if self.reason is HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH:
-            return "SUPERSEDED"
+        """The status the unit is retired with. A subject that had no content left to
+        evaluate by the time it was hydrated gets its own."""
         if self.reason in _CONTENT_LOST_REASONS:
             return "CONTENT_LOST"
         return "EXPIRED"
@@ -177,10 +173,11 @@ class HydrationFailure:
 @dataclass(frozen=True)
 class HydratedWorkUnit:
     """Everything one eval needs, copied out of the mutable project-evaluator/evaluator
-    rows while the staleness guard held. The executor never re-reads those rows
-    after hydration, so the eval runs under snapshot semantics."""
+    rows at claim time. The executor never re-reads those rows after hydration, so the
+    eval runs under snapshot semantics."""
 
     annotation_name: str
+    identifier: str
     annotator_kind: AnnotatorKind
     evaluator_kind: EvaluatorKind
     evaluator: BaseEvaluator
@@ -206,7 +203,7 @@ class HydratedConfigurationSnapshot:
     """Immutable evaluator configuration observed for one claim batch."""
 
     project_id: int
-    fingerprint: str
+    identifier: str
     annotation_name: str
     evaluator: _HydratedEvaluatorSnapshot
     input_mapping: InputMapping
@@ -747,16 +744,6 @@ class OnlineEvalExecutor:
             if resolved is None:
                 outcomes.append(unresolved_failures[unit.project_evaluator_id])
                 continue
-            try:
-                fingerprint = config_fingerprint(resolved)
-            except Exception as error:
-                outcomes.append(error)
-                continue
-            if fingerprint != unit.config_fingerprint:
-                outcomes.append(
-                    HydrationFailure(HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH)
-                )
-                continue
             outcomes.append(None)
 
         target_vocabularies: dict[int, dict[str, Any]] = {}
@@ -860,9 +847,14 @@ class OnlineEvalExecutor:
                 if snapshot_applied_policy is not None
                 else {}
             )
+            try:
+                identifier = annotation_identifier(config_fingerprint(resolved))
+            except Exception as error:
+                outcomes[index] = error
+                continue
             outcomes[index] = HydratedConfigurationSnapshot(
                 project_id=project_evaluator.project_id,
-                fingerprint=unit.config_fingerprint,
+                identifier=identifier,
                 annotation_name=resolved.name,
                 evaluator=evaluator_snapshot_outcome,
                 input_mapping=snapshot_input_mapping,
@@ -915,6 +907,7 @@ class OnlineEvalExecutor:
     ) -> HydratedWorkUnit:
         return HydratedWorkUnit(
             annotation_name=configuration.annotation_name,
+            identifier=configuration.identifier,
             annotator_kind=configuration.evaluator.annotator_kind,
             evaluator_kind=configuration.evaluator.evaluator_kind,
             evaluator=configuration.evaluator.evaluator,
@@ -1102,10 +1095,10 @@ class OnlineEvalExecutor:
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
     ) -> None:
         """Run the eval and publish successful results as target annotations under
-        the unit's identifier. Span results are first-write-wins; session results
-        replace a prior attempt so the annotation stays paired with its coverage.
-        Raises before writing unless the evaluator returns one complete, error-free
-        result set. No DB session is open while the evaluator runs."""
+        the hydrated configuration's identifier. Span results are first-write-wins;
+        session results replace a prior attempt so the annotation stays paired with its
+        coverage. Raises before writing unless the evaluator returns one complete,
+        error-free result set. No DB session is open while the evaluator runs."""
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
@@ -1196,7 +1189,7 @@ class OnlineEvalExecutor:
                     **_evaluator_trace_metadata(result),
                 },
                 "annotator_kind": hydrated.annotator_kind,
-                "identifier": unit.identifier,
+                "identifier": hydrated.identifier,
                 "source": "API",
                 "user_id": None,
             }
