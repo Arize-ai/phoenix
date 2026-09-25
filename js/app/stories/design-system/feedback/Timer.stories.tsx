@@ -1,93 +1,101 @@
-import type { Meta, StoryFn, StoryObj } from "@storybook/react";
-import { useCallback, useState } from "react";
+import type { Meta, StoryFn } from "@storybook/react";
+import { useState } from "react";
 
-import { Timer } from "@phoenix/components";
+import { Button, Flex, Timer } from "@phoenix/components";
+import type { TextColorValue, TextSize } from "@phoenix/components/core/types";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
+/**
+ * The time elapsed since `startTime`, counting up once a second, as
+ * `mm:ss` under an hour and `hh:mm:ss` after. Without a `startTime` it counts
+ * from when it mounts, which is how the playground times a running
+ * experiment: the timer appears when the run starts.
+ */
 const meta: Meta = {
   title: "Design System/Feedback/Timer",
-  tags: ["legacy", "unreviewed"],
   component: Timer,
+  tags: ["updated", "unreviewed", "complete"],
   parameters: {
     layout: "centered",
-    // Timer is inherently dynamic; disable chromatic snapshots by default
+    controls: { disable: true },
     chromatic: { disableSnapshot: true },
   },
 };
 
 export default meta;
 
-export const Default = {
-  args: {},
-};
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const now = Date.now();
 
-export const FromStartTime = {
-  args: {
-    startTime: new Date(Date.now() - 5 * 60 * 1000),
+const ELAPSED: { label: string; startTime: Date }[] = [
+  { label: "Just started", startTime: new Date(now) },
+  { label: "30 seconds", startTime: new Date(now - 30 * SECOND) },
+  { label: "5 minutes", startTime: new Date(now - 5 * MINUTE) },
+  {
+    label: "2 hours 15 minutes",
+    startTime: new Date(now - 2 * HOUR - 15 * MINUTE),
   },
-};
+  { label: "120 hours", startTime: new Date(now - 120 * HOUR) },
+];
 
-export const WithHours = {
-  args: {
-    startTime: new Date(Date.now() - 2 * 60 * 60 * 1000 - 15 * 60 * 1000),
-  },
-};
+const SIZES: { label: TextSize; code: true }[] = (
+  ["XS", "S", "M", "L", "XL", "XXL"] as const
+).map((size) => ({ label: size, code: true }));
 
-export const SubtleColor = {
-  args: {
-    color: "text-700",
-  },
-};
+const COLORS: { label: TextColorValue; code: true }[] = [
+  { label: "text-900", code: true },
+  { label: "text-700", code: true },
+  { label: "text-500", code: true },
+];
 
-export const MutedColor = {
-  args: {
-    color: "text-500",
-    startTime: new Date(Date.now() - 30 * 1000),
-  },
-};
+const NINETY_SECONDS_AGO = new Date(now - 90 * SECOND);
 
-export const Sizes: StoryFn = () => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-    {(["XS", "S", "M", "L", "XL", "XXL"] as const).map((size) => (
-      <div key={size} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ width: 32, fontFamily: "monospace" }}>{size}</span>
-        {/* eslint-disable-next-line react/purity */}
-        <Timer size={size} startTime={new Date(Date.now() - 90 * 1000)} />
-      </div>
-    ))}
-  </div>
+export const Default: StoryFn = () => <Timer size="S" color="text-700" />;
+Default.tags = ["!dev"];
+
+export const Elapsed: StoryFn = () => (
+  <OptionGrid
+    rows={ELAPSED}
+    renderCell={(elapsed) => <Timer startTime={elapsed.startTime} />}
+  />
 );
+Elapsed.tags = ["!dev"];
+Elapsed.parameters = { themeLayout: "row" };
 
-export const Interactive: StoryFn = () => {
-  const [startTime, setStartTime] = useState<Date | undefined>(undefined);
-  const [running, setRunning] = useState(false);
+export const SizesAndColors: StoryFn = () => (
+  <OptionGrid
+    rows={SIZES}
+    columns={COLORS}
+    renderCell={(size, color) => (
+      <Timer
+        startTime={NINETY_SECONDS_AGO}
+        size={size.label}
+        color={color?.label}
+      />
+    )}
+  />
+);
+SizesAndColors.tags = ["!dev"];
+SizesAndColors.parameters = { themeLayout: "column" };
 
-  const handleStart = useCallback(() => {
-    setStartTime(new Date());
-    setRunning(true);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setStartTime(undefined);
-    setRunning(false);
-  }, []);
-
+export const Interaction: StoryFn = () => {
+  const [isRunning, setIsRunning] = useState(false);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <Timer startTime={startTime} />
-      {!running ? (
-        <button onClick={handleStart}>Start</button>
-      ) : (
-        <button onClick={handleReset}>Reset</button>
-      )}
-    </div>
+    <Flex direction="row" gap="size-100" alignItems="center">
+      <Button size="S" onPress={() => setIsRunning((running) => !running)}>
+        {isRunning ? "Stop" : "Run"}
+      </Button>
+      {isRunning ? <Timer size="S" color="text-700" /> : null}
+    </Flex>
   );
 };
+Interaction.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: StoryObj = {
-  tags: ["!dev", "!autodocs"],
-  args: {
-    ...WithHours.args,
-    size: "XXL",
-  },
-};
+export const Thumbnail: StoryFn = () => (
+  <Timer startTime={new Date(now - 2 * HOUR - 15 * MINUTE)} size="XXL" />
+);
+Thumbnail.tags = ["!dev", "!autodocs"];
