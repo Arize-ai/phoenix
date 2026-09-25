@@ -149,3 +149,17 @@ GET_SPANS_ORDER = ParameterRequirement(
     route="GET /v1/projects/{id}/spans",
     min_server_version=Version(20, 16, 0),
 )
+
+GET_SPANS_FILTER_EXPRESSION = ParameterRequirement(
+    parameter_name="filter",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(20, 17, 0),
+)
+
+GET_PROJECTS_BY_NAME = ParameterRequirement(
+    parameter_name="name",
+    parameter_location="query",
+    route="GET /v1/projects",
+    min_server_version=Version(20, 17, 0),
+)

@@ -35,6 +35,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "UNKNOWN"}},
                     "input": {"value": "210"},
                     "output": {"value": "321"},
                 },
@@ -58,6 +59,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "RETRIEVER"}},
                     "input": {"value": "xyz"},
                     "retrieval": {
                         "documents": [{"document": {"content": "A", "score": 1}}],
@@ -84,6 +86,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "RETRIEVER"}},
                     "input": {"value": "xyz"},
                     "retrieval": {
                         "documents": [{}, {"document": {"content": "B", "score": 2}}],
@@ -109,6 +112,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "RETRIEVER"}},
                     "input": {"value": "xyz"},
                     "retrieval": {
                         "documents": [
@@ -137,7 +141,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 span_kind="RETRIEVER",
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
-                attributes={},
+                attributes={"openinference": {"span": {"kind": "RETRIEVER"}}},
                 events=[],
                 status_code="OK",
                 status_message="okay",
@@ -158,6 +162,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "LLM"}},
                     "llm": {
                         "input_messages": [
                             {
@@ -216,6 +221,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "LLM"}},
                     "llm": {
                         "input_messages": [{"message": {"role": "user", "content": "call foo"}}],
                         "output_messages": [
@@ -257,10 +263,11 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:25.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:35.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "LLM"}},
                     "llm": {
                         "input_messages": [{"message": {"role": "user", "content": "abc"}}],
                         "output_messages": [{"message": {"role": "assistant", "content": "xyz"}}],
-                    }
+                    },
                 },
                 events=[],
                 status_code="OK",
@@ -282,6 +289,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:40.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:50.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "LLM"}},
                     "llm": {
                         "input_messages": [
                             {
@@ -292,7 +300,7 @@ async def default_project(db: DbSessionFactory) -> None:
                             }
                         ],
                         "output_messages": None,
-                    }
+                    },
                 },
                 events=[],
                 status_code="OK",
@@ -314,6 +322,7 @@ async def default_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:01:10.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:01:20.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "LLM"}},
                     "llm": {
                         "input_messages": [
                             {
@@ -337,7 +346,7 @@ async def default_project(db: DbSessionFactory) -> None:
                                 }
                             }
                         ],
-                    }
+                    },
                 },
                 events=[],
                 status_code="OK",
@@ -377,6 +386,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "UNKNOWN"}},
                     "input": {"value": "xy%z*"},
                     "output": {"value": "321"},
                 },
@@ -400,6 +410,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
                     "input": {
                         "value": "XY%*Z",
                     },
@@ -448,6 +459,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "RETRIEVER"}},
                     "attributes": "attributes",
                     "input": {
                         "value": "xy%*z",
@@ -504,6 +516,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 start_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
                 attributes={
+                    "openinference": {"span": {"kind": "LLM"}},
                     "attributes": {"attributes": "attributes"},
                     "llm": {
                         "token_count": {

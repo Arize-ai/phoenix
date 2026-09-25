@@ -2554,3 +2554,145 @@ class TestClientGetSpansSort:
             )
         )
         assert [s["context"]["span_id"] for s in latest_two] == newest_first[:2]
+
+
+class TestClientGetSpansDataframeQuery:
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_query_is_served_by_the_span_list_endpoint(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+        from phoenix.client.types.spans import SpanQuery
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+        trace_id = f"trace_df_{token_hex(16)}"
+        root_id, child_id, orphan_id = (f"span_df_{token_hex(8)}" for _ in range(3))
+        now = datetime.now(timezone.utc)
+
+        def span(
+            span_id: str,
+            name: str,
+            *,
+            span_kind: str = "CHAIN",
+            parent_id: str | None = None,
+            attributes: dict[str, Any] | None = None,
+        ) -> v1.Span:
+            result = v1.Span(
+                name=name,
+                context={"trace_id": trace_id, "span_id": span_id},
+                span_kind=span_kind,
+                start_time=(now - timedelta(minutes=1)).isoformat(),
+                end_time=now.isoformat(),
+                status_code="OK",
+                attributes=attributes or {},
+            )
+            if parent_id is not None:
+                result["parent_id"] = parent_id
+            return result
+
+        spans = [
+            span(
+                root_id,
+                "root",
+                span_kind="RETRIEVER",
+                attributes={
+                    "retrieval.documents.0.document.content": "doc a",
+                    "retrieval.documents.1.document.content": "doc b",
+                },
+            ),
+            span(child_id, "child", parent_id=root_id),
+            span(orphan_id, "orphan", parent_id=f"span_missing_{token_hex(8)}"),
+        ]
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=spans,
+            )
+        )
+        assert create_result["total_queued"] == len(spans)
+        await _until_spans_exist(_app, [root_id, child_id, orphan_id])
+
+        by_name = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                project_identifier=project_name,
+                query=SpanQuery().where("name == 'child'"),
+            )
+        )
+        assert by_name.index.to_list() == [child_id]
+        assert by_name.loc[child_id, "parent_id"] == root_id
+
+        with pytest.warns(DeprecationWarning):
+            roots = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                    project_identifier=project_name,
+                    root_spans_only=True,
+                )
+            )
+        assert sorted(roots.index.to_list()) == sorted([root_id, orphan_id])
+
+        documents = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                project_identifier=project_name,
+                query=SpanQuery()
+                .where("span_kind == 'RETRIEVER'")
+                .explode("retrieval.documents", reference="document.content"),
+            )
+        )
+        assert documents["reference"].to_list() == ["doc a", "doc b"]
+        assert documents.index.to_list() == [(root_id, 0), (root_id, 1)]
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_project_name_containing_a_slash(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        sync_client = SyncClient(base_url=_app.base_url, api_key=api_key)
+        project = sync_client.projects.create(name=f"team/{token_hex(8)}?x#y")
+        try:
+            span_id = f"span_slash_{token_hex(8)}"
+            now = datetime.now(timezone.utc)
+            create_result = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                    project_identifier=project["id"],
+                    spans=[
+                        v1.Span(
+                            name="root",
+                            context={
+                                "trace_id": f"trace_slash_{token_hex(16)}",
+                                "span_id": span_id,
+                            },
+                            span_kind="CHAIN",
+                            start_time=(now - timedelta(minutes=1)).isoformat(),
+                            end_time=now.isoformat(),
+                            status_code="OK",
+                        )
+                    ],
+                )
+            )
+            assert create_result["total_queued"] == 1
+            await _until_spans_exist(_app, [span_id])
+
+            df = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                    project_identifier=project["name"],
+                )
+            )
+            assert df.index.to_list() == [span_id]
+        finally:
+            sync_client.projects.delete(project_id=project["id"])
