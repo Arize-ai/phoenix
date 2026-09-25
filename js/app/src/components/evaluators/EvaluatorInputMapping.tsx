@@ -9,6 +9,7 @@ import {
   escapeFieldNameForReactHookForm,
   unescapeFieldNameFromReactHookForm,
 } from "@phoenix/components/evaluators/fieldNameUtils";
+import { getInitialEvaluatorInputMode } from "@phoenix/components/evaluators/initialInputMode";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import {
   useEvaluatorStore,
@@ -105,6 +106,7 @@ const useEvaluatorInputMappingControlsForm = () => {
 
 const EvaluatorInputMappingControls = () => {
   const { control, setValue } = useEvaluatorInputMappingControlsForm();
+  const store = useEvaluatorStoreInstance();
   const variables = useEvaluatorInputVariables();
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
@@ -124,7 +126,10 @@ const EvaluatorInputMappingControls = () => {
             fieldName={escapedVariable}
             label={variable}
             size="M"
-            defaultMode="path"
+            defaultMode={getInitialEvaluatorInputMode(
+              store.getState().evaluator.inputMapping.literalMapping,
+              variable
+            )}
             control={control}
             setValue={setValue}
             pathOptions={allExampleKeys}

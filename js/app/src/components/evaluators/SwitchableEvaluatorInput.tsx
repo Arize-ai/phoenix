@@ -29,7 +29,7 @@ import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import type { SizingProps } from "@phoenix/components/core/types";
 
-type MappingMode = "path" | "literal";
+import type { EvaluatorInputMappingMode } from "./initialInputMode";
 
 interface PathOption {
   id: string;
@@ -56,7 +56,7 @@ export interface SwitchableEvaluatorInputProps<
    * The default mode for this field
    * @default "path"
    */
-  defaultMode?: MappingMode;
+  defaultMode?: EvaluatorInputMappingMode;
   /**
    * react-hook-form control object
    */
@@ -135,7 +135,7 @@ const inputContainerCSS = css`
   }
 `;
 
-const MODE_OPTIONS: Array<{ id: MappingMode; label: string }> = [
+const MODE_OPTIONS: Array<{ id: EvaluatorInputMappingMode; label: string }> = [
   { id: "path", label: "Path" },
   { id: "literal", label: "Text" },
 ];
@@ -156,14 +156,14 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
   isRequired,
   size = "M",
 }: SwitchableEvaluatorInputProps<TFieldValues>) {
-  const [mode, setMode] = useState<MappingMode>(defaultMode);
+  const [mode, setMode] = useState<EvaluatorInputMappingMode>(defaultMode);
 
   const pathFieldName = `pathMapping.${fieldName}` as Path<TFieldValues>;
   const literalFieldName = `literalMapping.${fieldName}` as Path<TFieldValues>;
 
   const handleModeChange = (key: Key | Key[] | null) => {
     if (key && (key === "path" || key === "literal")) {
-      const newMode = key as MappingMode;
+      const newMode = key as EvaluatorInputMappingMode;
       // Clear the previous mode's value before switching
       if (newMode === "path") {
         // Switching to path mode, clear the literal value
