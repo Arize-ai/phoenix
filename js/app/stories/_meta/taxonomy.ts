@@ -33,6 +33,7 @@ export const DESIGN_SYSTEM_SUBJECTS = [
   "Layout",
   "Icons",
   "Actions",
+  "Menus",
   "Forms",
   "Overlays",
   "Badges",
