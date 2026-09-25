@@ -70,21 +70,21 @@ PXI runs inside your Phoenix process, on your data, with your model key. Arize i
 
 ### Configuration reference
 
-| Environment variable | Effect |
-| --- | --- |
-| `PHOENIX_DISABLE_AGENT_ASSISTANT=true` | Disable PXI for the whole deployment (requires restart). |
-| `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable external resource access, including docs MCP lookups. |
-| `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable web search and fetch, leaving other external resources on. |
-| `PHOENIX_AGENTS_DISABLE_BASH=true` | Remove server-side bash. Also disables subagents and the headless terminal agent, which depend on it. |
-| `PHOENIX_AGENTS_DISABLE_GITHUB=true` | Disable GitHub issue tools and hide the GitHub settings UI. |
-| `PHOENIX_AGENTS_GITHUB_MCP_URL` | GitHub MCP server URL (default `https://api.githubcopilot.com/mcp/`). Point at a self-hosted server for GitHub Enterprise or air-gapped deployments. |
-| `GITHUB_PERSONAL_ACCESS_TOKEN` | Server-side fallback GitHub token when no personal token or workspace secret is set. |
-| `PHOENIX_AGENTS_FORCE_TRACING=true` | Force local tracing, remote export, and email attribution for every user. Configure the collector variables first. |
-| `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
-| `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |
-| `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project for locally recorded assistant traces (default `assistant_agent`). |
+Set to `true` unless noted.
 
-`phoenix serve` prints the resolved assistant configuration in its boot banner. A malformed `PHOENIX_AGENTS_*` value fails startup before migrations run.
+| Variable | Effect |
+| --- | --- |
+| `PHOENIX_DISABLE_AGENT_ASSISTANT` | Turn PXI off for the deployment. |
+| `PHOENIX_ALLOW_EXTERNAL_RESOURCES` | `false` blocks all external access, including docs lookups. |
+| `PHOENIX_AGENTS_DISABLE_WEB_ACCESS` | No web search or fetch. |
+| `PHOENIX_AGENTS_DISABLE_BASH` | No server-side bash, subagents, or terminal agent. |
+| `PHOENIX_AGENTS_DISABLE_GITHUB` | No GitHub issue tools. |
+| `PHOENIX_AGENTS_GITHUB_MCP_URL` | Self-hosted GitHub MCP server URL. |
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | Fallback GitHub token for all users. |
+| `PHOENIX_AGENTS_FORCE_TRACING` | Record and export every user's chats. |
+| `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Where exported chat traces go. |
+| `PHOENIX_AGENTS_COLLECTOR_API_KEY` | Key for that collector. |
+| `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project for recorded chats (default `assistant_agent`). |
 
 ## Feedback
 
