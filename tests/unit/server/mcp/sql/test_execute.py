@@ -375,6 +375,68 @@ async def test_a_pyformat_literal_is_refused_rather_than_crashing(db: DbSessionF
     assert "concatenation" in caught.value.message
 
 
+@pytest.mark.parametrize(
+    "sql",
+    [
+        pytest.param(
+            # 0001-01-01T00:00:00+00:30 is 0000-12-31 23:30 in UTC, and a
+            # datetime cannot hold year 0.
+            "SELECT span_id FROM spans WHERE start_time >= '0001-01-01T00:00:00+00:30'",
+            id="low-end",
+        ),
+        pytest.param(
+            # ...and this one is year 10000 once the offset is applied.
+            "SELECT span_id FROM spans WHERE start_time <= '9999-12-31T23:59:59.999999-00:30'",
+            id="high-end",
+        ),
+    ],
+)
+async def test_a_timestamp_literal_outside_utc_years_is_refused_rather_than_crashing(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
+) -> None:
+    """A literal whose UTC instant falls outside years 1-9999 is refused.
+
+    Re-emitting a literal for SQLite converts it to UTC, and `astimezone`
+    cannot hold the result -- `0001-01-01T00:00:00+00:30` is 0000-12-31 23:30,
+    which is year 0. The OverflowError that raised is not an AnalyticsSqlError,
+    so it bypassed the error envelope and reached the caller as an internal
+    failure, while the same statement on PostgreSQL, which does not rewrite the
+    literal, executes and returns rows.
+    """
+    db, db_path = analytics_sqlite_db
+    with pytest.raises(AnalyticsSqlError) as caught:
+        await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert caught.value.code is ErrorCode.UNSUPPORTED_SYNTAX
+    assert "0001-01-01T00:00:00+00:00" in caught.value.message
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        pytest.param(
+            "SELECT count(*) AS n FROM spans WHERE start_time >= '0001-01-01T00:00:00+00:00'",
+            id="low-end",
+        ),
+        pytest.param(
+            "SELECT count(*) AS n FROM spans WHERE start_time <= '9999-12-31T23:59:59.999999+00:00'",
+            id="high-end",
+        ),
+    ],
+)
+async def test_the_first_and_last_utc_instants_are_still_comparable(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
+) -> None:
+    """The edges of the range a timestamp can hold are not refused.
+
+    `0001-01-01T00:00:00+00:00` and `9999-12-31T23:59:59.999999+00:00` name the
+    boundaries rather than points beyond them, so refusing them would charge a
+    caller a round trip for a boundary they were right to write.
+    """
+    db, db_path = analytics_sqlite_db
+    result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
+    assert result.envelope.rows == [[3]]
+
+
 @pytest.mark.postgres_only
 async def test_the_schema_is_resolved_not_assumed(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
