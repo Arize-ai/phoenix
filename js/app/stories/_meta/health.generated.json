@@ -1,15 +1,15 @@
 {
   "generatedBy": "pnpm lint:stories",
   "totals": {
-    "files": 144
+    "files": 146
   },
   "tags": {
-    "legacy": 113,
-    "updated": 26,
+    "legacy": 101,
+    "updated": 40,
     "complete": 7,
-    "incomplete": 19,
+    "incomplete": 33,
     "reviewed": 0,
-    "unreviewed": 139,
+    "unreviewed": 141,
     "unused": 5
   },
   "sectionsWithDocsPage": [
@@ -27,7 +27,7 @@
     "Design System/Dates and times": 7,
     "Design System/Drag and resize": 1,
     "Design System/Feedback": 10,
-    "Design System/Forms": 13,
+    "Design System/Forms": 15,
     "Design System/Icons": 4,
     "Design System/Layout": 9,
     "Design System/Media": 2,
