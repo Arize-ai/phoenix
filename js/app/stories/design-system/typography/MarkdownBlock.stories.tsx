@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Card, Flex, Text, View } from "@phoenix/components";
+import { Card, View } from "@phoenix/components";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeSelect,
@@ -9,6 +9,8 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { PreferencesProvider } from "@phoenix/contexts";
+
+import { OptionGrid } from "../../utils/OptionGrid";
 
 const containerCSS = css`
   width: min(960px, 100%);
@@ -64,13 +66,6 @@ const complexMarkdown = [
   "```",
 ].join("\n");
 
-const plainTextSample = [
-  "# Literal text mode",
-  "",
-  "This same value should render as plain text when the toggle is set to Text.",
-  '{"structured": true, "shouldStayPretty": true}',
-].join("\n");
-
 function MarkdownShowcase() {
   return (
     <PreferencesProvider markdownDisplayMode="markdown">
@@ -91,7 +86,7 @@ function MarkdownShowcase() {
 
 const meta = {
   title: "Design System/Typography/Markdown Block",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "incomplete", "unreviewed"],
   component: MarkdownBlock,
   decorators: [
     (Story) => (
@@ -110,49 +105,41 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+const modes = [
+  { label: "Raw text", mode: "text" },
+  { label: "Markdown", mode: "markdown" },
+] as const;
+
+export const RawTextMode: Story = {
+  tags: ["!dev"],
+  args: {
+    children: complexMarkdown,
+    mode: "text",
+    margin: "none",
+  },
+  parameters: { themeLayout: "column" },
+  render: () => (
+    <OptionGrid
+      columns={modes}
+      cellWidth="minmax(0, 1fr)"
+      alignRows="start"
+      renderCell={(_row, column) => (
+        <MarkdownBlock mode={column?.mode ?? "text"} margin="none">
+          {complexMarkdown}
+        </MarkdownBlock>
+      )}
+    />
+  ),
+};
+
 export const Interactive: Story = {
+  tags: ["!dev"],
   args: {
     children: complexMarkdown,
     mode: "markdown",
     margin: "none",
   },
   render: () => <MarkdownShowcase />,
-};
-
-export const MarkdownMode: Story = {
-  args: {
-    children: complexMarkdown,
-    mode: "markdown",
-    margin: "none",
-  },
-  render: (args) => (
-    <Card title="Markdown mode" width="100%">
-      <View padding="size-200">
-        <MarkdownBlock {...args} />
-      </View>
-    </Card>
-  ),
-};
-
-export const TextMode: Story = {
-  args: {
-    children: plainTextSample,
-    mode: "text",
-    margin: "none",
-  },
-  render: (args) => (
-    <Flex direction="column" gap="size-100">
-      <Text color="text-700">
-        Text mode should preserve literal markdown markers and keep JSON-like
-        payloads readable.
-      </Text>
-      <Card title="Text mode" width="100%">
-        <View padding="size-200">
-          <MarkdownBlock {...args} />
-        </View>
-      </Card>
-    </Flex>
-  ),
 };
 
 /** An excerpt of `complexMarkdown` small enough for the Overview card. */
