@@ -24,8 +24,8 @@ Pick your row. Each path gives the agent the same three pieces: the [Phoenix CLI
 
 | Agent | Setup |
 | --- | --- |
-| Claude Code | Install the [Claude Code plugin](#plugins). It registers the MCP server and three skills: `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing`. Add the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup skills` for the rest. |
-| Codex | Install the [Codex plugin](#plugins). It registers the MCP server; add the [CLI](/docs/phoenix/integrations/developer-tools/cli) and [skills](/docs/phoenix/integrations/developer-tools/skills) yourself. |
+| Claude Code | Install the [Claude Code plugin](#plugins). That is the MCP server and the Phoenix skills in one step. Optional: install the [CLI](/docs/phoenix/integrations/developer-tools/cli) so the agent can also run `px` commands. |
+| Codex | Install the [Codex plugin](#plugins) for the MCP server, then `npx -y @arizeai/phoenix-cli setup skills` for the skills. |
 | Cursor, VS Code, Gemini CLI, OpenCode | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), then run `px setup mcp --agent <agent>` and `px setup skills`. |
 | Any other agent | Install the [CLI](/docs/phoenix/integrations/developer-tools/cli), add the [MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) from its per-client steps, and install [skills](/docs/phoenix/integrations/developer-tools/skills) with `npx skills add`. |
 
