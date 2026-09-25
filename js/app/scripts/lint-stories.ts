@@ -369,6 +369,52 @@ function checkUsage(files: StoryFile[]) {
 }
 
 /**
+ * Every `<Canvas of={X.Story} />` or `<Meta of={X} />` in MDX must name a story
+ * that exists. Storybook reports a missing one only when the page is opened
+ * (`SB_BLOCKS_0001 … of={undefined}`), so renaming or removing a story export
+ * would otherwise break a docs page silently.
+ */
+function checkMdxStoryReferences(files: StoryFile[]) {
+  for (const file of files) {
+    if (!file.base.endsWith(".mdx")) continue;
+    const src = readFileSync(join(STORIES_DIR, file.rel), "utf8");
+    const modules = new Map<string, string>();
+    for (const m of src.matchAll(
+      /^import \* as (\w+) from ["'](\.[^"']+\.stories\.[jt]sx?)["'];?$/gm
+    )) {
+      modules.set(m[1], m[2]);
+    }
+    const exportsOf = new Map<string, Set<string>>();
+    for (const m of src.matchAll(/\bof=\{(\w+)(?:\.(\w+))?\}/g)) {
+      const [, namespace, story] = m;
+      const path = modules.get(namespace);
+      if (!path) {
+        fail(
+          file.rel,
+          `of={${m[0].slice(4, -1)}} does not refer to an imported story file`
+        );
+        continue;
+      }
+      if (!story) continue;
+      if (!exportsOf.has(namespace)) {
+        const target = join(STORIES_DIR, file.dir, path);
+        const csf = loadCsf(readFileSync(target, "utf8"), {
+          fileName: target,
+          makeTitle: (title) => title ?? target,
+        }).parse();
+        exportsOf.set(namespace, new Set(Object.keys(csf._stories)));
+      }
+      if (!exportsOf.get(namespace)!.has(story)) {
+        fail(
+          file.rel,
+          `of={${namespace}.${story}}: ${path} has no story export "${story}"`
+        );
+      }
+    }
+  }
+}
+
+/**
  * Every sidebar entry must show something no other entry shows.
  *
  * Autodocs gives each file a Docs page that renders all of its stories, so a
@@ -549,6 +595,7 @@ function main() {
   checkThumbnails(managed);
   checkSingleSidebarEntry(managed);
   checkUsage(managed);
+  checkMdxStoryReferences(managed);
 
   writeHealth(files);
 
