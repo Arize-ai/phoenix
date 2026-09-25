@@ -1943,9 +1943,16 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 if content:
                     blocks.append(ContentBlockTypeDef(text=content))
                 if tool_calls:
-                    # tool_calls are already in Bedrock ContentBlock format
-                    # ({"toolUse": {...}}) from prior AI responses
-                    blocks.extend(cast(Any, tool_calls))
+                    blocks.extend(
+                        ContentBlockTypeDef(
+                            toolUse={
+                                "toolUseId": tc.get("id", ""),
+                                "name": tc.get("function", {}).get("name", ""),
+                                "input": tc.get("function", {}).get("arguments", {}),
+                            }
+                        )
+                        for tc in tool_calls
+                    )
                 converse_messages.append(MessageTypeDef(role="assistant", content=blocks))
         return converse_messages
 
