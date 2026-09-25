@@ -1,15 +1,15 @@
 {
   "generatedBy": "pnpm lint:stories",
   "totals": {
-    "files": 140
+    "files": 144
   },
   "tags": {
-    "legacy": 115,
-    "updated": 20,
-    "complete": 5,
-    "incomplete": 15,
+    "legacy": 113,
+    "updated": 26,
+    "complete": 7,
+    "incomplete": 19,
     "reviewed": 0,
-    "unreviewed": 135,
+    "unreviewed": 139,
     "unused": 5
   },
   "sectionsWithDocsPage": [
@@ -19,7 +19,7 @@
     "storybook"
   ],
   "storiesBySection": {
-    "Design System/Actions": 8,
+    "Design System/Actions": 7,
     "Design System/Badges": 5,
     "Design System/Code": 4,
     "Design System/Color": 2,
@@ -27,11 +27,12 @@
     "Design System/Dates and times": 7,
     "Design System/Drag and resize": 1,
     "Design System/Feedback": 10,
-    "Design System/Forms": 12,
+    "Design System/Forms": 13,
     "Design System/Icons": 4,
-    "Design System/Layout": 8,
+    "Design System/Layout": 9,
     "Design System/Media": 2,
-    "Design System/Navigation": 6,
+    "Design System/Menus": 6,
+    "Design System/Navigation": 3,
     "Design System/Overlays": 7,
     "Design System/Tables": 3,
     "Design System/Typography": 3,
@@ -62,6 +63,7 @@
       "Layout",
       "Icons",
       "Actions",
+      "Menus",
       "Forms",
       "Overlays",
       "Badges",
