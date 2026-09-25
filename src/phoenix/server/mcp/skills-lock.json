@@ -5,6 +5,11 @@
       "source": "../../../../.agents/skills/phoenix-error-analysis",
       "sourceType": "local",
       "computedHash": "eb294a409aac026c11477e0690bc36566c00040b31588432db6bd32b9cef8224"
+    },
+    "phoenix-experiment-analyzer": {
+      "source": "../../../../.agents/skills/phoenix-experiment-analyzer",
+      "sourceType": "local",
+      "computedHash": "bd3d78afc0c903ee1998d13e7aedb666b8a528b1dd9e4fc28e3b5c24a0e551ed"
     }
   }
 }
