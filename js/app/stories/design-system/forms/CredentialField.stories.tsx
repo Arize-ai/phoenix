@@ -8,15 +8,20 @@ import {
   Flex,
   Label,
   Text,
+  View,
 } from "@phoenix/components";
+
+import { OptionGrid } from "../../utils/OptionGrid";
 
 const meta: Meta = {
   title: "Design System/Forms/Credential Field",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: CredentialField,
 
   parameters: {
-    controls: { expanded: true },
+    layout: "centered",
+    themeLayout: "column",
+    controls: { disable: true },
     docs: {
       description: {
         component: `
@@ -56,108 +61,109 @@ Note: When using regular Input, no toggle button will be shown.
 
 export default meta;
 
-const Template: StoryFn<CredentialFieldProps> = (args) => (
-  <CredentialField {...args}>
-    <Label>API Key</Label>
-    <CredentialInput defaultValue="sk-1234567890abcdef" />
-    <Text slot="description">Your secret API key</Text>
-  </CredentialField>
-);
-
-export const Default = {
-  render: Template,
-  args: {},
-};
-
-export const Empty = {
-  render: Template,
-  args: {},
-};
-
-export const WithError: StoryFn = () => (
-  <CredentialField isInvalid>
-    <Label>API Key</Label>
-    <CredentialInput defaultValue="invalid-key" />
-    <FieldError>Invalid API key format</FieldError>
-  </CredentialField>
-);
-
-export const ReadOnly: StoryFn = () => (
-  <CredentialField isReadOnly value="sk-prod-5f8a2c1b0e4d9a7c6b3f">
-    <Label>Production API Key</Label>
-    <CredentialInput />
-    <Text slot="description">
-      Managed by workspace settings and shown here for confirmation
-    </Text>
-  </CredentialField>
-);
-
-export const Disabled: StoryFn = () => (
-  <CredentialField isDisabled>
-    <Label>API Key</Label>
-    <CredentialInput defaultValue="sk-disabled-key-5678" />
-    <Text slot="description">This field is disabled</Text>
-  </CredentialField>
-);
-
-export const Gallery: StoryFn = () => (
-  <Flex direction="column" gap="size-200" width="600px">
-    <CredentialField>
-      <Label>API Key</Label>
-      <CredentialInput defaultValue="sk-1234567890abcdef" />
-      <Text slot="description">Click the eye icon to show/hide</Text>
-    </CredentialField>
-
-    <CredentialField>
-      <Label>Database Password</Label>
+export const Default: StoryFn = () => (
+  <View width="320px">
+    <CredentialField isRequired defaultValue="sk-proj-4f8b2c1d9e7a6b5c3d2e1f0a">
+      <Label>OPENAI_API_KEY</Label>
       <CredentialInput />
-      <Text slot="description">Enter your database password</Text>
     </CredentialField>
+  </View>
+);
+Default.tags = ["!dev"];
 
-    <CredentialField isInvalid>
-      <Label>Secret Token</Label>
-      <CredentialInput defaultValue="wrong-format" />
-      <FieldError>Token must start with &quot;tok-&quot;</FieldError>
+/*
+ * Values go on `CredentialField`, never on `CredentialInput`: the field is a
+ * React Aria TextField that owns the input's value, so an input-level
+ * `defaultValue` is ignored and the input renders empty.
+ */
+
+const STATES: {
+  label: string;
+  props: Partial<CredentialFieldProps>;
+  error?: string;
+}[] = [
+  { label: "empty", props: {} },
+  { label: "populated", props: { defaultValue: "sk-1234567890abcdef" } },
+  {
+    label: "read only",
+    props: { isReadOnly: true, value: "sk-prod-5f8a2c1b0e4d9a7c6b3f" },
+  },
+  {
+    label: "disabled",
+    props: { isDisabled: true, defaultValue: "sk-1234567890abcdef" },
+  },
+  {
+    label: "error",
+    props: { isInvalid: true, defaultValue: "wrong-format" },
+    error: 'Token must start with "tok-"',
+  },
+];
+
+const SIZES = (["S", "M", "L"] as const).map((size) => ({
+  label: size,
+  code: true,
+  size,
+}));
+
+/** Wide enough for a key and the visibility toggle, not the whole canvas. */
+const FIELD_WIDTH = "220px";
+
+export const StatesAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={STATES}
+    columns={SIZES}
+    cellWidth={FIELD_WIDTH}
+    alignRows="start"
+    renderCell={(state, size) => (
+      <CredentialField size={size?.size} {...state.props}>
+        <Label>API Key</Label>
+        <CredentialInput />
+        {state.error ? <FieldError>{state.error}</FieldError> : null}
+      </CredentialField>
+    )}
+  />
+);
+StatesAndSizes.tags = ["!dev"];
+
+export const ExampleUsage: StoryFn = () => (
+  <Flex direction="column" gap="size-200" width="320px">
+    <CredentialField isRequired defaultValue="sk-proj-4f8b2c1d9e7a6b5c3d2e1f0a">
+      <Label>OPENAI_API_KEY</Label>
+      <CredentialInput />
     </CredentialField>
 
     <CredentialField isRequired>
-      <Label>Required Secret</Label>
+      <Label>ANTHROPIC_API_KEY</Label>
       <CredentialInput />
-      <Text slot="description">This field is required</Text>
     </CredentialField>
 
-    <CredentialField isReadOnly value="sk-prod-5f8a2c1b0e4d9a7c6b3f">
-      <Label>Production API Key</Label>
+    <CredentialField isRequired isInvalid>
+      <Label>GEMINI_API_KEY</Label>
       <CredentialInput />
-      <Text slot="description">
-        Managed by workspace settings and shown here for confirmation
-      </Text>
+      <FieldError>GEMINI_API_KEY is required</FieldError>
     </CredentialField>
 
-    <CredentialField size="S">
-      <Label>Small Credential Field</Label>
-      <CredentialInput defaultValue="small-secret" />
-    </CredentialField>
+    <Flex direction="column" gap="size-100">
+      <CredentialField isRequired defaultValue="AKIAIOSFODNN7EXAMPLE">
+        <Label>AWS_ACCESS_KEY_ID</Label>
+        <CredentialInput />
+      </CredentialField>
+      <CredentialField
+        isRequired
+        defaultValue="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+      >
+        <Label>AWS_SECRET_ACCESS_KEY</Label>
+        <CredentialInput />
+      </CredentialField>
+    </Flex>
 
-    <CredentialField size="L">
-      <Label>Large Credential Field</Label>
-      <CredentialInput defaultValue="large-secret-value" />
+    <CredentialField>
+      <Label>Personal access token</Label>
+      <CredentialInput placeholder="github_pat_..." />
     </CredentialField>
   </Flex>
 );
-
-export const DifferentSizes: StoryFn = () => (
-  <Flex direction="column" gap="size-200" width="600px">
-    <CredentialField size="S">
-      <Label>Size S</Label>
-      <CredentialInput defaultValue="size-s-credential" />
-    </CredentialField>
-    <CredentialField size="M">
-      <Label>Size M (default)</Label>
-      <CredentialInput defaultValue="size-m-credential" />
-    </CredentialField>
-  </Flex>
-);
+ExampleUsage.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj<CredentialFieldProps> = {
