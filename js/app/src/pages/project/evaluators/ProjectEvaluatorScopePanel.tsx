@@ -1084,6 +1084,7 @@ function useEvaluatorMappingDiagnostics({
   return getProjectEvaluatorMappingDiagnostics({
     context,
     pathMapping: inputMapping.pathMapping,
+    literalMapping: inputMapping.literalMapping,
     variables,
     requiredVariables,
   });
@@ -1348,6 +1349,8 @@ const contextViewerCSS = css`
 type BindingRowBase = {
   keyword: string;
   path?: string;
+  /** Bound to text saved on the evaluator rather than read off the record. */
+  isLiteral?: boolean;
   /** One line on the name, shown on hover. */
   description?: string;
 };
@@ -1413,7 +1416,7 @@ export function BindingPreview({
       keyword: entry.name,
       ...(entry.provenance.kind === "path"
         ? { path: entry.provenance.path }
-        : {}),
+        : { isLiteral: true }),
       value: entry.value,
     })) ?? [];
   // A variable this side cannot check is a warning rather than an error — the
@@ -1457,10 +1460,19 @@ export function BindingPreview({
       }
       if (
         diagnostic.status !== "resolved" ||
-        diagnostic.source !== "path" ||
+        diagnostic.source === "context" ||
         EVALUATOR_SLOT_NAMES.includes(diagnostic.variable as EvaluatorSlotName)
       ) {
         return [];
+      }
+      if (diagnostic.source === "literal") {
+        return [
+          {
+            keyword: diagnostic.variable,
+            isLiteral: true,
+            value: inputMapping.literalMapping[diagnostic.variable],
+          },
+        ];
       }
       const resolution = resolveEvaluatorPath({
         source: isStringKeyedObject(context) ? context : {},
@@ -1688,10 +1700,11 @@ function BindingRowHead({
   const display = toBoundValueDisplay(row.value);
   // A row bound to the key it is already labeled with — a slot left on its
   // default — has no origin to point at, so the value stands alone.
-  const annotation =
-    row.path && row.path !== row.keyword ? (
-      <code className="binding-row__path">← {row.path}</code>
-    ) : null;
+  const annotation = row.isLiteral ? (
+    <span className="binding-row__origin">text</span>
+  ) : row.path && row.path !== row.keyword ? (
+    <code className="binding-row__path">← {row.path}</code>
+  ) : null;
   return (
     <>
       <code className="binding-row__keyword" title={row.description}>
@@ -1756,6 +1769,11 @@ const bindingRowCSS = css`
   .binding-row__path {
     flex: none;
     font-family: var(--global-font-family-code, monospace);
+    font-size: var(--global-font-size-xs);
+    color: var(--global-text-color-500);
+  }
+  .binding-row__origin {
+    flex: none;
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-500);
   }

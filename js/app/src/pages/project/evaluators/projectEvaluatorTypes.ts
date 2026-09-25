@@ -335,11 +335,11 @@ export type ProjectEvaluatorMappingDiagnostic = {
   path: string;
   status: "resolved" | "missing" | "optional-missing" | "unverified";
   /**
-   * Where the value comes from: a path the author wrote, or a field of the same
-   * name at the top of the evaluation context. Only `path` carries a path worth
-   * showing.
+   * Where the value comes from: a path the author wrote, text saved on the
+   * evaluator, or a field of the same name at the top of the evaluation
+   * context. Only `path` carries a path worth showing.
    */
-  source: "path" | "context";
+  source: "path" | "literal" | "context";
 };
 
 /**
@@ -383,11 +383,13 @@ export function getUnboundRequiredVariables({
 export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,
+  literalMapping = {},
   variables,
   requiredVariables = variables,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
+  literalMapping?: EvaluatorInputMapping["literalMapping"];
   variables: string[];
   requiredVariables?: string[];
 }): ProjectEvaluatorMappingDiagnostic[] {
@@ -412,6 +414,14 @@ export function getProjectEvaluatorMappingDiagnostics({
               ? missingStatus(variable)
               : "resolved",
         source: "path",
+      };
+    }
+    if (Object.hasOwn(literalMapping, variable)) {
+      return {
+        variable,
+        path: variable,
+        status: "resolved",
+        source: "literal",
       };
     }
     // An unmapped variable binds only from a field of the same name at the top

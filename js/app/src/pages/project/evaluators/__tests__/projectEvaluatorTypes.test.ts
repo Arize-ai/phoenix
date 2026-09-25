@@ -150,6 +150,30 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
     ]);
   });
 
+  it("resolves a variable with saved text and no path from the text", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { output: "answer" },
+        pathMapping: { output: "output" },
+        literalMapping: { reference: "expected", output: "pinned" },
+        variables: ["output", "reference"],
+      })
+    ).toEqual([
+      {
+        variable: "output",
+        path: "output",
+        status: "resolved",
+        source: "path",
+      },
+      {
+        variable: "reference",
+        path: "reference",
+        status: "resolved",
+        source: "literal",
+      },
+    ]);
+  });
+
   it("does not flag missing optional variables as errors", () => {
     expect(
       getProjectEvaluatorMappingDiagnostics({

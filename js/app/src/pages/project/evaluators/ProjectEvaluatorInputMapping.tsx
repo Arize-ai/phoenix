@@ -18,7 +18,8 @@ import {
  *
  * The first three are what the record offers by name, so each reads its own
  * field until pointed elsewhere. Any other variable reads nothing until it is
- * given a path; everything the record holds is reachable under `metadata`.
+ * given a path, unless the evaluator saved text for it; everything the record
+ * holds is reachable under `metadata`.
  */
 export const ProjectEvaluatorInputMapping = ({
   grain,
@@ -41,39 +42,54 @@ export const ProjectEvaluatorInputMapping = ({
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
+  // The form drops a variable's literal once it has a path, so a literal here
+  // is what the variable reads.
+  const literalMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping.literalMapping
+  );
   return (
     <Flex direction="column" gap="size-200" width="100%">
-      {variables.map((variable) => (
-        <SwitchableEvaluatorInput
-          key={variable}
-          fieldName={escapeFieldNameForReactHookForm(variable)}
-          label={variable}
-          size="M"
-          control={control}
-          setValue={setValue}
-          pathOptions={[]}
-          allowsLiteral={false}
-          renderPathInput={({
-            value,
-            onChange,
-            isInvalid,
-            errorMessage,
-            ariaLabel,
-          }) => (
-            <EvaluatorPathField
-              value={value}
-              onChange={onChange}
-              isInvalid={isInvalid}
-              errorMessage={errorMessage}
-              ariaLabel={ariaLabel}
-              evaluatorMappingSource={evaluatorMappingSource}
-              grain={grain}
-              variableName={variable}
-              isRequired={requiredVariables?.includes(variable) ?? true}
-            />
-          )}
-        />
-      ))}
+      {variables.map((variable) => {
+        const hasLiteral = Object.hasOwn(literalMapping, variable);
+        return (
+          <SwitchableEvaluatorInput
+            key={variable}
+            fieldName={escapeFieldNameForReactHookForm(variable)}
+            label={variable}
+            description={
+              hasLiteral
+                ? `Reads the text ${JSON.stringify(literalMapping[variable])} until a path is set`
+                : undefined
+            }
+            size="M"
+            control={control}
+            setValue={setValue}
+            pathOptions={[]}
+            allowsLiteral={false}
+            renderPathInput={({
+              value,
+              onChange,
+              isInvalid,
+              errorMessage,
+              ariaLabel,
+            }) => (
+              <EvaluatorPathField
+                value={value}
+                onChange={onChange}
+                isInvalid={isInvalid}
+                errorMessage={errorMessage}
+                ariaLabel={ariaLabel}
+                evaluatorMappingSource={evaluatorMappingSource}
+                grain={grain}
+                variableName={variable}
+                isRequired={
+                  !hasLiteral && (requiredVariables?.includes(variable) ?? true)
+                }
+              />
+            )}
+          />
+        );
+      })}
     </Flex>
   );
 };

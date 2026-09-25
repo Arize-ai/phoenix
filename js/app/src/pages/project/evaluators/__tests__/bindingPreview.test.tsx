@@ -96,6 +96,40 @@ describe("the binding preview", () => {
     ).toEqual(["← metadata.name"]);
   });
 
+  it("shows a variable bound to saved text as that text, not as an error", async () => {
+    await act(async () => {
+      root.render(
+        <EvaluatorInputVariablesContext.Provider
+          value={["output", "reference"]}
+        >
+          <BindingPreview
+            context={getSampleSpanEvaluationContext().context}
+            grain="span"
+            inputMapping={{
+              pathMapping: {},
+              literalMapping: { reference: "STALE LITERAL" },
+            }}
+            requiredVariables={["output", "reference"]}
+            isSampleContext={false}
+          />
+        </EvaluatorInputVariablesContext.Provider>
+      );
+    });
+
+    expect(container.querySelector('[data-variant="error"]')).toBeNull();
+    const rows = [...container.querySelectorAll(".binding-row__toggle")];
+    const referenceRow = rows.find(
+      (row) =>
+        row.querySelector(".binding-row__keyword")?.textContent === "reference"
+    );
+    expect(
+      referenceRow?.querySelector(".binding-row__origin")?.textContent
+    ).toBe("text");
+    expect(
+      referenceRow?.querySelector(".binding-row__value")?.textContent
+    ).toContain("STALE LITERAL");
+  });
+
   it("replaces a slot that fails to bind in place and lists other missing variables where declared", async () => {
     await act(async () => {
       root.render(
