@@ -3,6 +3,8 @@
  * never registers a control over `literalMapping`. An evaluator that stored a
  * literal before that form existed still has to get it back unchanged after an
  * unrelated edit, or opening the evaluator would quietly drop what it binds.
+ * A path typed for the literal's own variable replaces it, because the server
+ * would otherwise apply the literal over the path.
  */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -25,6 +27,7 @@ function PathOnlyMappingForm({
 }) {
   const { control } = useEvaluatorInputMappingControlsForm({
     pruneEmptyEntries: true,
+    pathsReplaceLiterals: true,
     filterInitialMapping: (inputMapping) =>
       dropOtherGrainEntityPathMappings(inputMapping, "span"),
   });
@@ -55,10 +58,11 @@ describe("a project evaluator's stored literal mapping", () => {
     container.remove();
   });
 
-  it("survives an unrelated edit through the path-only form", async () => {
+  const render = async (
+    literalMapping: Record<string, string | number | boolean>
+  ) => {
     let setPath: ((value: string) => void) | null = null;
     let store: EvaluatorStoreInstance | null = null;
-
     await act(async () => {
       root.render(
         <EvaluatorStoreProvider
@@ -72,7 +76,7 @@ describe("a project evaluator's stored literal mapping", () => {
               includeExplanation: false,
               inputMapping: {
                 pathMapping: { input: "metadata.attributes.input.value" },
-                literalMapping: { output: "pinned", metadata: 7 },
+                literalMapping,
               },
             },
           }}
@@ -90,20 +94,44 @@ describe("a project evaluator's stored literal mapping", () => {
         </EvaluatorStoreProvider>
       );
     });
-
     expect(setPath).not.toBeNull();
     expect(store).not.toBeNull();
+    return {
+      setPath: (value: string) =>
+        act(async () => {
+          setPath?.(value);
+        }),
+      inputMapping: () => store!.getState().evaluator.inputMapping,
+    };
+  };
 
-    await act(async () => {
-      setPath?.("metadata.attributes.output.value");
-    });
+  it("survives an unrelated edit through the path-only form", async () => {
+    const form = await render({ output: "pinned", metadata: 7 });
 
-    const { inputMapping } = store!.getState().evaluator;
-    expect(inputMapping.pathMapping).toEqual({
+    await form.setPath("metadata.attributes.output.value");
+
+    expect(form.inputMapping().pathMapping).toEqual({
       input: "metadata.attributes.output.value",
     });
-    expect(inputMapping.literalMapping).toEqual({
+    expect(form.inputMapping().literalMapping).toEqual({
       output: "pinned",
+      metadata: 7,
+    });
+  });
+
+  it("gives way to a path typed for the same variable", async () => {
+    const form = await render({ input: "stale", metadata: 7 });
+
+    await form.setPath("metadata.attributes.output.value");
+    expect(form.inputMapping().pathMapping).toEqual({
+      input: "metadata.attributes.output.value",
+    });
+    expect(form.inputMapping().literalMapping).toEqual({ metadata: 7 });
+
+    await form.setPath("");
+    expect(form.inputMapping().pathMapping).toEqual({});
+    expect(form.inputMapping().literalMapping).toEqual({
+      input: "stale",
       metadata: 7,
     });
   });

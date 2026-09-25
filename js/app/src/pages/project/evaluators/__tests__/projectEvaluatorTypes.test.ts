@@ -2,6 +2,7 @@ import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilter
 
 import {
   dropOtherGrainEntityPathMappings,
+  dropPathsShadowedByLiterals,
   formatMissingBindingMessage,
   formatProjectEvaluatorRunCounts,
   getDefaultProjectEvaluatorFilterCondition,
@@ -145,6 +146,56 @@ describe("getProjectEvaluatorMappingDiagnostics", () => {
         variable: "complex",
         path: "metadata[*]",
         status: "unverified",
+        source: "path",
+      },
+    ]);
+  });
+
+  it("resolves a variable with saved text and no path from the text", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { output: "answer" },
+        pathMapping: { output: "output" },
+        literalMapping: { reference: "expected" },
+        variables: ["output", "reference"],
+      })
+    ).toEqual([
+      {
+        variable: "output",
+        path: "output",
+        status: "resolved",
+        source: "path",
+      },
+      {
+        variable: "reference",
+        path: "reference",
+        status: "resolved",
+        source: "literal",
+      },
+    ]);
+  });
+
+  it("reads a literal over a path that resolves, as the server does", () => {
+    expect(
+      getProjectEvaluatorMappingDiagnostics({
+        context: { metadata: { name: "rag" } },
+        pathMapping: { context: "metadata.name", reference: "metadata.nope" },
+        literalMapping: { context: "pinned", reference: "pinned" },
+        variables: ["context", "reference"],
+      })
+    ).toEqual([
+      {
+        variable: "context",
+        path: "context",
+        status: "resolved",
+        source: "literal",
+      },
+      // A path that matches nothing still fails the run before any literal
+      // is applied.
+      {
+        variable: "reference",
+        path: "metadata.nope",
+        status: "missing",
         source: "path",
       },
     ]);
@@ -366,5 +417,19 @@ describe("formatMissingBindingMessage", () => {
         "span"
       )
     ).toBe("tool_call does not exist on this span, so evaluation fails");
+  });
+});
+
+describe("dropPathsShadowedByLiterals", () => {
+  it("drops only the paths a literal overrides", () => {
+    expect(
+      dropPathsShadowedByLiterals({
+        pathMapping: { context: "metadata.name", input: "metadata.attributes" },
+        literalMapping: { context: "pinned" },
+      })
+    ).toEqual({
+      pathMapping: { input: "metadata.attributes" },
+      literalMapping: { context: "pinned" },
+    });
   });
 });

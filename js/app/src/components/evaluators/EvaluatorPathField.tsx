@@ -27,10 +27,7 @@ import {
   SUGGESTED_PATH_SECTION,
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
-import {
-  getEvaluatorSlotSuggestedPaths,
-  isEvaluatorSlotName,
-} from "./evaluatorSlotDefaults";
+import { getEvaluatorSlotSuggestedPaths } from "./evaluatorSlotDefaults";
 
 const UNRESOLVED_PATH_MESSAGE = "No such field";
 
@@ -64,8 +61,7 @@ const evaluatorPathFieldCSS = css`
  * `metadata.…` paths that read it, so typing `latency` finds `latency_ms`
  * without knowing where it sits. Each `.` after that opens the next level with
  * the value every field holds on it, so a path is drilled rather than
- * remembered. Left empty, the field shows the path the variable falls back to,
- * or that it has none.
+ * remembered. Left empty, the field shows what the variable reads instead.
  */
 export function EvaluatorPathField({
   value,
@@ -76,7 +72,7 @@ export function EvaluatorPathField({
   evaluatorMappingSource,
   grain,
   variableName,
-  isRequired,
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -88,8 +84,8 @@ export function EvaluatorPathField({
   grain: ProjectEvaluatorMappingSourceGrain;
   /** The evaluator variable this path is read into. */
   variableName: string;
-  /** Whether the evaluator can run with nothing bound to the variable. */
-  isRequired: boolean;
+  /** What the variable reads while the field is empty. */
+  placeholder: string;
 }) {
   const suggestedPaths = getEvaluatorSlotSuggestedPaths(grain, variableName);
 
@@ -170,13 +166,7 @@ export function EvaluatorPathField({
       aria-label={ariaLabel}
       subjectLabel="path"
       leadingVisual={null}
-      placeholder={
-        isEvaluatorSlotName(variableName)
-          ? variableName
-          : isRequired
-            ? "Required"
-            : "Optional"
-      }
+      placeholder={placeholder}
       value={value}
       onChange={onChange}
       completions={NO_COMPLETIONS}
