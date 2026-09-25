@@ -310,7 +310,7 @@ class Spans:
         self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
         if condition:
             self._guard.require(GET_SPANS_FILTER_EXPRESSION)
-        project_id = self._project_id(
+        project_id = self._resolve_project_id(
             project_identifier or project_name or _DEFAULT_PROJECT_NAME, timeout=timeout
         )
         spans: list[v1.Span] = []
@@ -333,8 +333,7 @@ class Spans:
                 break
         return convert_spans_to_dataframe(spans[:limit], query)
 
-    def _project_id(self, identifier: str, *, timeout: Optional[int]) -> Optional[str]:
-        """Resolve a project name to its node ID; None when no project has that name."""
+    def _resolve_project_id(self, identifier: str, *, timeout: Optional[int]) -> Optional[str]:
         if is_node_id(identifier, node_type="Project"):
             return identifier
         self._guard.require(GET_PROJECTS_BY_NAME)
@@ -1644,7 +1643,7 @@ class AsyncSpans:
         await self._guard.require(GET_SPANS_ATTRIBUTES_FORMAT)
         if condition:
             await self._guard.require(GET_SPANS_FILTER_EXPRESSION)
-        project_id = await self._project_id(
+        project_id = await self._resolve_project_id(
             project_identifier or project_name or _DEFAULT_PROJECT_NAME, timeout=timeout
         )
         spans: list[v1.Span] = []
@@ -1667,8 +1666,9 @@ class AsyncSpans:
                 break
         return convert_spans_to_dataframe(spans[:limit], query)
 
-    async def _project_id(self, identifier: str, *, timeout: Optional[int]) -> Optional[str]:
-        """Resolve a project name to its node ID; None when no project has that name."""
+    async def _resolve_project_id(
+        self, identifier: str, *, timeout: Optional[int]
+    ) -> Optional[str]:
         if is_node_id(identifier, node_type="Project"):
             return identifier
         await self._guard.require(GET_PROJECTS_BY_NAME)
