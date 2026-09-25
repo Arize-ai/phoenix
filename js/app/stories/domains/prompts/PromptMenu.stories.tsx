@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import React from "react";
 import { userEvent, within } from "storybook/test";
 
-import { CompositeField } from "@phoenix/components";
+import { CompositeField, Flex, Text } from "@phoenix/components";
 import type {
   PromptData,
   PromptVersion,
@@ -26,7 +26,7 @@ const promptMenuContainerCSS = css`
 
 const meta: Meta = {
   title: "Domains/Prompts/Prompt Menu",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   parameters: {
     layout: "centered",
   },
@@ -445,87 +445,107 @@ const presetParameters = {
 };
 
 /**
- * Empty state when no prompts exist (P0V0T0).
- * Button is disabled and shows "No saved prompts".
+ * One labeled item per preset, each with its own selection state.
  */
-export const NoPrompts: PresetStory = {
-  parameters: presetParameters,
-  render: (args) => <PresetRender {...args} />,
-  args: {
-    promptNames: [],
-    tagNames: [],
-    versionCount: 0,
-    initialSelectedPromptIndex: null,
-    initialVersionType: "latest",
-  },
+function PresetStack({
+  items,
+}: {
+  items: { label: string; config: PresetConfig }[];
+}) {
+  return (
+    <Flex direction="column" gap="size-300">
+      {items.map(({ label, config }) => (
+        <Flex key={label} direction="column" gap="size-100">
+          <Text size="S" color="text-700">
+            {label}
+          </Text>
+          <PresetRender {...config} />
+        </Flex>
+      ))}
+    </Flex>
+  );
+}
+
+/**
+ * Tag "production" sits on the latest version, so this shows that an
+ * explicitly selected tag is displayed instead of "latest".
+ */
+const loadedWithTag: PresetConfig = {
+  promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
+  tagNames: ["production", "staging"],
+  versionCount: 2,
+  initialSelectedPromptIndex: 0,
+  initialVersionType: "tag",
+  initialSelectedTagName: "production",
 };
 
 /**
- * Prompts available but none selected (P7V2T0).
- * Shows "Select prompt" placeholder. Button should have constrained width.
+ * What the menu shows for each data and selection state, in lifecycle order:
+ *
+ * - **No prompts** — the prompt button is disabled and reads "No saved
+ *   prompts".
+ * - **Prompts available, none selected** — the "Select a prompt" placeholder,
+ *   with the button's width capped.
+ * - **Loaded with latest** — the version button shows the "latest" token.
+ * - **Loaded with a specific version** — a non-latest version shows its
+ *   truncated ID instead of "latest".
+ * - **Loaded with a tag** — an explicitly selected tag is shown by name, even
+ *   when the tagged version is also the latest.
  */
-export const PromptsAvailableNotSelected: PresetStory = {
+export const ContentTypes: PresetStory = {
+  name: "Content Types",
   parameters: presetParameters,
-  render: (args) => <PresetRender {...args} />,
-  args: {
-    promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
-    tagNames: [],
-    versionCount: 2,
-    initialSelectedPromptIndex: null,
-    initialVersionType: "latest",
-  },
-};
-
-/**
- * Prompt loaded with latest version selected (P7V2T0).
- * No tags on this prompt.
- */
-export const LoadedWithLatest: PresetStory = {
-  parameters: presetParameters,
-  render: (args) => <PresetRender {...args} />,
-  args: {
-    promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
-    tagNames: [],
-    versionCount: 2,
-    initialSelectedPromptIndex: 0,
-    initialVersionType: "latest",
-  },
-};
-
-/**
- * Prompt loaded with a specific non-latest version (P7V2T0).
- * Shows version ID instead of "latest" tag.
- */
-export const LoadedWithVersion: PresetStory = {
-  parameters: presetParameters,
-  render: (args) => <PresetRender {...args} />,
-  args: {
-    promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
-    tagNames: [],
-    versionCount: 2,
-    initialSelectedPromptIndex: 0,
-    initialVersionType: "specificVersion",
-    initialSelectedVersionIndex: 1, // second version (not latest)
-  },
-};
-
-/**
- * Prompt loaded with a tag selected (P7V2T2).
- * Shows the tag name even though it's also the latest version.
- * This is notable behavior: when a tag is explicitly selected, we show the tag,
- * not "latest", even if the tagged version happens to be the latest.
- */
-export const LoadedWithTag: PresetStory = {
-  parameters: presetParameters,
-  render: (args) => <PresetRender {...args} />,
-  args: {
-    promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
-    tagNames: ["production", "staging"],
-    versionCount: 2,
-    initialSelectedPromptIndex: 0,
-    initialVersionType: "tag",
-    initialSelectedTagName: "production", // This is on the latest version
-  },
+  render: () => (
+    <PresetStack
+      items={[
+        {
+          label: "No prompts",
+          config: {
+            promptNames: [],
+            tagNames: [],
+            versionCount: 0,
+            initialSelectedPromptIndex: null,
+            initialVersionType: "latest",
+          },
+        },
+        {
+          label: "Prompts available, none selected",
+          config: {
+            promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
+            tagNames: [],
+            versionCount: 2,
+            initialSelectedPromptIndex: null,
+            initialVersionType: "latest",
+          },
+        },
+        {
+          label: "Loaded with latest version",
+          config: {
+            promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
+            tagNames: [],
+            versionCount: 2,
+            initialSelectedPromptIndex: 0,
+            initialVersionType: "latest",
+          },
+        },
+        {
+          label: "Loaded with a specific (non-latest) version",
+          config: {
+            promptNames: DEFAULT_PROMPT_NAMES.slice(0, 7),
+            tagNames: [],
+            versionCount: 2,
+            initialSelectedPromptIndex: 0,
+            initialVersionType: "specificVersion",
+            initialSelectedVersionIndex: 1,
+          },
+        },
+        {
+          label: "Loaded with a tag (on the latest version)",
+          config: loadedWithTag,
+        },
+      ]}
+    />
+  ),
 };
 
 /**
@@ -632,8 +652,11 @@ export const MaxPromptWidth: PresetStory = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Open prompt menu to show the long names
-    const promptButton = canvas.getByRole("button");
+    // Open prompt menu to show the long names. Target it by name: the
+    // version button is also rendered once a prompt is selected.
+    const promptButton = canvas.getByRole("button", {
+      name: /enterprise-customer-support-chatbot/,
+    });
     await userEvent.click(promptButton);
   },
 };
@@ -669,7 +692,8 @@ export const MaxTagWidth: PresetStory = {
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: PresetStory = {
-  ...LoadedWithTag,
+  render: (args) => <PresetRender {...args} />,
+  args: loadedWithTag,
   tags: ["!dev", "!autodocs"],
   parameters: {
     ...presetParameters,
