@@ -14,6 +14,7 @@ from phoenix.server.app import _db
 from phoenix.server.online_eval import db_coordinator as db_coordinator_module
 from phoenix.server.online_eval.coordinator import (
     LEASE_TTL_SECONDS,
+    TERMINAL_METRICS_WINDOW_SECONDS,
     PublicationClaimLostError,
 )
 from phoenix.server.online_eval.db_coordinator import (
@@ -537,6 +538,36 @@ async def test_lag_reports_counts_and_oldest_actionable_age(
     assert lag.expired_count == 1
     assert lag.oldest_actionable_age_seconds is not None
     assert 100.0 <= lag.oldest_actionable_age_seconds < 300.0
+
+
+async def test_lag_excludes_terminal_work_older_than_the_metrics_window(
+    db: DbSessionFactory,
+) -> None:
+    _, unit_ids = await _seed_session_work_units(db, 3)
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    before_window = datetime.now(timezone.utc) - timedelta(
+        seconds=TERMINAL_METRICS_WINDOW_SECONDS + 60
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_ids[0])
+            .values(status="FAILED", attempts=MAX_ATTEMPTS, updated_at=before_window)
+        )
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_ids[1])
+            .values(status="EXPIRED", updated_at=before_window)
+        )
+        await session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(models.EvalSessionWorkUnit.id == unit_ids[2])
+            .values(status="FAILED", attempts=MAX_ATTEMPTS)
+        )
+
+    lag = await coordinator.lag()
+    assert lag.exhausted_error_count == 1
+    assert lag.expired_count == 0
 
 
 async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:

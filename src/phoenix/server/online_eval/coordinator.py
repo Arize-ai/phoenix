@@ -28,6 +28,9 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition
 LEASE_TTL_SECONDS = 90
 HEARTBEAT_INTERVAL_SECONDS = 30
 LEASE_ATTEMPTS_EXHAUSTED_ERROR = "lease lapsed with attempts exhausted"
+# Metrics over terminal work read only rows that reached their status within this window;
+# session and trace work is never deleted, so all-time aggregates would grow without bound.
+TERMINAL_METRICS_WINDOW_SECONDS = 86_400.0
 
 RetiredWorkStatus = Literal["EXPIRED", "SUPERSEDED", "CONTENT_LOST"]
 
@@ -63,10 +66,14 @@ class ClaimedWorkUnit:
 
 @dataclass(frozen=True)
 class QueueLag:
-    """Observable backlog; all counts are zero when no work rows exist.
-    ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is
-    None when that backlog is empty. ``expired_count`` covers every retirement without
-    an outcome: EXPIRED, SUPERSEDED, and CONTENT_LOST."""
+    """Observable backlog for one evaluation target.
+
+    ``pending_count``, ``running_count`` and ``retryable_error_count`` are the current
+    live work. ``exhausted_error_count`` (FAILED) and ``expired_count`` (every retirement
+    without an outcome: EXPIRED, SUPERSEDED, and CONTENT_LOST) count work that
+    reached that status within the last ``TERMINAL_METRICS_WINDOW_SECONDS``.
+    ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is None
+    when that backlog is empty."""
 
     pending_count: int
     running_count: int
@@ -168,5 +175,6 @@ class EvalWorkCoordinator(Protocol):
         ...
 
     async def lag(self) -> QueueLag:
-        """Report current queue backlog. Returns zeroed metrics when the queue is empty."""
+        """Report the live backlog and recently terminated work. Returns zeroed metrics
+        when neither exists."""
         ...

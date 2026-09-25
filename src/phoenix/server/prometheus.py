@@ -158,14 +158,15 @@ ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
 ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_exhausted_error_work_units",
-    documentation="Current number of exhausted online-eval work units in ERROR status",
+    documentation="Number of online-eval work units that exhausted their retries in the last "
+    "24 hours",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_expired_work_units",
-    documentation="Current number of online-eval work units retired without an outcome: "
-    "expired, superseded, content lost, or dropped",
+    documentation="Number of online-eval work units retired without an outcome in the last "
+    "24 hours: expired, superseded, or content lost",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS = Gauge(
