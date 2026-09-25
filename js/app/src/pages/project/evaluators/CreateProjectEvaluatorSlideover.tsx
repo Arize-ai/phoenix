@@ -32,7 +32,6 @@ import type { CreateProjectEvaluatorSlideoverAddCodeMutation } from "@phoenix/pa
 import { CreateProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/CreateProjectCodeEvaluatorDialogContent";
 import { createProjectLlmEvaluator } from "@phoenix/pages/project/evaluators/createProjectLlmEvaluator";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
-import { useProjectEvaluatorContext } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import { ProjectLlmEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY } from "@phoenix/pages/project/evaluators/projectEvaluatorGalleryConstants";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
@@ -137,10 +136,13 @@ function getProjectEvaluatorCreationTitle(
 export const CreateProjectEvaluatorSlideover = ({
   projectId,
   creationMode,
+  onCreated,
   ...props
 }: {
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
+  /** Called once the evaluator exists, in place of `onOpenChange(false)`. */
+  onCreated: () => void;
 } & Omit<ModalOverlayProps, "children">) => (
   <ProjectEvaluatorSlideover
     {...props}
@@ -149,6 +151,7 @@ export const CreateProjectEvaluatorSlideover = ({
     {(close, registerDirtyCheck) => (
       <CreateProjectEvaluatorDialogForMode
         onClose={close}
+        onCreated={onCreated}
         projectId={projectId}
         creationMode={creationMode}
         registerDirtyCheck={registerDirtyCheck}
@@ -188,17 +191,18 @@ function CreateProjectEvaluatorDialogForMode(
 
 const CreateProjectEvaluatorDialog = ({
   onClose,
+  onCreated,
   projectId,
   creationMode,
   registerDirtyCheck,
 }: {
   onClose: () => void;
+  onCreated: () => void;
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
-  const { onEvaluatorCreated } = useProjectEvaluatorContext();
   const initialTargetType =
     creationMode.kind === "template"
       ? creationMode.initialState.targetType
@@ -287,8 +291,7 @@ const CreateProjectEvaluatorDialog = ({
   })();
 
   const finishCreation = () => {
-    onClose();
-    onEvaluatorCreated();
+    onCreated();
     notifySuccess({ title: "Evaluator created" });
   };
 

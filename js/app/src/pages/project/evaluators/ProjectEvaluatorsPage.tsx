@@ -10,12 +10,6 @@ import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluat
 import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
-import {
-  ProjectEvaluatorProvider,
-  type ProjectEvaluatorGallerySelection,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
-import { ProjectEvaluatorGalleryModal } from "@phoenix/pages/project/evaluators/ProjectEvaluatorGalleryModal";
-import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
 import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
@@ -43,60 +37,34 @@ export function ProjectEvaluatorsPage() {
     },
     [setUrlFilter]
   );
-  const [gallerySelection, setGallerySelection] =
-    useState<ProjectEvaluatorGallerySelection | null>(null);
-  const openGallery = (
-    selection: ProjectEvaluatorGallerySelection = { kind: "default" }
-  ) => {
-    setGallerySelection(selection);
-  };
-  // return to project evaluator list after create
-  const onEvaluatorCreated = () => {
-    setGallerySelection(null);
-  };
-  const paths = useProjectEvaluatorPaths();
   return (
-    // Wraps the gallery too: the gallery's own add-evaluator menu shares the
-    // menu component that reads this context.
-    <ProjectEvaluatorProvider value={{ openGallery, onEvaluatorCreated }}>
-      <main
-        css={css`
-          flex: 1 1 auto;
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-        `}
-      >
-        <Suspense fallback={<Loading />}>
-          <ProjectEvaluatorsTableProvider>
-            <ProjectEvaluatorsPageContent
-              projectId={projectId}
-              filter={filter}
-              onFilterChange={handleFilterChange}
-              selection={selection}
-              onSelectionChange={setSelection}
-            />
-          </ProjectEvaluatorsTableProvider>
-        </Suspense>
-        {/* Mounted before the nested editor outlet so an editor opened from
-            the gallery occupies the top overlay layer. */}
-        {gallerySelection ? (
-          <ProjectEvaluatorGalleryModal
-            creationPaths={paths.creation}
-            newLlmFromTemplatePath={paths.newLlmFromTemplate}
-            initialSelection={gallerySelection}
-            onClose={() => setGallerySelection(null)}
+    <main
+      css={css`
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      `}
+    >
+      <Suspense fallback={<Loading />}>
+        <ProjectEvaluatorsTableProvider>
+          <ProjectEvaluatorsPageContent
+            projectId={projectId}
+            filter={filter}
+            onFilterChange={handleFilterChange}
+            selection={selection}
+            onSelectionChange={setSelection}
           />
-        ) : null}
-        {/* The create and edit slideovers, each on its own nested route. The
-            copy and attach routes suspend while loading the evaluator they are
-            seeded from; the list stays interactive until the slideover
-            opens. */}
-        <Suspense fallback={null}>
-          <Outlet />
-        </Suspense>
-      </main>
-    </ProjectEvaluatorProvider>
+        </ProjectEvaluatorsTableProvider>
+      </Suspense>
+      {/* The gallery modal and the create and edit slideovers, each on its
+          own nested route. The copy and attach routes suspend while loading
+          the evaluator they are seeded from; the list stays interactive until
+          the slideover opens. */}
+      <Suspense fallback={null}>
+        <Outlet />
+      </Suspense>
+    </main>
   );
 }
 
@@ -127,7 +95,6 @@ function ProjectEvaluatorsPageContent({
     queryRef: loaderData.queryRef,
   });
   invariant(data.project, "project is required");
-  const paths = useProjectEvaluatorPaths();
   const isEmptyState =
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
   return (
@@ -150,7 +117,7 @@ function ProjectEvaluatorsPageContent({
               tool calls, then return labels or scores you can filter, chart,
               and alert on.
             </Text>
-            <AddProjectEvaluatorMenu size="M" creationPaths={paths.creation} />
+            <AddProjectEvaluatorMenu size="M" />
           </Flex>
         </View>
       ) : (
