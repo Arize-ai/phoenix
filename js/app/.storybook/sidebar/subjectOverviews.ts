@@ -35,8 +35,16 @@ const FOLDER_BUTTON = `${OVERVIEW_FOLDER} > button:first-child`;
  * which this does not match).
  */
 const CHEVRON_IN_BUTTON = "div:first-child > div:first-child";
-/** Storybook's folder-row indent: 8px ahead of the chevron, 18px per level. */
+/**
+ * Storybook's row indent: 8px ahead of a chevron (22px on a row without one,
+ * so its label lines up with a sibling folder's), plus 18px per level.
+ */
 const BASE_PADDING = 8;
+const LEAF_BASE_PADDING = 22;
+const STORYBOOK_INDENT_STEP = 18;
+/** The per-level indent every local row is given instead. */
+const INDENT_STEP = 12;
+const DEPTH_ATTRIBUTE = "data-phoenix-depth";
 /** Storybook's 8px chevron glyph, and the row's 28px minimum height. */
 const CHEVRON_GLYPH = 8;
 const ROW_HEIGHT = 28;
@@ -184,22 +192,43 @@ function isChevronClick(toggle: HTMLElement, target: EventTarget | null) {
 }
 
 /**
- * Move a folder button's depth indent from padding to margin, once per
- * element. Storybook's emotion class sets `padding-left: 8 + depth * 18`, read
- * here before the inline override replaces it. React leaves these properties
- * alone (it only manages `color` on this element), and a re-mounted row is a
- * new element that `sync` sees and indents again.
+ * A row's base padding: whether Storybook drew a chevron. Only an expandable
+ * branch lists the children it controls.
  */
-function indentFolderButton(button: HTMLElement) {
-  if (button.style.marginLeft) {
-    return;
+function basePaddingOf(node: HTMLElement) {
+  return node.getAttribute("aria-controls") ? BASE_PADDING : LEAF_BASE_PADDING;
+}
+
+/**
+ * Re-indent a row's button or link at `INDENT_STEP` per level. Storybook
+ * exposes no depth on the row, only the emotion class's
+ * `padding-left: base + depth * 18`, so the depth is read from that once per
+ * element, before the inline override replaces it, and kept on the element.
+ * React leaves these properties alone (it only manages `color` here), and a
+ * re-mounted row is a new element that `sync` sees and reads again.
+ *
+ * An Overview folder's indent moves from padding to margin (see
+ * `SPLIT_ROW_STYLES`).
+ */
+function indentRow(node: HTMLElement, isOverviewFolder: boolean) {
+  let depth = Number(node.getAttribute(DEPTH_ATTRIBUTE));
+  if (!node.hasAttribute(DEPTH_ATTRIBUTE)) {
+    const padding = parseFloat(getComputedStyle(node).paddingLeft);
+    if (Number.isNaN(padding)) {
+      return;
+    }
+    depth = Math.round((padding - basePaddingOf(node)) / STORYBOOK_INDENT_STEP);
+    node.setAttribute(DEPTH_ATTRIBUTE, String(depth));
   }
-  const padding = parseFloat(getComputedStyle(button).paddingLeft);
-  if (Number.isNaN(padding)) {
-    return;
+  const indent = depth * INDENT_STEP;
+  const marginLeft = isOverviewFolder ? `${indent}px` : "";
+  const paddingLeft = `${isOverviewFolder ? CHEVRON_GLYPH_LEFT : basePaddingOf(node) + indent}px`;
+  if (node.style.marginLeft !== marginLeft) {
+    node.style.marginLeft = marginLeft;
   }
-  button.style.marginLeft = `${padding - BASE_PADDING}px`;
-  button.style.paddingLeft = `${CHEVRON_GLYPH_LEFT}px`;
+  if (node.style.paddingLeft !== paddingLeft) {
+    node.style.paddingLeft = paddingLeft;
+  }
 }
 
 /**
@@ -234,6 +263,7 @@ function indentFolderButton(button: HTMLElement) {
  *     `isSelected` is always false, so the prop never changes. The truth is
  *     the URL, not the Overview row, which is unmounted while its folder is
  *     collapsed.
+ *   - Every local row is re-indented at `INDENT_STEP` (see `indentRow`).
  *   Every write is skipped when the value already matches: a write records a
  *   mutation even when unchanged, which would re-trigger the observer forever.
  */
@@ -306,14 +336,20 @@ export function installSubjectOverviews(api: API) {
         if (!folder.hasAttribute(OVERVIEW_FOLDER_ATTRIBUTE)) {
           folder.setAttribute(OVERVIEW_FOLDER_ATTRIBUTE, "");
         }
-        const button = folder.querySelector<HTMLElement>(":scope > button");
-        if (button) {
-          indentFolderButton(button);
-        }
         const selected = String(currentId === overviewId);
         if (folder.dataset.selected !== selected) {
           folder.dataset.selected = selected;
         }
+      });
+    document
+      .querySelectorAll<HTMLElement>(
+        `${LOCAL_ROW} > button:first-child, ${LOCAL_ROW} > a:first-child`
+      )
+      .forEach((node) => {
+        indentRow(
+          node,
+          node.parentElement?.hasAttribute(OVERVIEW_FOLDER_ATTRIBUTE) ?? false
+        );
       });
   };
   const observe = () => {
