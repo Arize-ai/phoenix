@@ -23,16 +23,17 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { View } from "@phoenix/components/core/view";
 import type { projectEvaluatorOptionsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorOptionsQuery.graphql";
-import { useProjectEvaluatorContext } from "@phoenix/pages/project/evaluators/projectEvaluatorContext";
 import { projectEvaluatorOptionsQuery as projectEvaluatorOptionsQueryNode } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import type { ProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  useProjectEvaluatorCreationPaths,
+  useProjectEvaluatorPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 
 export const AddProjectEvaluatorMenu = ({
   size,
   buttonClassName,
   buttonLabel = "Add evaluator",
   shouldShowGalleryLink = true,
-  creationPaths,
   ...props
 }: ProjectEvaluatorMenuTriggerProps) => {
   return (
@@ -43,7 +44,6 @@ export const AddProjectEvaluatorMenu = ({
       buttonVariant="primary"
       buttonLeadingVisual={<Icon svg={<Icons.Plus />} />}
       shouldShowGalleryLink={shouldShowGalleryLink}
-      creationPaths={creationPaths}
       {...props}
     />
   );
@@ -70,8 +70,6 @@ type ProjectEvaluatorMenuTriggerProps = {
   buttonLabel?: string;
   /** Hide the "Browse eval gallery" item, e.g. inside the gallery modal. */
   shouldShowGalleryLink?: boolean;
-  /** The routes to use for every evaluator-creation action in this menu. */
-  creationPaths: ProjectEvaluatorCreationPaths;
 } & Omit<MenuTriggerProps, "children">;
 
 function ProjectEvaluatorMenu({
@@ -81,7 +79,6 @@ function ProjectEvaluatorMenu({
   buttonVariant,
   buttonLeadingVisual,
   shouldShowGalleryLink,
-  creationPaths,
   ...props
 }: ProjectEvaluatorMenuTriggerProps & {
   buttonLabel: string;
@@ -106,7 +103,6 @@ function ProjectEvaluatorMenu({
           <ProjectEvaluatorMenuItems
             menuLabel={buttonLabel}
             shouldShowGalleryLink={shouldShowGalleryLink}
-            creationPaths={creationPaths}
           />
         </Suspense>
       </MenuContainer>
@@ -117,14 +113,15 @@ function ProjectEvaluatorMenu({
 function ProjectEvaluatorMenuItems({
   menuLabel,
   shouldShowGalleryLink,
-  creationPaths,
 }: {
   menuLabel: string;
   shouldShowGalleryLink: boolean;
-  creationPaths: ProjectEvaluatorCreationPaths;
 }) {
   const navigate = useNavigate();
-  const { openGallery } = useProjectEvaluatorContext();
+  // Anchored at the route rendering this menu, so the slideover opens over
+  // the list or over the gallery, whichever the menu is in.
+  const creationPaths = useProjectEvaluatorCreationPaths();
+  const { gallery } = useProjectEvaluatorPaths();
   const data = useLazyLoadQuery<projectEvaluatorOptionsQuery>(
     projectEvaluatorOptionsQueryNode,
     {},
@@ -147,17 +144,14 @@ function ProjectEvaluatorMenuItems({
             navigate(creationPaths.newLlm);
           } else if (action === "createCodeEvaluator") {
             navigate(creationPaths.newCode);
-          } else if (action === "browseGallery") {
-            openGallery();
           }
         }}
       >
         {shouldShowGalleryLink ? (
           <MenuSection>
-            {/* The gallery is modal state, not a destination, so this is an
-                action rather than a link. */}
             <MenuItem
               id="browseGallery"
+              href={gallery()}
               leadingContent={<Icon svg={<Icons.Grid />} />}
             >
               Browse eval gallery
