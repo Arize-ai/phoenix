@@ -16,6 +16,7 @@ const meta: Meta = {
 export default meta;
 
 export const Default: StoryObj<CopyActionMenuProps> = {
+  tags: ["!dev"],
   args: {
     items: [
       { name: "Project Name", value: "my-project", iconKey: "Text" },
@@ -25,6 +26,7 @@ export const Default: StoryObj<CopyActionMenuProps> = {
 };
 
 export const WithoutIcons = {
+  tags: ["!dev"],
   args: {
     items: [
       { name: "Name", value: "example-name" },
@@ -34,6 +36,7 @@ export const WithoutIcons = {
 };
 
 export const SingleItem = {
+  tags: ["!dev"],
   args: {
     items: [{ name: "API Key", value: "sk-abc123", iconKey: "Key" }],
   },
@@ -55,6 +58,8 @@ export const ManyItems: StoryFn = () => (
     />
   </View>
 );
+
+ManyItems.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj<CopyActionMenuProps> = {
