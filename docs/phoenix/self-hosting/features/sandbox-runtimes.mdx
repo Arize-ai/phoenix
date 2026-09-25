@@ -91,7 +91,7 @@ To restrict which sandbox providers your deployment can use, set the `PHOENIX_AL
 
 - **Leave it unset** to allow every supported provider (the default).
 - **Set it to `NONE`** to disable every sandbox provider.
-- **Set it to one or more provider names** to allow only those. Valid names are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, and `MODAL` (lowercase works too — the variable is case-insensitive). An unknown name will stop Phoenix from starting so a typo can't silently disable a provider.
+- **Set it to one or more provider names** to allow only those. Valid names are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, and `DOCKER` (lowercase works too — the variable is case-insensitive). An unknown name will stop Phoenix from starting so a typo can't silently disable a provider.
 
 ```bash
 export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO   # allow local sandboxes only
@@ -121,6 +121,7 @@ The container-ready column reflects the post-install state of the `arizephoenix/
 | **Daytona** (`DAYTONA`) | Python, TypeScript | Ready with credentials — already in container | `pip install 'arize-phoenix[daytona]'` | `DAYTONA_API_KEY` | Daytona cloud |
 | **Vercel Sandbox** (`VERCEL`) | Python, TypeScript | Ready with credentials — already in container | `pip install 'arize-phoenix[vercel]'` | `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | Vercel cloud |
 | **Modal** (`MODAL`) | Python | Ready with credentials — already in container | `pip install 'arize-phoenix[modal]'` | `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` | Modal cloud |
+| **Docker Sandboxes** (`DOCKER`) | Python, TypeScript | Ready with credentials — no extra needed | None | `DOCKER_ID` + `DOCKER_PAT` with `sandbox:use` ([auth docs](https://docs.docker.com/ai/sandboxes-api/authentication/)) | Docker cloud |
 
 <Info>
 "Container-ready" means the necessary code or binary is already inside the official `arizephoenix/phoenix` image. For hosted providers you still need to enter credentials before the status changes from **Missing credentials** to **Available**. The two local providers (Deno and WebAssembly) become **Available** the moment the container starts.

@@ -340,6 +340,7 @@
 - [Daytona](https://arize.com/docs/phoenix/integrations/sandboxes/daytona): Run Phoenix code evaluators in Daytona's managed development sandboxes with snapshot-based startup
 - [Vercel Sandbox](https://arize.com/docs/phoenix/integrations/sandboxes/vercel): Run Phoenix code evaluators in ephemeral Vercel compute, scoped to a Vercel team and project
 - [Modal](https://arize.com/docs/phoenix/integrations/sandboxes/modal): Run Phoenix code evaluators in Modal's serverless Python containers with sub-second cold starts
+- [Docker Sandboxes](https://arize.com/docs/phoenix/integrations/sandboxes/docker): Run Phoenix code evaluators in Docker Cloud Sandboxes for Python and TypeScript
 
 ### Platforms — Additional
 

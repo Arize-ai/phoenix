@@ -252,6 +252,7 @@ Phoenix 基于 OpenTelemetry 深度打造，具备完全的供应商、语言与
 | [Daytona](https://arize.com/docs/phoenix/integrations/sandboxes/daytona) | 支持快照秒级启动的托管开发沙箱环境 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/daytona) |
 | [Vercel Sandbox](https://arize.com/docs/phoenix/integrations/sandboxes/vercel) | 运行在 Vercel 底层基础设施上的按需瞬态计算沙箱 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/vercel) |
 | [Modal](https://arize.com/docs/phoenix/integrations/sandboxes/modal) | 无服务器（Serverless）、Python 原生的容器计算平台 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/modal) |
+| [Docker Sandboxes](https://arize.com/docs/phoenix/integrations/sandboxes/docker) | 由 Docker 托管的云端沙箱 | [集成指南](https://arize.com/docs/phoenix/integrations/sandboxes/docker) |
 
 ## 面向开发者与 AI 编程智能体
 

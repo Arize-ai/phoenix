@@ -261,6 +261,7 @@ class TestSyncSandboxDefaultConfigs:
             "VERCEL": False,
             "MODAL": False,
             "MONTY": True,
+            "DOCKER": False,
         }
         for backend_type, want in expected.items():
             meta = SANDBOX_ADAPTER_METADATA[backend_type]

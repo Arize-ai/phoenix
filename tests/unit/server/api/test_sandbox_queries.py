@@ -183,6 +183,10 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
         "Install Phoenix with the `modal` extra.",
         "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
     ]
+    assert backends["DOCKER"]["dependencyHints"] == [
+        "Requires a Docker Agentic Platform subscription.",
+        "Provide `DOCKER_ID` and a `DOCKER_PAT` with the `sandbox:use` permission.",
+    ]
     assert len(response.data["sandboxProviders"]) == provider_count
 
 
