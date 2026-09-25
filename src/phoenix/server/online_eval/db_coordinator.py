@@ -411,8 +411,7 @@ class DbEvalWorkCoordinator:
             retryable_error_count=counts.get("ERROR", 0),
             exhausted_error_count=counts.get("FAILED", 0),
             expired_count=sum(
-                counts.get(status, 0)
-                for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST", "DROPPED")
+                counts.get(status, 0) for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST")
             ),
             oldest_actionable_age_seconds=oldest_actionable_age_seconds,
         )

@@ -379,11 +379,6 @@ Defaults to 10000.
 Higher values increase catch-up throughput at the cost of larger per-tick transactions;
 lower values reduce transaction size but take longer to catch up to the observed frontier.
 """
-ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS = "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS"
-"""
-How long a PENDING online-eval work unit may wait before the reaper marks it EXPIRED.
-Defaults to 0 (disabled).
-"""
 ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
 """
 How long terminal online-eval work units are kept before the reaper deletes them.
@@ -3610,27 +3605,6 @@ def get_env_online_eval_max_span_ids_per_tick() -> int:
             f"{max_span_ids}. Value must be a positive integer."
         )
     return max_span_ids
-
-
-def get_env_online_eval_pending_ttl_seconds() -> float:
-    """
-    Gets the value of the PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS environment variable.
-
-    Defaults to 0, which disables TTL-based shedding: pending work units wait
-    until a consumer claims them, however long that takes (the admission gate
-    bounds queue growth). Setting a positive TTL opts into load shedding —
-    pending units older than the TTL are expired terminally and are NEVER
-    evaluated or re-materialized, so only set this if dropping evals on old
-    spans under sustained backlog is acceptable.
-    """
-    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
-    if not isfinite(seconds) or seconds < 0:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS}: "
-            f"{seconds}. Value must be a finite non-negative number."
-        )
-    return seconds
 
 
 def get_env_online_eval_retention_seconds() -> float:

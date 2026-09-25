@@ -77,7 +77,6 @@ export function ProjectEvaluatorStats({
           queuedCount
           evaluatedCount
           failedCount
-          droppedCount
           lastError
         }
         evaluator {
@@ -202,12 +201,6 @@ function ProjectEvaluatorActivityPanel({
             {intFormatter(runSummary.failedCount)}
           </Text>
         </StatField>
-        {/* Backlog shedding is opt-in; a row of zeros would only invite the question. */}
-        {runSummary.droppedCount > 0 ? (
-          <StatField label="dropped">
-            <Text size="S">{intFormatter(runSummary.droppedCount)}</Text>
-          </StatField>
-        ) : null}
         <StatField label="created">
           <Text size="S">
             <time dateTime={projectEvaluator.createdAt}>

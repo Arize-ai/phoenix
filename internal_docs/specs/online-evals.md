@@ -387,16 +387,15 @@ preserved for audit not by the annotation row (overwritten) but by the run recor
 The upsert-by-`identifier` mechanism in [Output](#output) is intentionally destructive: a re-run
 overwrites its own prior annotation. SESSION filter and sampling declines are durable terminal
 work-unit states, but other decisions that produce *no* annotation (including span filter/sample
-misses and overload drops) still lack a complete cross-target run history. Several requirements
-in this spec presuppose a durable record that the annotation tables cannot provide:
+misses) still lack a complete cross-target run history. Several requirements in this spec
+presuppose a durable record that the annotation tables cannot provide:
 
-- **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out,
-  overload-dropped, pending, failed, and succeeded apart — none of which an absent annotation row
-  can express.
+- **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out, pending,
+  failed, and succeeded apart — none of which an absent annotation row can express.
 - **Override history** — prior evaluations should stay inspectable even though the visible
   annotation was overwritten.
-- **Overload-skip visibility** and the [failure taxonomy](#open-q-10) both need somewhere to
-  write a decision that produced no annotation.
+- **Failure taxonomy** — the classes in [open question #10](#open-q-10) need somewhere to write a
+  decision that produced no annotation.
 
 None of this fits the annotation tables (no `error` column, no status column, one row per
 `(name, target, identifier)`). It needs its own run/decision record — roughly one row per
@@ -412,9 +411,10 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   is unhealthy, Phoenix should still ingest and display traces normally.
 - Disabling a project evaluator stops new runs immediately.
 - **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
-  rate, a backstop must shed load so the queue does not blow up. When artifacts are skipped for
-  this reason, the user must be able to see that they were skipped ("this set was meant to be
-  sampled but was dropped because ingest was too high"), not have them silently disappear.
+  rate, the queue must not blow up. An admission gate caps how much span work may be waiting to
+  run: once the backlog reaches the cap, Phoenix stops creating new span work until the backlog
+  drains, then resumes from where it stopped. A full queue therefore delays span evaluations
+  rather than dropping them — sampled spans are evaluated late, not skipped.
 - **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
   recursively enqueue the same class of project evaluations. This largely falls out of the
   architecture: if evaluator traces live in a dedicated project (as
@@ -513,7 +513,7 @@ Scope-defining questions come first.
    compatibility guarantee — determinism across retries and restarts is only as good as the hash
    staying fixed across Phoenix versions?
 10. <a id="open-q-10"></a>What is the failure taxonomy: retryable failure, terminal failure, configuration error,
-    sampled out, overload drop, disabled evaluator, and skipped because the target changed?
+    sampled out, disabled evaluator, and skipped because the target changed?
 
 ### Can follow v1
 

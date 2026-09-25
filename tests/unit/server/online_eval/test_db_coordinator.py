@@ -526,7 +526,7 @@ async def test_lag_reports_counts_and_oldest_actionable_age(
         await session.execute(
             update(models.EvalWorkUnit)
             .where(models.EvalWorkUnit.id == unit_ids[6])
-            .values(status="DROPPED", error="pending ttl exceeded")
+            .values(status="EXPIRED")
         )
 
     lag = await coordinator.lag()

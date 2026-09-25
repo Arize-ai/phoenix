@@ -902,45 +902,10 @@ async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
     assert unit.error is None
 
 
-async def test_ttl_dropped_row_is_not_resurrected(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS", "1")
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    await _seed_criteria(db, project.id)
-    await _seed_cursor(
-        db,
-        produced_through_id=span.id - 1,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
-    async with db() as session:
-        await session.execute(
-            update(models.EvalWorkUnit).values(created_at=_now() - timedelta(seconds=10))
-        )
-
-    await producer._reap(_now(), span.id)
-    active = await producer._load_active_project_evaluators()
-    await producer._backstop_sweep(active, span.id, 10)
-
-    async with db() as session:
-        unit = (await session.scalars(select(models.EvalWorkUnit))).one()
-    assert unit.status == "DROPPED"
-    assert unit.error == "pending ttl exceeded"
-
-
-async def test_reaper_transitions_and_deletes(
+async def test_reaper_deletes_aged_terminal_work_outside_the_lookback(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS", "2")
-    # TTL shedding is opt-in (default off); this test exercises the opted-in path.
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS", "3600")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -961,8 +926,7 @@ async def test_reaper_transitions_and_deletes(
         )
 
     async with db() as session:
-        stale_pending = _unit(inside, status="PENDING", created_at=ancient)
-        fresh_pending = _unit(inside, status="PENDING")
+        old_pending = _unit(outside, status="PENDING", created_at=ancient, updated_at=ancient)
         done_outside = _unit(outside, status="DONE", created_at=ancient, updated_at=ancient)
         done_inside = _unit(inside, status="DONE", created_at=ancient, updated_at=ancient)
         exhausted_error_outside = _unit(
@@ -977,8 +941,7 @@ async def test_reaper_transitions_and_deletes(
         )
         session.add_all(
             [
-                stale_pending,
-                fresh_pending,
+                old_pending,
                 done_outside,
                 done_inside,
                 exhausted_error_outside,
@@ -987,8 +950,7 @@ async def test_reaper_transitions_and_deletes(
         )
         await session.flush()
         ids = {
-            "stale_pending": stale_pending.id,
-            "fresh_pending": fresh_pending.id,
+            "old_pending": old_pending.id,
             "done_outside": done_outside.id,
             "done_inside": done_inside.id,
             "exhausted_error_outside": exhausted_error_outside.id,
@@ -1003,50 +965,11 @@ async def test_reaper_transitions_and_deletes(
             unit.id: (unit.status, unit.error)
             for unit in await session.scalars(select(models.EvalWorkUnit))
         }
-    assert remaining.get(ids["stale_pending"]) == ("DROPPED", "pending ttl exceeded")
-    assert remaining.get(ids["fresh_pending"]) == ("PENDING", None)
+    assert remaining.get(ids["old_pending"]) == ("PENDING", None)
     assert ids["done_outside"] not in remaining
     assert remaining.get(ids["done_inside"]) == ("DONE", None)
     assert ids["exhausted_error_outside"] not in remaining
     assert remaining.get(ids["retryable_error_outside"]) == ("ERROR", None)
-
-
-async def test_reaper_default_keeps_old_pending_work(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """With the pending TTL unset (the default), backlog never expires: a
-    PENDING unit older than any drain window stays claimable instead of being
-    shed. TTL expiry is terminal and blocks backstop re-materialization of the
-    same fingerprint, so shedding must be an explicit operator opt-in."""
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS", "2")
-    monkeypatch.delenv("PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS", raising=False)
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_criteria(db, project.id)
-    now = _now()
-    ancient = now - timedelta(days=30)
-    async with db() as session:
-        old_pending = models.EvalWorkUnit(
-            span_rowid=span.id,
-            evaluator_id=evaluator_id,
-            project_evaluator_id=project_evaluator_id,
-            config_fingerprint=f"fp-{token_hex(8)}",
-            status="PENDING",
-            created_at=ancient,
-        )
-        session.add(old_pending)
-        await session.flush()
-        unit_id = old_pending.id
-
-    producer = OnlineEvalProducer(db)
-    await producer._reap(now, span.id)
-
-    async with db() as session:
-        unit = await session.get(models.EvalWorkUnit, unit_id)
-    assert unit is not None
-    assert unit.status == "PENDING"
 
 
 async def test_reaper_terminalizes_only_lapsed_exhausted_running_work(

@@ -22,7 +22,6 @@ _WorkUnitModel: TypeAlias = Union[
 _QUEUED = "QUEUED"
 _EVALUATED = "EVALUATED"
 _FAILED = "FAILED"
-_DROPPED = "DROPPED"
 
 
 @dataclass(frozen=True)
@@ -37,7 +36,6 @@ class ProjectEvaluatorRunCounts:
     queued: int = 0
     evaluated: int = 0
     failed: int = 0
-    dropped: int = 0
     last_evaluated_at: Optional[datetime] = None
     last_failed_at: Optional[datetime] = None
     last_error: Optional[str] = None
@@ -60,8 +58,6 @@ class ProjectEvaluatorRunCountsDataLoader(DataLoader[Key, ProjectEvaluatorRunCou
                     counts = replace(counts, evaluated=count, last_evaluated_at=latest)
                 elif outcome == _FAILED:
                     counts = replace(counts, failed=count, last_failed_at=latest)
-                elif outcome == _DROPPED:
-                    counts = replace(counts, dropped=count)
                 elif outcome == _QUEUED:
                     counts = replace(counts, queued=count)
                 result[project_evaluator_id] = counts
@@ -80,19 +76,16 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
     SUPERSEDED (the evaluator's configuration changed under it) and CONTENT_LOST (the
     subject's content was gone by the time the unit was hydrated) are lifecycle events,
     not evaluation failures.
-    DROPPED (shed from the backlog under load) is the system's doing, not the evaluator's.
     """
     return model.status.in_(("FAILED", "EXPIRED"))
 
 
 def _outcome(model: _WorkUnitModel) -> sa.Case[Optional[str]]:
     """Bucket a work unit into the funnel the user sees. SUPERSEDED and CONTENT_LOST
-    fall outside every bucket, since no evaluation was ever owed for them. DROPPED is
-    its own bucket: the evaluation was owed and never ran, but nothing failed."""
+    fall outside every bucket, since no evaluation was ever owed for them."""
     return sa.case(
         (model.status == "DONE", _EVALUATED),
         (_failed(model), _FAILED),
-        (model.status == "DROPPED", _DROPPED),
         (model.status.in_(LIVE_EVAL_WORK_STATUSES), _QUEUED),
         else_=None,
     )
