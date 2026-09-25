@@ -5,6 +5,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.utils.span_export import convert_spans_to_dataframe
 
 from .rag import (
     async_get_input_output_context,
@@ -22,6 +23,7 @@ __all__ = [
     "uniquify_spans",
     "uniquify_spans_dataframe",
     "dataframe_to_spans",
+    "convert_spans_to_dataframe",
     "get_input_output_context",
     "get_retrieved_documents",
     "async_get_input_output_context",
