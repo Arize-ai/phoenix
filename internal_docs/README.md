@@ -6,3 +6,4 @@ This folder contains materials that are only relevant to core maintainers of thi
 - [Feature Specifications](./specs)
   - [Declarative RBAC](./specs/rbac.md)
   - [MCP Analytics SQL Surface](./specs/mcp-analytics-sql.md)
+  - [Booting With Auth Enabled and No Secret](./specs/auth-without-secret.md)
