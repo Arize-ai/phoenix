@@ -1,5 +1,6 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
@@ -10,6 +11,12 @@ import type { deleteDatasetSplitsToolMutation } from "./__generated__/deleteData
 import { fetchSplitsByNames } from "./listSplits";
 import type { DeleteDatasetSplitsInput } from "./types";
 
+/**
+ * Mounted split lists and example rows refetch through the agent data-change
+ * bridge after deletion. Deleted records are not
+ * `@deleteRecord`-ed because `DatasetExample.datasetSplits` is a non-null
+ * list and a deleted node would read back as `null` inside it.
+ */
 const mutation = graphql`
   mutation deleteDatasetSplitsToolMutation($input: DeleteDatasetSplitInput!) {
     deleteDatasetSplits(input: $input) {
@@ -46,7 +53,12 @@ export async function commitDeleteDatasetSplits({
 
   return runDatasetMutation<deleteDatasetSplitsToolMutation>({
     mutation,
-    variables: { input: { datasetSplitIds: ids } },
-    onSuccess: () => `Deleted split(s): ${splitNames.join(", ")}.`,
+    variables: {
+      input: { datasetSplitIds: ids },
+    },
+    onSuccess: () => {
+      emitAgentDataChange({ entity: "datasetSplits" });
+      return `Deleted split(s): ${splitNames.join(", ")}.`;
+    },
   });
 }

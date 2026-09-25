@@ -36,6 +36,7 @@ import { SearchIcon } from "@phoenix/components/core/field";
 import type { UseDatasetLabelMutationsParams } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { useDatasetLabelMutations } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { NewLabelForm } from "@phoenix/components/label";
+import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 import { isStringArray } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -48,6 +49,8 @@ type DatasetLabelConfigButtonProps = {
   datasetId: string;
   variant?: ButtonProps["variant"];
 };
+
+const REFRESH_ON = ["datasetLabels"] as const;
 
 export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
   const { datasetId, variant = "default" } = props;
@@ -79,6 +82,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
 
 export function DatasetLabelSelectionContent(props: { datasetId: string }) {
   const { datasetId } = props;
+  const fetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const query = useLazyLoadQuery<DatasetLabelConfigButtonQuery>(
     graphql`
       query DatasetLabelConfigButtonQuery($datasetId: ID!) {
@@ -90,7 +94,11 @@ export function DatasetLabelSelectionContent(props: { datasetId: string }) {
         }
       }
     `,
-    { datasetId }
+    { datasetId },
+    {
+      fetchKey,
+      fetchPolicy: fetchKey === 0 ? "store-or-network" : "store-and-network",
+    }
   );
 
   return <DatasetLabelList query={query} dataset={query.dataset} {...props} />;

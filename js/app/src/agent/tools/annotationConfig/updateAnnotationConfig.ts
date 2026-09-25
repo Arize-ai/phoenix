@@ -12,7 +12,8 @@ import type {
 /**
  * Replace an existing annotation config in full (the server `updateAnnotationConfig`
  * mutation overwrites the whole config). Runs outside React, so it uses the
- * singleton Relay environment.
+ * singleton Relay environment. The payload returns the fields rendered by
+ * existing config consumers, so Relay updates the normalized record directly.
  */
 export function commitUpdateAnnotationConfig(
   configId: string,
@@ -37,14 +38,30 @@ export function commitUpdateAnnotationConfig(
               ... on CategoricalAnnotationConfig {
                 id
                 name
+                description
+                annotationType
+                optimizationDirection
+                values {
+                  label
+                  score
+                }
               }
               ... on ContinuousAnnotationConfig {
                 id
                 name
+                description
+                annotationType
+                optimizationDirection
+                lowerBound
+                upperBound
               }
               ... on FreeformAnnotationConfig {
                 id
                 name
+                description
+                annotationType
+                optimizationDirection
+                threshold
               }
             }
           }

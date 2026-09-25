@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<529b7e7d25e8ab3414e4c855d8c54d87>>
+ * @generated SignedSource<<32e4e8ce7add03cc9d16832ed2ca2b65>>
  * @lightSyntaxTransform
  */
 
@@ -51,8 +51,10 @@ export type patchDatasetExamplesToolMutation$variables = {
 export type patchDatasetExamplesToolMutation$data = {
   readonly patchDatasetExamples: {
     readonly dataset: {
+      readonly exampleCount: number;
       readonly id: string;
       readonly name: string;
+      readonly updatedAt: string;
     };
   };
 };
@@ -105,6 +107,20 @@ v1 = [
             "kind": "ScalarField",
             "name": "name",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "exampleCount",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "updatedAt",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -131,16 +147,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "9eaf1fac40959948180cc3d5a9ea3f46",
+    "cacheID": "56b0a4412246776fa41a5332777d8501",
     "id": null,
     "metadata": {},
     "name": "patchDatasetExamplesToolMutation",
     "operationKind": "mutation",
-    "text": "mutation patchDatasetExamplesToolMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    dataset {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation patchDatasetExamplesToolMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    dataset {\n      id\n      name\n      exampleCount\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2d114158d6b674e082d7c03d4369f91f";
+(node as any).hash = "db8eb46688bf10a93929f9b6c4a8bb7a";
 
 export default node;
