@@ -8,12 +8,12 @@ A skill is a set of instructions your coding agent loads when a task matches it,
 ## Install
 
 ```bash
-npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-evals --skill phoenix-tracing --skill phoenix-error-analysis --skill phoenix-harbor
+npx -y @arizeai/phoenix-cli setup skills
 ```
 
-Those are the five skills written for people using Phoenix. Each lands in the agent's directory, such as `.claude/skills/` or `.cursor/skills/`. Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents). It needs no Phoenix instance and no traces.
+That installs the five skills written for people using Phoenix: `phoenix-cli`, `phoenix-evals`, `phoenix-tracing`, `phoenix-error-analysis`, and `phoenix-harbor`. To pick from them instead, use `npx skills add Arize-ai/phoenix --skill <name>`. Each lands in the agent's directory, such as `.claude/skills/` or `.cursor/skills/`. Supported agents include Claude Code, Cursor, Windsurf, Codex, GitHub Copilot, Cline, OpenCode, Gemini CLI, and [20+ more](https://github.com/vercel-labs/skills#supported-agents). It needs no Phoenix instance and no traces.
 
-**Plugin or `skills add`?** The [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` and keeps them current as Phoenix updates. `skills add` is a one-time copy: rerun it, or `npx skills update`, to pick up changes. Use it when your agent has no plugin. `px setup skills` from the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) runs the same install, and the [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) serves every skill through its `load_skill` tool, so a connected client can use them with nothing installed.
+**Plugin or `setup skills`?** The [Claude Code plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) registers `phoenix-cli`, `phoenix-evals`, and `phoenix-tracing` and keeps them current as Phoenix updates. `setup skills` and `skills add` are one-time copies: rerun them, or `npx skills update`, to pick up changes. Use them when your agent has no plugin. The [Remote MCP Server](/docs/phoenix/integrations/mcp#how-it-works) also serves every skill through its `load_skill` tool, so a connected client needs nothing installed.
 
 ## What your agent can do with them
 
