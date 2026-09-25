@@ -262,7 +262,9 @@ class TestToChatMessagesAndKwargs:
                     {"role": "user", "content": "Hello {{ persona }}."},
                 ],
             },
-            template_type="MUSTACHE",
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            model_provider="ANTHROPIC",
             model_name="claude-3-5-sonnet-20241022",
             invocation_parameters={
                 "type": "anthropic",
@@ -270,7 +272,7 @@ class TestToChatMessagesAndKwargs:
             },
         )
         messages, kwargs = to_chat_messages_and_kwargs(pv, variables={"persona": "a pirate"})
-        assert kwargs["system"] == "You are a pirate."
+        assert kwargs.get("system") == "You are a pirate."
         assert messages == [{"role": "user", "content": "Hello a pirate."}]
 
     def test_multiple_str_system_messages_format_variables(self) -> None:
@@ -283,7 +285,9 @@ class TestToChatMessagesAndKwargs:
                     {"role": "user", "content": "User: {{ var1 }}"},
                 ],
             },
-            template_type="MUSTACHE",
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            model_provider="ANTHROPIC",
             model_name="claude-3-5-sonnet-20241022",
             invocation_parameters={
                 "type": "anthropic",
@@ -293,7 +297,7 @@ class TestToChatMessagesAndKwargs:
         messages, kwargs = to_chat_messages_and_kwargs(
             pv, variables={"var1": "val1", "var2": "val2"}
         )
-        assert kwargs["system"] == [
+        assert kwargs.get("system") == [
             {"type": "text", "text": "System 1: val1"},
             {"type": "text", "text": "System 2: val2"},
         ]
