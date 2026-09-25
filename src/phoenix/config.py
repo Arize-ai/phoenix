@@ -401,25 +401,24 @@ new work units: PENDING + RUNNING + retryable ERROR (non-terminal work). Default
 """
 ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE = "PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE"
 """
-The maximum number of work units each SPAN and SESSION online-eval consumer claims per
-tick. Both consumers deliberately read this one value: provider capacity and database
-connections are per-replica resources, not per-target resources. Each consumer runs its
-whole claimed batch at once and waits for it before claiming again; aggregate evaluator
-execution across both consumers is capped by
-PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY. Together with
-PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS this bounds each consumer's claim
-throughput at claim_batch_size / tick_interval work units per second. Defaults to 10.
+The maximum number of work units an online-eval consumer claims at once. Every consumer
+reads this one value: provider capacity and database connections are per-replica
+resources, not per-target resources. A consumer claims only as many units as it can start
+under PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, and claims again as soon as a running
+unit finishes. Defaults to 10.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
-"""Maximum aggregate evaluator executions across online-eval consumers. Defaults to 10."""
+"""
+Maximum online-eval work units a replica evaluates at once, across all consumers.
+Defaults to 10.
+"""
 ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY"
 """Maximum aggregate online-eval consumer DB phases. Defaults to 5."""
 ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS = (
     "PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS"
 )
 """
-Seconds an online-eval consumer sleeps between claim cycles. Together with
-PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE this bounds per-replica evaluation throughput.
+Seconds an online-eval consumer waits before claiming again when it finds no work to start.
 Defaults to 5.0.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"

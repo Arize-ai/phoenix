@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
@@ -877,7 +878,9 @@ async def test_consumer_stale_fingerprint_expiry_is_revived_when_config_reverts(
         original_sampling_rate = project_evaluator.sampling_rate
         project_evaluator.sampling_rate = 0.5
 
-    await OnlineEvalConsumer(db, decrypt=lambda value: value)._cycle()
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    await consumer._cycle()
+    await asyncio.gather(*consumer._pending_tasks)
 
     async with db() as session:
         unit = await session.scalar(select(models.EvalWorkUnit))
