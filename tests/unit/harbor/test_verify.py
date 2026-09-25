@@ -1,7 +1,16 @@
 import json
+import os
 from pathlib import Path
 
+import pytest
+
 from evals.harbor.verifiers import verify
+from tests.unit.vcr import CustomVCR
+
+MOST_FAILING_TOOL_EXPECTED = (
+    Path(__file__).parents[3]
+    / "evals/harbor/tasks/trail-benchmark-dev/most-failing-tool/tests/expected.json"
+)
 
 TRAJECTORY = {
     "schema_version": "ATIF-v1.7",
@@ -54,6 +63,32 @@ def test_exact_check_ignores_emphasis_case_and_end_punctuation() -> None:
     assert verify.check("ok", expected)[0] == 1.0
     assert verify.check("okay", expected)[0] == 0.0
     assert verify.check("", expected)[0] == 0.0
+
+
+def test_reference_check_grades_semantic_answers(
+    custom_vcr: CustomVCR,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY") or "sk-test")
+    expected = json.loads(MOST_FAILING_TOOL_EXPECTED.read_text())
+    cases = [
+        ("**page_down (PageDownTool)** — 109 failed spans...", 1.0),
+        (
+            "The page_down tool failed the most: **109 times** out of 174 failed tool spans.",
+            1.0,
+        ),
+        ("TextInspectorTool", 0.0),
+        ("Either page_down or TextInspectorTool; I cannot determine which.", 0.0),
+        ("PageDownTool appeared frequently, but TextInspectorTool failed the most.", 0.0),
+        ("TextInspectorTool, not page_down, had the most failures.", 0.0),
+    ]
+
+    with custom_vcr.use_cassette(
+        match_on=["method", "scheme", "host", "port", "path", "query", "body"]
+    ):
+        scores = [verify.check(reply, expected)[0] for reply, _ in cases]
+
+    assert scores == [score for _, score in cases]
 
 
 def test_write_reward_attaches_measurements(tmp_path: Path) -> None:
