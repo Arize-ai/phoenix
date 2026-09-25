@@ -15,6 +15,10 @@ from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
 
+# Models that return 400 for tool_choice "tool"/"any". Matched as substrings so Bedrock
+# "anthropic."/"us."/"global." inference profile IDs are covered too.
+_NO_FORCED_TOOL_CHOICE_MODELS = ("claude-opus-5-5", "claude-fable-5-1")
+
 
 def identify_anthropic_client(client: Any) -> bool:
     if isinstance(client, AnthropicClientWrapper):
@@ -181,6 +185,12 @@ class AnthropicAdapter(BaseLLMAdapter):
         elif method == ObjectGenerationMethod.AUTO:
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
+    def _tool_choice(self) -> Dict[str, Any]:
+        """Force the structured-output tool unless the model rejects forced tool use."""
+        if any(m in self.model for m in _NO_FORCED_TOOL_CHOICE_MODELS):
+            return {"type": "auto"}
+        return {"type": "tool", "name": "extract_structured_data"}
+
     def _generate_with_tool_calling(
         self,
         prompt: PromptLike,
@@ -198,7 +208,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice=self._tool_choice(),
             **kwargs,
         )
 
@@ -225,7 +235,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             model=self.model,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
+            tool_choice=self._tool_choice(),
             **kwargs,
         )
 
