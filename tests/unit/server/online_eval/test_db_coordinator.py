@@ -4,7 +4,7 @@ from secrets import token_hex
 from typing import Optional
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
@@ -26,12 +26,18 @@ from phoenix.server.types import DbSessionFactory
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 
 
-async def _seed_work_units(db: DbSessionFactory, n: int) -> list[int]:
+async def _seed_work_units(
+    db: DbSessionFactory,
+    n: int,
+    *,
+    project_session: bool = False,
+) -> list[int]:
     """Create a span, evaluator, and project_evaluator, plus ``n`` PENDING work units
     (distinct fingerprints), returning the work unit ids in id order."""
     async with db() as session:
         project = await _add_project(session)
-        trace = await _add_trace(session, project)
+        parent_session = await _add_project_session(session, project) if project_session else None
+        trace = await _add_trace(session, project, parent_session)
         span = await _add_span(session, trace)
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"eval-{token_hex(4)}"),
@@ -737,50 +743,28 @@ async def test_session_publish_holds_work_lock_against_reclaim(
     assert reclaimed.work_unit_id == unit_id
 
 
-@pytest.mark.postgres_only
-async def test_session_publish_holds_criteria_lock_against_disable(
-    postgresql_engine: AsyncEngine,
-) -> None:
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    _, (unit_id,) = await _seed_session_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory) -> None:
+    (unit_id,) = await _seed_work_units(db, 1)
+    coordinator = DbEvalWorkCoordinator(db)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
-    entered = asyncio.Event()
-    release = asyncio.Event()
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == claim.project_evaluator_id)
+            .values(enabled=False)
+        )
+    wrote = asyncio.Event()
 
     async def _write(session: AsyncSession) -> None:
-        entered.set()
-        await release.wait()
+        wrote.set()
 
-    async def _disable() -> None:
-        async with db() as session:
-            await session.execute(
-                update(models.ProjectEvaluator)
-                .where(models.ProjectEvaluator.id == claim.project_evaluator_id)
-                .values(enabled=False)
-            )
-
-    publication = asyncio.create_task(
-        coordinator.publish(
+    with pytest.raises(PublicationClaimLostError, match="disabled"):
+        await coordinator.publish(
             work_unit_id=unit_id,
             claimed_by=claim.claimed_by,
             write=_write,
         )
-    )
-    await entered.wait()
-    disable = asyncio.create_task(_disable())
-    with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(asyncio.shield(disable), timeout=0.1)
-    release.set()
-    await publication
-    await disable
-    async with db() as session:
-        enabled = await session.scalar(
-            select(models.ProjectEvaluator.enabled).where(
-                models.ProjectEvaluator.id == claim.project_evaluator_id
-            )
-        )
-    assert enabled is False
+    assert not wrote.is_set()
 
 
 async def test_trace_claim_lifecycle(db: DbSessionFactory) -> None:
@@ -831,24 +815,88 @@ async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(publication), timeout=0.1)
 
-    with pytest.raises(PublicationClaimLostError, match="trace is missing"):
+    with pytest.raises(PublicationClaimLostError, match="no longer owned and live"):
         await publication
     assert not wrote.is_set()
 
 
 @pytest.mark.postgres_only
-async def test_trace_publish_never_waits_on_the_traces_session(
+@pytest.mark.parametrize("evaluation_target", ["SPAN", "SESSION", "TRACE"])
+async def test_target_delete_waits_for_publication(
     postgresql_engine: AsyncEngine,
+    evaluation_target: models.EvaluationTarget,
 ) -> None:
-    """Publication must not lock the trace's session row, which retention holds first."""
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    _, project_session_rowid, (unit_id,) = await _seed_trace_work_units(
-        db,
-        1,
-        project_session=True,
+    if evaluation_target == "SPAN":
+        (unit_id,) = await _seed_work_units(db, 1)
+    elif evaluation_target == "SESSION":
+        _, (unit_id,) = await _seed_session_work_units(db, 1)
+    else:
+        _, _, (unit_id,) = await _seed_trace_work_units(db, 1)
+    target_model, annotation_model, target_column = {
+        "SPAN": (models.Span, models.SpanAnnotation, "span_rowid"),
+        "SESSION": (models.ProjectSession, models.ProjectSessionAnnotation, "project_session_id"),
+        "TRACE": (models.Trace, models.TraceAnnotation, "trace_rowid"),
+    }[evaluation_target]
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
+    (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
+    fenced = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _write(session: AsyncSession) -> None:
+        fenced.set()
+        await release.wait()
+        session.add(
+            annotation_model(
+                **{target_column: claim.target_rowid},
+                name="quality",
+                label=None,
+                score=1.0,
+                explanation=None,
+                metadata_={},
+                annotator_kind="LLM",
+                identifier=claim.identifier,
+                source="API",
+                user_id=None,
+            )
+        )
+        await session.flush()
+
+    async def _delete_target() -> None:
+        async with db() as session:
+            await session.execute(delete(target_model).where(target_model.id == claim.target_rowid))
+
+    publication = asyncio.create_task(
+        coordinator.publish(
+            work_unit_id=unit_id,
+            claimed_by=claim.claimed_by,
+            write=_write,
+        )
     )
-    assert project_session_rowid is not None
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="TRACE")
+    await fenced.wait()
+    deletion = asyncio.create_task(_delete_target())
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(asyncio.shield(deletion), timeout=0.1)
+    release.set()
+    await publication
+    await deletion
+
+
+@pytest.mark.postgres_only
+@pytest.mark.parametrize("evaluation_target", ["SPAN", "SESSION", "TRACE"])
+async def test_publish_does_not_wait_on_ingest_or_sweeper_row_locks(
+    postgresql_engine: AsyncEngine,
+    evaluation_target: models.EvaluationTarget,
+) -> None:
+    """The sweepers lock evaluator rows; span ingest updates session and trace rows."""
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    if evaluation_target == "SPAN":
+        (unit_id,) = await _seed_work_units(db, 1, project_session=True)
+    elif evaluation_target == "SESSION":
+        _, (unit_id,) = await _seed_session_work_units(db, 1)
+    else:
+        _, _, (unit_id,) = await _seed_trace_work_units(db, 1, project_session=True)
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     wrote = asyncio.Event()
 
@@ -856,12 +904,9 @@ async def test_trace_publish_never_waits_on_the_traces_session(
         wrote.set()
 
     async with db() as holding_session:
-        locked = await holding_session.scalar(
-            select(models.ProjectSession.id)
-            .where(models.ProjectSession.id == project_session_rowid)
-            .with_for_update()
-        )
-        assert locked == project_session_rowid
+        await holding_session.execute(select(models.ProjectEvaluator.id).with_for_update())
+        for model in (models.ProjectSession, models.Trace):
+            await holding_session.execute(select(model.id).with_for_update(key_share=True))
         await asyncio.wait_for(
             coordinator.publish(
                 work_unit_id=unit_id,
