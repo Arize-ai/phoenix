@@ -34,9 +34,10 @@ export interface SparklineProps {
    *
    * When there are more bins than the rendered width can resolve, runs of
    * adjacent bins are merged into one drawn point (a weighted mean, see
-   * `weights`) so the line keeps a few pixels per point instead of collapsing
-   * into noise. The line breaks at empty drawn points, bridging a gap of a
-   * single point faintly; an isolated value draws as a dot.
+   * `weights`) so each step keeps a few pixels instead of collapsing into
+   * noise. Each drawn point is a flat step across the bins it covers; steps
+   * join vertically within a run and break at every empty point rather than
+   * interpolating across it.
    */
   values: ReadonlyArray<number | null>;
   /**
@@ -53,6 +54,21 @@ export interface SparklineProps {
   minRange?: number;
   /** Stroke color, e.g. a design token var. */
   color: string;
+  /**
+   * Whether to draw a coverage strip along the baseline: one cell per drawn
+   * bin, filled where the bin carries a value and faint where it doesn't, so
+   * presence reads separately from level. With the strip, the steps go
+   * unshaded; without it, every run is shaded down to the baseline instead,
+   * which is what keeps a sparse series reading as a chart.
+   * @default false
+   */
+  showCoverage?: boolean;
+  /**
+   * Fill for the coverage strip's cells, e.g. a design token var. A fainter
+   * color than the line keeps presence reading as context under the steps.
+   * Defaults to `color`.
+   */
+  coverageColor?: string;
   /** Rendered height in pixels. @default 20 */
   height?: number;
   /**
@@ -62,12 +78,12 @@ export interface SparklineProps {
   maxWidth?: number;
   /**
    * Detail for a drawn point, shown in a tooltip while hovering near it,
-   * which is also marked on the line. Receives the range of source bins the
+   * which is also marked on the step. Receives the range of source bins the
    * point covers: a single bin unless bins were merged to fit the width. Only
    * ranges that carry a value are passed. Omit for a non-interactive sparkline.
    */
   renderPointDetail?: (range: SparklineBinRange) => ReactNode;
-  /** Accessible description of what the line shows. */
+  /** Accessible description of what the sparkline shows. */
   "aria-label"?: string;
 }
 
@@ -77,7 +93,7 @@ const DRAWING_WIDTH = 64;
 const VERTICAL_PADDING = 2;
 /**
  * The horizontal room each drawn point gets. Below this, adjacent bins merge:
- * a line with less than a few pixels per point reads as texture, not trend.
+ * steps narrower than a few pixels read as texture, not trend.
  */
 const MIN_PIXELS_PER_POINT = 4;
 /**
@@ -87,15 +103,25 @@ const MIN_PIXELS_PER_POINT = 4;
  */
 const FALLBACK_WIDTH = 160;
 const LINE_WIDTH = 1.5;
-/** An isolated value: the same visual weight as the line, not a marker. */
-const ISOLATED_DOT_WIDTH = 2.5;
 /** The most recent value, anchoring where the series ends. */
 const END_DOT_WIDTH = 3;
 const HOVER_DOT_WIDTH = 5;
-/** A bridge across a single empty point: present, but visibly interpolated. */
-const BRIDGE_OPACITY = 0.4;
-/** The widest gap (in drawn points) the line bridges instead of breaking at. */
-const MAX_BRIDGED_GAP = 1;
+/**
+ * The shading under the steps at their highest point; it fades to nothing at
+ * the baseline. Faint enough to stay ink, not a bar: it anchors the steps to
+ * the box so the eye reads a chart, and gives a lone step some mass.
+ */
+const FILL_TOP_OPACITY = 0.3;
+/** The coverage strip's height, and the room between it and the steps. */
+const COVERAGE_STRIP_HEIGHT = 3;
+const COVERAGE_STRIP_GAP = 2;
+/** The vertical room the coverage strip takes from the steps. */
+const COVERAGE_STRIP_INSET = COVERAGE_STRIP_HEIGHT + COVERAGE_STRIP_GAP;
+/** A coverage cell with data, and one without. */
+const COVERAGE_PRESENT_OPACITY = 1;
+const COVERAGE_EMPTY_OPACITY = 1 / 3;
+/** The gap between adjacent coverage cells, in pixels at any width. */
+const COVERAGE_CELL_GAP = 1;
 
 /** A drawn point: one source bin, or several merged to fit the width. */
 type SparklineBin = {
@@ -203,9 +229,9 @@ function getPoints({
 }
 
 /**
- * Points split into one polyline per contiguous run of populated bins, so
- * the line breaks at gaps instead of drawing through them. A run of one is
- * a gap-isolated point, rendered as a dot.
+ * Points split into one run per contiguous stretch of populated bins, so
+ * the steps break at gaps instead of drawing through them: an empty bin is
+ * absent data, never interpolated. A run of one is a lone step.
  */
 function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
   const segments: SparklinePoint[][] = [];
@@ -224,15 +250,6 @@ function getSegments(points: SparklinePoint[]): SparklinePoint[][] {
   return segments;
 }
 
-function toPathData(points: SparklinePoint[]): string {
-  return points
-    .map(
-      (point, index) =>
-        `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`
-    )
-    .join(" ");
-}
-
 /**
  * A zero-length round-capped stroke renders as a dot that, unlike a circle,
  * keeps its shape under the svg's non-uniform horizontal stretching.
@@ -242,28 +259,158 @@ function toDotPathData(point: SparklinePoint): string {
 }
 
 /**
- * A small inline line chart for table cells and stat tiles: a single series
+ * The horizontal extent of a drawn bin on the axis: half a source bin to
+ * either side of the bins it covers, clipped to the drawing box.
+ */
+function getBinExtent({
+  range,
+  binCount,
+}: {
+  range: SparklineBinRange;
+  binCount: number;
+}): { left: number; right: number } {
+  if (binCount === 1) {
+    return { left: 0, right: DRAWING_WIDTH };
+  }
+  const scale = DRAWING_WIDTH / (binCount - 1);
+  return {
+    left: Math.max(0, (range.start - 0.5) * scale),
+    right: Math.min(DRAWING_WIDTH, (range.end + 0.5) * scale),
+  };
+}
+
+/**
+ * A run of points as steps: a flat segment across each point's bins, with a
+ * vertical riser between neighbors. Open, for stroking.
+ */
+function toStepPathData({
+  points,
+  binCount,
+}: {
+  points: SparklinePoint[];
+  binCount: number;
+}): string {
+  return points
+    .map((point, index) => {
+      const { left, right } = getBinExtent({
+        range: point.bin.range,
+        binCount,
+      });
+      const y = point.y.toFixed(2);
+      return `${index === 0 ? "M" : "L"} ${left.toFixed(2)} ${y} L ${right.toFixed(2)} ${y}`;
+    })
+    .join(" ");
+}
+
+/** The region between a run of steps and the baseline at `height`. */
+function toStepAreaPathData({
+  points,
+  binCount,
+  height,
+}: {
+  points: SparklinePoint[];
+  binCount: number;
+  height: number;
+}): string {
+  const first = getBinExtent({ range: points[0].bin.range, binCount });
+  const last = getBinExtent({
+    range: points[points.length - 1].bin.range,
+    binCount,
+  });
+  const baseline = height.toFixed(2);
+  return `${toStepPathData({ points, binCount })} L ${last.right.toFixed(2)} ${baseline} L ${first.left.toFixed(2)} ${baseline} Z`;
+}
+
+/** The shaded regions under each run, drawn first so strokes sit on top. */
+function Shading({
+  segments,
+  binCount,
+  height,
+  fill,
+}: {
+  segments: SparklinePoint[][];
+  binCount: number;
+  height: number;
+  fill: string;
+}) {
+  return segments.map((segment) => (
+    <path
+      key={segment[0].bin.position}
+      d={toStepAreaPathData({ points: segment, binCount, height })}
+      fill={fill}
+      stroke="none"
+    />
+  ));
+}
+
+/**
+ * One cell per drawn bin along the baseline: filled where the bin carries a
+ * value, faint where it doesn't, so presence reads separately from level.
+ */
+function CoverageStrip({
+  bins,
+  binCount,
+  height,
+  color,
+  width,
+}: {
+  bins: SparklineBin[];
+  binCount: number;
+  height: number;
+  color: string;
+  /** The rendered width, which maps the pixel gap into drawing units. */
+  width: number;
+}) {
+  const cellInset = ((COVERAGE_CELL_GAP / 2) * DRAWING_WIDTH) / width;
+  return bins.map((bin) => {
+    const { left, right } = getBinExtent({ range: bin.range, binCount });
+    return (
+      <rect
+        key={bin.position}
+        x={(left + cellInset).toFixed(2)}
+        y={height - COVERAGE_STRIP_HEIGHT}
+        width={Math.max(0, right - left - 2 * cellInset).toFixed(2)}
+        height={COVERAGE_STRIP_HEIGHT}
+        fill={color}
+        fillOpacity={
+          bin.value == null ? COVERAGE_EMPTY_OPACITY : COVERAGE_PRESENT_OPACITY
+        }
+      />
+    );
+  });
+}
+
+/**
+ * A small inline step chart for table cells and stat tiles: a single series
  * stretching to fill the width its container gives it, up to `maxWidth`.
- * Bins keep their position on the axis, so sparklines sharing a time axis
- * align across rows, and a series ending early visibly stops short. When the
- * width can't give every bin a few pixels, adjacent bins merge into weighted
- * means so the line stays legible at any size. The line breaks at empty
- * points, bridging single-point gaps faintly, and marks its most recent
- * value. With `renderPointDetail`, hovering marks the nearest point and
- * shows its detail in a tooltip; further detail belongs to the surrounding
- * component. Renders nothing when no bin carries a value.
+ * Every drawn point is a flat step across the bins it covers, so a per-bin
+ * aggregate reads as the whole bin's level and a lone value is a short
+ * shelf rather than a dot. Bins keep their position on the axis, so
+ * sparklines sharing a time axis align across rows, and a series ending
+ * early visibly stops short. When the width can't give every bin a few
+ * pixels, adjacent bins merge into weighted means so the steps stay legible
+ * at any size. The steps break at every empty point, never interpolating
+ * across missing data, and the most recent value is marked. Presence is
+ * carried either by shading each run down to the baseline or, with
+ * `showCoverage`, by a strip of per-bin cells along the baseline. With
+ * `renderPointDetail`, hovering marks the nearest point and shows its detail
+ * in a tooltip; further detail belongs to the surrounding component. Renders
+ * nothing when no bin carries a value.
  */
 export function Sparkline({
   values,
   weights,
   minRange,
   color,
+  showCoverage = false,
+  coverageColor = color,
   height = 20,
   maxWidth,
   renderPointDetail,
   "aria-label": ariaLabel,
 }: SparklineProps) {
   const titleId = useId();
+  const gradientId = useId();
   const containerRef = useRef<HTMLSpanElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const dimensions = useDimensions(containerRef);
@@ -284,10 +431,13 @@ export function Sparkline({
     weights,
     maxPoints: Math.max(1, Math.floor(width / MIN_PIXELS_PER_POINT)),
   });
+  // The coverage strip takes its room from the bottom of the box; the steps
+  // plot into what remains
+  const plotHeight = height - (showCoverage ? COVERAGE_STRIP_INSET : 0);
   const points = getPoints({
     bins,
     binCount: values.length,
-    height,
+    height: plotHeight,
     minRange,
   });
   if (points == null) {
@@ -319,6 +469,11 @@ export function Sparkline({
           setHoveredPosition(nearest.bin.position);
         };
   const segments = getSegments(points);
+  // The shading is a single vertical gradient in drawing coordinates, from
+  // the series' highest step to the baseline, shared by every run: equal
+  // heights shade equally across the whole chart, and a flat run (whose own
+  // bounding box has no height) still shades.
+  const top = Math.min(...points.map((point) => point.y));
   return (
     <span ref={containerRef} css={containerCSS} style={{ height, maxWidth }}>
       <svg
@@ -336,56 +491,58 @@ export function Sparkline({
         }
       >
         {ariaLabel != null ? <title id={titleId}>{ariaLabel}</title> : null}
-        {segments.map((segment, segmentIndex) => {
-          const previous = segments[segmentIndex - 1];
-          const first = segment[0];
-          const gap =
-            previous == null
-              ? null
-              : first.bin.position -
-                previous[previous.length - 1].bin.position -
-                1;
-          return (
-            <g key={first.bin.position}>
-              {gap != null && gap <= MAX_BRIDGED_GAP ? (
-                // A short gap: span it faintly so the trend reads through
-                // a momentary lapse instead of shattering into fragments
-                <path
-                  d={toPathData([previous[previous.length - 1], first])}
-                  fill="none"
-                  stroke={color}
-                  strokeOpacity={BRIDGE_OPACITY}
-                  strokeWidth={LINE_WIDTH}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
+        {/* Presence goes down first so every stroke sits on top of it: the
+            coverage strip when asked for, otherwise shading under each run */}
+        {showCoverage ? (
+          <CoverageStrip
+            bins={bins}
+            binCount={values.length}
+            height={height}
+            color={coverageColor}
+            width={width}
+          />
+        ) : (
+          <>
+            <defs>
+              <linearGradient
+                id={gradientId}
+                gradientUnits="userSpaceOnUse"
+                x1="0"
+                y1={top.toFixed(2)}
+                x2="0"
+                y2={plotHeight}
+              >
+                <stop
+                  offset="0"
+                  stopColor={color}
+                  stopOpacity={FILL_TOP_OPACITY}
                 />
-              ) : null}
-              {segment.length === 1 ? (
-                // A gap-isolated value has no line to join, so it draws
-                // as a dot of the line's weight
-                <path
-                  d={toDotPathData(first)}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={ISOLATED_DOT_WIDTH}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ) : (
-                <path
-                  d={toPathData(segment)}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={LINE_WIDTH}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  // The svg stretches horizontally; keep the stroke width uniform
-                  vectorEffect="non-scaling-stroke"
-                />
-              )}
-            </g>
-          );
-        })}
+                <stop offset="1" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <Shading
+              segments={segments}
+              binCount={values.length}
+              height={plotHeight}
+              fill={`url(#${gradientId})`}
+            />
+          </>
+        )}
+        {segments.map((segment) => (
+          // Every step, even a lone one, spans its bin, so there is no dot
+          // case: a single flat segment already has the line's weight
+          <path
+            key={segment[0].bin.position}
+            d={toStepPathData({ points: segment, binCount: values.length })}
+            fill="none"
+            stroke={color}
+            strokeWidth={LINE_WIDTH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            // The svg stretches horizontally; keep the stroke width uniform
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         {/* The most recent value: where the series stands now, and where
             it stops if the axis runs on past it */}
         <path
