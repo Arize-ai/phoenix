@@ -1,15 +1,15 @@
 {
   "generatedBy": "pnpm lint:stories",
   "totals": {
-    "files": 146
+    "files": 142
   },
   "tags": {
-    "legacy": 94,
-    "updated": 47,
+    "legacy": 88,
+    "updated": 49,
     "complete": 13,
-    "incomplete": 34,
+    "incomplete": 36,
     "reviewed": 0,
-    "unreviewed": 141,
+    "unreviewed": 137,
     "unused": 5
   },
   "sectionsWithDocsPage": [
@@ -22,13 +22,13 @@
     "Design System/Actions": 7,
     "Design System/Badges": 5,
     "Design System/Code": 4,
-    "Design System/Color": 2,
+    "Design System/Color": 1,
     "Design System/Data visualization": 8,
     "Design System/Dates and times": 7,
     "Design System/Drag and resize": 1,
     "Design System/Feedback": 10,
     "Design System/Forms": 15,
-    "Design System/Icons": 4,
+    "Design System/Icons": 1,
     "Design System/Layout": 9,
     "Design System/Media": 2,
     "Design System/Menus": 6,
