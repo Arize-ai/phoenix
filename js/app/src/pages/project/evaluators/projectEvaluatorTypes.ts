@@ -2,6 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import { isEvaluatorSlotName } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import {
@@ -353,6 +354,30 @@ export function formatMissingBindingMessage(
   const subject =
     diagnostic.source === "path" ? diagnostic.path : diagnostic.variable;
   return `${subject} does not exist on this ${grain}, so evaluation fails`;
+}
+
+/**
+ * The required variables a mapping leaves with nothing to read on any record:
+ * no path or text of their own, and no field of the same name to fall back to.
+ * An evaluator saved like this fails every time it runs.
+ */
+export function getUnboundRequiredVariables({
+  variables,
+  requiredVariables = variables,
+  inputMapping,
+}: {
+  variables: readonly string[];
+  requiredVariables?: readonly string[];
+  inputMapping: EvaluatorInputMapping;
+}): string[] {
+  const required = new Set(requiredVariables);
+  return variables.filter(
+    (variable) =>
+      required.has(variable) &&
+      !isEvaluatorSlotName(variable) &&
+      !inputMapping.pathMapping[variable] &&
+      !Object.hasOwn(inputMapping.literalMapping, variable)
+  );
 }
 
 export function getProjectEvaluatorMappingDiagnostics({

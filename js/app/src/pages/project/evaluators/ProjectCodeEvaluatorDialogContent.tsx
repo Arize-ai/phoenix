@@ -8,6 +8,10 @@ import {
   ProjectEvaluatorScopePanel,
   type ProjectEvaluatorInlineCode,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import {
+  formatUnboundVariablesHint,
+  useUnboundRequiredVariables,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export const ProjectCodeEvaluatorDialogContent = ({
@@ -47,13 +51,21 @@ export const ProjectCodeEvaluatorDialogContent = ({
   mode?: "create" | "update";
 }) => {
   const [isFilterValid, setIsFilterValid] = useState(true);
+  const unboundVariables = useUnboundRequiredVariables({
+    variables,
+    requiredVariables,
+  });
   return (
     <EvaluatorFormDialogContent
       title={title}
       submitLabel={mode === "create" ? "Attach evaluator" : "Save changes"}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
-      isSubmitDisabled={!isFilterValid}
+      isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
+      submitHint={formatUnboundVariablesHint(
+        unboundVariables,
+        mode === "create" ? "attach" : "save"
+      )}
       error={error}
       errorTitle={
         mode === "create"
@@ -76,6 +88,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
           codeEvaluatorName={evaluatorName}
           codeDefinition={codeDefinition}
           onFieldChange={onFieldChange}
+          requiredVariables={requiredVariables}
         />
       }
       right={

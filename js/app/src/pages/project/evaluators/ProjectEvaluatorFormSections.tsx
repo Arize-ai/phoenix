@@ -84,8 +84,10 @@ export const ProjectLlmEvaluatorFormSections = (
 
 const ProjectEvaluatorInputMappingSection = ({
   grain,
+  requiredVariables,
 }: {
   grain: ProjectEvaluatorMappingSourceGrain;
+  requiredVariables?: readonly string[];
 }) => {
   return (
     <Flex direction="column" gap="size-200" marginTop="size-200">
@@ -103,7 +105,11 @@ const ProjectEvaluatorInputMappingSection = ({
         >
           {/* Keyed so the rows rebuild against the new record kind rather than
               carrying the previous one's paths forward. */}
-          <ProjectEvaluatorInputMapping key={grain} grain={grain} />
+          <ProjectEvaluatorInputMapping
+            key={grain}
+            grain={grain}
+            requiredVariables={requiredVariables}
+          />
         </View>
       </Flex>
     </Flex>
@@ -116,12 +122,14 @@ const ProjectEvaluatorInputMappingSection = ({
  * {@link ProjectLlmEvaluatorFormSections}: name and description, then the
  * scope, then the code authoring fields and the input mapping. When attaching
  * an existing evaluator there is no name to edit, so a summary card of that
- * evaluator stands in for the name and the scope follows it.
+ * evaluator stands in for the name, and the scope and the input mapping
+ * follow it.
  */
 export const ProjectCodeEvaluatorFormSections = ({
   codeEvaluatorName,
   codeDefinition,
   onFieldChange,
+  requiredVariables,
   ...scopeProps
 }: ProjectEvaluatorScopeProps & {
   codeEvaluatorName?: string;
@@ -129,6 +137,8 @@ export const ProjectCodeEvaluatorFormSections = ({
   codeDefinition?: ReactNode;
   /** Fires when the name or description changes. */
   onFieldChange?: () => void;
+  /** The parameters `evaluate` has no default for. */
+  requiredVariables: readonly string[];
 }) => {
   if (codeDefinition == null) {
     return (
@@ -150,6 +160,10 @@ export const ProjectCodeEvaluatorFormSections = ({
           </Flex>
         </View>
         <ProjectEvaluatorScopeSection {...scopeProps} />
+        <ProjectEvaluatorInputMappingSection
+          grain={toEvaluatorMappingSourceGrain(scopeProps.scope.targetType)}
+          requiredVariables={requiredVariables}
+        />
       </>
     );
   }
@@ -164,6 +178,7 @@ export const ProjectCodeEvaluatorFormSections = ({
       {codeDefinition}
       <ProjectEvaluatorInputMappingSection
         grain={toEvaluatorMappingSourceGrain(scopeProps.scope.targetType)}
+        requiredVariables={requiredVariables}
       />
     </>
   );

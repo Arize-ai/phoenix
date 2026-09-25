@@ -27,8 +27,10 @@ import {
   SUGGESTED_PATH_SECTION,
   toWholePathValidFor,
 } from "./evaluatorPathCompletions";
-import type { EvaluatorSlotName } from "./evaluatorSlotDefaults";
-import { getEvaluatorSlotSuggestedPaths } from "./evaluatorSlotDefaults";
+import {
+  getEvaluatorSlotSuggestedPaths,
+  isEvaluatorSlotName,
+} from "./evaluatorSlotDefaults";
 
 const UNRESOLVED_PATH_MESSAGE = "No such field";
 
@@ -62,7 +64,8 @@ const evaluatorPathFieldCSS = css`
  * `metadata.…` paths that read it, so typing `latency` finds `latency_ms`
  * without knowing where it sits. Each `.` after that opens the next level with
  * the value every field holds on it, so a path is drilled rather than
- * remembered. Left empty, the field shows the path the slot falls back to.
+ * remembered. Left empty, the field shows the path the variable falls back to,
+ * or that it has none.
  */
 export function EvaluatorPathField({
   value,
@@ -72,7 +75,8 @@ export function EvaluatorPathField({
   ariaLabel,
   evaluatorMappingSource,
   grain,
-  slotName,
+  variableName,
+  isRequired,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -82,9 +86,12 @@ export function EvaluatorPathField({
   ariaLabel: string;
   evaluatorMappingSource: EvaluatorMappingSourceState;
   grain: ProjectEvaluatorMappingSourceGrain;
-  slotName: EvaluatorSlotName;
+  /** The evaluator variable this path is read into. */
+  variableName: string;
+  /** Whether the evaluator can run with nothing bound to the variable. */
+  isRequired: boolean;
 }) {
-  const suggestedPaths = getEvaluatorSlotSuggestedPaths(grain, slotName);
+  const suggestedPaths = getEvaluatorSlotSuggestedPaths(grain, variableName);
 
   // CodeMirror is reconfigured whenever these change identity, which discards
   // the open dropdown, so they are memoized rather than left to the compiler.
@@ -163,7 +170,13 @@ export function EvaluatorPathField({
       aria-label={ariaLabel}
       subjectLabel="path"
       leadingVisual={null}
-      placeholder={slotName}
+      placeholder={
+        isEvaluatorSlotName(variableName)
+          ? variableName
+          : isRequired
+            ? "Required"
+            : "Optional"
+      }
       value={value}
       onChange={onChange}
       completions={NO_COMPLETIONS}

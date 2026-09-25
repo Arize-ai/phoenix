@@ -4,6 +4,28 @@ export const EVALUATOR_SLOT_NAMES = ["input", "output", "metadata"] as const;
 
 export type EvaluatorSlotName = (typeof EVALUATOR_SLOT_NAMES)[number];
 
+/**
+ * Whether a variable binds without a mapping. Left unmapped, a variable reads
+ * the context field of the same name, and the context has only these three.
+ */
+export function isEvaluatorSlotName(name: string): name is EvaluatorSlotName {
+  return (EVALUATOR_SLOT_NAMES as readonly string[]).includes(name);
+}
+
+/**
+ * The inputs a project evaluator's mapping form lists: the three the record
+ * always offers, then the evaluator's own variables in the order it declares
+ * them.
+ */
+export function getEvaluatorMappingRowNames(
+  declaredVariables: readonly string[]
+): string[] {
+  return [
+    ...EVALUATOR_SLOT_NAMES,
+    ...declaredVariables.filter((name) => !isEvaluatorSlotName(name)),
+  ];
+}
+
 type BySlot<T> = Record<
   ProjectEvaluatorMappingSourceGrain,
   Record<EvaluatorSlotName, T>
@@ -99,9 +121,13 @@ const SLOT_SUGGESTED_PATHS: BySlot<readonly EvaluatorSlotSuggestedPath[]> = {
   },
 };
 
+const NO_SUGGESTED_PATHS: readonly EvaluatorSlotSuggestedPath[] = [];
+
 export function getEvaluatorSlotSuggestedPaths(
   grain: ProjectEvaluatorMappingSourceGrain,
-  slotName: EvaluatorSlotName
+  variableName: string
 ): readonly EvaluatorSlotSuggestedPath[] {
-  return SLOT_SUGGESTED_PATHS[grain][slotName];
+  return isEvaluatorSlotName(variableName)
+    ? SLOT_SUGGESTED_PATHS[grain][variableName]
+    : NO_SUGGESTED_PATHS;
 }

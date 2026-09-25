@@ -12,7 +12,6 @@ import {
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
   buildOutputConfigsInput,
@@ -40,6 +39,7 @@ import {
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
@@ -436,12 +436,13 @@ function EditLlmProjectEvaluatorContent({
       {({ store }) => {
         trackStoreForDirtyCheck(store);
         return (
-          <EditLLMEvaluatorDialogContent
+          <ProjectLlmEvaluatorDialogContent
+            targetType={scope.targetType}
+            isFilterValid={isFilterValid}
             title={getEditProjectEvaluatorTitle(evaluator)}
             onClose={onClose}
             onSubmit={() => submit(store)}
             isSubmitting={isUpdating}
-            isSubmitDisabled={!isFilterValid}
             mode="update"
             error={error}
             llmEvaluatorNodeId={evaluator.evaluator.id}

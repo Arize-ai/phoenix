@@ -7,6 +7,7 @@ import {
   getDefaultProjectEvaluatorFilterCondition,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
+  getUnboundRequiredVariables,
   isSameInputMapping,
   PROJECT_EVALUATOR_TARGETS,
   toProjectEvaluatorSamplingFraction,
@@ -296,6 +297,43 @@ describe("isSameInputMapping", () => {
         loaded
       )
     ).toBe(false);
+  });
+});
+
+describe("getUnboundRequiredVariables", () => {
+  const unmapped = { pathMapping: {}, literalMapping: {} };
+
+  it("names a required variable with no path and no field of its name", () => {
+    // A gallery template's `{{context}}` reads nothing until it is mapped;
+    // `input` and `output` read the fields of the same name.
+    expect(
+      getUnboundRequiredVariables({
+        variables: ["input", "context", "output"],
+        inputMapping: unmapped,
+      })
+    ).toEqual(["context"]);
+  });
+
+  it("clears a variable once it has a path or text", () => {
+    expect(
+      getUnboundRequiredVariables({
+        variables: ["context", "tool_call"],
+        inputMapping: {
+          pathMapping: { context: "metadata.attributes.retrieval" },
+          literalMapping: { tool_call: "" },
+        },
+      })
+    ).toEqual([]);
+  });
+
+  it("leaves out a parameter the evaluator can run without", () => {
+    expect(
+      getUnboundRequiredVariables({
+        variables: ["output", "threshold"],
+        requiredVariables: ["output"],
+        inputMapping: unmapped,
+      })
+    ).toEqual([]);
   });
 });
 

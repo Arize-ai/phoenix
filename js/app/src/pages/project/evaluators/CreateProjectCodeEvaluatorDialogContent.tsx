@@ -27,6 +27,10 @@ import type { CreateProjectCodeEvaluatorDialogContentQuery } from "@phoenix/page
 import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
+  formatUnboundVariablesHint,
+  useUnboundRequiredVariables,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
+import {
   toEvaluationDelayInput,
   toEvaluatorMappingSourceGrain,
   type ProjectEvaluatorScope,
@@ -121,6 +125,10 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   const requiredVariables = extractRequiredCodeEvaluatorVariables({
     language,
     sourceCode,
+  });
+  const unboundVariables = useUnboundRequiredVariables({
+    variables,
+    requiredVariables,
   });
 
   // A sandbox config is only valid for its own language.
@@ -233,7 +241,8 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
       submitLabel="Create"
       onSubmit={onSubmit}
       isSubmitting={isCreating}
-      isSubmitDisabled={!isFilterValid}
+      isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
+      submitHint={formatUnboundVariablesHint(unboundVariables, "create")}
       error={error}
       errorTitle="Failed to create evaluator"
       contentGap="var(--global-dimension-size-100)"
@@ -283,6 +292,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           onScopeChange={onScopeChange}
           onFilterValidityChange={setIsFilterValid}
           onFieldChange={clearValidationMessage}
+          requiredVariables={requiredVariables}
           codeDefinition={
             <CodeAuthoringFields
               language={language}
