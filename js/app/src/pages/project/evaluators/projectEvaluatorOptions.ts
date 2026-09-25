@@ -298,6 +298,10 @@ export function buildAttachCodeCreationMode(
     ),
     variables,
     requiredVariables,
+    inputMapping: {
+      pathMapping: { ...evaluator.inputMapping.pathMapping },
+      literalMapping: { ...evaluator.inputMapping.literalMapping },
+    },
   };
 }
 

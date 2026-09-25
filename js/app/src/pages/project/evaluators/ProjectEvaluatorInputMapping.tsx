@@ -1,44 +1,65 @@
 import { Flex } from "@phoenix/components";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorPathField } from "@phoenix/components/evaluators/EvaluatorPathField";
-import { EVALUATOR_SLOT_NAMES } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import {
+  getEvaluatorInputPlaceholder,
+  getEvaluatorMappingRowNames,
+} from "@phoenix/components/evaluators/evaluatorSlotDefaults";
+import { escapeFieldNameForReactHookForm } from "@phoenix/components/evaluators/fieldNameUtils";
 import { SwitchableEvaluatorInput } from "@phoenix/components/evaluators/SwitchableEvaluatorInput";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import {
   dropOtherGrainEntityPathMappings,
+  dropPathsShadowedByLiterals,
   type ProjectEvaluatorMappingSourceGrain,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
- * Where an evaluator's three inputs are read from on the record it runs on.
+ * Where each evaluator input is read from on the record it runs on: `input`,
+ * `output`, and `metadata` first, then every other prompt variable or
+ * `evaluate` parameter the evaluator declares.
  *
- * Every evaluator receives the same three: `input`, `output`, and `metadata`.
- * Leaving one alone keeps the value the context already offers under that name;
- * pointing one at a path reads that instead. Everything the record holds is
- * reachable under `metadata`, so nothing about it is off limits.
+ * The first three are what the record offers by name, so each reads its own
+ * field until pointed elsewhere. Any other variable reads nothing until it is
+ * given a path, unless the evaluator saved text for it; everything the record
+ * holds is reachable under `metadata`.
  */
 export const ProjectEvaluatorInputMapping = ({
   grain,
+  requiredVariables,
 }: {
   grain: ProjectEvaluatorMappingSourceGrain;
+  /** Every declared variable when omitted, as for a prompt. */
+  requiredVariables?: readonly string[];
 }) => {
+  const variables = getEvaluatorMappingRowNames(useEvaluatorInputVariables());
   const { control, setValue } = useEvaluatorInputMappingControlsForm({
     pruneEmptyEntries: true,
     // Mounted under a key of the grain, so switching what the evaluator runs on
     // rebuilds these rows without the previous record kind's paths in them.
     filterInitialMapping: (inputMapping) =>
-      dropOtherGrainEntityPathMappings(inputMapping, grain),
+      dropPathsShadowedByLiterals(
+        dropOtherGrainEntityPathMappings(inputMapping, grain)
+      ),
+    declaredVariables: variables,
+    pathsReplaceLiterals: true,
   });
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
+  // The form drops a variable's literal once it has a path, and hides a path
+  // a literal overrides, so a literal here is what the variable reads.
+  const literalMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping.literalMapping
+  );
   return (
     <Flex direction="column" gap="size-200" width="100%">
-      {EVALUATOR_SLOT_NAMES.map((slotName) => (
+      {variables.map((variable) => (
         <SwitchableEvaluatorInput
-          key={slotName}
-          fieldName={slotName}
-          label={slotName}
+          key={variable}
+          fieldName={escapeFieldNameForReactHookForm(variable)}
+          label={variable}
           size="M"
           control={control}
           setValue={setValue}
@@ -59,7 +80,14 @@ export const ProjectEvaluatorInputMapping = ({
               ariaLabel={ariaLabel}
               evaluatorMappingSource={evaluatorMappingSource}
               grain={grain}
-              slotName={slotName}
+              variableName={variable}
+              placeholder={getEvaluatorInputPlaceholder({
+                variableName: variable,
+                isRequired: requiredVariables?.includes(variable) ?? true,
+                literal: Object.hasOwn(literalMapping, variable)
+                  ? literalMapping[variable]
+                  : undefined,
+              })}
             />
           )}
         />

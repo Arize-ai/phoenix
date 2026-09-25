@@ -8,6 +8,8 @@ import { resolveEvaluatorPath } from "../evaluatorPathCompletions";
 import type { EvaluatorSlotName } from "../evaluatorSlotDefaults";
 import {
   EVALUATOR_SLOT_NAMES,
+  getEvaluatorInputPlaceholder,
+  getEvaluatorMappingRowNames,
   getEvaluatorSlotSuggestedPaths,
 } from "../evaluatorSlotDefaults";
 
@@ -150,5 +152,83 @@ describe("evaluator slot defaults", () => {
         }
       }
     }
+  });
+});
+
+describe("getEvaluatorMappingRowNames", () => {
+  it("lists the three defaults first, then other variables as declared", () => {
+    // A gallery template: its own names follow the three the record offers,
+    // and a default it declares is not listed twice.
+    expect(
+      getEvaluatorMappingRowNames([
+        "available_tools",
+        "input",
+        "tool_selection",
+      ])
+    ).toEqual([
+      "input",
+      "output",
+      "metadata",
+      "available_tools",
+      "tool_selection",
+    ]);
+  });
+
+  it("lists the defaults alone when nothing else is declared", () => {
+    expect(getEvaluatorMappingRowNames([])).toEqual([
+      "input",
+      "output",
+      "metadata",
+    ]);
+  });
+});
+
+describe("getEvaluatorInputPlaceholder", () => {
+  it("shows saved text, even on a default input, since the text is what it reads", () => {
+    expect(
+      getEvaluatorInputPlaceholder({
+        variableName: "output",
+        isRequired: true,
+        literal: "pinned",
+      })
+    ).toBe('"pinned"');
+    expect(
+      getEvaluatorInputPlaceholder({
+        variableName: "threshold",
+        isRequired: false,
+        literal: 0.5,
+      })
+    ).toBe("0.5");
+  });
+
+  it("keeps long text to one line", () => {
+    const placeholder = getEvaluatorInputPlaceholder({
+      variableName: "rubric",
+      isRequired: true,
+      literal: "Grade the response. ".repeat(20),
+    });
+    expect(placeholder.length).toBe(60);
+    expect(placeholder.endsWith("…")).toBe(true);
+  });
+
+  it("names the default field, or says whether the input can be left empty", () => {
+    expect(
+      getEvaluatorInputPlaceholder({
+        variableName: "metadata",
+        isRequired: true,
+      })
+    ).toBe("metadata");
+    expect(
+      getEvaluatorInputPlaceholder({
+        variableName: "context",
+        isRequired: true,
+      })
+    ).toBe("Required");
+    expect(
+      getEvaluatorInputPlaceholder({
+        variableName: "threshold",
+        isRequired: false,
+      })
+    ).toBe("Optional");
   });
 });

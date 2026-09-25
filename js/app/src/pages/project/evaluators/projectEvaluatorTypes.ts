@@ -2,6 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { resolveEvaluatorPath } from "@phoenix/components/evaluators/evaluatorPathCompletions";
+import { isEvaluatorSlotName } from "@phoenix/components/evaluators/evaluatorSlotDefaults";
 import type { MetricChartTableView } from "@phoenix/pages/project/constants";
 import type { EvaluationTarget } from "@phoenix/pages/project/evaluators/__generated__/createProjectLlmEvaluatorMutation.graphql";
 import {
@@ -14,6 +15,22 @@ import type {
   EvaluatorMappingSourceGrain,
 } from "@phoenix/types";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+
+/**
+ * Drops each path whose variable also has a literal. The server applies the
+ * literal over the path, so the literal is what the variable reads; a form
+ * that shows the path would show a binding that never takes effect.
+ */
+export function dropPathsShadowedByLiterals(
+  inputMapping: EvaluatorInputMapping
+): EvaluatorInputMapping {
+  const pathMapping = Object.fromEntries(
+    Object.entries(inputMapping.pathMapping).filter(
+      ([variable]) => !Object.hasOwn(inputMapping.literalMapping, variable)
+    )
+  );
+  return { ...inputMapping, pathMapping };
+}
 
 /**
  * Drops paths rooted at a `metadata` name the new record kind does not carry —
@@ -334,11 +351,11 @@ export type ProjectEvaluatorMappingDiagnostic = {
   path: string;
   status: "resolved" | "missing" | "optional-missing" | "unverified";
   /**
-   * Where the value comes from: a path the author wrote, or a field of the same
-   * name at the top of the evaluation context. Only `path` carries a path worth
-   * showing.
+   * Where the value comes from: a path the author wrote, text saved on the
+   * evaluator, or a field of the same name at the top of the evaluation
+   * context. Only `path` carries a path worth showing.
    */
-  source: "path" | "context";
+  source: "path" | "literal" | "context";
 };
 
 /**
@@ -355,14 +372,40 @@ export function formatMissingBindingMessage(
   return `${subject} does not exist on this ${grain}, so evaluation fails`;
 }
 
+/**
+ * The required variables a mapping leaves with nothing to read on any record:
+ * no path or text of their own, and no field of the same name to fall back to.
+ * An evaluator saved like this fails every time it runs.
+ */
+export function getUnboundRequiredVariables({
+  variables,
+  requiredVariables = variables,
+  inputMapping,
+}: {
+  variables: readonly string[];
+  requiredVariables?: readonly string[];
+  inputMapping: EvaluatorInputMapping;
+}): string[] {
+  const required = new Set(requiredVariables);
+  return variables.filter(
+    (variable) =>
+      required.has(variable) &&
+      !isEvaluatorSlotName(variable) &&
+      !inputMapping.pathMapping[variable] &&
+      !Object.hasOwn(inputMapping.literalMapping, variable)
+  );
+}
+
 export function getProjectEvaluatorMappingDiagnostics({
   context,
   pathMapping,
+  literalMapping = {},
   variables,
   requiredVariables = variables,
 }: {
   context: unknown;
   pathMapping: Record<string, string>;
+  literalMapping?: EvaluatorInputMapping["literalMapping"];
   variables: string[];
   requiredVariables?: string[];
 }): ProjectEvaluatorMappingDiagnostic[] {
@@ -377,16 +420,25 @@ export function getProjectEvaluatorMappingDiagnostics({
       // answer from here — a wildcard only the server resolves, a context
       // with nothing in it yet — is unverified rather than wrong.
       const resolution = resolveEvaluatorPath({ source, path: mappedPath });
+      const status =
+        resolution.status === "unverifiable"
+          ? "unverified"
+          : resolution.status === "unresolved"
+            ? missingStatus(variable)
+            : "resolved";
+      // The server still resolves the path, and fails on one that matches
+      // nothing, but then applies the literal over what it found.
+      if (status === "resolved" && Object.hasOwn(literalMapping, variable)) {
+        return { variable, path: variable, status, source: "literal" };
+      }
+      return { variable, path: mappedPath, status, source: "path" };
+    }
+    if (Object.hasOwn(literalMapping, variable)) {
       return {
         variable,
-        path: mappedPath,
-        status:
-          resolution.status === "unverifiable"
-            ? "unverified"
-            : resolution.status === "unresolved"
-              ? missingStatus(variable)
-              : "resolved",
-        source: "path",
+        path: variable,
+        status: "resolved",
+        source: "literal",
       };
     }
     // An unmapped variable binds only from a field of the same name at the top
