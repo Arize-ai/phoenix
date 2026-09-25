@@ -1,8 +1,12 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import type { Key } from "react-aria-components";
 
-import type { SegmentedControlProps } from "@phoenix/components";
+import type {
+  SegmentedControlItemProps,
+  SegmentedControlProps,
+} from "@phoenix/components";
 import {
   Flex,
   Icon,
@@ -13,246 +17,223 @@ import {
   View,
 } from "@phoenix/components";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
+/**
+ * Switches between a few views of the same content, with exactly one always
+ * selected. Unlike a `Toggle Button Group`, the selection can never be
+ * emptied; with no `selectedKey` or `defaultSelectedKey`, the first enabled
+ * segment is selected.
+ *
+ * Each segment is a `SegmentedControlItem`. A string child is wrapped in a
+ * `Text`; otherwise compose an `Icon`, a `Text`, or both. An icon-only
+ * segment needs an `aria-label`.
+ */
 const meta: Meta<SegmentedControlProps> = {
   title: "Design System/Actions/Segmented Control",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: SegmentedControl,
+  subcomponents: { SegmentedControlItem },
   parameters: {
     layout: "centered",
-    controls: { expanded: true },
-  },
-  argTypes: {
-    size: {
-      control: "radio",
-      options: ["S", "M", "L"],
-      description: "The size of the control",
-    },
-    isDisabled: {
-      control: "boolean",
-      description: "Whether the segmented control is disabled",
-    },
-    isJustified: {
-      control: "boolean",
-      description:
-        "Whether the items should divide the container width equally",
-    },
+    controls: { disable: true },
   },
 };
 
 export default meta;
 
-const Template: StoryFn<SegmentedControlProps> = (args) => (
-  <SegmentedControl aria-label="Time granularity" {...args}>
-    <SegmentedControlItem id="day">Day</SegmentedControlItem>
-    <SegmentedControlItem id="week">Week</SegmentedControlItem>
-    <SegmentedControlItem id="month">Month</SegmentedControlItem>
-    <SegmentedControlItem id="year">Year</SegmentedControlItem>
+export const Default: StoryFn = () => (
+  <SegmentedControl aria-label="JSON view mode" size="S">
+    <SegmentedControlItem id="table">Table</SegmentedControlItem>
+    <SegmentedControlItem id="json">JSON</SegmentedControlItem>
   </SegmentedControl>
 );
+Default.tags = ["!dev"];
 
-export const Default = {
-  render: Template,
-  args: {
-    size: "M",
-    isDisabled: false,
-    isJustified: false,
-  },
+type Segment = Pick<SegmentedControlItemProps, "id" | "isDisabled"> & {
+  label: string;
+  icon: ReactNode;
 };
 
-export const Sizes = () => (
-  <Flex direction="column" gap="size-200" alignItems="start">
-    {(["S", "M", "L"] as const).map((size) => (
-      <SegmentedControl key={size} size={size} aria-label={`Size ${size}`}>
-        <SegmentedControlItem id="day">Day</SegmentedControlItem>
-        <SegmentedControlItem id="week">Week</SegmentedControlItem>
-        <SegmentedControlItem id="month">Month</SegmentedControlItem>
-      </SegmentedControl>
-    ))}
-  </Flex>
-);
+const VIEW_SEGMENTS: Segment[] = [
+  { id: "grid", label: "Grid", icon: <Icons.GridFilled /> },
+  { id: "list", label: "List", icon: <Icons.List /> },
+  { id: "metrics", label: "Metrics", icon: <Icons.BarChart /> },
+];
 
-export const WithIcons = () => (
-  <SegmentedControl aria-label="View" defaultSelectedKey="list">
-    <SegmentedControlItem id="list">
-      <Icon svg={<Icons.List />} />
-      <Text>List</Text>
-    </SegmentedControlItem>
-    <SegmentedControlItem id="grid">
-      <Icon svg={<Icons.Grid />} />
-      <Text>Grid</Text>
-    </SegmentedControlItem>
-    <SegmentedControlItem id="chart">
-      <Icon svg={<Icons.BarChart />} />
-      <Text>Chart</Text>
-    </SegmentedControlItem>
-  </SegmentedControl>
-);
+type Content = "text" | "icon and text" | "icon";
 
-export const IconOnly = () => (
-  <SegmentedControl aria-label="View" defaultSelectedKey="list">
-    <SegmentedControlItem id="list" aria-label="List view">
-      <Icon svg={<Icons.List />} />
-    </SegmentedControlItem>
-    <SegmentedControlItem id="grid" aria-label="Grid view">
-      <Icon svg={<Icons.Grid />} />
-    </SegmentedControlItem>
-    <SegmentedControlItem id="chart" aria-label="Chart view">
-      <Icon svg={<Icons.BarChart />} />
-    </SegmentedControlItem>
-  </SegmentedControl>
-);
-
-/** Stresses the thumb's stretch: the width delta rivals the travel distance. */
-export const MixedWidths = () => (
-  <SegmentedControl aria-label="Span filter" defaultSelectedKey="all">
-    <SegmentedControlItem id="all">All</SegmentedControlItem>
-    <SegmentedControlItem id="root">Root Spans</SegmentedControlItem>
-    <SegmentedControlItem id="long">
-      A Much Longer Segment Label
-    </SegmentedControlItem>
-  </SegmentedControl>
-);
-
-export const Justified = () => (
-  <View width="600px">
-    <SegmentedControl isJustified aria-label="Time granularity">
-      <SegmentedControlItem id="day">Day</SegmentedControlItem>
-      <SegmentedControlItem id="week">Week</SegmentedControlItem>
-      <SegmentedControlItem id="month">Month</SegmentedControlItem>
-      <SegmentedControlItem id="year">Year</SegmentedControlItem>
-    </SegmentedControl>
-  </View>
-);
-
-export const DisabledItem = () => (
-  <SegmentedControl aria-label="Time granularity" defaultSelectedKey="day">
-    <SegmentedControlItem id="day">Day</SegmentedControlItem>
-    <SegmentedControlItem id="week" isDisabled>
-      Week
-    </SegmentedControlItem>
-    <SegmentedControlItem id="month">Month</SegmentedControlItem>
-    <SegmentedControlItem id="year">Year</SegmentedControlItem>
-  </SegmentedControl>
-);
-
-export const Disabled = () => (
-  <SegmentedControl isDisabled aria-label="Time granularity">
-    <SegmentedControlItem id="day">Day</SegmentedControlItem>
-    <SegmentedControlItem id="week">Week</SegmentedControlItem>
-    <SegmentedControlItem id="month">Month</SegmentedControlItem>
-  </SegmentedControl>
-);
-
-const GalleryTemplate: StoryFn<SegmentedControlProps> = (args) => (
-  <Flex direction="column" gap="size-300" alignItems="start">
-    <Flex direction="column" gap="size-100" alignItems="start">
-      <Text size="XS" color="text-700">
-        Text only
-      </Text>
-      <SegmentedControl aria-label="Time granularity" {...args}>
-        <SegmentedControlItem id="day">Day</SegmentedControlItem>
-        <SegmentedControlItem id="week">Week</SegmentedControlItem>
-        <SegmentedControlItem id="month">Month</SegmentedControlItem>
-        <SegmentedControlItem id="year">Year</SegmentedControlItem>
-      </SegmentedControl>
-    </Flex>
-    <Flex direction="column" gap="size-100" alignItems="start">
-      <Text size="XS" color="text-700">
-        Icon and text
-      </Text>
-      <SegmentedControl aria-label="View" {...args}>
-        <SegmentedControlItem id="list">
-          <Icon svg={<Icons.List />} />
-          <Text>List</Text>
-        </SegmentedControlItem>
-        <SegmentedControlItem id="grid">
-          <Icon svg={<Icons.Grid />} />
-          <Text>Grid</Text>
-        </SegmentedControlItem>
-        <SegmentedControlItem id="chart">
-          <Icon svg={<Icons.BarChart />} />
-          <Text>Chart</Text>
-        </SegmentedControlItem>
-      </SegmentedControl>
-    </Flex>
-    <Flex direction="column" gap="size-100" alignItems="start">
-      <Text size="XS" color="text-700">
-        Icon only
-      </Text>
-      <SegmentedControl aria-label="View" {...args}>
-        <SegmentedControlItem id="list" aria-label="List view">
-          <Icon svg={<Icons.List />} />
-        </SegmentedControlItem>
-        <SegmentedControlItem id="grid" aria-label="Grid view">
-          <Icon svg={<Icons.Grid />} />
-        </SegmentedControlItem>
-        <SegmentedControlItem id="chart" aria-label="Chart view">
-          <Icon svg={<Icons.BarChart />} />
-        </SegmentedControlItem>
-      </SegmentedControl>
-    </Flex>
-    <Flex direction="column" gap="size-100" alignItems="start">
-      <Text size="XS" color="text-700">
-        Disabled item
-      </Text>
-      <SegmentedControl aria-label="Time granularity" {...args}>
-        <SegmentedControlItem id="day">Day</SegmentedControlItem>
-        <SegmentedControlItem id="week" isDisabled>
-          Week
-        </SegmentedControlItem>
-        <SegmentedControlItem id="month">Month</SegmentedControlItem>
-      </SegmentedControl>
-    </Flex>
-    <Flex direction="column" gap="size-100" alignItems="start">
-      <Text size="XS" color="text-700">
-        Justified
-      </Text>
-      <View width="400px">
-        <SegmentedControl aria-label="Time granularity" {...args} isJustified>
-          <SegmentedControlItem id="day">Day</SegmentedControlItem>
-          <SegmentedControlItem id="week">Week</SegmentedControlItem>
-          <SegmentedControlItem id="month">Month</SegmentedControlItem>
-        </SegmentedControl>
-      </View>
-    </Flex>
-  </Flex>
-);
-
-/** Every variant at once, driven by the shared `size` and `isDisabled` controls. */
-export const Gallery = {
-  render: GalleryTemplate,
-  args: {
-    size: "M",
-    isDisabled: false,
-  },
-};
-
-export const Controlled = () => {
-  const [selected, setSelected] = useState<Key>("month");
-
+function ViewControl({
+  content,
+  segments = VIEW_SEGMENTS,
+  ...props
+}: Partial<SegmentedControlProps> & {
+  content: Content;
+  segments?: Segment[];
+}) {
   return (
-    <Flex direction="column" gap="size-200" alignItems="start">
-      <SegmentedControl
-        aria-label="Time granularity"
+    <SegmentedControl aria-label="Experiment comparison view" {...props}>
+      {segments.map(({ id, label, icon, isDisabled }) => (
+        <SegmentedControlItem
+          key={id}
+          id={id}
+          isDisabled={isDisabled}
+          aria-label={content === "icon" ? label : undefined}
+        >
+          {content !== "text" ? <Icon svg={icon} /> : null}
+          {content !== "icon" ? <Text>{label}</Text> : null}
+        </SegmentedControlItem>
+      ))}
+    </SegmentedControl>
+  );
+}
+
+const CONTENTS: { label: string; content: Content }[] = [
+  { label: "Text", content: "text" },
+  { label: "Icon and text", content: "icon and text" },
+  { label: "Icon", content: "icon" },
+];
+
+const SIZES = (["S", "M", "L"] as const).map((size) => ({
+  label: size,
+  code: true,
+  size,
+}));
+
+export const ContentAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={CONTENTS}
+    columns={SIZES}
+    renderCell={(content, size) => (
+      <ViewControl content={content.content} size={size?.size} />
+    )}
+  />
+);
+ContentAndSizes.tags = ["!dev"];
+ContentAndSizes.parameters = { themeLayout: "column" };
+
+const STATES: {
+  label: string;
+  props: Partial<SegmentedControlProps>;
+  metricsItemProps?: Pick<SegmentedControlItemProps, "isDisabled">;
+}[] = [
+  { label: "enabled", props: {} },
+  {
+    label: "item disabled",
+    props: {},
+    metricsItemProps: { isDisabled: true },
+  },
+  { label: "disabled", props: { isDisabled: true } },
+];
+
+export const StatesAndContent: StoryFn = () => (
+  <OptionGrid
+    rows={STATES}
+    columns={CONTENTS}
+    renderCell={(state, content) => (
+      <ViewControl
+        content={content?.content ?? "text"}
+        segments={VIEW_SEGMENTS.map((segment) =>
+          segment.id === "metrics"
+            ? { ...segment, ...state.metricsItemProps }
+            : segment
+        )}
+        size="S"
+        {...state.props}
+      />
+    )}
+  />
+);
+StatesAndContent.tags = ["!dev"];
+StatesAndContent.parameters = { themeLayout: "column" };
+
+export const Justified: StoryFn = () => (
+  <OptionGrid
+    rows={[
+      { label: "default", isJustified: false },
+      { label: "isJustified", code: true, isJustified: true },
+    ]}
+    cellWidth="320px"
+    justifyCells="start"
+    renderCell={(row) => (
+      <ViewControl
+        content="icon and text"
+        size="S"
+        isJustified={row.isJustified}
+      />
+    )}
+  />
+);
+Justified.tags = ["!dev"];
+Justified.parameters = { themeLayout: "column" };
+
+const LENGTHS: { label: string; render: () => ReactNode }[] = [
+  {
+    label: "Two segments",
+    render: () => (
+      <SegmentedControl aria-label="Annotation view" size="S">
+        <SegmentedControlItem id="scores">Scores</SegmentedControlItem>
+        <SegmentedControlItem id="labels">Labels</SegmentedControlItem>
+      </SegmentedControl>
+    ),
+  },
+  {
+    label: "Three segments",
+    render: () => (
+      <SegmentedControl aria-label="Package manager" size="S">
+        <SegmentedControlItem id="npm">npm</SegmentedControlItem>
+        <SegmentedControlItem id="pnpm">pnpm</SegmentedControlItem>
+        <SegmentedControlItem id="bun">bun</SegmentedControlItem>
+      </SegmentedControl>
+    ),
+  },
+  {
+    label: "Mixed label widths",
+    render: () => (
+      <SegmentedControl aria-label="Language" size="S">
+        <SegmentedControlItem id="Python">Python</SegmentedControlItem>
+        <SegmentedControlItem id="TypeScript">TypeScript</SegmentedControlItem>
+      </SegmentedControl>
+    ),
+  },
+  {
+    label: "Narrower than its labels",
+    render: () => (
+      <View width="160px">
+        <ViewControl content="icon and text" size="S" />
+      </View>
+    ),
+  },
+];
+
+export const ContentLength: StoryFn = () => (
+  <OptionGrid rows={LENGTHS} renderCell={(length) => length.render()} />
+);
+ContentLength.tags = ["!dev"];
+ContentLength.parameters = { themeLayout: "column" };
+
+export const Controlled: StoryFn = () => {
+  const [selected, setSelected] = useState<Key>("list");
+  return (
+    <Flex direction="column" gap="size-100" alignItems="start">
+      <ViewControl
+        content="icon and text"
+        size="S"
         selectedKey={selected}
         onSelectionChange={setSelected}
-      >
-        <SegmentedControlItem id="day">Day</SegmentedControlItem>
-        <SegmentedControlItem id="week">Week</SegmentedControlItem>
-        <SegmentedControlItem id="month">Month</SegmentedControlItem>
-        <SegmentedControlItem id="year">Year</SegmentedControlItem>
-      </SegmentedControl>
-      <Text>Selected: {String(selected)}</Text>
+      />
+      <Text size="S" color="text-700">
+        Selected: {String(selected)}
+      </Text>
     </Flex>
   );
 };
+Controlled.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: StoryObj<SegmentedControlProps> = {
+export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
-  render: Template,
-  args: {
-    size: "M",
-    defaultSelectedKey: "week",
-  },
+  render: () => (
+    <ViewControl content="icon and text" defaultSelectedKey="list" />
+  ),
 };
