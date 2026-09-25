@@ -136,10 +136,13 @@ function getProjectEvaluatorCreationTitle(
 export const CreateProjectEvaluatorSlideover = ({
   projectId,
   creationMode,
+  onCreated,
   ...props
 }: {
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
+  /** Called once the evaluator exists, in place of `onOpenChange(false)`. */
+  onCreated: () => void;
 } & Omit<ModalOverlayProps, "children">) => (
   <ProjectEvaluatorSlideover
     {...props}
@@ -148,6 +151,7 @@ export const CreateProjectEvaluatorSlideover = ({
     {(close, registerDirtyCheck) => (
       <CreateProjectEvaluatorDialogForMode
         onClose={close}
+        onCreated={onCreated}
         projectId={projectId}
         creationMode={creationMode}
         registerDirtyCheck={registerDirtyCheck}
@@ -187,11 +191,13 @@ function CreateProjectEvaluatorDialogForMode(
 
 const CreateProjectEvaluatorDialog = ({
   onClose,
+  onCreated,
   projectId,
   creationMode,
   registerDirtyCheck,
 }: {
   onClose: () => void;
+  onCreated: () => void;
   projectId: string;
   creationMode: ProjectEvaluatorCreationMode;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
@@ -285,7 +291,7 @@ const CreateProjectEvaluatorDialog = ({
   })();
 
   const finishCreation = () => {
-    onClose();
+    onCreated();
     notifySuccess({ title: "Evaluator created" });
   };
 
