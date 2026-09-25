@@ -120,7 +120,7 @@ sqlean moves its own pin.
   the workspace-root unpack, which the shared workflow puts under CI.
 - CI's `test` matrix compiles in place across every OS/arch pair the publish job ships. It never runs
   cibuildwheel, which is what the `wheel` job is for.
-- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
-  creates it, `sqlean-sources` skips and nothing builds.
+- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. If it is missing,
+  or points at a commit that is not on `main`, `sqlean-sources` fails.
 - PyPI uses trusted publishing with **no** GitHub environment; the publisher's Environment field
   must stay blank to match.
