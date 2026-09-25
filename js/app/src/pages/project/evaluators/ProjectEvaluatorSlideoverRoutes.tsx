@@ -5,7 +5,10 @@ import invariant from "tiny-invariant";
 
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
-import { CreateProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
+import {
+  CreateProjectEvaluatorSlideover,
+  type ProjectEvaluatorCreationMode,
+} from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
 import {
   EditProjectEvaluatorSlideover,
   useProjectEvaluator,
@@ -18,6 +21,7 @@ import {
   readProjectEvaluatorDetails,
   UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
 import {
   buildTemplateCreationMode,
@@ -50,6 +54,32 @@ function useRouteProjectId() {
 }
 
 /**
+ * A creation slideover on its route. Dismissing returns to the parent route
+ * (the list, or the gallery); finishing lands on the list showing the new
+ * evaluator, wherever it was opened from. Both replace, so the slideover does
+ * not linger in history.
+ */
+function CreateProjectEvaluatorRoute({
+  creationMode,
+}: {
+  creationMode: ProjectEvaluatorCreationMode;
+}) {
+  const projectId = useRouteProjectId();
+  const onOpenChange = useCloseSlideover();
+  const navigate = useNavigate();
+  const { list } = useProjectEvaluatorPaths();
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      onCreated={() => navigate(list, { replace: true })}
+      projectId={projectId}
+      creationMode={creationMode}
+    />
+  );
+}
+
+/**
  * The evaluator a copy or attach route is seeded from, or null when the id in
  * the URL names nothing. Suspends, so the slideover opens only once that
  * evaluator has loaded.
@@ -66,33 +96,14 @@ function useSourceEvaluator() {
 }
 
 export function NewLlmProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
-  const onOpenChange = useCloseSlideover();
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={{ kind: "scratch" }}
-    />
-  );
+  return <CreateProjectEvaluatorRoute creationMode={{ kind: "scratch" }} />;
 }
 
 export function NewCodeProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
-  const onOpenChange = useCloseSlideover();
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={{ kind: "newCode" }}
-    />
-  );
+  return <CreateProjectEvaluatorRoute creationMode={{ kind: "newCode" }} />;
 }
 
 export function NewLlmFromTemplateProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
   const { templateName } = useParams();
   invariant(templateName, "templateName is required");
   const onOpenChange = useCloseSlideover();
@@ -114,17 +125,13 @@ export function NewLlmFromTemplateProjectEvaluatorPage() {
     );
   }
   return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
+    <CreateProjectEvaluatorRoute
       creationMode={buildTemplateCreationMode(template)}
     />
   );
 }
 
 export function CopyLlmProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
   // Memoized: this walks every prompt message and mints fresh message ids, and
@@ -156,18 +163,10 @@ export function CopyLlmProjectEvaluatorPage() {
       />
     );
   }
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={built.mode}
-    />
-  );
+  return <CreateProjectEvaluatorRoute creationMode={built.mode} />;
 }
 
 export function AttachCodeProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
   // Memoized for the same reason as the copy route: it parses the evaluator's
@@ -188,18 +187,10 @@ export function AttachCodeProjectEvaluatorPage() {
       />
     );
   }
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={creationMode}
-    />
-  );
+  return <CreateProjectEvaluatorRoute creationMode={creationMode} />;
 }
 
 export function CopyCodeProjectEvaluatorPage() {
-  const projectId = useRouteProjectId();
   const onOpenChange = useCloseSlideover();
   const evaluator = useSourceEvaluator();
   const creationMode =
@@ -215,14 +206,7 @@ export function CopyCodeProjectEvaluatorPage() {
       />
     );
   }
-  return (
-    <CreateProjectEvaluatorSlideover
-      isOpen
-      onOpenChange={onOpenChange}
-      projectId={projectId}
-      creationMode={creationMode}
-    />
-  );
+  return <CreateProjectEvaluatorRoute creationMode={creationMode} />;
 }
 
 export function EditProjectEvaluatorPage() {
