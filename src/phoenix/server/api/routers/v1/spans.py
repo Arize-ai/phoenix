@@ -1058,8 +1058,7 @@ async def span_search(
         description=(
             "Span filter expression, as documented at "
             "https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. "
-            "Combined with other filters using AND. Empty expressions do not filter. "
-            "Invalid expressions return 400."
+            "Combined with other filters using AND."
         ),
     ),
 ) -> SpansResponseBody:
