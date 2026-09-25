@@ -1,8 +1,10 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { userEvent, within } from "storybook/test";
 
+import type { SelectProps } from "@phoenix/components";
 import {
   Button,
+  FieldError,
   Label,
   ListBox,
   ListBoxItem,
@@ -11,7 +13,10 @@ import {
   SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
+  Text,
 } from "@phoenix/components";
+
+import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
  * A select component that provides a dropdown selection interface.
@@ -27,52 +32,30 @@ const meta = {
       url: "https://www.figma.com/design/rMddnj6eV2TcQqNkejJ9qX/Core?node-id=264-278",
     },
   },
-  tags: ["legacy", "unreviewed"],
-  argTypes: {
-    size: {
-      control: "select",
-      options: ["S", "M"],
-      description: "The size of the select component",
-      defaultValue: "M",
-    },
-    isDisabled: {
-      control: "boolean",
-      description: "Whether the select is disabled",
-      defaultValue: false,
-    },
-    isRequired: {
-      control: "boolean",
-      description: "Whether the select is required",
-      defaultValue: false,
-    },
-    isInvalid: {
-      control: "boolean",
-      description: "Whether the select is in an invalid state",
-      defaultValue: false,
-    },
-  },
+  tags: ["updated", "unreviewed", "incomplete"],
 } satisfies Meta<typeof Select>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const options = [
-  { id: "1", name: "Option 1" },
-  { id: "2", name: "Option 2" },
+const ROLES = [
+  { id: "ADMIN", name: "Admin" },
+  { id: "MEMBER", name: "Member" },
+  { id: "VIEWER", name: "Viewer" },
 ];
 
 const SelectContent = () => (
   <>
-    <Label>Select an option</Label>
+    <Label>Role</Label>
     <Button>
       <SelectValue />
       <SelectChevronUpDownIcon />
     </Button>
     <Popover>
       <ListBox>
-        {options.map((option) => (
-          <SelectItem key={option.id} id={option.id}>
-            {option.name}
+        {ROLES.map((role) => (
+          <SelectItem key={role.id} id={role.id}>
+            {role.name}
           </SelectItem>
         ))}
       </ListBox>
@@ -81,7 +64,7 @@ const SelectContent = () => (
 );
 
 export const Default: Story = {
-  args: {},
+  tags: ["!dev"],
   render: (args) => (
     <Select {...args}>
       <SelectContent />
@@ -89,63 +72,86 @@ export const Default: Story = {
   ),
 };
 
-export const Small: Story = {
-  args: {
-    size: "S",
+const STATES: {
+  label: string;
+  props: Partial<SelectProps>;
+  error?: string;
+}[] = [
+  { label: "empty", props: {} },
+  { label: "populated", props: { defaultSelectedKey: "MEMBER" } },
+  { label: "required", props: { isRequired: true } },
+  {
+    label: "disabled",
+    props: { isDisabled: true, defaultSelectedKey: "MEMBER" },
   },
-  render: (args) => (
-    <Select {...args}>
-      <SelectContent />
-    </Select>
-  ),
-};
+  {
+    label: "error",
+    props: { isInvalid: true },
+    error: "Select a role",
+  },
+];
 
-export const Medium: Story = {
-  args: {
-    size: "M",
-  },
-  render: (args) => (
-    <Select {...args}>
-      <SelectContent />
-    </Select>
-  ),
-};
+const SIZES = (["S", "M", "L"] as const).map((size) => ({
+  label: size,
+  code: true,
+  size,
+}));
 
-export const Required: Story = {
-  args: {
-    isRequired: true,
-  },
-  render: (args) => (
-    <Select {...args}>
+function RoleSelect({
+  state,
+  description,
+  ...props
+}: Partial<SelectProps> & {
+  state: (typeof STATES)[number];
+  description?: string;
+}) {
+  return (
+    <Select {...props} {...state.props}>
       <SelectContent />
+      {description ? <Text slot="description">{description}</Text> : null}
+      {state.error ? <FieldError>{state.error}</FieldError> : null}
     </Select>
-  ),
-};
+  );
+}
 
-export const Disabled: Story = {
-  args: {
-    isDisabled: true,
-  },
-  render: (args) => (
-    <Select {...args}>
-      <SelectContent />
-    </Select>
-  ),
-};
+/**
+ * Size `L` has no styling of its own: the trigger takes Button's unstyled
+ * `L` and renders smaller than `S`.
+ */
+export const StatesAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={STATES}
+    columns={SIZES}
+    cellWidth="200px"
+    alignRows="start"
+    renderCell={(state, size) => <RoleSelect state={state} size={size?.size} />}
+  />
+);
+StatesAndSizes.parameters = { themeLayout: "column" };
+StatesAndSizes.tags = ["!dev"];
 
-export const Invalid: Story = {
-  args: {
-    isInvalid: true,
-  },
-  render: (args) => (
-    <Select {...args}>
-      <SelectContent />
-    </Select>
-  ),
-};
+const SLOTS: { label: string; description?: string }[] = [
+  { label: "Bare" },
+  { label: "Description", description: "Members can view and edit projects" },
+];
+
+export const StatesAndSlots: StoryFn = () => (
+  <OptionGrid
+    rows={STATES}
+    columns={SLOTS}
+    cellWidth="200px"
+    alignRows="start"
+    renderCell={(state, slot) => (
+      <RoleSelect state={state} description={slot?.description} />
+    )}
+  />
+);
+StatesAndSlots.storyName = "States and Slots";
+StatesAndSlots.parameters = { themeLayout: "column" };
+StatesAndSlots.tags = ["!dev"];
 
 export const WithLongOptions: Story = {
-  args: {},
+  tags: ["!dev"],
   render: (args) => (
     <Select {...args}>
       <Label>Select a long option</Label>
@@ -175,7 +181,7 @@ export const WithLongOptions: Story = {
 export const Thumbnail: Story = {
   tags: ["!dev", "!autodocs"],
   args: {
-    defaultSelectedKey: "1",
+    defaultSelectedKey: "ADMIN",
   },
   // Opened by a pointer press rather than `defaultOpen`, which puts a
   // keyboard focus ring on the selected option.
