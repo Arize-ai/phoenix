@@ -5,7 +5,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.utils.span_export import convert_spans_to_dataframe
+from phoenix.client.utils.backward_compatible_span_exports import convert_spans_to_dataframe
 
 from .rag import (
     async_get_input_output_context,
