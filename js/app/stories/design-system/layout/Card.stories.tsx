@@ -1,5 +1,7 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import type { ReactNode } from "react";
 
+import type { CardProps } from "@phoenix/components";
 import {
   Button,
   Card,
@@ -12,229 +14,219 @@ import {
   View,
 } from "@phoenix/components";
 
+import { OptionGrid } from "../../utils/OptionGrid";
+
+/**
+ * A titled surface that groups related content. The header holds the title
+ * and up to four optional slots: `subTitle` inline after the title,
+ * `titleExtra` in the title's own run, `headerContent` in whatever width the
+ * rest of the header leaves, and `extra` at the right edge.
+ *
+ * A `collapsible` card toggles from its header. When the title or header
+ * content holds controls of its own, set `interactiveTitle` so the toggle is a
+ * standalone arrow rather than a button wrapping them. A closed card can
+ * excerpt its body with `CardCollapsedPreview`, passed as `headerContent`; it
+ * shows only while its own card is closed.
+ */
 const meta: Meta = {
   title: "Design System/Layout/Card",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "unreviewed", "incomplete"],
   component: Card,
+  subcomponents: { CardCollapsedPreview },
   parameters: {
     layout: "centered",
-    controls: { expanded: true },
-  },
-  argTypes: {
-    title: {
-      control: "text",
-      description: "The title displayed in the card header",
-    },
-    subTitle: {
-      control: "text",
-      description:
-        "Optional subtitle displayed inline after the title in a lesser text color",
-    },
-    titleExtra: {
-      control: false,
-      description: "Additional content displayed next to the title",
-    },
-    collapsible: {
-      control: "boolean",
-      description: "Whether the card can be collapsed/expanded",
-    },
-    preview: {
-      control: "text",
-      description:
-        "Story-only: rendered as a <CardCollapsedPreview> in the card's headerContent, which shows itself only while the card is collapsed",
-    },
-    width: {
-      control: "text",
-      description: "Width of the card",
-    },
+    controls: { disable: true },
   },
 };
 
 export default meta;
 
-const Template: StoryFn = (args) => (
-  <Card {...args} title={args.title}>
-    <Text>
-      This is the card content. You can put any content here including text,
-      buttons, forms, or other components.
-    </Text>
-  </Card>
+const CARD_WIDTH = "360px";
+
+const Body = () => (
+  <View padding="size-200">
+    <Text>Correct answers cite the retrieved documents.</Text>
+  </View>
 );
 
-/**
- * A collapsed card excerpts its body by composing a `CardCollapsedPreview` into
- * the header content — the card itself has no preview prop.
- */
-const PreviewTemplate: StoryFn = ({ preview, ...args }) => (
-  <Card
-    {...args}
-    title={args.title}
-    headerContent={<CardCollapsedPreview>{preview}</CardCollapsedPreview>}
-  >
-    <Text>
-      This is the card content. You can put any content here including text,
-      buttons, forms, or other components.
-    </Text>
+export const Default: StoryFn = () => (
+  <Card title="Evaluation criteria" width={CARD_WIDTH}>
+    <Body />
   </Card>
 );
+Default.tags = ["!dev"];
 
-export const Default = {
-  render: Template,
+const ANNOTATION_TOKENS = (
+  <OverflowRow>
+    <Token size="S">hallucination</Token>
+    <Token size="S">correctness</Token>
+    <Token size="S">relevance</Token>
+    <Token size="S">toxicity</Token>
+  </OverflowRow>
+);
 
-  args: {
-    title: "Card Title",
-    width: "400px",
+const SLOTS: { label: string; props: Partial<CardProps> }[] = [
+  { label: "Bare", props: {} },
+  { label: "Subtitle", props: { subTitle: "Scored by an LLM judge" } },
+  {
+    label: "Title extra",
+    props: { titleExtra: <Counter variant="quiet">4</Counter> },
   },
-};
-
-export const WithSubtitle = {
-  render: Template,
-
-  args: {
-    title: "Card Title",
-    subTitle: "This is a subtitle that provides additional context",
-    width: "400px",
+  { label: "Header content", props: { headerContent: ANNOTATION_TOKENS } },
+  { label: "Extra", props: { extra: <Button size="S">Edit</Button> } },
+  {
+    label: "Every slot",
+    props: {
+      subTitle: "LLM judge",
+      titleExtra: <Counter variant="quiet">4</Counter>,
+      headerContent: ANNOTATION_TOKENS,
+      extra: <Button size="S">Edit</Button>,
+    },
   },
-};
+];
 
-export const Collapsible = {
-  render: Template,
+export const HeaderSlots: StoryFn = () => (
+  <OptionGrid
+    rows={SLOTS}
+    renderCell={(slot) => (
+      <Card title="Annotations" width={CARD_WIDTH} {...slot.props}>
+        <Body />
+      </Card>
+    )}
+  />
+);
+HeaderSlots.storyName = "Header Slots";
+HeaderSlots.tags = ["!dev"];
+HeaderSlots.parameters = { themeLayout: "column" };
 
-  args: {
-    title: "Collapsible Card",
-    subTitle: "Click the header to expand/collapse",
-    collapsible: true,
-    width: "400px",
+const COLLAPSE_STATES: { label: string; props: Partial<CardProps> }[] = [
+  { label: "Not collapsible", props: {} },
+  { label: "Open", props: { collapsible: true } },
+  { label: "Closed", props: { collapsible: true, defaultOpen: false } },
+];
+
+const TITLE_MODES: {
+  label: string;
+  code?: boolean;
+  props: Partial<CardProps>;
+}[] = [
+  { label: "Title toggles", props: {} },
+  {
+    label: "interactiveTitle",
+    code: true,
+    props: {
+      interactiveTitle: true,
+      collapseButtonLabel: "Annotations",
+      headerContent: ANNOTATION_TOKENS,
+    },
   },
-};
+];
 
-export const CollapsedPreview = {
-  render: PreviewTemplate,
+export const CollapseStates: StoryFn = () => (
+  <OptionGrid
+    rows={COLLAPSE_STATES}
+    columns={TITLE_MODES}
+    renderCell={(state, mode) => (
+      <Card
+        title="Annotations"
+        width="300px"
+        extra={<Button size="S">Edit</Button>}
+        {...state.props}
+        {...mode?.props}
+      >
+        <Body />
+      </Card>
+    )}
+  />
+);
+CollapseStates.storyName = "Collapse States";
+CollapseStates.tags = ["!dev"];
+CollapseStates.parameters = { themeLayout: "column" };
 
-  args: {
-    title: "assistant",
-    collapsible: true,
-    defaultOpen: false,
-    preview:
-      "Hi, I am your friendly assistant. I can look up the weather, search your documents, and answer questions about them.",
-    width: "400px",
-  },
-};
+const MESSAGES = [
+  [
+    "system",
+    "You are a friendly assistant that helps users answer questions about their observability data.",
+  ],
+  ["user", "What's the weather in SF today?"],
+  ["assistant", 'get_weather({"city":"San Francisco"})'],
+];
 
 /**
- * The shape span details actually renders: collapsed message cards inside an
- * open card. Each preview answers to its own card — the open outer card must
- * not hide the previews nested under it.
- *
- * No excerpt here is pre-ellipsised. An ellipsis in this story is one the
- * browser drew, so a preview that stopped truncating and started hard-clipping
- * shows up rather than blending in.
+ * The shape span details renders: collapsed message cards inside an open
+ * card. The open outer card does not hide the previews nested under it.
  */
-export const NestedCollapsedPreviews = {
-  render: () => (
-    <Card title="Input" collapsible width="480px">
+export const CollapsedPreview: StoryFn = () => (
+  // No excerpt is pre-ellipsised, so any ellipsis here is one the browser drew.
+  <Card title="Input" collapsible width="420px">
+    <View padding="size-200">
+      <Flex direction="column" gap="size-100">
+        {MESSAGES.map(([role, preview]) => (
+          <Card
+            key={role}
+            title={role}
+            collapsible
+            defaultOpen={false}
+            headerContent={
+              <CardCollapsedPreview>{preview}</CardCollapsedPreview>
+            }
+          >
+            <View padding="size-200">
+              <Text>{preview}</Text>
+            </View>
+          </Card>
+        ))}
+      </Flex>
+    </View>
+  </Card>
+);
+CollapsedPreview.storyName = "Collapsed Preview";
+CollapsedPreview.tags = ["!dev"];
+CollapsedPreview.parameters = { themeLayout: "column" };
+
+const LONG_BODY = Array.from({ length: 8 }, (_, index) => (
+  <Text key={index}>Example {index + 1} matched the reference answer.</Text>
+));
+
+const BODY_OPTIONS: {
+  label: string;
+  code: true;
+  props: Partial<CardProps>;
+  children: ReactNode;
+}[] = [
+  {
+    label: "titleSeparator={false}",
+    code: true,
+    props: { titleSeparator: false },
+    children: <Body />,
+  },
+  {
+    label: "scrollBody",
+    code: true,
+    props: { scrollBody: true, height: "160px" },
+    children: (
       <View padding="size-200">
         <Flex direction="column" gap="size-100">
-          {[
-            [
-              "system",
-              "You are a friendly assistant that helps users answer questions about their observability data.",
-            ],
-            ["user", "What's the weather in SF today?"],
-            ["assistant", 'get_weather({"city":"San Francisco"})'],
-          ].map(([role, preview]) => (
-            <Card
-              key={role}
-              title={role}
-              collapsible
-              defaultOpen={false}
-              headerContent={
-                <CardCollapsedPreview>{preview}</CardCollapsedPreview>
-              }
-            >
-              <Text>The message body.</Text>
-            </Card>
-          ))}
+          {LONG_BODY}
         </Flex>
       </View>
-    </Card>
-  ),
-};
-
-export const WithExtra = {
-  render: Template,
-
-  args: {
-    title: "Card with Extra Content",
-    subTitle: "Header contains additional elements",
-    extra: <Button size="S">Action</Button>,
-    width: "400px",
-  },
-};
-
-export const WithTitleExtra = {
-  render: Template,
-
-  args: {
-    title: "Experiment Results",
-    titleExtra: (
-      <Token color="var(--global-color-yellow-500)" size="S">
-        #42
-      </Token>
     ),
-    width: "400px",
   },
-};
+];
 
-/**
- * `headerContent` shrinks to whatever the header's fixed parts leave it —
- * resize the story to watch the tokens clip while the title and the action keep
- * their size. Paired with `interactiveTitle`, since the tokens are clickable.
- */
-export const WithHeaderContent = {
-  render: Template,
-
-  args: {
-    title: "Annotations",
-    titleExtra: <Counter variant="quiet">4</Counter>,
-    collapsible: true,
-    interactiveTitle: true,
-    collapseButtonLabel: "Annotations",
-    headerContent: (
-      <OverflowRow>
-        <Token size="S">hallucination</Token>
-        <Token size="S">correctness</Token>
-        <Token size="S">relevance</Token>
-        <Token size="S">toxicity</Token>
-      </OverflowRow>
-    ),
-    extra: <Button size="S">Action</Button>,
-    width: "480px",
-  },
-};
-
-export const WithoutTitleSeparator = {
-  render: Template,
-
-  args: {
-    title: "Card Without Separator",
-    subTitle: "This card has no separator between title and content",
-    titleSeparator: false,
-    width: "400px",
-  },
-};
-
-export const DefaultClosed = {
-  render: Template,
-
-  args: {
-    title: "Default Closed Card",
-    subTitle: "This card starts in a collapsed state",
-    collapsible: true,
-    defaultOpen: false,
-    width: "400px",
-  },
-};
+export const BodyOptions: StoryFn = () => (
+  <OptionGrid
+    rows={BODY_OPTIONS}
+    renderCell={(option) => (
+      <Card title="Results" width={CARD_WIDTH} {...option.props}>
+        {option.children}
+      </Card>
+    )}
+  />
+);
+BodyOptions.storyName = "Body Options";
+BodyOptions.tags = ["!dev"];
+BodyOptions.parameters = { themeLayout: "column" };
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
