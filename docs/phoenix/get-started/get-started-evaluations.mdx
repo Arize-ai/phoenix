@@ -24,6 +24,12 @@ question and matches the expected answer. Run an experiment over the dataset
 with a travel support prompt, and tell me which examples scored lowest and why.
 ```
 
+Every example scores 0 on that first run: the prompt knows nothing about this airline. Then reply:
+
+```text
+Add the Basic fare policy to the prompt, rerun the experiment, and compare the scores.
+```
+
 ## Or ask PXI
 
 [PXI](/docs/phoenix/pxi), the agent built into Phoenix, runs the whole flow and invents the dataset. Open it from any page, set it to Bypass Approval, and paste:
