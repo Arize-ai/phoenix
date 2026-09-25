@@ -369,6 +369,162 @@ function checkUsage(files: StoryFile[]) {
 }
 
 /**
+ * States that apply to a component whatever its content or presentation.
+ * Each must be crossed with the other options, never offered as one of them.
+ */
+const CROSS_CUTTING_STATES = new Set([
+  "isDisabled",
+  "isInvalid",
+  "isReadOnly",
+  "isRequired",
+  "isPending",
+  "isHovered",
+]);
+
+/** What a state entry may set besides the state: the data that makes it show. */
+const STATE_DATA = new Set([
+  "value",
+  "defaultValue",
+  "defaultSelected",
+  "defaultSelectedKey",
+  "error",
+  "errorMessage",
+  "placeholder",
+]);
+
+const AXIS_LABEL_KEYS = new Set(["label", "code", "children"]);
+
+type BabelNode = { type: string; [key: string]: unknown };
+
+function propertyName(key: unknown): string | null {
+  const node = key as BabelNode | undefined;
+  if (node?.type === "Identifier") return node.name as string;
+  if (node?.type === "StringLiteral") return node.value as string;
+  return null;
+}
+
+/** An axis entry's option keys, looking inside `props`, `groupProps`, etc. */
+function axisEntryKeys(entry: BabelNode, out: string[]) {
+  for (const property of entry.properties as BabelNode[]) {
+    if (property.type !== "ObjectProperty") continue;
+    const name = propertyName(property.key);
+    if (!name || AXIS_LABEL_KEYS.has(name)) continue;
+    const value = property.value as BabelNode;
+    if (/props$/i.test(name) && value.type === "ObjectExpression") {
+      axisEntryKeys(value, out);
+    } else {
+      out.push(name);
+    }
+  }
+}
+
+function walkAst(node: unknown, visit: (node: BabelNode) => void) {
+  if (!node || typeof (node as BabelNode).type !== "string") return;
+  visit(node as BabelNode);
+  for (const [key, child] of Object.entries(node as BabelNode)) {
+    if (key === "loc" || key.endsWith("Comments")) continue;
+    if (Array.isArray(child)) child.forEach((c) => walkAst(c, visit));
+    else if (child && typeof child === "object") walkAst(child, visit);
+  }
+}
+
+/** Strips `as const`, `satisfies` and other type-only wrappers. */
+function unwrapExpression(node: BabelNode | undefined): BabelNode | undefined {
+  while (
+    node &&
+    (node.type === "TSAsExpression" ||
+      node.type === "TSSatisfiesExpression" ||
+      node.type === "TSNonNullExpression" ||
+      node.type === "ParenthesizedExpression")
+  ) {
+    node = node.expression as BabelNode;
+  }
+  return node;
+}
+
+/**
+ * An array literal's elements with every `...NAME` spread of a `const` array
+ * literal in the same file expanded in place, or `null` when a spread cannot
+ * be resolved that way.
+ */
+function expandedElements(
+  node: BabelNode,
+  arrays: Map<string, BabelNode>,
+  seen: Set<string> = new Set()
+): BabelNode[] | null {
+  const out: BabelNode[] = [];
+  for (const element of node.elements as (BabelNode | null)[]) {
+    if (element?.type !== "SpreadElement") {
+      if (element) out.push(element);
+      continue;
+    }
+    const argument = element.argument as BabelNode;
+    const name =
+      argument.type === "Identifier" ? (argument.name as string) : "";
+    const array = arrays.get(name);
+    if (!array || seen.has(name)) return null;
+    const inner = expandedElements(array, arrays, new Set([...seen, name]));
+    if (!inner) return null;
+    out.push(...inner);
+  }
+  return out;
+}
+
+/**
+ * An option grid's axis — any array literal of object literals — that sets a
+ * cross-cutting state such as `isDisabled` may set nothing else but the data
+ * that state needs. A `Disabled` column beside `Leading visual` and
+ * `Icon only` columns shows disabled only on plain content, so a disabled
+ * button with a trailing shortcut is never rendered. States go on their own
+ * axis and are crossed with the others (`flatMap` two literal axes).
+ *
+ * An axis assembled from another with a spread (`[...SIZES, Disabled]`) is
+ * checked with the spread array's entries in place.
+ */
+function checkStatesCrossOtherOptions(files: StoryFile[]) {
+  for (const file of files) {
+    if (!/\.stories\.[jt]sx?$/.test(file.base)) continue;
+    const csf = loadCsf(readFileSync(join(STORIES_DIR, file.rel), "utf8"), {
+      fileName: file.rel,
+      makeTitle: (title) => title ?? file.rel,
+    }).parse();
+    const arrays = new Map<string, BabelNode>();
+    walkAst(csf._ast.program, (node) => {
+      if (node.type !== "VariableDeclaration" || node.kind !== "const") return;
+      for (const declarator of node.declarations as BabelNode[]) {
+        const id = declarator.id as BabelNode;
+        const init = unwrapExpression(declarator.init as BabelNode | undefined);
+        if (id.type === "Identifier" && init?.type === "ArrayExpression") {
+          arrays.set(id.name as string, init);
+        }
+      }
+    });
+    walkAst(csf._ast.program, (node) => {
+      if (node.type !== "ArrayExpression") return;
+      const elements = expandedElements(node, arrays);
+      if (!elements || elements.length < 2) return;
+      if (!elements.every((e) => e.type === "ObjectExpression")) return;
+      const keys: string[] = [];
+      for (const element of elements) axisEntryKeys(element, keys);
+      const states = [
+        ...new Set(keys.filter((k) => CROSS_CUTTING_STATES.has(k))),
+      ];
+      const others = [
+        ...new Set(
+          keys.filter((k) => !CROSS_CUTTING_STATES.has(k) && !STATE_DATA.has(k))
+        ),
+      ];
+      if (states.length === 0 || others.length === 0) return;
+      const line = (node.loc as { start: { line: number } }).start.line;
+      fail(
+        `${file.rel}:${line}`,
+        `this axis sets ${states.join(", ")} beside ${others.join(", ")}; put states on their own axis and cross them with the other options`
+      );
+    });
+  }
+}
+
+/**
  * Every `<Canvas of={X.Story} />` or `<Meta of={X} />` in MDX must name a story
  * that exists. Storybook reports a missing one only when the page is opened
  * (`SB_BLOCKS_0001 … of={undefined}`), so renaming or removing a story export
@@ -596,6 +752,7 @@ function main() {
   checkSingleSidebarEntry(managed);
   checkUsage(managed);
   checkMdxStoryReferences(managed);
+  checkStatesCrossOtherOptions(managed);
 
   writeHealth(files);
 
