@@ -1,13 +1,14 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import type { TagGroupProps } from "@phoenix/components";
-import { Flex, Label, Tag, TagGroup, TagList, Text } from "@phoenix/components";
+import { Label, Tag, TagGroup, TagList } from "@phoenix/components";
+
+import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
  * A labeled group of tags. `selectionMode` decides whether the tags are
  * static labels (`none`), a pick-one choice (`single`), or a pick-many filter
- * (`multiple`). The three modes are stacked in one gallery so they can be
- * compared at a glance rather than switched through a control.
+ * (`multiple`).
  */
 const meta: Meta = {
   title: "Design System/Forms/Tag Group",
@@ -40,19 +41,19 @@ function Categories(props: Omit<TagGroupProps, "children">) {
 }
 
 const MODES: {
+  label: string;
   mode: NonNullable<TagGroupProps["selectionMode"]>;
-  description: string;
   defaultSelectedKeys?: string[];
 }[] = [
-  { mode: "none", description: "static labels; tags cannot be selected" },
+  { label: "Not selectable", mode: "none" },
   {
+    label: "Single select",
     mode: "single",
-    description: "at most one tag is selected",
     defaultSelectedKeys: ["travel"],
   },
   {
+    label: "Multi select",
     mode: "multiple",
-    description: "any number of tags are selected",
     defaultSelectedKeys: ["news", "gaming"],
   },
 ];
@@ -62,20 +63,17 @@ const MODES: {
  * stay interactive, so selecting and deselecting can be tried in each mode.
  */
 export const SelectionModes: StoryFn = () => (
-  <Flex direction="column" gap="size-300">
-    {MODES.map(({ mode, description, defaultSelectedKeys }) => (
-      <Flex key={mode} direction="column" gap="size-100">
-        <Text size="S" color="text-700" fontFamily="mono">
-          selectionMode=&quot;{mode}&quot; — {description}
-        </Text>
-        <Categories
-          selectionMode={mode}
-          defaultSelectedKeys={defaultSelectedKeys}
-        />
-      </Flex>
-    ))}
-  </Flex>
+  <OptionGrid
+    rows={MODES}
+    renderCell={({ mode, defaultSelectedKeys }) => (
+      <Categories
+        selectionMode={mode}
+        defaultSelectedKeys={defaultSelectedKeys}
+      />
+    )}
+  />
 );
+SelectionModes.parameters = { themeLayout: "column" };
 SelectionModes.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
