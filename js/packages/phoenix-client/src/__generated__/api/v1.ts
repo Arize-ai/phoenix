@@ -10608,6 +10608,8 @@ export interface operations {
                 attribute?: string[] | null;
                 /** @description Span filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. */
                 filter?: string | null;
+                /** @description Shape of each span's `attributes`: `flattened` uses dotted keys; `nested` returns them as a nested JSON object. */
+                attributes_format?: "flattened" | "nested";
             };
             header?: never;
             path: {
