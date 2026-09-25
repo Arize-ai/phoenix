@@ -38,7 +38,9 @@ Pause only if the goal is unclear or a tradeoff needs a human.
    run makes averages misleading.
 4. **Confirm one axis changed.** Prompt, model, params, tool-guidance, *or* dataset-scope — not
    several at once. If several moved, say so: the diff is still evidence, not a clean ablation.
-5. **Fetch every example for both runs** (see [Getting the data](#getting-the-data-phoenix-mcp)).
+5. **Fetch every example for both runs.** For each run, per example you need: `input`,
+   `reference_output`, `output`, `error`, `latency_ms`, token counts, and the evaluator
+   `annotations` (`name`, `label`, `score`, `explanation`).
 6. **Line them up by example**, not by average. Match `example_id` (and `repetition_number` when
    repetitions > 1). An averaged score hides the example a change broke. Keep splits separate;
    never fold a holdout into the headline number.
@@ -49,34 +51,14 @@ Pause only if the goal is unclear or a tradeoff needs a human.
    example ids plus explanations as evidence. Link
    `<endpoint>/datasets/<dataset-id>/compare?experimentId=<id>&experimentId=<id>`.
 
-## Getting the data (Phoenix MCP)
-
-Phoenix MCP does not have a "compare" tool. You list experiments, download each run as JSON, and
-join the rows yourself.
-
-In **code mode** (the default) REST names are not top-level tools. Use `search` to find them, then
-`call_tool(...)` inside `execute`. `executeSql` is available the same way (or as a direct tool).
-
-1. Resolve the dataset id (`listDatasets` if you only have a name).
-2. `listExperiments` with that `dataset_id`. Read `id`, `name`, `metadata`, and the
-   successful / failed / missing run counts.
-3. `getExperimentJSON` once per experiment you will compare. Each row is one example: `input`,
-   `reference_output`, `output`, `error`, `latency_ms`, token counts, and `annotations`
-   (`name`, `label`, `score`, `explanation`).
-4. Join the two JSON lists on `example_id`. That is the per-example table.
-
-Need a custom aggregate? `describeSqlSchema` with `area="experiments"`, then `executeSql`. Join
-`experiment_run_annotations` carefully: one run can have several annotation rows, so count runs
-with `COUNT(DISTINCT experiment_runs.id)`, not `COUNT(*)`.
-
 ## Recording What You Learned
 
 After the verdict, write experiment-level narrative (hypothesis held, tradeoff accepted) into that
 experiment's metadata observations — not only into chat. Per-example scores already live on run
 annotations; do not copy them into metadata.
 
-To append an observation, **read** metadata first (`getExperiment`), then `updateExperiment` with
-the **whole** metadata object plus a new timestamped note. A metadata write that omits
+To append an observation, **read** the experiment's metadata first, then write it back with the
+**whole** metadata object plus a new timestamped note. A metadata write that omits
 `hypothesis`, `changed variable`, or `baseline` erases the scaffold the next session needs.
 
 ## Boundaries
