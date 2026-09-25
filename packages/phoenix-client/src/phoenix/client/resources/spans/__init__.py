@@ -103,6 +103,55 @@ SpanDocumentAnnotationResult = v1.AnnotationResult
 SpanNoteData = v1.SpanNoteData
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
+
+_SPAN_PAGE_SIZE = 100
+
+
+def _span_list_params(
+    *,
+    limit: int,
+    cursor: Optional[str],
+    start_time: Optional[datetime],
+    end_time: Optional[datetime],
+    trace_ids: Optional[Sequence[str]],
+    span_ids: Optional[Sequence[str]],
+    parent_id: Optional[str],
+    name: Optional[Union[str, Sequence[str]]],
+    span_kind: Optional[Union[str, Sequence[str]]],
+    status_code: Optional[Union[str, Sequence[str]]],
+    attributes: Optional[_Attributes],
+    sort: Optional[SpanSort],
+    order: Optional[SortOrder],
+) -> dict[str, Union[int, str, Sequence[str]]]:
+    """Query parameters for one page of ``GET /v1/projects/{id}/spans``."""
+    params: dict[str, Union[int, str, Sequence[str]]] = {"limit": limit}
+    if start_time:
+        params["start_time"] = start_time.isoformat()
+    if end_time:
+        params["end_time"] = end_time.isoformat()
+    if trace_ids:
+        params["trace_id"] = list(trace_ids)
+    if span_ids:
+        params["span_id"] = list(span_ids)
+    if parent_id is not None:
+        params["parent_id"] = parent_id
+    if name:
+        params["name"] = [name] if isinstance(name, str) else list(name)
+    if span_kind:
+        params["span_kind"] = [span_kind] if isinstance(span_kind, str) else list(span_kind)
+    if status_code:
+        params["status_code"] = [status_code] if isinstance(status_code, str) else list(status_code)
+    if attributes:
+        params["attribute"] = _serialize_attributes(attributes)
+    if sort:
+        params["sort"] = sort
+    if order:
+        params["order"] = order
+    if cursor:
+        params["cursor"] = cursor
+    return params
+
+
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 _MAX_SPAN_IDS_PER_REQUEST = 100
 
@@ -492,6 +541,49 @@ class Spans:
 
         return annotations
 
+    def _paginate(
+        self,
+        *,
+        project_identifier: str,
+        cursor: Optional[str] = None,
+        limit: int = _SPAN_PAGE_SIZE,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        trace_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
+        parent_id: Optional[str] = None,
+        name: Optional[Union[str, Sequence[str]]] = None,
+        span_kind: Optional[Union[str, Sequence[str]]] = None,
+        status_code: Optional[Union[str, Sequence[str]]] = None,
+        attributes: Optional[_Attributes] = None,
+        sort: Optional[SpanSort] = None,
+        order: Optional[SortOrder] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.SpansResponseBody:
+        """Fetch one page of spans; ``get_spans`` follows ``next_cursor`` across pages."""
+        response = self._client.get(
+            url=f"v1/projects/{project_identifier}/spans",
+            params=_span_list_params(
+                limit=limit,
+                cursor=cursor,
+                start_time=start_time,
+                end_time=end_time,
+                trace_ids=trace_ids,
+                span_ids=span_ids,
+                parent_id=parent_id,
+                name=name,
+                span_kind=span_kind,
+                status_code=status_code,
+                attributes=attributes,
+                sort=sort,
+                order=order,
+            ),
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return cast(v1.SpansResponseBody, response.json())
+
     def get_spans(
         self,
         *,
@@ -569,60 +661,28 @@ class Spans:
             self._guard.require(GET_SPANS_ORDER)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
-        page_size = min(100, limit)
-
         while len(all_spans) < limit:
-            remaining = limit - len(all_spans)
-            current_page_size = min(page_size, remaining)
-
-            params: dict[str, Union[int, str, Sequence[str]]] = {
-                "limit": current_page_size,
-            }
-
-            if start_time:
-                params["start_time"] = start_time.isoformat()
-            if end_time:
-                params["end_time"] = end_time.isoformat()
-            if trace_ids:
-                params["trace_id"] = list(trace_ids)
-            if span_ids:
-                params["span_id"] = list(span_ids)
-            if parent_id is not None:
-                params["parent_id"] = parent_id
-            if name:
-                params["name"] = [name] if isinstance(name, str) else list(name)
-            if span_kind:
-                params["span_kind"] = [span_kind] if isinstance(span_kind, str) else list(span_kind)
-            if status_code:
-                params["status_code"] = (
-                    [status_code] if isinstance(status_code, str) else list(status_code)
-                )
-            if attributes:
-                params["attribute"] = _serialize_attributes(attributes)
-            if sort:
-                params["sort"] = sort
-            if order:
-                params["order"] = order
-            if cursor:
-                params["cursor"] = cursor
-
-            response = self._client.get(
-                url=f"v1/projects/{project_identifier}/spans",
-                params=params,
-                headers={"accept": "application/json"},
+            page = self._paginate(
+                project_identifier=project_identifier,
+                cursor=cursor,
+                limit=min(_SPAN_PAGE_SIZE, limit - len(all_spans)),
+                start_time=start_time,
+                end_time=end_time,
+                trace_ids=trace_ids,
+                span_ids=span_ids,
+                parent_id=parent_id,
+                name=name,
+                span_kind=span_kind,
+                status_code=status_code,
+                attributes=attributes,
+                sort=sort,
+                order=order,
                 timeout=timeout,
             )
-            response.raise_for_status()
-            payload = response.json()
-            payload = cast(v1.SpansResponseBody, payload)
-
-            spans = payload["data"]
-            all_spans.extend(spans)
-
-            cursor = payload.get("next_cursor")
-            if not cursor or not spans:
+            all_spans.extend(page["data"])
+            cursor = page.get("next_cursor")
+            if not cursor or not page["data"]:
                 break
-
         return all_spans[:limit]
 
     def log_spans(
@@ -1806,6 +1866,49 @@ class AsyncSpans:
 
         return annotations
 
+    async def _paginate(
+        self,
+        *,
+        project_identifier: str,
+        cursor: Optional[str] = None,
+        limit: int = _SPAN_PAGE_SIZE,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        trace_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
+        parent_id: Optional[str] = None,
+        name: Optional[Union[str, Sequence[str]]] = None,
+        span_kind: Optional[Union[str, Sequence[str]]] = None,
+        status_code: Optional[Union[str, Sequence[str]]] = None,
+        attributes: Optional[_Attributes] = None,
+        sort: Optional[SpanSort] = None,
+        order: Optional[SortOrder] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.SpansResponseBody:
+        """Fetch one page of spans; ``get_spans`` follows ``next_cursor`` across pages."""
+        response = await self._client.get(
+            url=f"v1/projects/{project_identifier}/spans",
+            params=_span_list_params(
+                limit=limit,
+                cursor=cursor,
+                start_time=start_time,
+                end_time=end_time,
+                trace_ids=trace_ids,
+                span_ids=span_ids,
+                parent_id=parent_id,
+                name=name,
+                span_kind=span_kind,
+                status_code=status_code,
+                attributes=attributes,
+                sort=sort,
+                order=order,
+            ),
+            headers={"accept": "application/json"},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return cast(v1.SpansResponseBody, response.json())
+
     async def get_spans(
         self,
         *,
@@ -1883,60 +1986,28 @@ class AsyncSpans:
             await self._guard.require(GET_SPANS_ORDER)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
-        page_size = min(100, limit)
-
         while len(all_spans) < limit:
-            remaining = limit - len(all_spans)
-            current_page_size = min(page_size, remaining)
-
-            params: dict[str, Union[int, str, Sequence[str]]] = {
-                "limit": current_page_size,
-            }
-
-            if start_time:
-                params["start_time"] = start_time.isoformat()
-            if end_time:
-                params["end_time"] = end_time.isoformat()
-            if trace_ids:
-                params["trace_id"] = list(trace_ids)
-            if span_ids:
-                params["span_id"] = list(span_ids)
-            if parent_id is not None:
-                params["parent_id"] = parent_id
-            if name:
-                params["name"] = [name] if isinstance(name, str) else list(name)
-            if span_kind:
-                params["span_kind"] = [span_kind] if isinstance(span_kind, str) else list(span_kind)
-            if status_code:
-                params["status_code"] = (
-                    [status_code] if isinstance(status_code, str) else list(status_code)
-                )
-            if attributes:
-                params["attribute"] = _serialize_attributes(attributes)
-            if sort:
-                params["sort"] = sort
-            if order:
-                params["order"] = order
-            if cursor:
-                params["cursor"] = cursor
-
-            response = await self._client.get(
-                url=f"v1/projects/{project_identifier}/spans",
-                params=params,
-                headers={"accept": "application/json"},
+            page = await self._paginate(
+                project_identifier=project_identifier,
+                cursor=cursor,
+                limit=min(_SPAN_PAGE_SIZE, limit - len(all_spans)),
+                start_time=start_time,
+                end_time=end_time,
+                trace_ids=trace_ids,
+                span_ids=span_ids,
+                parent_id=parent_id,
+                name=name,
+                span_kind=span_kind,
+                status_code=status_code,
+                attributes=attributes,
+                sort=sort,
+                order=order,
                 timeout=timeout,
             )
-            response.raise_for_status()
-            payload = response.json()
-            payload = cast(v1.SpansResponseBody, payload)
-
-            spans = payload["data"]
-            all_spans.extend(spans)
-
-            cursor = payload.get("next_cursor")
-            if not cursor or not spans:
+            all_spans.extend(page["data"])
+            cursor = page.get("next_cursor")
+            if not cursor or not page["data"]:
                 break
-
         return all_spans[:limit]
 
     async def log_spans(
