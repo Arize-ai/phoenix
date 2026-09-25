@@ -1,0 +1,550 @@
+<title>MCP Benchmark Report</title>
+<style>
+  /* Tokens live on :root, not on .viz-root — body paints the page background and
+     must be able to resolve them, or the page shows an unstyled gutter. */
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --surface-2: #f5f4f1;
+    --border: #e2e1dc;
+    --grid: #edece8;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7975;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-other: #8a8983;
+    --critical: #d03b3b;
+    --good: #0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --surface-2: #232320;
+      --border: #383835;
+      --grid: #2a2a27;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8f8e86;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-other: #96958d;
+      --critical: #d03b3b;
+      --good: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --surface-2: #232320;
+    --border: #383835;
+    --grid: #2a2a27;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e86;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-other: #96958d;
+    --critical: #d03b3b;
+    --good: #0ca30c;
+  }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .viz-root { max-width: 1180px; margin-inline: auto; padding: 36px 28px 72px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin: 0 0 28px; }
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .card-note { color: var(--text-muted); font-size: 12.5px; margin: 0 0 16px; }
+  /* Title and its action on one line, so the button reads as belonging to the
+     table rather than floating above the page. */
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .card-head button { min-height: 30px; padding: 4px 10px; font-size: 12.5px; flex: none; }
+
+  /* Filters in one row above the charts. */
+  .filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+  select, button {
+    font: inherit; font-size: 13px; color: var(--text-primary);
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px; min-height: 34px;
+  }
+  button { cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--text-muted); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .kpi .k-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .kpi .k-value { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .kpi .k-foot { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: baseline; }
+
+  .prose { color: var(--text-secondary); font-size: 13.5px; line-height: 1.6; max-width: 68ch; margin: 0 0 10px; }
+  .prose strong { color: var(--text-primary); }
+  .verdict { font-size: 15px; line-height: 1.65; max-width: 72ch; }
+  .verdict li { margin-bottom: 8px; }
+  .verdict b { color: var(--text-primary); }
+  .task { border-top: 1px solid var(--border); padding: 14px 0; }
+  .task:first-child { border-top: 0; padding-top: 2px; }
+  .task-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+  .task-name { font-weight: 600; font-size: 13.5px; }
+  .chip { font-size: 11.5px; color: var(--text-muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 9px; }
+  .prompt { font-size: 13px; color: var(--text-secondary); background: var(--surface-1); border-left: 2px solid var(--border); padding: 8px 12px; border-radius: 0 6px 6px 0; margin: 6px 0; }
+  .answers { font-size: 12.5px; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .ok { color: var(--good); font-weight: 600; }
+  .no { color: var(--critical); font-weight: 600; }
+  dl.legend-grid {
+    display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px;
+    margin: 0; font-size: 12.5px; align-items: baseline;
+  }
+  dl.legend-grid dt { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  dl.legend-grid dd { margin: 0; color: var(--text-secondary); }
+  dl.legend-grid b { color: var(--text-primary); }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 12px; font-size: 12.5px; color: var(--text-secondary); }
+  /* One value is a number, not a bar chart. */
+  .hero .h-value { font-size: 48px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .hero .h-label { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 8px 0 4px; }
+  .scroll-x { overflow-x: auto; }
+  svg { display: block; max-width: 100%; }
+  .axis-label { fill: var(--text-muted); font-size: 11px; }
+  .tick-label { fill: var(--text-secondary); font-size: 11.5px; }
+  .value-label { fill: var(--text-secondary); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 6px 9px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child, th.txt, td.txt { text-align: left; }
+  th { color: var(--text-secondary); font-weight: 600; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface-2); }
+  tbody tr:hover { background: var(--surface-1); }
+  .fail { color: var(--critical); }
+
+  .banner { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 20px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-secondary); }
+  .banner.warn { border-color: var(--critical); color: var(--critical); }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 20; opacity: 0;
+    background: var(--surface-2); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 10px; font-size: 12px; line-height: 1.45;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.14); transition: opacity 90ms;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<div class="viz-root">
+  <h1>MCP surface benchmark</h1>
+  <p class="sub" id="meta"></p>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Every run in detail</h2>
+      <button id="copy-tsv" type="button">Copy for Excel</button>
+    </div>
+    <p class="card-note">Every run, including ones that failed or never produced an answer —
+      the filters below do not apply here. Click a column to sort. Copying gives you
+      tab-separated rows in the order shown, with plain numbers rather than the
+      formatting — <code>0.230</code>, not <code>$0.230</code> — so a spreadsheet can add
+      them up.</p>
+    <div class="scroll-x"><table id="table"></table></div>
+  </div>
+  <div class="card">
+    <h2>What the columns mean</h2>
+    <dl class="legend-grid">
+      <dt>label</dt><dd>what you called this run</dd>
+      <dt>task</dt><dd>which question was asked</dd>
+      <dt>trial</dt><dd>which repeat — every question is asked more than once</dd>
+      <dt>tokens</dt><dd>how long the conversation got. The model is re-sent the whole
+        conversation every turn, so it only grows; this is its length at the end.</dd>
+      <dt>usd</dt><dd>what the run cost. Re-sent text is cached — charged once at a premium,
+        then about a tenth of that on every turn after. Most of the bill is carrying the
+        conversation, not writing the answer.</dd>
+      <dt>api time</dt><dd>seconds the model spent thinking and writing</dd>
+      <dt>tool time</dt><dd>seconds spent waiting on Phoenix to answer tool calls</dd>
+      <dt>turns</dt><dd>trips back to the model before it had an answer</dd>
+      <dt>tools</dt><dd>tool calls made</dd>
+      <dt>disc</dt><dd>how many of those were spent working out which tools exist — overhead
+        before any real work</dd>
+      <dt>output</dt><dd>tokens the model wrote — its reasoning, plus any SQL</dd>
+      <dt>status</dt><dd>whether the reply contained the expected answer</dd>
+      <dt>sql tools</dt><dd>what the run got out of the analytics SQL surface: which of
+        <code>executeSql</code> (<i>sql</i>) and <code>describeSqlSchema</code>
+        (<i>schema</i>) returned it something. <i>failed</i> marks one it called and
+        never got an answer from — <i>sql failed</i> means whatever it answered with
+        came from paging instead. A query counts as answered even when the sandbox
+        call around it errored: with no way to print, a guest raises its own result
+        to read it, so rows can arrive inside a failure. <i>found, unused</i> means
+        discovery surfaced one and the run never called it.</dd>
+      <dt>route</dt><dd>the tools it called, in order, with consecutive repeats collapsed to
+        <code>x N</code>. The operation is named where the tool alone would not say what
+        happened — <code>execute(executeSql)</code>, <code>get_schema(spanSearch)</code> — and
+        a trailing <code>!</code> marks a call that came back an error. Two runs of the same
+        question can take very different routes, and this is usually what explains a gap in
+        tokens or time between them.</dd>
+    </dl>
+  </div>
+  <div class="card">
+    <h2>The questions that were asked</h2>
+    <p class="card-note">Each was posed verbatim to every label, with the expected answer
+      fixed in advance. "Answered" shows what each label actually replied.</p>
+    <div id="tasks"></div>
+  </div>
+
+  <div class="card">
+    <h2>What this is</h2>
+    <p class="prose">An AI agent was asked questions about real trace data, reaching Phoenix
+      over MCP. Same model, same questions, no system prompt, no built-in tools — so the only
+      thing that varies is the tool surface. Each question is asked several times, because the
+      agent does not take the same path twice.</p>
+    <p class="prose">What's measured is <strong>tokens</strong>: the text the model has to read
+      and write. Tokens are the bill, and there is a hard limit on how many fit at once, so
+      fewer is better — but only if the answer is still right, which the status column
+      reports.</p>
+    <div id="labels-explained"></div>
+  </div>
+</div>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+const DATA = /*__REPORT_DATA__*/ null;
+
+// Labels are user-supplied, so slots are assigned over every label present in the
+// data, sorted. That binding is independent of the current filter, so filtering
+// out a series never repaints the survivors. Past the palette, labels share one
+// neutral rather than taking a generated hue.
+const LABEL_SLOTS = ["var(--series-1)", "var(--series-2)", "var(--series-3)"];
+const ALL_LABELS = [...new Set((DATA.labels || []).concat(DATA.runs.map((r) => r.label)))].sort();
+const labelColor = (label) => {
+  const i = ALL_LABELS.indexOf(label);
+  return i >= 0 && i < LABEL_SLOTS.length ? LABEL_SLOTS[i] : "var(--series-other)";
+};
+
+
+// Internal vocabulary, translated once. Everything user-facing uses these.
+const CLASS_LABEL = {
+  noop: "No work asked",
+  trivial: "Simple lookup",
+  "multi-call": "Multi-step",
+  "large-result": "Large result",
+};
+const CLASS_HINT = {
+  noop: "measures the tool surface by itself, before any real question",
+  trivial: "a single call answers it — the surface overhead dominates",
+  "multi-call": "needs a chain of calls",
+  "large-result": "a big payload boiled down to a short answer",
+};
+const clsLabel = (c) => CLASS_LABEL[c] || c;
+
+const $ = (id) => document.getElementById(id);
+const uniq = (xs) => [...new Set(xs)].sort();
+const NS = "http://www.w3.org/2000/svg";
+
+function median(xs) {
+  const v = xs.filter((x) => x !== null && x !== undefined && !Number.isNaN(x)).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+function fmt(n) {
+  if (n === null || n === undefined) return "–";
+  if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  if (Number.isInteger(n)) return String(n);
+  return n < 1 ? n.toFixed(3) : n.toFixed(1);
+}
+// Snap the axis so its gridline step is a round number: ticks read 0/50/100/150
+// rather than 0/46.3/92.5/138.8. Rounding the *step* rather than the maximum
+// keeps the plot filled — rounding 304k straight up would reach 500k and leave
+// two fifths of the width empty.
+const NICE_STEPS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+function emptyNote(svg, message) {
+  svg.replaceChildren();
+  svg.removeAttribute("width"); svg.removeAttribute("height"); svg.removeAttribute("viewBox");
+  const note = document.createElement("div");
+  note.className = "empty";
+  note.textContent = message;
+  svg.after(note);
+}
+function resetChart(svg) {
+  svg.replaceChildren();
+  // An attribute-less <svg> still occupies its default 300x150, which would leave
+  // dead space above a hero or a note. Stay hidden until something is drawn.
+  svg.style.display = "none";
+  svg.closest(".card").querySelectorAll(".empty").forEach((n) => n.remove());
+}
+function showChart(svg, w, h) {
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", h);
+  svg.style.display = "block";
+}
+function el(tag, attrs = {}, text) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+const tip = $("tip");
+
+// ---- state -----------------------------------------------------------------
+
+
+// ---- KPI row ---------------------------------------------------------------
+// The control is the label with the cheapest no-work run: whatever it was
+// called, the surface that costs least before any question is the floor the
+// others are measured against. Keyed on a name, this broke silently when the
+// label changed.
+
+
+// ---- cost per question: one row per task, one dot per trial ------------------
+// Individual trials rather than a class median: this data is bimodal within a
+// class, so a median lands where nothing was observed. A log axis keeps the
+// cheap tasks legible against a range spanning three orders of magnitude.
+
+// ---- how the answers were obtained -------------------------------------------
+
+
+// ---- table -----------------------------------------------------------------
+// Always one decimal in thousands. The shared formatter drops the decimal above
+// 10k, which puts "9.1k" beside "29k" in one column and invites reading them at
+// the same precision; a fixed scale keeps the sizes comparable down the column.
+const fmtK1 = (n) => (n === null || n === undefined ? "–" : (n / 1000).toFixed(1) + "k");
+// Milliseconds are reported in the thousands, where the shared formatter renders
+// "25k" -- a duration nobody can size at a glance. Seconds carry their own unit.
+const fmtSec = (n) => (n === null || n === undefined ? "–" : (n / 1000).toFixed(1) + "s");
+// Three places: runs reach down to a fraction of a cent, so two would round the
+// control row to $0.00 and lose the floor the other rows are measured against.
+const fmtUsd = (n) => (n === null || n === undefined ? "–" : "$" + n.toFixed(3));
+
+const COLS = [
+  ["label", "label", 1], ["task", "task", 1], ["trial", "trial", 0],
+  ["trace_url", "trace", 1],
+  ["peak_context_tokens", "tokens", 0, fmtK1],
+  ["total_cost_usd", "usd", 0, fmtUsd],
+  ["duration_api_ms", "api time", 0, fmtSec],
+  ["tool_time_ms", "tool time", 0, fmtSec],
+  ["num_turns", "turns", 0], ["n_tool_calls", "tools", 0],
+  ["n_discovery_calls", "disc", 0],
+  ["output_tokens", "output", 0], ["status", "status", 1],
+  ["sql_tools", "sql tools", 1],
+  ["tool_sequence", "route", 1],
+];
+// Sorted by question, not by label: rows arrive grouped by label, and the sort
+// is stable, so each question's labels end up adjacent. Sorting by label instead
+// opens the page on every row of the control -- correct, but a wall of red
+// before the first real result.
+let sortKey = "task", sortDir = 1;
+
+// Deliberately unfiltered: this is the audit view, and the filters that drive
+// the charts sit below it on the page -- a control downstream of the thing it
+// governs would silently hide rows. Shared with the copy button so what lands
+// on the clipboard is what is on screen, in the order it is on screen.
+function detailRows() {
+  const rows = DATA.runs.map((r) => ({
+    ...r,
+    status: r.invalid ? r.invalid_reason : !r.graded ? "ungraded" : r.passed ? "pass" : "FAIL",
+  }));
+  rows.sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    if (x === y) return 0;
+    if (x === null || x === undefined) return 1;
+    if (y === null || y === undefined) return -1;
+    return (x > y ? 1 : -1) * sortDir;
+  });
+  return rows;
+}
+
+// Dropped rather than shown empty when the run was never exported: a column of
+// dashes reads as traces that failed to link, not as traces that do not exist.
+// Shared with the copy button so the clipboard has the columns the page has.
+function visibleCols() {
+  const linked = DATA.runs.some((r) => r.trace_url);
+  return COLS.filter(([k]) => k !== "trace_url" || linked);
+}
+
+function renderTable() {
+  const t = $("table");
+  const rows = detailRows();
+  const cols = visibleCols();
+  t.innerHTML =
+    "<thead><tr>" + cols.map(([k, l, txt]) =>
+      `<th class="${txt ? "txt" : ""}" data-k="${k}">${l}${sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr></thead><tbody>" +
+    rows.map((r) => "<tr>" + cols.map(([k, , txt, format]) => {
+      const v = r[k];
+      const cls = (txt ? "txt " : "") + (k === "status" && (v === "FAIL" || (r.invalid && v)) ? "fail" : "");
+      // The url is long and the same for every row but its id, so the cell
+      // carries the click and not the address. Checked rather than trusted:
+      // everything else here is a number or a name this page generated.
+      if (k === "trace_url") {
+        const safe = /^https?:\/\//.test(v || "") ? v : "";
+        const link = safe ? `<a href="${safe}" target="_blank" rel="noopener">open ↗</a>` : "–";
+        return `<td class="txt">${link}</td>`;
+      }
+      return `<td class="${cls.trim()}">${typeof v === "number" ? (format || fmt)(v) : v ?? "–"}</td>`;
+    }).join("") + "</tr>").join("") + "</tbody>";
+  t.querySelectorAll("th").forEach((th) => th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    sortDir = sortKey === k ? -sortDir : 1;
+    sortKey = k;
+    renderTable();
+  }));
+}
+
+// The display formats are for reading and paste as text: a spreadsheet cannot
+// sum "$0.230" or "9.1k", and "10s" sorts before "9s". These give the same
+// quantity as a bare number, in the unit the column header names.
+const TSV_VALUE = {
+  peak_context_tokens: (v) => String(Math.round(v)),
+  total_cost_usd: (v) => v.toFixed(3),
+  duration_api_ms: (v) => (v / 1000).toFixed(1),
+  tool_time_ms: (v) => (v / 1000).toFixed(1),
+};
+// Two headers carry their unit only in the formatting, which the copy drops.
+const TSV_HEADER = { duration_api_ms: "api time (s)", tool_time_ms: "tool time (s)" };
+
+function tableTSV() {
+  const cols = visibleCols();
+  const head = cols.map(([k, l]) => TSV_HEADER[k] || l).join("\t");
+  const body = detailRows().map((r) => cols.map(([k]) => {
+    const v = r[k];
+    if (v === null || v === undefined) return "";
+    if (typeof v === "number") return (TSV_VALUE[k] || String)(v);
+    // A tab or newline inside a value would split it across cells; route is the
+    // only field long enough to plausibly carry one.
+    return String(v).replace(/[\t\r\n]+/g, " ");
+  }).join("\t")).join("\n");
+  return head + "\n" + body;
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (err) { /* fall through */ }
+  // The async clipboard API needs a secure context, and a report opened from
+  // disk is not one, so this branch is the one that usually runs.
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (err) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+function wireCopy() {
+  const btn = $("copy-tsv");
+  if (!btn) return;
+  const idle = btn.textContent;
+  btn.addEventListener("click", async () => {
+    const n = DATA.runs.length;
+    const ok = await copyText(tableTSV());
+    // Says what landed, because a silent button is indistinguishable from a
+    // broken one and the clipboard cannot be read back to check.
+    btn.textContent = ok ? `Copied ${n} row${n === 1 ? "" : "s"}` : "Copy failed";
+    setTimeout(() => { btn.textContent = idle; }, 1800);
+  });
+}
+
+// ---- what this is / what happened ------------------------------------------
+function renderArmsExplained() {
+  const labels = uniq(DATA.runs.map((r) => r.label));
+  // Labels mean whatever the person running the benchmark said they mean, so the
+  // page reports the target and note rather than asserting a definition.
+  const meta = DATA.meta || {};
+  $("labels-explained").innerHTML = labels.map((a) => {
+    const detail = a === meta.label && (meta.target || meta.note)
+      ? [meta.target, meta.note].filter(Boolean).join(" — ")
+      : "a labelled run";
+    return `<p class="prose"><span class="swatch" style="background:${labelColor(a)}"></span>` +
+      `<strong>${a}</strong> — ${detail}</p>`;
+  }).join("");
+}
+
+// The plain-language conclusion. Everything here is computed, never asserted:
+// with one label or no control there is nothing to compare, and it says so rather
+// than implying a result that was not measured.
+
+// The prompts, verbatim, with what each label actually replied.
+function renderTasks() {
+  const byName = {};
+  for (const t of DATA.tasks || []) byName[t.name] = t;
+  const names = uniq(DATA.runs.map((r) => r.task));
+  $("tasks").innerHTML = names.map((name) => {
+    const t = byName[name] || {};
+    const cls = t.task_class || (DATA.runs.find((r) => r.task === name) || {}).task_class;
+    const want = t.expect ? Object.values(t.expect)[0] : null;
+    const answers = DATA.runs.filter((r) => r.task === name).map((r) => {
+      const mark = r.invalid ? `<span class="no">not run</span>`
+        : r.passed === true ? `<span class="ok">correct</span>`
+        : r.passed === false ? `<span class="no">wrong</span>` : "ungraded";
+      const said = (r.answer || "").replace(/\s+/g, " ").slice(0, 90);
+      return `<span><span class="swatch" style="background:${labelColor(r.label)}"></span>` +
+             `${r.label}: ${mark}${said ? ` — “${said}”` : ""}</span>`;
+    });
+    return `<div class="task"><div class="task-head">` +
+      `<span class="task-name">${name}</span>` +
+      `<span class="chip">${clsLabel(cls)}</span>` +
+      (t.structured ? `<span class="chip">structured answer</span>` : "") +
+      `</div>` +
+      (t.prompt ? `<div class="prompt">${t.prompt}</div>` : "") +
+      (want ? `<p class="card-note" style="margin:4px 0 8px">Expected: <b>${
+        typeof want === "object" ? JSON.stringify(want) : want}</b></p>` : "") +
+      `<div class="answers">${answers.join("")}</div></div>`;
+  }).join("");
+}
+
+// ---- warnings --------------------------------------------------------------
+
+// ---- render ----------------------------------------------------------------
+function render() { renderTasks(); renderTable(); }
+
+
+function init() {
+  const m = DATA.meta;
+  $("meta").textContent =
+    `${m.run_id} · ${m.model} · ${DATA.runs.length} runs · ${m.created_at}` + (m.phoenix_git_sha ? ` · phoenix ${m.phoenix_git_sha.slice(0, 8)}` : "");
+  document.title = `MCP Benchmark · ${m.run_id}`;
+
+
+  renderArmsExplained();
+  render();
+  // After render: the button is static markup, but the handler reads the sort
+  // state the table owns.
+  wireCopy();
+}
+
+// ---- serve mode ------------------------------------------------------------
+// Progressive enhancement: the same file is a read-only report when opened from
+// disk, and grows run controls only when a local server answers behind it.
+// Live updates: only possible when served. A file:// page has nothing to poll,
+// so it stays the snapshot it was written as.
+let pollTimer = null;
+
+
+init();
+</script>

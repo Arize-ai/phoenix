@@ -1,0 +1,20 @@
+# 10% of 117 traces is 11.7, and rounding either way is defensible: the top 11
+# carry 43.1% of the bill, the top 12 carry 45.3%. Both are accepted, because the
+# question does not say which way to round and neither reading is wrong.
+name: spend-concentration
+task_class: multi-call
+prompt: >-
+  What share of the total trail-gaia bill comes from the most expensive 10% of
+  traces?
+expect:
+  regex: '4[3456](\.\d+)?\s*%|0\.4[3456]'
+
+# Checked before a run is spent; a matcher that fails these never reaches a matrix.
+accept:
+- the top 10% of traces account for 45.3% of spend
+- the most expensive 10% accounts for 43.05% of the total bill
+- about 44% of the $16 total
+reject:
+- Roughly 10% of the cost.
+- The top decile is 4% of spend.
+- approximately 50.73% of the total
