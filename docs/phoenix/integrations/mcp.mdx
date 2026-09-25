@@ -1,30 +1,19 @@
 ---
-title: "MCP Servers"
-description: Connect Claude Code, Cursor, VS Code, or any MCP client to your live Phoenix data and to these docs.
+title: "MCP Server"
+description: Connect Claude Code, Cursor, VS Code, or any MCP client to your live Phoenix data.
 ---
 
-Phoenix has two [MCP](https://modelcontextprotocol.io/) servers. Run one or both.
+The Remote [MCP](https://modelcontextprotocol.io/) Server (beta) is built into Phoenix at `/mcp`, so any MCP client can read and act on your Phoenix data with nothing to install. Agents with a shell can reach the same data through the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli); see [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server).
 
-| Server | What it does |
-| --- | --- |
-| [Remote MCP Server](#remote-mcp-server) (beta) | Operates on your Phoenix data. Built into Phoenix at `/mcp`; nothing to install. |
-| [Phoenix Docs MCP](#phoenix-docs-mcp) | Answers questions from these docs. A hosted URL you point your client at. |
-
-Agents with a shell can reach the same data through the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli); see [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server).
-
-## Phoenix Docs MCP
-
-Lets your agent search these docs. No authentication, and neither plugin includes it. Register it as `phoenix-docs`, same config shape as below, with this URL:
-
-```text
-https://arizeai-433a7140.mintlify.app/mcp
-```
+<Note>
+**Want your agent to search these docs too?** Add the hosted Phoenix Docs MCP, no authentication needed. It is a separate server, and neither plugin includes it:
 
 ```bash
 claude mcp add --transport http phoenix-docs https://arizeai-433a7140.mintlify.app/mcp
 ```
 
-Opening the URL in a browser shows a JSON tool manifest. That is the server working; it is not a page.
+For other clients, use the same config shape as below with the URL `https://arizeai-433a7140.mintlify.app/mcp`. Opening that URL in a browser shows a JSON tool manifest, which means it is working; it is not a page.
+</Note>
 
 ## Remote MCP Server
 
