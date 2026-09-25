@@ -2,13 +2,13 @@
 title: "Evaluate Your Agent"
 ---
 
-Evaluations in Phoenix run offline: an evaluator scores the output of an experiment. Continuous scoring of live production traffic (online evals) is in development.
+Evaluations in Phoenix run offline: an evaluator scores every run of an experiment. Online evals, scoring live traffic, are in development.
 
-Everything below runs on a dataset you paste in, so you can follow it on a fresh Phoenix with nothing instrumented yet.
+Everything below works on a fresh Phoenix with nothing instrumented yet.
 
 ## Hand it to a coding agent
 
-Install the Phoenix skills, then paste the prompt below.
+Install the Phoenix skills, then paste this prompt.
 
 ```bash
 npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-evals
@@ -26,13 +26,13 @@ with a travel support prompt, and tell me which examples scored lowest and why.
 
 ## Or ask PXI
 
-[PXI](/docs/phoenix/pxi), the agent built into Phoenix, can run the whole flow, inventing the dataset instead of downloading it. Open it from any page, set it to Bypass Approval, and paste:
+[PXI](/docs/phoenix/pxi), the agent built into Phoenix, runs the whole flow and invents the dataset. Open it from any page, set it to Bypass Approval, and paste:
 
 ```text
 Create a dataset called airline-support with 3 examples: customer questions about a fictional airline's Basic fare, with input {"question": ...} and output {"expected_answer": ...}. Invent a refund, change, and baggage policy that differs from industry norms. Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
 ```
 
-When it reports the scores, reply *Add the policy to the prompt and rerun* to see the improvement.
+When it reports the scores, reply *Add the policy to the prompt and rerun*.
 
 ## Do it yourself
 
@@ -40,15 +40,14 @@ When it reports the scores, reply *Add the policy to the prompt and rerun* to se
   <Step title={<span className="step-title">Start with a handful of examples</span>}>
     A dataset is a fixed set of examples you test every change against.
 
-    1. Download [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv). Three questions about a fictional airline's Basic fare, with the answer each one should get.
-    2. Go to **Datasets** and click **New Dataset**.
-    3. Drop the file on the upload area. Phoenix accepts `.csv` and `.jsonl`.
-    4. Map `question` to **input** and `expected_answer` to **output**, then create the dataset.
+    1. Download [travel-support.csv](https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv): three questions about a fictional airline's Basic fare, with the answer each should get.
+    2. Go to **Datasets**, click **New Dataset**, and drop the file on the upload area.
+    3. Map `question` to **input** and `expected_answer` to **output**, then create the dataset.
 
-    The answers are specific to this airline and deliberately differ from industry norms, so a model cannot guess them. That is the point: the prompt has to supply the policy.
+    The answers deliberately differ from industry norms, so a model cannot guess them. The prompt has to supply the policy.
 
     <Note>
-      Already have traces? Build the dataset from real failures instead. Filter the spans table with an expression such as `status_code == 'ERROR'` or `latency_ms > 1000`, or ask [PXI](/docs/phoenix/pxi) to identify traces with issues, then select those spans and click **Add to Dataset**.
+      Already have traces? Filter the spans table with an expression such as `status_code == 'ERROR'`, or ask [PXI](/docs/phoenix/pxi) to find problem traces, then select the spans and click **Add to Dataset**.
     </Note>
 
     <Frame caption="Selected spans ready to add to a dataset">
@@ -60,7 +59,7 @@ When it reports the scores, reply *Add the policy to the prompt and rerun* to se
   </Step>
 
   <Step title={<span className="step-title">Decide what good looks like</span>}>
-    An evaluator turns an experiment into a measurement. Attach one to the dataset and Phoenix runs it on every experiment you launch from the Playground.
+    An evaluator attached to the dataset scores every experiment you run on it.
 
     1. Open the dataset, click the **Evaluators** tab, then **Add evaluator** and **Create new LLM evaluator**. Name it `correctness`.
     2. Replace the system message with this rubric. Leave the user message alone: it hands the judge the expected answer as `{{reference}}` and the reply as `{{output}}`.
@@ -72,11 +71,11 @@ When it reports the scores, reply *Add the policy to the prompt and rerun* to se
     3. Under **Map Prompt Variables**, set `reference` to `$.reference.expected_answer`.
     4. Click **Test** on one example, then **Create**.
 
-    The ready-made templates under **Use LLM evaluator template** judge from the question and reply alone, with no expected answer, so this guide writes its own. See [Server Evals](/docs/phoenix/evaluation/server-evals/overview) for templates and code evaluators.
+    The ready-made templates under **Use LLM evaluator template** never see the expected answer, which is why this guide writes its own. See [Server Evals](/docs/phoenix/evaluation/server-evals/overview) for templates and code evaluators.
   </Step>
 
   <Step title={<span className="step-title">Get a baseline score</span>}>
-    Running a prompt across a dataset creates an experiment. Phoenix uses `input` as the default variable path, so the `question` column becomes `{{question}}`.
+    Running a prompt over a dataset creates an experiment. The `question` column is available as `{{question}}`.
 
     1. Go to the **Prompt Playground**.
     2. Paste this as the user prompt:
@@ -90,7 +89,7 @@ When it reports the scores, reply *Add the policy to the prompt and rerun* to se
     3. Click **Test over a dataset** and choose `travel-support`.
     4. Click **Run**.
 
-    That first run is your baseline. Every later edit is scored on the same dataset with the same evaluator, so the comparison isolates your change.
+    That first run is your baseline. Every later edit is scored the same way, so the comparison isolates your change.
 
     <Frame caption="Prompt variables matched to a selected dataset">
       <img
@@ -101,7 +100,7 @@ When it reports the scores, reply *Add the policy to the prompt and rerun* to se
   </Step>
 
   <Step title={<span className="step-title">Prove the change helped</span>}>
-    The baseline prompt has no way to know this airline's policy, so it answers from industry norms and gets all three wrong. Give it the policy.
+    The baseline prompt cannot know this airline's policy, so it gets all three wrong. Give it the policy.
 
     1. Replace the user prompt with this version:
 
@@ -117,8 +116,7 @@ When it reports the scores, reply *Add the policy to the prompt and rerun* to se
        ```
 
     2. Run it over the same dataset.
-    3. Open the dataset's **Experiments** tab.
-    4. Compare the baseline and the edited run side by side.
+    3. Open the dataset's **Experiments** tab and compare the two runs side by side.
 
     <Frame caption="Side-by-side experiment comparison">
       <img
@@ -127,18 +125,14 @@ When it reports the scores, reply *Add the policy to the prompt and rerun* to se
       />
     </Frame>
 
-    A higher score on the same dataset and evaluator means the edit helped. If one example still scores 0, open that run and read the judge's explanation. That is your next edit.
+    A higher score means the edit helped. If an example still scores 0, read the judge's explanation on that run. That is your next edit.
   </Step>
 </Steps>
 
 ## Prefer to do this in code?
 
-[Evaluate a Prompt Change in Code](/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change) runs the same flow with the Python and TypeScript SDKs. For the wider reference, see [Run Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments).
+[Evaluate a Prompt Change in Code](/docs/phoenix/datasets-and-experiments/how-to-experiments/evaluate-a-prompt-change) runs the same flow with the Python and TypeScript SDKs.
 
 ## Learn more
 
-[Datasets and Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) covers building datasets, comparing variants, and tracking quality over time.
-
-For evaluators, [Server Evals](/docs/phoenix/evaluation/server-evals/overview) covers UI-managed evaluators, and the [Evaluation](/docs/phoenix/evaluation/evals) section covers writing your own.
-
-[PXI](/docs/phoenix/pxi) can do this flow for you: curating a dataset, running the experiment, and reading the results.
+[Datasets and Experiments](/docs/phoenix/datasets-and-experiments/overview-datasets) covers building datasets, comparing variants, and tracking quality over time. [Server Evals](/docs/phoenix/evaluation/server-evals/overview) covers UI-managed evaluators; [Evaluation](/docs/phoenix/evaluation/evals) covers writing your own.
