@@ -5571,8 +5571,8 @@
         "tags": [
           "spans"
         ],
-        "summary": "List spans with simple filters (no DSL)",
-        "description": "Return spans within a project filtered by time range. Supports cursor-based pagination.",
+        "summary": "List spans",
+        "description": "Return spans within a project filtered by time range and filters. Supports cursor-based pagination.",
         "operationId": "getSpans",
         "parameters": [
           {
@@ -5831,6 +5831,24 @@
               "title": "Attribute"
             },
             "description": "Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:\"12345\"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value)."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Span filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND.",
+              "title": "Filter"
+            },
+            "description": "Span filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND."
           }
         ],
         "responses": {
@@ -5853,6 +5871,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
