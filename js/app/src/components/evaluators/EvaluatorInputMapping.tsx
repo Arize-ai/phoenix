@@ -70,13 +70,18 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
  * @param filterInitialMapping - Narrows what the form starts from. The form
  *   reads the store once, so anything it should not carry forward has to be
  *   dropped here rather than after mount.
+ * @param pathsReplaceLiterals - Drops a variable's literal while it has a
+ *   path, for forms that cannot show literals: the server applies a literal
+ *   over a path. Clearing the path restores the literal.
  */
 export const useEvaluatorInputMappingControlsForm = ({
   pruneEmptyEntries = false,
   filterInitialMapping,
   declaredVariables,
+  pathsReplaceLiterals = false,
 }: {
   pruneEmptyEntries?: boolean;
+  pathsReplaceLiterals?: boolean;
   filterInitialMapping?: (
     inputMapping: EvaluatorInputMappingValue
   ) => EvaluatorInputMappingValue;
@@ -144,10 +149,18 @@ export const useEvaluatorInputMappingControlsForm = ({
             )
           : { ...pruned };
       };
-      setPathMapping(write(pathMapping ?? {}));
-      setLiteralMapping(write(literalMapping ?? {}));
+      const paths = write(pathMapping ?? {});
+      const literals = write(literalMapping ?? {});
+      setPathMapping(paths);
+      setLiteralMapping(
+        pathsReplaceLiterals
+          ? Object.fromEntries(
+              Object.entries(literals).filter(([key]) => !paths[key])
+            )
+          : literals
+      );
     },
-    [store, pruneEmptyEntries, declaredNames]
+    [store, pruneEmptyEntries, declaredNames, pathsReplaceLiterals]
   );
   const subscribe = form.subscribe;
   useEffect(() => {

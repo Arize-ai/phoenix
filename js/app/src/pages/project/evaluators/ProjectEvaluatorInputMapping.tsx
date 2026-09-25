@@ -36,6 +36,7 @@ export const ProjectEvaluatorInputMapping = ({
     filterInitialMapping: (inputMapping) =>
       dropOtherGrainEntityPathMappings(inputMapping, grain),
     declaredVariables: variables,
+    pathsReplaceLiterals: true,
   });
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
