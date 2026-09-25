@@ -918,7 +918,8 @@
               "docs/phoenix/integrations/sandboxes/e2b",
               "docs/phoenix/integrations/sandboxes/daytona",
               "docs/phoenix/integrations/sandboxes/vercel",
-              "docs/phoenix/integrations/sandboxes/modal"
+              "docs/phoenix/integrations/sandboxes/modal",
+              "docs/phoenix/integrations/sandboxes/docker"
             ]
           },
           {

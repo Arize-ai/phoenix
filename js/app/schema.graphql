@@ -1645,6 +1645,13 @@ type DismissExperimentPayload {
   experiment: Experiment!
 }
 
+input DockerConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
 type DocumentAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -4074,6 +4081,7 @@ enum SandboxBackendType {
   DENO
   MODAL
   MONTY
+  DOCKER
 }
 
 type SandboxConfig implements Node {
@@ -4122,6 +4130,7 @@ input SandboxConfigVariantInput @oneOf {
   wasm: WASMConfigInput
   modal: ModalConfigInput
   monty: MontyConfigInput
+  docker: DockerConfigInput
 }
 
 """
