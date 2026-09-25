@@ -611,16 +611,6 @@ class SpansResponseBody(PaginatedResponseBody[Span]):
 
 
 # TODO: Add property details to SpanQuery schema
-_QUERY_SPANS_DEPRECATION_HEADERS = {
-    "Deprecation": "true",
-    "Link": (
-        "<https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/"
-        'list-spans-with-simple-filters-no-dsl>; rel="deprecation"'
-    ),
-}
-"""Headers announcing that ``POST /v1/spans`` is deprecated in favor of the span list endpoint."""
-
-
 @router.post(
     "/spans",
     operation_id="querySpans",
@@ -687,7 +677,6 @@ async def query_spans_handler(
         return StreamingResponse(
             content=_json_multipart(results, boundary_token),
             media_type=f"multipart/mixed; boundary={boundary_token}",
-            headers=_QUERY_SPANS_DEPRECATION_HEADERS,
         )
 
     async def content() -> AsyncIterator[bytes]:
@@ -697,7 +686,6 @@ async def query_spans_handler(
     return StreamingResponse(
         content=content(),
         media_type="application/x-pandas-arrow",
-        headers=_QUERY_SPANS_DEPRECATION_HEADERS,
     )
 
 
