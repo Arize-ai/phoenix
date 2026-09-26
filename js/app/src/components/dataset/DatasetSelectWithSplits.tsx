@@ -1,13 +1,18 @@
 import { css } from "@emotion/react";
 import type { ComponentProps } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Autocomplete,
   Input,
   SubmenuTrigger,
   useFilter,
 } from "react-aria-components";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import {
+  fetchQuery,
+  graphql,
+  useLazyLoadQuery,
+  useRelayEnvironment,
+} from "react-relay";
 
 import {
   Button,
@@ -82,6 +87,31 @@ type DatasetItem = {
 
 const REFRESH_ON = ["datasets", "datasetLabels", "datasetSplits"] as const;
 
+const datasetSelectWithSplitsQuery = graphql`
+  query DatasetSelectWithSplitsQuery {
+    datasets(after: null, first: 100)
+      @connection(key: "DatasetPickerWithSplits__datasets") {
+      edges {
+        dataset: node {
+          id
+          name
+          exampleCount
+          splits {
+            id
+            name
+            color
+          }
+          labels {
+            id
+            name
+            color
+          }
+        }
+      }
+    }
+  }
+`;
+
 export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
   const fetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const [internalOpen, setInternalOpen] = useState(props.isOpen ?? false);
@@ -98,31 +128,9 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
     [_onOpenChange]
   );
   const { datasetId, splitIds = [] } = props.value || {};
+  const environment = useRelayEnvironment();
   const data = useLazyLoadQuery<DatasetSelectWithSplitsQuery>(
-    graphql`
-      query DatasetSelectWithSplitsQuery {
-        datasets(after: null, first: 100)
-          @connection(key: "DatasetPickerWithSplits__datasets") {
-          edges {
-            dataset: node {
-              id
-              name
-              exampleCount
-              splits {
-                id
-                name
-                color
-              }
-              labels {
-                id
-                name
-                color
-              }
-            }
-          }
-        }
-      }
-    `,
+    datasetSelectWithSplitsQuery,
     {},
     { fetchKey, fetchPolicy: "store-and-network" }
   );
@@ -157,6 +165,30 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
     }
     return undefined;
   }, [datasetItems, datasetId]);
+
+  // The list is only fetched on mount, so a dataset selected from outside
+  // this component (for example by the agent's playground.dataset.load
+  // operation) may not be in it yet, which leaves the picker blank. Refetch
+  // the list once per missing dataset id so the selection shows up without a
+  // remount; the store update re-renders this component.
+  const isSelectedDatasetMissing = datasetId != null && !selectedDataset;
+  const refetchedForDatasetIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !isSelectedDatasetMissing ||
+      datasetId == null ||
+      refetchedForDatasetIdRef.current === datasetId
+    ) {
+      return;
+    }
+    refetchedForDatasetIdRef.current = datasetId;
+    fetchQuery<DatasetSelectWithSplitsQuery>(
+      environment,
+      datasetSelectWithSplitsQuery,
+      {},
+      { fetchPolicy: "network-only" }
+    ).subscribe({});
+  }, [environment, isSelectedDatasetMissing, datasetId]);
 
   const selectedSplits = useMemo(() => {
     if (selectedDataset && splitIds.length > 0) {
