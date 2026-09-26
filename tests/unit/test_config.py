@@ -17,6 +17,7 @@ from phoenix.config import (
     get_env_auth_settings,
     get_env_database_schema,
     get_env_phoenix_admin_secret,
+    get_env_playground_timeout_seconds,
     get_env_postgres_azure_scope,
     get_env_postgres_connection_str,
     get_env_postgres_use_azure_managed_identity,
@@ -2663,3 +2664,32 @@ class TestClientAssertionJWTFromEnv:
         )
         config = OAuth2ClientConfig.from_env("google")
         assert config.client_assertion_file is None
+
+
+class TestGetEnvPlaygroundTimeoutSeconds:
+    """Tests for the playground task timeout environment variable."""
+
+    def test_default_when_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that the timeout defaults to 90 seconds when the variable is not set."""
+        monkeypatch.delenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", raising=False)
+        assert get_env_playground_timeout_seconds() == 90
+
+    def test_custom_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that a custom timeout value is honored."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", "300")
+        assert get_env_playground_timeout_seconds() == 300
+
+    @pytest.mark.parametrize("value", ["0", "-5"])
+    def test_non_positive_values_raise(
+        self, monkeypatch: pytest.MonkeyPatch, value: str
+    ) -> None:
+        """Test that zero and negative values are rejected."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
+        with pytest.raises(ValueError, match="must be positive"):
+            get_env_playground_timeout_seconds()
+
+    def test_non_numeric_value_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that a non-numeric value is rejected."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", "not-a-number")
+        with pytest.raises(ValueError):
+            get_env_playground_timeout_seconds()
