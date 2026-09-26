@@ -9,8 +9,10 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 import pytest
 
+from phoenix.auth import PHOENIX_REFRESH_TOKEN_COOKIE_NAME
 from phoenix.db.facilitator import PHOENIX_CLI_OAUTH2_CLIENT_ID
 from phoenix.server.api.exceptions import Unauthorized
+from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from tests.integration._helpers import _ADMIN, _MEMBER, _AppInfo, _GetUser, _httpx_client
 
 from .conftest import _SHORT_GRANT_EXPIRY_SECONDS, _active_grants, _OAuthPublicClient
@@ -343,6 +345,45 @@ class TestAuthorizationCodeFlow:
 
 
 class TestTokenLifecycle:
+    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
+    def test_delegated_tokens_cannot_become_user_management_sessions(
+        self,
+        role: UserRoleInput,
+        _app: _AppInfo,
+        _get_user: _GetUser,
+        _oauth_public_client: _OAuthPublicClient,
+    ) -> None:
+        user = _get_user(_app, role).log_in(_app)
+        tokens = _oauth_public_client.complete_flow(user)
+        path = f"v1/users/{user.gid}"
+        body = {"username": token_hex(12)}
+        delegated = _httpx_client(
+            _app, headers={"Authorization": f"Bearer {tokens['access_token']}"}
+        )
+        assert delegated.patch(path, json=body).status_code == 403
+
+        web_refresh = _httpx_client(
+            _app, cookies={PHOENIX_REFRESH_TOKEN_COOKIE_NAME: tokens["refresh_token"]}
+        ).post("auth/refresh")
+        assert web_refresh.status_code == 401
+        assert not web_refresh.headers.get_list("set-cookie")
+
+        # Rejection must not consume the OAuth refresh token. Its own endpoint keeps
+        # the client/grant binding on the replacement credential.
+        rotated = _httpx_client(_app).post(
+            "oauth2/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": tokens["refresh_token"],
+                "client_id": _oauth_public_client.client_id,
+            },
+        )
+        assert rotated.status_code == 200, rotated.text
+        replacement = _httpx_client(
+            _app, headers={"Authorization": f"Bearer {rotated.json()['access_token']}"}
+        )
+        assert replacement.patch(path, json=body).status_code == 403
+
     def test_token_lifetimes_are_clamped_to_the_grant_ceiling(
         self,
         _app_short_grant: _AppInfo,

@@ -8258,6 +8258,119 @@
       }
     },
     "/v1/users/{user_id}": {
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update a user by ID",
+        "description": "Partially update a user by GlobalID. Requires authentication and an admin login session or the configured admin secret; API keys and delegated OAuth2 tokens are forbidden. Only admins may use this endpoint, including for updates to their own account. Changing your own password requires current_password. Passwords can be changed only for local users while basic authentication is enabled. Users cannot change their own role or the default admin's role, and system users cannot be modified. Password and role changes revoke existing sessions, API keys, and password-reset tokens. An admin password reset marks the password as needing reset. Omit unchanged fields; null values and unknown fields are rejected.",
+        "operationId": "patchUser",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
+              "title": "User Id"
+            },
+            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchUserRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated user. Passwords are never returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The caller cannot perform this update."
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Basic authentication is disabled."
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "User not found."
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Username conflict or non-local password update."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "507": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Insufficient Storage"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "users"
@@ -14586,6 +14699,37 @@
         ],
         "title": "GetTracesResponseBody"
       },
+      "GetUserResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUser"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2User"
+              },
+              {
+                "$ref": "#/components/schemas/LDAPUser"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LDAP": "#/components/schemas/LDAPUser",
+                "LOCAL": "#/components/schemas/LocalUser",
+                "OAUTH2": "#/components/schemas/OAuth2User"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetUserResponseBody"
+      },
       "GetUsersResponseBody": {
         "properties": {
           "data": {
@@ -16389,6 +16533,43 @@
           "data"
         ],
         "title": "PatchPromptResponseBody"
+      },
+      "PatchUserRequestBody": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username",
+            "description": "The user's new display name."
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password",
+            "description": "The new local password.",
+            "writeOnly": true
+          },
+          "current_password": {
+            "type": "string",
+            "format": "password",
+            "title": "Current Password",
+            "description": "Required when changing your own password.",
+            "writeOnly": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER",
+              "VIEWER"
+            ],
+            "title": "Role",
+            "description": "The new role. Only admins may change another user's role."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PatchUserRequestBody",
+        "description": "Omit fields to leave them unchanged. Null values are not accepted."
       },
       "PhoenixAssistantMessageMetadata": {
         "properties": {
