@@ -13,6 +13,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationInputExplanation } from "@phoenix/components/annotation/AnnotationInputExplanation";
 import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
+import { sortCategoricalAnnotationValues } from "@phoenix/components/annotation/optimizationUtils";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import type { SelectProps } from "@phoenix/components/core/select";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
@@ -33,6 +34,11 @@ export function CategoricalAnnotationInput({
   onSubmitExplanation,
   ...props
 }: CategoricalAnnotationInputProps & { ref?: Ref<HTMLButtonElement> }) {
+  const values = sortCategoricalAnnotationValues({
+    values: annotationConfig.values,
+    optimizationDirection: annotationConfig.optimizationDirection,
+  });
+
   return (
     <Flex gap="size-50" alignItems="center" position="relative">
       <Select
@@ -53,7 +59,7 @@ export function CategoricalAnnotationInput({
         <Text slot="description">{annotationConfig.description}</Text>
         <Popover>
           <ListBox style={{ minHeight: "auto" }}>
-            {annotationConfig.values?.map((option) => (
+            {values?.map((option) => (
               <SelectItem key={option.label} id={option.label}>
                 {option.label}
               </SelectItem>
