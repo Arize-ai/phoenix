@@ -852,6 +852,10 @@ ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DA
 """
 The default retention policy for traces in days.
 """
+ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS = "PHOENIX_PLAYGROUND_TIMEOUT_SECONDS"
+"""
+The timeout in seconds for individual playground task runs.
+"""
 
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
@@ -1040,6 +1044,20 @@ def get_env_default_retention_policy_days() -> int:
     if days < 0:
         raise ValueError("PHOENIX_DEFAULT_RETENTION_POLICY_DAYS must be non-negative")
     return days
+
+
+def get_env_playground_timeout_seconds() -> int:
+    """
+    Returns the playground task timeout in seconds as set by the
+    PHOENIX_PLAYGROUND_TIMEOUT_SECONDS environment variable, defaulting to 90 if not set.
+
+    Returns:
+        int: Playground task timeout in seconds. Defaults to 90 if the environment variable is not set.
+    """  # noqa: E501
+    seconds = _int_val(ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS, 90)
+    if seconds <= 0:
+        raise ValueError("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS must be positive")
+    return seconds
 
 
 def get_env_tls_config() -> Optional[TLSConfig]:
