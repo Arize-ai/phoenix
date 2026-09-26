@@ -34,6 +34,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+typesafe = [
+  "typesafe-sdk>=0.7.1,<0.8",
+]
 dev = [
   "anthropic>=1,<2",
   "boto3",
@@ -43,6 +46,9 @@ dev = [
   # "mistralai>=1.0.0",
 ]
 test = [
+  "typesafe-sdk>=0.7.1,<0.8",
+  "openinference-instrumentation-typesafe>=0.1.1",
+  "opentelemetry-sdk",
   "openinference-semantic-conventions",
   "pandas",
   "tqdm",

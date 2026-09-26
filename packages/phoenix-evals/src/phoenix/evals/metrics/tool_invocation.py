@@ -8,6 +8,7 @@ from ..__generated__.classification_evaluator_configs import (
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
+from ..models import EvaluationModel
 
 
 class ToolInvocationEvaluator(ClassificationEvaluator):
@@ -16,7 +17,7 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
     arguments, formatting, and safe content.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm: An LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -27,7 +28,8 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
           safety), not the correctness of the tool selection itself.
         - Returns one `Score` with `label` (correct or incorrect), `score` (1.0 if correct,
           0.0 if incorrect), and an `explanation` from the LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+        - LLM judges require tool calling or structured output. Decision models return
+          probabilities in metadata and no explanation.
 
     Criteria for Correct Invocation:
         - JSON is properly structured (if applicable).
@@ -118,7 +120,7 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: LLM,
+        llm: LLM | EvaluationModel,
         **kwargs: Any,
     ):
         super().__init__(

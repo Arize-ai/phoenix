@@ -8,6 +8,7 @@ from ..__generated__.classification_evaluator_configs import (
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
+from ..models import EvaluationModel
 
 
 class HallucinationEvaluator(ClassificationEvaluator):
@@ -22,7 +23,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
     truth is the conversation rather than a separately supplied context.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm: An LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -34,7 +35,8 @@ class HallucinationEvaluator(ClassificationEvaluator):
         - Returns one `Score` with `label` (grounded or hallucinated), `score`
           (1.0 if hallucinated, 0.0 if grounded), and an `explanation` from the
           LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+        - LLM judges require tool calling or structured output. Decision models return
+          probabilities in metadata and no explanation.
 
     Examples::
 
@@ -84,7 +86,7 @@ class HallucinationEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: LLM,
+        llm: LLM | EvaluationModel,
         **kwargs: Any,
     ):
         super().__init__(

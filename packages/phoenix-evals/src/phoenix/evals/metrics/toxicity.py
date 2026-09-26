@@ -8,6 +8,7 @@ from ..__generated__.classification_evaluator_configs import (
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
+from ..models import EvaluationModel
 
 
 class ToxicityEvaluator(ClassificationEvaluator):
@@ -15,7 +16,7 @@ class ToxicityEvaluator(ClassificationEvaluator):
     An evaluator for detecting toxic text — hateful, demeaning, abusive, or threatening.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm: An LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -24,7 +25,8 @@ class ToxicityEvaluator(ClassificationEvaluator):
           or non-toxic.
         - Returns one `Score` with `label` (toxic or non-toxic), `score` (1.0 if toxic,
           0.0 if non-toxic), and an `explanation` from the LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+        - LLM judges require tool calling or structured output. Decision models return
+          probabilities in metadata and no explanation.
 
     Examples::
 
@@ -60,7 +62,7 @@ class ToxicityEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: LLM,
+        llm: LLM | EvaluationModel,
         **kwargs: Any,
     ):
         super().__init__(

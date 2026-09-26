@@ -9,6 +9,7 @@ from ..__generated__.classification_evaluator_configs import (
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
+from ..models import EvaluationModel
 
 
 class DocumentRelevanceEvaluator(ClassificationEvaluator):
@@ -24,7 +25,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         in the next major release.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm: An LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -34,7 +35,8 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         - Returns one `Score` with `label` (relevant or unrelated), `score` (1.0
           if relevant, 0.0 if unrelated), and an `explanation` from the LLM
           judge.
-        - Requires an LLM that supports tool calling or structured output.
+        - LLM judges require tool calling or structured output. Decision models return
+          probabilities in metadata and no explanation.
 
     Migration example::
 
@@ -65,7 +67,7 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: LLM,
+        llm: LLM | EvaluationModel,
         **kwargs: Any,
     ):
         warnings.warn(
