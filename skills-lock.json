@@ -5,7 +5,7 @@
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/create-task/SKILL.md",
-      "computedHash": "0a966eaae08dbe0bdd1769637dba56e61b8ca819c11af75a372a3758510a491e"
+      "computedHash": "f46fafbe5257ed7a24047a15ec375454d2710cb261b9257f71ecf60785d3ce12"
     },
     "daytona": {
       "source": "daytona/skills",
