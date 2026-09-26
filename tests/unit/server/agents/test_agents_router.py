@@ -67,6 +67,7 @@ from phoenix.db.types.data_stream_protocol import (
     UIMessage,
 )
 from phoenix.db.types.data_stream_protocol.ui_state_types import ProjectUIContext
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.model_selection import BuiltInProviderModelSelection
@@ -3574,6 +3575,49 @@ async def test_headless_chat_in_bypass_mode_runs_a_mutation_without_approval(
         for chunk in _stream_chunks(response.text)
         if chunk.get("type") == "tool-approval-request"
     ]
+
+
+# A mutation that records the acting user. Without authentication there is no user
+# to record, and the mutation must still succeed.
+_CREATE_PROMPT_MUTATION = (
+    'phoenix-gql \'mutation { createChatPrompt(input: {name: "anonymous-prompt", '
+    "promptVersion: {templateFormat: MUSTACHE, template: {messages: [{role: USER, "
+    'content: [{text: {text: "hi"}}]}]}, invocationParameters: {openai: {}}, '
+    'modelProvider: OPENAI, modelName: "gpt-4o"}}) { id } }\''
+)
+
+
+async def test_headless_chat_mutation_records_no_user_when_auth_is_disabled(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The internal GraphQL request carries no user when nobody is logged in, the same
+    as an unauthenticated HTTP request, so mutations that record the acting user
+    record none instead of failing."""
+    session_id = "60606060-6060-4060-8060-606060606060"
+    agent_session_id = await _create_agent_session_row(db)
+    _mock_turn_models(monkeypatch, _scripted_model(bash_command=_CREATE_PROMPT_MUTATION))
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_headless_chat_body(
+            session_id,
+            _user_message("save it"),
+            editPermission="bypass",
+        ),
+    )
+
+    assert response.status_code == 200
+    assert _bash_stderr(response.text) == ""
+    async with db() as session:
+        version = await session.scalar(
+            select(models.PromptVersion)
+            .join(models.Prompt)
+            .where(models.Prompt.name == Identifier("anonymous-prompt"))
+        )
+    assert version is not None
+    assert version.user_id is None
 
 
 async def test_headless_chat_is_forbidden_when_bash_is_disabled(
