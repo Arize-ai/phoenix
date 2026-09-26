@@ -39,7 +39,7 @@ NC := \033[0m # No Color
 	build build-python build-frontend build-ts \
 	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
 	gh-comment-watch \
-	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
+	harbor-prepare harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
 
 help: ## Show this help message
@@ -109,7 +109,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
+	@echo -e "  $(YELLOW)harbor-prepare$(NC)             - Build the Phoenix wheel, produce each fixture, prepare each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -222,7 +222,7 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 		--wrap-string-literal \
 		--formatters black isort \
 		--disable-timestamp
-	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1 $(CURDIR)/schemas/openapi.json
 	@$(UV) run ruff format $(PHOENIX_CLIENT_GENERATED)/v1
 	@$(UV) run ruff check --fix $(PHOENIX_CLIENT_GENERATED)/v1
 	@echo -e "$(GREEN)✓ Done$(NC)"
@@ -503,7 +503,7 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # configured agents.
 HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
 HARBOR_ARGS ?=
-# harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
+# harbor-prepare downloads the error-analysis fixture, creates the TRAIL fixture when
 # HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
 HARBOR_CLI ?= 1
 # The arize-phoenix plugin records tasks, trials, scores, and traces. Jobs that define
@@ -524,13 +524,14 @@ HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VER
 	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
 
 # Require the px archive only when HARBOR_ARGS does not replace the configured agents.
-define check-harbor-staged
+define check-harbor-prepared
 	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
 endef
 
-harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
-	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
-	./evals/harbor/scripts/stage_harbor_environments.sh
+harbor-prepare: ## Build the Phoenix wheel, produce each fixture, prepare each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
+	@echo -e "$(CYAN)Preparing Harbor tasks...$(NC)"
+	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+		./evals/harbor/scripts/prepare_harbor_environments.sh
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
 	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
@@ -541,7 +542,7 @@ harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 		uv run python tests/integration/harbor/run_plugin_e2e.py
 
 harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)
-	$(check-harbor-staged)
+	$(check-harbor-prepared)
 	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
 

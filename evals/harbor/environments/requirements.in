@@ -1,0 +1,8 @@
+# Python packages installed into the Harbor task image besides the Phoenix wheel.
+# Regenerate the lock after editing. --no-config keeps the root pyproject out of the
+# image's resolution; overrides.txt carries the one override the image needs:
+#   uv pip compile evals/harbor/environments/requirements.in \
+#     -o evals/harbor/environments/requirements.txt \
+#     --no-config --override evals/harbor/environments/overrides.txt \
+#     --universal --generate-hashes --python-version 3.14
+harbor-rewardkit==0.2.1

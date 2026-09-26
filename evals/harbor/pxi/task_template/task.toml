@@ -1,0 +1,39 @@
+# Template for the tasks compile_tasks.py builds from the PXI examples with Harbor's
+# compiler. Every task starts from this file; compile_tasks.py then sets the artifacts and
+# the example's name and metadata, and the example itself travels in `instruction.md`.
+schema_version = "1.3"
+
+[task]
+name = "arize/pxi"
+description = "PXI turn eval: the instruction's JSON block holds the example, and Reward Kit scores one dimension per evaluator the example declares."
+keywords = ["pxi", "agent_session_chat", "rewardkit"]
+
+[metadata]
+fixture = "pxi"
+
+[environment]
+os = "linux"
+cpus = 2
+memory_mb = 4096
+# Add hosts in the job or agent configuration to keep this task's dataset version stable
+# across providers and operators.
+network_mode = "allowlist"
+build_timeout_sec = 1200.0
+
+[environment.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+
+# Start Phoenix as root so it owns the database before the unprivileged agent runs.
+[environment.healthcheck]
+command = "sh /opt/phoenix-eval/start_phoenix_server.sh"
+timeout_sec = 180.0
+retries = 2
+
+# The chat client only talks to Phoenix over HTTP; the agent class seeds the session as root.
+[agent]
+user = "agent"
+timeout_sec = 600.0
+
+[verifier]
+timeout_sec = 120.0

@@ -161,3 +161,16 @@ def test_unmatched_spans_leave_the_message_timing_in_place(
     assert agent_steps[0].timestamp == "2026-09-16T00:20:50.981841Z"
     assert agent_steps[0].metrics is None
     assert llm_latencies_ms(trajectory) is None
+
+
+def test_extra_is_kept_at_the_trajectory_root(messages: list[dict[str, Any]]) -> None:
+    seed = {"example": {"id": "x"}, "scoring": {"seeded_message_ids": ["m1"]}}
+    trajectory = trajectory_from_ui_messages(
+        messages,
+        session_id="QWdlbnRTZXNzaW9uOjE=",
+        agent_name="pxi-eval-agent",
+        agent_version="20.12.0",
+        model_name="openai/gpt-5.4",
+        extra={"pxi": seed},
+    )
+    assert trajectory.to_json_dict()["extra"] == {"pxi": seed}

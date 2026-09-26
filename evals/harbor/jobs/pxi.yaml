@@ -1,0 +1,17 @@
+datasets:
+  - path: evals/harbor/tasks/pxi
+agents:
+  - name: pxi-eval-agent
+    import_path: evals.harbor.agents.pxi_eval_agent:PxiEvalAgent
+    model_name: openai/gpt-5.4
+    extra_allowed_hosts: [api.openai.com, api.anthropic.com]
+environment:
+  type: daytona
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
+  kwargs:
+    auto_stop_interval_mins: 30
+    auto_delete_interval_mins: 30
+n_attempts: 1
+n_concurrent_trials: 200
+retry:
+  max_retries: 1

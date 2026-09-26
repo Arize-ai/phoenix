@@ -1,7 +1,7 @@
 import json
 import shlex
-import tempfile
 from pathlib import Path
+from typing import Any
 
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
@@ -11,9 +11,6 @@ from evals.harbor.agents.atif import llm_latencies_ms, trajectory_from_ui_messag
 
 _AGENT_DIR = "/installed-agent/phoenix-chat"
 _CHAT_CLIENT = Path(__file__).with_name("chat_client.py")
-_STEPS_DIR = "/logs/agent/steps"
-_INSTRUCTION_PATH = "/tmp/instruction.md"
-_READABLE_BY_AGENT_USER = 0o644
 _TURN_TIMEOUT_SECONDS = 1800.0
 
 
@@ -44,22 +41,29 @@ class PhoenixChatAgent(BaseAgent):
             raise ValueError(
                 "No model specified; pass one with the -m flag, e.g. -m anthropic/claude-sonnet-4-5."
             )
-        self._step += 1
-        out_dir = f"{_STEPS_DIR}/{self._step}"
-        await self._upload_instruction(environment, instruction)
         command = [
-            f"python {_AGENT_DIR}/{_CHAT_CLIENT.name}",
-            f"--model {shlex.quote(self.model_name)}",
-            f"--instruction-file {_INSTRUCTION_PATH}",
+            f"--instruction {shlex.quote(instruction)}",
             "--allow-mutations",
-            "--approve-tool-calls",
             f"--turn-timeout-seconds {_TURN_TIMEOUT_SECONDS}",
-            f"--out-dir {out_dir}",
         ]
         if self._session_id is not None:
             command.append(f"--session-id {shlex.quote(self._session_id)}")
-        await self._exec(environment, " ".join(command))
-        self._session_id = (await self._exec(environment, f"cat {out_dir}/session_id")).strip()
+        await self._run_chat_client(environment, command)
+
+    async def _run_chat_client(self, environment: BaseEnvironment, arguments: list[str]) -> None:
+        """Run one turn through the chat client and save what it prints under ``steps/``."""
+        self._step += 1
+        command = [
+            f"python {_AGENT_DIR}/{_CHAT_CLIENT.name}",
+            f"--model {shlex.quote(self.model_name)}",
+            *arguments,
+        ]
+        result = json.loads(await self._exec(environment, " ".join(command)))
+        self._session_id = str(result["session_id"])
+        step_dir = self.logs_dir / "steps" / str(self._step)
+        step_dir.mkdir(parents=True, exist_ok=True)
+        for name in ("turn_messages", "turn_spans", "stream_errors"):
+            step_dir.joinpath(f"{name}.json").write_text(json.dumps(result[name], indent=2) + "\n")
 
     def populate_context_post_run(self, context: AgentContext) -> None:
         """Write the downloaded transcript as the ATIF ``trajectory.json``."""
@@ -77,6 +81,7 @@ class PhoenixChatAgent(BaseAgent):
             agent_version=self.version() or "unknown",
             model_name=self.model_name,
             spans=spans,
+            extra=self._trajectory_extra(),
         )
         self.logs_dir.joinpath("trajectory.json").write_text(
             json.dumps(trajectory.to_json_dict(), indent=2, ensure_ascii=False)
@@ -88,16 +93,9 @@ class PhoenixChatAgent(BaseAgent):
         if (latencies := llm_latencies_ms(trajectory)) is not None:
             context.metadata = {**(context.metadata or {}), "api_request_times_msec": latencies}
 
-    @staticmethod
-    async def _upload_instruction(environment: BaseEnvironment, instruction: str) -> None:
-        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as file:
-            file.write(instruction)
-            instruction_file = Path(file.name)
-        try:
-            instruction_file.chmod(_READABLE_BY_AGENT_USER)
-            await environment.upload_file(instruction_file, _INSTRUCTION_PATH)
-        finally:
-            instruction_file.unlink()
+    def _trajectory_extra(self) -> dict[str, Any] | None:
+        """Root-level ``extra`` for the trajectory; subclasses add what their verifier reads."""
+        return None
 
     @staticmethod
     async def _exec(environment: BaseEnvironment, command: str) -> str:
