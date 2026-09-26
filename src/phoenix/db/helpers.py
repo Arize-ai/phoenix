@@ -29,7 +29,10 @@ from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME, get_env_database_schema
+from phoenix.config import (
+    PLAYGROUND_PROJECT_NAME,
+    get_env_database_schema,
+)
 from phoenix.db import models
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
@@ -333,6 +336,8 @@ def get_dataset_example_revisions(
 
 def create_experiment_examples_snapshot_insert(
     experiment: models.Experiment,
+    *,
+    example_ids: Optional[Sequence[int]] = None,
 ) -> Insert:
     """
     Create an INSERT statement to snapshot dataset examples for an experiment.
@@ -342,6 +347,8 @@ def create_experiment_examples_snapshot_insert(
 
     Args:
         experiment: The experiment to create the snapshot for
+        example_ids: When given, only these examples are snapshotted (a run over
+            chosen rows); None snapshots every example the splits allow
 
     Returns:
         SQLAlchemy INSERT statement ready for execution
@@ -372,6 +379,9 @@ def create_experiment_examples_snapshot_insert(
         )
     )
 
+    if example_ids is not None:
+        stmt = stmt.where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+
     ranked_subquery = stmt.subquery()
     return insert(models.ExperimentDatasetExample).from_select(
         [
@@ -393,13 +403,16 @@ def create_experiment_examples_snapshot_insert(
 async def insert_experiment_with_examples_snapshot(
     session: AsyncSession,
     experiment: models.Experiment,
+    *,
+    example_ids: Optional[Sequence[int]] = None,
 ) -> None:
     """
-    Insert an experiment with its snapshot of dataset examples.
+    Insert an experiment with its snapshot of dataset examples, or of only
+    `example_ids` when given.
     """
     session.add(experiment)
     await session.flush()
-    insert_stmt = create_experiment_examples_snapshot_insert(experiment)
+    insert_stmt = create_experiment_examples_snapshot_insert(experiment, example_ids=example_ids)
     await session.execute(insert_stmt)
 
 
@@ -427,10 +440,40 @@ def exclude_dataset_evaluator_projects(
     ).where(models.DatasetEvaluators.project_id.is_(None))
 
 
+def exclude_project_evaluator_trace_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    return stmt.outerjoin(
+        models.ProjectEvaluator,
+        models.Project.id == models.ProjectEvaluator.trace_project_id,
+    ).where(models.ProjectEvaluator.trace_project_id.is_(None))
+
+
+async def delete_projects_and_evaluator_trace_projects(
+    session: AsyncSession,
+    project_ids: Iterable[int],
+) -> None:
+    ids = set(project_ids)
+    if not ids:
+        return
+    trace_project_ids = (
+        await session.scalars(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.project_id.in_(ids)
+            )
+        )
+    ).all()
+    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
+    if trace_project_ids:
+        await session.execute(
+            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
+        )
+
+
 def date_trunc(
     dialect: SupportedSQLDialect,
     field: Literal["minute", "hour", "day", "week", "month", "year"],
-    source: Union[QueryableAttribute[datetime], sa.TextClause],
+    source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
     """
@@ -512,7 +555,7 @@ def date_trunc(
 
 def _date_trunc_for_sqlite(
     field: Literal["minute", "hour", "day", "week", "month", "year"],
-    source: Union[QueryableAttribute[datetime], sa.TextClause],
+    source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:
     """
@@ -559,6 +602,41 @@ def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
         )
     )
     return select(ancestors.c.id)
+
+
+_DELETE_BATCH_SIZE = 1_000
+
+
+async def delete_traces(
+    session: AsyncSession,
+    trace_filter: sa.ColumnElement[bool],
+) -> None:
+    """Delete the traces matching this filter in bounded batches."""
+    while trace_rowids := tuple(
+        await session.scalars(
+            sa.select(models.Trace.id)
+            .where(trace_filter)
+            .order_by(models.Trace.id)
+            .limit(_DELETE_BATCH_SIZE)
+        )
+    ):
+        await session.execute(sa.delete(models.Trace).where(models.Trace.id.in_(trace_rowids)))
+
+
+async def delete_spans(
+    session: AsyncSession,
+    span_filter: sa.ColumnElement[bool],
+) -> None:
+    """Delete the spans matching this filter in bounded batches."""
+    while span_rowids := tuple(
+        await session.scalars(
+            sa.select(models.Span.id)
+            .where(span_filter)
+            .order_by(models.Span.id)
+            .limit(_DELETE_BATCH_SIZE)
+        )
+    ):
+        await session.execute(sa.delete(models.Span).where(models.Span.id.in_(span_rowids)))
 
 
 def truncate_name(name: str, max_len: int = 63) -> str:

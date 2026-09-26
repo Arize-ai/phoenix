@@ -138,7 +138,10 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <AnnotationScoreText positiveOptimization={positiveOptimization}>
+          <AnnotationScoreText
+            positiveOptimization={positiveOptimization}
+            size={size}
+          >
             <span css={valuePartsCSS}>
               {valueParts.map((part, index) => (
                 <Fragment key={index}>

@@ -1,0 +1,2 @@
+export const PROJECT_EVALUATOR_GALLERY_CUSTOM_EVALUATORS_CONNECTION_KEY =
+  "ProjectEvaluatorGallery__evaluators";

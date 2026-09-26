@@ -1,5 +1,5 @@
 import type { ColumnSizingState, Updater } from "@tanstack/react-table";
-import type { StateCreator } from "zustand";
+import type { StateCreator, StoreApi, UseBoundStore } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
@@ -78,23 +78,34 @@ const defaultColumnVisibility = (tableId: ProjectTab): VisibilityState => ({
   ...(tableId === "traces" ? {} : { [TRACE_ANNOTATIONS_COLUMN_ID]: false }),
 });
 
+/** Initial values are read once when the store is created. */
 export type CreateTracingStoreProps = {
   projectId: string;
   tableId: ProjectTab;
+  /** Persist column preferences to localStorage. @default true */
+  persistPreferences?: boolean;
 } & Partial<TracingProps>;
 
-export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
+export type TracingStore = UseBoundStore<StoreApi<TracingState>>;
+
+export const createTracingStore = ({
+  persistPreferences = true,
+  ...initialProps
+}: CreateTracingStoreProps): TracingStore => {
   const tracingStore: StateCreator<
     TracingState,
     [["zustand/devtools", unknown]]
   > = (set) => ({
     projectId: initialProps.projectId,
-    columnVisibility: defaultColumnVisibility(initialProps.tableId),
-    columnSizing: {
+    columnVisibility:
+      initialProps.columnVisibility ??
+      defaultColumnVisibility(initialProps.tableId),
+    columnSizing: initialProps.columnSizing ?? {
       metadata: 200,
     },
-    annotationColumnVisibility: {},
-    traceAnnotationColumnVisibility: {},
+    annotationColumnVisibility: initialProps.annotationColumnVisibility ?? {},
+    traceAnnotationColumnVisibility:
+      initialProps.traceAnnotationColumnVisibility ?? {},
     columnOrder: [],
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility }, false, { type: "setColumnVisibility" });
@@ -126,16 +137,11 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       }
     },
   });
+  const store = devtools(tracingStore, { name: "tracingStore" });
+  if (!persistPreferences) {
+    return create<TracingState>()(store);
+  }
   return create<TracingState>()(
-    persist(
-      devtools(tracingStore, {
-        name: "tracingStore",
-      }),
-      {
-        name: makeTracingStoreKey(initialProps),
-      }
-    )
+    persist(store, { name: makeTracingStoreKey(initialProps) })
   );
 };
-
-export type TracingStore = ReturnType<typeof createTracingStore>;

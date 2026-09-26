@@ -114,6 +114,12 @@ export interface PreferencesProps {
    */
   playgroundStreamingEnabled: boolean;
   /**
+   * Whether the evaluator playground's metadata cells leave out the example's
+   * `annotations` key, where expected outputs are recorded. On by default: the
+   * expected value already shows in each evaluator cell's band.
+   */
+  hideExpectedAnnotationsInMetadata: boolean;
+  /**
    * Whether or not the span details are in annotating mode
    */
   isAnnotatingSpans: boolean;
@@ -233,6 +239,12 @@ export interface PreferencesState extends PreferencesProps {
    */
   setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
   /**
+   * Sets whether the evaluator playground's metadata cells hide `annotations`.
+   */
+  setHideExpectedAnnotationsInMetadata: (
+    hideExpectedAnnotationsInMetadata: boolean
+  ) => void;
+  /**
    * Setter for enabling/disabling span annotating
    */
   setIsAnnotatingSpans: (isAnnotatingSpans: boolean) => void;
@@ -312,6 +324,21 @@ export interface PreferencesState extends PreferencesProps {
   ) => void;
 }
 
+/**
+ * The local storage key the preferences persist to. Exported for code that
+ * runs outside the provider tree (e.g. route loaders) and must read a stored
+ * preference before React mounts.
+ */
+export const PREFERENCES_STORAGE_KEY = "arize-phoenix-preferences";
+
+/**
+ * The last-N range applied when no preference has been persisted. Route
+ * loaders that resolve the range before React mounts (e.g. the project
+ * evaluators loader) fall back to this same value so their query variables
+ * match the ones TimeRangeProvider resolves on mount.
+ */
+export const DEFAULT_LAST_N_TIME_RANGE_KEY: LastNTimeRangeKey = "7d";
+
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
@@ -329,7 +356,7 @@ export const createPreferencesStore = (
         type: "setTraceStreamingEnabled",
       });
     },
-    lastNTimeRangeKey: "7d",
+    lastNTimeRangeKey: DEFAULT_LAST_N_TIME_RANGE_KEY,
     setLastNTimeRangeKey: (lastNTimeRangeKey) => {
       set({ lastNTimeRangeKey });
     },
@@ -371,6 +398,14 @@ export const createPreferencesStore = (
     setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
       set({ playgroundStreamingEnabled }, false, {
         type: "setPlaygroundStreamingEnabled",
+      });
+    },
+    hideExpectedAnnotationsInMetadata: true,
+    setHideExpectedAnnotationsInMetadata: (
+      hideExpectedAnnotationsInMetadata
+    ) => {
+      set({ hideExpectedAnnotationsInMetadata }, false, {
+        type: "setHideExpectedAnnotationsInMetadata",
       });
     },
     isAnnotatingSpans: false,
@@ -470,7 +505,7 @@ export const createPreferencesStore = (
   });
   return create<PreferencesState>()(
     persist(devtools(preferencesStore, { name: "preferencesStore" }), {
-      name: "arize-phoenix-preferences",
+      name: PREFERENCES_STORAGE_KEY,
     })
   );
 };

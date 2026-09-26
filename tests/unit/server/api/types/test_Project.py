@@ -22,12 +22,16 @@ from phoenix.db.types.annotation_configs import (
     AnnotationType,
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
     OptimizationDirection,
 )
+from phoenix.db.types.identifier import Identifier as DbIdentifier
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
+from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -36,6 +40,159 @@ from ...._helpers import _add_project, _add_project_session, _add_span, _add_tra
 fake = Faker()
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
+
+
+class TestProjectEvaluatorAnnotationNameFilter:
+    _QUERY = """query ($id: ID!, $first: Int = 100,
+                      $after: String, $filter: ProjectEvaluatorFilter) {
+        node(id: $id) {
+            ... on Project {
+                evaluators(first: $first, after: $after, filter: $filter) {
+                    edges { node { name } }
+                    pageInfo { hasNextPage endCursor }
+                }
+            }
+        }
+    }"""
+
+    @pytest.fixture
+    async def project_id(self, db: DbSessionFactory) -> str:
+        async with db() as session:
+            await sync_languages(session)
+            project = models.Project(name=f"project-{token_hex(4)}")
+            other_project = models.Project(name=f"other-project-{token_hex(4)}")
+            session.add_all([project, other_project])
+            await session.flush()
+            for target_project, name, output_names in [
+                (project, "aaa", ["verdict"]),
+                (project, "correctness", ["verdict"]),
+                (project, "quality", ["correctness", "toxicity"]),
+                (project, "unconfigured", []),
+                (other_project, "correctness", ["verdict"]),
+            ]:
+                evaluator = models.CodeEvaluator(
+                    name=DbIdentifier(f"evaluator-{token_hex(4)}"),
+                    metadata_={},
+                    language="PYTHON",
+                    output_configs=[
+                        ContinuousOutputConfig(
+                            type="CONTINUOUS",
+                            name=output_name,
+                            optimization_direction=OptimizationDirection.MAXIMIZE,
+                        )
+                        for output_name in output_names
+                    ],
+                )
+                session.add(evaluator)
+                await session.flush()
+                session.add(
+                    models.ProjectEvaluator(
+                        trace_project=models.Project(name=f"runs-{token_hex(8)}"),
+                        project_id=target_project.id,
+                        evaluator_id=evaluator.id,
+                        name=DbIdentifier(name),
+                        filter_condition="",
+                        sampling_rate=1.0,
+                        evaluation_target="SPAN",
+                        enabled=False,
+                    )
+                )
+            await session.flush()
+            return str(GlobalID("Project", str(project.id)))
+
+    @pytest.mark.parametrize(
+        "names, expected",
+        [
+            (["correctness"], ["correctness"]),
+            (["quality.toxicity"], ["quality"]),
+            (["quality.correctness", "quality.toxicity"], ["quality"]),
+            (["correctness", "correctness"], ["correctness"]),
+            (["unconfigured"], ["unconfigured"]),
+            (["quality", "quality.unknown", "correctness.verdict", "unknown name"], []),
+            ([], ["aaa", "correctness", "quality", "unconfigured"]),
+            (None, ["aaa", "correctness", "quality", "unconfigured"]),
+        ],
+    )
+    async def test_exact_names(
+        self,
+        project_id: str,
+        gql_client: AsyncGraphQLClient,
+        names: Optional[list[str]],
+        expected: list[str],
+    ) -> None:
+        result = await gql_client.execute(
+            self._QUERY, {"id": project_id, "filter": {"annotationNames": names}}
+        )
+        assert not result.errors and result.data
+        connection = result.data["node"]["evaluators"]
+        assert [edge["node"]["name"] for edge in connection["edges"]] == expected
+        assert connection["pageInfo"]["hasNextPage"] is False
+
+    async def test_filters_before_pagination(
+        self, project_id: str, gql_client: AsyncGraphQLClient
+    ) -> None:
+        variables = {
+            "id": project_id,
+            "filter": {"annotationNames": ["correctness", "quality.toxicity"]},
+            "first": 1,
+        }
+        result = await gql_client.execute(self._QUERY, variables)
+        assert not result.errors and result.data
+        connection = result.data["node"]["evaluators"]
+        assert [edge["node"]["name"] for edge in connection["edges"]] == ["correctness"]
+        assert connection["pageInfo"]["hasNextPage"] is True
+
+        result = await gql_client.execute(
+            self._QUERY, {**variables, "after": connection["pageInfo"]["endCursor"]}
+        )
+        assert not result.errors and result.data
+        connection = result.data["node"]["evaluators"]
+        assert [edge["node"]["name"] for edge in connection["edges"]] == ["quality"]
+        assert connection["pageInfo"]["hasNextPage"] is False
+
+    async def test_combines_with_name_search(
+        self, project_id: str, gql_client: AsyncGraphQLClient
+    ) -> None:
+        result = await gql_client.execute(
+            self._QUERY,
+            {
+                "id": project_id,
+                "filter": {
+                    "col": "name",
+                    "value": "qual",
+                    "annotationNames": ["correctness", "quality.toxicity"],
+                },
+            },
+        )
+        assert not result.errors and result.data
+        assert [edge["node"]["name"] for edge in result.data["node"]["evaluators"]["edges"]] == [
+            "quality"
+        ]
+
+    @pytest.mark.parametrize(
+        "filter, expected",
+        [
+            ({"col": "name", "value": "  QUAL  "}, ["quality"]),
+            ({}, ["aaa", "correctness", "quality", "unconfigured"]),
+            (None, ["aaa", "correctness", "quality", "unconfigured"]),
+            (
+                {"col": "name", "value": None, "annotationNames": ["correctness"]},
+                ["correctness"],
+            ),
+        ],
+    )
+    async def test_optional_filter_fields(
+        self,
+        project_id: str,
+        gql_client: AsyncGraphQLClient,
+        filter: Optional[dict[str, Any]],
+        expected: list[str],
+    ) -> None:
+        result = await gql_client.execute(self._QUERY, {"id": project_id, "filter": filter})
+        assert not result.errors and result.data
+        assert [
+            edge["node"]["name"] for edge in result.data["node"]["evaluators"]["edges"]
+        ] == expected
 
 
 async def _add_generative_model(
@@ -7131,3 +7288,656 @@ class TestProjectSessionsTimeRange:
             session_filter_condition=f"start_time >= '{cutoff}'",
         )
         assert with_cutoff == self._expected_ids(_sessions_data, "inside_window")
+
+
+class TestEvaluatorComparison:
+    QUERY = """
+        query (
+            $id: ID!
+            $a: ID!
+            $b: ID!
+            $timeRange: TimeRange!
+            $thresholdA: Float
+            $thresholdB: Float
+            $includeDistributions: Boolean! = true
+        ) {
+            node(id: $id) {
+                ... on Project {
+                    evaluatorComparison(
+                        evaluatorAId: $a
+                        evaluatorBId: $b
+                        timeRange: $timeRange
+                        thresholdA: $thresholdA
+                        thresholdB: $thresholdB
+                    ) {
+                        evaluationTarget
+                        coverage {
+                            evaluatedByBoth
+                            onlyA
+                            onlyB
+                            totalInRange
+                        }
+                        populationSize
+                        a {
+                            evaluator {
+                                id
+                                name
+                            }
+                            annotationName
+                            labels
+                            threshold
+                            flaggedCount
+                            flagRate
+                            meanScore
+                        }
+                        b {
+                            evaluator {
+                                id
+                                name
+                            }
+                            annotationName
+                            labels
+                            threshold
+                            flaggedCount
+                            flagRate
+                            meanScore
+                        }
+                        confusionMatrix
+                        statistics {
+                            agreement
+                            cohensKappa
+                            spearmanRho
+                            disagreementCount
+                        }
+                    }
+                }
+            }
+            evaluatorA: node(id: $a) @include(if: $includeDistributions) {
+                ... on ProjectEvaluator {
+                    distribution(timeRange: $timeRange) { ...DistributionFields }
+                }
+            }
+            evaluatorB: node(id: $b) @include(if: $includeDistributions) {
+                ... on ProjectEvaluator {
+                    distribution(timeRange: $timeRange) { ...DistributionFields }
+                }
+            }
+        }
+        fragment DistributionFields on EvaluatorDistribution {
+            evaluatedCount
+            threshold
+            meanScore
+            scoreBinEdges
+            scoreBinCounts
+            scoreValueCounts { score count }
+            labelCounts { label score isOther count }
+        }
+    """
+
+    @pytest.fixture
+    async def _comparison_data(self, db: DbSessionFactory) -> dict[str, Any]:
+        in_range = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            other_project = await _add_project(session)
+
+            if await session.get(models.Language, "PYTHON") is None:
+                session.add(models.Language(name="PYTHON"))
+                await session.flush()
+
+            categorical_evaluator = models.CodeEvaluator(
+                name=DbIdentifier(root=f"code-{token_hex(4)}"),
+                description=None,
+                metadata_={},
+                language="PYTHON",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="verdict",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="pass", score=1.0),
+                            CategoricalAnnotationValue(label="fail", score=0.0),
+                        ],
+                    )
+                ],
+            )
+            continuous_evaluator = models.CodeEvaluator(
+                name=DbIdentifier(root=f"code-{token_hex(4)}"),
+                description=None,
+                metadata_={},
+                language="PYTHON",
+                output_configs=[
+                    ContinuousOutputConfig(
+                        type="CONTINUOUS",
+                        name="score",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        lower_bound=0.0,
+                        upper_bound=1.0,
+                    )
+                ],
+            )
+            session.add_all([categorical_evaluator, continuous_evaluator])
+            await session.flush()
+
+            def project_evaluator(
+                name: str,
+                evaluator_id: int,
+                project_id: int,
+                evaluation_target: str = "SPAN",
+            ) -> models.ProjectEvaluator:
+                return models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"evaluator-{token_hex(12)}"),
+                    project_id=project_id,
+                    evaluator_id=evaluator_id,
+                    name=DbIdentifier(root=name),
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    evaluation_target=evaluation_target,
+                )
+
+            correctness = project_evaluator("correctness", categorical_evaluator.id, project.id)
+            toxicity = project_evaluator("toxicity", continuous_evaluator.id, project.id)
+            harm = project_evaluator("harm", continuous_evaluator.id, project.id)
+            session_evaluator = project_evaluator(
+                "session_quality", continuous_evaluator.id, project.id, "SESSION"
+            )
+            session_quality_two = project_evaluator(
+                "session_quality_two", continuous_evaluator.id, project.id, "SESSION"
+            )
+            foreign = project_evaluator("foreign", continuous_evaluator.id, other_project.id)
+            session.add_all(
+                [correctness, toxicity, harm, session_evaluator, session_quality_two, foreign]
+            )
+            await session.flush()
+
+            project_session = await _add_project_session(session, project, start_time=in_range)
+            trace = await _add_trace(session, project, project_session, start_time=in_range)
+            spans = [await _add_span(session, trace, start_time=in_range) for _ in range(7)]
+            # Selection follows the trace's start time, not the span's: this
+            # trace starts after the query window, so its span must not count
+            # even though the span itself starts inside the window.
+            out_of_range = in_range + timedelta(hours=4)
+            late_session = await _add_project_session(session, project, start_time=out_of_range)
+            late_trace = await _add_trace(session, project, late_session, start_time=out_of_range)
+            late_span = await _add_span(session, late_trace, start_time=in_range)
+
+            def span_annotation(
+                span: models.Span,
+                name: str,
+                label: Optional[str],
+                score: Optional[float],
+                identifier: str = "",
+                updated_at: Optional[datetime] = None,
+            ) -> models.SpanAnnotation:
+                return models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name=name,
+                    label=label,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    identifier=identifier,
+                    source="API",
+                    user_id=None,
+                    updated_at=updated_at or in_range,
+                )
+
+            session.add_all(
+                [
+                    # A stale result under a second identifier: dedupe must prefer
+                    # the more recently updated row below.
+                    span_annotation(
+                        spans[0],
+                        "correctness",
+                        "fail",
+                        0.0,
+                        identifier="stale",
+                        updated_at=in_range - timedelta(minutes=5),
+                    ),
+                    span_annotation(spans[0], "correctness", "pass", 1.0),
+                    span_annotation(spans[0], "toxicity", None, 0.1),
+                    span_annotation(spans[1], "correctness", "fail", 0.0),
+                    span_annotation(spans[1], "toxicity", None, 0.9),
+                    span_annotation(spans[2], "correctness", "fail", 0.0),
+                    span_annotation(spans[2], "toxicity", None, 0.2),
+                    span_annotation(spans[3], "correctness", "pass", 1.0),
+                    span_annotation(spans[3], "toxicity", None, 0.8),
+                    span_annotation(spans[4], "correctness", "pass", 1.0),
+                    span_annotation(spans[5], "toxicity", None, 0.5),
+                    # Evaluated by both but unbinnable on the thresholded side:
+                    # counts toward coverage, not toward the population.
+                    span_annotation(spans[6], "correctness", "pass", 1.0),
+                    span_annotation(spans[6], "toxicity", None, None),
+                    # Out of the query window on every name.
+                    span_annotation(late_span, "correctness", "fail", 0.0),
+                    span_annotation(late_span, "toxicity", None, 0.9),
+                    span_annotation(late_span, "harm", None, 0.9),
+                    # Correlated with toxicity on the shared spans for Spearman.
+                    span_annotation(spans[0], "harm", None, 0.2),
+                    span_annotation(spans[1], "harm", None, 0.8),
+                    span_annotation(spans[2], "harm", None, 0.3),
+                    span_annotation(spans[3], "harm", None, 0.7),
+                ]
+            )
+
+            def session_annotation(
+                name: str, score: float, session_id: Optional[int] = None
+            ) -> models.ProjectSessionAnnotation:
+                return models.ProjectSessionAnnotation(
+                    project_session_id=session_id if session_id is not None else project_session.id,
+                    name=name,
+                    label=None,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    identifier="",
+                    source="API",
+                    user_id=None,
+                )
+
+            session.add_all(
+                [
+                    session_annotation("session_quality", 0.9),
+                    session_annotation("session_quality_two", 0.2),
+                    session_annotation("session_quality", 0.1, late_session.id),
+                    session_annotation("session_quality_two", 0.1, late_session.id),
+                ]
+            )
+
+        return {
+            "project": project.id,
+            "correctness": correctness.id,
+            "toxicity": toxicity.id,
+            "harm": harm.id,
+            "session_evaluator": session_evaluator.id,
+            "session_quality_two": session_quality_two.id,
+            "foreign": foreign.id,
+        }
+
+    @staticmethod
+    def _variables(
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
+    ) -> dict[str, Any]:
+        return {
+            "id": str(GlobalID("Project", str(ids["project"]))),
+            "a": str(GlobalID("ProjectEvaluator", str(ids[a]))),
+            "b": str(GlobalID("ProjectEvaluator", str(ids[b]))),
+            "timeRange": {
+                "start": "2024-01-01T01:00:00+00:00",
+                "end": "2024-01-01T03:00:00+00:00",
+            },
+            "thresholdA": threshold_a,
+            "thresholdB": threshold_b,
+        }
+
+    async def _compare(
+        self,
+        gql_client: AsyncGraphQLClient,
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
+    ) -> dict[str, Any]:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(ids, a, b, threshold_a, threshold_b),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison: dict[str, Any] = data["node"]["evaluatorComparison"]
+        return comparison
+
+    async def _compare_expecting_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        ids: dict[str, Any],
+        a: str,
+        b: str,
+    ) -> str:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={**self._variables(ids, a, b), "includeDistributions": False},
+        )
+        assert response.errors
+        return response.errors[0].message
+
+    async def test_categorical_versus_continuous(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(gql_client, _comparison_data, "correctness", "toxicity")
+        assert comparison["evaluationTarget"] == "SPAN"
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 5,
+            "onlyA": 1,
+            "onlyB": 1,
+            "totalInRange": 7,
+        }
+        assert comparison["populationSize"] == 4
+        side_a = comparison["a"]
+        assert side_a["evaluator"] == {
+            "id": str(GlobalID("ProjectEvaluator", str(_comparison_data["correctness"]))),
+            "name": "correctness",
+        }
+        assert side_a["annotationName"] == "correctness"
+        assert side_a["labels"] == ["pass", "fail"]
+        assert side_a["threshold"] is None
+        assert side_a["flaggedCount"] == 2
+        assert side_a["flagRate"] == pytest.approx(0.5)
+        assert side_a["meanScore"] == pytest.approx(0.5)
+        side_b = comparison["b"]
+        assert side_b["evaluator"]["name"] == "toxicity"
+        assert side_b["annotationName"] == "toxicity"
+        assert side_b["labels"] == ["flagged", "not flagged"]
+        assert side_b["threshold"] == pytest.approx(0.5)
+        assert side_b["flaggedCount"] == 2
+        assert side_b["meanScore"] == pytest.approx(0.5)
+        assert comparison["confusionMatrix"] == [[1, 1], [1, 1]]
+        statistics = comparison["statistics"]
+        assert statistics["agreement"] == pytest.approx(0.5)
+        assert statistics["cohensKappa"] == pytest.approx(0.0)
+        assert statistics["spearmanRho"] is None
+        assert statistics["disagreementCount"] == 2
+
+    async def test_continuous_versus_continuous_has_spearman(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(gql_client, _comparison_data, "toxicity", "harm")
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 4,
+            "onlyA": 2,
+            "onlyB": 0,
+            "totalInRange": 7,
+        }
+        assert comparison["populationSize"] == 4
+        assert comparison["confusionMatrix"] == [[2, 0], [0, 2]]
+        statistics = comparison["statistics"]
+        assert statistics["agreement"] == pytest.approx(1.0)
+        assert statistics["cohensKappa"] == pytest.approx(1.0)
+        assert statistics["spearmanRho"] == pytest.approx(1.0)
+        assert statistics["disagreementCount"] == 0
+
+    async def test_threshold_override_rebins(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(
+            gql_client, _comparison_data, "correctness", "toxicity", threshold_b=0.85
+        )
+        assert comparison["b"]["threshold"] == pytest.approx(0.85)
+        assert comparison["b"]["flaggedCount"] == 1
+        assert comparison["confusionMatrix"] == [[0, 2], [1, 1]]
+        statistics = comparison["statistics"]
+        assert statistics["agreement"] == pytest.approx(0.75)
+        assert statistics["disagreementCount"] == 1
+
+    async def test_session_target_comparison(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        comparison = await self._compare(
+            gql_client, _comparison_data, "session_evaluator", "session_quality_two"
+        )
+        assert comparison["evaluationTarget"] == "SESSION"
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 1,
+            "onlyA": 0,
+            "onlyB": 0,
+            "totalInRange": 1,
+        }
+        # 0.9 flagged (MINIMIZE), 0.2 not flagged.
+        assert comparison["confusionMatrix"] == [[0, 1], [0, 0]]
+        assert comparison["statistics"]["agreement"] == pytest.approx(0.0)
+
+    async def test_distributions_include_exclusive_results_and_deduplicate(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(_comparison_data, "correctness", "toxicity"),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison = data["node"]["evaluatorComparison"]
+        coverage = comparison["coverage"]
+        distribution_a = data["evaluatorA"]["distribution"]
+        distribution_b = data["evaluatorB"]["distribution"]
+        # Every in-range correctness result counts: the shared spans, the span
+        # only correctness evaluated, and the span whose toxicity score is
+        # missing. The late trace's results are out of range on every name.
+        assert distribution_a["scoreBinCounts"] is None
+        assert distribution_a["scoreValueCounts"] == [
+            {"score": 0, "count": 2},
+            {"score": 1, "count": 4},
+        ]
+        assert distribution_a["labelCounts"] == [
+            {"label": "pass", "score": 1, "isOther": False, "count": 4},
+            {"label": "fail", "score": 0, "isOther": False, "count": 2},
+        ]
+        assert distribution_a["evaluatedCount"] == coverage["evaluatedByBoth"] + coverage["onlyA"]
+        assert distribution_a["evaluatedCount"] == sum(
+            point["count"] for point in distribution_a["scoreValueCounts"]
+        )
+        # toxicity: 0.1, 0.9, 0.2, 0.8 shared with correctness, 0.5 exclusive,
+        # and one null score that is evaluated but not binnable.
+        assert distribution_b["evaluatedCount"] == coverage["evaluatedByBoth"] + coverage["onlyB"]
+        assert distribution_b["scoreBinCounts"] == [0, 1, 1, 0, 0, 1, 0, 0, 1, 1]
+        assert sum(distribution_b["scoreBinCounts"]) == distribution_b["evaluatedCount"] - 1
+        # The comparison's mean covers only the shared population; the
+        # distribution's mean covers every in-range result.
+        assert comparison["a"]["meanScore"] == pytest.approx(0.5)
+        assert distribution_a["meanScore"] == pytest.approx(4 / 6)
+
+    @pytest.mark.parametrize("target", ["SPAN", "TRACE", "SESSION"])
+    async def test_distribution_membership_is_independent_of_value_eligibility(
+        self,
+        target: Literal["SPAN", "TRACE", "SESSION"],
+        _comparison_data: dict[str, Any],
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        start = datetime.fromisoformat("2024-01-02T01:00:00+00:00")
+        ids = _comparison_data
+        async with db() as session:
+            project = await session.get(models.Project, ids["project"])
+            assert project is not None
+            for name in ["toxicity", "harm"]:
+                evaluator = await session.get(models.ProjectEvaluator, ids[name])
+                assert evaluator is not None
+                evaluator.evaluation_target = target
+            results_by_target: list[list[tuple[str, Optional[float]]]] = [
+                [("toxicity", 0.1), ("harm", None)],
+                [("toxicity", 0.2)],
+                [("harm", 0.3)],
+                [("toxicity", 0.9), ("harm", 0.8)],
+                [],
+                [("toxicity", None), ("harm", 0.7)],
+            ]
+            for values in results_by_target:
+                project_session = await _add_project_session(session, project, start_time=start)
+                trace = await _add_trace(session, project, project_session, start_time=start)
+                span = await _add_span(session, trace, start_time=start)
+                for name, score in values:
+                    fields: dict[str, Any] = dict(
+                        name=name,
+                        score=score,
+                        label=None,
+                        explanation=None,
+                        metadata_={},
+                        annotator_kind="CODE",
+                        source="API",
+                        identifier="",
+                        user_id=None,
+                    )
+                    annotation: (
+                        models.SpanAnnotation
+                        | models.TraceAnnotation
+                        | models.ProjectSessionAnnotation
+                    )
+                    if target == "SPAN":
+                        annotation = models.SpanAnnotation(span_rowid=span.id, **fields)
+                    elif target == "TRACE":
+                        annotation = models.TraceAnnotation(trace_rowid=trace.id, **fields)
+                    else:
+                        annotation = models.ProjectSessionAnnotation(
+                            project_session_id=project_session.id, **fields
+                        )
+                    session.add(annotation)
+        variables = self._variables(ids, "toxicity", "harm")
+        variables["timeRange"] = {
+            "start": start.isoformat(),
+            "end": (start + timedelta(hours=1)).isoformat(),
+        }
+        response = await gql_client.execute(query=self.QUERY, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        comparison = response.data["node"]["evaluatorComparison"]
+        assert comparison["coverage"] == {
+            "evaluatedByBoth": 3,
+            "onlyA": 1,
+            "onlyB": 1,
+            "totalInRange": 6,
+        }
+        data = response.data
+        for alias in ["evaluatorA", "evaluatorB"]:
+            distribution = data[alias]["distribution"]
+            assert sum(distribution["scoreBinCounts"]) == 3
+            assert distribution["evaluatedCount"] == 4
+        assert sum(map(sum, comparison["confusionMatrix"])) == 1
+        assert comparison["a"]["meanScore"] == pytest.approx(0.9)
+        assert comparison["b"]["meanScore"] == pytest.approx(0.8)
+        assert data["evaluatorA"]["distribution"]["meanScore"] == pytest.approx(0.4)
+
+    async def test_same_evaluator_twice_is_rejected(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "toxicity", "toxicity"
+        )
+        assert "two different evaluators" in message
+
+    async def test_mismatched_evaluation_targets_are_rejected(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "correctness", "session_evaluator"
+        )
+        assert "evaluation target" in message
+
+    async def test_evaluator_from_another_project_is_not_found(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        message = await self._compare_expecting_error(
+            gql_client, _comparison_data, "correctness", "foreign"
+        )
+        assert "not found" in message
+
+    async def test_distribution_without_comparison_and_independent_of_partner(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        variables = self._variables(_comparison_data, "toxicity", "correctness")
+        response = await gql_client.execute(
+            query="""
+                query($id: ID!, $timeRange: TimeRange!) {
+                    node(id: $id) {
+                        ... on ProjectEvaluator {
+                            distribution(timeRange: $timeRange) {
+                                evaluatedCount
+                                threshold
+                                meanScore
+                                scoreBinEdges
+                                scoreBinCounts
+                                scoreValueCounts { score count }
+                                labelCounts { label score isOther count }
+                            }
+                        }
+                    }
+                }
+            """,
+            variables={"id": variables["a"], "timeRange": variables["timeRange"]},
+        )
+        assert not response.errors
+        assert response.data is not None
+        expected = response.data["node"]["distribution"]
+        # Six spans carry an in-range toxicity annotation; the null score is
+        # counted as evaluated but left out of the mean.
+        assert expected["evaluatedCount"] == 6
+        assert expected["meanScore"] == pytest.approx(0.5)
+        assert expected["threshold"] == 0.5
+        for partner in ["correctness", "harm"]:
+            response = await gql_client.execute(
+                query=self.QUERY,
+                variables=self._variables(_comparison_data, "toxicity", partner),
+            )
+            assert not response.errors
+            assert response.data is not None
+            assert response.data["evaluatorA"]["distribution"] == expected
+
+    async def test_distribution_empty_time_range(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        variables = self._variables(_comparison_data, "correctness", "toxicity")
+        variables["timeRange"] = {
+            "start": "2024-01-02T01:00:00+00:00",
+            "end": "2024-01-02T02:00:00+00:00",
+        }
+        response = await gql_client.execute(query=self.QUERY, variables=variables)
+        assert not response.errors
+        assert response.data is not None
+        for evaluator in ["evaluatorA", "evaluatorB"]:
+            distribution = response.data[evaluator]["distribution"]
+            assert distribution["evaluatedCount"] == 0
+            assert distribution["meanScore"] is None
+            assert not any(distribution["scoreBinCounts"] or [])
+            assert not distribution["scoreValueCounts"]
+            assert not distribution["labelCounts"]
+
+    async def test_distributions_survive_zero_overlap(
+        self,
+        _comparison_data: dict[str, Any],
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        ids = _comparison_data
+        async with db() as session:
+            # This evaluator writes under a new name on a target without toxicity results.
+            evaluator = await session.get(models.ProjectEvaluator, ids["harm"])
+            assert evaluator is not None
+            evaluator.name = DbIdentifier(root="exclusive_result")
+            project = await session.get(models.Project, ids["project"])
+            assert project is not None
+            trace = await _add_trace(
+                session, project, start_time=datetime.fromisoformat("2024-01-01T01:30:00+00:00")
+            )
+            span = await _add_span(session, trace)
+            session.add(
+                models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name="exclusive_result",
+                    score=0.7,
+                    label=None,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="CODE",
+                    source="API",
+                    identifier="",
+                    user_id=None,
+                )
+            )
+        response = await gql_client.execute(
+            query=self.QUERY, variables=self._variables(ids, "toxicity", "harm")
+        )
+        assert not response.errors
+        assert response.data is not None
+        comparison = response.data["node"]["evaluatorComparison"]
+        assert comparison["coverage"]["evaluatedByBoth"] == 0
+        assert comparison["statistics"]["agreement"] is None
+        # Six spans carry an in-range toxicity annotation, one of them without a score.
+        assert response.data["evaluatorA"]["distribution"]["evaluatedCount"] == 6
+        assert response.data["evaluatorB"]["distribution"]["evaluatedCount"] == 1
+        assert response.data["evaluatorB"]["distribution"]["meanScore"] == pytest.approx(0.7)

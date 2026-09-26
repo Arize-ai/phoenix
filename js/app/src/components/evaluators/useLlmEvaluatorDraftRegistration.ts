@@ -40,11 +40,12 @@ import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/play
  */
 export const useLlmEvaluatorDraftRegistration = ({
   mode,
-  evaluatorNodeId,
+  llmEvaluatorNodeId,
   handleSubmitRef,
 }: {
   mode: "create" | "update";
-  evaluatorNodeId?: string | null;
+  /** Relay node ID of the underlying LLM evaluator, not an association wrapper. */
+  llmEvaluatorNodeId?: string | null;
   handleSubmitRef: RefObject<() => Promise<EvaluatorSubmitResult>>;
 }) => {
   const store = useEvaluatorStoreInstance();
@@ -73,11 +74,11 @@ export const useLlmEvaluatorDraftRegistration = ({
       );
       return {
         mode: mode === "create" ? "create" : "edit",
-        evaluatorNodeId: evaluatorNodeId ?? null,
+        evaluatorNodeId: llmEvaluatorNodeId ?? null,
         name: state.evaluator.name || state.evaluator.globalName,
         description: state.evaluator.description,
         inputMapping: state.evaluator.inputMapping,
-        testPayload: state.evaluatorMappingSource,
+        testPayload: state.evaluatorMappingSource.source,
         includeExplanation: state.evaluator.includeExplanation,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
         judge: {
@@ -137,7 +138,10 @@ export const useLlmEvaluatorDraftRegistration = ({
       if (
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
-        state.setEvaluatorMappingSource(next.testPayload);
+        state.setEvaluatorMappingSource({
+          grain: state.evaluatorMappingSource.grain,
+          source: next.testPayload,
+        });
       }
       reconcileJudgeOperations({
         playgroundStore,
@@ -204,7 +208,7 @@ export const useLlmEvaluatorDraftRegistration = ({
     playgroundStore,
     instanceId,
     mode,
-    evaluatorNodeId,
+    llmEvaluatorNodeId,
     handleSubmitRef,
   ]);
 };

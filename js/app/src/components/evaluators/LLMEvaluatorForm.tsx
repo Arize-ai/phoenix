@@ -1,15 +1,30 @@
+import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { Flex, Heading, Label, Switch, Text, View } from "@phoenix/components";
+import { Flex, Label, Switch, View } from "@phoenix/components";
 import { EvaluatorCategoricalChoiceConfig } from "@phoenix/components/evaluators/EvaluatorCategoricalChoiceConfig";
 import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
+import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 
-export const LLMEvaluatorForm = () => {
+export const LLMEvaluatorForm = ({
+  showInputMapping = true,
+  showAnnotationConfig = true,
+  inputMappingSection,
+}: {
+  showInputMapping?: boolean;
+  showAnnotationConfig?: boolean;
+  /**
+   * Replaces the dataset mapping section. A dataset evaluator maps one row per
+   * template variable; an evaluator on a project's records maps the three
+   * inputs it receives, so the two sections are not the same control.
+   */
+  inputMappingSection?: ReactNode;
+}) => {
   const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
   if (evaluatorKind !== "LLM") {
     throw new Error("LLMEvaluatorForm called for non-LLM evaluator");
@@ -28,12 +43,11 @@ export const LLMEvaluatorForm = () => {
   return (
     <>
       <View marginBottom="size-200" flex="none">
-        <Flex direction="column" gap="size-100">
-          <Flex justifyContent="space-between" alignItems="center">
-            <Heading level={2} weight="heavy">
-              Evaluator Prompt
-            </Heading>
-            <Flex direction="row" justifyContent="space-between" gap="size-100">
+        <EvaluatorSectionHeader
+          title="Evaluator Prompt"
+          description="Write the prompt your evaluator sends to the LLM."
+          extra={
+            <Flex direction="row" alignItems="center" gap="size-100">
               <Switch
                 isSelected={showPromptPreview}
                 onChange={setShowPromptPreview}
@@ -43,11 +57,8 @@ export const LLMEvaluatorForm = () => {
               </Switch>
               <TemplateFormatRadioGroup size="S" showNoneOption={false} />
             </Flex>
-          </Flex>
-          <Text color="text-500">
-            Define or load a prompt for your evaluator.
-          </Text>
-        </Flex>
+          }
+        />
       </View>
       <Flex direction="column" gap="size-100">
         {showPromptPreview ? (
@@ -56,38 +67,37 @@ export const LLMEvaluatorForm = () => {
           <EvaluatorChatTemplate />
         )}
       </Flex>
-      <View marginBottom="size-200" flex="none">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2} weight="heavy">
-            Evaluator Annotation
-          </Heading>
-          <Text color="text-500">
-            Define the annotation that your evaluator will create.
-          </Text>
-          {isCategoricalAnnotationConfig ? (
-            <EvaluatorCategoricalChoiceConfig />
-          ) : null}
-        </Flex>
-      </View>
-      <Flex direction="column" gap="size-100">
-        <Heading level={2} weight="heavy">
-          Map Prompt Variables (optional)
-        </Heading>
-        <Text color="text-500">
-          Map the variables in your prompt to your dataset example and task
-          output fields. You can leave these blank if your variable names match
-          the field names.
-        </Text>
-        <View
-          borderRadius="medium"
-          borderWidth="thin"
-          padding="size-200"
-          marginTop="size-50"
-          borderColor="default"
-        >
-          <EvaluatorInputMapping />
+      {showAnnotationConfig ? (
+        <View marginBottom="size-200" flex="none">
+          <Flex direction="column" gap="size-100">
+            <EvaluatorSectionHeader
+              title="Evaluator Annotation"
+              description="Define the annotation that your evaluator will create."
+            />
+            {isCategoricalAnnotationConfig ? (
+              <EvaluatorCategoricalChoiceConfig />
+            ) : null}
+          </Flex>
         </View>
-      </Flex>
+      ) : null}
+      {inputMappingSection}
+      {inputMappingSection == null && showInputMapping ? (
+        <Flex direction="column" gap="size-100">
+          <EvaluatorSectionHeader
+            title="Map Prompt Variables (optional)"
+            description="Variables left blank are matched to fields of the same name."
+          />
+          <View
+            borderRadius="medium"
+            borderWidth="thin"
+            padding="size-200"
+            marginTop="size-50"
+            borderColor="default"
+          >
+            <EvaluatorInputMapping />
+          </View>
+        </Flex>
+      ) : null}
     </>
   );
 };

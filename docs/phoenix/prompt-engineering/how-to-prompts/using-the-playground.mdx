@@ -58,9 +58,11 @@ Phoenix lets you run a prompt (or multiple prompts) on a dataset. Simply [load a
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" />
 </Frame>
 
+The table shows each example's **input** and **reference output** beside the tasks' columns. Use **Columns** in the experiment toolbar to show or hide those and the example's **metadata**. Metadata starts hidden unless the loaded examples carry some, your choice is remembered in the browser, and the metadata cell leaves out the `annotations` key that holds expected outputs recorded for evaluators until you turn off **Hide expected annotations** in the experiment settings.
+
 ### Configuring Dataset Paths
 
-By default, the playground reads template variables from `input`, so `{question}` will resolve against `input.question` automatically. If your dataset examples store inputs under a different nested object, you can configure where the playground should read prompt variables from:
+For prompt tasks, the playground reads template variables from `input` by default, so `{question}` resolves against `input.question`. Evaluator tasks start at the example root instead, because an evaluator's input mapping addresses `input`, `output` and `metadata` directly. The path is remembered per dataset for each kind of task, so changing it for prompts leaves the evaluators' path alone. If your dataset examples store inputs under a different nested object, you can configure where the playground should read prompt variables from:
 
 1. Load a dataset
 2. Click the **settings button** (gear icon) in the experiment toolbar next to the dataset selector
@@ -173,3 +175,21 @@ If however you run a prompt over dataset examples, the outputs and spans from yo
 <Frame caption="If you run over a dataset, the output and traces is tracked as a dataset experiment">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" />
 </Frame>
+
+
+## Comparing evaluators
+
+The playground holds one kind of task at a time: prompts, or evaluators. The task selector at the top of each task (where the prompt picker sits) lists your saved prompts, your saved LLM and code evaluators, and **New prompt**, **New LLM evaluator** and **New code evaluator**. Picking an evaluator turns the page into an evaluator playground where you try LLM and code evaluators against a dataset, record the outputs you expected, and compare up to four evaluators side by side. You can also open an evaluator here with the **Playground** button of the evaluators, dataset evaluators and project evaluators tables, or from the evaluator picker of a prompt task. From a project's evaluators the playground opens without a dataset; select one to run the evaluator over its examples.
+
+1. Pick an evaluator, or start a new one, from the task selector of the first task. While the page holds more than one task, the selector only offers the page's kind; remove the other tasks to switch between prompts and evaluators.
+2. Configure the evaluator's tabs. An LLM evaluator's **Prompt** tab is its judge prompt, with the same model controls as a prompt task; a code evaluator's **Code** tab needs a configured sandbox. **Input mapping** points the evaluator's variables at fields of the dataset example, and **Output** names the evaluator and its labels or score.
+3. In the **Experiment** panel, select a dataset and optional splits. Evaluators run over every example of the dataset, or of the selected splits.
+4. Click **Compare** to add a second, third and fourth evaluator, either a saved one, a new draft, or a duplicate of the current task.
+5. Click **Run**. Every task runs over the dataset as its own experiment, so evaluator runs get the same queueing and retries as prompt experiments. The play button in an evaluator's column header runs only that evaluator over every example, and follows **Record** like **Run**. The play button at the start of a row runs every task on that one example as a spot check: it is never recorded, whatever **Record** says, and the column keeps the experiment of its last full run. Inspect labels, scores, explanations, and errors in the table, and open an evaluator's trace from its cell.
+6. Record what you expected. Thumbs up accepts an evaluator's result as the expected output; thumbs down opens a form for the label or score that was expected. The band under each result shows the expected output and flags results that differ from it. Each evaluator's column header counts the examples with an expected output and how many results agree with it.
+7. Edit an evaluator and run again; the columns of the other evaluators keep their results.
+8. To keep an evaluator, click **Save**. The dialog asks for a name and description (the same name as in **Output**) and states what will happen: a new draft becomes an evaluator attached to the selected dataset, an evaluator already on the dataset is updated in place, and a code evaluator from elsewhere is updated and added to the dataset. Click **Save as new** to leave a loaded evaluator unchanged and save a copy named after it with a `_copy` suffix, which you can rename later. Saving needs a selected dataset.
+
+With **Record** on, an evaluator run is a recorded experiment: it appears in the dataset's experiments list and in the experiment compare view, with the evaluator's verdicts as annotations named after the evaluator. With **Record** off the experiment is temporary and Phoenix removes it later.
+
+An evaluator task judges the dataset example itself: its context is the example's `input`, `output` and `metadata`, and there is no `reference`. Use **Input mapping** to point evaluator variables at other fields; a template that names `reference` needs a mapping of its own. Expected outputs are stored on the dataset example as human annotations under the `annotations` key of its metadata, named after the evaluator (or `evaluator.output` for an evaluator with several outputs), so evaluators with the same name share them. They are written in batches as new dataset versions and are never passed to the evaluators. **Stop** stops the running experiments; requests already running may finish.

@@ -12,10 +12,12 @@ from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
 from sqlalchemy import Select, case, desc, distinct, func, or_, select
+from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
+from sqlalchemy.sql.sqltypes import String
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -32,10 +34,23 @@ from phoenix.db.trace_aggregates import (
     TRACE_ROWID,
     representative_root_span_by_trace,
 )
+from phoenix.db.types.annotation_configs import as_output_configs
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
+from phoenix.server.api.helpers.evaluator_comparison import (
+    ComparisonAccumulator,
+    make_side_binning,
+)
+from phoenix.server.api.helpers.evaluator_results import (
+    EVALUATOR_RESULT_LEVELS,
+    evaluator_annotation_rows,
+    latest_evaluator_annotations,
+    primary_result_annotation,
+)
+from phoenix.server.api.helpers.evaluators import result_annotation_names
+from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
@@ -48,6 +63,12 @@ from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
+from phoenix.server.api.types.EvaluatorComparison import (
+    EvaluatorComparisonCoverage,
+    ProjectEvaluatorComparison,
+    to_gql_comparison,
+)
 from phoenix.server.api.types.FilterVocabularyTerm import (
     FilterVocabularyTerm,
     session_filter_vocabulary_terms,
@@ -74,12 +95,12 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.online_eval.tracing import PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
-    compile_session_filter,
     get_filtered_session_rowids_subquery,
-    session_filter_errors,
+    validate_session_filter_condition,
 )
 from phoenix.server.trace_filters import (
     TraceFilterConditionError,
@@ -89,7 +110,10 @@ from phoenix.server.trace_filters import (
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
-from phoenix.trace.dsl.filter import root_span_scope
+from phoenix.trace.dsl.filter import (
+    root_span_scope,
+    validate_span_filter_condition,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +315,21 @@ def _trace_annotation_names_stmt(project_rowid: int) -> Select[Any]:
     )
 
 
+def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> Any:
+    """Match only the spans an evaluator execution stamped with its own identity.
+
+    The id is rebuilt from its row id so a differently encoded but equivalent
+    global id still matches what the evaluator wrote.
+    """
+    try:
+        rowid = from_global_id_with_expected_type(project_evaluator_id, ProjectEvaluator.__name__)
+    except ValueError:
+        raise BadRequest(f"Invalid project evaluator ID: {project_evaluator_id}")
+    return models.Span.attributes[PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH].as_string() == str(
+        GlobalID(ProjectEvaluator.__name__, str(rowid))
+    )
+
+
 def _unknown_annotation_name_warning(name: str, observed_names: Sequence[str]) -> str:
     """Warn about an unrecognized annotation name, naming its closest observed neighbors."""
     if not observed_names:
@@ -350,6 +389,75 @@ class Project(Node):
                 ),
             )
         return description
+
+    @strawberry.field(description="Number of evaluators attached to this project.")  # type: ignore
+    async def evaluator_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(func.count(models.ProjectEvaluator.id)).where(
+            models.ProjectEvaluator.project_id == self.id
+        )
+        async with info.context.db.read() as session:
+            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+        filter: Optional[ProjectEvaluatorFilter] = UNSET,
+    ) -> Connection[ProjectEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = (
+            select(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.project_id == self.id)
+            .order_by(
+                models.ProjectEvaluator.name,
+                models.ProjectEvaluator.id,
+            )
+        )
+        if filter and filter.col and filter.value and (value := filter.value.strip()):
+            column = getattr(models.ProjectEvaluator, filter.col.value)
+            # `name` is an Identifier-typed column; compare it as text so LIKE applies.
+            stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
+        annotation_names = filter.annotation_names if filter else None
+        if annotation_names:
+            # Project evaluator identifiers cannot contain dots.
+            candidate_names = {name.partition(".")[0] for name in annotation_names}
+            stmt = stmt.where(
+                sqlalchemy_cast(models.ProjectEvaluator.name, String).in_(candidate_names)
+            )
+        async with info.context.db.read() as session:
+            records = list(await session.scalars(stmt))
+        if annotation_names:
+            evaluators = await info.context.data_loaders.evaluator_by_id.load_many(
+                [record.evaluator_id for record in records]
+            )
+            requested_names = set(annotation_names)
+            records = [
+                record
+                for record, evaluator in zip(records, evaluators)
+                if evaluator is not None
+                and requested_names.intersection(
+                    result_annotation_names(
+                        record.name.root,
+                        as_output_configs(getattr(evaluator, "output_configs", None)),
+                    )
+                )
+            ]
+        return connection_from_list(
+            data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
+            args=args,
+        )
 
     @strawberry.field
     async def gradient_start_color(
@@ -623,13 +731,28 @@ class Project(Node):
         sort: Optional[SpanSort] = UNSET,
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
+        project_evaluator_id: Annotated[
+            Optional[GlobalID],
+            strawberry.argument(
+                description=(
+                    "Restrict to spans produced by this project evaluator. Each evaluator "
+                    "traces into its own dedicated project, so this scope is only needed "
+                    "when querying a project that mixes spans from other sources."
+                )
+            ),
+        ] = UNSET,
     ) -> Connection[Span]:
+        evaluator_scope = (
+            _project_evaluator_span_scope(project_evaluator_id) if project_evaluator_id else None
+        )
         stmt = (
             select(models.Span.id)
             .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id)
         )
+        if evaluator_scope is not None:
+            stmt = stmt.where(evaluator_scope)
         if time_range:
             if time_range.start:
                 stmt = stmt.where(time_range.start <= models.Span.start_time)
@@ -1254,10 +1377,7 @@ class Project(Node):
         # depend on the live annotation table -- besides costing a query per
         # keystroke. See the spec's Known Gaps.
         try:
-            span_filter = SpanFilter(condition=condition)
-            stmt = span_filter(select(models.Span))
-            str(stmt.compile(dialect=sqlite.dialect()))
-            str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            validate_span_filter_condition(condition)
             return ValidationResult(is_valid=True, error_message=None)
         except SpanFilterError as e:
             # The DSL guarantees these messages are user-safe statements about
@@ -1308,11 +1428,7 @@ class Project(Node):
         as valid is one they will accept.
         """
         try:
-            with session_filter_errors():
-                session_filter = compile_session_filter(condition)
-                stmt = session_filter(select(models.ProjectSession))
-                str(stmt.compile(dialect=sqlite.dialect()))
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            validate_session_filter_condition(condition)
         except SessionFilterConditionError as e:
             return ValidationResult(is_valid=False, error_message=str(e))
         referenced_annotation_names = _referenced_subscript_names(
@@ -2436,6 +2552,98 @@ class Project(Node):
             utc_offset_minutes=utc_offset_minutes,
         )
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Compare two of this project's evaluators over one shared population: "
+            "entities in the time range evaluated by both. Returns coverage, a "
+            "confusion matrix over binned labels, and agreement statistics. Time "
+            "filtering follows the annotation metrics fields: spans and traces "
+            "filter on trace start time, sessions on session start time."
+        )
+    )
+    async def evaluator_comparison(
+        self,
+        info: Info[Context, None],
+        evaluator_a_id: GlobalID,
+        evaluator_b_id: GlobalID,
+        time_range: TimeRange,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
+    ) -> ProjectEvaluatorComparison:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+        try:
+            rowid_a = from_global_id_with_expected_type(evaluator_a_id, ProjectEvaluator.__name__)
+            rowid_b = from_global_id_with_expected_type(evaluator_b_id, ProjectEvaluator.__name__)
+        except ValueError:
+            raise BadRequest("Evaluator IDs must be ProjectEvaluator IDs")
+        if rowid_a == rowid_b:
+            raise BadRequest("Select two different evaluators to compare")
+
+        record_a, record_b = await info.context.data_loaders.project_evaluator_by_id.load_many(
+            [rowid_a, rowid_b]
+        )
+        if record_a is None or record_a.project_id != self.id:
+            raise NotFound(f"ProjectEvaluator not found: {evaluator_a_id}")
+        if record_b is None or record_b.project_id != self.id:
+            raise NotFound(f"ProjectEvaluator not found: {evaluator_b_id}")
+        if record_a.evaluation_target != record_b.evaluation_target:
+            raise BadRequest(
+                "The selected evaluators do not share an evaluation target "
+                f"({record_a.evaluation_target} vs {record_b.evaluation_target})"
+            )
+        evaluation_target = record_a.evaluation_target
+
+        (
+            evaluator_orm_a,
+            evaluator_orm_b,
+        ) = await info.context.data_loaders.evaluator_by_id.load_many(
+            [record_a.evaluator_id, record_b.evaluator_id]
+        )
+        name_a, config_a = primary_result_annotation(record_a, evaluator_orm_a)
+        name_b, config_b = primary_result_annotation(record_b, evaluator_orm_b)
+        if name_a == name_b:
+            raise BadRequest("The selected evaluators write results under the same annotation name")
+
+        binning_a = make_side_binning(name_a, config_a, threshold_a)
+        binning_b = make_side_binning(name_b, config_b, threshold_b)
+
+        pairs_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
+            project_rowid=self.id,
+            evaluation_target=evaluation_target,
+            name_a=name_a,
+            name_b=name_b,
+            time_range=time_range,
+        )
+
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        evaluated_by_both = only_a = only_b = 0
+        async with info.context.db.read() as session:
+            total_in_range = await session.scalar(total_stmt) or 0
+            for has_a, has_b, entity_count in await session.execute(coverage_stmt):
+                if has_a and has_b:
+                    evaluated_by_both = entity_count
+                elif has_a:
+                    only_a = entity_count
+                else:
+                    only_b = entity_count
+            async for row in await session.stream(pairs_stmt):
+                accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b)
+        result = accumulator.result()
+
+        return to_gql_comparison(
+            evaluation_target=EvaluationTarget(evaluation_target),
+            coverage=EvaluatorComparisonCoverage(
+                evaluated_by_both=evaluated_by_both,
+                only_a=only_a,
+                only_b=only_b,
+                total_in_range=total_in_range,
+            ),
+            result=result,
+            record_a=record_a,
+            record_b=record_b,
+        )
+
     @strawberry.field
     async def top_models_by_cost(
         self,
@@ -2835,6 +3043,84 @@ async def _annotation_metrics_time_series(
         data=sorted(data.values(), key=lambda point: point.timestamp),
         names=sorted(unique_names),
     )
+
+
+def _evaluator_comparison_stmts(
+    project_rowid: int,
+    evaluation_target: str,
+    name_a: str,
+    name_b: str,
+    time_range: TimeRange,
+) -> tuple[Select[Any], Select[Any], Select[Any]]:
+    """Build the pair, coverage, and total-entity statements for one evaluation target.
+
+    The pair statement yields one row per entity annotated under both names in
+    range — (label_a, score_a, label_b, score_b) — deduplicating
+    multiple annotation identifiers per (entity, name) to the most recently
+    updated. Rows are selected by annotation name alone, whichever source
+    wrote them. The coverage statement counts entities grouped by which names
+    annotated them, and the total statement counts all entities of that target
+    in the project and range.
+    """
+    level = EVALUATOR_RESULT_LEVELS.get(evaluation_target)
+    if level is None:
+        raise BadRequest(f"Unsupported evaluation target: {evaluation_target}")
+    assert time_range.start is not None
+
+    def annotation_rows(*columns: Any) -> Select[Any]:
+        return evaluator_annotation_rows(
+            *columns,
+            project_rowid=project_rowid,
+            evaluation_target=evaluation_target,
+            annotation_names=[name_a, name_b],
+            time_range=time_range,
+        )
+
+    total = select(func.count(level.entity.id))
+    if level.joins_trace:
+        total = total.join_from(
+            level.entity, models.Trace, onclause=models.Span.trace_rowid == models.Trace.id
+        )
+    total = total.where(level.project_col == project_rowid).where(
+        time_range.start <= level.time_col
+    )
+    if time_range.end:
+        total = total.where(level.time_col < time_range.end)
+
+    is_a_flag = case((level.annotation.name == name_a, 1), else_=0)
+    is_b_flag = case((level.annotation.name == name_b, 1), else_=0)
+    presence = (
+        annotation_rows(
+            level.entity_id.label("entity_id"),
+            func.max(is_a_flag).label("has_a"),
+            func.max(is_b_flag).label("has_b"),
+        )
+        .group_by(level.entity_id)
+        .subquery("comparison_presence")
+    )
+    coverage = select(
+        presence.c.has_a, presence.c.has_b, func.count().label("entity_count")
+    ).group_by(presence.c.has_a, presence.c.has_b)
+
+    latest = latest_evaluator_annotations(
+        project_rowid=project_rowid,
+        evaluation_target=evaluation_target,
+        annotation_names=[name_a, name_b],
+        time_range=time_range,
+    )
+    is_a = latest.c.name == name_a
+    pairs: Select[Any] = (
+        select(
+            func.max(case((is_a, latest.c.label))).label("label_a"),
+            func.max(case((is_a, latest.c.score))).label("score_a"),
+            func.max(case((~is_a, latest.c.label))).label("label_b"),
+            func.max(case((~is_a, latest.c.score))).label("score_b"),
+        )
+        .group_by(latest.c.entity_id)
+        .having(func.max(case((is_a, 1), else_=0)) == 1)
+        .having(func.max(case((~is_a, 1), else_=0)) == 1)
+    )
+    return pairs, coverage, total
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

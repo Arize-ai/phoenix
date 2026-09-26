@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.sql.expression import tuple_
 from strawberry import UNSET, Info, lazy
 from strawberry.relay import Connection, Node, NodeID
+from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -144,6 +145,41 @@ class ProjectSession(Node):
             attr=models.Span.output_value,
             truncated_value=truncate_value(record.truncated_value),
         )
+
+    @strawberry.field(
+        description=(
+            "The canonical context that online evaluators bind against when they "
+            "run on this session. Null when the session has no eligible root turn "
+            "to evaluate."
+        ),
+    )  # type: ignore
+    async def session_evaluation_context(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[JSON]:
+        from phoenix.server.online_eval.bound_variables import load_session_bound_variables
+        from phoenix.server.online_eval.executor import (
+            has_eligible_root_turns,
+            load_session_eval_context,
+        )
+
+        async with info.context.db.read() as session:
+            project_session = await session.get(models.ProjectSession, self.id)
+            if project_session is None:
+                return None
+            vocabularies = await load_session_bound_variables(
+                session,
+                project_session_rowids=[self.id],
+            )
+            loaded = await load_session_eval_context(
+                session,
+                project_session_rowid=self.id,
+                project_id=project_session.project_id,
+                vocabulary=vocabularies[self.id],
+            )
+        if not has_eligible_root_turns(loaded.applied_policy):
+            return None
+        return JSON(loaded.context)
 
     @strawberry.field(
         description='The first non-null "user.id" span attribute in the session, '

@@ -2,6 +2,11 @@
 
 - [Developer's Guide](#developers-guide)
   - [Quickstart](#quickstart)
+  - [Synthetic Trace Traffic](#synthetic-trace-traffic)
+    - [With `pnpm dev`](#with-pnpm-dev)
+    - [Running it directly](#running-it-directly)
+    - [Options](#options)
+    - [The corpus](#the-corpus)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
@@ -60,9 +65,73 @@ Open [http://localhost:6006](http://localhost:6006). If authentication is enable
 > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
 > ```
 
-To send traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
+`pnpm dev` also starts a `datagen` process that continuously replays recorded OpenInference traces into the `phoenix-datagen` project, so the dev server always has live traffic. See [Synthetic Trace Traffic](#synthetic-trace-traffic) to configure or disable it.
+
+To send your own traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
 
 If a step fails, consult the detailed setup instructions below.
+
+## Synthetic Trace Traffic
+
+`phoenix datagen` is an internal development tool that replays a published corpus of recorded OpenInference traces into a Phoenix collector at a steady rate, forever, until you stop it. Use it whenever you need realistic, continuously arriving data — for example when working on online evals, live-updating tables, or time-series charts.
+
+> **⚠️ Internal tool:** `datagen` is hidden from `phoenix --help` and is not a supported feature. Its flags, default project name, and corpus format may change in any release without a MIGRATION.md entry.
+
+### With `pnpm dev`
+
+`pnpm dev` runs datagen as the `datagen` process in `mprocs` (see `js/app/mprocs.yaml`), via:
+
+```bash
+pnpm dev:datagen   # from js/app
+```
+
+It sources `js/app/.env` and sends traces to `http://localhost:${PHOENIX_PORT:-6006}`. It starts at the same time as the server; exports that fail while the server is still booting are logged as `OTLP export failed` warnings and that trace is skipped, so a few warnings at startup are expected; traffic flows once the server is up.
+
+- **Stop or restart it** from the `mprocs` UI: select the `datagen` process and press `x` to stop, `s` to start, or `r` to restart.
+- **Authentication:** if `PHOENIX_ENABLE_AUTH` is on, create a system API key in the Phoenix UI and add `PHOENIX_API_KEY=<key>` to `js/app/.env`. Without it every export fails with `401 Unauthorized`.
+- **Configure it** by adding the environment variables below to `js/app/.env` (for example `PHOENIX_PROJECT_NAME=my-project`).
+
+### Running it directly
+
+From the repo root, against any Phoenix instance:
+
+```bash
+# defaults: http://localhost:6006, project "phoenix-datagen", 12 traces/minute
+uv run phoenix datagen
+
+# fully configured
+uv run phoenix datagen \
+  --endpoint http://localhost:6007 \
+  --project my-project \
+  --rate 60 \
+  --api-key $PHOENIX_API_KEY
+```
+
+Stop it with `Ctrl+C`.
+
+### Options
+
+Command-line flags take precedence over environment variables.
+
+| Flag | Environment variable | Default | Description |
+| --- | --- | --- | --- |
+| `--endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | `http://localhost:6006` | Phoenix collector base URL. Traces are sent over OTLP/HTTP to `<endpoint>/v1/traces`. |
+| `--project` | `PHOENIX_PROJECT_NAME` | `phoenix-datagen` | Project the traces land in. |
+| `--rate` | — | `12` | Mean traces per minute. Must be greater than zero. |
+| `--burstiness` | — | `0.5` | Variability of the time between traces. `0` is perfectly uniform; higher values make traffic burstier. |
+| `--api-key` | `PHOENIX_API_KEY` | none | API key, required when authentication is enabled. |
+| `--corpus` | — | published corpus | Path to a local corpus archive to replay instead of the published one. |
+| — | `PHOENIX_CLIENT_HEADERS` | none | Extra request headers as `key=value,key2=value2` (URL-encoded). |
+
+In `pnpm dev`, `--endpoint` is always passed explicitly (built from `PHOENIX_PORT`), so `PHOENIX_COLLECTOR_ENDPOINT` in `.env` has no effect there.
+
+### The corpus
+
+The first run downloads the published corpus and caches it locally (content-addressed, so it is only re-downloaded when the corpus changes). To pre-fetch it, for example before going offline, run:
+
+```bash
+uv run phoenix datagen pull   # prints the cached archive path
+```
 
 ## Setting Up Your macOS Development Environment
 
@@ -389,7 +458,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
  pnpm dev
 ```
 
-This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
+This launches the Python server, the frontend UI, and the [synthetic trace generator](#synthetic-trace-traffic) simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
 
 > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
 >

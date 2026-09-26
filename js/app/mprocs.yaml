@@ -5,3 +5,8 @@ procs:
 
   frontend:
     cmd: ["pnpm", "run", "dev:ui"]
+
+  # Continuously replays recorded OpenInference traces into the dev server so
+  # there is always live traffic. See "Synthetic Trace Traffic" in DEVELOPMENT.md.
+  datagen:
+    cmd: ["pnpm", "run", "dev:datagen"]

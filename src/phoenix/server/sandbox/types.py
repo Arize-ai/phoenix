@@ -540,7 +540,13 @@ _NO_SESSION_HANDLE: object = object()
 
 
 class SandboxBackend(ABC):
-    """Protocol for sandbox backends."""
+    """Protocol for sandbox backends.
+
+    Session handles may share filesystem, package, port, and process-level
+    resources across calls. Backends must opt into concurrent execution only
+    when each call has an isolated language process or kernel; otherwise the
+    session manager serializes calls per handle.
+    """
 
     # Union of user-env and provider-credential plaintexts; CodeEvaluatorRunner
     # masks these from emitted span attributes and exception events.
@@ -549,6 +555,7 @@ class SandboxBackend(ABC):
     #: SandboxBackendType token ("MODAL", "E2B", ...) for per-provider
     #: capacity accounting. Empty for stateless backends.
     provider: ClassVar[str] = ""
+    supports_concurrent_session_execution: ClassVar[bool] = False
 
     @abstractmethod
     async def find_or_create_session(self, session_key: str) -> object:

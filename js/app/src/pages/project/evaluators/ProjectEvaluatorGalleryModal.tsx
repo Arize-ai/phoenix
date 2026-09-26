@@ -1,0 +1,1678 @@
+import { css } from "@emotion/react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Header, ListBoxSection } from "react-aria-components";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import { useNavigate, useParams } from "react-router";
+
+import {
+  Button,
+  Counter,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  ExpandableContent,
+  Flex,
+  Heading,
+  Icon,
+  type IconKey,
+  List,
+  ListBox,
+  ListBoxItem,
+  ListItem,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectValue,
+  Skeleton,
+  Text,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
+import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
+import {
+  getOptimizationBounds,
+  getPositiveOptimization,
+} from "@phoenix/components/annotation/optimizationUtils";
+import {
+  PythonBlockWithCopy,
+  TypeScriptBlockWithCopy,
+} from "@phoenix/components/code";
+import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { ErrorBoundary } from "@phoenix/components/exception";
+import { useTheme } from "@phoenix/contexts";
+import type { projectEvaluatorDetailsQuery as ProjectEvaluatorDetailsQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
+import type { projectEvaluatorGalleryModalQuery as ProjectEvaluatorGalleryModalQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorGalleryModalQuery.graphql";
+import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
+import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
+import {
+  projectEvaluatorDetailsQueryNode,
+  readProjectEvaluatorDetails,
+  type CodeProjectEvaluatorDetails,
+  type LlmProjectEvaluatorDetails,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
+import { useProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  getProjectEvaluatorTemplateCategoryLabel,
+  getProjectEvaluatorTemplateChoices,
+  getProjectEvaluatorTemplateMessages,
+  PROJECT_EVALUATOR_CATEGORIES,
+  type ProjectEvaluatorTemplate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
+import {
+  formatEvaluationTargetPlural,
+  type ProjectEvaluatorTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { PlaygroundChatTemplate } from "@phoenix/store";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types";
+import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
+
+const OTHER_CATEGORY = "other" as const;
+const CUSTOM_EVALUATORS_SECTION = "custom-evaluators" as const;
+const GALLERY_SKELETON_HEIGHT = 440;
+/** The combined minimum width of the category, template, and details columns. */
+const GALLERY_EXPANDED_MIN_WIDTH = 960;
+/**
+ * Once a category heading crosses into the top 30% of the scroll region, treat
+ * it as the section the user is currently reading.
+ */
+const SCROLL_SPY_ROOT_MARGIN = "0px 0px -70% 0px";
+
+type TemplateCategory = EvaluatorCategory | typeof OTHER_CATEGORY;
+type GallerySection = TemplateCategory | typeof CUSTOM_EVALUATORS_SECTION;
+
+type EvaluatorCategoryAppearance = {
+  icon: IconKey;
+  color: string;
+  lightColor?: string;
+};
+
+const EVALUATOR_CATEGORY_APPEARANCE = {
+  GROUNDING_AND_RETRIEVAL: {
+    icon: "ScanSearch",
+    color: "var(--global-color-orange-900)",
+    lightColor: "var(--global-color-orange-800)",
+  },
+  AGENTS: {
+    icon: "Agent",
+    color: "var(--global-color-purple-700)",
+    lightColor: "var(--global-color-purple-900)",
+  },
+  RESPONSE_QUALITY: {
+    icon: "BadgeCheck",
+    color: "var(--global-color-green-800)",
+  },
+  SAFETY_AND_SECURITY: {
+    icon: "SafetySecurity",
+    color: "var(--global-color-red-700)",
+    lightColor: "var(--global-color-red-800)",
+  },
+  USER_EXPERIENCE: {
+    icon: "Smile",
+    color: "var(--global-color-blue-700)",
+    lightColor: "var(--global-color-blue-900)",
+  },
+} satisfies Record<EvaluatorCategory, EvaluatorCategoryAppearance>;
+
+const CUSTOM_EVALUATOR_APPEARANCE = {
+  icon: "SquarePen",
+  color: "var(--global-color-gray-700)",
+} satisfies EvaluatorCategoryAppearance;
+
+type CustomEvaluator = {
+  readonly __typename: "LLMEvaluator" | "CodeEvaluator";
+  readonly id: string;
+  readonly name: string;
+  readonly description: string | null;
+};
+
+type GalleryItem =
+  | { kind: "custom"; evaluator: CustomEvaluator }
+  | { kind: "template"; template: ProjectEvaluatorTemplate };
+
+/**
+ * The card the gallery shows. Resolved against the loaded gallery, so an
+ * unavailable category, template, or evaluator falls back to the first card.
+ */
+type GallerySelection =
+  | { kind: "default" }
+  | { kind: "category"; category: EvaluatorCategory }
+  | { kind: "template"; templateName: string }
+  | { kind: "evaluator"; evaluatorId: string };
+
+const projectEvaluatorGalleryModalQuery = graphql`
+  query projectEvaluatorGalleryModalQuery($projectId: ID!) {
+    evaluatorGalleryConfigs {
+      name
+      description
+      choices
+      optimizationDirection
+      scope
+      category
+      details
+      inputs {
+        name
+        description
+      }
+      messages {
+        ...promptUtils_promptMessages
+      }
+    }
+    evaluators(
+      first: 100
+      sort: { col: updatedAt, dir: desc }
+      excludeProjectId: $projectId
+    )
+      @connection(
+        key: "ProjectEvaluatorGallery__evaluators"
+        filters: ["excludeProjectId"]
+      ) {
+      edges {
+        evaluator: node {
+          __typename
+          id
+          name
+          description
+        }
+      }
+    }
+  }
+`;
+
+function getGalleryCategory(
+  category: EvaluatorCategory | null
+): TemplateCategory {
+  return category ?? OTHER_CATEGORY;
+}
+
+function getEvaluatorCategoryAppearance(
+  section: GallerySection
+): EvaluatorCategoryAppearance {
+  return section === CUSTOM_EVALUATORS_SECTION || section === OTHER_CATEGORY
+    ? CUSTOM_EVALUATOR_APPEARANCE
+    : EVALUATOR_CATEGORY_APPEARANCE[section];
+}
+
+function useEvaluatorCategoryAppearance(
+  section: GallerySection
+): EvaluatorCategoryAppearance {
+  const { theme } = useTheme();
+  const appearance = getEvaluatorCategoryAppearance(section);
+  return {
+    ...appearance,
+    color:
+      theme === "light"
+        ? (appearance.lightColor ?? appearance.color)
+        : appearance.color,
+  };
+}
+
+function EvaluatorCategoryIcon({
+  section,
+  isWrapped = false,
+}: {
+  section: GallerySection;
+  isWrapped?: boolean;
+}) {
+  const appearance = useEvaluatorCategoryAppearance(section);
+  return (
+    <span
+      css={isWrapped ? categoryHeadingIconCSS : categoryMenuIconCSS}
+      style={{
+        color: appearance.color,
+        backgroundColor: isWrapped
+          ? `color-mix(in srgb, ${appearance.color} 10%, transparent)`
+          : undefined,
+      }}
+      aria-hidden="true"
+    >
+      <Icon svgKey={appearance.icon} />
+    </span>
+  );
+}
+
+function getSectionHeadingId(section: GallerySection): string {
+  return `project-evaluator-gallery-section-${section.toLowerCase()}`;
+}
+
+const getCustomEvaluatorItemKey = (id: string) => `custom:${id}`;
+const getTemplateItemKey = (name: string) => `template:${name}`;
+const getCustomEvaluatorKind = (evaluator: CustomEvaluator) =>
+  evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE";
+
+function getGalleryItemKey(item: GalleryItem): string {
+  return item.kind === "custom"
+    ? getCustomEvaluatorItemKey(item.evaluator.id)
+    : getTemplateItemKey(item.template.name);
+}
+
+function getGalleryItemSection(item: GalleryItem): GallerySection {
+  return item.kind === "custom"
+    ? CUSTOM_EVALUATORS_SECTION
+    : getGalleryCategory(item.template.category);
+}
+
+/**
+ * The gallery itself, as a fullscreen modal over the evaluator list.
+ *
+ * Being open is a route, so the modal is linkable and closes with the browser's
+ * back button. Which card is selected lives in component state because browsing
+ * within the modal is not navigation; `initialCategory` lets entry points open
+ * on a category.
+ */
+export function ProjectEvaluatorGalleryModal({
+  initialCategory,
+  onClose,
+}: {
+  initialCategory?: EvaluatorCategory;
+  onClose: () => void;
+}) {
+  return (
+    <ViewportModalOverlay
+      isOpen
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          onClose();
+        }
+      }}
+    >
+      <ViewportModal size="fullscreen">
+        <Dialog>
+          {({ close }) => (
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Evaluator gallery</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton close={close} aria-label="Close gallery" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <div css={galleryContainerCSS}>
+                <ErrorBoundary fallback={EvaluatorGalleryError}>
+                  <Suspense fallback={<EvaluatorGallerySkeleton />}>
+                    <EvaluatorGallery initialCategory={initialCategory} />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </DialogContent>
+          )}
+        </Dialog>
+      </ViewportModal>
+    </ViewportModalOverlay>
+  );
+}
+
+// oxlint-disable-next-line complexity
+function EvaluatorGallery({
+  initialCategory,
+}: {
+  initialCategory?: EvaluatorCategory;
+}) {
+  const navigate = useNavigate();
+  const creationPaths = useProjectEvaluatorCreationPaths();
+  const { projectId } = useParams();
+  if (!projectId) {
+    throw new Error("projectId is required");
+  }
+  const data = useLazyLoadQuery<ProjectEvaluatorGalleryModalQueryType>(
+    projectEvaluatorGalleryModalQuery,
+    { projectId },
+    { fetchPolicy: "store-and-network" }
+  );
+  const templates = data.evaluatorGalleryConfigs;
+  const customEvaluators = useMemo(
+    () =>
+      data.evaluators.edges
+        .map(({ evaluator }) => evaluator)
+        .filter(
+          (evaluator): evaluator is CustomEvaluator =>
+            evaluator.__typename === "LLMEvaluator" ||
+            evaluator.__typename === "CodeEvaluator"
+        ),
+    [data.evaluators.edges]
+  );
+  const hasCustomEvaluators = customEvaluators.length > 0;
+  const categories = useMemo(() => {
+    const orderedCategories: TemplateCategory[] = [
+      ...PROJECT_EVALUATOR_CATEGORIES.map(({ value }) => value),
+      OTHER_CATEGORY,
+    ];
+    return orderedCategories.filter((category) =>
+      templates.some(
+        (template) => getGalleryCategory(template.category) === category
+      )
+    );
+  }, [templates]);
+  const templatesByCategory = useMemo(
+    () =>
+      new Map(
+        categories.map((category) => [
+          category,
+          templates.filter(
+            (template) => getGalleryCategory(template.category) === category
+          ),
+        ])
+      ),
+    [categories, templates]
+  );
+  const galleryItems: GalleryItem[] = [
+    ...customEvaluators.map((evaluator) => ({
+      kind: "custom" as const,
+      evaluator,
+    })),
+    ...templates.map((template) => ({
+      kind: "template" as const,
+      template,
+    })),
+  ];
+  const galleryItemsByKey = new Map(
+    galleryItems.map((item) => [getGalleryItemKey(item), item])
+  );
+  const sections = useMemo<GallerySection[]>(
+    () =>
+      hasCustomEvaluators
+        ? [CUSTOM_EVALUATORS_SECTION, ...categories]
+        : categories,
+    [categories, hasCustomEvaluators]
+  );
+  const categoryItems = categories.map((category) => ({
+    id: category,
+    name: getProjectEvaluatorTemplateCategoryLabel(
+      category === OTHER_CATEGORY ? null : category
+    ),
+    count: templatesByCategory.get(category)?.length ?? 0,
+  }));
+  const [selection, setSelection] = useState<GallerySelection>(() =>
+    initialCategory
+      ? { kind: "category", category: initialCategory }
+      : { kind: "default" }
+  );
+  const requestedTemplateName =
+    selection.kind === "template" ? selection.templateName : undefined;
+  const requestedEvaluatorId =
+    selection.kind === "evaluator" ? selection.evaluatorId : undefined;
+  const requestedCategoryParam =
+    selection.kind === "category" ? selection.category : undefined;
+  const requestedCategory =
+    requestedCategoryParam && categories.includes(requestedCategoryParam)
+      ? requestedCategoryParam
+      : undefined;
+
+  // Resolve the requested selection through the same item index that backs
+  // card selection so an invalid or stale value is harmless.
+  let requestedItem: GalleryItem | undefined;
+  if (requestedEvaluatorId) {
+    requestedItem = galleryItemsByKey.get(
+      getCustomEvaluatorItemKey(requestedEvaluatorId)
+    );
+  }
+  if (!requestedItem && requestedTemplateName) {
+    requestedItem = galleryItemsByKey.get(
+      getTemplateItemKey(requestedTemplateName)
+    );
+  }
+
+  const requestedItemKeyToScroll = requestedItem
+    ? getGalleryItemKey(requestedItem)
+    : undefined;
+  const requestedSectionToScroll = requestedItem
+    ? getGalleryItemSection(requestedItem)
+    : requestedCategory;
+  const requestedCategoryTemplate = requestedCategory
+    ? templatesByCategory.get(requestedCategory)?.[0]
+    : undefined;
+  const requestedCategoryItem: GalleryItem | undefined =
+    requestedCategoryTemplate
+      ? { kind: "template", template: requestedCategoryTemplate }
+      : undefined;
+
+  // Prefer requested content, then fall back to the first available card.
+  const selectedItem =
+    requestedItem ?? requestedCategoryItem ?? galleryItems[0];
+  const selectedItemKey = selectedItem
+    ? getGalleryItemKey(selectedItem)
+    : undefined;
+
+  // Section headings double as scroll-spy targets, so the sidebar can track
+  // whichever gallery section is currently in view.
+  const headingRefs = useRef(new Map<GallerySection, HTMLElement>());
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+  const galleryScrollRegionRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState<
+    GallerySection | undefined
+  >(() => requestedSectionToScroll ?? sections[0]);
+  const selectedSection =
+    activeSection && sections.includes(activeSection)
+      ? activeSection
+      : sections[0];
+
+  const scrollToSection = (section: GallerySection) => {
+    headingRefs.current.get(section)?.scrollIntoView({ block: "start" });
+    setActiveSection(section);
+  };
+
+  // Keep the scroll position synchronized with the requested card. Prefer the
+  // card and fall back to its section when no card is available.
+  useEffect(() => {
+    // Wait for React Aria to finish laying out its collection before moving
+    // the scroll port.
+    const animationFrameId = requestAnimationFrame(() => {
+      const requestedCard = requestedItemKeyToScroll
+        ? cardRefs.current.get(requestedItemKeyToScroll)
+        : undefined;
+      const requestedSectionHeading = requestedSectionToScroll
+        ? headingRefs.current.get(requestedSectionToScroll)
+        : undefined;
+      const scrollTarget = requestedCard ?? requestedSectionHeading;
+      scrollTarget?.scrollIntoView({
+        block: requestedCard ? "nearest" : "start",
+      });
+      if (requestedSectionToScroll) {
+        setActiveSection(requestedSectionToScroll);
+      }
+    });
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [requestedItemKeyToScroll, requestedSectionToScroll]);
+
+  useEffect(() => {
+    let observer: IntersectionObserver | undefined;
+    // Wait for React Aria to mount its collection headings before snapshotting
+    // the refs used by the scroll spy.
+    const animationFrameId = requestAnimationFrame(() => {
+      const scrollRegion = galleryScrollRegionRef.current;
+      if (!scrollRegion) return;
+      // Snapshot the mounted headings so observer entries can be mapped back to
+      // the category selection used by the sidebar and compact picker.
+      const headingsByElement = new Map<Element, GallerySection>(
+        sections
+          .map(
+            (section) => [headingRefs.current.get(section), section] as const
+          )
+          .filter(
+            (entry): entry is [HTMLElement, GallerySection] => entry[0] != null
+          )
+      );
+      if (headingsByElement.size === 0) return;
+      const createdObserver = new IntersectionObserver(
+        (entries) => {
+          // More than one heading can occupy the active top band. The uppermost
+          // one represents the category the user is currently reading.
+          const topmostVisibleEntry = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+            .at(0);
+          // The final heading cannot reach the top band when the scroll port is
+          // at its limit, so treat the bottom as belonging to the last category.
+          const isAtScrollEnd =
+            scrollRegion.scrollTop + scrollRegion.clientHeight >=
+            scrollRegion.scrollHeight - 1;
+          const section = isAtScrollEnd
+            ? sections.at(-1)
+            : topmostVisibleEntry
+              ? headingsByElement.get(topmostVisibleEntry.target)
+              : undefined;
+          if (section) {
+            setActiveSection(section);
+          }
+        },
+        { root: scrollRegion, rootMargin: SCROLL_SPY_ROOT_MARGIN }
+      );
+      observer = createdObserver;
+      // Observe every mounted category heading and release them together when
+      // the category collection changes or the gallery unmounts.
+      headingsByElement.forEach((_section, heading) =>
+        createdObserver.observe(heading)
+      );
+    });
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      observer?.disconnect();
+    };
+  }, [sections]);
+
+  const setSelectedItem = (item: GalleryItem) => {
+    setSelection(
+      item.kind === "custom"
+        ? { kind: "evaluator", evaluatorId: item.evaluator.id }
+        : {
+            kind: "template",
+            templateName: item.template.name,
+          }
+    );
+  };
+  const renderSectionItem = ({
+    id,
+    name,
+    count,
+  }: {
+    id: GallerySection;
+    name: string;
+    count: number;
+  }) => (
+    <ListBoxItem key={id} id={id} textValue={name}>
+      <Flex direction="row" alignItems="center" gap="size-100">
+        <EvaluatorCategoryIcon section={id} />
+        <Text size="S">{name}</Text>
+      </Flex>
+      <Counter variant="quiet">{count}</Counter>
+    </ListBoxItem>
+  );
+
+  return (
+    <div css={galleryCSS} className="project-evaluator-gallery">
+      <nav
+        className="project-evaluator-gallery__categories"
+        aria-label="Evaluator gallery navigation"
+      >
+        <EvaluatorGalleryAddMenu />
+        <div className="project-evaluator-gallery__category-scroll-region">
+          <ListBox
+            aria-label="Evaluator gallery sections"
+            className="project-evaluator-gallery__category-list"
+            selectionMode="single"
+            selectionBehavior="replace"
+            disallowEmptySelection
+            selectedKeys={selectedSection ? [selectedSection] : []}
+            onSelectionChange={(selection) => {
+              if (selection === "all") return;
+              const section = selection.keys().next().value;
+              if (typeof section === "string") {
+                scrollToSection(section as GallerySection);
+              }
+            }}
+          >
+            {hasCustomEvaluators ? (
+              <ListBoxSection id="custom-evaluators-navigation">
+                {renderSectionItem({
+                  id: CUSTOM_EVALUATORS_SECTION,
+                  name: "Custom evaluators",
+                  count: customEvaluators.length,
+                })}
+              </ListBoxSection>
+            ) : null}
+            <ListBoxSection id="categories">
+              <Header className="project-evaluator-gallery__category-section-heading">
+                <Text
+                  elementType="h2"
+                  size="XS"
+                  weight="heavy"
+                  color="text-500"
+                >
+                  Categories
+                </Text>
+              </Header>
+              {categoryItems.map(renderSectionItem)}
+            </ListBoxSection>
+          </ListBox>
+        </div>
+      </nav>
+
+      <section
+        className="project-evaluator-gallery__templates"
+        aria-label="Evaluator templates"
+      >
+        <div className="project-evaluator-gallery__template-controls">
+          <div className="project-evaluator-gallery__compact-add-evaluator-menu">
+            <EvaluatorGalleryAddMenu />
+          </div>
+          <Select
+            aria-label="Evaluator gallery section"
+            className="project-evaluator-gallery__compact-category-select"
+            value={selectedSection}
+            onChange={(section) => {
+              if (typeof section === "string") {
+                scrollToSection(section as GallerySection);
+              }
+            }}
+          >
+            <Button size="S">
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover isNonModal closeOnInteractOutside>
+              <ListBox css={compactCategoryListCSS}>
+                {hasCustomEvaluators ? (
+                  <ListBoxSection id="compact-custom-evaluators">
+                    {renderSectionItem({
+                      id: CUSTOM_EVALUATORS_SECTION,
+                      name: "Custom evaluators",
+                      count: customEvaluators.length,
+                    })}
+                  </ListBoxSection>
+                ) : null}
+                <ListBoxSection id="compact-categories">
+                  <Header className="project-evaluator-gallery__category-section-heading">
+                    <Text
+                      elementType="h2"
+                      size="XS"
+                      weight="heavy"
+                      color="text-500"
+                    >
+                      Categories
+                    </Text>
+                  </Header>
+                  {categoryItems.map(renderSectionItem)}
+                </ListBoxSection>
+              </ListBox>
+            </Popover>
+          </Select>
+        </div>
+        <ListBox
+          ref={galleryScrollRegionRef}
+          aria-label="Evaluators and templates"
+          className="project-evaluator-gallery__template-card-scroll-region"
+          layout="grid"
+          selectionMode="single"
+          selectionBehavior="replace"
+          selectedKeys={selectedItemKey ? [selectedItemKey] : []}
+          onSelectionChange={(selection) => {
+            if (selection === "all") return;
+            const itemKey = selection.keys().next().value;
+            if (typeof itemKey === "string") {
+              const item = galleryItemsByKey.get(itemKey);
+              if (item) {
+                setSelectedItem(item);
+              }
+            }
+          }}
+          onAction={(key) => {
+            if (typeof key !== "string") return;
+            const item = galleryItemsByKey.get(key);
+            if (item?.kind === "custom") {
+              navigate(
+                getCustomEvaluatorKind(item.evaluator) === "LLM"
+                  ? creationPaths.copyLlm(item.evaluator.id)
+                  : creationPaths.attachCode(item.evaluator.id)
+              );
+              return;
+            }
+            if (item?.kind === "template") {
+              navigate(creationPaths.newLlmFromTemplate(item.template.name));
+            }
+          }}
+        >
+          {hasCustomEvaluators ? (
+            <ListBoxSection
+              id={CUSTOM_EVALUATORS_SECTION}
+              className="project-evaluator-gallery__template-category-section"
+            >
+              <Header className="project-evaluator-gallery__template-category-header">
+                <EvaluatorCategoryIcon
+                  section={CUSTOM_EVALUATORS_SECTION}
+                  isWrapped
+                />
+                <Text
+                  ref={(element) => {
+                    if (element) {
+                      headingRefs.current.set(
+                        CUSTOM_EVALUATORS_SECTION,
+                        element
+                      );
+                    } else {
+                      headingRefs.current.delete(CUSTOM_EVALUATORS_SECTION);
+                    }
+                  }}
+                  id={getSectionHeadingId(CUSTOM_EVALUATORS_SECTION)}
+                  className="project-evaluator-gallery__template-category-heading"
+                  elementType="h2"
+                  size="M"
+                  weight="heavy"
+                >
+                  Custom evaluators
+                </Text>
+              </Header>
+              {customEvaluators.map((evaluator) => {
+                const itemKey = getCustomEvaluatorItemKey(evaluator.id);
+                return (
+                  <EvaluatorTemplateCard
+                    key={itemKey}
+                    ref={(element) => {
+                      if (element) {
+                        cardRefs.current.set(itemKey, element);
+                      } else {
+                        cardRefs.current.delete(itemKey);
+                      }
+                    }}
+                    id={itemKey}
+                    textValue={evaluator.name}
+                  >
+                    <Flex direction="column" gap="size-0">
+                      <Text size="S" weight="heavy">
+                        {evaluator.name}
+                      </Text>
+                      <EvaluatorTypeSummary
+                        evaluatorKind={getCustomEvaluatorKind(evaluator)}
+                      />
+                    </Flex>
+                    <LineClamp lines={3}>
+                      <Text size="S" color="text-700">
+                        {evaluator.description || "No description"}
+                      </Text>
+                    </LineClamp>
+                  </EvaluatorTemplateCard>
+                );
+              })}
+            </ListBoxSection>
+          ) : null}
+          {categories.map((category) => {
+            const headingId = getSectionHeadingId(category);
+            return (
+              <ListBoxSection
+                key={category}
+                id={category}
+                className="project-evaluator-gallery__template-category-section"
+              >
+                <Header className="project-evaluator-gallery__template-category-header">
+                  <EvaluatorCategoryIcon section={category} isWrapped />
+                  <Text
+                    ref={(element) => {
+                      if (element) {
+                        headingRefs.current.set(category, element);
+                      } else {
+                        headingRefs.current.delete(category);
+                      }
+                    }}
+                    id={headingId}
+                    className="project-evaluator-gallery__template-category-heading"
+                    elementType="h2"
+                    size="M"
+                    weight="heavy"
+                  >
+                    {getProjectEvaluatorTemplateCategoryLabel(
+                      category === OTHER_CATEGORY ? null : category
+                    )}
+                  </Text>
+                </Header>
+                {(templatesByCategory.get(category) ?? []).map((template) => (
+                  <EvaluatorTemplateCard
+                    key={getTemplateItemKey(template.name)}
+                    ref={(element) => {
+                      if (element) {
+                        cardRefs.current.set(
+                          getTemplateItemKey(template.name),
+                          element
+                        );
+                      } else {
+                        cardRefs.current.delete(
+                          getTemplateItemKey(template.name)
+                        );
+                      }
+                    }}
+                    id={getTemplateItemKey(template.name)}
+                    textValue={template.name}
+                  >
+                    <Flex direction="column" gap="size-0">
+                      <Text size="S" weight="heavy">
+                        {template.name}
+                      </Text>
+                      <EvaluatorTypeSummary
+                        evaluatorKind="LLM"
+                        evaluationTargets={[template.scope ?? "SPAN"]}
+                      />
+                    </Flex>
+                    <LineClamp lines={3}>
+                      <Text size="S" color="text-700">
+                        {template.description}
+                      </Text>
+                    </LineClamp>
+                  </EvaluatorTemplateCard>
+                ))}
+              </ListBoxSection>
+            );
+          })}
+        </ListBox>
+      </section>
+
+      <aside className="project-evaluator-gallery__details" aria-live="polite">
+        {selectedItem?.kind === "custom" ? (
+          <ErrorBoundary
+            key={selectedItem.evaluator.id}
+            fallback={EvaluatorDetailsError}
+          >
+            <Suspense fallback={<EvaluatorDetailsSkeleton />}>
+              <CustomEvaluatorDetails
+                evaluator={selectedItem.evaluator}
+                onAttachCodeEvaluator={() =>
+                  navigate(creationPaths.attachCode(selectedItem.evaluator.id))
+                }
+                onDuplicateEvaluator={() =>
+                  navigate(
+                    getCustomEvaluatorKind(selectedItem.evaluator) === "LLM"
+                      ? creationPaths.copyLlm(selectedItem.evaluator.id)
+                      : creationPaths.copyCode(selectedItem.evaluator.id)
+                  )
+                }
+              />
+            </Suspense>
+          </ErrorBoundary>
+        ) : selectedItem?.kind === "template" ? (
+          <EvaluatorTemplateDetails
+            template={selectedItem.template}
+            onUseTemplate={() =>
+              navigate(
+                creationPaths.newLlmFromTemplate(selectedItem.template.name)
+              )
+            }
+          />
+        ) : (
+          <Text size="S" color="text-500">
+            No evaluators or templates are available in the gallery.
+          </Text>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function EvaluatorGalleryAddMenu() {
+  return (
+    <AddProjectEvaluatorMenu
+      size="M"
+      buttonClassName="project-evaluator-gallery__add-evaluator-button"
+      buttonLabel="Add Custom Evaluator"
+      shouldShowGalleryLink={false}
+    />
+  );
+}
+
+const CODE_LANGUAGE_LABELS = {
+  PYTHON: "Python",
+  TYPESCRIPT: "TypeScript",
+} satisfies Record<CodeProjectEvaluatorDetails["language"], string>;
+
+function EvaluatorTypeSummary({
+  evaluatorKind,
+  language,
+  evaluationTargets,
+}: {
+  evaluatorKind: "CODE" | "LLM";
+  language?: CodeProjectEvaluatorDetails["language"];
+  evaluationTargets?: readonly [
+    ProjectEvaluatorTarget,
+    ...ProjectEvaluatorTarget[],
+  ];
+}) {
+  const kindLabel = evaluatorKind === "LLM" ? "LLM" : "Code";
+  const languageLabel = language ? CODE_LANGUAGE_LABELS[language] : undefined;
+  const targetsLabel = evaluationTargets
+    ?.map((target) => capitalize(formatEvaluationTargetPlural(target)))
+    .join(", ");
+  const summary = [kindLabel, languageLabel, targetsLabel]
+    .filter(Boolean)
+    .join(" • ");
+  return (
+    <Text
+      className="project-evaluator-gallery__evaluator-type-summary"
+      size="XS"
+      color="text-500"
+      fontFamily="mono"
+    >
+      {summary}
+    </Text>
+  );
+}
+
+function CustomEvaluatorDetails({
+  evaluator: evaluatorSummary,
+  onAttachCodeEvaluator,
+  onDuplicateEvaluator,
+}: {
+  evaluator: CustomEvaluator;
+  onAttachCodeEvaluator: () => void;
+  onDuplicateEvaluator: () => void;
+}) {
+  const data = useLazyLoadQuery<ProjectEvaluatorDetailsQueryType>(
+    projectEvaluatorDetailsQueryNode,
+    { id: evaluatorSummary.id },
+    { fetchPolicy: "store-and-network" }
+  );
+  const evaluator = readProjectEvaluatorDetails(data.evaluator);
+  if (!evaluator) {
+    return <EvaluatorDetailsError />;
+  }
+  if (evaluator.__typename === "LLMEvaluator") {
+    return (
+      <LlmCustomEvaluatorDetails
+        evaluator={evaluator}
+        onDuplicateEvaluator={onDuplicateEvaluator}
+      />
+    );
+  }
+  if (evaluator.__typename === "CodeEvaluator") {
+    return (
+      <CodeCustomEvaluatorDetails
+        evaluator={evaluator}
+        onAttachCodeEvaluator={onAttachCodeEvaluator}
+        onDuplicateEvaluator={onDuplicateEvaluator}
+      />
+    );
+  }
+  return <EvaluatorDetailsError />;
+}
+
+function CustomEvaluatorDetailsHeader({
+  evaluator,
+}: {
+  evaluator: LlmProjectEvaluatorDetails | CodeProjectEvaluatorDetails;
+}) {
+  return (
+    <Flex direction="column" gap="size-50">
+      <Flex direction="column" gap="size-25">
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <EvaluatorCategoryIcon section={CUSTOM_EVALUATORS_SECTION} />
+          <Heading level={2}>{evaluator.name}</Heading>
+        </Flex>
+        <EvaluatorTypeSummary
+          evaluatorKind={
+            evaluator.__typename === "LLMEvaluator" ? "LLM" : "CODE"
+          }
+          language={
+            evaluator.__typename === "CodeEvaluator"
+              ? evaluator.language
+              : undefined
+          }
+        />
+      </Flex>
+      {evaluator.description ? (
+        <Text size="S" color="text-700">
+          {evaluator.description}
+        </Text>
+      ) : null}
+    </Flex>
+  );
+}
+
+function EvaluatorOutputSummary({
+  outputConfigs,
+}: {
+  outputConfigs: LlmProjectEvaluatorDetails["outputConfigs"];
+}) {
+  const supportedOutputConfigs = outputConfigs.filter(
+    (config) => config.__typename !== "%other"
+  );
+  if (supportedOutputConfigs.length === 0) return null;
+  return (
+    <Flex direction="column" gap="size-200">
+      {supportedOutputConfigs.map((config) => (
+        <Flex key={config.name} direction="column" gap="size-100">
+          {supportedOutputConfigs.length > 1 ? (
+            <Text elementType="h3" size="S" weight="heavy">
+              {config.name}
+            </Text>
+          ) : null}
+          {/* AnnotationValues shows its own OptimizationDirectionIndicator, so
+              the standalone Optimization row is only needed without it. */}
+          {config.__typename === "CategoricalAnnotationConfig" &&
+          config.values.length > 0 ? (
+            <AnnotationValues
+              values={config.values}
+              optimizationDirection={config.optimizationDirection}
+            />
+          ) : (
+            <dl className="project-evaluator-gallery__definition-list">
+              <div>
+                <dt>
+                  <Text size="XS" color="text-500">
+                    Optimization
+                  </Text>
+                </dt>
+                <dd>
+                  <OptimizationDirectionIndicator
+                    optimizationDirection={config.optimizationDirection}
+                  />
+                </dd>
+              </div>
+            </dl>
+          )}
+        </Flex>
+      ))}
+    </Flex>
+  );
+}
+
+type EvaluatorInputSummaryItem = {
+  readonly name: string;
+  readonly description?: string;
+};
+
+function EvaluatorInputSummary({
+  inputs,
+}: {
+  inputs: readonly EvaluatorInputSummaryItem[];
+}) {
+  if (inputs.length === 0) return null;
+  return (
+    <Flex direction="column" gap="size-75">
+      <Text elementType="h3" size="S" weight="heavy">
+        Inputs
+      </Text>
+      <List size="S" css={plainDetailsListCSS}>
+        {inputs.map((input) => (
+          <ListItem key={input.name}>
+            <code css={inputNameCSS}>{input.name}</code>
+            {input.description ? (
+              <>
+                {" "}
+                <Text size="S" color="text-700">
+                  {input.description}
+                </Text>
+              </>
+            ) : null}
+          </ListItem>
+        ))}
+      </List>
+    </Flex>
+  );
+}
+
+function AnnotationValues({
+  values,
+  optimizationDirection,
+}: {
+  values: ReadonlyArray<{
+    readonly label: string;
+    readonly score: number | null;
+  }>;
+  optimizationDirection: EvaluatorOptimizationDirection;
+}) {
+  const optimizationBounds = getOptimizationBounds({
+    annotationType: "CATEGORICAL",
+    optimizationDirection,
+    values,
+  });
+  return (
+    <Flex direction="column" gap="size-75">
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap="size-100"
+      >
+        <Text elementType="h3" size="S" weight="heavy">
+          Annotation values
+        </Text>
+        <OptimizationDirectionIndicator
+          optimizationDirection={optimizationDirection}
+        />
+      </Flex>
+      <List size="S" css={plainDetailsListCSS}>
+        {values.map(({ label, score }) => (
+          <ListItem key={label}>
+            <Flex
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              gap="size-100"
+            >
+              <Text size="S">{label}</Text>
+              <Text size="XS" color="text-500">
+                <AnnotationScoreText
+                  elementType="span"
+                  fontFamily="mono"
+                  size="XS"
+                  positiveOptimization={getPositiveOptimization({
+                    score,
+                    ...optimizationBounds,
+                  })}
+                >
+                  {score ?? "—"}
+                </AnnotationScoreText>
+              </Text>
+            </Flex>
+          </ListItem>
+        ))}
+      </List>
+    </Flex>
+  );
+}
+
+function LlmCustomEvaluatorDetails({
+  evaluator,
+  onDuplicateEvaluator,
+}: {
+  evaluator: LlmProjectEvaluatorDetails;
+  onDuplicateEvaluator: () => void;
+}) {
+  const promptTemplate = evaluator.promptVersion?.template;
+  const messages: PlaygroundChatTemplate["messages"] =
+    promptTemplate?.__typename === "PromptChatTemplate"
+      ? convertPromptVersionMessagesToPlaygroundInstanceMessages({
+          promptMessagesRefs: promptTemplate.messages,
+        })
+      : promptTemplate?.__typename === "PromptStringTemplate"
+        ? [
+            {
+              id: 0,
+              role: "user",
+              content: promptTemplate.template,
+            },
+          ]
+        : [];
+  return (
+    <Flex direction="column" gap="size-300" height="100%">
+      <CustomEvaluatorDetailsHeader evaluator={evaluator} />
+      <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
+      <EvaluatorInputSummary inputs={evaluator.inputs} />
+      <EvaluatorPromptPreview messages={messages} />
+      <EvaluatorDetailsAction onPress={onDuplicateEvaluator}>
+        Duplicate this evaluator
+      </EvaluatorDetailsAction>
+    </Flex>
+  );
+}
+
+function CodeCustomEvaluatorDetails({
+  evaluator,
+  onAttachCodeEvaluator,
+  onDuplicateEvaluator,
+}: {
+  evaluator: CodeProjectEvaluatorDetails;
+  onAttachCodeEvaluator: () => void;
+  onDuplicateEvaluator: () => void;
+}) {
+  return (
+    <Flex direction="column" gap="size-300" height="100%">
+      <CustomEvaluatorDetailsHeader evaluator={evaluator} />
+      <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
+      <EvaluatorInputSummary inputs={evaluator.inputs} />
+      <Flex direction="column" gap="size-75">
+        <Text elementType="h3" size="S" weight="heavy">
+          Code
+        </Text>
+        <div css={codePreviewWellCSS}>
+          <ExpandableContent
+            height={CODE_PREVIEW_COLLAPSED_HEIGHT}
+            expandedBehavior="grow"
+            overlayBackgroundColor="var(--global-background-color-100)"
+          >
+            {evaluator.language === "PYTHON" ? (
+              <PythonBlockWithCopy value={evaluator.sourceCode} />
+            ) : (
+              <TypeScriptBlockWithCopy value={evaluator.sourceCode} />
+            )}
+          </ExpandableContent>
+        </div>
+      </Flex>
+      <EvaluatorDetailsAction
+        onPress={onAttachCodeEvaluator}
+        secondaryAction={{
+          label: "Duplicate this evaluator",
+          onPress: onDuplicateEvaluator,
+        }}
+      >
+        Use this evaluator
+      </EvaluatorDetailsAction>
+    </Flex>
+  );
+}
+
+function EvaluatorPromptPreview({
+  messages,
+}: {
+  messages: PlaygroundChatTemplate["messages"];
+}) {
+  if (messages.length === 0) return null;
+  return (
+    <Flex direction="column" gap="size-75">
+      <Text elementType="h3" size="S" weight="heavy">
+        Prompt
+      </Text>
+      <div css={[detailsSectionWellCSS, promptPreviewWellCSS]}>
+        <ExpandableContent
+          height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
+          expandedBehavior="grow"
+          overlayBackgroundColor="var(--global-color-gray-100)"
+        >
+          <Flex direction="column" gap="size-150">
+            {messages.map((message) => (
+              <Flex key={message.id} direction="column" gap="size-25">
+                <Text size="XS" color="text-500" weight="heavy">
+                  {capitalize(message.role)}
+                </Text>
+                <Text size="S" css={promptPreviewMessageCSS}>
+                  {message.content}
+                </Text>
+              </Flex>
+            ))}
+          </Flex>
+        </ExpandableContent>
+      </div>
+    </Flex>
+  );
+}
+
+function EvaluatorDetailsAction({
+  children,
+  onPress,
+  secondaryAction,
+}: {
+  children: string;
+  onPress: () => void;
+  secondaryAction?: {
+    label: string;
+    onPress: () => void;
+  };
+}) {
+  return (
+    <Flex direction="column" gap="size-100" css={stickyUseTemplateFooterCSS}>
+      <Button variant="primary" onPress={onPress}>
+        {children}
+      </Button>
+      {secondaryAction ? (
+        <Button onPress={secondaryAction.onPress}>
+          {secondaryAction.label}
+        </Button>
+      ) : null}
+    </Flex>
+  );
+}
+
+function EvaluatorTemplateDetails({
+  template,
+  onUseTemplate,
+}: {
+  template: ProjectEvaluatorTemplate;
+  onUseTemplate: () => void;
+}) {
+  const choices = getProjectEvaluatorTemplateChoices(template);
+  const messages = getProjectEvaluatorTemplateMessages(template);
+  const category = getGalleryCategory(template.category);
+  return (
+    <Flex direction="column" gap="size-300" height="100%">
+      <Flex direction="column" gap="size-50">
+        <Flex direction="column" gap="size-25">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <EvaluatorCategoryIcon section={category} />
+            <Heading level={2}>{template.name}</Heading>
+          </Flex>
+          <EvaluatorTypeSummary
+            evaluatorKind="LLM"
+            evaluationTargets={[template.scope ?? "SPAN"]}
+          />
+        </Flex>
+        {template.details ? (
+          <Text size="S" color="text-700">
+            {template.details}
+          </Text>
+        ) : null}
+      </Flex>
+      <EvaluatorInputSummary
+        inputs={(template.inputs ?? []).map((input) => ({
+          name: input.name,
+          description: input.description,
+        }))}
+      />
+      <AnnotationValues
+        values={choices}
+        optimizationDirection={template.optimizationDirection}
+      />
+      <EvaluatorPromptPreview messages={messages} />
+      <EvaluatorDetailsAction onPress={onUseTemplate}>
+        Customize this evaluator
+      </EvaluatorDetailsAction>
+    </Flex>
+  );
+}
+
+// Bleeds out to the edges of the details column's own padding/gap (both
+// `var(--global-dimension-size-200)`) and re-adds that same space as padding
+// inside this element's own background, so nothing scrolls behind it.
+const stickyUseTemplateFooterCSS = css`
+  position: sticky;
+  bottom: calc(-1 * var(--project-evaluator-gallery-column-padding));
+  z-index: 1;
+  margin: calc(-1 * var(--global-dimension-size-200))
+    calc(-1 * var(--project-evaluator-gallery-column-padding))
+    calc(-1 * var(--project-evaluator-gallery-column-padding));
+  padding: var(--global-dimension-size-200)
+    var(--project-evaluator-gallery-column-padding)
+    var(--project-evaluator-gallery-column-padding);
+  background-color: var(--global-background-color-default);
+`;
+
+const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
+const CODE_PREVIEW_COLLAPSED_HEIGHT = 240;
+
+const detailsSectionWellCSS = css`
+  background-color: var(--global-background-color-100);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  padding: var(--global-dimension-size-150);
+`;
+
+const promptPreviewWellCSS = css`
+  background-color: var(--global-color-gray-100);
+`;
+
+const plainDetailsListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+
+  && li {
+    padding: 0;
+  }
+
+  && li:not(:first-of-type)::after {
+    content: none;
+  }
+`;
+
+const inputNameCSS = css`
+  box-sizing: border-box;
+  display: inline-block;
+  max-width: 100%;
+  padding: var(--global-dimension-size-25) var(--global-dimension-size-75);
+  overflow-wrap: anywhere;
+  border-radius: var(--global-rounding-small);
+  background-color: var(--global-color-blue-100);
+  color: var(--global-color-blue-1000);
+  font-size: var(--global-font-size-xs);
+  line-height: var(--global-line-height-xs);
+`;
+
+const promptPreviewMessageCSS = css`
+  white-space: pre-wrap;
+`;
+
+const codePreviewWellCSS = css`
+  overflow: hidden;
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+`;
+
+function capitalize(value: string): string {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function EvaluatorGallerySkeleton() {
+  return (
+    <Skeleton width="100%" height="100%" borderRadius="none" animation="wave" />
+  );
+}
+
+function EvaluatorGalleryError() {
+  return (
+    <Text size="S" color="text-500">
+      Evaluator templates could not be loaded.
+    </Text>
+  );
+}
+
+function EvaluatorDetailsSkeleton() {
+  return <Skeleton width="100%" height={360} animation="wave" />;
+}
+
+function EvaluatorDetailsError() {
+  return (
+    <Text size="S" color="text-500">
+      Evaluator details could not be loaded.
+    </Text>
+  );
+}
+
+const categoryMenuIconCSS = css`
+  flex: none;
+  font-size: var(--global-font-size-s);
+`;
+
+const categoryHeadingIconCSS = css`
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--global-dimension-size-400);
+  height: var(--global-dimension-size-400);
+  border-radius: var(--global-rounding-medium);
+  font-size: var(--global-font-size-s);
+`;
+
+const compactCategoryListCSS = css`
+  gap: var(--global-dimension-size-100);
+
+  .react-aria-ListBoxSection {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .project-evaluator-gallery__category-section-heading {
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .react-aria-ListBoxItem {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--global-dimension-size-100);
+  }
+`;
+
+const galleryContainerCSS = css`
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-height: ${GALLERY_SKELETON_HEIGHT}px;
+  overflow: hidden;
+  container: project-evaluator-gallery / inline-size;
+`;
+
+const galleryCSS = css`
+  --project-evaluator-gallery-column-separator-width: var(
+    --global-border-size-thin
+  );
+  --project-evaluator-gallery-column-padding: var(--global-dimension-size-200);
+  --project-evaluator-gallery-template-card-min-width: var(
+    --global-dimension-size-4600
+  );
+  --project-evaluator-gallery-template-column-min-width: calc(
+    var(--project-evaluator-gallery-template-card-min-width) +
+      var(--project-evaluator-gallery-column-padding) +
+      var(--project-evaluator-gallery-column-padding) +
+      var(--project-evaluator-gallery-column-separator-width)
+  );
+
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns:
+    minmax(var(--global-dimension-size-3000), var(--global-dimension-size-4000))
+    minmax(var(--global-dimension-size-4000), 1.5fr)
+    minmax(var(--global-dimension-size-5000), 1fr);
+  height: 100%;
+  min-height: ${GALLERY_SKELETON_HEIGHT}px;
+  overflow: hidden;
+  background-color: var(--global-background-color-default);
+
+  .project-evaluator-gallery__categories,
+  .project-evaluator-gallery__details {
+    min-height: 0;
+    padding: var(--project-evaluator-gallery-column-padding);
+  }
+
+  .project-evaluator-gallery__categories {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .project-evaluator-gallery__templates {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .project-evaluator-gallery__details {
+    overflow-y: auto;
+  }
+
+  .project-evaluator-gallery__categories,
+  .project-evaluator-gallery__templates {
+    border-right: var(--project-evaluator-gallery-column-separator-width) solid
+      var(--global-border-color-default);
+  }
+
+  .project-evaluator-gallery__category-list {
+    flex: none;
+    gap: var(--global-dimension-size-100);
+    overflow: visible;
+
+    .react-aria-ListBoxSection {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .react-aria-ListBoxItem {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--global-dimension-size-100);
+    }
+  }
+
+  .project-evaluator-gallery__category-scroll-region {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    overflow-y: auto;
+  }
+
+  .project-evaluator-gallery__category-section-heading {
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .project-evaluator-gallery__add-evaluator-button {
+    flex: none;
+    align-self: stretch;
+    width: 100%;
+    margin-bottom: var(--global-dimension-size-200);
+  }
+
+  .project-evaluator-gallery__template-controls {
+    display: none;
+  }
+
+  .project-evaluator-gallery__template-card-scroll-region {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-400);
+    padding: calc(
+        var(--project-evaluator-gallery-column-padding) +
+          var(--global-dimension-size-100)
+      )
+      var(--project-evaluator-gallery-column-padding)
+      var(--project-evaluator-gallery-column-padding);
+    overflow-y: auto;
+    scroll-behavior: smooth;
+
+    @media (prefers-reduced-motion: reduce) {
+      scroll-behavior: auto;
+    }
+  }
+
+  .project-evaluator-gallery__template-category-section {
+    display: grid;
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(var(--project-evaluator-gallery-template-card-min-width), 1fr)
+    );
+    align-content: start;
+    gap: var(--global-dimension-size-100);
+  }
+
+  .project-evaluator-gallery__template-category-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+  }
+
+  .project-evaluator-gallery__template-category-heading {
+    /* Anchor target for the category nav; offset so scrollIntoView doesn't
+       tuck it flush against the scroll region's top edge. */
+    scroll-margin-top: var(--global-dimension-size-100);
+  }
+
+  .project-evaluator-gallery__evaluator-type-summary {
+    width: 100%;
+  }
+
+  .project-evaluator-gallery__definition-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--global-dimension-size-100) var(--global-dimension-size-300);
+    margin: 0;
+
+    div {
+      display: flex;
+      flex-direction: column;
+      gap: var(--global-dimension-size-25);
+    }
+
+    dd {
+      margin: 0;
+    }
+  }
+
+  @container project-evaluator-gallery (width < ${GALLERY_EXPANDED_MIN_WIDTH}px) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    grid-template-columns:
+      minmax(
+        var(--project-evaluator-gallery-template-column-min-width),
+        var(--global-dimension-size-5000)
+      )
+      minmax(var(--global-dimension-size-5000), 1fr);
+
+    .project-evaluator-gallery__categories {
+      display: none;
+    }
+
+    .project-evaluator-gallery__compact-category-select {
+      display: block;
+      flex: none;
+      width: 100%;
+    }
+
+    .project-evaluator-gallery__template-controls {
+      display: flex;
+      flex: none;
+      flex-direction: column;
+      padding: var(--project-evaluator-gallery-column-padding)
+        var(--project-evaluator-gallery-column-padding) 0;
+    }
+
+    .project-evaluator-gallery__compact-add-evaluator-menu {
+      display: flex;
+      flex: none;
+      justify-content: flex-start;
+    }
+
+    .project-evaluator-gallery__templates {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .project-evaluator-gallery__template-card-scroll-region {
+      padding-top: var(--global-dimension-size-100);
+    }
+
+    .project-evaluator-gallery__details {
+      grid-column: 2;
+      grid-row: 1;
+    }
+  }
+`;

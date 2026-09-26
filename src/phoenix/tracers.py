@@ -267,6 +267,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
                         project_id=project_id,
                         start_time=db_trace.start_time,
                         end_time=db_trace.end_time,
+                        last_span_ingested_at=datetime.now(timezone.utc),
                     )
                     project_sessions_by_session_id[trace_session_id] = project_session
                 else:
@@ -355,6 +356,7 @@ def _get_db_trace(
         trace_id=format_trace_id(trace_id),
         start_time=start_time,
         end_time=end_time,
+        last_span_ingested_at=datetime.now(timezone.utc),
     )
 
 

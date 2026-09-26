@@ -1,0 +1,480 @@
+"""Database-backed ``EvalWorkCoordinator`` for span, session, and trace work units.
+
+Claiming is dialect-split: PostgreSQL locks candidate rows with ``FOR UPDATE SKIP
+LOCKED`` so competing consumers never block on each other's claims; SQLite (no row
+locks) claims each candidate with a per-id compare-and-swap and keeps only the rows
+whose update landed. Every post-claim transition (heartbeat / complete / fail /
+expire) is fenced by ``claimed_by == me AND status == 'RUNNING'`` and reports a lost
+claim as False via the update rowcount.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional, Sequence
+
+from sqlalchemy import and_, case, func, or_, select, type_coerce, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.sql.elements import ColumnElement
+from typing_extensions import assert_never
+
+from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.online_eval.coordinator import (
+    LEASE_ATTEMPTS_EXHAUSTED_ERROR,
+    LEASE_TTL_SECONDS,
+    ClaimedWorkUnit,
+    PublicationClaimLostError,
+    PublicationWrite,
+    QueueLag,
+    RetiredWorkStatus,
+)
+from phoenix.server.online_eval.derivation import MAX_ATTEMPTS, annotation_identifier
+from phoenix.server.types import DbSessionFactory
+
+TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
+
+_WorkUnitModel = (
+    type[models.EvalWorkUnit] | type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
+)
+_DATABASE_NOW = object()
+
+
+async def _database_now(session: AsyncSession) -> datetime:
+    if session.get_bind().dialect.name == "postgresql":
+        clock = func.statement_timestamp()
+    else:
+        clock = func.strftime("%Y-%m-%d %H:%M:%f", "now")
+    now = await session.scalar(select(type_coerce(clock, models.UtcTimeStamp())))
+    if now is None:
+        raise RuntimeError("Database did not return its current time")
+    return now
+
+
+def work_unit_lease_lapsed(
+    now: datetime | ColumnElement[datetime],
+    work_unit_model: _WorkUnitModel = models.EvalWorkUnit,
+) -> ColumnElement[bool]:
+    return work_unit_model.claimed_at < now - timedelta(seconds=LEASE_TTL_SECONDS)
+
+
+async def reap_lapsed_leases(
+    session: AsyncSession,
+    work_unit_model: _WorkUnitModel,
+) -> None:
+    """Terminalize RUNNING work whose lease lapsed with no attempts left.
+
+    Consumers give a claim back themselves on every path they survive; this covers the
+    ones they do not — a replica killed mid-evaluation leaves a RUNNING row that no
+    consumer will ever reclaim, because reclaiming it would exceed the retry budget.
+    Reaping is lifecycle work, so it is spelled here rather than in each materializer;
+    the materializers call it from their own tick because they already hold the
+    single-writer lease that makes it safe to run unguarded.
+    """
+    now = await _database_now(session)
+    await session.execute(
+        update(work_unit_model)
+        .where(
+            work_unit_model.status == "RUNNING",
+            work_unit_model.attempts >= MAX_ATTEMPTS - 1,
+            work_unit_lease_lapsed(now, work_unit_model),
+        )
+        .values(
+            status="FAILED",
+            attempts=MAX_ATTEMPTS,
+            error=func.coalesce(work_unit_model.error, LEASE_ATTEMPTS_EXHAUSTED_ERROR),
+        )
+    )
+
+
+class DbEvalWorkCoordinator:
+    """Coordinates online-eval consumers through the selected work-unit table."""
+
+    def __init__(
+        self,
+        db: DbSessionFactory,
+        *,
+        evaluation_target: models.EvaluationTarget = "SPAN",
+        max_attempts: int = MAX_ATTEMPTS,
+    ) -> None:
+        self._db = db
+        self._evaluation_target: models.EvaluationTarget = evaluation_target
+        self._max_attempts = max_attempts
+        if evaluation_target == "SPAN":
+            self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
+            self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
+        elif evaluation_target == "SESSION":
+            self._work_unit_model = models.EvalSessionWorkUnit
+            self._target_row_column = models.EvalSessionWorkUnit.project_session_rowid
+        elif evaluation_target == "TRACE":
+            self._work_unit_model = models.EvalTraceWorkUnit
+            self._target_row_column = models.EvalTraceWorkUnit.trace_rowid
+        else:
+            raise ValueError(
+                f"Online evaluation work coordination does not support {evaluation_target}"
+            )
+
+    def _claimable(self, now: datetime) -> ColumnElement[bool]:
+        work_unit_model = self._work_unit_model
+        return or_(
+            work_unit_model.status == "PENDING",
+            and_(
+                work_unit_model.status == "RUNNING",
+                work_unit_model.attempts < self._max_attempts - 1,
+                work_unit_lease_lapsed(now, work_unit_model),
+            ),
+            and_(
+                work_unit_model.status == "ERROR",
+                or_(
+                    work_unit_model.cooldown_until.is_(None),
+                    work_unit_model.cooldown_until <= now,
+                ),
+            ),
+        )
+
+    async def claim(
+        self,
+        *,
+        claimed_by: str,
+        limit: int,
+    ) -> Sequence[ClaimedWorkUnit]:
+        work_unit_model = self._work_unit_model
+        async with self._db() as session:
+            now = await _database_now(session)
+            candidates = select(work_unit_model.id).where(self._claimable(now))
+            candidates = candidates.order_by(work_unit_model.id).limit(limit)
+            claim_values = {
+                "status": "RUNNING",
+                "claimed_at": now,
+                "claimed_by": claimed_by,
+                # A straggler outliving the stop() drain is counted.
+                "attempts": case(
+                    (
+                        work_unit_model.status == "RUNNING",
+                        work_unit_model.attempts + 1,
+                    ),
+                    else_=work_unit_model.attempts,
+                ),
+            }
+            claimed_ids: list[int] = []
+            if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+                locked_ids = (
+                    await session.scalars(candidates.with_for_update(skip_locked=True))
+                ).all()
+                if locked_ids:
+                    await session.execute(
+                        update(work_unit_model)
+                        .where(work_unit_model.id.in_(locked_ids))
+                        .values(**claim_values)
+                    )
+                    claimed_ids = list(locked_ids)
+            else:
+                for unit_id in (await session.scalars(candidates)).all():
+                    cas = await session.execute(
+                        update(work_unit_model)
+                        .where(work_unit_model.id == unit_id, self._claimable(now))
+                        .values(**claim_values)
+                    )
+                    if cas.rowcount == 1:  # type: ignore[attr-defined]
+                        claimed_ids.append(unit_id)
+            rows = (
+                (
+                    await session.execute(
+                        select(
+                            work_unit_model.id,
+                            self._target_row_column.label("target_rowid"),
+                            work_unit_model.evaluator_id,
+                            work_unit_model.project_evaluator_id,
+                            work_unit_model.config_fingerprint,
+                            work_unit_model.attempts,
+                        )
+                        .where(work_unit_model.id.in_(claimed_ids))
+                        .order_by(work_unit_model.id)
+                    )
+                ).all()
+                if claimed_ids
+                else []
+            )
+            await session.commit()
+        lease_expires_at = now + timedelta(seconds=LEASE_TTL_SECONDS)
+        return [
+            ClaimedWorkUnit(
+                work_unit_id=row.id,
+                evaluation_target=self._evaluation_target,
+                target_rowid=row.target_rowid,
+                evaluator_id=row.evaluator_id,
+                project_evaluator_id=row.project_evaluator_id,
+                config_fingerprint=row.config_fingerprint,
+                identifier=annotation_identifier(row.config_fingerprint),
+                attempts=row.attempts,
+                claimed_by=claimed_by,
+                lease_expires_at=lease_expires_at,
+            )
+            for row in rows
+        ]
+
+    async def heartbeat(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        return await self._fenced_transition(
+            work_unit_id=work_unit_id,
+            claim_owner=claimed_by,
+            claimed_at=_DATABASE_NOW,
+        )
+
+    async def complete(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Complete a claimed unit, treating an already-DONE row as success."""
+        return await self._fenced_transition(
+            work_unit_id=work_unit_id,
+            claim_owner=claimed_by,
+            already_status="DONE",
+            status="DONE",
+        )
+
+    async def publish(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        write: PublicationWrite,
+    ) -> None:
+        work_unit_model = self._work_unit_model
+        async with self._db() as session:
+            identity_statement: Any
+            if self._evaluation_target == "SESSION":
+                identity_statement = select(
+                    work_unit_model.project_evaluator_id,
+                    self._target_row_column.label("project_session_rowid"),
+                ).where(work_unit_model.id == work_unit_id)
+            elif self._evaluation_target == "TRACE":
+                identity_statement = (
+                    select(
+                        work_unit_model.project_evaluator_id,
+                        models.Trace.id.label("trace_rowid"),
+                    )
+                    .select_from(work_unit_model)
+                    .join(models.Trace, self._target_row_column == models.Trace.id)
+                    .where(work_unit_model.id == work_unit_id)
+                )
+            elif self._evaluation_target == "SPAN":
+                identity_statement = (
+                    select(
+                        work_unit_model.project_evaluator_id,
+                        models.Trace.project_session_rowid,
+                    )
+                    .select_from(work_unit_model)
+                    .join(models.Span, self._target_row_column == models.Span.id)
+                    .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                    .where(work_unit_model.id == work_unit_id)
+                )
+            else:
+                assert_never(self._evaluation_target)
+            identity = (await session.execute(identity_statement)).one_or_none()
+            if identity is None:
+                raise PublicationClaimLostError(f"work unit {work_unit_id} no longer exists")
+
+            # Publication lock order:
+            # - SPAN/SESSION: evaluator -> session -> work unit.
+            # - TRACE: evaluator -> trace -> work unit; never the trace's session, because a
+            #   trace annotation does not describe session content.
+            # Deletion takes no session lock, so no path orders session before trace.
+            # Exception: the sweep reaps lapsed leases (work-unit locks) before locking evaluators.
+            # Exception: per-span ingest widens the trace before the session.
+            project_evaluator_enabled = await session.scalar(
+                select(models.ProjectEvaluator.enabled)
+                .where(models.ProjectEvaluator.id == identity.project_evaluator_id)
+                .with_for_update()
+            )
+            if project_evaluator_enabled is not True:
+                raise PublicationClaimLostError(
+                    f"work unit {work_unit_id} project evaluator is disabled or missing"
+                )
+            if self._evaluation_target == "TRACE":
+                trace_rowid = await session.scalar(
+                    select(models.Trace.id)
+                    .where(models.Trace.id == identity.trace_rowid)
+                    .with_for_update()
+                )
+                if trace_rowid is None:
+                    raise PublicationClaimLostError(f"work unit {work_unit_id} trace is missing")
+            elif self._evaluation_target == "SESSION":
+                await self._lock_session(session, work_unit_id, identity.project_session_rowid)
+            elif self._evaluation_target == "SPAN":
+                # A span in a session takes the session rung of the lock order.
+                if identity.project_session_rowid is not None:
+                    await self._lock_session(session, work_unit_id, identity.project_session_rowid)
+            else:
+                assert_never(self._evaluation_target)
+
+            fenced = await session.scalar(
+                select(work_unit_model.id)
+                .where(
+                    work_unit_model.id == work_unit_id,
+                    work_unit_model.claimed_by == claimed_by,
+                    work_unit_model.status == "RUNNING",
+                )
+                .with_for_update()
+            )
+            if fenced is None:
+                raise PublicationClaimLostError(
+                    f"work unit {work_unit_id} is no longer owned and live"
+                )
+            await write(session)
+
+    @staticmethod
+    async def _lock_session(
+        session: AsyncSession,
+        work_unit_id: int,
+        project_session_rowid: int,
+    ) -> None:
+        """Hold the session row for the rest of the publication transaction.
+
+        The lock is the point: it is the session rung of the publication lock order.
+        The missing-row check rarely fires, since a deleted session cascades its work
+        units away before the identity read above.
+        """
+        locked_project_session_rowid = await session.scalar(
+            select(models.ProjectSession.id)
+            .where(models.ProjectSession.id == project_session_rowid)
+            .with_for_update()
+        )
+        if locked_project_session_rowid is None:
+            raise PublicationClaimLostError(f"work unit {work_unit_id} session is missing")
+
+    async def fail(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        error: str,
+        cooldown_until: Optional[datetime] = None,
+        count_attempt: bool = True,
+    ) -> bool:
+        work_unit_model = self._work_unit_model
+        attempts: Any
+        if count_attempt:
+            attempts = work_unit_model.attempts + 1
+        else:
+            async with self._db.read() as session:
+                database_now = await _database_now(session)
+            retry_age_cutoff = database_now - timedelta(seconds=TRANSIENT_RETRY_MAX_AGE_SECONDS)
+            attempts = case(
+                (work_unit_model.created_at < retry_age_cutoff, self._max_attempts),
+                else_=work_unit_model.attempts,
+            )
+        return await self._fenced_transition(
+            work_unit_id=work_unit_id,
+            claim_owner=claimed_by,
+            status=case((attempts >= self._max_attempts, "FAILED"), else_="ERROR"),
+            attempts=attempts,
+            error=error,
+            cooldown_until=cooldown_until,
+        )
+
+    async def expire(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        error: str,
+        status: RetiredWorkStatus = "EXPIRED",
+    ) -> bool:
+        return await self._fenced_transition(
+            work_unit_id=work_unit_id,
+            claim_owner=claimed_by,
+            status=status,
+            error=error,
+        )
+
+    async def release(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        return await self._fenced_transition(
+            work_unit_id=work_unit_id,
+            claim_owner=claimed_by,
+            status="PENDING",
+            claimed_at=None,
+            claimed_by=None,
+            cooldown_until=None,
+            error=None,
+        )
+
+    async def _fenced_transition(
+        self,
+        *,
+        work_unit_id: int,
+        claim_owner: str,
+        already_status: Optional[str] = None,
+        **values: Any,
+    ) -> bool:
+        work_unit_model = self._work_unit_model
+        async with self._db() as session:
+            if values.get("claimed_at") is _DATABASE_NOW:
+                values["claimed_at"] = await _database_now(session)
+            result = await session.execute(
+                update(work_unit_model)
+                .where(
+                    work_unit_model.id == work_unit_id,
+                    work_unit_model.claimed_by == claim_owner,
+                    work_unit_model.status == "RUNNING",
+                )
+                .values(**values)
+            )
+            rowcount = result.rowcount  # type: ignore[attr-defined]
+            transitioned = bool(rowcount == 1)
+            if not transitioned and already_status is not None:
+                status = await session.scalar(
+                    select(work_unit_model.status).where(work_unit_model.id == work_unit_id)
+                )
+                transitioned = status == already_status
+            await session.commit()
+            return transitioned
+
+    async def lag(self) -> QueueLag:
+        now = datetime.now(timezone.utc)
+        work_unit_model = self._work_unit_model
+        async with self._db.read() as session:
+            counts: dict[str, int] = {
+                status: count
+                for status, count in (
+                    await session.execute(
+                        select(work_unit_model.status, func.count()).group_by(
+                            work_unit_model.status
+                        )
+                    )
+                ).all()
+            }
+            oldest_work_created_at = await session.scalar(
+                select(work_unit_model.created_at)
+                .where(work_unit_model.status.in_(("PENDING", "ERROR")))
+                .order_by(work_unit_model.created_at)
+                .limit(1)
+            )
+        oldest_actionable_age_seconds = (
+            max((now - oldest_work_created_at).total_seconds(), 0.0)
+            if oldest_work_created_at is not None
+            else None
+        )
+        return QueueLag(
+            pending_count=counts.get("PENDING", 0),
+            running_count=counts.get("RUNNING", 0),
+            retryable_error_count=counts.get("ERROR", 0),
+            exhausted_error_count=counts.get("FAILED", 0),
+            expired_count=sum(
+                counts.get(status, 0)
+                for status in ("EXPIRED", "SUPERSEDED", "CONTENT_LOST", "DROPPED")
+            ),
+            oldest_actionable_age_seconds=oldest_actionable_age_seconds,
+        )

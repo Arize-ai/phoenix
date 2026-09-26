@@ -38,9 +38,12 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
       });
     }
     if (existing.type === "playground" && context.type === "playground") {
-      // Two surfaces contribute one playground context: Playground.tsx owns the instances, PlaygroundDatasetSection the evaluator roster.
+      // Two surfaces contribute one playground context: Playground.tsx owns the instances and the page's task kind, PlaygroundDatasetSection the evaluator roster.
       byKey.set(key, {
+        ...existing,
+        ...context,
         type: "playground",
+        taskKind: context.taskKind ?? existing.taskKind,
         instances: context.instances?.length
           ? context.instances
           : existing.instances,

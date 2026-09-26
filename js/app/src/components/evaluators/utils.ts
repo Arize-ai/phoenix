@@ -1,5 +1,6 @@
 import { graphql, readInlineData } from "relay-runtime";
 
+import { getPositiveOptimization } from "@phoenix/components/annotation/optimizationUtils";
 import type {
   AnnotationConfigInput,
   CreateDatasetLLMEvaluatorInput,
@@ -13,6 +14,7 @@ import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
+  EvaluatorKind,
   EvaluatorMappingSource,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
@@ -247,7 +249,7 @@ export const datasetExampleToEvaluatorInput = ({
 }: {
   exampleRef: utils_datasetExampleToEvaluatorInput_example$key;
   taskOutput?: Record<string, unknown>;
-}): EvaluatorMappingSource => {
+}): EvaluatorMappingSource<"dataset"> => {
   const example = readInlineData(
     graphql`
       fragment utils_datasetExampleToEvaluatorInput_example on DatasetExampleRevision
@@ -400,6 +402,51 @@ const validateOutputConfigNames = (
 };
 
 /**
+ * Why an output config cannot belong to an evaluator of this kind, or null.
+ *
+ * An LLM judge chooses one of its labels; its score is the score attached to
+ * the chosen label. It has no way to emit a free number, so the server rejects
+ * continuous and freeform outputs for LLM evaluators on both run and save. Code
+ * evaluators return whatever their function returns, so any output type fits.
+ */
+export const getOutputConfigKindError = ({
+  kind,
+  config,
+}: {
+  kind: EvaluatorKind;
+  config: AnnotationConfig;
+}): string | null => {
+  if (kind !== "LLM" || "values" in config) return null;
+
+  return (
+    `LLM evaluators only support categorical outputs, but "${config.name}" is ` +
+    "continuous or freeform. Define labels with scores instead (for a 0–1 " +
+    "scale, e.g. poor=0, fair=0.5, good=1), or use a code evaluator for a " +
+    "free numeric score."
+  );
+};
+
+/**
+ * Validation errors for an evaluator's output configs: the name checks below
+ * plus the per-kind type rule, so callers that know the evaluator kind reject
+ * an impossible configuration before a run or save does.
+ */
+export const getEvaluatorOutputConfigValidationErrors = ({
+  kind,
+  configs,
+}: {
+  kind: EvaluatorKind;
+  configs: AnnotationConfig[];
+}): string[] => [
+  ...getOutputConfigValidationErrors(configs),
+  ...configs.flatMap((config) => {
+    const error = getOutputConfigKindError({ kind, config });
+
+    return error ? [error] : [];
+  }),
+];
+
+/**
  * Returns an array of validation error messages for output configs.
  *
  * @param configs - Array of annotation configs to validate
@@ -425,3 +472,70 @@ export const getOutputConfigValidationErrors = (
 
   return errors;
 };
+
+export function computePositiveOptimization({
+  annotationName,
+  score,
+  evaluatorName,
+  outputConfigs,
+}: {
+  annotationName: string;
+  score: number | null | undefined;
+  evaluatorName: string;
+  outputConfigs: AnnotationConfig[];
+}): boolean | null {
+  if (outputConfigs.length === 0) {
+    return null;
+  }
+
+  let matchedConfig: AnnotationConfig | undefined;
+  if (outputConfigs.length === 1) {
+    matchedConfig = outputConfigs[0];
+  } else {
+    // Multi-output: annotation name is "evaluatorName.configName"
+    const prefix = evaluatorName + ".";
+    if (annotationName.startsWith(prefix)) {
+      const configName = annotationName.slice(prefix.length);
+      matchedConfig = outputConfigs.find((c) => c.name === configName);
+    }
+  }
+
+  if (matchedConfig == null) {
+    return null;
+  }
+
+  const optimizationDirection =
+    matchedConfig.optimizationDirection === "MAXIMIZE" ||
+    matchedConfig.optimizationDirection === "MINIMIZE"
+      ? matchedConfig.optimizationDirection
+      : undefined;
+
+  let lowerBound: number | undefined;
+  let upperBound: number | undefined;
+  let threshold: number | undefined;
+
+  if ("values" in matchedConfig) {
+    const scores = matchedConfig.values
+      .map((v) => v.score)
+      .filter((s): s is number => s != null);
+    if (scores.length > 0) {
+      lowerBound = Math.min(...scores);
+      upperBound = Math.max(...scores);
+    }
+  } else if ("threshold" in matchedConfig) {
+    threshold = matchedConfig.threshold ?? undefined;
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  } else if ("lowerBound" in matchedConfig) {
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  }
+
+  return getPositiveOptimization({
+    score,
+    lowerBound,
+    upperBound,
+    threshold,
+    optimizationDirection,
+  });
+}

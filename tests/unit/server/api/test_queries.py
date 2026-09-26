@@ -36,6 +36,62 @@ from tests.unit.graphql import AsyncGraphQLClient
 _REDACTOR = Redactor(secret=SecretStr(""))
 
 
+async def test_evaluator_gallery_configs_contract(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.__generated__.classification_evaluator_configs import (
+        ClassificationEvaluatorConfig,
+        PromptMessage,
+    )
+    from phoenix.server.api import queries
+
+    config = ClassificationEvaluatorConfig.model_validate(
+        {
+            "name": "quality",
+            "description": "Quality evaluator",
+            "optimization_direction": "maximize",
+            "messages": [PromptMessage(role="user", content="Review {{input}}")],
+            "choices": {"good": 1, "bad": 0},
+            "scope": "trace",
+            "recommended": True,
+            "category": "response_quality",
+            "details": "Detailed guidance.",
+            "inputs": {"input": {"description": "The user request."}},
+        }
+    )
+    monkeypatch.setattr(
+        queries,
+        "get_classification_evaluator_configs",
+        lambda *, gallery_ready: [config] if gallery_ready else [],
+    )
+
+    response = await gql_client.execute(
+        query="""
+          query {
+            evaluatorGalleryConfigs {
+              name scope recommended category details
+              inputs { name description }
+            }
+          }
+        """
+    )
+
+    assert response.data == {
+        "evaluatorGalleryConfigs": [
+            {
+                "name": "quality",
+                "scope": "TRACE",
+                "recommended": True,
+                "category": "RESPONSE_QUALITY",
+                "details": "Detailed guidance.",
+                "inputs": [{"name": "input", "description": "The user request."}],
+            }
+        ]
+    }
+    assert not response.errors
+
+
 async def test_projects_omits_experiment_projects(
     gql_client: AsyncGraphQLClient,
     projects_with_and_without_experiments: Any,
@@ -765,6 +821,62 @@ async def projects_with_and_without_dataset_evaluators(
         )
         session.add(dataset_evaluator)
         await session.flush()
+
+
+@pytest.fixture
+async def project_with_a_project_evaluator_trace_project(
+    db: DbSessionFactory,
+) -> None:
+    """Insert an evaluated project plus an evaluator whose trace project must stay hidden."""
+    async with db() as session:
+        evaluated_project = models.Project(name="evaluated-project-name")
+        # An arbitrary name: the listing exclusion keys off the FK, not a name pattern.
+        trace_project = models.Project(name="trace-sink-name")
+        session.add_all([evaluated_project, trace_project])
+        await session.flush()
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root="listing-test-evaluator"),
+            kind="BUILTIN",
+            key="listing-test-key",
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        session.add(
+            models.ProjectEvaluator(
+                project_id=evaluated_project.id,
+                evaluator_id=evaluator.id,
+                trace_project=trace_project,
+                name=Identifier(root="listing-test-project-evaluator"),
+                evaluation_target="SPAN",
+                filter_condition="",
+                sampling_rate=1.0,
+            )
+        )
+        await session.flush()
+
+
+async def test_projects_omits_project_evaluator_trace_projects(
+    gql_client: AsyncGraphQLClient,
+    project_with_a_project_evaluator_trace_project: Any,
+) -> None:
+    query = """
+      query {
+        projects {
+          edges {
+            project: node {
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data == {
+        "projects": {"edges": [{"project": {"name": "evaluated-project-name"}}]}
+    }
 
 
 async def test_experiment_run_metric_comparisons(
@@ -2609,6 +2721,62 @@ class TestEvaluatorsQuery:
         )
         assert not response.errors
         assert response.data == {"evaluators": {"edges": []}}
+
+    async def test_evaluators_excludes_project_associations_before_pagination(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        evaluators_for_querying: Any,
+    ) -> None:
+        from sqlalchemy import select
+
+        async with db() as session:
+            llm_evaluator = await session.scalar(
+                select(models.LLMEvaluator).where(
+                    models.LLMEvaluator.name == Identifier(root="llm_eval")
+                )
+            )
+            assert llm_evaluator is not None
+            project = models.Project(name="project-with-evaluator")
+            trace_project = models.Project(name="project-with-evaluator-traces")
+            session.add_all([project, trace_project])
+            await session.flush()
+            session.add(
+                models.ProjectEvaluator(
+                    project_id=project.id,
+                    evaluator_id=llm_evaluator.id,
+                    trace_project_id=trace_project.id,
+                    name=Identifier(root="llm-online"),
+                    filter_condition="",
+                    evaluation_target="SPAN",
+                    sampling_rate=1.0,
+                )
+            )
+            await session.flush()
+            project_id = str(GlobalID("Project", str(project.id)))
+
+        query = """
+          query ($excludeProjectId: ID) {
+            evaluators(
+              first: 1
+              sort: { col: name, dir: desc }
+              excludeProjectId: $excludeProjectId
+            ) {
+              edges {
+                evaluator: node {
+                  name
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={"excludeProjectId": project_id},
+        )
+
+        assert not response.errors
+        assert response.data == {"evaluators": {"edges": [{"evaluator": {"name": "contains"}}]}}
 
     async def test_evaluators_sort_by_name(
         self,

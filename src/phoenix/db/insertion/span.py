@@ -16,6 +16,7 @@ class SpanInsertionEvent(NamedTuple):
     project_rowid: int
     span_rowid: int
     trace_rowid: int
+    project_session_rowid: Optional[int]
 
 
 class ClearProjectSpansEvent(NamedTuple):
@@ -197,4 +198,9 @@ async def insert_span(
             + cumulative_llm_token_count_completion,
         )
     )
-    return SpanInsertionEvent(project_rowid, span_rowid, trace.id)
+    return SpanInsertionEvent(
+        project_rowid,
+        span_rowid,
+        trace.id,
+        project_session.id if project_session is not None else None,
+    )

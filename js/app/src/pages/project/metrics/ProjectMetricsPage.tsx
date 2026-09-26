@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { memo } from "react";
 import { useParams } from "react-router";
 
@@ -9,6 +8,10 @@ import {
   DeferredProjectMetricPanel,
   getProjectMetricChart,
 } from "./chartCatalog";
+import {
+  metricsPanelsColumnCSS,
+  metricsScrollContainerCSS,
+} from "./metricsLayout";
 import { ProjectAnnotationMetricsGrid } from "./ProjectAnnotationMetrics";
 import { useClosedTimeRange } from "./useClosedTimeRange";
 
@@ -35,16 +38,7 @@ export function ProjectMetricsPage() {
   const { setCustomTimeRange } = useTimeRange();
 
   return (
-    <main
-      css={css`
-        width: 100%;
-        height: 100%;
-        box-sizing: border-box;
-        /* Scrolls in both directions: the rows hold their charts at a
-           readable width rather than shrinking to fit a narrow window */
-        overflow: auto;
-      `}
-    >
+    <main css={metricsScrollContainerCSS}>
       <MetricPanels
         projectId={projectId}
         timeRange={timeRange}
@@ -63,18 +57,7 @@ const MetricPanels = memo(function MetricPanels({
   onTimeRangeSelected: (timeRange: TimeRange) => void;
 }) {
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        container-type: inline-size;
-        gap: var(--global-dimension-size-200);
-        padding: var(--global-dimension-size-200);
-        /* The widest row's charts at their minimum width. Every row stretches
-           to it, so a scrolled page keeps its charts aligned in a column. */
-        min-width: min-content;
-      `}
-    >
+    <div css={metricsPanelsColumnCSS}>
       {METRIC_PAGE_ROWS.map((row) => (
         <MetricRow
           key={row.join("+")}

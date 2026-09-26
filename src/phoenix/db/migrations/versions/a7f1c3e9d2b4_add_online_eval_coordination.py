@@ -1,0 +1,629 @@
+"""add online eval coordination and experiment evaluator tasks
+
+The traces.last_span_ingested_at index is created inside this migration's transaction and does not
+honor PHOENIX_MIGRATE_INDEX_CONCURRENTLY because the column is added in the same transaction.
+
+Revision ID: a7f1c3e9d2b4
+Revises: 4aad9107d196
+Create Date: 2026-06-17 00:00:00.000000
+
+"""
+
+from typing import Any, Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
+
+_EVAL_WORK_STATUS_CHECK = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
+    "'DROPPED')"
+)
+_EVAL_SESSION_WORK_STATUS_CHECK = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', "
+    "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
+)
+_LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
+_LIVE_EVAL_SESSION_WORK_PREDICATE = (
+    "status IN ('PENDING', 'RUNNING', 'ERROR', 'FILTERED_OUT', 'SAMPLED_OUT')"
+)
+_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'DROPPED')"
+_TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
+    "status IN ('DONE', 'FAILED', 'EXPIRED', 'SUPERSEDED', 'CONTENT_LOST')"
+)
+
+_Integer = sa.Integer().with_variant(
+    sa.BigInteger(),
+    "postgresql",
+)
+
+
+class JSONB(JSON):
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")
+def _(*args: Any, **kwargs: Any) -> str:
+    return "JSONB"
+
+
+JSON_ = JSON().with_variant(postgresql.JSONB(), "postgresql").with_variant(JSONB(), "sqlite")
+
+# Experiment job types before and after this migration adds evaluator tasks.
+_JOB_TYPES_BEFORE = "type IN ('PROMPT', 'EVAL_ONLY')"
+_JOB_TYPES_AFTER = "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')"
+
+# revision identifiers, used by Alembic.
+revision: str = "a7f1c3e9d2b4"
+down_revision: Union[str, None] = "4aad9107d196"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def _create_session_work_units_table() -> None:
+    op.create_table(
+        "eval_session_work_units",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "project_session_rowid",
+            _Integer,
+            sa.ForeignKey("project_sessions.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("config_fingerprint", sa.String(), nullable=False),
+        sa.Column(
+            "evaluated_through",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+        ),
+        sa.Column(
+            "status",
+            sa.String(),
+            sa.CheckConstraint(_EVAL_SESSION_WORK_STATUS_CHECK, name="valid_eval_work_status"),
+            nullable=False,
+            server_default="PENDING",
+        ),
+        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_by", sa.String(), nullable=True),
+        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("error", sa.String(), nullable=True),
+        sa.Column("cooldown_until", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
+    op.create_index(
+        "uq_eval_session_work_units_live_key",
+        "eval_session_work_units",
+        ["project_session_rowid", "evaluator_id", "config_fingerprint"],
+        unique=True,
+        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_claimable",
+        "eval_session_work_units",
+        ["status", "id"],
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_terminal",
+        "eval_session_work_units",
+        ["updated_at"],
+        postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_session_work_units_terminal_watermark",
+        "eval_session_work_units",
+        ["project_session_rowid", "evaluator_id", "config_fingerprint"],
+    )
+    op.create_index(
+        "ix_eval_session_work_units_evaluator_id",
+        "eval_session_work_units",
+        ["evaluator_id"],
+    )
+    op.create_index(
+        "ix_eval_session_work_units_project_evaluator_id",
+        "eval_session_work_units",
+        ["project_evaluator_id"],
+    )
+
+
+def _create_trace_work_units_table() -> None:
+    op.create_table(
+        "eval_trace_work_units",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "trace_rowid",
+            _Integer,
+            sa.ForeignKey("traces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("config_fingerprint", sa.String(), nullable=False),
+        sa.Column(
+            "evaluated_through",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+        ),
+        sa.Column(
+            "status",
+            sa.String(),
+            sa.CheckConstraint(_EVAL_SESSION_WORK_STATUS_CHECK, name="valid_eval_work_status"),
+            nullable=False,
+            server_default="PENDING",
+        ),
+        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_by", sa.String(), nullable=True),
+        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("error", sa.String(), nullable=True),
+        sa.Column("cooldown_until", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
+    op.create_index(
+        "uq_eval_trace_work_units_live_key",
+        "eval_trace_work_units",
+        ["trace_rowid", "evaluator_id", "config_fingerprint"],
+        unique=True,
+        postgresql_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_SESSION_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_trace_work_units_claimable",
+        "eval_trace_work_units",
+        ["status", "id"],
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_trace_work_units_terminal",
+        "eval_trace_work_units",
+        ["updated_at"],
+        postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_trace_work_units_terminal_watermark",
+        "eval_trace_work_units",
+        ["trace_rowid", "evaluator_id", "config_fingerprint"],
+    )
+    op.create_index(
+        "ix_eval_trace_work_units_evaluator_id",
+        "eval_trace_work_units",
+        ["evaluator_id"],
+    )
+    op.create_index(
+        "ix_eval_trace_work_units_project_evaluator_id",
+        "eval_trace_work_units",
+        ["project_evaluator_id"],
+    )
+
+
+def upgrade() -> None:
+    # Bare add/drop_column: batch mode reflects these tables' raw-expression DESC indexes back
+    # as ascending.
+    op.add_column(
+        "project_sessions",
+        sa.Column(
+            "last_span_ingested_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
+    )
+    op.create_index(
+        "ix_project_sessions_project_id_last_span_ingested_at",
+        "project_sessions",
+        ["project_id", "last_span_ingested_at"],
+        postgresql_where=sa.text("last_span_ingested_at IS NOT NULL"),
+        sqlite_where=sa.text("last_span_ingested_at IS NOT NULL"),
+    )
+    op.add_column(
+        "traces",
+        sa.Column(
+            "last_span_ingested_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
+    )
+    op.create_index(
+        "ix_traces_project_rowid_last_span_ingested_at",
+        "traces",
+        ["project_rowid", "last_span_ingested_at"],
+        postgresql_where=sa.text("last_span_ingested_at IS NOT NULL"),
+        sqlite_where=sa.text("last_span_ingested_at IS NOT NULL"),
+    )
+
+    op.create_table(
+        "eval_work_cursors",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "evaluation_target",
+            sa.String(),
+            sa.CheckConstraint(
+                "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')", name="valid_evaluation_target"
+            ),
+            nullable=False,
+        ),
+        sa.Column("consumer_group", sa.String(), nullable=False),
+        sa.Column(
+            "produced_through_id",
+            _Integer,
+            nullable=False,
+            server_default="0",
+        ),
+        sa.Column("observed_high_water_id", _Integer, nullable=True),
+        sa.Column("observed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_by", sa.String(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("evaluation_target", "consumer_group"),
+    )
+    op.create_table(
+        "eval_work_leases",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("holder", sa.String(), nullable=True),
+        sa.Column("heartbeat_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("name"),
+    )
+    op.create_table(
+        "project_evaluators",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "trace_project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
+            nullable=False,
+        ),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("filter_condition", sa.String(), nullable=False, server_default=""),
+        sa.Column(
+            "sampling_rate",
+            sa.Float(),
+            sa.CheckConstraint(
+                "0.0 <= sampling_rate AND sampling_rate <= 1.0",
+                name="valid_sampling_rate",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluation_target",
+            sa.String(),
+            sa.CheckConstraint(
+                "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')",
+                name="valid_evaluation_target",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluation_delay_seconds",
+            sa.Integer(),
+            sa.CheckConstraint(
+                "evaluation_delay_seconds >= 10",
+                name="valid_evaluation_delay_seconds",
+            ),
+            nullable=False,
+            server_default="300",
+        ),
+        sa.Column("input_mapping", JSON_, nullable=True),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "swept_through_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=True,
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("project_id", "name"),
+    )
+    op.create_index(
+        "ix_project_evaluators_project_id",
+        "project_evaluators",
+        ["project_id"],
+    )
+    op.create_index(
+        "ix_project_evaluators_evaluator_id",
+        "project_evaluators",
+        ["evaluator_id"],
+    )
+    op.create_index(
+        "ix_project_evaluators_trace_project_id",
+        "project_evaluators",
+        ["trace_project_id"],
+    )
+    op.create_table(
+        "eval_work_units",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "span_rowid",
+            _Integer,
+            sa.ForeignKey("spans.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("config_fingerprint", sa.String(), nullable=False),
+        sa.Column(
+            "status",
+            sa.String(),
+            sa.CheckConstraint(_EVAL_WORK_STATUS_CHECK, name="valid_eval_work_status"),
+            nullable=False,
+            server_default="PENDING",
+        ),
+        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column("claimed_by", sa.String(), nullable=True),
+        sa.Column("attempts", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("error", sa.String(), nullable=True),
+        sa.Column("cooldown_until", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
+    )
+    op.create_index(
+        "ix_eval_work_units_claimable",
+        "eval_work_units",
+        ["status", "id"],
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_work_units_terminal",
+        "eval_work_units",
+        ["updated_at"],
+        postgresql_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
+    )
+    op.create_index(
+        "ix_eval_work_units_evaluator_id",
+        "eval_work_units",
+        ["evaluator_id"],
+    )
+    op.create_index(
+        "ix_eval_work_units_project_evaluator_id",
+        "eval_work_units",
+        ["project_evaluator_id"],
+    )
+    _create_session_work_units_table()
+    _create_trace_work_units_table()
+    _add_experiment_evaluator_tasks()
+
+
+def _add_experiment_evaluator_tasks() -> None:
+    """Add EVALUATOR as an experiment job type, with its joined task table.
+
+    An evaluator task is a playground evaluator draft run over a dataset as an experiment;
+    the table freezes the evaluator definition so the runner can rebuild it on resume.
+    """
+    # SQLite cannot alter a CHECK constraint in place, so batch mode rewrites the table.
+    with op.batch_alter_table("experiment_jobs") as batch_op:
+        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
+        batch_op.create_check_constraint(
+            constraint_name="valid_type",
+            condition=_JOB_TYPES_AFTER,
+        )
+    op.create_table(
+        "experiment_evaluator_tasks",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "type",
+            sa.String(),
+            sa.CheckConstraint("type = 'EVALUATOR'", name="valid_type"),
+            nullable=False,
+            server_default="EVALUATOR",
+        ),
+        sa.ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+        # The evaluator's name; run annotations are named after it
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column(
+            "evaluator_kind",
+            sa.String(),
+            sa.CheckConstraint(
+                "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN')",
+                name="valid_evaluator_kind",
+            ),
+            nullable=False,
+        ),
+        # The evaluator as drafted (inline prompt version or code) or a stored evaluator's id
+        sa.Column("definition", JSON_, nullable=False),
+        sa.Column("input_mapping", JSON_, nullable=False),
+        sa.Column("output_configs", JSON_, nullable=False),
+    )
+
+
+def _drop_experiment_evaluator_tasks() -> None:
+    # Restoring the narrower CHECK fails while EVALUATOR jobs exist, which stops the
+    # downgrade before it touches anything else rather than discarding those experiments'
+    # bookkeeping.
+    with op.batch_alter_table("experiment_jobs") as batch_op:
+        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
+        batch_op.create_check_constraint(
+            constraint_name="valid_type",
+            condition=_JOB_TYPES_BEFORE,
+        )
+    op.drop_table("experiment_evaluator_tasks")
+
+
+def downgrade() -> None:
+    _drop_experiment_evaluator_tasks()
+    op.drop_index(
+        "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
+    )
+    op.drop_index("ix_eval_trace_work_units_evaluator_id", table_name="eval_trace_work_units")
+    op.drop_index(
+        "ix_eval_trace_work_units_terminal_watermark",
+        table_name="eval_trace_work_units",
+    )
+    op.drop_index("ix_eval_trace_work_units_terminal", table_name="eval_trace_work_units")
+    op.drop_index("ix_eval_trace_work_units_claimable", table_name="eval_trace_work_units")
+    op.drop_table("eval_trace_work_units")
+
+    op.drop_index(
+        "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
+    )
+    op.drop_index("ix_eval_session_work_units_evaluator_id", table_name="eval_session_work_units")
+    op.drop_index(
+        "ix_eval_session_work_units_terminal_watermark",
+        table_name="eval_session_work_units",
+    )
+    op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
+    op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
+    op.drop_table("eval_session_work_units")
+
+    op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
+    op.drop_table("eval_work_units")
+    op.drop_index("ix_project_evaluators_evaluator_id", table_name="project_evaluators")
+    op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
+    op.drop_table("project_evaluators")
+    op.drop_table("eval_work_leases")
+    op.drop_table("eval_work_cursors")
+
+    op.drop_index(
+        "ix_traces_project_rowid_last_span_ingested_at",
+        table_name="traces",
+    )
+    op.drop_column("traces", "last_span_ingested_at")
+
+    op.drop_index(
+        "ix_project_sessions_project_id_last_span_ingested_at",
+        table_name="project_sessions",
+    )
+    op.drop_column("project_sessions", "last_span_ingested_at")
