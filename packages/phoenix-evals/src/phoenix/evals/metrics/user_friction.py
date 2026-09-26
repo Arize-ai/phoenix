@@ -8,6 +8,7 @@ from ..__generated__.classification_evaluator_configs import (
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
+from ..models import EvaluationModel
 
 
 class UserFrictionEvaluator(ClassificationEvaluator):
@@ -16,7 +17,7 @@ class UserFrictionEvaluator(ClassificationEvaluator):
     assistant's preceding behavior.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm: An LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -31,7 +32,8 @@ class UserFrictionEvaluator(ClassificationEvaluator):
           LLM judge.
         - `no_friction` does not prove the user was satisfied; users often
           abandon conversations without saying why.
-        - Requires an LLM that supports tool calling or structured output.
+        - LLM judges require tool calling or structured output. Decision models return
+          probabilities in metadata and no explanation.
 
     Examples::
 
@@ -75,7 +77,7 @@ class UserFrictionEvaluator(ClassificationEvaluator):
         conversation: str = Field(description="The conversation before the target user message.")
         user_message: str = Field(description="The latest user message to classify.")
 
-    def __init__(self, llm: LLM, **kwargs: Any):
+    def __init__(self, llm: LLM | EvaluationModel, **kwargs: Any):
         super().__init__(
             name=self.NAME,
             llm=llm,

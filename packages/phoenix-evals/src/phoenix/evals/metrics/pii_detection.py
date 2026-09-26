@@ -8,6 +8,7 @@ from ..__generated__.classification_evaluator_configs import (
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
+from ..models import EvaluationModel
 
 
 class PiiDetectionEvaluator(ClassificationEvaluator):
@@ -16,7 +17,7 @@ class PiiDetectionEvaluator(ClassificationEvaluator):
     conversation record.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm: An LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -74,7 +75,7 @@ class PiiDetectionEvaluator(ClassificationEvaluator):
             ),
         )
 
-    def __init__(self, llm: LLM, **kwargs: Any):
+    def __init__(self, llm: LLM | EvaluationModel, **kwargs: Any):
         super().__init__(
             name=self.NAME,
             llm=llm,

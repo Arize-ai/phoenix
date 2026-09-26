@@ -104,6 +104,49 @@ match_result = exact_match({"output": "Paris", "expected": "Paris"})
 regex_result = MatchesRegex(pattern=r"^\d{4}-\d{2}-\d{2}$").evaluate({"output": "2024-03-15"})
 ```
 
+## Decision model judges
+
+Classification evaluators also accept decision models through `llm=`. For TypeSafe
+Jev, install `pip install 'arize-phoenix-evals[typesafe]'` and set `TYPESAFE_API_KEY`:
+
+```python
+from typesafe_sdk import TypeSafeClient
+from phoenix.evals import TypeSafeEvaluationModel
+from phoenix.evals.metrics import HallucinationEvaluator
+
+with TypeSafeClient() as client:
+    evaluator = HallucinationEvaluator(llm=TypeSafeEvaluationModel(client=client))
+    score = evaluator.evaluate({"input": "User: What is 2+2?", "output": "4"})[0]
+    print(score.label, score.score, score.metadata["probabilities"])
+```
+
+The selected label uses the evaluator's existing numeric score mapping. For
+hallucination, `grounded` maps to `0` and `hallucinated` maps to `1`. Probabilities
+are separate from that score. Results have `explanation=None`, even when
+`include_explanation=True`, and preserve the resolved model under `metadata["model"]`,
+plus TypeSafe confidence and token usage.
+
+For native async execution, supply an `AsyncTypeSafeClient` as `async_client` and
+call `await evaluator.async_evaluate(...)`. Supply both clients to use both modes;
+the caller manages their lifetimes. Configure model, credentials, retries, and
+timeouts on the SDK clients. LLM invocation parameters such as `temperature` are
+rejected for decision models.
+
+The full rendered prompt becomes structured state, preserving message roles,
+instructions, rubric, and input substitutions. Label descriptions become choice
+criteria. Invalid labels, incomplete probability maps, non-finite probabilities,
+and probabilities outside `[0, 1]` raise errors; provider failures propagate.
+The adapter does not normalize probabilities or apply confidence thresholds.
+
+Evaluator tracing records the resulting Score. To trace the underlying SDK call,
+enable [OpenInference TypeSafe instrumentation](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python).
+The adapter adds no duplicate provider span. Other decision backends can implement
+`EvaluationModel.classify` and `async_classify`, returning `ClassificationResult`.
+These interfaces do not require the TypeSafe SDK.
+
+See [the runnable Jev example](examples/typesafe_jev.py), which requires credentials
+and is excluded from unit tests.
+
 ## LLM Providers
 
 The `LLM` class supports multiple AI providers:

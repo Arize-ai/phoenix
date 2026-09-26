@@ -3,6 +3,7 @@ import copy
 import inspect
 import itertools
 import json
+import math
 import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -31,6 +32,7 @@ from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecuto
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
+from .models import ClassificationResult, EvaluationModel
 from .tracing import trace
 from .utils import (
     _deprecate_positional_args,
@@ -532,7 +534,7 @@ class LLMEvaluator(Evaluator):
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: Union[LLM, EvaluationModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
@@ -600,15 +602,15 @@ class LLMEvaluator(Evaluator):
 # --- LLM ClassificationEvaluator ---
 class ClassificationEvaluator(LLMEvaluator):
     """
-    LLM-based evaluator for classification-style judgements.
+    Evaluator for classification-style judgements using LLMs or decision models.
 
-    Supports label-only or label+score mappings, and returns explanations by default.
-    Note: Requires the LLM to have tool calling or structured output capabilities.
+    Supports label-only or label+score mappings. LLM judges return explanations by
+    default and require tool calling or structured output. Decision models return
+    probabilities in metadata when available and never generate explanations.
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM instance to use for evaluation. Must support tool calling or
-            structured output for reliable classification.
+        llm: An LLM or EvaluationModel instance to use for evaluation.
         prompt_template: The prompt template with placeholders for required input fields.
             Can be either a string template or a list of message dictionaries (for chat-based
             models). Template variables are inferred automatically.
@@ -622,7 +624,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 "negative": (0.0, "Negative sentiment")}). Not recommended as LLMs do not
                 reliably follow this schema.
         include_explanation: Whether to request explanations for classification decisions.
-            Defaults to True in accordance with best practices.
+            Defaults to True for LLMs; ignored for decision models.
         input_schema: Optional Pydantic model for input validation. If not provided,
             a model is automatically created from prompt template variables.
         direction: Score optimization direction ("maximize" or "minimize"). Defaults to
@@ -698,7 +700,7 @@ class ClassificationEvaluator(LLMEvaluator):
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: Union[LLM, EvaluationModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
@@ -708,6 +710,16 @@ class ClassificationEvaluator(LLMEvaluator):
         direction: DirectionType = "maximize",
         **kwargs: Any,
     ):
+        if isinstance(llm, EvaluationModel):
+            if kwargs:
+                raise ValueError(
+                    "Evaluation models do not accept LLM invocation parameters. "
+                    "Configure the decision model's client instead."
+                )
+            if not choices or any(not isinstance(label, str) or not label for label in choices):
+                raise ValueError("Evaluation models require nonempty string choices.")
+            if len(set(choices)) != len(choices):
+                raise ValueError("Evaluation model choices must be unique.")
         super().__init__(
             name=name,
             llm=llm,
@@ -740,9 +752,55 @@ class ClassificationEvaluator(LLMEvaluator):
         self.label_score_map = score_map
         self.labels = labels
 
+    def _decision_criteria(self) -> Dict[str, Optional[str]]:
+        return {
+            label: self.labels[label] if isinstance(self.labels, dict) else None
+            for label in self.labels
+        }
+
+    def _decision_scores(self, result: ClassificationResult) -> List[Score]:
+        if not isinstance(result, ClassificationResult):
+            raise ValueError("Evaluation model must return a ClassificationResult.")
+        if not isinstance(result.label, str) or result.label not in self.labels:
+            raise ValueError(
+                f"ClassificationEvaluator '{self.name}' received invalid label '{result.label}'. "
+                f"Valid labels are: {list(self.labels)}. "
+            )
+        metadata = dict(result.metadata)
+        if result.probabilities is not None:
+            probabilities = result.probabilities
+            if not isinstance(probabilities, dict) or set(probabilities) != set(self.labels):
+                raise ValueError(
+                    "Decision probabilities must contain exactly the configured labels."
+                )
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or not 0 <= value <= 1
+                for value in probabilities.values()
+            ):
+                raise ValueError("Decision probabilities must be finite numbers in [0, 1].")
+            metadata["probabilities"] = dict(probabilities)
+        return [
+            Score(
+                name=self.name,
+                label=result.label,
+                score=self.label_score_map[result.label] if self.label_score_map else None,
+                metadata=metadata,
+                kind=self.kind,
+                direction=self.direction,
+            )
+        ]
+
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         # Render template using PromptTemplate
         prompt_filled = self._prompt_template.render(variables=eval_input)
+
+        if isinstance(self.llm, EvaluationModel):
+            return self._decision_scores(
+                self.llm.classify(prompt=prompt_filled, criteria=self._decision_criteria())
+            )
 
         method = (
             ObjectGenerationMethod.TOOL_CALLING
@@ -785,6 +843,13 @@ class ClassificationEvaluator(LLMEvaluator):
     async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
         # Render template using PromptTemplate
         prompt_filled = self._prompt_template.render(variables=eval_input)
+
+        if isinstance(self.llm, EvaluationModel):
+            return self._decision_scores(
+                await self.llm.async_classify(
+                    prompt=prompt_filled, criteria=self._decision_criteria()
+                )
+            )
 
         method = (
             ObjectGenerationMethod.TOOL_CALLING
@@ -1133,7 +1198,7 @@ def create_evaluator(
 def create_classifier(
     name: str,
     prompt_template: str,
-    llm: LLM,
+    llm: Union[LLM, EvaluationModel],
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],

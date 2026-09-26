@@ -18,6 +18,8 @@ from .evaluators import (
     evaluate_dataframe,
 )
 from .llm import LLM, phoenix_prompt_to_prompt_template
+from .models import ClassificationResult, EvaluationModel
+from .models_typesafe import TypeSafeEvaluationModel
 from .utils import download_benchmark_dataset
 
 __version__ = version("arize-phoenix-evals")
@@ -33,6 +35,9 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = [
+    "ClassificationResult",
+    "EvaluationModel",
+    "TypeSafeEvaluationModel",
     "ClassificationEvaluator",
     "EvalInput",
     "Evaluator",
