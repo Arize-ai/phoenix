@@ -1010,8 +1010,9 @@ def apply_input_mapping(
     # apply path mappings
     if input_mapping.path_mapping:
         for key, path_expr in input_mapping.path_mapping.items():
-            # a mapping left behind by a variable since removed from the template
-            if properties is not None and key not in properties:
+            # a mapping left behind by a variable since removed from the template;
+            # an empty property set means the evaluator accepts any key
+            if properties and key not in properties:
                 continue
             try:
                 jsonpath = parse_jsonpath(path_expr)
