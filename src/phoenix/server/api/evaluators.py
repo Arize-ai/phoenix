@@ -1006,9 +1006,13 @@ def apply_input_mapping(
     context: dict[str, Any],
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
+    properties = input_schema.get("properties")
     # apply path mappings
     if input_mapping.path_mapping:
         for key, path_expr in input_mapping.path_mapping.items():
+            # a mapping left behind by a variable since removed from the template
+            if properties is not None and key not in properties:
+                continue
             try:
                 jsonpath = parse_jsonpath(path_expr)
             except Exception as e:
