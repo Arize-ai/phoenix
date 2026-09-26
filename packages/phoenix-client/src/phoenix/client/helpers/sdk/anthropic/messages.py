@@ -512,8 +512,6 @@ class _ToolKwargsConversion:
             return ans
         ans["tools"] = tools
         if "tool_choice" in obj:
-            if obj["tool_choice"]["type"] == "none":
-                return {}
             disable_parallel_tool_use: Optional[bool] = (
                 obj["disable_parallel_tool_calls"] if "disable_parallel_tool_calls" in obj else None
             )
