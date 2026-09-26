@@ -9,6 +9,17 @@ type PromptVersionTagInput = {
 };
 
 /**
+ * Formats prompt-version metadata for the save dialog's JSON editor.
+ * Missing metadata is represented as an empty object, matching the
+ * create-prompt default.
+ */
+export function formatPromptVersionMetadataForEditor(
+  metadata: unknown
+): string {
+  return JSON.stringify(metadata ?? {}, null, 2);
+}
+
+/**
  * Map tag names to the input shape expected by the create/update prompt mutations.
  */
 export function toPromptVersionTagInputs(

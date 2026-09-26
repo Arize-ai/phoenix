@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24a87bd760178c079d917074062e3dd4>>
+ * @generated SignedSource<<a5e14f31cf5940140d41872ca674927c>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,9 @@ export type SavePromptFormQuery$data = {
       readonly prompt: {
         readonly id: string;
         readonly name: string;
+        readonly version: {
+          readonly metadata: any;
+        };
         readonly versionTags: ReadonlyArray<{
           readonly name: string;
         }>;
@@ -47,6 +50,13 @@ v2 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "metadata",
   "storageKey": null
 };
 return {
@@ -91,6 +101,18 @@ return {
                     "plural": true,
                     "selections": [
                       (v2/*:: as any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptVersion",
+                    "kind": "LinkedField",
+                    "name": "version",
+                    "plural": false,
+                    "selections": [
+                      (v3/*:: as any*/)
                     ],
                     "storageKey": null
                   }
@@ -151,6 +173,19 @@ return {
                       (v1/*:: as any*/)
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptVersion",
+                    "kind": "LinkedField",
+                    "name": "version",
+                    "plural": false,
+                    "selections": [
+                      (v3/*:: as any*/),
+                      (v1/*:: as any*/)
+                    ],
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -164,16 +199,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3716e9210c4d4c9e9de4057c24325921",
+    "cacheID": "4d3218702ac1cc7796d2f80fa330b226",
     "id": null,
     "metadata": {},
     "name": "SavePromptFormQuery",
     "operationKind": "query",
-    "text": "query SavePromptFormQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        id\n        name\n        versionTags {\n          name\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query SavePromptFormQuery {\n  prompts(first: 200) {\n    edges {\n      prompt: node {\n        id\n        name\n        versionTags {\n          name\n          id\n        }\n        version {\n          metadata\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6dbb43dd95f98e5bb0faefadff8e6795";
+(node as any).hash = "38303d901f98d8f265a51356ca69a74e";
 
 export default node;
