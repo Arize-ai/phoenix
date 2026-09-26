@@ -19,7 +19,8 @@ export const isTab = (tab: string): tab is ProjectTab => {
 /**
  * The project page tab bar. The selected tab comes from the URL; switching
  * tabs keeps the time range, filters and hash but drops the selected
- * trace/span.
+ * trace/span. Each tab is a link to that URL so mod/middle-click can open it
+ * in a new browser tab.
  */
 export function ProjectTabs({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
@@ -29,8 +30,11 @@ export function ProjectTabs({ children }: { children?: ReactNode }) {
     `${rootPath}/${id}${clearSelectionScopedParams(search)}${hash}`;
   return (
     <Tabs
+      // Clicks follow the tab's link; arrow-key selection does not, so it
+      // navigates here. A link press re-reports the current key, which must
+      // not navigate or it would undo the link (or a mod-click) navigation.
       onSelectionChange={(key) => {
-        if (typeof key === "string" && isTab(key)) {
+        if (typeof key === "string" && isTab(key) && key !== tab) {
           startTransition(() => {
             navigate(tabPath(key));
           });
@@ -39,11 +43,21 @@ export function ProjectTabs({ children }: { children?: ReactNode }) {
       selectedKey={tab}
     >
       <TabList>
-        <Tab id="spans">Spans</Tab>
-        <Tab id="traces">Traces</Tab>
-        <Tab id="sessions">Sessions</Tab>
-        <Tab id="metrics">Metrics</Tab>
-        <Tab id="config">Config</Tab>
+        <Tab id="spans" href={tabPath("spans")}>
+          Spans
+        </Tab>
+        <Tab id="traces" href={tabPath("traces")}>
+          Traces
+        </Tab>
+        <Tab id="sessions" href={tabPath("sessions")}>
+          Sessions
+        </Tab>
+        <Tab id="metrics" href={tabPath("metrics")}>
+          Metrics
+        </Tab>
+        <Tab id="config" href={tabPath("config")}>
+          Config
+        </Tab>
       </TabList>
       {children}
     </Tabs>
