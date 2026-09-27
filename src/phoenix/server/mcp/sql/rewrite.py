@@ -533,6 +533,40 @@ def _json_path_is_root_only(path: exp.JSONPath) -> bool:
     return not [part for part in path.expressions if not isinstance(part, exp.JSONPathRoot)]
 
 
+def _decompose_operator_json_path(path: exp.Expression) -> Optional[list[exp.Expression]]:
+    """Split an operator-form JSON path operand back into its segments.
+
+    PostgreSQL's ``->`` / ``->>`` take a single text key, not a path. When a
+    caller writes ``attributes ->> '$.llm.model_name'``, SQLGlot keeps the
+    operand as ONE ``JSONPathKey`` literally named ``$.llm.model_name``. Left
+    as the operator form, PostgreSQL looks up a key with that exact name and
+    returns NULL instead of walking the path (issue #16519).
+
+    When the operand is a path-shaped string (``$``-prefixed, multi-segment),
+    recover the real segments so the caller can be rewritten to the
+    ``jsonb_extract_path`` / ``jsonb_extract_path_text`` accessor. Plain single
+    keys (``'llm'``, no ``$`` prefix) are left for the operator to handle
+    natively.
+    """
+    if not isinstance(path, exp.JSONPath):
+        return None
+    keys = [p for p in path.expressions if isinstance(p, exp.JSONPathKey)]
+    if len(keys) != 1:
+        # Already a proper multi-key path (function form) -- not our case.
+        return None
+    text = keys[0].this
+    if not isinstance(text, str) or not text.startswith("$"):
+        return None
+    body = text[1:].lstrip(".")
+    if not body or "." not in body:
+        # A single key spelled with a leading ``$`` (e.g. ``'$.llm'``) is still
+        # a path-shaped operand that PostgreSQL cannot resolve as a key.
+        if not body:
+            return None
+        return [exp.Literal.string(body)]
+    return [exp.Literal.string(seg) for seg in body.split(".")]
+
+
 def _canonicalize_postgres_json_extract_function(
     root: exp.Expression, ctx: RewriteContext
 ) -> exp.Expression:
@@ -569,6 +603,22 @@ def _canonicalize_postgres_json_extract_function(
                 ctx.notes.append(_COMPUTED_JSON_KEY_NOTE)
             continue
         if node.args.get("only_json_types") is not None:
+            # Operator form (`->` / `->>`). A single plain key (`col ->> 'k'`)
+            # is valid PostgreSQL and is left untouched. But the operator's text
+            # operand is not a real path: SQLGlot keeps `'$.llm.model_name'` as
+            # ONE JSONPathKey literally named `$.llm.model_name`, so PostgreSQL
+            # looks up that key and returns NULL (issue #16519). Decompose a
+            # path-shaped operand into the jsonb accessor so the path is walked.
+            decomposed = _decompose_operator_json_path(inner)
+            if decomposed is None:
+                continue
+            name = (
+                "jsonb_extract_path_text"
+                if isinstance(node, exp.JSONExtractScalar)
+                else "jsonb_extract_path"
+            )
+            node.replace(exp.Anonymous(this=name, expressions=[node.this, *decomposed]))
+            changed = True
             continue
         # A root-only path selects the whole document. It has no keys to pass,
         # and the generator spells it `json_extract_path(doc, VARIADIC '{}')`,
