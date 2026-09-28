@@ -45,7 +45,46 @@ JSON_ = (
 )
 
 
+def _sqlite_check_name(table_name: str, constraint_name: str) -> str:
+    """SQLite identifier produced by the ck_%(table_name)s_`%(constraint_name)s` convention."""
+    return f'"ck_{table_name}_`{constraint_name}`"'
+
+
+def _drop_check_constraint(table_name: str, constraint_name: str) -> None:
+    """Drop a CHECK constraint without a SQLite table rewrite.
+
+    Alembic's SQLite dialect rejects ``op.drop_constraint`` outside batch mode.
+    SQLite 3.53+ can drop the constraint in place; the stored name is the
+    naming-convention form, not the logical Alembic name.
+    """
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
+            "ALTER TABLE "
+            f"{table_name} DROP CONSTRAINT {_sqlite_check_name(table_name, constraint_name)}"
+        )
+        return
+    op.drop_constraint(constraint_name, table_name, type_="check")
+
+
+def _create_check_constraint(table_name: str, constraint_name: str, condition: str) -> None:
+    """Add a CHECK constraint without a SQLite table rewrite."""
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
+            "ALTER TABLE "
+            f"{table_name} ADD CONSTRAINT {_sqlite_check_name(table_name, constraint_name)} "
+            f"CHECK ({condition})"
+        )
+        return
+    op.create_check_constraint(constraint_name, table_name, condition)
+
+
+_ANNOTATOR_KIND_BEFORE = "annotator_kind IN ('LLM', 'HUMAN')"
+_ANNOTATOR_KIND_AFTER = "annotator_kind IN ('LLM', 'CODE', 'HUMAN')"
+_VALID_SOURCE = "source IN ('API', 'APP')"
+
+
 def upgrade() -> None:
+    _drop_check_constraint("span_annotations", "valid_annotator_kind")
     with op.batch_alter_table("span_annotations") as batch_op:
         batch_op.drop_index("ix_span_annotations_score")
         batch_op.drop_index("ix_span_annotations_label")
@@ -72,41 +111,34 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-        batch_op.drop_constraint(
-            constraint_name="valid_annotator_kind",
-            type_="check",
-        )
-        batch_op.create_check_constraint(
-            constraint_name="valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
-        )
         batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
         batch_op.create_unique_constraint(
             "uq_span_annotations_name_span_rowid_identifier",
             ["name", "span_rowid", "identifier"],
         )
-    with op.batch_alter_table("span_annotations") as batch_op:
-        batch_op.execute(
-            text(
-                """
-                UPDATE span_annotations
-                SET source = CASE
-                    WHEN annotator_kind = 'HUMAN' THEN 'APP'
-                    ELSE 'API'
-                END
-                """
-            )
+    op.execute(
+        text(
+            """
+            UPDATE span_annotations
+            SET source = CASE
+                WHEN annotator_kind = 'HUMAN' THEN 'APP'
+                ELSE 'API'
+            END
+            """
         )
+    )
+    with op.batch_alter_table("span_annotations") as batch_op:
         batch_op.alter_column(
             "source",
             nullable=False,
             existing_nullable=True,
         )
-        batch_op.create_check_constraint(
-            constraint_name="valid_source",
-            condition="source IN ('API', 'APP')",
-        )
+    # Add checks after the last rebuild. A later batch copy would re-apply the
+    # naming convention and rename a constraint that already has its stored name.
+    _create_check_constraint("span_annotations", "valid_annotator_kind", _ANNOTATOR_KIND_AFTER)
+    _create_check_constraint("span_annotations", "valid_source", _VALID_SOURCE)
 
+    _drop_check_constraint("trace_annotations", "valid_annotator_kind")
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.drop_index("ix_trace_annotations_score")
         batch_op.drop_index("ix_trace_annotations_label")
@@ -133,41 +165,32 @@ def upgrade() -> None:
                 nullable=True,  # must initially be nullable before backfill
             ),
         )
-        batch_op.drop_constraint(
-            constraint_name="valid_annotator_kind",
-            type_="check",
-        )
-        batch_op.create_check_constraint(
-            constraint_name="valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
-        )
         batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid", type_="unique")
         batch_op.create_unique_constraint(
             "uq_trace_annotations_name_trace_rowid_identifier",
             ["name", "trace_rowid", "identifier"],
         )
-    with op.batch_alter_table("trace_annotations") as batch_op:
-        batch_op.execute(
-            text(
-                """
-                UPDATE trace_annotations
-                SET source = CASE
-                    WHEN annotator_kind = 'HUMAN' THEN 'APP'
-                    ELSE 'API'
-                END
-                """
-            )
+    op.execute(
+        text(
+            """
+            UPDATE trace_annotations
+            SET source = CASE
+                WHEN annotator_kind = 'HUMAN' THEN 'APP'
+                ELSE 'API'
+            END
+            """
         )
+    )
+    with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.alter_column(
             "source",
             nullable=False,
             existing_nullable=True,
         )
-        batch_op.create_check_constraint(
-            constraint_name="valid_source",
-            condition="source IN ('API', 'APP')",
-        )
+    _create_check_constraint("trace_annotations", "valid_annotator_kind", _ANNOTATOR_KIND_AFTER)
+    _create_check_constraint("trace_annotations", "valid_source", _VALID_SOURCE)
 
+    _drop_check_constraint("document_annotations", "valid_annotator_kind")
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.drop_index("ix_document_annotations_score")
         batch_op.drop_index("ix_document_annotations_label")
@@ -195,14 +218,6 @@ def upgrade() -> None:
             ),
         )
         batch_op.drop_constraint(
-            constraint_name="valid_annotator_kind",
-            type_="check",
-        )
-        batch_op.create_check_constraint(
-            constraint_name="valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
-        )
-        batch_op.drop_constraint(
             "uq_document_annotations_name_span_rowid_document_position",
             type_="unique",
         )
@@ -210,27 +225,25 @@ def upgrade() -> None:
             "uq_document_annotations_name_span_rowid_document_pos_identifier",  # this name does not conform to the auto-generated pattern, which results in a name longer than the Postgres limit of 63 characters  # noqa: E501
             ["name", "span_rowid", "document_position", "identifier"],
         )
-    with op.batch_alter_table("document_annotations") as batch_op:
-        batch_op.execute(
-            text(
-                """
-                UPDATE document_annotations
-                SET source = CASE
-                    WHEN annotator_kind = 'HUMAN' THEN 'APP'
-                    ELSE 'API'
-                END
-                """
-            )
+    op.execute(
+        text(
+            """
+            UPDATE document_annotations
+            SET source = CASE
+                WHEN annotator_kind = 'HUMAN' THEN 'APP'
+                ELSE 'API'
+            END
+            """
         )
+    )
+    with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.alter_column(
             "source",
             nullable=False,
             existing_nullable=True,
         )
-        batch_op.create_check_constraint(
-            constraint_name="valid_source",
-            condition="source IN ('API', 'APP')",
-        )
+    _create_check_constraint("document_annotations", "valid_annotator_kind", _ANNOTATOR_KIND_AFTER)
+    _create_check_constraint("document_annotations", "valid_source", _VALID_SOURCE)
 
     op.create_table(
         "annotation_configs",
@@ -267,6 +280,8 @@ def downgrade() -> None:
     op.drop_table("project_annotation_configs")
     op.drop_table("annotation_configs")
 
+    _drop_check_constraint("document_annotations", "valid_source")
+    _drop_check_constraint("document_annotations", "valid_annotator_kind")
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.create_index("ix_document_annotations_score", ["score"])
         batch_op.create_index("ix_document_annotations_label", ["label"])
@@ -277,16 +292,13 @@ def downgrade() -> None:
             "uq_document_annotations_name_span_rowid_document_position",
             ["name", "span_rowid", "document_position"],
         )
-        batch_op.drop_constraint("valid_annotator_kind", type_="check")
-        batch_op.create_check_constraint(
-            "valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'HUMAN')",
-        )
-        batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_column("source")
         batch_op.drop_column("identifier")
         batch_op.drop_column("user_id")
+    _create_check_constraint("document_annotations", "valid_annotator_kind", _ANNOTATOR_KIND_BEFORE)
 
+    _drop_check_constraint("trace_annotations", "valid_source")
+    _drop_check_constraint("trace_annotations", "valid_annotator_kind")
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.create_index("ix_trace_annotations_score", ["score"])
         batch_op.create_index("ix_trace_annotations_label", ["label"])
@@ -294,16 +306,13 @@ def downgrade() -> None:
         batch_op.create_unique_constraint(
             "uq_trace_annotations_name_trace_rowid", ["name", "trace_rowid"]
         )
-        batch_op.drop_constraint("valid_annotator_kind", type_="check")
-        batch_op.create_check_constraint(
-            "valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'HUMAN')",
-        )
-        batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_column("source")
         batch_op.drop_column("identifier")
         batch_op.drop_column("user_id")
+    _create_check_constraint("trace_annotations", "valid_annotator_kind", _ANNOTATOR_KIND_BEFORE)
 
+    _drop_check_constraint("span_annotations", "valid_source")
+    _drop_check_constraint("span_annotations", "valid_annotator_kind")
     with op.batch_alter_table("span_annotations") as batch_op:
         batch_op.create_index("ix_span_annotations_score", ["score"])
         batch_op.create_index("ix_span_annotations_label", ["label"])
@@ -311,12 +320,7 @@ def downgrade() -> None:
         batch_op.create_unique_constraint(
             "uq_span_annotations_name_span_rowid", ["name", "span_rowid"]
         )
-        batch_op.drop_constraint("valid_annotator_kind", type_="check")
-        batch_op.create_check_constraint(
-            "valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'HUMAN')",
-        )
-        batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_column("source")
         batch_op.drop_column("identifier")
         batch_op.drop_column("user_id")
+    _create_check_constraint("span_annotations", "valid_annotator_kind", _ANNOTATOR_KIND_BEFORE)
