@@ -17,15 +17,12 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _CLI_ARCHIVE = _REPO_ROOT / "dist" / "phoenix-cli" / "phoenix-cli.tar.gz"
 _CODEX_ARCHIVE_DIR = _REPO_ROOT / "dist" / "codex"
 _INSTALL_SCRIPT = Path(__file__).with_name("install_node_archive.sh")
+_NODE_ARCH_BY_MACHINE = {"x86_64": "x64", "aarch64": "arm64"}
 
 
 async def _install_node_archive(
     environment: BaseEnvironment, archive: Path, name: str, *bins: str
 ) -> None:
-    """Upload a host-built node_modules archive and link its bins onto PATH.
-
-    Runs as root because the script links into ``/usr/local/bin``.
-    """
     if not archive.is_file():
         raise RuntimeError(f"No {name} archive at {archive}; run `make harbor-stage`")
     upload_dir = f"/installed-agent/{name}"
@@ -69,18 +66,15 @@ class PhoenixCliMixin(BaseInstalledAgent):
 
 
 class CodexArchiveMixin(Codex):
-    """Install Codex from the archive that ``make harbor-stage`` builds.
-
-    Harbor's installer downloads nvm and Node from hosts the job allowlist blocks. The
-    archive for the sandbox's architecture is uploaded instead, and Harbor's installer
-    then finds the pinned version and does nothing.
-    """
+    """Harbor's installer downloads nvm and Node from hosts the job allowlist blocks, so
+    the archive from ``make harbor-stage`` is uploaded first and the installer, finding
+    the pinned version, does nothing."""
 
     async def install(self, environment: BaseEnvironment) -> None:
         if self.version() is None:
             raise RuntimeError("Codex agents need kwargs.version to select the archive")
         machine = (await environment.exec("uname -m")).stdout.strip()
-        arch = {"x86_64": "x64", "aarch64": "arm64"}[machine]
+        arch = _NODE_ARCH_BY_MACHINE[machine]
         archive = _CODEX_ARCHIVE_DIR / f"codex-{self.version()}-linux-{arch}.tar.gz"
         await _install_node_archive(environment, archive, "codex", "codex")
         result = await environment.exec(self._INSTALL_VERSION_COMMAND)

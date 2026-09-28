@@ -11,9 +11,8 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && apt-get install -y --no-install-recommends ca-certificates curl git jq procps ripgrep \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash agent
-# Harbor installs Claude Code at trial start from downloads.claude.ai. The Codex agents
-# upload the archive from dist/codex instead, because Harbor's Codex installer needs
-# hosts that the allowlist blocks.
+# The coding agents are installed at trial start: Harbor downloads Claude Code, and the
+# Codex agents upload the archive from dist/codex.
 # Harbor runs the agent and the reference solution from the image's working directory.
 WORKDIR /app
 RUN chown agent:agent /app

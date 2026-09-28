@@ -505,8 +505,8 @@ HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
 HARBOR_ARGS ?=
 # harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
 # HF_TOKEN is set, and builds the px and Codex archives. Set HARBOR_CLI=0 or
-# HARBOR_CODEX=0 to skip an archive. HARBOR_CODEX_VERSION must match `kwargs.version`
-# on the Codex agents in the job file.
+# HARBOR_CODEX=0 to skip an archive. The Codex agents in the job file pin
+# HARBOR_CODEX_VERSION as `kwargs.version`.
 HARBOR_CLI ?= 1
 HARBOR_CODEX ?= 1
 HARBOR_CODEX_VERSION ?= 0.154.0

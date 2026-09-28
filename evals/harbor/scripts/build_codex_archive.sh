@@ -3,10 +3,8 @@
 #
 # Usage: build_codex_archive.sh <version>
 #
-# The Codex agents upload the archive for the sandbox's architecture at install time.
-# Harbor's own installer fetches nvm and Node from hosts that the job allowlist blocks,
-# so the archive keeps the sandbox sealed. The version must match `kwargs.version` on the
-# Codex agents in the job file, which Harbor checks before it skips its installer.
+# The Codex agents upload this archive at install time because Harbor's own installer
+# fetches nvm and Node from hosts that the job allowlist blocks.
 #
 # Daytona sandboxes are x64, and local Docker uses the host's architecture, so the script
 # builds x64 plus arm64 on an arm64 host. HARBOR_CODEX_ARCHES overrides the list.
@@ -20,8 +18,7 @@ case $(uname -m) in
 esac
 
 mkdir -p "$OUTPUT_DIR"
-# npm selects the platform package for the container's architecture, so each archive is
-# built in a container of that architecture.
+# npm picks the Codex platform package for the container's architecture.
 for arch in $ARCHES; do
   case $arch in
     x64) platform=linux/amd64 ;;

@@ -7,9 +7,8 @@
 # the trail-benchmark-dev Phoenix dataset.
 #
 # The environment allows the Phoenix documentation hosts and the Claude Code download
-# host. Each agent allows its model provider. The Codex agents upload the archive that
-# `make harbor-stage` builds because Harbor's installer requires hosts that the network
-# policy blocks; `version` selects the archive.
+# host. Each agent allows its model provider. The Codex agents need no install host
+# because they upload the archive that `make harbor-stage` builds for `version`.
 datasets:
   - path: evals/harbor/tasks/trail-benchmark-dev
 agents:
