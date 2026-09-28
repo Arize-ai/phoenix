@@ -501,7 +501,7 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # HARBOR_JOB selects the benchmark configuration. HARBOR_ARGS passes options to
 # `harbor run`. The `-a` option preserves the tasks and environment but replaces the
 # configured agents.
-HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
+HARBOR_JOB ?= evals/harbor/jobs/regression.yaml
 HARBOR_ARGS ?=
 # harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
 # HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.

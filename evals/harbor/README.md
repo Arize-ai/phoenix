@@ -8,7 +8,7 @@ compare the conditions in the Phoenix UI.
 
 | Job file | Question it answers | Tasks | Phoenix dataset |
 | --- | --- | --- | --- |
-| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
+| `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
@@ -199,7 +199,7 @@ together.
 `tasks/regression/error-analysis` is a two-step scenario on a hand-prepared database. The agent
 open-codes a project's traces into notes, then axial-codes them into per-dimension
 annotation configurations. Its verifier lives with the task under `tests/` and reads the
-database and the agent's sidecars directly. `jobs/benchmark.yaml` runs it with two
+database and the agent's sidecars directly. `jobs/regression.yaml` runs it with two
 attempts on Daytona. In CI, `.github/workflows/harbor-evals.yml` checks the reward with
 `scripts/check_job_reward.py`.
 
@@ -230,7 +230,7 @@ Build the client wheel and use it in the Harbor environment instead of the pinne
 uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
 PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
-  harbor run -c evals/harbor/jobs/benchmark.yaml -e docker -k 1 \
+  harbor run -c evals/harbor/jobs/regression.yaml -e docker -k 1 \
   --plugin arize-phoenix --yes
 ```
 

@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     # The run itself (agents, attempts, Daytona) is defined by
-    # evals/harbor/jobs/benchmark.yaml; the Phoenix plugin records it under
+    # evals/harbor/jobs/regression.yaml; the Phoenix plugin records it under
     # PHOENIX_COLLECTOR_ENDPOINT.
     env:
       DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
