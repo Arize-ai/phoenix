@@ -522,9 +522,6 @@ class BashToolResult(TypedDict):
 
 def get_bash_tool_error(result: Any) -> Optional[str]:
     """Returns a span error description for a bash command that exited non-zero.
-
-    The tool returns normally whatever the exit code, so the model can read
-    stderr and react, but failing commands should still stand out in traces.
     """
     exit_code = result.get("exitCode") if isinstance(result, Mapping) else None
     if isinstance(exit_code, int) and exit_code != 0:
