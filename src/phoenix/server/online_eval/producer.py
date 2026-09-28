@@ -11,8 +11,10 @@ re-covers a bounded id window behind the watermark to catch spans that became vi
 after their window was scanned.
 
 Every cursor write is compare-and-set on the position it read, and a scan (frontier or
-backstop) commits only if the position it scanned against is still current, so the
-position only moves forward, except when clamped to the live span high water.
+backstop) commits only if the cursor still holds the position it scanned against. The
+reaper deletes terminal span work below the cursor minus ``backstop_lookback_span_ids``,
+so no scan may commit against a position the cursor has left: its inserts could recreate
+work whose finished rows were already reaped.
 """
 
 from __future__ import annotations
