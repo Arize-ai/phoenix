@@ -64,6 +64,7 @@ export function ProjectEvaluatorStats({
     graphql`
       fragment ProjectEvaluatorStats_projectEvaluator on ProjectEvaluator {
         createdAt
+        enabled
         evaluationTarget
         project {
           id
@@ -151,8 +152,8 @@ function ProjectEvaluatorActivityPanel({
 }: {
   projectEvaluator: ProjectEvaluatorStats_projectEvaluator$data;
 }) {
-  const { runSummary } = projectEvaluator;
-  const status = getProjectEvaluatorStatus({ runSummary });
+  const { enabled, runSummary } = projectEvaluator;
+  const status = getProjectEvaluatorStatus({ enabled, runSummary });
   const { shortDateFormatter, fullTimeFormatter } = useTimeFormatters();
   return (
     <ChartPanel
