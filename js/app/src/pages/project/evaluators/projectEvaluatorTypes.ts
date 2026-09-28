@@ -267,15 +267,22 @@ const STATUS_COLOR_BY_VARIANT: Record<BadgeVariant, string> = {
   default: "var(--global-color-gray-300)",
 };
 
-/** The one status a row reports, read from its most recent runs. */
+/** The one status a row reports: disabled, or read from its most recent runs. */
 export function getProjectEvaluatorStatus({
+  enabled,
   runSummary,
 }: {
+  enabled: boolean;
   // Narrowed so status cells can render without fetching run counts.
   runSummary: Pick<ProjectEvaluatorRunSummary, "status">;
 }): ProjectEvaluatorStatus {
-  const status =
-    runSummary.status === "ERROR"
+  const status = !enabled
+    ? {
+        label: "Disabled",
+        variant: "default" as const,
+        explanation: "Turned off. No new evaluations are scheduled.",
+      }
+    : runSummary.status === "ERROR"
       ? {
           label: "Error",
           variant: "danger" as const,
