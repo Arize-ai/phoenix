@@ -35,7 +35,10 @@ from phoenix.config import (
     get_env_online_eval_retention_seconds,
 )
 from phoenix.db import models
-from phoenix.db.eval_work import TERMINAL_EVAL_WORK_STATUSES, live_eval_work_index_predicate
+from phoenix.db.eval_work import (
+    live_eval_work_index_predicate,
+    terminal_eval_work_index_predicate,
+)
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.db_coordinator import reap_lapsed_leases
 from phoenix.server.online_eval.derivation import (
@@ -358,7 +361,8 @@ class OnlineEvalProducer(DaemonTask):
                 await reap_lapsed_leases(session, models.EvalWorkUnit)
             await session.execute(
                 delete(models.EvalWorkUnit).where(
-                    models.EvalWorkUnit.status.in_(TERMINAL_EVAL_WORK_STATUSES),
+                    # SQLite reads a partial index only when the query repeats its predicate.
+                    text(terminal_eval_work_index_predicate()),
                     models.EvalWorkUnit.updated_at < retention_cutoff,
                     models.EvalWorkUnit.span_rowid < reap_floor,
                 )

@@ -86,6 +86,8 @@ async def reap_lapsed_leases(
     await session.execute(
         update(work_unit_model)
         .where(
+            # SQLite reads a partial index only when the query repeats its predicate.
+            text(live_eval_work_index_predicate()),
             work_unit_model.status == "RUNNING",
             work_unit_model.attempts >= MAX_ATTEMPTS - 1,
             work_unit_lease_lapsed(now, work_unit_model),
@@ -156,7 +158,11 @@ class DbEvalWorkCoordinator:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
             now = await _database_now(session)
-            candidates = select(work_unit_model.id).where(self._claimable(now))
+            candidates = select(work_unit_model.id).where(
+                # SQLite reads a partial index only when the query repeats its predicate.
+                text(live_eval_work_index_predicate()),
+                self._claimable(now),
+            )
             candidates = candidates.order_by(work_unit_model.id).limit(limit)
             claim_values = {
                 "status": "RUNNING",
