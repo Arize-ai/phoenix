@@ -589,6 +589,17 @@ class OnlineEvalProducer(DaemonTask):
                         f"{budget} budget remaining"
                     )
                     break
+            # Once the cursor moves past the watermark, its holder may reap terminal rows in
+            # this window before a scan above reads them, and the scan recreates that work.
+            produced_through_id = await session.scalar(
+                select(models.EvalWorkCursor.produced_through_id).where(
+                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
+                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
+                )
+            )
+            if produced_through_id != watermark:
+                await session.rollback()
+                logger.warning("Online-eval producer backstop rolled back: the cursor moved")
         return budget
 
     async def _insert_work_units(

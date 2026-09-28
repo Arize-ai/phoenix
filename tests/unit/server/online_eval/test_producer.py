@@ -1188,6 +1188,48 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
     assert sorted(await _work_unit_span_rowids(db)) == [span.id]
 
 
+@pytest.mark.postgres_only
+async def test_backstop_rolls_back_when_the_cursor_moves_while_it_runs(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    producer = OnlineEvalProducer(db)
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=span.id,
+        claimed_by=producer._producer_id,
+        claimed_at=_now(),
+    )
+    active = await producer._load_active_project_evaluators()
+    insert_work_units = producer._insert_work_units
+
+    async def _rival_advances_then_insert(
+        session: Any,
+        project_evaluator: Any,
+        span_ids: list[int],
+    ) -> None:
+        async with db() as rival_session:
+            await rival_session.execute(
+                update(models.EvalWorkCursor)
+                .where(models.EvalWorkCursor.id == cursor_id)
+                .values(produced_through_id=span.id + 100)
+            )
+        await insert_work_units(session, project_evaluator, span_ids)
+
+    monkeypatch.setattr(producer, "_insert_work_units", _rival_advances_then_insert)
+    with caplog.at_level("WARNING"):
+        await producer._backstop_sweep(active, span.id, 10)
+
+    assert await _work_unit_span_rowids(db) == []
+    assert any("backstop rolled back" in record.message for record in caplog.records)
+
+
 async def test_renew_lease_refreshes_claimed_at(db: DbSessionFactory) -> None:
     producer = OnlineEvalProducer(db)
     old = _now() - timedelta(seconds=60)
