@@ -21,25 +21,13 @@ _CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
 
 class PreinstalledAgentMixin(BaseInstalledAgent):
     """The image installs this CLI under a directory only root can read, so conditions
-    that do not run it cannot reach it. Install opens the directory and checks the preinstalled
-    version against the job's pin before Harbor's installer would try the network."""
+    that do not run it cannot reach it. Install opens the directory; Harbor's installer
+    then finds the CLI on PATH and skips the network."""
 
     PREINSTALLED_PACKAGE_DIR: ClassVar[str]
 
     async def install(self, environment: BaseEnvironment) -> None:
-        pinned = self.version()
-        if pinned is None:
-            raise RuntimeError(f"{self.name()} needs kwargs.version to match the preinstalled CLI")
         await self.exec_as_root(environment, f"chmod 755 {self.PREINSTALLED_PACKAGE_DIR}")
-        version_command = self.get_version_command()
-        assert version_command is not None
-        result = await self.exec_as_agent(environment, version_command)
-        preinstalled = self.parse_version(result.stdout or "")
-        if preinstalled != pinned:
-            raise RuntimeError(
-                f"The image has {self.name()} {preinstalled} but the job pins {pinned}; "
-                "update the Dockerfile ARG or kwargs.version"
-            )
         await super().install(environment)
 
 
