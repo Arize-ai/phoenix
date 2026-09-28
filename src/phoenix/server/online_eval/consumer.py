@@ -198,12 +198,12 @@ class OnlineEvalConsumer(DaemonTask):
         if self._db.should_not_insert_or_update:
             return False
         permits = await self._acquire_permits()
+        # This consumer may reclaim its own lapsed unit while the first attempt still
+        # runs; a token per claim keeps that attempt's writes from passing the fence.
+        claimed_by = f"{self._consumer_id}:{token_hex(4)}"
         try:
             units = await self._run_db(
-                lambda: self._coordinator.claim(
-                    claimed_by=self._consumer_id,
-                    limit=permits,
-                )
+                lambda: self._coordinator.claim(claimed_by=claimed_by, limit=permits)
             )
             if not units:
                 return False
@@ -272,7 +272,7 @@ class OnlineEvalConsumer(DaemonTask):
                 self._run_db(
                     lambda: self._coordinator.release(
                         work_unit_id=unit.work_unit_id,
-                        claimed_by=self._consumer_id,
+                        claimed_by=unit.claimed_by,
                     )
                 )
             )
@@ -287,12 +287,12 @@ class OnlineEvalConsumer(DaemonTask):
                 "leaving the row for lease-lapse reclaim"
             )
 
-    async def _heartbeat(self, work_unit_id: int) -> bool:
+    async def _heartbeat(self, unit: ClaimedWorkUnit) -> bool:
         """Renew a lease outside the shared db semaphore: queueing liveness behind
         the bulk work it reports on turns saturation into correlated lease loss."""
         return await self._coordinator.heartbeat(
-            work_unit_id=work_unit_id,
-            claimed_by=self._consumer_id,
+            work_unit_id=unit.work_unit_id,
+            claimed_by=unit.claimed_by,
         )
 
     async def _execute_unit(
@@ -319,10 +319,10 @@ class OnlineEvalConsumer(DaemonTask):
                     error = f"{error}: {hydrated.detail}"
                 expired = await self._retry_transition(
                     action="expire",
-                    work_unit_id=unit.work_unit_id,
+                    unit=unit,
                     transition=lambda: self._coordinator.expire(
                         work_unit_id=unit.work_unit_id,
-                        claimed_by=self._consumer_id,
+                        claimed_by=unit.claimed_by,
                         error=error,
                         status=hydrated.terminal_status,
                     ),
@@ -338,10 +338,10 @@ class OnlineEvalConsumer(DaemonTask):
         except OnlineEvalStoragePaused:
             released = await self._retry_transition(
                 action="pause",
-                work_unit_id=unit.work_unit_id,
+                unit=unit,
                 transition=lambda: self._coordinator.release(
                     work_unit_id=unit.work_unit_id,
-                    claimed_by=self._consumer_id,
+                    claimed_by=unit.claimed_by,
                 ),
             )
             if not released:
@@ -359,10 +359,10 @@ class OnlineEvalConsumer(DaemonTask):
                 )
                 expired = await self._retry_transition(
                     action="record terminal failure",
-                    work_unit_id=unit.work_unit_id,
+                    unit=unit,
                     transition=lambda: self._coordinator.expire(
                         work_unit_id=unit.work_unit_id,
-                        claimed_by=self._consumer_id,
+                        claimed_by=unit.claimed_by,
                         error=disposition.error,
                     ),
                 )
@@ -388,10 +388,10 @@ class OnlineEvalConsumer(DaemonTask):
             cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
             failed = await self._retry_transition(
                 action="record failure",
-                work_unit_id=unit.work_unit_id,
+                unit=unit,
                 transition=lambda: self._coordinator.fail(
                     work_unit_id=unit.work_unit_id,
-                    claimed_by=self._consumer_id,
+                    claimed_by=unit.claimed_by,
                     error=error,
                     cooldown_until=cooldown_until,
                     count_attempt=count_attempt,
@@ -405,10 +405,10 @@ class OnlineEvalConsumer(DaemonTask):
         else:
             completed = await self._retry_transition(
                 action="complete",
-                work_unit_id=unit.work_unit_id,
+                unit=unit,
                 transition=lambda: self._coordinator.complete(
                     work_unit_id=unit.work_unit_id,
-                    claimed_by=self._consumer_id,
+                    claimed_by=unit.claimed_by,
                 ),
             )
             if completed is False:
@@ -421,7 +421,7 @@ class OnlineEvalConsumer(DaemonTask):
         self,
         *,
         action: str,
-        work_unit_id: int,
+        unit: ClaimedWorkUnit,
         transition: Callable[[], Awaitable[bool]],
     ) -> bool:
         retry_index = 0
@@ -434,15 +434,15 @@ class OnlineEvalConsumer(DaemonTask):
                 ]
                 retry_index += 1
                 logger.warning(
-                    f"Failed to {action} for online-eval work unit {work_unit_id}; "
+                    f"Failed to {action} for online-eval work unit {unit.work_unit_id}; "
                     f"retrying in {delay_seconds:g}s",
                     exc_info=True,
                 )
                 try:
-                    heartbeat_succeeded = await self._heartbeat(work_unit_id)
+                    heartbeat_succeeded = await self._heartbeat(unit)
                 except Exception:
                     logger.warning(
-                        f"Failed to heartbeat online-eval work unit {work_unit_id} while "
+                        f"Failed to heartbeat online-eval work unit {unit.work_unit_id} while "
                         f"retrying {action}",
                         exc_info=True,
                     )
@@ -494,7 +494,7 @@ class OnlineEvalConsumer(DaemonTask):
                 if not heartbeat_enabled:
                     continue
                 try:
-                    heartbeat_succeeded = await self._heartbeat(unit.work_unit_id)
+                    heartbeat_succeeded = await self._heartbeat(unit)
                     if not heartbeat_succeeded:
                         logger.warning(
                             f"Online-eval work unit {unit.work_unit_id} heartbeat stopped after "

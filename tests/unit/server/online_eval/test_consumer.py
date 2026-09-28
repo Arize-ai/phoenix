@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
 from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 
 import httpx
 import pytest
@@ -3039,7 +3039,7 @@ async def test_heartbeat_proceeds_under_db_semaphore_saturation(db: DbSessionFac
     claimed_at = (await _get_unit(db, unit_id)).claimed_at
 
     async with db_semaphore:
-        assert await asyncio.wait_for(consumer._heartbeat(unit.work_unit_id), timeout=5)
+        assert await asyncio.wait_for(consumer._heartbeat(unit), timeout=5)
 
     renewed_at = (await _get_unit(db, unit_id)).claimed_at
     assert claimed_at is not None and renewed_at is not None
@@ -3192,8 +3192,8 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
     )
 
     assert max_active == 1
-    for consumer, claim in claims.items():
-        claim.assert_awaited_once_with(claimed_by=consumer._consumer_id, limit=1)
+    for claim in claims.values():
+        claim.assert_awaited_once_with(claimed_by=ANY, limit=1)
 
 
 async def test_consumer_claims_new_work_while_a_unit_is_blocked(
@@ -3242,6 +3242,63 @@ async def test_consumer_claims_new_work_while_a_unit_is_blocked(
         assert (await _get_unit(db, blocked_unit_id)).status == "RUNNING"
     finally:
         await consumer.stop()
+
+
+async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_claim(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    coordinator = consumer._coordinator
+    process_unit = consumer._process_unit
+    started: list[ClaimedWorkUnit] = []
+
+    async def _start(unit: ClaimedWorkUnit, *_: Any) -> None:
+        started.append(unit)
+
+    async def _write_nothing(_: Any) -> None:
+        return None
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
+
+    async def _evaluate(*_: Any, **__: Any) -> None:
+        return None
+
+    monkeypatch.setattr(consumer, "_process_unit", _start)
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
+    await _cycle_to_completion(consumer)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(claimed_at=lapsed)
+        )
+    await _cycle_to_completion(consumer)
+    first, second = started
+    assert first.work_unit_id == second.work_unit_id == unit_id
+    assert first.claimed_by != second.claimed_by
+
+    stale: dict[str, Any] = {"work_unit_id": unit_id, "claimed_by": first.claimed_by}
+    assert not await consumer._heartbeat(first)
+    with pytest.raises(PublicationClaimLostError):
+        await coordinator.publish(**stale, write=_write_nothing)
+    assert not await coordinator.complete(**stale)
+    assert not await coordinator.fail(**stale, error="stale")
+    assert not await coordinator.expire(**stale, error="stale")
+    assert not await coordinator.release(**stale)
+    row = await _get_unit(db, unit_id)
+    assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", second.claimed_by, 1)
+
+    await process_unit(second)
+    assert (await _get_unit(db, unit_id)).status == "DONE"
 
 
 async def test_complete_retries_after_ambiguous_commit(
