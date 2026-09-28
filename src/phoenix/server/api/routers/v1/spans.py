@@ -1261,7 +1261,7 @@ async def annotate_spans(
                 status_code=404,
             )
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
             span_annotation_id = await session.scalar(
@@ -1383,7 +1383,7 @@ async def create_span_note(
         }
 
         if note_data.identifier:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             result = await session.execute(
                 insert_on_conflict(
                     values,

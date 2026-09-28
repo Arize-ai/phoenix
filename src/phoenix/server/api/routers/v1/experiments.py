@@ -230,7 +230,7 @@ async def create_experiment(
         # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
 
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         project_rowid = await session.scalar(
             insert_on_conflict(
                 dict(

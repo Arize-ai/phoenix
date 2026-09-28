@@ -32,7 +32,7 @@ class TestSignInExistingOAuth2User:
         """Query role IDs upfront to avoid hardcoding numeric values."""
         async with db() as session:
             result = await session.execute(select(models.UserRole.name, models.UserRole.id))
-            self.role_ids = {name: id_ for name, id_ in result.all()}
+            self.role_ids: dict[str, int] = {name: id_ for name, id_ in result.all()}
 
     async def test_all_scenarios(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
         """Single comprehensive test covering all sign-in scenarios."""
@@ -163,7 +163,7 @@ class TestRoleResync:
     async def _setup_role_ids(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
         async with db() as session:
             result = await session.execute(select(models.UserRole.name, models.UserRole.id))
-            self.role_ids = {name: id_ for name, id_ in result.all()}
+            self.role_ids: dict[str, int] = {name: id_ for name, id_ in result.all()}
 
     async def _create_oauth2_user(
         self, db: DbSessionFactory, email: str, uid: str, role: str, client_id: str

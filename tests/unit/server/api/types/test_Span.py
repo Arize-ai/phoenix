@@ -921,7 +921,7 @@ async def _span_with_invalid_mime_type(db: DbSessionFactory) -> int:
             )
             .returning(models.Trace.id)
         )
-        span_rowid = await session.scalar(
+        span_rowid: int | None = await session.scalar(
             insert(models.Span)
             .values(
                 trace_rowid=trace_rowid,

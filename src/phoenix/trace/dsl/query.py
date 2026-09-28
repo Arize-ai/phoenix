@@ -580,8 +580,7 @@ class SpanQuery(_HasTmpSuffix):
                 root_spans_only=root_spans_only,
                 orphan_span_as_root_span=orphan_span_as_root_span,
             )
-        assert session.bind is not None
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         row_id = models.Span.id.label(self._pk_tmp_col_label)
         stmt: Select[Any] = (
             # We do not allow `group_by` anything other than `row_id` because otherwise
