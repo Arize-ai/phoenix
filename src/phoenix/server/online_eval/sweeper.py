@@ -41,6 +41,7 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.eval_work import (
+    SESSION_REOFFERED_STATUSES,
     live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
 )
@@ -71,9 +72,6 @@ TRACE_SWEEP_MAX_OUTSTANDING = 10_000
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
 _LOCK_TIMEOUT_MILLISECONDS = 500
 _LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, deadlock_detected
-# Work that ended without a result is offered again once its entity has newer activity.
-# DONE and declined rows are final.
-_REOFFERED_STATUSES = ("FAILED", "EXPIRED", "CONTENT_LOST")
 
 _EntityModel = type[models.ProjectSession] | type[models.Trace]
 _WorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
@@ -320,7 +318,7 @@ def _reoffer_values(excluded: Any) -> dict[str, Any]:
 
 def _reofferable(work_unit: Any, activity_through: Any) -> ColumnElement[bool]:
     reofferable: ColumnElement[bool] = and_(
-        work_unit.status.in_(_REOFFERED_STATUSES),
+        work_unit.status.in_(SESSION_REOFFERED_STATUSES),
         work_unit.evaluated_through < activity_through,
     )
     return reofferable
