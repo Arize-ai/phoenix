@@ -53,12 +53,13 @@ HF_TOKEN=... make harbor-stage
 The archives require Docker. The px archive takes a few minutes to build. If the job has
 no CLI agent, set `HARBOR_CLI=0` to skip it. If the job has no Codex agent, set
 `HARBOR_CODEX=0`. `HARBOR_CODEX_VERSION` selects the Codex version and must match
-`kwargs.version` on the Codex agents in the job file. The Codex archive is built for both
-Linux architectures, so it works on Daytona and on local Docker for Apple silicon. Use
-`HARBOR_CLI_PLATFORM` to change the px target from `linux/amd64`. Restage after changing
-the server, `verifiers/`, `environments/`, or a fixture because the image contains copies
-of these files. `RESEED=1` also rebuilds the fixtures. `make harbor-run` refuses to start
-a job whose tasks are not staged.
+`kwargs.version` on the Codex agents in the job file. The Codex archive is built for x64,
+and also for arm64 on an arm64 host, so it works on Daytona and on local Docker for Apple
+silicon. `HARBOR_CODEX_ARCHES` overrides the list. Use `HARBOR_CLI_PLATFORM` to change the
+px target from `linux/amd64`. Restage after changing the server, `verifiers/`,
+`environments/`, or a fixture because the image contains copies of these files.
+`RESEED=1` also rebuilds the fixtures. `make harbor-run` refuses to start a job whose
+tasks are not staged.
 
 ### 2. Run a job
 
