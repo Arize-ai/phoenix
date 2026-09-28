@@ -12,20 +12,23 @@ from typing import Any, Awaitable, Callable, Generic, Mapping, Optional, Sequenc
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
-from graphql import GraphQLSyntaxError
 from graphql import OperationType as GraphQLOperationType
-from graphql import parse as parse_graphql
-from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
 from pydantic_ai import RunContext, Tool
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import ApprovalRequired
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
-from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.api.context import Context
+from phoenix.server.api.graphql_execute import (
+    MAX_QUERY_BYTES,
+    GraphQLRefusal,
+    execute_operation,
+    operation_count,
+    operation_types,
+)
 from phoenix.server.api.schema_search import cached_index, describe
 
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -86,42 +89,6 @@ Returns a dict with the command's `stdout`, `stderr`, and `exitCode`.\
 """
 
 
-def _operation_types(query: str) -> set[GraphQLOperationType]:
-    """Return the set of GraphQL operation types declared in ``query``.
-
-    Comments abutting the keyword and shorthand syntax defeat a naive regex, but the
-    AST-based classifier handles them. Invalid syntax yields an empty set and is left
-    for ``schema.execute`` to report.
-
-    >>> _operation_types("mutation# do it later\\n{ deleteEverything }")
-    {<OperationType.MUTATION: 'mutation'>}
-    >>> _operation_types("# subscription example\\nquery { hello }")
-    {<OperationType.QUERY: 'query'>}
-    >>> _operation_types("subscription { hello }")
-    {<OperationType.SUBSCRIPTION: 'subscription'>}
-    >>> _operation_types("{ hello }")
-    {<OperationType.QUERY: 'query'>}
-    >>> _operation_types("this is not graphql !!")
-    set()
-
-    A document declaring several operations reports every type it contains (sorted here
-    for a stable repr):
-
-    >>> doc = "query A { hello }\\nmutation B { deleteEverything }"
-    >>> sorted(op.value for op in _operation_types(doc))
-    ['mutation', 'query']
-    """
-    try:
-        document = parse_graphql(query)
-    except GraphQLSyntaxError:
-        return set()
-    return {
-        definition.operation
-        for definition in document.definitions
-        if isinstance(definition, OperationDefinitionNode)
-    }
-
-
 def _resolve_path(cwd: str, path: str) -> str:
     """Resolve ``path`` against ``cwd``.resolvePath`` does.
 
@@ -138,16 +105,6 @@ def _resolve_path(cwd: str, path: str) -> str:
     if path.startswith("/"):
         return posixpath.normpath(path)
     return posixpath.normpath(posixpath.join(cwd, path))
-
-
-def _operation_count(query: str) -> int:
-    """How many operations ``query`` declares; invalid syntax counts as one and is
-    left for ``schema.execute`` to report."""
-    try:
-        document = parse_graphql(query)
-    except GraphQLSyntaxError:
-        return 1
-    return sum(isinstance(d, OperationDefinitionNode) for d in document.definitions)
 
 
 def _format_graphql_errors(errors: Sequence[Mapping[str, Any]]) -> str:
@@ -185,6 +142,8 @@ executes for real, exactly once.
 {% else -%}
 Permissions: queries and mutations are ENABLED.
 {% endif %}
+Size: a document may be at most {{ max_query_kib }} KiB of UTF-8. Values passed with --vars or --vars-file do not count toward it, so put large inputs there.
+
 Recommended flow:
   1. `phoenix-gql schema --search <text>` to find the types and fields you
      need, and `--names <Type,Type.field>` to see each in full with how to
@@ -226,6 +185,7 @@ def _get_help_text(mutations_enabled: bool, approval_required: bool = False) -> 
     return _HELP_TEXT_TEMPLATE.render(
         mutations_enabled=mutations_enabled,
         approval_required=approval_required,
+        max_query_kib=MAX_QUERY_BYTES // 1024,
     )
 
 
@@ -435,15 +395,13 @@ def create_phoenix_gql_builtin(
 
             query = _resolve_query_text(parsed, ctx)
 
-            operation_types = _operation_types(query)
-
-            if GraphQLOperationType.SUBSCRIPTION in operation_types:
-                raise ValueError("Subscriptions are not supported by phoenix-gql")
-
-            is_mutation = GraphQLOperationType.MUTATION in operation_types
-            if is_mutation and not mutation_policy.allow_mutations:
-                raise ValueError("Mutations are not permitted.")
-            if is_mutation and not mutation_policy.mutations_allowed:
+            # Approval asks whether a person sanctioned this call. Only this
+            # transport can answer that, so the shared core does not.
+            if (
+                GraphQLOperationType.MUTATION in operation_types(query)
+                and mutation_policy.allow_mutations
+                and not mutation_policy.mutations_allowed
+            ):
                 raise ValueError(
                     "This mutation requires the user's approval, which this "
                     "command did not request. Re-issue the bash call with a "
@@ -451,34 +409,29 @@ def create_phoenix_gql_builtin(
                     "can approve it before the command runs."
                 )
 
-            if parsed.operation_name is None and _operation_count(query) > 1:
+            if parsed.operation_name is None and operation_count(query) > 1:
                 raise ValueError(
                     "The document declares several operations; pick one with --operation-name"
                 )
 
             variables = _resolve_variables(parsed, ctx)
 
-            allowed_operation_types = (
-                {OperationType.QUERY, OperationType.MUTATION}
-                if mutation_policy.allow_mutations
-                else {OperationType.QUERY}
-            )
-            result = await schema.execute(
-                query,
-                variable_values=variables,
-                context_value=build_graphql_context(),
+            outcome = await execute_operation(
+                schema,
+                query=query,
+                variables=variables,
+                context=build_graphql_context(),
+                allow_mutations=mutation_policy.allow_mutations,
                 operation_name=parsed.operation_name,
-                allowed_operation_types=allowed_operation_types,
             )
 
-            errors = list(result.errors or [])
-            payload: dict[str, Any] = {"data": result.data}
-            if errors:
-                payload["errors"] = [error.formatted for error in errors]
-            graphql_error_text = _format_graphql_errors(payload["errors"]) if errors else ""
-            has_only_errors = bool(errors) and result.data is None
+            payload: dict[str, Any] = {"data": outcome.data}
+            if outcome.errors:
+                payload["errors"] = list(outcome.errors)
+            graphql_error_text = _format_graphql_errors(outcome.errors) if outcome.errors else ""
+            has_only_errors = outcome.failed_outright
 
-            output_payload: Any = result.data if parsed.data_only else payload
+            output_payload: Any = outcome.data if parsed.data_only else payload
             serialized_output = json.dumps(output_payload, indent=2, ensure_ascii=False) + "\n"
 
             if parsed.output_path:
@@ -487,7 +440,9 @@ def create_phoenix_gql_builtin(
                 return BuiltinResult(
                     stdout=f"{output_path}\n",
                     stderr=(
-                        f"{graphql_error_text}Response written to {output_path}\n" if errors else ""
+                        f"{graphql_error_text}Response written to {output_path}\n"
+                        if outcome.errors
+                        else ""
                     ),
                     exit_code=1 if has_only_errors else 0,
                 )
@@ -497,6 +452,8 @@ def create_phoenix_gql_builtin(
                 stderr=graphql_error_text,
                 exit_code=1 if has_only_errors else 0,
             )
+        except GraphQLRefusal as refusal:
+            return BuiltinResult(stdout="", stderr=f"{refusal.message}\n", exit_code=1)
         except Exception as error:
             return BuiltinResult(stdout="", stderr=f"{error}\n", exit_code=1)
 

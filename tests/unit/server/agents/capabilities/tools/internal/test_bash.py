@@ -16,6 +16,8 @@ from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashToolset,
 )
 from phoenix.server.api.context import Context
+from phoenix.server.api.graphql_execute import MAX_QUERY_BYTES
+from phoenix.server.mcp.skills import PXI_SKILLS_ROOT
 
 
 @strawberry.type
@@ -302,6 +304,13 @@ async def test_unknown_option_errors(run_bash: RunBash) -> None:
     assert result["exitCode"] == 1
     assert result["stdout"] == ""
     assert "Unknown option: --bogus" in result["stderr"]
+
+
+async def test_the_size_limit_is_stated_where_pxi_reads_it(run_bash: RunBash) -> None:
+    """A mutation refused for size has already cost the user an approval."""
+    stated = f"{MAX_QUERY_BYTES // 1024} KiB"
+    assert stated in (await run_bash("phoenix-gql --help"))["stdout"]
+    assert stated in (PXI_SKILLS_ROOT / "phoenix-graphql" / "SKILL.md").read_text()
 
 
 async def test_help_reflects_permissions(
