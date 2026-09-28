@@ -93,7 +93,9 @@ class _PageRowDeletedError(Exception):
     """A project evaluator or entity on the page was deleted before its work was inserted.
 
     The page is read without locks, so the insert's foreign keys are what catch the
-    deletion; the tick rolls back and the next tick's page no longer holds the row.
+    deletion; the tick rolls back and the next tick's page no longer holds the row. On
+    PostgreSQL the tick waits on a deletion that hasn't committed, and if it doesn't
+    commit within the lock timeout the tick ends in ``_LockConflictError`` instead.
     """
 
 
