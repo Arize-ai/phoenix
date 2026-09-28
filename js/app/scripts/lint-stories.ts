@@ -8,10 +8,11 @@
  * mechanical guard on the story set and it carries more weight than a lint
  * rule normally would.
  *
- * Run: `pnpm lint:stories`
+ * Run: `pnpm lint:stories`, or `pnpm lint`, which runs it after oxlint and is
+ * what CI runs.
  *
- * @see app/stories/_meta/taxonomy.ts
- * @see app/stories/_meta/tags.ts
+ * @see js/app/stories/_meta/taxonomy.ts
+ * @see js/app/stories/_meta/tags.ts
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -630,7 +631,7 @@ function thumbnailStoryTags(src: string): string[] | null {
  * shared base name. So each image needs the story it is regenerated from,
  * and each such story must stay out of the sidebar and the docs page.
  *
- * @see app/stories/_meta/thumbnail.ts
+ * @see js/app/stories/_meta/thumbnail.ts
  */
 function checkThumbnails(files: StoryFile[]) {
   const thumbnailStories = new Set<string>();
@@ -757,7 +758,7 @@ function main() {
     process.stderr.write(`\nlint:stories — ${problems.length} problem(s):\n\n`);
     for (const p of problems) process.stderr.write(`  ${p}\n`);
     process.stderr.write(
-      `\nConventions: ~/dotfiles/agents/skills/phoenix-storybook/SKILL.md\n\n`
+      `\nConventions: .agents/skills/phoenix-storybook/SKILL.md (from the repository root)\n\n`
     );
     process.exit(1);
   }

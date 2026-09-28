@@ -20,9 +20,9 @@
  * photographed, not browsed, so it stays out of the sidebar and the docs page
  * while remaining in the index where the generator finds it.
  *
- * @see app/.storybook/preview.tsx for the frame
- * @see app/scripts/generate-story-thumbnails.ts for the generator
- * @see app/stories/utils/SubjectOverview.tsx for where the images appear
+ * @see js/app/.storybook/preview.tsx for the frame
+ * @see js/app/scripts/generate-story-thumbnails.ts for the generator
+ * @see js/app/stories/utils/SubjectOverview.tsx for where the images appear
  */
 
 /** The exact export and display name that marks a thumbnail story. */

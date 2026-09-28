@@ -20,8 +20,8 @@
  * misspelled tag — which also checks axis cardinality, something types could
  * not do anyway.
  *
- * @see app/.storybook/manager.ts for the sidebar chips these drive
- * @see app/scripts/lint-stories.ts for the rules that enforce them
+ * @see js/app/.storybook/manager.ts for the sidebar chips these drive
+ * @see js/app/scripts/lint-stories.ts for the rules that enforce them
  */
 
 /** Did this story exist before the Storybook reorganization? */
