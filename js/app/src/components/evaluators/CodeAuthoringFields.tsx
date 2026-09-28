@@ -43,15 +43,17 @@ export const CodeAuthoringFields = ({
   isSandboxRequired?: boolean;
   onFieldChange?: () => void;
 }): ReactNode => {
-  const grain = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource.grain
+  const recordKind = useEvaluatorStore(
+    (state) => state.evaluatorMappingSource.recordKind
   );
   const handleLanguageChange = (nextLanguage: CodeEvaluatorLanguage) => {
     onFieldChange?.();
     // Auto-swap only if sourceCode is still the generated placeholder — never
     // overwrite user-authored code.
-    if (sourceCode === getDefaultCodeEvaluatorSource(language, grain)) {
-      onSourceCodeChange(getDefaultCodeEvaluatorSource(nextLanguage, grain));
+    if (sourceCode === getDefaultCodeEvaluatorSource(language, recordKind)) {
+      onSourceCodeChange(
+        getDefaultCodeEvaluatorSource(nextLanguage, recordKind)
+      );
     }
     onLanguageChange?.(nextLanguage);
   };
