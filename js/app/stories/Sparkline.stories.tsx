@@ -8,7 +8,12 @@ import {
   type SparklineProps,
 } from "@phoenix/components/chart";
 
-const LINE_COLOR = "var(--global-text-color-700)";
+/** The evaluators table's styling, which every story renders with. */
+const PRODUCTION_STYLE = {
+  color: "var(--global-text-color-900)",
+  coverageColor: "var(--global-text-color-300)",
+  showCoverage: true,
+} satisfies Partial<SparklineProps>;
 
 /** Hours per bin in the fixtures, so tooltips can name a bin's span. */
 const HOURS_PER_BIN = 1;
@@ -130,13 +135,15 @@ const meta: Meta<typeof Sparkline> = {
         component: [
           "A single-series line for table cells and stat tiles. It stretches to the width its flex container gives it, up to `maxWidth`, and every bin in `values` keeps its own x position whether or not it holds a value, so sparklines that share a time axis align across rows and a series that stops early visibly stops short.",
           "",
-          "**A drawn point is one bin or a range of bins.** The component measures its rendered width and allows one point per 4px. When there are more bins than that, adjacent bins are merged in equal-length runs into a single point placed over the center of the bins it covers. So the same 120 hourly bins draw as 120 points at 480px, 40 three-hour points at 160px, and 20 six-hour points at 80px. `renderPointDetail` receives the inclusive range of source bins behind the hovered point, which is a single index unless merging happened.",
+          "**A drawn point is one bin or a range of bins.** The component measures its rendered width and allows one point per 4px. When there are more bins than that, adjacent bins are merged in equal-length runs into a single point, drawn as one step across the bins it covers. So the same 120 hourly bins draw as 120 points at 480px, 40 three-hour points at 160px, and 20 six-hour points at 80px. `renderPointDetail` receives the inclusive range of source bins behind the hovered point, which is a single index unless merging happened.",
           "",
           "**`weights` make merged points honest.** Each bin's value is a mean over some number of samples. Merging bins by averaging their means would let an hour with one evaluation count as much as an hour with fifty. Passing the sample count per bin as `weights` makes a merged point the weighted mean, which is the mean you would get by pooling the samples. Empty bins contribute nothing regardless of weight.",
           "",
           "**`minRange` keeps small drift looking small.** The vertical axis fits the data by default, so a score wandering between 0.60 and 0.66 would be stretched across the full height and read as volatile. `minRange` is the least value range the axis spans, centered on the data; pass a fraction of the score's possible range so a nearly flat series looks nearly flat while wide swings still fill the height.",
           "",
-          "Gaps: the line breaks at an empty point. A gap of exactly one point is bridged at reduced opacity so a momentary lapse does not shatter the trend. An isolated value draws as a dot of the line's weight, and the most recent value is always marked.",
+          "**Every point is a step.** Each point draws flat across its bins, so a per-bin mean reads as the level for the whole bin. The line breaks at every empty point and never interpolates across missing data, so an isolated value is a short step of its own. The most recent value is always marked with a dot.",
+          "",
+          "**Presence is drawn separately from level.** With `showCoverage`, a strip of one cell per point runs along the baseline, solid where the point has a value and faint where it doesn't, in `coverageColor`. Without the strip, each run of steps is shaded down to the baseline instead, which keeps a sparse series reading as a chart. The evaluators table draws the strip, with a fainter `coverageColor` than the line.",
         ].join("\n"),
       },
     },
@@ -150,9 +157,10 @@ type Story = StoryObj<typeof Sparkline>;
 /**
  * Five days of hourly mean scores at the width the evaluators table gives a
  * sparkline. 120 bins in 160px merge into 40 three-hour points. The last day
- * holds no evaluations, so the line stops short of the right edge and the
- * end dot marks the most recent value. Hover for the hours, mean, and sample
- * count behind each point.
+ * holds no evaluations, so the line stops short of the right edge, the end
+ * dot marks the most recent value, and the coverage strip goes faint under
+ * the empty hours. Hover for the hours, mean, and sample count behind each
+ * point.
  */
 export const Default: Story = {
   render: () => (
@@ -162,7 +170,7 @@ export const Default: Story = {
         weights={FIXTURE.weights}
         minRange={0.2}
         maxWidth={160}
-        color={LINE_COLOR}
+        {...PRODUCTION_STYLE}
         aria-label="Mean score over the last 5 days"
         renderPointDetail={(range) => describeRange(FIXTURE, range)}
       />
@@ -194,7 +202,7 @@ export const WidthDrivesResolution: Story = {
               values={FIXTURE.values}
               weights={FIXTURE.weights}
               minRange={0.2}
-              color={LINE_COLOR}
+              {...PRODUCTION_STYLE}
               renderPointDetail={(range) => describeRange(FIXTURE, range)}
             />
           </Row>
@@ -233,7 +241,7 @@ export const WeightsShapeMergedPoints: Story = {
           <Sparkline
             values={values}
             minRange={1}
-            color={LINE_COLOR}
+            {...PRODUCTION_STYLE}
             renderPointDetail={(range) =>
               describeRange({ values, weights: equalWeights }, range)
             }
@@ -247,7 +255,7 @@ export const WeightsShapeMergedPoints: Story = {
             values={values}
             weights={weights}
             minRange={1}
-            color={LINE_COLOR}
+            {...PRODUCTION_STYLE}
             renderPointDetail={(range) =>
               describeRange({ values, weights }, range)
             }
@@ -292,7 +300,11 @@ export const MinRangeCalmsSmallDrift: Story = {
           },
         ].map(({ minRange, label }) => (
           <Row key={label} width={160} label={label}>
-            <Sparkline values={values} minRange={minRange} color={LINE_COLOR} />
+            <Sparkline
+              values={values}
+              minRange={minRange}
+              {...PRODUCTION_STYLE}
+            />
           </Row>
         ))}
       </Flex>
@@ -301,16 +313,16 @@ export const MinRangeCalmsSmallDrift: Story = {
 };
 
 /**
- * How empty bins render, on a shared 12-bin axis so the rows line up. A gap
- * of one bin is bridged faintly; a wider gap breaks the line; a value with
- * empty neighbors is a dot; a series that ends early stops short with its
- * last value marked; a series with one value is a single dot in its bin.
+ * How empty bins render, on a shared 12-bin axis so the rows line up. Any
+ * gap breaks the line, however short; a value with empty neighbors is a
+ * step across its own bin; a series that ends early stops short with its
+ * last value marked. The coverage strip shows the same gaps as faint cells.
  */
 export const GapsAndEnds: Story = {
   render: () => {
     const rows: Array<{ label: string; values: (number | null)[] }> = [
       {
-        label: "One empty bin: bridged at reduced opacity",
+        label: "One empty bin",
         values: [
           0.5,
           0.6,
@@ -327,7 +339,7 @@ export const GapsAndEnds: Story = {
         ],
       },
       {
-        label: "Two or more empty bins: the line breaks",
+        label: "Three empty bins",
         values: [
           0.5,
           0.6,
@@ -344,7 +356,7 @@ export const GapsAndEnds: Story = {
         ],
       },
       {
-        label: "Isolated values draw as dots",
+        label: "Isolated values",
         values: [
           0.5,
           null,
@@ -361,7 +373,7 @@ export const GapsAndEnds: Story = {
         ],
       },
       {
-        label: "A series that stopped early keeps its axis and marks its end",
+        label: "A series that stopped early",
         values: [
           0.5,
           0.6,
@@ -399,12 +411,40 @@ export const GapsAndEnds: Story = {
       <Flex direction="column" gap="size-150">
         {rows.map(({ label, values }) => (
           <Row key={label} width={160} label={label}>
-            <Sparkline values={values} minRange={0.2} color={LINE_COLOR} />
+            <Sparkline values={values} minRange={0.2} {...PRODUCTION_STYLE} />
           </Row>
         ))}
       </Flex>
     );
   },
+};
+
+/**
+ * The two ways presence is drawn, on the same five days of hourly scores.
+ * The coverage strip is what the evaluators table shows; shading each run
+ * down to the baseline is what a sparkline draws without `showCoverage`.
+ */
+export const Presence: Story = {
+  render: () => (
+    <Flex direction="column" gap="size-150">
+      <Row width={160} label="Coverage strip (showCoverage)">
+        <Sparkline
+          values={FIXTURE.values}
+          weights={FIXTURE.weights}
+          minRange={0.2}
+          {...PRODUCTION_STYLE}
+        />
+      </Row>
+      <Row width={160} label="Shading (no showCoverage)">
+        <Sparkline
+          values={FIXTURE.values}
+          weights={FIXTURE.weights}
+          minRange={0.2}
+          color={PRODUCTION_STYLE.color}
+        />
+      </Row>
+    </Flex>
+  ),
 };
 
 /**
@@ -421,7 +461,7 @@ export const PointDetailRanges: Story = {
       values: FIXTURE.values,
       weights: FIXTURE.weights,
       minRange: 0.2,
-      color: LINE_COLOR,
+      ...PRODUCTION_STYLE,
     };
     return (
       <Flex direction="column" gap="size-150">
