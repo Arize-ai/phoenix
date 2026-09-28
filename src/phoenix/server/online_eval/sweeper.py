@@ -30,7 +30,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, with_polymorphic
 from sqlalchemy.sql.elements import TextClause
@@ -79,6 +79,8 @@ _CONSUMER_GROUP = "default"
 _SESSION_SWEEP_LEASE_NAME = "session-sweep"
 _TRACE_SWEEP_LEASE_NAME = "trace-sweep"
 _MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
+_LOCK_TIMEOUT_MILLISECONDS = 500
+_LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, deadlock_detected
 # Only work terminated within this window feeds the watermark-lag gauge; the table has
 # no retention, so an unbounded aggregate would scan more rows on every tick forever.
 _WATERMARK_LAG_WINDOW_SECONDS = 86_400.0
@@ -93,6 +95,10 @@ class _PageRowDeletedError(Exception):
     The page is read without locks, so the insert's foreign keys are what catch the
     deletion; the tick rolls back and the next tick's page no longer holds the row.
     """
+
+
+class _LockConflictError(Exception):
+    """The tick gave up a lock wait, or was chosen to break a deadlock, and rolled back."""
 
 
 @dataclass(frozen=True)
@@ -419,6 +425,11 @@ class EvalSweeper(DaemonTask):
                         f"evaluator or {self._evaluation_target.lower()} on its page was "
                         f"deleted before its work was inserted ({error})"
                     )
+                except _LockConflictError as error:
+                    logger.warning(
+                        f"{self._evaluation_target} evaluation sweep rolled back: it gave way "
+                        f"to a concurrent transaction holding a row it needed ({error})"
+                    )
                 except Exception:
                     logger.exception(f"{self._evaluation_target} evaluation sweep failed")
                 await asyncio.sleep(self._tick_interval_seconds)
@@ -508,6 +519,12 @@ class EvalSweeper(DaemonTask):
         renewed: Optional[int] = None
         try:
             async with self._db() as session:
+                if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+                    # The sweep retries every tick, so it gives up a lock wait before
+                    # PostgreSQL's deadlock check (1 s by default) picks which side to abort.
+                    await session.execute(
+                        text(f"SET LOCAL lock_timeout = '{_LOCK_TIMEOUT_MILLISECONDS}ms'")
+                    )
                 database_now = await self._database_now(session)
                 materialized_work_count, eligible_pair_count = await self._sweep(
                     session, database_now
@@ -524,9 +541,14 @@ class EvalSweeper(DaemonTask):
                 )
                 if renewed is None:
                     await session.rollback()
-        except Exception:
+        except Exception as error:
             if self._publish_metrics:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
+            if (
+                isinstance(error, DBAPIError)
+                and getattr(error.orig, "sqlstate", None) in _LOCK_CONFLICT_SQLSTATES
+            ):
+                raise _LockConflictError(str(error.orig)) from error
             raise
         finally:
             if self._publish_metrics:

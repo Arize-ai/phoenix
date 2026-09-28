@@ -306,6 +306,19 @@ async def test_watermark_reaches_a_full_page_or_the_due_horizon(
     assert await swept_through_at() == database_now - timedelta(seconds=300)
 
 
+def _run_one_tick(sweeper: EvalSweeper, monkeypatch: pytest.MonkeyPatch) -> asyncio.Task[None]:
+    """Run the sweeper's loop, which logs a failed tick, for a single tick."""
+    tick = sweeper._tick
+
+    async def tick_once() -> None:
+        sweeper._running = False
+        await tick()
+
+    monkeypatch.setattr(sweeper, "_tick", tick_once)
+    sweeper._running = True
+    return asyncio.create_task(sweeper._run())
+
+
 @pytest.mark.postgres_only
 async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
     postgresql_engine: AsyncEngine,
@@ -324,6 +337,8 @@ async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
         project_id,
         evaluation_target="SESSION",
     )
+    # The tick must still be waiting when the delete commits, so its foreign key check fails.
+    monkeypatch.setattr(sweeper_module, "_LOCK_TIMEOUT_MILLISECONDS", 10_000)
     sweeper = EvalSweeper(
         db,
         evaluation_target="SESSION",
@@ -331,13 +346,6 @@ async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
         tick_interval_seconds=0,
     )
     tick = sweeper._tick
-
-    async def tick_once() -> None:
-        sweeper._running = False
-        await tick()
-
-    monkeypatch.setattr(sweeper, "_tick", tick_once)
-    sweeper._running = True
 
     async def wait_until_blocked_by(backend_pid: int) -> None:
         while True:
@@ -361,7 +369,7 @@ async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
                     models.ProjectEvaluator.id == deleted_project_evaluator_id
                 )
             )
-            run = asyncio.create_task(sweeper._run())
+            run = _run_one_tick(sweeper, monkeypatch)
             await asyncio.wait_for(wait_until_blocked_by(deletion_backend_pid), timeout=5)
         await asyncio.wait_for(run, timeout=5)
 
@@ -399,6 +407,70 @@ async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
             is not None
         )
     assert scheduled_project_evaluator_ids == [surviving_project_evaluator_id]
+
+
+@pytest.mark.postgres_only
+async def test_sweep_gives_way_to_a_transaction_holding_a_row_it_needs(
+    postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    project_id, deleted_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, surviving_session_id, _ = await _add_session_liveness(
+        db, age_seconds=600, project_id=project_id
+    )
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = EvalSweeper(
+        db,
+        evaluation_target="SESSION",
+        max_outstanding=_MAX_OUTSTANDING,
+        tick_interval_seconds=0,
+    )
+    tick = sweeper._tick
+
+    with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
+        async with db() as deletion_session:
+            await deletion_session.execute(
+                delete(models.ProjectSession).where(models.ProjectSession.id == deleted_session_id)
+            )
+            await asyncio.wait_for(_run_one_tick(sweeper, monkeypatch), timeout=5)
+
+    (record,) = [record for record in caplog.records if record.name == sweeper_module.__name__]
+    assert record.levelno == logging.WARNING
+    assert (
+        "SESSION evaluation sweep rolled back: it gave way to a concurrent transaction "
+        "holding a row it needed"
+    ) in record.getMessage()
+    async with db() as session:
+        assert await session.get(models.ProjectSession, deleted_session_id) is None
+        assert (
+            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
+        )
+        assert (
+            await session.scalar(
+                select(models.ProjectEvaluator.swept_through_at).where(
+                    models.ProjectEvaluator.id == project_evaluator_id
+                )
+            )
+            is None
+        )
+
+    await tick()
+
+    async with db() as session:
+        scheduled_session_ids = list(
+            await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
+        )
+        assert (
+            await session.scalar(
+                select(models.ProjectEvaluator.swept_through_at).where(
+                    models.ProjectEvaluator.id == project_evaluator_id
+                )
+            )
+            is not None
+        )
+    assert scheduled_session_ids == [surviving_session_id]
 
 
 async def test_session_with_null_liveness_is_never_eligible(
