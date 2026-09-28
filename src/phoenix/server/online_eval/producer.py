@@ -542,8 +542,9 @@ class OnlineEvalProducer(DaemonTask):
             # preceding this call can consume a large fraction of the frontier
             # lag (unboundedly so on a first-run backfill), and a stale stamp
             # makes the next tick over-age the observation — eroding the
-            # commit-visibility guard that is the only defense against the
-            # id-vs-commit-order race. A post-read stamp errs conservative.
+            # commit-visibility guard against the id-vs-commit-order race and
+            # leaving late-visible spans to the slower backstop. A post-read
+            # stamp errs conservative.
             observed_at = datetime.now(timezone.utc)
             await session.execute(
                 update(models.EvalWorkCursor)
