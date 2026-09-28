@@ -21,8 +21,19 @@ vi.mock("@phoenix/components/code", () => ({
   CodeEditorFieldWrapper: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
-  JSONEditor: ({ value }: { value?: string }) => (
-    <textarea data-testid="metadata-editor" value={value} readOnly />
+  JSONEditor: ({
+    value,
+    onChange,
+  }: {
+    value?: string;
+    onChange: (value: string) => void;
+  }) => (
+    <>
+      <textarea data-testid="metadata-editor" value={value} readOnly />
+      <button type="button" onClick={() => onChange('{"owner":"unsaved"}')}>
+        Edit metadata
+      </button>
+    </>
   ),
 }));
 
@@ -35,6 +46,9 @@ vi.mock("../PromptComboBox", () => ({
     <>
       <button type="button" onClick={() => onChange("prompt-1")}>
         Select prompt
+      </button>
+      <button type="button" onClick={() => onChange("prompt-2")}>
+        Select second prompt
       </button>
       <button type="button" onClick={() => onChange(null)}>
         Clear prompt
@@ -65,6 +79,14 @@ describe("SavePromptForm", () => {
             prompt: {
               id: "prompt-1",
               name: "Existing prompt",
+              versionTags: [],
+              version: { metadata: promptMetadata },
+            },
+          },
+          {
+            prompt: {
+              id: "prompt-2",
+              name: "Second prompt",
               versionTags: [],
               version: { metadata: promptMetadata },
             },
@@ -106,6 +128,35 @@ describe("SavePromptForm", () => {
       getButton(container, "Clear prompt").click();
     });
     expect(getMetadataEditor(container).value).toBe("{}");
+  });
+
+  it("resets unsaved metadata when selecting a different prompt with the same metadata", async () => {
+    await act(async () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <SavePromptForm
+            onCreate={vi.fn()}
+            onUpdate={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    await act(async () => {
+      getButton(container, "Edit metadata").click();
+    });
+    expect(getMetadataEditor(container).value).toBe('{"owner":"unsaved"}');
+
+    await act(async () => {
+      getButton(container, "Select second prompt").click();
+    });
+    expect(getMetadataEditor(container).value).toBe(
+      JSON.stringify(promptMetadata, null, 2)
+    );
   });
 });
 

@@ -334,7 +334,7 @@ function usePromptVersionMetadataDefault(
     setValue("metadata", formatPromptVersionMetadataForEditor(metadata), {
       shouldDirty: false,
     });
-  }, [metadata, setValue]);
+  }, [prompt?.id, metadata, setValue]);
 }
 
 function NewTagInlineForm({
