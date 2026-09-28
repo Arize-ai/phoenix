@@ -33,6 +33,7 @@ from phoenix.config import (
     PLAYGROUND_PROJECT_NAME,
     get_env_database_schema,
 )
+from phoenix.datetime_utils import TimeBinUnit, multi_unit_time_bin_params
 from phoenix.db import models
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
@@ -472,9 +473,10 @@ async def delete_projects_and_evaluator_trace_projects(
 
 def date_trunc(
     dialect: SupportedSQLDialect,
-    field: Literal["minute", "hour", "day", "week", "month", "year"],
+    field: TimeBinUnit,
     source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
+    interval: int = 1,
 ) -> SQLColumnExpression[datetime]:
     """
     Truncate a datetime to the specified field with optional UTC offset adjustment.
@@ -497,6 +499,11 @@ def date_trunc(
             Positive values represent time zones ahead of UTC (e.g., +60 for UTC+1).
             Negative values represent time zones behind UTC (e.g., -300 for UTC-5).
             Defaults to 0 (no offset).
+        interval: The bucket width as a multiple of `field`. Defaults to 1. Values
+            above 1 require a fixed-length field (minute, hour, day, or week) and
+            bucket by Unix-epoch arithmetic in the offset-shifted frame, aligned as
+            described in `phoenix.datetime_utils.multi_unit_time_bin_params`, which
+            `get_timestamp_range` shares so that generated empty bins line up.
 
     Returns:
         A SQL column expression representing the truncated datetime in UTC.
@@ -530,7 +537,24 @@ def date_trunc(
         >>> expr = date_trunc(SupportedSQLDialect.SQLITE, "week", source)
         >>> print(expr.compile(dialect=sqlite.dialect(), compile_kwargs=kw))
         time_fmt_datetime(time_trunc(time_parse(start_time), 'week'))
+
+        Truncate to 5-minute buckets with a UTC+5:30 offset (PostgreSQL):
+
+        >>> expr = date_trunc(SupportedSQLDialect.POSTGRESQL, "minute", source, 330, 5)
+        >>> print(expr.compile(dialect=postgresql.dialect(), compile_kwargs=kw))
+        to_timestamp(floor((EXTRACT(epoch FROM start_time) + 19800) / CAST(300 AS NUMERIC))
+        * 300 - 19800)
+
+        The same on SQLite, where `%` truncates toward zero, so the remainder is
+        normalized before subtracting it:
+
+        >>> expr = date_trunc(SupportedSQLDialect.SQLITE, "minute", source, 330, 5)
+        >>> print(expr.compile(dialect=sqlite.dialect(), compile_kwargs=kw))
+        time_fmt_datetime(time_unix(((time_to_unix(time_parse(start_time)) + 19800) -
+        ((time_to_unix(time_parse(start_time)) + 19800) % 300 + 300) % 300) - 19800))
     """
+    if interval != 1:
+        return _multi_unit_date_trunc(dialect, field, source, utc_offset_minutes, interval)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         # Note: the usage of the timezone parameter in the form of e.g. "+05:00"
         # appears to be an undocumented feature of PostgreSQL's date_trunc function.
@@ -553,8 +577,35 @@ def date_trunc(
         assert_never(dialect)
 
 
+def _multi_unit_date_trunc(
+    dialect: SupportedSQLDialect,
+    field: TimeBinUnit,
+    source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
+    utc_offset_minutes: int,
+    interval: int,
+) -> SQLColumnExpression[datetime]:
+    """
+    Bucket `source` into bins `interval` units of `field` wide by Unix-epoch
+    arithmetic: `floor((epoch + shift) / width) * width - shift`, with the width
+    and shift from `multi_unit_time_bin_params`. Sub-second precision is dropped
+    by the floor. SQLite renders the result as 'YYYY-MM-DD HH:MM:SS', like the
+    single-unit path.
+    """
+    width, shift = multi_unit_time_bin_params(field, interval, utc_offset_minutes)
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        seconds = sa.extract("epoch", source) + shift
+        return sa.func.to_timestamp(sa.func.floor(seconds / width) * width - shift)
+    elif dialect is SupportedSQLDialect.SQLITE:
+        # time_to_unix floors to whole seconds.
+        seconds = func.time_to_unix(func.time_parse(source)) + shift
+        floored = seconds - (seconds % width + width) % width
+        return func.time_fmt_datetime(func.time_unix(floored - shift))
+    else:
+        assert_never(dialect)
+
+
 def _date_trunc_for_sqlite(
-    field: Literal["minute", "hour", "day", "week", "month", "year"],
+    field: TimeBinUnit,
     source: Union[QueryableAttribute[datetime], sa.ColumnElement[datetime], sa.TextClause],
     utc_offset_minutes: int = 0,
 ) -> SQLColumnExpression[datetime]:

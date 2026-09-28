@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f85d6247a067ac53b4df5bcd407a056>>
+ * @generated SignedSource<<243cb90a3511861d1883b2bfe864b1cf>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type TimeRange = {
   start?: string | null;
 };
 export type TimeBinConfig = {
+  interval?: number;
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
