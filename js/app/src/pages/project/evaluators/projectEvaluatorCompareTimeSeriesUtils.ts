@@ -1,19 +1,12 @@
 import type { AnnotationLabelSegment } from "@phoenix/components/chart/AnnotationMetricsChart";
 import type {
-  AnnotationMetricsInputPoint,
   AnnotationMetricsSeries,
   AnnotationMetricsView,
-  AnnotationSummary,
 } from "@phoenix/components/chart/annotationMetricsUtils";
 import {
   getCategoryChartColor,
   type useCategoryChartColors,
 } from "@phoenix/components/chart/colors";
-import {
-  ONE_DAY_MS,
-  ONE_HOUR_MS,
-  ONE_MINUTE_MS,
-} from "@phoenix/constants/timeConstants";
 
 import {
   getLabelOptimalities,
@@ -127,148 +120,4 @@ export function getCompareLabelSegments({
       color: getLabelOptimalityColor({ color, optimality }),
     })),
   };
-}
-
-/**
- * The most bins the paired label bars stay full width at: two 10px bars per
- * bin need about 21px, and the chart sits in half a row.
- */
-export const MAX_COMPARE_TIME_BINS = 20;
-
-/** Whole multiples of each server bin that read as natural clock intervals. */
-const BIN_FACTORS: Record<TimeBinScale, ReadonlyArray<number>> = {
-  MINUTE: [1, 2, 5, 10, 15, 30, 60],
-  HOUR: [1, 2, 3, 6, 12, 24],
-  DAY: [1, 2, 7],
-  WEEK: [1, 2, 4],
-  MONTH: [1, 3, 6, 12],
-  YEAR: [1, 2, 5, 10],
-};
-
-/** Units that are one fixed length, so merged bins can align to clock time. */
-const FIXED_BIN_MS: Partial<Record<TimeBinScale, number>> = {
-  MINUTE: ONE_MINUTE_MS,
-  HOUR: ONE_HOUR_MS,
-  DAY: ONE_DAY_MS,
-};
-
-type SummaryBin = {
-  readonly timestamp: string;
-  readonly annotationSummaries: ReadonlyArray<{
-    readonly name: string;
-    readonly count: number;
-    readonly scoreCount: number;
-    readonly meanScore: number | null;
-    readonly labelFractions: ReadonlyArray<{
-      readonly label: string;
-      readonly fraction: number;
-    }>;
-  }>;
-};
-
-export type MergedSummaryBins = {
-  readonly points: AnnotationMetricsInputPoint[];
-  /** Length of each merged bin, when the unit has a fixed length. */
-  readonly binMs: number | null;
-};
-
-/**
- * Merges runs of adjacent server bins so a range yields at most `maxBins`
- * bins, picking the smallest natural multiple that fits (last hour's 60
- * minute bins become twelve 5-minute bins). Fixed-length units align merged
- * bins to local clock boundaries; weeks, months, and years group from the
- * first bin.
- *
- * Label shares are weighted by each bin's result count and mean scores by its
- * scored count. The server averages both over targets, so a merged bin is
- * exact when each target has one result per evaluator in it, and close
- * otherwise.
- */
-export function mergeSummaryBins({
-  bins,
-  scale,
-  utcOffsetMinutes,
-  maxBins = MAX_COMPARE_TIME_BINS,
-}: {
-  bins: ReadonlyArray<SummaryBin>;
-  scale: TimeBinScale;
-  utcOffsetMinutes: number;
-  maxBins?: number;
-}): MergedSummaryBins {
-  const factors = BIN_FACTORS[scale];
-  const factor =
-    factors.find(
-      (candidate) => Math.ceil(bins.length / candidate) <= maxBins
-    ) ??
-    factors[factors.length - 1] ??
-    1;
-  const unitMs = FIXED_BIN_MS[scale];
-  const binMs = unitMs == null ? null : unitMs * factor;
-  const offsetMs = utcOffsetMinutes * ONE_MINUTE_MS;
-  const sorted = [...bins]
-    .map((bin) => ({ ...bin, x: new Date(bin.timestamp).getTime() }))
-    .sort((left, right) => left.x - right.x);
-  const groups = new Map<number, (typeof sorted)[number][]>();
-  sorted.forEach((bin, index) => {
-    const start =
-      binMs == null
-        ? (sorted[index - (index % factor)]?.x ?? bin.x)
-        : Math.floor((bin.x + offsetMs) / binMs) * binMs - offsetMs;
-    groups.set(start, [...(groups.get(start) ?? []), bin]);
-  });
-  return {
-    binMs,
-    points: Array.from(groups, ([x, members]) => ({
-      x,
-      summaries: mergeSummaries(
-        members.flatMap((member) => member.annotationSummaries)
-      ),
-    })),
-  };
-}
-
-function mergeSummaries(
-  summaries: SummaryBin["annotationSummaries"]
-): AnnotationSummary[] {
-  const byName = new Map<string, SummaryBin["annotationSummaries"][number][]>();
-  for (const summary of summaries) {
-    byName.set(summary.name, [...(byName.get(summary.name) ?? []), summary]);
-  }
-  return Array.from(byName, ([name, group]) => {
-    const count = group.reduce((total, { count }) => total + count, 0);
-    const scored = group.filter(
-      ({ meanScore, scoreCount }) => meanScore != null && scoreCount > 0
-    );
-    const scoreCount = scored.reduce(
-      (total, { scoreCount }) => total + scoreCount,
-      0
-    );
-    const labelWeights = new Map<string, number>();
-    for (const summary of group) {
-      for (const { label, fraction } of summary.labelFractions) {
-        labelWeights.set(
-          label,
-          (labelWeights.get(label) ?? 0) + fraction * summary.count
-        );
-      }
-    }
-    return {
-      name,
-      meanScore:
-        scoreCount === 0
-          ? null
-          : scored.reduce(
-              (total, { meanScore, scoreCount }) =>
-                total + (meanScore ?? 0) * scoreCount,
-              0
-            ) / scoreCount,
-      labelFractions:
-        count === 0
-          ? []
-          : Array.from(labelWeights, ([label, weight]) => ({
-              label,
-              fraction: weight / count,
-            })),
-    };
-  });
 }

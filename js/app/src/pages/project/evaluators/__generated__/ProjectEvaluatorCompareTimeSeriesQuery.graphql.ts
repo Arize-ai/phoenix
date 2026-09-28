@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c868e2637899b5a4080d4fed78c0ceb0>>
+ * @generated SignedSource<<639127b23751ef5d80862c635055003a>>
  * @lightSyntaxTransform
  */
 
@@ -32,14 +32,12 @@ export type ProjectEvaluatorCompareTimeSeriesQuery$data = {
     readonly sessionA?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
-          readonly count: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly timestamp: string;
       }>;
@@ -47,14 +45,12 @@ export type ProjectEvaluatorCompareTimeSeriesQuery$data = {
     readonly sessionB?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
-          readonly count: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly timestamp: string;
       }>;
@@ -62,14 +58,12 @@ export type ProjectEvaluatorCompareTimeSeriesQuery$data = {
     readonly spanA?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
-          readonly count: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly timestamp: string;
       }>;
@@ -77,14 +71,12 @@ export type ProjectEvaluatorCompareTimeSeriesQuery$data = {
     readonly spanB?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
-          readonly count: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly timestamp: string;
       }>;
@@ -92,14 +84,12 @@ export type ProjectEvaluatorCompareTimeSeriesQuery$data = {
     readonly traceA?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
-          readonly count: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly timestamp: string;
       }>;
@@ -107,14 +97,12 @@ export type ProjectEvaluatorCompareTimeSeriesQuery$data = {
     readonly traceB?: {
       readonly data: ReadonlyArray<{
         readonly annotationSummaries: ReadonlyArray<{
-          readonly count: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly timestamp: string;
       }>;
@@ -222,20 +210,6 @@ v12 = [
             "args": null,
             "kind": "ScalarField",
             "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "count",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "scoreCount",
             "storageKey": null
           },
           {
@@ -450,16 +424,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "23eac3e373af583987103809145d4f5a",
+    "cacheID": "fe0484a2cf97fc4884ff6856c22da378",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorCompareTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorCompareTimeSeriesQuery(\n  $projectId: ID!\n  $annotationNameA: String!\n  $annotationNameB: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $isSpan: Boolean!\n  $isTrace: Boolean!\n  $isSession: Boolean!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanA: spanAnnotationMetricsTimeSeries(annotationName: $annotationNameA, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSpan) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            count\n            scoreCount\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      spanB: spanAnnotationMetricsTimeSeries(annotationName: $annotationNameB, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSpan) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            count\n            scoreCount\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      traceA: traceAnnotationMetricsTimeSeries(annotationName: $annotationNameA, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isTrace) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            count\n            scoreCount\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      traceB: traceAnnotationMetricsTimeSeries(annotationName: $annotationNameB, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isTrace) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            count\n            scoreCount\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      sessionA: sessionAnnotationMetricsTimeSeries(annotationName: $annotationNameA, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSession) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            count\n            scoreCount\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      sessionB: sessionAnnotationMetricsTimeSeries(annotationName: $annotationNameB, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSession) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            count\n            scoreCount\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorCompareTimeSeriesQuery(\n  $projectId: ID!\n  $annotationNameA: String!\n  $annotationNameB: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $isSpan: Boolean!\n  $isTrace: Boolean!\n  $isSession: Boolean!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanA: spanAnnotationMetricsTimeSeries(annotationName: $annotationNameA, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSpan) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      spanB: spanAnnotationMetricsTimeSeries(annotationName: $annotationNameB, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSpan) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      traceA: traceAnnotationMetricsTimeSeries(annotationName: $annotationNameA, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isTrace) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      traceB: traceAnnotationMetricsTimeSeries(annotationName: $annotationNameB, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isTrace) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      sessionA: sessionAnnotationMetricsTimeSeries(annotationName: $annotationNameA, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSession) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n      sessionB: sessionAnnotationMetricsTimeSeries(annotationName: $annotationNameB, timeRange: $timeRange, timeBinConfig: $timeBinConfig) @include(if: $isSession) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0ad952e106e54678da35773849a9e7c1";
+(node as any).hash = "e5df1a208bc92741f90a539462d145f6";
 
 export default node;

@@ -20,10 +20,11 @@ import {
   useCategoryChartColors,
 } from "@phoenix/components/chart";
 import {
-  type AnnotationMetricsInputPoint,
   type AnnotationMetricsSeries,
+  type AnnotationSummary,
   normalizeAnnotationMetrics,
 } from "@phoenix/components/chart/annotationMetricsUtils";
+import { getTimeBinRange } from "@phoenix/components/chart/timeBins";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -36,7 +37,6 @@ import {
   getCompareLabelSegments,
   getCompareTimeSeriesView,
   getCompareTimeSeriesViews,
-  mergeSummaryBins,
 } from "./projectEvaluatorCompareTimeSeriesUtils";
 import { EVALUATOR_COMPARE_COLORS } from "./projectEvaluatorCompareUtils";
 import {
@@ -243,7 +243,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryColors = useCategoryChartColors();
-  const { fullTimeFormatter, timeRangeFormatter } = useTimeFormatters();
+  const { timeRangeFormatter } = useTimeFormatters();
   const data = useLazyLoadQuery<ProjectEvaluatorCompareTimeSeriesQuery>(
     graphql`
       query ProjectEvaluatorCompareTimeSeriesQuery(
@@ -267,8 +267,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
                   meanScore
                   labelFractions {
                     label
@@ -286,8 +284,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
                   meanScore
                   labelFractions {
                     label
@@ -305,8 +301,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
                   meanScore
                   labelFractions {
                     label
@@ -324,8 +318,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
                   meanScore
                   labelFractions {
                     label
@@ -343,8 +335,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
                   meanScore
                   labelFractions {
                     label
@@ -362,8 +352,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 timestamp
                 annotationSummaries {
                   name
-                  count
-                  scoreCount
                   meanScore
                   labelFractions {
                     label
@@ -392,32 +380,21 @@ function ProjectEvaluatorCompareTimeSeriesChart({
     { fetchPolicy: "store-and-network" }
   );
   const project = data.project;
-  // Both sides share server bins, so they merge into the same groups.
-  const mergedA = mergeSummaryBins({
-    bins:
+  const seriesA = toSeries({
+    annotationName: sideA.annotationName,
+    data:
       project.spanA?.data ??
       project.traceA?.data ??
       project.sessionA?.data ??
       [],
-    scale,
-    utcOffsetMinutes,
   });
-  const mergedB = mergeSummaryBins({
-    bins:
+  const seriesB = toSeries({
+    annotationName: sideB.annotationName,
+    data:
       project.spanB?.data ??
       project.traceB?.data ??
       project.sessionB?.data ??
       [],
-    scale,
-    utcOffsetMinutes,
-  });
-  const seriesA = toSeries({
-    annotationName: sideA.annotationName,
-    points: mergedA.points,
-  });
-  const seriesB = toSeries({
-    annotationName: sideB.annotationName,
-    points: mergedB.points,
   });
   const views = getCompareTimeSeriesViews([seriesA, seriesB]);
   const view = getCompareTimeSeriesView({
@@ -504,12 +481,13 @@ function ProjectEvaluatorCompareTimeSeriesChart({
               yAxisProps={compactYAxisProps}
               renderTooltipHeader={(x) => (
                 <Text weight="heavy" size="S">
-                  {mergedA.binMs == null
-                    ? fullTimeFormatter(new Date(x))
-                    : timeRangeFormatter({
-                        start: new Date(x),
-                        end: new Date(x + mergedA.binMs),
-                      })}
+                  {timeRangeFormatter(
+                    getTimeBinRange({
+                      binStartMs: x,
+                      scale,
+                      utcOffsetMinutes,
+                    })
+                  )}
                 </Text>
               )}
               chartProps={{ ...chartProps, margin: COMPARE_CHART_MARGIN }}
@@ -569,14 +547,20 @@ function ProjectEvaluatorCompareTimeSeriesChart({
 
 function toSeries({
   annotationName,
-  points,
+  data,
 }: {
   annotationName: string;
-  points: ReadonlyArray<AnnotationMetricsInputPoint>;
+  data: ReadonlyArray<{
+    readonly timestamp: string;
+    readonly annotationSummaries: ReadonlyArray<AnnotationSummary>;
+  }>;
 }): AnnotationMetricsSeries | undefined {
-  return normalizeAnnotationMetrics({ points }).find(
-    ({ name }) => name === annotationName
-  );
+  return normalizeAnnotationMetrics({
+    points: data.map((point) => ({
+      x: new Date(point.timestamp).getTime(),
+      summaries: point.annotationSummaries,
+    })),
+  }).find(({ name }) => name === annotationName);
 }
 
 /** The configured score bounds, so each axis spans its evaluator's scale. */

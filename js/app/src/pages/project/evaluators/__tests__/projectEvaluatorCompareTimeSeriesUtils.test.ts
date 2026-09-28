@@ -3,7 +3,6 @@ import { CATEGORICAL_CHART_COLORS } from "@phoenix/components/chart/colors";
 import {
   getCompareLabelSegments,
   getLabelDisplayOrder,
-  mergeSummaryBins,
   getCompareTimeSeriesView,
   getCompareTimeSeriesViews,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareTimeSeriesUtils";
@@ -100,79 +99,6 @@ describe("getCompareLabelSegments", () => {
     expect(segments).toEqual([
       { label: "x", index: 1, color: CATEGORICAL_CHART_COLORS[0] },
       { label: "y", index: 0, color: CATEGORICAL_CHART_COLORS[1] },
-    ]);
-  });
-});
-
-describe("mergeSummaryBins", () => {
-  const minute = (index: number) =>
-    new Date(Date.UTC(2026, 0, 1, 14, index)).toISOString();
-
-  function bin(
-    index: number,
-    summaries: Parameters<
-      typeof mergeSummaryBins
-    >[0]["bins"][number]["annotationSummaries"] = []
-  ) {
-    return { timestamp: minute(index), annotationSummaries: summaries };
-  }
-
-  it("keeps bins as they are when they already fit", () => {
-    const merged = mergeSummaryBins({
-      bins: [bin(0), bin(1)],
-      scale: "MINUTE",
-      utcOffsetMinutes: 0,
-    });
-    expect(merged.binMs).toBe(60_000);
-    expect(merged.points.map(({ x }) => x)).toEqual([
-      Date.parse(minute(0)),
-      Date.parse(minute(1)),
-    ]);
-  });
-
-  it("merges an hour of minutes into clock-aligned 5-minute bins", () => {
-    const merged = mergeSummaryBins({
-      bins: Array.from({ length: 60 }, (_, index) => bin(index)),
-      scale: "MINUTE",
-      utcOffsetMinutes: 0,
-    });
-    expect(merged.binMs).toBe(5 * 60_000);
-    expect(merged.points).toHaveLength(12);
-    expect(merged.points[1]?.x).toBe(Date.parse(minute(5)));
-  });
-
-  it("weights shares by result count and means by scored count", () => {
-    const merged = mergeSummaryBins({
-      bins: [
-        bin(0, [
-          {
-            name: "a",
-            count: 1,
-            scoreCount: 1,
-            meanScore: 1,
-            labelFractions: [{ label: "pass", fraction: 1 }],
-          },
-        ]),
-        bin(1, [
-          {
-            name: "a",
-            count: 3,
-            scoreCount: 3,
-            meanScore: 0,
-            labelFractions: [{ label: "fail", fraction: 1 }],
-          },
-        ]),
-      ],
-      scale: "MINUTE",
-      utcOffsetMinutes: 0,
-      maxBins: 1,
-    });
-    expect(merged.points).toHaveLength(1);
-    const [summary] = merged.points[0]?.summaries ?? [];
-    expect(summary?.meanScore).toBeCloseTo(0.25);
-    expect(summary?.labelFractions).toEqual([
-      { label: "pass", fraction: 0.25 },
-      { label: "fail", fraction: 0.75 },
     ]);
   });
 });
