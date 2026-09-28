@@ -66,7 +66,14 @@ const runSummary = {
 
 describe("getProjectEvaluatorStatus", () => {
   it("reports the run status of the evaluator's most recent runs", () => {
-    expect(getProjectEvaluatorStatus({ runSummary }).label).toBe("Running");
+    expect(getProjectEvaluatorStatus({ enabled: true, runSummary }).label).toBe(
+      "Running"
+    );
+  });
+  it("reports a disabled evaluator as disabled, whatever its runs", () => {
+    expect(
+      getProjectEvaluatorStatus({ enabled: false, runSummary }).label
+    ).toBe("Disabled");
   });
 });
 
