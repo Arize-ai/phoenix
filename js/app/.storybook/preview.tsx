@@ -710,7 +710,7 @@ const preview: Preview = {
             ["Overview"],
           ],
           "Storybook",
-          ["Writing a story", "Tags", "Storybook frames", "Storybook health"],
+          ["Writing a story", "Tags", "Storybook frames"],
         ],
       },
     },

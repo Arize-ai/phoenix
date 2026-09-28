@@ -7,7 +7,6 @@
     "**/pnpm-lock.yaml",
     "js/app/schema.graphql",
     "**/__generated__/**",
-    "**/*.generated.json",
     "**/*.grammar",
     "js/**/dist/**",
     "js/**/build/**",

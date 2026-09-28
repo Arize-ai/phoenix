@@ -73,7 +73,7 @@ export type DomainSurface = (typeof DOMAIN_SURFACES)[number];
 
 /**
  * Pages under `Storybook`, in reading order: how to write a story, then the
- * vocabulary it must use, then the mechanics, then the current state.
+ * vocabulary it must use, then the mechanics.
  *
  * `Storybook` has no section layer — these are leaf pages directly under the root.
  */
@@ -81,7 +81,6 @@ export const STORYBOOK_PAGES = [
   "Writing a story",
   "Tags",
   "Storybook frames",
-  "Storybook health",
 ] as const;
 
 /**

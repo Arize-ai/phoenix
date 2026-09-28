@@ -13,7 +13,7 @@
  * @see app/stories/_meta/taxonomy.ts
  * @see app/stories/_meta/tags.ts
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { loadCsf } from "storybook/internal/csf-tools";
 
@@ -46,7 +46,6 @@ import {
 const STORIES_DIR = "stories";
 const SRC_DIR = "src";
 const PREVIEW_FILE = join(".storybook", "preview.tsx");
-const HEALTH_FILE = join(STORIES_DIR, "_meta", "health.generated.json");
 
 type StoryFile = {
   /** Path relative to `stories/`. */
@@ -754,8 +753,6 @@ function main() {
   checkMdxStoryReferences(managed);
   checkStatesCrossOtherOptions(managed);
 
-  writeHealth(files);
-
   if (problems.length > 0) {
     process.stderr.write(`\nlint:stories — ${problems.length} problem(s):\n\n`);
     for (const p of problems) process.stderr.write(`  ${p}\n`);
@@ -767,65 +764,6 @@ function main() {
   process.stdout.write(
     `lint:stories — ok. ${managed.length} file(s) in the taxonomy.
 `
-  );
-}
-
-/**
- * Writes the data behind `Storybook/Storybook health`.
- *
- * Generated rather than hand-maintained: the linter already parses every story
- * file, so the page cannot drift from the tree. Documentation coverage is
- * derived here rather than tagged, because "has an adjacent .mdx" is
- * computable and a derivable tag invites the tag and the facts to disagree.
- */
-function writeHealth(files: StoryFile[]) {
-  // A subject's `Overview` page is navigation generated from the index, not
-  // documentation or a story, so it counts toward neither.
-  const content = files.filter((f) => f.base !== "Overview.mdx");
-  const stories = content.filter((f) => !f.attachedMdx);
-  const docs = new Set(
-    content.filter((f) => f.rel.endsWith(".mdx")).map((f) => f.dir)
-  );
-  const count = (tag: string) =>
-    stories.filter((f) => f.tags.includes(tag)).length;
-
-  const bySection: Record<string, number> = {};
-  for (const file of stories) {
-    if (!file.title) continue;
-    const section = file.title.split("/").slice(0, 2).join("/");
-    bySection[section] = (bySection[section] ?? 0) + 1;
-  }
-
-  writeFileSync(
-    HEALTH_FILE,
-    `${JSON.stringify(
-      {
-        generatedBy: "pnpm lint:stories",
-        totals: {
-          files: stories.length,
-        },
-        tags: {
-          legacy: count(provenance.legacy),
-          updated: count(provenance.updated),
-          complete: count(completeness.complete),
-          incomplete: count(completeness.incomplete),
-          reviewed: count(review.reviewed),
-          unreviewed: count(review.unreviewed),
-          unused: count(usage.unused),
-        },
-        sectionsWithDocsPage: [...docs].filter(Boolean).sort(),
-        storiesBySection: Object.fromEntries(
-          Object.entries(bySection).sort(([a], [b]) => a.localeCompare(b))
-        ),
-        taxonomy: {
-          roots: ROOTS,
-          designSystemSubjects: DESIGN_SYSTEM_SUBJECTS,
-          domainSurfaces: DOMAIN_SURFACES,
-        },
-      },
-      null,
-      2
-    )}\n`
   );
 }
 

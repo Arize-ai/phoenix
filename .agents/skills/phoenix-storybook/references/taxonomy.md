@@ -38,7 +38,10 @@ cell styles, column ordering, and row navigation).
 - **`Domains/<Surface>/…`** — components tied to one product surface, named
   as a user would name it (`Tracing`, `Experiments`, `PXI`, `Settings`, …).
 - **`Storybook/…`** — documentation of Storybook itself: writing a story, the
-  frame API, the tag vocabulary, the coverage and health view.
+  frame API, the tag vocabulary. There is no coverage or health page: the
+  sidebar's Tag filters menu already counts every tag, and a committed
+  summary of the story set churns with every story change (removed
+  2026-09-28). Do not add one.
 
 A fourth root is a taxonomy decision for maintainers, not an authoring one.
 
