@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from importlib import import_module
 from secrets import token_hex
-from typing import Sequence, cast
+from typing import Any, Sequence, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -1306,6 +1306,49 @@ async def test_declined_oldest_page_does_not_starve_later_match(
         declined_session_id: "FILTERED_OUT",
         matching_session_id: "PENDING",
     }
+
+
+async def test_session_whose_activity_moves_mid_tick_is_decided_on_a_later_tick(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A filter decides a session only on content the session was quiet at."""
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(
+        db,
+        project_id,
+        evaluation_target="SESSION",
+        filter_condition="num_traces < 2",
+    )
+    await _set_delay(db, project_evaluator_id, 10)
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    read_filter_verdicts = sweeper._read_filter_verdicts
+    resumed_at = _now() - timedelta(seconds=30)
+
+    async def ingest_after_the_page_read(
+        session: AsyncSession,
+        project_evaluators: Sequence[sweeper_module._SweepProjectEvaluator],
+        rows: Sequence[Any],
+    ) -> dict[tuple[int, int], bool]:
+        project = await session.get(models.Project, project_id)
+        project_session = await session.get(models.ProjectSession, project_session_id)
+        assert project is not None
+        assert project_session is not None
+        await _add_span(session, await _add_trace(session, project, project_session))
+        project_session.last_span_ingested_at = resumed_at
+        await session.flush()
+        return await read_filter_verdicts(session, project_evaluators, rows)
+
+    monkeypatch.setattr(sweeper, "_read_filter_verdicts", ingest_after_the_page_read)
+    await sweeper._tick()
+    assert await _work_statuses(db) == []
+
+    monkeypatch.setattr(sweeper, "_read_filter_verdicts", read_filter_verdicts)
+    await sweeper._tick()
+    async with db() as session:
+        unit = (await session.scalars(select(models.EvalSessionWorkUnit))).one()
+    assert unit.status == "FILTERED_OUT"
+    assert unit.evaluated_through == resumed_at
 
 
 async def test_trace_criteria_do_not_reach_the_session_sweeper(

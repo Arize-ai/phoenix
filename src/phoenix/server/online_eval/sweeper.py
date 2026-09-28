@@ -684,50 +684,13 @@ class EvalSweeper(DaemonTask):
             )
         else:
             await self._advance_watermarks_through_swept_rows(session, rows)
-        project_evaluators_by_id = {
-            project_evaluator.project_evaluator_id: project_evaluator
-            for project_evaluator in project_evaluators
-        }
-        matching_entity_rowids_by_project_evaluator_id: dict[int, set[int]] = {}
-        for project_evaluator in project_evaluators:
-            if not project_evaluator.filter_condition:
-                continue
-            candidate_entity_rowids = tuple(
-                dict.fromkeys(
-                    row.entity_rowid
-                    for row in rows
-                    if row.project_evaluator_id == project_evaluator.project_evaluator_id
-                )
-            )
-            if not candidate_entity_rowids:
-                continue
-            matching_entity_rowids_by_project_evaluator_id[
-                project_evaluator.project_evaluator_id
-            ] = set(
-                await session.scalars(
-                    select(target.entity_model.id).where(
-                        target.entity_model.id.in_(
-                            target.filtered_entity_rowids_subquery(
-                                project_evaluator.filter_condition,
-                                [project_evaluator.project_id],
-                                candidate_entity_rowids,
-                            )
-                        )
-                    )
-                )
-            )
+        filter_verdicts = await self._read_filter_verdicts(session, project_evaluators, rows)
         decisions: list[dict[str, Any]] = []
         for row in rows:
-            project_evaluator = project_evaluators_by_id[row.project_evaluator_id]
-            filter_matches = (
-                not project_evaluator.filter_condition
-                or row.entity_rowid
-                in matching_entity_rowids_by_project_evaluator_id.get(
-                    row.project_evaluator_id,
-                    set(),
-                )
-            )
-            if not filter_matches:
+            passes_filter = filter_verdicts.get((row.project_evaluator_id, row.entity_rowid))
+            if passes_filter is None:
+                continue
+            if not passes_filter:
                 status: models.EvalSessionWorkStatus = "FILTERED_OUT"
             elif sample_key(row.sample_identity) >= row.sampling_rate:
                 status = "SAMPLED_OUT"
@@ -743,19 +706,7 @@ class EvalSweeper(DaemonTask):
                     "status": status,
                 }
             )
-        eligible_pair_count = (
-            sum(
-                not project_evaluators_by_id[row.project_evaluator_id].filter_condition
-                or row.entity_rowid
-                in matching_entity_rowids_by_project_evaluator_id.get(
-                    row.project_evaluator_id,
-                    set(),
-                )
-                for row in rows
-            )
-            if self._publish_metrics
-            else None
-        )
+        eligible_pair_count = sum(filter_verdicts.values()) if self._publish_metrics else None
         if not decisions:
             return 0, eligible_pair_count
         try:
@@ -771,6 +722,53 @@ class EvalSweeper(DaemonTask):
         except IntegrityError as error:
             raise _PageRowDeletedError(str(error.orig)) from error
         return inserted_statuses.count("PENDING"), eligible_pair_count
+
+    async def _read_filter_verdicts(
+        self,
+        session: AsyncSession,
+        project_evaluators: Sequence[_SweepProjectEvaluator],
+        rows: Sequence[Any],
+    ) -> dict[tuple[int, int], bool]:
+        """Whether each page pair passes its evaluator's filter, keyed by (project evaluator,
+        entity), for pairs whose entity is still at the activity the page read.
+
+        Each evaluator's statement reads its entities' activity together with the filter, so
+        a pair is decided on content its entity was quiet at. A pair whose entity has moved
+        on is left out and stays undecided until a later tick sees the entity quiet.
+        """
+        target = self._target
+        entity_model = target.entity_model
+        evaluated_through = {row.entity_rowid: row.evaluated_through for row in rows}
+        verdicts: dict[tuple[int, int], bool] = {}
+        for project_evaluator in project_evaluators:
+            entity_rowids = tuple(
+                row.entity_rowid
+                for row in rows
+                if row.project_evaluator_id == project_evaluator.project_evaluator_id
+            )
+            if not entity_rowids:
+                continue
+            passes_filter: ColumnElement[bool] = (
+                entity_model.id.in_(
+                    target.filtered_entity_rowids_subquery(
+                        project_evaluator.filter_condition,
+                        [project_evaluator.project_id],
+                        entity_rowids,
+                    )
+                )
+                if project_evaluator.filter_condition
+                else true()
+            )
+            for entity_rowid, activity_through, passes in await session.execute(
+                select(
+                    entity_model.id,
+                    entity_model.last_span_ingested_at,
+                    passes_filter,
+                ).where(entity_model.id.in_(entity_rowids))
+            ):
+                if activity_through == evaluated_through[entity_rowid]:
+                    verdicts[(project_evaluator.project_evaluator_id, entity_rowid)] = passes
+        return verdicts
 
     async def _revive_stale_fingerprint_work(
         self,
