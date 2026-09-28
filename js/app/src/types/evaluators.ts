@@ -193,8 +193,8 @@ export type SpanEvaluatorMappingSource = {
  * and `turns`.
  *
  * Structurally identical to a span source, but semantically distinct: the two
- * grains name different records and offer different mapping vocabulary, so the
- * grain a source belongs to can never be inferred from its shape.
+ * record kinds name different records and offer different mapping vocabulary,
+ * so the record kind a source belongs to can never be inferred from its shape.
  */
 export type SessionEvaluatorMappingSource = {
   input: unknown;
@@ -212,13 +212,9 @@ export type TraceEvaluatorMappingSource = {
   metadata: Record<string, unknown>;
 };
 
-export type EvaluatorMappingSourceGrain =
-  | "dataset"
-  | "span"
-  | "trace"
-  | "session";
+export type EvaluatorRecordKind = "dataset" | "span" | "trace" | "session";
 
-export type EvaluatorMappingSourceByGrain = {
+export type EvaluatorMappingSourceByRecordKind = {
   dataset: DatasetEvaluatorMappingSource;
   span: SpanEvaluatorMappingSource;
   trace: TraceEvaluatorMappingSource;
@@ -226,9 +222,9 @@ export type EvaluatorMappingSourceByGrain = {
 };
 
 export type EvaluatorMappingSource<
-  TGrain extends EvaluatorMappingSourceGrain = EvaluatorMappingSourceGrain,
-> = EvaluatorMappingSourceByGrain[TGrain];
+  TRecordKind extends EvaluatorRecordKind = EvaluatorRecordKind,
+> = EvaluatorMappingSourceByRecordKind[TRecordKind];
 
 export type EvaluatorMappingSourceField<
-  TGrain extends EvaluatorMappingSourceGrain,
-> = keyof EvaluatorMappingSourceByGrain[TGrain];
+  TRecordKind extends EvaluatorRecordKind,
+> = keyof EvaluatorMappingSourceByRecordKind[TRecordKind];

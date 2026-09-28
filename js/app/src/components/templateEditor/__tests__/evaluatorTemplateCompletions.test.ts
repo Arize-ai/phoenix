@@ -3,7 +3,7 @@ import type { EditorView } from "@uiw/react-codemirror";
 import { describe, expect, it } from "vitest";
 
 import { materializeEvaluatorContext } from "@phoenix/components/evaluators/evaluatorContext";
-import type { ProjectEvaluatorMappingSourceGrain } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 import {
   findOpenTemplateVariable,
@@ -21,9 +21,9 @@ const SPAN_ATTRIBUTES = {
   },
 };
 
-function buildContext(grain: ProjectEvaluatorMappingSourceGrain) {
+function buildContext(recordKind: ProjectEvaluatorRecordKind) {
   const metadata =
-    grain === "span"
+    recordKind === "span"
       ? {
           span_id: "7f3b1c9a",
           name: "ChatCompletion",
@@ -37,11 +37,17 @@ function buildContext(grain: ProjectEvaluatorMappingSourceGrain) {
           turns: [{ input: "Hello", output: "Because." }],
         };
   return materializeEvaluatorContext({
-    grain,
+    recordKind,
     evaluatorMappingSource:
-      grain === "span"
-        ? { grain, source: { input: "Why?", output: "Because.", metadata } }
-        : { grain, source: { input: "Hello", output: "Because.", metadata } },
+      recordKind === "span"
+        ? {
+            recordKind,
+            source: { input: "Why?", output: "Because.", metadata },
+          }
+        : {
+            recordKind,
+            source: { input: "Hello", output: "Because.", metadata },
+          },
     inputMapping: { pathMapping: {}, literalMapping: {} },
   });
 }
@@ -49,16 +55,16 @@ function buildContext(grain: ProjectEvaluatorMappingSourceGrain) {
 /** Completions for a template whose whole text sits before the cursor. */
 function complete({
   doc,
-  grain = "span",
+  recordKind = "span",
   templateFormat = TemplateFormats.Mustache,
   sectionStack = [],
 }: {
   doc: string;
-  grain?: ProjectEvaluatorMappingSourceGrain;
+  recordKind?: ProjectEvaluatorRecordKind;
   templateFormat?: TemplateFormat;
   sectionStack?: string[];
 }) {
-  const evaluationContext = buildContext(grain);
+  const evaluationContext = buildContext(recordKind);
   if (evaluationContext === null) {
     throw new Error("expected a materialized evaluator context");
   }
@@ -83,7 +89,7 @@ function applyCompletion({
   after = "",
   label,
   templateFormat,
-  grain,
+  recordKind,
 }: {
   /** Template text to the left of the cursor. */
   before: string;
@@ -91,9 +97,9 @@ function applyCompletion({
   after?: string;
   label: string;
   templateFormat?: TemplateFormat;
-  grain?: ProjectEvaluatorMappingSourceGrain;
+  recordKind?: ProjectEvaluatorRecordKind;
 }): { doc: string; head: number } {
-  const result = complete({ doc: before, templateFormat, grain });
+  const result = complete({ doc: before, templateFormat, recordKind });
   const completion = result?.options.find((option) => option.label === label);
   if (typeof completion?.apply !== "function") {
     throw new Error(`"${label}" is not offered for ${before}`);
@@ -204,7 +210,7 @@ describe("getEvaluatorTemplateCompletions", () => {
     });
 
     expect(
-      complete({ doc: "{{", grain: "session" })?.options.find(
+      complete({ doc: "{{", recordKind: "session" })?.options.find(
         (option) => option.label === "metadata.first_input"
       )
     ).toMatchObject({ section: { name: "From the session" } });
@@ -342,7 +348,7 @@ describe("getEvaluatorTemplateCompletions", () => {
     // whole path the variable menu uses.
     for (const doc of ["{{#", "{{#metadata."]) {
       expect(
-        complete({ doc, grain: "session" })?.options.map(
+        complete({ doc, recordKind: "session" })?.options.map(
           (option) => option.label
         )
       ).toContain("#metadata.turns");
@@ -350,7 +356,7 @@ describe("getEvaluatorTemplateCompletions", () => {
     // A dot after a list offers the block in place of members it cannot name,
     // whether the list was written from its home or without it.
     for (const doc of ["{{metadata.turns.", "{{turns."]) {
-      const atList = complete({ doc, grain: "session" });
+      const atList = complete({ doc, recordKind: "session" });
       expect(atList?.from).toBe(2);
       expect(atList?.options.map((option) => option.label)).toEqual([
         "#metadata.turns",
@@ -361,7 +367,7 @@ describe("getEvaluatorTemplateCompletions", () => {
       applyCompletion({
         before: "{{metadata.turns.",
         label: "#metadata.turns",
-        grain: "session",
+        recordKind: "session",
       })
     ).toEqual({ doc: "{{#metadata.turns}}{{/metadata.turns}}", head: 19 });
   });
