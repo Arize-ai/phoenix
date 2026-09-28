@@ -55,7 +55,7 @@ class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixi
             tool_def=tool_def,
             tool_args=args,
             tool_call_id=call.tool_call_id,
-            get_error=self.tool_error_classifiers.get(tool_def.name),
+            get_error=self.get_error_by_tool_name.get(tool_def.name),
         ) as set_output:
             result = await super().wrap_tool_execute(
                 ctx, call=call, tool_def=tool_def, args=args, handler=handler

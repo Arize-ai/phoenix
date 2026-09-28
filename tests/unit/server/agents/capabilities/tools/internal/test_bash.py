@@ -773,13 +773,24 @@ def test_schema_flag_count_is_bounded() -> None:
 
 
 @pytest.mark.parametrize(
-    "result, expected",
+    "exit_code, expected",
     [
-        pytest.param({"exitCode": 0, "stderr": "warning"}, None, id="zero-exit"),
-        pytest.param({"exitCode": 2, "stderr": "ls: /nope"}, "exit code 2", id="non-zero-exit"),
-        pytest.param({"stdout": "hi"}, None, id="missing-exit-code"),
-        pytest.param("not a dict", None, id="non-mapping-result"),
+        pytest.param(0, None, id="zero-exit"),
+        pytest.param(2, "exit code 2", id="non-zero-exit"),
     ],
 )
-def test_get_bash_tool_error(result: Any, expected: Optional[str]) -> None:
+def test_get_bash_tool_error(exit_code: int, expected: Optional[str]) -> None:
+    result: BashToolResult = {
+        "command": "ls /nope",
+        "stdout": "",
+        "stderr": "ls: /nope",
+        "exitCode": exit_code,
+        "durationMs": 0,
+        "startedAt": "2026-01-01T00:00:00+00:00",
+        "completedAt": "2026-01-01T00:00:00+00:00",
+        "stdoutBytes": 0,
+        "stderrBytes": 9,
+        "stdoutTruncated": False,
+        "stderrTruncated": False,
+    }
     assert get_bash_tool_error(result) == expected

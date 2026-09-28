@@ -417,7 +417,7 @@ async def test_wrap_tool_execute_marks_span_error_when_classifier_reports_error(
     wrapper = OpenInferenceCapabilityWrapper[None](
         wrapped=_NoOpCapability(),
         tracer=tracer,
-        tool_error_classifiers={"add": lambda result: "sum is odd" if result % 2 else None},
+        get_error_by_tool_name={"add": lambda result: "sum is odd" if result % 2 else None},
     )
 
     async def handler(args: dict[str, Any]) -> int:

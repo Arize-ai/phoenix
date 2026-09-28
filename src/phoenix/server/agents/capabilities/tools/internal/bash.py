@@ -520,13 +520,10 @@ class BashToolResult(TypedDict):
     stderrTruncated: bool
 
 
-def get_bash_tool_error(result: Any) -> Optional[str]:
-    """Returns a span error description for a bash command that exited non-zero.
-    """
-    exit_code = result.get("exitCode") if isinstance(result, Mapping) else None
-    if isinstance(exit_code, int) and exit_code != 0:
-        return f"exit code {exit_code}"
-    return None
+def get_bash_tool_error(result: BashToolResult) -> Optional[str]:
+    """Returns a span error description for a bash command that exited non-zero."""
+    exit_code = result["exitCode"]
+    return f"exit code {exit_code}" if exit_code != 0 else None
 
 
 def _make_custom_builtins(

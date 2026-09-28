@@ -201,7 +201,7 @@ def build_agent(
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
-        tool_error_classifiers={BASH_TOOL_NAME: get_bash_tool_error},
+        get_error_by_tool_name={BASH_TOOL_NAME: get_bash_tool_error},
     )
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(
