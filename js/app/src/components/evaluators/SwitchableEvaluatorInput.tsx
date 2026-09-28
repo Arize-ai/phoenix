@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Key } from "react-aria-components";
 import type {
   Control,
@@ -29,13 +29,9 @@ import {
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import type { SizingProps } from "@phoenix/components/core/types";
+import { hasMappingValue } from "@phoenix/components/evaluators/inputMappingUtils";
 
 export type MappingMode = "path" | "literal";
-
-/** Returns whether a value will survive mapping compression. */
-export function hasMappingValue(value: unknown): boolean {
-  return value != null && value !== "";
-}
 
 /**
  * Infers the active mode from the current mapping values.
@@ -215,20 +211,6 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
     },
     [setValue, onPathInputChange, pathFieldName, literalFieldName]
   );
-
-  // Repair invalid form state with both mappings populated.
-  const didResolveConflict = useRef(false);
-  useEffect(() => {
-    if (didResolveConflict.current) {
-      return;
-    }
-    didResolveConflict.current = true;
-    const inactiveFieldName =
-      mode === "path" ? literalFieldName : pathFieldName;
-    if (hasMappingValue(getValues(inactiveFieldName))) {
-      clearInactiveMapping(mode);
-    }
-  }, [mode, getValues, clearInactiveMapping, pathFieldName, literalFieldName]);
 
   const handleModeChange = (key: Key | Key[] | null) => {
     if (key && (key === "path" || key === "literal")) {

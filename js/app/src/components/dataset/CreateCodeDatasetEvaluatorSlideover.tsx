@@ -26,6 +26,7 @@ import {
   createDefaultFreeformOutputConfig,
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { normalizeInputMapping } from "@phoenix/components/evaluators/inputMappingUtils";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -236,6 +237,7 @@ const CreateCodeEvaluatorDialog = ({
     } = store.getState();
     const normalizedName = (globalName || name).trim();
     const normalizedDescription = description.trim() || undefined;
+    const normalizedInputMapping = normalizeInputMapping(inputMapping);
     invariant(normalizedName, "evaluator name is required");
     invariant(
       payload.sandboxConfigId,
@@ -260,7 +262,7 @@ const CreateCodeEvaluatorDialog = ({
             language: payload.language,
             sandboxConfigId,
             outputConfigs: buildOutputConfigsInput(outputConfigs),
-            inputMapping,
+            inputMapping: normalizedInputMapping,
           },
         },
         onCompleted: (response) => {
@@ -273,7 +275,7 @@ const CreateCodeEvaluatorDialog = ({
                 name: normalizedName,
                 description: normalizedDescription,
                 outputConfigs: buildOutputConfigsInput(outputConfigs),
-                inputMapping,
+                inputMapping: normalizedInputMapping,
               },
               connectionIds: updateConnectionIds ?? [],
             },

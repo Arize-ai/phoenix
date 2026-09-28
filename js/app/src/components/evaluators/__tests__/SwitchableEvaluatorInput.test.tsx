@@ -4,8 +4,8 @@ import { createRoot } from "react-dom/client";
 import { useForm } from "react-hook-form";
 import { userEvent } from "storybook/test";
 
+import { hasMappingValue } from "../inputMappingUtils";
 import {
-  hasMappingValue,
   resolveMappingMode,
   SwitchableEvaluatorInput,
 } from "../SwitchableEvaluatorInput";
@@ -124,7 +124,7 @@ describe("SwitchableEvaluatorInput", () => {
     expect(literalInput()).toBeNull();
   });
 
-  it("clears the shadowed mapping when a field mounts with both set", async () => {
+  it("shows the effective literal when both mappings are set", async () => {
     render({
       pathMapping: { somevar: "input.question" },
       literalMapping: { somevar: "foo" },
@@ -134,7 +134,7 @@ describe("SwitchableEvaluatorInput", () => {
     expect(literalInput()?.value).toBe("foo");
 
     await chooseMode("Path");
-    expect(pathInput()?.value).toBe("");
+    expect(pathInput()?.value).toBe("input.question");
   });
 });
 

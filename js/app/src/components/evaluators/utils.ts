@@ -6,6 +6,7 @@ import type {
 } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import type { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
+import { normalizeInputMapping } from "@phoenix/components/evaluators/inputMappingUtils";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
@@ -161,7 +162,7 @@ export const updateLLMEvaluatorPayload = ({
     description,
     datasetEvaluatorId,
     datasetId,
-    inputMapping: inputMapping,
+    inputMapping: inputMapping && normalizeInputMapping(inputMapping),
     promptVersion,
     outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,
@@ -230,7 +231,7 @@ export const createLLMEvaluatorPayload = ({
     name,
     description,
     datasetId,
-    inputMapping: inputMapping,
+    inputMapping: inputMapping && normalizeInputMapping(inputMapping),
     promptVersion,
     outputConfigs: buildOutputConfigsInput(outputConfigs),
     promptVersionId: promptVersionId ?? null,

@@ -21,6 +21,7 @@ import {
   createDefaultFreeformOutputConfig,
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { normalizeInputMapping } from "@phoenix/components/evaluators/inputMappingUtils";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -385,6 +386,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     invariant(evaluatorId, "evaluator id is required");
     const normalizedName = name.trim();
     const normalizedDescription = description.trim() || undefined;
+    const normalizedInputMapping = normalizeInputMapping(inputMapping);
 
     return new Promise<EvaluatorSubmitResult>((resolve) => {
       const fail = (mutationError: Error) => {
@@ -403,7 +405,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
             name: normalizedName,
             description: normalizedDescription,
             outputConfigs: buildOutputConfigsInput(outputConfigs),
-            inputMapping,
+            inputMapping: normalizedInputMapping,
             ...(payload.sandboxConfigId !== undefined
               ? { sandboxConfigId: payload.sandboxConfigId }
               : {}),
@@ -425,7 +427,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                     name: normalizedName,
                     description: normalizedDescription,
                     outputConfigs: buildOutputConfigsInput(outputConfigs),
-                    inputMapping,
+                    inputMapping: normalizedInputMapping,
                   },
                   connectionIds: updateConnectionIds ?? [],
                 },
