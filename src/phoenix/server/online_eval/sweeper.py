@@ -757,8 +757,9 @@ class EvalSweeper(DaemonTask):
         entity), for pairs whose entity is still at the activity the page read.
 
         Each evaluator's statement reads its entities' activity together with the filter, so
-        a pair is decided on content its entity was quiet at. A pair whose entity has moved
-        on is left out and stays undecided until a later tick sees the entity quiet.
+        a pair is decided on the content its entity had, quiet, at the page read; the consumer
+        later evaluates whatever content the entity has when it runs. A pair whose entity has
+        moved on is left out and stays undecided until a later tick sees the entity quiet.
         """
         target = self._target
         entity_model = target.entity_model
