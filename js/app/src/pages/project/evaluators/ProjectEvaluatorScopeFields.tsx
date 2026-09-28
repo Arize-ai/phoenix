@@ -13,14 +13,14 @@ import {
 } from "@phoenix/components";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import {
-  dropOtherGrainEntityPathMappings,
+  dropOtherRecordKindPathMappings,
   formatEvaluationTarget,
   hasEvaluationDelay,
   isProjectEvaluatorTarget,
   MIN_EVALUATION_DELAY_SECONDS,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   toProjectEvaluatorSamplingFraction,
-  type ProjectEvaluatorMappingSourceGrain,
+  type ProjectEvaluatorRecordKind,
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
   withProjectEvaluatorTarget,
@@ -63,13 +63,15 @@ export const ProjectEvaluatorScopeFieldGroup = ({
     if (targetType === scope.targetType) {
       return;
     }
-    const grain = toEvaluatorMappingSourceGrain(targetType);
-    if (grain !== toEvaluatorMappingSourceGrain(scope.targetType)) {
+    const recordKind = toEvaluatorRecordKind(targetType);
+    if (recordKind !== toEvaluatorRecordKind(scope.targetType)) {
       const state = evaluatorStore.getState();
-      state.setEvaluatorMappingSourceGrain(grain);
+      state.setEvaluatorRecordKind(recordKind);
       state.setPathMapping(
-        dropOtherGrainEntityPathMappings(state.evaluator.inputMapping, grain)
-          .pathMapping
+        dropOtherRecordKindPathMappings(
+          state.evaluator.inputMapping,
+          recordKind
+        ).pathMapping
       );
     }
     onScopeChange(withProjectEvaluatorTarget({ scope, targetType }));
@@ -347,7 +349,7 @@ const ProjectEvaluatorFilterField = ({
 
 type ProjectEvaluatorFilterField = {
   /** The filter language the field parses, which also picks its editor. */
-  language: ProjectEvaluatorMappingSourceGrain;
+  language: ProjectEvaluatorRecordKind;
   label: string;
   placeholder: string;
   /** What an empty condition evaluates, said in the records' own noun. */
