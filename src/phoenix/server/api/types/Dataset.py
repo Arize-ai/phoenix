@@ -405,8 +405,7 @@ class Dataset(Node):
             Optional[list[int]],
             strawberry.argument(
                 description="When provided, return only the experiments with the given 1-based "
-                "per-dataset sequence numbers — a membership lookup that avoids paging the whole "
-                "connection to reach an experiment by its user-facing number."
+                "per-dataset sequence numbers."
             ),
         ] = UNSET,
         sort: Optional[ExperimentSort] = UNSET,
