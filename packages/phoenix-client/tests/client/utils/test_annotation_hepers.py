@@ -1,5 +1,8 @@
 # pyright: reportPrivateUsage=false
 
+import json
+from typing import Any
+
 import pandas as pd
 import pytest
 
@@ -301,6 +304,39 @@ class TestAnnotationDataFrameChunking:
         assert annotation["span_id"] == "span1"
         assert annotation["document_position"] == 2
         assert isinstance(annotation["document_position"], int)
+
+    @pytest.mark.parametrize("missing", [None, float("nan"), pd.NA, pd.NaT])
+    @pytest.mark.parametrize("column", ["label", "score", "explanation", "metadata", "identifier"])
+    def test_missing_annotation_cells(self, column: str, missing: Any) -> None:
+        values: dict[str, Any] = {
+            "span_id": "span1",
+            "label": "good",
+            "score": 0.0,
+            "explanation": "details",
+            "metadata": {"tags": ["reviewed"]},
+            "identifier": "evaluation-1",
+        }
+        dataframe = pd.DataFrame([{**values, column: missing}])
+        original = dataframe.copy(deep=True)
+
+        chunks = list(
+            _chunk_span_annotations_dataframe(
+                dataframe=dataframe, annotation_name="quality", annotator_kind="HUMAN"
+            )
+        )
+
+        expected = {
+            "name": "quality",
+            "annotator_kind": "HUMAN",
+            "span_id": "span1",
+            "result": {
+                key: values[key] for key in ("label", "score", "explanation") if key != column
+            },
+            **{key: values[key] for key in ("metadata", "identifier") if key != column},
+        }
+        assert chunks == [[expected]]
+        json.dumps(chunks, allow_nan=False)
+        pd.testing.assert_frame_equal(dataframe, original)
 
     def test_fallback_column_usage(self) -> None:
         """Test that fallback columns are used when primary columns are missing."""
