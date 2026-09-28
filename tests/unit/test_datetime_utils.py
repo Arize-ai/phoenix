@@ -319,3 +319,111 @@ class TestGetTimestampRange:
         new_iterator = get_timestamp_range(start_time, end_time, "minute", 0)
         result3 = list(new_iterator)
         assert result3 == result1
+
+
+class TestGetTimestampRangeWithInterval:
+    @pytest.mark.parametrize(
+        "start_time, end_time, stride, utc_offset_minutes, interval, expected",
+        [
+            pytest.param(
+                datetime(2024, 1, 1, 12, 7, 30, tzinfo=timezone.utc),
+                datetime(2024, 1, 1, 12, 20, 0, tzinfo=timezone.utc),
+                "minute",
+                0,
+                5,
+                [
+                    datetime(2024, 1, 1, 12, 5, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 12, 10, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 12, 15, tzinfo=timezone.utc),
+                ],
+                id="five_minutes",
+            ),
+            pytest.param(
+                # 22:10 UTC is 03:40 in UTC+5:30, so the first bin starts at local 03:00.
+                datetime(2024, 1, 1, 22, 10, tzinfo=timezone.utc),
+                datetime(2024, 1, 2, 3, 30, tzinfo=timezone.utc),
+                "hour",
+                330,
+                3,
+                [
+                    datetime(2024, 1, 1, 21, 30, tzinfo=timezone.utc),
+                    datetime(2024, 1, 2, 0, 30, tzinfo=timezone.utc),
+                ],
+                id="three_hours_positive_offset",
+            ),
+            pytest.param(
+                # 04:00 UTC is 23:00 the previous day in UTC-5, inside the local
+                # 18:00-24:00 bin, which starts at 23:00 UTC.
+                datetime(2024, 1, 1, 4, 0, tzinfo=timezone.utc),
+                datetime(2024, 1, 1, 13, 0, tzinfo=timezone.utc),
+                "hour",
+                -300,
+                6,
+                [
+                    datetime(2023, 12, 31, 23, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 5, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 11, 0, tzinfo=timezone.utc),
+                ],
+                id="six_hours_negative_offset",
+            ),
+            pytest.param(
+                # Wednesday 2024-01-10. Two-week bins count from Monday 1969-12-29,
+                # so the enclosing bin starts on Monday 2024-01-01.
+                datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc),
+                datetime(2024, 2, 1, 0, 0, tzinfo=timezone.utc),
+                "week",
+                0,
+                2,
+                [
+                    datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 29, 0, 0, tzinfo=timezone.utc),
+                ],
+                id="two_weeks_start_on_monday",
+            ),
+            pytest.param(
+                datetime(2024, 1, 1, 12, 10, tzinfo=timezone.utc),
+                datetime(2024, 1, 1, 12, 10, tzinfo=timezone.utc),
+                "minute",
+                0,
+                5,
+                [],
+                id="empty_range",
+            ),
+        ],
+    )
+    def test_multi_unit_bins(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        stride: Literal["minute", "hour", "day", "week"],
+        utc_offset_minutes: int,
+        interval: int,
+        expected: List[datetime],
+    ) -> None:
+        result = list(
+            get_timestamp_range(start_time, end_time, stride, utc_offset_minutes, interval)
+        )
+        assert result == expected
+        assert all(ts.tzinfo == timezone.utc for ts in result)
+
+    def test_interval_of_one_matches_default(self) -> None:
+        start_time = datetime(2024, 1, 1, 12, 7, 30, tzinfo=timezone.utc)
+        end_time = datetime(2024, 1, 1, 18, 0, tzinfo=timezone.utc)
+        assert list(get_timestamp_range(start_time, end_time, "hour", 90, 1)) == list(
+            get_timestamp_range(start_time, end_time, "hour", 90)
+        )
+
+    @pytest.mark.parametrize(
+        "stride, interval",
+        [("month", 2), ("year", 2), ("minute", 0), ("hour", -1)],
+    )
+    def test_rejects_unsupported_intervals(
+        self,
+        stride: Literal["minute", "hour", "day", "week", "month", "year"],
+        interval: int,
+    ) -> None:
+        start_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end_time = datetime(2024, 6, 1, tzinfo=timezone.utc)
+        with pytest.raises(ValueError):
+            list(get_timestamp_range(start_time, end_time, stride, 0, interval))

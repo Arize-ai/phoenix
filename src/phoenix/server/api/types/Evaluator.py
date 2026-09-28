@@ -12,7 +12,6 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix.datetime_utils import get_timestamp_range
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -35,7 +34,7 @@ from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
 from phoenix.server.api.helpers.evaluator_results import primary_result_annotation
 from phoenix.server.api.helpers.evaluators import result_annotation_names
-from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
@@ -1441,12 +1440,7 @@ class ProjectEvaluator(Node):
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
         annotation_names = result_annotation_names(record.name.root, output_configs)
-        stride: Literal["minute", "hour", "day", "week", "month", "year"]
-        if isinstance(time_bin_config, TimeBinConfig):
-            stride = time_bin_config.scale.value
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-        else:
-            stride, utc_offset_minutes = "hour", 0
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
         previous_time_range = TimeRange(
             start=window_start - (window_end - window_start),
             end=window_start,
@@ -1467,8 +1461,7 @@ class ProjectEvaluator(Node):
                         kind,
                         project_rowid,
                         (window_start, window_end),
-                        stride,
-                        utc_offset_minutes,
+                        time_bins,
                         annotation_name,
                     )
                 ),
@@ -1479,9 +1472,7 @@ class ProjectEvaluator(Node):
                     mean_score=mean_bin.mean_score if mean_bin is not None else None,
                     count=mean_bin.scored_entity_count if mean_bin is not None else 0,
                 )
-                for timestamp in get_timestamp_range(
-                    window_start, window_end, stride, utc_offset_minutes
-                )
+                for timestamp in time_bins.timestamps(window_start, window_end)
                 for mean_bin in (mean_scores_by_bucket.get(timestamp),)
             ]
             return EvaluatorAnnotationScoreMetrics(

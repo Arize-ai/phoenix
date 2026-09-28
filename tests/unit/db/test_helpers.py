@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.sql import CompoundSelect
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import normalize_datetime
+from phoenix.datetime_utils import get_timestamp_range, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
@@ -364,6 +364,68 @@ class TestDateTrunc:
             assert isinstance(actual, str)
             actual = normalize_datetime(datetime.fromisoformat(actual), timezone.utc)
         assert actual == expected_dt
+
+    @pytest.mark.parametrize(
+        "field, interval",
+        [
+            ("minute", 5),
+            ("minute", 15),
+            ("hour", 3),
+            ("hour", 5),
+            ("day", 2),
+            ("week", 2),
+        ],
+    )
+    @pytest.mark.parametrize("utc_offset_minutes", [0, 330, -300])
+    async def test_multi_unit_buckets_match_timestamp_range(
+        self,
+        db: DbSessionFactory,
+        field: Literal["minute", "hour", "day", "week"],
+        interval: int,
+        utc_offset_minutes: int,
+    ) -> None:
+        """Every SQL bucket must be the generated bin start that contains the timestamp,
+        or empty-bin filling would misalign or duplicate bins."""
+        range_start = datetime(2024, 2, 26, 13, 7, 41, 123456, tzinfo=timezone.utc)
+        range_end = range_start + timedelta(days=45)
+        bin_starts = list(
+            get_timestamp_range(range_start, range_end, field, utc_offset_minutes, interval)
+        )
+        bin_width = bin_starts[1] - bin_starts[0]
+        assert all(
+            later - earlier == bin_width for earlier, later in itertools.pairwise(bin_starts)
+        )
+        timestamps = [
+            range_start,
+            range_start + timedelta(minutes=2, seconds=59, microseconds=999999),
+            range_start + timedelta(hours=7, minutes=53),
+            range_start + timedelta(days=3, hours=11, minutes=30),
+            range_start + timedelta(days=17, microseconds=1),
+            range_start + timedelta(days=44, hours=23),
+            # A timestamp that lands exactly on a bin boundary.
+            bin_starts[len(bin_starts) // 2],
+        ]
+        for timestamp in timestamps:
+            stmt = sa.select(
+                date_trunc(
+                    db.dialect,
+                    field,
+                    sa.text(":dt").bindparams(dt=timestamp),
+                    utc_offset_minutes,
+                    interval,
+                )
+            )
+            async with db() as session:
+                actual = await session.scalar(stmt)
+            if db.dialect is SupportedSQLDialect.SQLITE:
+                assert isinstance(actual, str)
+                actual = normalize_datetime(datetime.fromisoformat(actual), timezone.utc)
+            assert actual in bin_starts, (timestamp, actual)
+            assert actual <= timestamp < actual + bin_width, (timestamp, actual)
+            if field == "week":
+                local_start = actual + timedelta(minutes=utc_offset_minutes)
+                assert local_start.weekday() == 0
+                assert local_start.time() == datetime.min.time()
 
 
 class TestGetDatasetExampleRevisions:
