@@ -41,7 +41,7 @@ describe("the binding preview", () => {
         <EvaluatorInputVariablesContext.Provider value={["context", "input"]}>
           <BindingPreview
             context={getSampleSpanEvaluationContext().context}
-            grain="span"
+            recordKind="span"
             inputMapping={{
               pathMapping: { context: "metadata.name" },
               literalMapping: {},
@@ -104,7 +104,7 @@ describe("the binding preview", () => {
         >
           <BindingPreview
             context={getSampleSpanEvaluationContext().context}
-            grain="span"
+            recordKind="span"
             inputMapping={{
               pathMapping: {},
               literalMapping: { reference: "STALE LITERAL" },
@@ -136,7 +136,7 @@ describe("the binding preview", () => {
         <EvaluatorInputVariablesContext.Provider value={["output", "context"]}>
           <BindingPreview
             context={getSampleSpanEvaluationContext().context}
-            grain="span"
+            recordKind="span"
             inputMapping={{
               pathMapping: { context: "metadata.name" },
               literalMapping: { context: "PINNED TEXT" },
