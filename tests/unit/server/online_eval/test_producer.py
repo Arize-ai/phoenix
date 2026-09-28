@@ -929,8 +929,9 @@ async def test_reaper_deletes_aged_terminal_work_outside_the_lookback(
             "retryable_error_outside": retryable_error_outside.id,
         }
 
+    await _seed_cursor(db, produced_through_id=produced_through)
     producer = OnlineEvalProducer(db)
-    await producer._reap(now, produced_through)
+    await producer._reap(now)
 
     async with db() as session:
         remaining = {
@@ -1161,7 +1162,45 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
     assert sorted(await _work_unit_span_rowids(db)) == [span.id]
 
 
-async def test_tick_that_loses_its_lease_keeps_its_work_without_moving_the_cursor(
+@pytest.mark.parametrize("span_count", [1, 2], ids=["advanced", "truncated"])
+async def test_stale_frontier_rolls_back_and_never_moves_the_cursor_backwards(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    span_count: int,
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(span_count)]
+    await _seed_criteria(db, project.id)
+    await _seed_cursor(
+        db,
+        produced_through_id=spans[0].id - 1,
+        observed_high_water_id=spans[-1].id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    rival_position = spans[-1].id + 5
+
+    producer = OnlineEvalProducer(db)
+    load_active = producer._load_active_project_evaluators
+
+    async def _load_then_rival_advances() -> Any:
+        active = await load_active()
+        async with db() as session:
+            await session.execute(
+                update(models.EvalSpanCursor).values(produced_through_id=rival_position)
+            )
+        return active
+
+    monkeypatch.setattr(producer, "_load_active_project_evaluators", _load_then_rival_advances)
+    await producer._tick()
+
+    assert await _work_unit_span_rowids(db) == []
+    assert (await _get_cursor(db)).produced_through_id == rival_position
+
+
+async def test_stale_clamp_leaves_a_cursor_another_producer_moved(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1169,35 +1208,43 @@ async def test_tick_that_loses_its_lease_keeps_its_work_without_moving_the_curso
         project = await _add_project(session)
         trace = await _add_trace(session, project)
         span = await _add_span(session, trace)
-    await _seed_criteria(db, project.id)
-    cursor_id = await _seed_cursor(
-        db,
-        produced_through_id=span.id - 1,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
+    await _seed_cursor(db, produced_through_id=span.id + 10)
+    rival_position = span.id - 1
 
     producer = OnlineEvalProducer(db)
-    insert_work_units = producer._insert_work_units
+    clamp_cursor = producer._clamp_cursor
 
-    async def _insert_then_lose_lease(
-        session: Any,
-        project_evaluator: Any,
-        span_ids: list[int],
-    ) -> None:
-        await insert_work_units(session, project_evaluator, span_ids)
-        await session.execute(
-            update(models.EvalWorkCursor)
-            .where(models.EvalWorkCursor.id == cursor_id)
-            .values(claimed_by="rival-producer")
-        )
+    async def _rival_moves_then_clamp(cursor: models.EvalSpanCursor) -> Any:
+        async with db() as session:
+            await session.execute(
+                update(models.EvalSpanCursor).values(produced_through_id=rival_position)
+            )
+        return await clamp_cursor(cursor)
 
-    monkeypatch.setattr(producer, "_insert_work_units", _insert_then_lose_lease)
+    monkeypatch.setattr(producer, "_clamp_cursor", _rival_moves_then_clamp)
     await producer._tick()
 
-    assert await _work_unit_span_rowids(db) == [span.id]
-    cursor = await _get_cursor(db, cursor_id)
-    assert cursor.produced_through_id == span.id - 1
+    assert (await _get_cursor(db)).produced_through_id == rival_position
+
+
+async def test_stale_observation_is_neither_recorded_nor_published(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
+    frontier_gap = Mock()
+    monkeypatch.setattr(producer_module, "ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS", frontier_gap)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_cursor(db, produced_through_id=span.id - 1)
+    producer = OnlineEvalProducer(db)
+
+    await producer._record_observation(span.id - 2)
+
+    assert (await _get_cursor(db)).observed_high_water_id is None
+    frontier_gap.set.assert_not_called()
 
 
 @pytest.mark.postgres_only
@@ -1212,12 +1259,7 @@ async def test_backstop_rolls_back_when_the_cursor_moves_while_it_runs(
         span = await _add_span(session, trace)
     await _seed_criteria(db, project.id)
     producer = OnlineEvalProducer(db)
-    cursor_id = await _seed_cursor(
-        db,
-        produced_through_id=span.id,
-        claimed_by=producer._producer_id,
-        claimed_at=_now(),
-    )
+    await _seed_cursor(db, produced_through_id=span.id)
     active = await producer._load_active_project_evaluators()
     insert_work_units = producer._insert_work_units
 
@@ -1228,9 +1270,7 @@ async def test_backstop_rolls_back_when_the_cursor_moves_while_it_runs(
     ) -> None:
         async with db() as rival_session:
             await rival_session.execute(
-                update(models.EvalWorkCursor)
-                .where(models.EvalWorkCursor.id == cursor_id)
-                .values(produced_through_id=span.id + 100)
+                update(models.EvalSpanCursor).values(produced_through_id=span.id + 100)
             )
         await insert_work_units(session, project_evaluator, span_ids)
 

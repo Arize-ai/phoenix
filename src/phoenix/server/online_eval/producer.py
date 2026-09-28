@@ -170,12 +170,14 @@ class OnlineEvalProducer(DaemonTask):
         if cursor is None:
             return
         if self._db.should_not_insert_or_update:
-            await self._reap(now, cursor.produced_through_id)
+            await self._reap(now)
             return
         cursor = await self._clamp_cursor(cursor)
+        if cursor is None:
+            return
         produced_through_id = cursor.produced_through_id
 
-        await self._reap(now, produced_through_id)
+        await self._reap(now)
 
         observed_high_water_id = cursor.observed_high_water_id
         pending_observation = (
@@ -243,33 +245,36 @@ class OnlineEvalProducer(DaemonTask):
         )
         return await session.get(models.EvalSpanCursor, _CURSOR_ID)
 
-    async def _clamp_cursor(self, cursor: models.EvalSpanCursor) -> models.EvalSpanCursor:
+    async def _clamp_cursor(self, cursor: models.EvalSpanCursor) -> Optional[models.EvalSpanCursor]:
+        """Lower the cursor to the live span high water, or return None if another
+        producer moved it since it was loaded."""
         async with self._db() as session:
             max_span_id = await session.scalar(select(func.max(models.Span.id))) or 0
             if max_span_id >= cursor.produced_through_id:
                 return cursor
-            return (
-                await session.scalars(
-                    update(models.EvalSpanCursor)
-                    .where(models.EvalSpanCursor.id == _CURSOR_ID)
-                    .values(
-                        produced_through_id=max_span_id,
-                        observed_high_water_id=None,
-                        observed_at=None,
-                    )
-                    .returning(models.EvalSpanCursor)
+            return await session.scalar(
+                update(models.EvalSpanCursor)
+                .where(
+                    models.EvalSpanCursor.id == _CURSOR_ID,
+                    models.EvalSpanCursor.produced_through_id == cursor.produced_through_id,
                 )
-            ).one()
+                .values(
+                    produced_through_id=max_span_id,
+                    observed_high_water_id=None,
+                    observed_at=None,
+                )
+                .returning(models.EvalSpanCursor)
+            )
 
-    async def _reap(
-        self,
-        now: datetime,
-        produced_through_id: int,
-    ) -> None:
+    async def _reap(self, now: datetime) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
         # regardless of age — they must remain to block backstop resurrection.
-        reap_floor = produced_through_id - self._backstop_lookback_span_ids
+        reap_floor = (
+            select(models.EvalSpanCursor.produced_through_id - self._backstop_lookback_span_ids)
+            .where(models.EvalSpanCursor.id == _CURSOR_ID)
+            .scalar_subquery()
+        )
         async with self._db() as session:
             await session.execute(
                 delete(models.EvalWorkUnit).where(
@@ -395,6 +400,7 @@ class OnlineEvalProducer(DaemonTask):
         frontier: int,
         budget: int,
     ) -> tuple[bool, int]:
+        truncated = False
         async with self._db() as session:
             for index, project_evaluator in enumerate(active):
                 span_ids = list(
@@ -413,13 +419,28 @@ class OnlineEvalProducer(DaemonTask):
                         f"Online-eval producer frontier truncated at insertion budget; "
                         f"{budget} budget remaining"
                     )
-                    return False, budget
-            await session.execute(
-                update(models.EvalSpanCursor)
-                .where(models.EvalSpanCursor.id == _CURSOR_ID)
-                .values(produced_through_id=frontier)
-            )
-        return True, budget
+                    truncated = True
+                    break
+            if truncated:
+                position_current = await self._cursor_is_at(session, low_exclusive)
+            else:
+                position_current = (
+                    await session.scalar(
+                        update(models.EvalSpanCursor)
+                        .where(
+                            models.EvalSpanCursor.id == _CURSOR_ID,
+                            models.EvalSpanCursor.produced_through_id == low_exclusive,
+                        )
+                        .values(produced_through_id=frontier)
+                        .returning(models.EvalSpanCursor.id)
+                    )
+                    is not None
+                )
+            if not position_current:
+                await session.rollback()
+                logger.warning("Online-eval producer frontier rolled back: the cursor moved")
+                return False, budget
+        return not truncated, budget
 
     async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
@@ -436,11 +457,17 @@ class OnlineEvalProducer(DaemonTask):
             # leaving late-visible spans to the slower backstop. A post-read
             # stamp errs conservative.
             observed_at = await current_database_time(session, self._db.dialect)
-            await session.execute(
+            observed = await session.scalar(
                 update(models.EvalSpanCursor)
-                .where(models.EvalSpanCursor.id == _CURSOR_ID)
+                .where(
+                    models.EvalSpanCursor.id == _CURSOR_ID,
+                    models.EvalSpanCursor.produced_through_id == produced_through_id,
+                )
                 .values(observed_high_water_id=high_water, observed_at=observed_at)
+                .returning(models.EvalSpanCursor.id)
             )
+        if observed is None:
+            return
         self._publish_frontier_gap(high_water - produced_through_id)
         self._publish_ingest_rate(high_water, observed_at)
 
@@ -450,9 +477,12 @@ class OnlineEvalProducer(DaemonTask):
         if not self._publish_metrics:
             return
         async with self._db() as session:
+            if not await self._cursor_is_at(session, produced_through_id):
+                return
             high_water = await session.scalar(select(func.max(models.Span.id))) or 0
+            observed_at = await current_database_time(session, self._db.dialect)
         self._publish_frontier_gap(max(high_water - produced_through_id, 0))
-        self._publish_ingest_rate(high_water, datetime.now(timezone.utc))
+        self._publish_ingest_rate(high_water, observed_at)
 
     def _publish_frontier_gap(self, gap: int) -> None:
         """How far the arrival log has run ahead of what this producer has materialized."""
@@ -501,18 +531,23 @@ class OnlineEvalProducer(DaemonTask):
                         f"{budget} budget remaining"
                     )
                     break
-            # Once the cursor moves past the watermark, its holder may reap terminal rows in
-            # this window before a scan above reads them, and the scan recreates that work.
-            produced_through_id = await session.scalar(
-                select(models.EvalWorkCursor.produced_through_id).where(
-                    models.EvalWorkCursor.evaluation_target == self._evaluation_target,
-                    models.EvalWorkCursor.consumer_group == _CONSUMER_GROUP,
-                )
-            )
-            if produced_through_id != watermark:
+            if not await self._cursor_is_at(session, watermark):
                 await session.rollback()
                 logger.warning("Online-eval producer backstop rolled back: the cursor moved")
         return budget
+
+    async def _cursor_is_at(self, session: AsyncSession, position: int) -> bool:
+        """Whether the cursor still holds the position a scan was taken against.
+
+        Once the cursor moves, its holder may reap terminal work in the scanned window
+        before a scan reads it, and committing that scan's inserts recreates the work.
+        """
+        produced_through_id = await session.scalar(
+            select(models.EvalSpanCursor.produced_through_id).where(
+                models.EvalSpanCursor.id == _CURSOR_ID
+            )
+        )
+        return produced_through_id == position
 
     async def _insert_work_units(
         self,
