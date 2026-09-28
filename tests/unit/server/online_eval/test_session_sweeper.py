@@ -847,6 +847,23 @@ async def test_edited_criterion_does_not_re_sweep_history_below_its_watermark(
     assert unit_ids == [original_unit_id]
 
 
+async def test_evaluated_session_is_not_re_evaluated_after_an_edit(
+    db: DbSessionFactory,
+) -> None:
+    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", max_outstanding=_MAX_OUTSTANDING)
+    await sweeper._tick()
+    async with db() as session:
+        await session.execute(update(models.EvalSessionWorkUnit).values(status="DONE"))
+
+    await _rename_project_evaluator(db, project_evaluator_id)
+    await _advance_liveness(db, project_session_id, _now() - timedelta(seconds=320))
+    await sweeper._tick()
+
+    assert await _work_statuses(db) == ["DONE"]
+
+
 async def test_session_without_liveness_becomes_live_after_new_activity(
     db: DbSessionFactory,
 ) -> None:
