@@ -8,8 +8,17 @@ import { formatInt } from "@phoenix/utils/numberFormatUtils";
 
 export const EVALUATOR_COMPARE_COLORS = {
   a: "var(--global-color-blue-700)",
-  b: "var(--global-color-orange-600)",
+  b: "var(--global-color-purple-700)",
 } as const;
+
+/** A palette hue with 100–1400 steps in the global color tokens. */
+export type EvaluatorCompareHue = "blue" | "purple";
+
+/** The hue each side shades its labels with; its evaluator color is step 700. */
+export const EVALUATOR_COMPARE_HUES = {
+  a: "blue",
+  b: "purple",
+} as const satisfies Record<"a" | "b", EvaluatorCompareHue>;
 
 export function toConfusionMatrixData({
   matrix,
@@ -126,8 +135,14 @@ export function formatMatrixSubtitle({
 
 /** Neutral fill for labels that carry no optimization meaning. */
 export const NEUTRAL_LABEL_COLOR = "var(--global-color-gray-400)";
-/** How much of the evaluator color the least optimal label keeps. */
-const LEAST_OPTIMAL_COLOR_SHARE = 0.3;
+/**
+ * The palette steps label shades span: the most optimal label takes the step
+ * furthest from the background, the least optimal the nearest. Low steps sit
+ * near the background in both themes, so the ramp holds in light and dark.
+ */
+const MOST_OPTIMAL_STEP = 900;
+const LEAST_OPTIMAL_STEP = 400;
+const PALETTE_STEP = 100;
 
 /**
  * Ranks labels from least (0) to most (1) optimal by their mapped scores and
@@ -173,19 +188,33 @@ export function getLabelOptimalities({
 }
 
 /**
- * Desaturates an evaluator color toward gray as a label gets less optimal, so
- * the best label keeps the full evaluator color. Null optimality (a label
- * without a score) is neutral gray.
+ * Stand-in optimalities for labels without an optimization direction: the
+ * same shades, stepped through in display order, so an evaluator's labels
+ * look the same whether or not they rank. The first label takes the strongest
+ * shade; here the shades carry no ranking.
+ */
+export function getPositionalOptimalities(count: number): number[] {
+  return Array.from({ length: count }, (_, index) =>
+    count <= 1 ? 1 : 1 - index / (count - 1)
+  );
+}
+
+/**
+ * Shades a label within its evaluator's hue by optimality: the best label
+ * takes the strongest step and worse ones step toward the background, spread
+ * evenly and rounded to a palette step. Null optimality (a label without a
+ * score) is neutral gray.
  */
 export function getLabelOptimalityColor({
-  color,
+  hue,
   optimality,
 }: {
-  color: string;
+  hue: EvaluatorCompareHue;
   optimality: number | null;
 }): string {
   if (optimality == null) return NEUTRAL_LABEL_COLOR;
-  const share =
-    LEAST_OPTIMAL_COLOR_SHARE + (1 - LEAST_OPTIMAL_COLOR_SHARE) * optimality;
-  return `color-mix(in oklch, ${color} ${Math.round(share * 100)}%, ${NEUTRAL_LABEL_COLOR})`;
+  const steps = (MOST_OPTIMAL_STEP - LEAST_OPTIMAL_STEP) / PALETTE_STEP;
+  const step =
+    LEAST_OPTIMAL_STEP + Math.round(optimality * steps) * PALETTE_STEP;
+  return `var(--global-color-${hue}-${step})`;
 }

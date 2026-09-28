@@ -17,7 +17,6 @@ import {
   compactYAxisProps,
   TimeRangeChartBrush,
   useBinTimeTickFormatter,
-  useCategoryChartColors,
 } from "@phoenix/components/chart";
 import {
   type AnnotationMetricsSeries,
@@ -38,7 +37,10 @@ import {
   getCompareTimeSeriesView,
   getCompareTimeSeriesViews,
 } from "./projectEvaluatorCompareTimeSeriesUtils";
-import { EVALUATOR_COMPARE_COLORS } from "./projectEvaluatorCompareUtils";
+import {
+  EVALUATOR_COMPARE_COLORS,
+  EVALUATOR_COMPARE_HUES,
+} from "./projectEvaluatorCompareUtils";
 import {
   COMPARE_CHART_MARGIN,
   compareChartFooterCSS,
@@ -242,7 +244,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
   const { setCustomTimeRange } = useTimeRange();
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryColors = useCategoryChartColors();
   const { timeRangeFormatter } = useTimeFormatters();
   const data = useLazyLoadQuery<ProjectEvaluatorCompareTimeSeriesQuery>(
     graphql`
@@ -411,7 +412,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
       side.key,
       getCompareLabelSegments({
         labels: seriesBySide[side.key]?.labels ?? [],
-        color: side.color,
+        hue: EVALUATOR_COMPARE_HUES[side.key],
         direction: side.config?.optimizationDirection,
         scoresByLabel: new Map(
           (side.config?.values ?? []).map(({ label, score }) => [
@@ -419,7 +420,6 @@ function ProjectEvaluatorCompareTimeSeriesChart({
             score,
           ])
         ),
-        categoryColors,
       }),
     ])
   ) as Record<CompareSide["key"], ReturnType<typeof getCompareLabelSegments>>;
@@ -459,7 +459,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
                 name: side.name,
                 color: side.color,
                 series: seriesBySide[side.key],
-                segments: labelSegmentsBySide[side.key].segments,
+                segments: labelSegmentsBySide[side.key],
                 scoreAxisProps: {
                   domain: getScoreDomain(side.config),
                   style: { ...compactYAxisProps.style, fill: side.color },
@@ -526,7 +526,7 @@ function ProjectEvaluatorCompareTimeSeriesChart({
               ) : null}
             </div>
             {view === "labels" && visibleSides.includes(side)
-              ? labelSegmentsBySide[side.key].segments.map((segment) => (
+              ? labelSegmentsBySide[side.key].map((segment) => (
                   <div
                     key={segment.index}
                     className="evaluator-time-series__legend-item"

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatScoreValue,
   getDistributionRows,
   getDistributionScope,
   getDistributionThresholdPosition,
@@ -172,5 +173,21 @@ describe("getDistributionScope", () => {
     expect(
       getDistributionScope({ requested: "overlap", evaluatedByBoth: 0 })
     ).toBe("all");
+  });
+});
+
+describe("formatScoreValue", () => {
+  it("drops floating-point noise and padding zeros", () => {
+    expect(formatScoreValue(65.74000000000001)).toBe("65.74");
+    expect(formatScoreValue(110.68)).toBe("110.68");
+    expect(formatScoreValue(1)).toBe("1");
+    expect(formatScoreValue(0.5)).toBe("0.5");
+    expect(formatScoreValue(0.333)).toBe("0.33");
+    expect(formatScoreValue(0)).toBe("0");
+  });
+
+  it("keeps compact notation for very large and small values", () => {
+    expect(formatScoreValue(2500)).toBe("2.5k");
+    expect(formatScoreValue(0.005)).toBe("5.00e-3");
   });
 });

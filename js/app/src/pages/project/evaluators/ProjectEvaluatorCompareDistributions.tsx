@@ -15,6 +15,7 @@ import {
 import {
   Button,
   Card,
+  ColorSwatch,
   Flex,
   Icon,
   Icons,
@@ -40,8 +41,6 @@ import {
   defaultCartesianGridProps,
   defaultTooltipProps,
   defaultXAxisProps,
-  getCategoryChartColor,
-  useCategoryChartColors,
 } from "@phoenix/components/chart";
 import type { AnnotationMetricsView } from "@phoenix/components/chart/annotationMetricsUtils";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
@@ -56,7 +55,10 @@ import type { ProjectEvaluatorCompareDistributions_evaluator$key } from "./__gen
 import type { ProjectEvaluatorCompareDistributions_side$key } from "./__generated__/ProjectEvaluatorCompareDistributions_side.graphql";
 import {
   EVALUATOR_COMPARE_COLORS,
+  EVALUATOR_COMPARE_HUES,
+  type EvaluatorCompareHue,
   getLabelOptimalityColor,
+  getPositionalOptimalities,
   NEUTRAL_LABEL_COLOR,
 } from "./projectEvaluatorCompareUtils";
 import {
@@ -66,6 +68,7 @@ import {
   ProjectEvaluatorCompareViewToggle,
 } from "./ProjectEvaluatorCompareViewToggle";
 import {
+  formatScoreValue,
   getDistributionRows,
   getDistributionScope,
   getDistributionThresholdPosition,
@@ -102,6 +105,12 @@ const panelCSS = css`
   }
   .evaluator-distributions__footer {
     justify-content: center;
+    gap: var(--global-dimension-size-200);
+  }
+  .evaluator-distributions__legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
   }
   .evaluator-distributions__plot {
     flex: 1;
@@ -226,6 +235,7 @@ export function ProjectEvaluatorCompareDistributions({
       id: evaluatorA.id,
       name: evaluatorA.name,
       color: EVALUATOR_COMPARE_COLORS.a,
+      hue: EVALUATOR_COMPARE_HUES.a,
       direction:
         evaluatorA.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
       referenceScores: getConfiguredScores(
@@ -240,6 +250,7 @@ export function ProjectEvaluatorCompareDistributions({
       id: evaluatorB.id,
       name: evaluatorB.name,
       color: EVALUATOR_COMPARE_COLORS.b,
+      hue: EVALUATOR_COMPARE_HUES.b,
       direction:
         evaluatorB.evaluator.outputConfigs[0]?.optimizationDirection ?? null,
       referenceScores: getConfiguredScores(
@@ -424,10 +435,58 @@ function getConfiguredScores(
   return [config.lowerBound, config.upperBound];
 }
 
+type CategoryTickProps = {
+  x?: number | string;
+  y?: number | string;
+  width?: number | string;
+  payload?: { value?: unknown };
+};
+
+const CATEGORY_TICK_HEIGHT = 16;
+
+/**
+ * A category axis tick that always renders, truncated with an ellipsis to its
+ * bar's share of the axis; the full label shows on hover.
+ */
+function CategoryAxisTick({
+  x,
+  y,
+  width,
+  label,
+  bandCount,
+}: CategoryTickProps & { label: string | undefined; bandCount: number }) {
+  const band = Number(width) / Math.max(bandCount, 1);
+  if (!label || !Number.isFinite(band)) return null;
+  return (
+    <foreignObject
+      x={Number(x) - band / 2}
+      y={Number(y)}
+      width={band}
+      height={CATEGORY_TICK_HEIGHT}
+    >
+      <div css={categoryTickCSS} title={label}>
+        {label}
+      </div>
+    </foreignObject>
+  );
+}
+
+const categoryTickCSS = css`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  padding-inline: 2px;
+  font-size: 12px;
+  line-height: ${CATEGORY_TICK_HEIGHT}px;
+  color: var(--chart-axis-text-color);
+`;
+
 function DistributionChart({
   side,
   name,
   color,
+  hue,
   view,
   rows: unorderedRows,
   direction,
@@ -442,6 +501,7 @@ function DistributionChart({
   side: DistributionSide;
   name: string;
   color: string;
+  hue: EvaluatorCompareHue;
   view: AnnotationMetricsView;
   rows: DistributionChartRow[];
   direction: EvaluatorOptimizationDirection | null;
@@ -469,27 +529,32 @@ function DistributionChart({
             referenceScores,
           }),
         };
-  const categoryColors = useCategoryChartColors();
-  // Bars read as optimization shades of the evaluator color when it has a
-  // direction. Without one, labels take the categorical palette like label
-  // charts elsewhere, and scores stay the evaluator color.
-  const getFill = (row: DistributionChartRow, index: number) => {
-    if (row.isOther) return NEUTRAL_LABEL_COLOR;
-    if (optimalities) {
-      return getLabelOptimalityColor({
-        color,
-        optimality: optimalities[index] ?? null,
-      });
-    }
-    return view === "labels"
-      ? getCategoryChartColor({ index, colors: categoryColors })
-      : color;
-  };
+  // Bars are always shades of the evaluator's hue, ranked by optimization
+  // direction when there is one. Without one, labels step through the shades
+  // in display order and scores by value, higher scores stronger.
+  const shades =
+    optimalities ??
+    (view === "scores"
+      ? getScoreRowOptimalities({
+          rows,
+          direction: "MAXIMIZE",
+          referenceScores,
+        })
+      : null) ??
+    getPositionalOptimalities(rows.length);
+  const getFill = (row: DistributionChartRow, index: number) =>
+    row.isOther
+      ? NEUTRAL_LABEL_COLOR
+      : getLabelOptimalityColor({ hue, optimality: shades[index] ?? null });
   const data = rows.map((row, index) => ({
     ...row,
     x: index,
     fill: getFill(row, index),
   }));
+  // A label without a mapped score cannot rank, so it draws neutral gray.
+  const hasUnscoredLabel =
+    view === "labels" &&
+    rows.some((row, index) => !row.isOther && shades[index] == null);
   const chartedCount = rows.reduce((total, row) => total + row.count, 0);
   const meanScore = side.meanScore;
   const threshold = view === "scores" ? side.threshold : null;
@@ -550,9 +615,25 @@ function DistributionChart({
                   type="number"
                   domain={[-0.5, Math.max(0.5, data.length - 0.5)]}
                   ticks={data.map((row) => row.x)}
-                  tickFormatter={(value) => data[value]?.label ?? ""}
-                  minTickGap={16}
                   tickLine={false}
+                  {...(view === "labels"
+                    ? {
+                        // Every label names a bar, so none is skipped; each
+                        // truncates to its bar's width instead.
+                        interval: 0,
+                        tick: (props: CategoryTickProps) => (
+                          <CategoryAxisTick
+                            {...props}
+                            label={data[Number(props.payload?.value)]?.label}
+                            bandCount={data.length}
+                          />
+                        ),
+                      }
+                    : {
+                        tickFormatter: (value: number) =>
+                          data[value]?.label ?? "",
+                        minTickGap: 16,
+                      })}
                   // The time chart's axis height, so both cards' baselines
                   // line up above their footer rows.
                   height={compactTimeXAxisProps.height}
@@ -582,8 +663,12 @@ function DistributionChart({
                         <Text weight="heavy" size="S">
                           {row.description ?? row.label}
                         </Text>
-                        {view === "labels" && row.score != null ? (
-                          <Text size="XS">Mapped score: {row.score}</Text>
+                        {view === "labels" && !row.isOther ? (
+                          <Text size="XS">
+                            {row.score != null
+                              ? `Mapped score: ${formatScoreValue(row.score)}`
+                              : "No score"}
+                          </Text>
                         ) : null}
                         <ChartTooltipItem
                           name={name}
@@ -611,13 +696,13 @@ function DistributionChart({
                     <Cell key={row.x} fill={row.fill} />
                   ))}
                 </Bar>
-                {thresholdPosition != null ? (
+                {thresholdPosition != null && threshold != null ? (
                   <ReferenceLine
                     x={thresholdPosition}
                     stroke="var(--global-color-gray-700)"
                     strokeDasharray="4 4"
                     label={{
-                      value: `flag ${direction === "MAXIMIZE" ? "≤" : "≥"} ${threshold}`,
+                      value: `flag ${direction === "MAXIMIZE" ? "≤" : "≥"} ${formatScoreValue(threshold)}`,
                       position: "insideTopRight",
                       fontSize: 11,
                       fill: "var(--chart-axis-text-color)",
@@ -630,7 +715,7 @@ function DistributionChart({
         </div>
         {/* The axis name and the side's mean, in the row the time chart
             keeps its legend in; the mean takes the tint scores have
-            elsewhere. */}
+            elsewhere. A gray bar gets one legend item explaining it. */}
         <div
           css={compareChartFooterCSS}
           className="evaluator-distributions__footer"
@@ -651,6 +736,14 @@ function DistributionChart({
               </>
             )}
           </Text>
+          {hasUnscoredLabel ? (
+            <div className="evaluator-distributions__legend-item">
+              <ColorSwatch color={NEUTRAL_LABEL_COLOR} size="M" />
+              <Text size="XS" color="text-700">
+                No score
+              </Text>
+            </div>
+          ) : null}
         </div>
       </Flex>
     </section>

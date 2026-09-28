@@ -27,6 +27,18 @@ export function getDistributionScope({
   return requested === "all" ? "all" : "overlap";
 }
 
+/**
+ * A score for display: `formatFloat`'s precision and floating-point cleanup
+ * (at most two decimals), without padding zeros, so exact values read "1",
+ * "0.5", or "65.74".
+ */
+export function formatScoreValue(score: number): string {
+  const formatted = formatFloat(score);
+  return formatted.includes(".") && !/[a-z]/i.test(formatted)
+    ? formatted.replace(/\.?0+$/, "")
+    : formatted;
+}
+
 export type DistributionChartRow = {
   label: string;
   count: number;
@@ -73,7 +85,7 @@ export function getDistributionRows({
   if (side.scoreValueCounts) {
     return side.scoreValueCounts.map((point) => ({
       ...point,
-      label: String(point.score),
+      label: formatScoreValue(point.score),
     }));
   }
   const edges = side.scoreBinEdges;
@@ -83,8 +95,8 @@ export function getDistributionRows({
       count,
       lowerBound: edges[index],
       upperBound: edges[index + 1],
-      description: `${edges[index]} ≤ score ${index === counts.length - 1 ? "≤" : "<"} ${edges[index + 1]}`,
-      label: `${formatFloat(edges[index])}–${formatFloat(edges[index + 1])}`,
+      description: `${formatScoreValue(edges[index])} ≤ score ${index === counts.length - 1 ? "≤" : "<"} ${formatScoreValue(edges[index + 1])}`,
+      label: `${formatScoreValue(edges[index])}–${formatScoreValue(edges[index + 1])}`,
     }));
   }
   return [];

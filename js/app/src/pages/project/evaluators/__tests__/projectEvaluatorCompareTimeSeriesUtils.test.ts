@@ -1,5 +1,4 @@
 import type { AnnotationMetricsSeries } from "@phoenix/components/chart/annotationMetricsUtils";
-import { CATEGORICAL_CHART_COLORS } from "@phoenix/components/chart/colors";
 import {
   getCompareLabelSegments,
   getLabelDisplayOrder,
@@ -7,11 +6,6 @@ import {
   getCompareTimeSeriesViews,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareTimeSeriesUtils";
 import { NEUTRAL_LABEL_COLOR } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
-
-// Each palette slot "colors" as its own name, so assertions read the slot.
-const categoryColors = Object.fromEntries(
-  CATEGORICAL_CHART_COLORS.map((name) => [name, name])
-) as Parameters<typeof getCompareLabelSegments>[0]["categoryColors"];
 
 function series(
   values: Partial<AnnotationMetricsSeries> = {}
@@ -61,44 +55,32 @@ describe("getLabelDisplayOrder", () => {
 
 describe("getCompareLabelSegments", () => {
   it("orders labels most optimal first and shades by optimality", () => {
-    const { segments, hasOptimization } = getCompareLabelSegments({
+    const segments = getCompareLabelSegments({
       labels: ["fail", "unknown", "pass"],
-      color: "red",
+      hue: "blue",
       direction: "MAXIMIZE",
       scoresByLabel: new Map([
         ["pass", 1],
         ["fail", 0],
       ]),
-      categoryColors,
     });
-    expect(hasOptimization).toBe(true);
     expect(segments).toEqual([
-      {
-        label: "pass",
-        index: 2,
-        color: `color-mix(in oklch, red 100%, ${NEUTRAL_LABEL_COLOR})`,
-      },
-      {
-        label: "fail",
-        index: 0,
-        color: `color-mix(in oklch, red 30%, ${NEUTRAL_LABEL_COLOR})`,
-      },
+      { label: "pass", index: 2, color: "var(--global-color-blue-900)" },
+      { label: "fail", index: 0, color: "var(--global-color-blue-400)" },
       { label: "unknown", index: 1, color: NEUTRAL_LABEL_COLOR },
     ]);
   });
 
-  it("uses the categorical palette in display order without a direction", () => {
-    const { segments, hasOptimization } = getCompareLabelSegments({
+  it("steps through the same shades in display order without a direction", () => {
+    const segments = getCompareLabelSegments({
       labels: ["y", "x"],
-      color: "red",
+      hue: "purple",
       direction: "NONE",
       scoresByLabel: new Map(),
-      categoryColors,
     });
-    expect(hasOptimization).toBe(false);
     expect(segments).toEqual([
-      { label: "x", index: 1, color: CATEGORICAL_CHART_COLORS[0] },
-      { label: "y", index: 0, color: CATEGORICAL_CHART_COLORS[1] },
+      { label: "x", index: 1, color: "var(--global-color-purple-900)" },
+      { label: "y", index: 0, color: "var(--global-color-purple-400)" },
     ]);
   });
 });

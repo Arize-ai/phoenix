@@ -17,21 +17,18 @@ export function ColorSwatch({
   size = "M",
   shape = "square",
 }: ColorSwatchProps & { ref?: Ref<HTMLDivElement> }) {
-  // We have to special case CSS variables and color functions since they are
-  // technically not part of the aria color swatch, which can only parse literal
-  // colors. But it's better to have a unified color swatch so going with this
-  // approach
-  const isCSSValue =
-    typeof color === "string" &&
-    (color.startsWith("var") || color.startsWith("color-mix("));
-  const additionalCSS = isCSSValue
+  // We have to special case CSS variables since this is technically not part of
+  // the aria color swatch. But it's better to have a unified color swatch so going
+  // with this approach
+  const isCSSVariable = typeof color === "string" && color.startsWith("var");
+  const additionalCSS = isCSSVariable
     ? css`
         background-color: ${color} !important;
       `
     : undefined;
   return (
     <AriaColorSwatch
-      color={isCSSValue ? undefined : color}
+      color={isCSSVariable ? undefined : color}
       data-shape={shape}
       data-size={size}
       ref={ref}

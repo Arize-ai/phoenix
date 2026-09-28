@@ -3,14 +3,12 @@ import type {
   AnnotationMetricsSeries,
   AnnotationMetricsView,
 } from "@phoenix/components/chart/annotationMetricsUtils";
-import {
-  getCategoryChartColor,
-  type useCategoryChartColors,
-} from "@phoenix/components/chart/colors";
 
 import {
+  type EvaluatorCompareHue,
   getLabelOptimalities,
   getLabelOptimalityColor,
+  getPositionalOptimalities,
 } from "./projectEvaluatorCompareUtils";
 
 /** The views either evaluator can show, scores first. */
@@ -59,50 +57,35 @@ export function getLabelDisplayOrder({
 }
 
 /**
- * Colors one evaluator's labels for a stacked bar. With an optimization
- * direction, labels are shades of the evaluator color by optimality, most
- * optimal first, so the bottom of each stack is the share of good results.
- * Without one, labels take the categorical palette in display order, as label
- * distributions do elsewhere.
+ * Colors one evaluator's labels for a stacked bar in shades of its hue. With
+ * an optimization direction, shades follow optimality and the most optimal
+ * label comes first, so the bottom of each stack is the share of good
+ * results. Without one, labels step through the same shades in display order.
  */
 export function getCompareLabelSegments({
   labels,
-  color,
+  hue,
   direction,
   scoresByLabel,
-  categoryColors,
 }: {
   /** The side's series labels; segment indexes point into this array. */
   labels: ReadonlyArray<string>;
-  color: string;
+  hue: EvaluatorCompareHue;
   direction: string | null | undefined;
   /** Configured labels in configured order, with their mapped scores. */
   scoresByLabel: ReadonlyMap<string, number | null>;
-  categoryColors: ReturnType<typeof useCategoryChartColors>;
-}): {
-  segments: AnnotationLabelSegment[];
-  hasOptimization: boolean;
-} {
+}): AnnotationLabelSegment[] {
   const indexByLabel = new Map(labels.map((label, index) => [label, index]));
   const ordered = getLabelDisplayOrder({
     labels,
     configuredLabels: Array.from(scoresByLabel.keys()),
   });
-  const optimalities = getLabelOptimalities({
-    direction,
-    scores: ordered.map((label) => scoresByLabel.get(label)),
-    referenceScores: Array.from(scoresByLabel.values()),
-  });
-  if (optimalities == null) {
-    return {
-      hasOptimization: false,
-      segments: ordered.map((label, order) => ({
-        label,
-        index: indexByLabel.get(label) ?? order,
-        color: getCategoryChartColor({ index: order, colors: categoryColors }),
-      })),
-    };
-  }
+  const optimalities =
+    getLabelOptimalities({
+      direction,
+      scores: ordered.map((label) => scoresByLabel.get(label)),
+      referenceScores: Array.from(scoresByLabel.values()),
+    }) ?? getPositionalOptimalities(ordered.length);
   const segments = ordered.map((label, order) => ({
     label,
     index: indexByLabel.get(label) ?? order,
@@ -112,12 +95,9 @@ export function getCompareLabelSegments({
   segments.sort(
     (left, right) => (right.optimality ?? -1) - (left.optimality ?? -1)
   );
-  return {
-    hasOptimization: true,
-    segments: segments.map(({ label, index, optimality }) => ({
-      label,
-      index,
-      color: getLabelOptimalityColor({ color, optimality }),
-    })),
-  };
+  return segments.map(({ label, index, optimality }) => ({
+    label,
+    index,
+    color: getLabelOptimalityColor({ hue, optimality }),
+  }));
 }

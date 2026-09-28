@@ -5,6 +5,7 @@ import {
   getKappaGloss,
   getLabelOptimalities,
   getLabelOptimalityColor,
+  getPositionalOptimalities,
   NEUTRAL_LABEL_COLOR,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
@@ -182,18 +183,39 @@ describe("project evaluator compare utils", () => {
     });
   });
 
+  describe("getPositionalOptimalities", () => {
+    it("spaces labels evenly from strongest to faintest", () => {
+      expect(getPositionalOptimalities(3)).toEqual([1, 0.5, 0]);
+      expect(getPositionalOptimalities(1)).toEqual([1]);
+      expect(getPositionalOptimalities(0)).toEqual([]);
+    });
+  });
+
   describe("getLabelOptimalityColor", () => {
-    it("keeps the full color for the best label and fades the worst", () => {
-      expect(getLabelOptimalityColor({ color: "red", optimality: 1 })).toBe(
-        `color-mix(in oklch, red 100%, ${NEUTRAL_LABEL_COLOR})`
+    it("takes the strongest step for the best label and the faintest for the worst", () => {
+      expect(getLabelOptimalityColor({ hue: "blue", optimality: 1 })).toBe(
+        "var(--global-color-blue-900)"
       );
-      expect(getLabelOptimalityColor({ color: "red", optimality: 0 })).toBe(
-        `color-mix(in oklch, red 30%, ${NEUTRAL_LABEL_COLOR})`
+      expect(getLabelOptimalityColor({ hue: "purple", optimality: 0 })).toBe(
+        "var(--global-color-purple-400)"
       );
     });
 
+    it("spreads labels in between across rounded palette steps", () => {
+      expect(
+        [1, 2 / 3, 1 / 3, 0].map((optimality) =>
+          getLabelOptimalityColor({ hue: "blue", optimality })
+        )
+      ).toEqual([
+        "var(--global-color-blue-900)",
+        "var(--global-color-blue-700)",
+        "var(--global-color-blue-600)",
+        "var(--global-color-blue-400)",
+      ]);
+    });
+
     it("is neutral for a label without a score", () => {
-      expect(getLabelOptimalityColor({ color: "red", optimality: null })).toBe(
+      expect(getLabelOptimalityColor({ hue: "blue", optimality: null })).toBe(
         NEUTRAL_LABEL_COLOR
       );
     });
