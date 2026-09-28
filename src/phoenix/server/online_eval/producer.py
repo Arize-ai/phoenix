@@ -219,6 +219,8 @@ class OnlineEvalProducer(DaemonTask):
             observation_consumed = advanced and frontier == observed_high_water_id
             if not pending_observation or observation_consumed:
                 await self._record_observation(produced_through_id)
+            else:
+                await self._refresh_gauges(produced_through_id)
 
             if budget > 0 and time.monotonic() - self._last_backstop_at >= (
                 self._backstop_interval_seconds
@@ -537,6 +539,16 @@ class OnlineEvalProducer(DaemonTask):
             )
         self._publish_frontier_gap(high_water - produced_through_id)
         self._publish_ingest_rate(high_water, observed_at)
+
+    async def _refresh_gauges(self, produced_through_id: int) -> None:
+        """Publish the frontier gap and ingest rate on a tick that leaves its pending
+        observation unconsumed, e.g. while the admission gate is closed."""
+        if not self._publish_metrics:
+            return
+        async with self._db() as session:
+            high_water = await session.scalar(select(func.max(models.Span.id))) or 0
+        self._publish_frontier_gap(max(high_water - produced_through_id, 0))
+        self._publish_ingest_rate(high_water, datetime.now(timezone.utc))
 
     def _publish_frontier_gap(self, gap: int) -> None:
         """How far the arrival log has run ahead of what this producer has materialized."""

@@ -1452,3 +1452,50 @@ async def test_producer_publishes_its_own_frontier_and_ingest_gauges(
     await producer._tick()
     ingest_rate.set.assert_called_once()
     assert ingest_rate.set.call_args.args[0] > 0
+
+
+async def test_frontier_gauges_keep_updating_while_the_admission_gate_is_closed(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
+    monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
+    frontier_gap = Mock()
+    monkeypatch.setattr(producer_module, "ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS", frontier_gap)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    await _seed_cursor(
+        db,
+        produced_through_id=span.id - 1,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    producer = OnlineEvalProducer(db)
+    ingest_samples: list[int] = []
+    publish_ingest_rate = producer._publish_ingest_rate
+
+    def _sample_ingest_rate(high_water: int, observed_at: datetime) -> None:
+        ingest_samples.append(high_water)
+        publish_ingest_rate(high_water, observed_at)
+
+    monkeypatch.setattr(producer, "_publish_ingest_rate", _sample_ingest_rate)
+
+    async def _add_spans(count: int) -> None:
+        async with db() as session:
+            for _ in range(count):
+                await _add_span(session, await session.get(models.Trace, trace.id))
+
+    # The one work unit the gate admits closes it.
+    await producer._tick()
+    await _add_spans(2)
+    await producer._tick()
+    assert frontier_gap.set.call_args.args[0] == 2
+    assert ingest_samples[-1] == span.id + 2
+
+    await _add_spans(3)
+    await producer._tick()
+    assert frontier_gap.set.call_args.args[0] == 5
+    assert ingest_samples[-1] == span.id + 5

@@ -178,8 +178,8 @@ ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS = Gauge(
 ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
     namespace="phoenix",
     name="online_eval_frontier_gap_span_ids",
-    documentation="Distance in span ids between the online-eval producer's observed "
-    "high-water mark and its produced-through watermark",
+    documentation="Distance in span ids between the highest span id and the online-eval "
+    "producer's produced-through watermark",
 )
 ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     namespace="phoenix",
