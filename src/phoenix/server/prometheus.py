@@ -21,6 +21,8 @@ from starlette.responses import Response
 from starlette.routing import BaseRoute, Match
 from starlette.types import Scope
 
+from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
+
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
     documentation="Summary of requests processing time by method and path (in seconds)",
@@ -136,44 +138,52 @@ RETENTION_POLICY_EXECUTIONS = Counter(
 )
 
 _EVALUATION_TARGET_LABELS = ["evaluation_target"]
+_TERMINAL_METRICS_WINDOW = f"{TERMINAL_METRICS_WINDOW_SECONDS / 3600:g}h"
+_SAME_ON_EVERY_REPLICA = (
+    "Every replica reports the same database-wide value, so aggregate with max(), not sum()."
+)
 
 ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_pending_work_units",
-    documentation="Current number of online-eval work units in PENDING status",
+    documentation="Current number of online-eval work units in PENDING status. "
+    f"{_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RUNNING_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_running_work_units",
-    documentation="Current number of online-eval work units in RUNNING status",
+    documentation="Current number of online-eval work units in RUNNING status. "
+    f"{_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_retryable_error_work_units",
-    documentation="Current number of retryable online-eval work units in ERROR status",
+    documentation="Current number of retryable online-eval work units in ERROR status. "
+    f"{_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_exhausted_error_work_units",
-    documentation="Number of online-eval work units that exhausted their retries in the last "
-    "24 hours",
+    documentation="Number of online-eval work units in FAILED status, out of retries, whose "
+    f"last update was in the past {_TERMINAL_METRICS_WINDOW}. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_EXPIRED_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_expired_work_units",
-    documentation="Number of online-eval work units retired without an outcome in the last "
-    "24 hours: expired, superseded, or content lost",
+    documentation="Number of online-eval work units in EXPIRED, SUPERSEDED, or CONTENT_LOST "
+    f"status whose last update was in the past {_TERMINAL_METRICS_WINDOW}. "
+    f"{_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_OLDEST_ACTIONABLE_AGE_SECONDS = Gauge(
     namespace="phoenix",
     name="online_eval_oldest_actionable_age_seconds",
     documentation="Age in seconds of the oldest PENDING or retryable ERROR online-eval work unit "
-    "(0 when the backlog is empty)",
+    f"(0 when the backlog is empty). {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
@@ -199,7 +209,8 @@ ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
 ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
     namespace="phoenix",
     name="online_eval_result_watermark_lag_seconds",
-    documentation="Largest gap between entity activity and a successful result watermark",
+    documentation="Largest gap between entity activity and a successful result watermark, "
+    f"over work units completed in the past {_TERMINAL_METRICS_WINDOW}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_SWEEP_ATTEMPTS = Counter(

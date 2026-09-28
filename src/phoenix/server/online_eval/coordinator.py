@@ -69,9 +69,9 @@ class QueueLag:
     """Observable backlog for one evaluation target.
 
     ``pending_count``, ``running_count`` and ``retryable_error_count`` are the current
-    live work. ``exhausted_error_count`` (FAILED) and ``expired_count`` (every retirement
-    without an outcome: EXPIRED, SUPERSEDED, and CONTENT_LOST) count work that
-    reached that status within the last ``TERMINAL_METRICS_WINDOW_SECONDS``.
+    live work. ``exhausted_error_count`` (FAILED) and ``expired_count`` (EXPIRED,
+    SUPERSEDED, and CONTENT_LOST) count work in those statuses last updated within
+    ``TERMINAL_METRICS_WINDOW_SECONDS``.
     ``oldest_actionable_age_seconds`` covers PENDING and retryable ERROR work and is None
     when that backlog is empty."""
 
