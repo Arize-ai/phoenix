@@ -9,7 +9,8 @@ tick takes the lease and deletes aged terminal work rows. When a frontier is due
 admission gate is open, it also scans the lag-gated span id window per project evaluator
 and inserts surviving work units. A slow-cadence backstop sweep re-covers a bounded id
 window behind the watermark to catch spans that became visible after their window was
-scanned.
+scanned; it rolls back if the cursor moved while it ran, because the cursor's new holder
+may have reaped terminal work in that window.
 """
 
 from __future__ import annotations
