@@ -3839,7 +3839,7 @@ type ProjectEvaluatorMutationPayload {
 The state of a project evaluator's scheduled work: whether evaluation runs are completing. It says nothing about what those runs scored.
 """
 enum ProjectEvaluatorRunStatus {
-  """No evaluation has completed or is waiting within the retention window."""
+  """No evaluation on record has completed or is waiting to run."""
   NEVER_RUN
 
   """Evaluations are waiting to run and none has completed yet."""
@@ -3853,7 +3853,7 @@ enum ProjectEvaluatorRunStatus {
 }
 
 """
-The state of a project evaluator's scheduled work, derived from the evaluations it has produced within the online evaluation retention window. It describes whether runs are completing, not what they scored.
+The state of a project evaluator's scheduled work, derived from the evaluation records that still exist. A record is deleted with the span, trace, or session it evaluated, and a finished span record can be deleted once it is older than the online evaluation retention period. It describes whether runs are completing, not what they scored.
 """
 type ProjectEvaluatorRunSummary {
   """

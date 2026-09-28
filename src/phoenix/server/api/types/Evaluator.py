@@ -101,7 +101,7 @@ class EvaluationTarget(Enum):
 class ProjectEvaluatorRunStatus(Enum):
     NEVER_RUN = strawberry.enum_value(
         "NEVER_RUN",
-        description="No evaluation has completed or is waiting within the retention window.",
+        description="No evaluation on record has completed or is waiting to run.",
     )
     QUEUED = strawberry.enum_value(
         "QUEUED",
@@ -119,9 +119,11 @@ class ProjectEvaluatorRunStatus(Enum):
 
 @strawberry.type(
     description=(
-        "The state of a project evaluator's scheduled work, derived from the evaluations "
-        "it has produced within the online evaluation retention window. It describes "
-        "whether runs are completing, not what they scored."
+        "The state of a project evaluator's scheduled work, derived from the evaluation "
+        "records that still exist. A record is deleted with the span, trace, or session it "
+        "evaluated, and a finished span record can be deleted once it is older than the "
+        "online evaluation retention period. It describes whether runs are completing, "
+        "not what they scored."
     )
 )
 class ProjectEvaluatorRunSummary:

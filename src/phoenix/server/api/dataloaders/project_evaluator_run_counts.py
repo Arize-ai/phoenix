@@ -37,9 +37,12 @@ _DROPPED = "DROPPED"
 class ProjectEvaluatorRunCounts:
     """How much evaluation work a project evaluator has produced, and when.
 
-    Counts cover every evaluation target. Span counts reach back only as far as the
-    online-eval retention window, after which completed span work is reaped; session and
-    trace counts cover all time.
+    Counts are over the work rows that still exist, by their current status. Terminal span
+    rows are reaped once they are older than the online-eval retention period and below
+    ``produced_through_id - backstop_lookback_span_ids``, so old span rows can outlive that
+    period. Session and trace rows have no reaper. Any row is deleted with its span,
+    session, trace, or project evaluator, so trace retention and orphan-session deletes
+    remove session and trace rows too.
     """
 
     queued: int = 0
