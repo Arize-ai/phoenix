@@ -405,7 +405,8 @@ The maximum number of work units an online-eval consumer claims at once. Every c
 reads this one value: provider capacity and database connections are per-replica
 resources, not per-target resources. A consumer claims only as many units as it can start
 under PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, and claims again as soon as a running
-unit finishes. Defaults to 10.
+unit finishes, so this is an upper bound: under steady load, claims follow completions and
+often take one unit. Defaults to 10.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
 """
