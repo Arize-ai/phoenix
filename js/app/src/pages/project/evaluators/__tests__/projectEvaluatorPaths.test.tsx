@@ -74,6 +74,10 @@ function renderAt(url: string) {
             path="/projects/:projectId/evaluators/compare"
             element={<TestProjectEvaluatorPaths />}
           />
+          <Route
+            path="/projects/:projectId/evaluators/:projectEvaluatorId/:traceId"
+            element={<TestProjectEvaluatorPaths />}
+          />
         </Routes>
       </MemoryRouter>
     );
@@ -131,6 +135,29 @@ describe("useProjectEvaluatorPaths", () => {
     );
     expect(path("gallery")).toBe(
       "/projects/project-1/evaluators/gallery?timeRangeKey=7d"
+    );
+  });
+
+  it("drops the project's span filter from the evaluator pages it opens", () => {
+    const path = renderAt(
+      "/projects/project-1/evaluators?timeRangeKey=7d&spanFilterCondition=name%20%3D%3D%20%27OpenAI.chat%27"
+    );
+
+    expect(path("details")).toBe(
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1?timeRangeKey=7d"
+    );
+    expect(path("edit")).toBe(
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1/edit?timeRangeKey=7d"
+    );
+  });
+
+  it("keeps an evaluator page's own span filter within that page", () => {
+    const path = renderAt(
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1/trace-1?spanFilterCondition=span_kind%20%3D%3D%20%27LLM%27"
+    );
+
+    expect(path("details")).toBe(
+      "/projects/project-1/evaluators/ProjectEvaluator%3A1?spanFilterCondition=span_kind+%3D%3D+%27LLM%27"
     );
   });
 });
