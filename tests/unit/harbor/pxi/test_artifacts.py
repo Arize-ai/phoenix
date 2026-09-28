@@ -54,6 +54,22 @@ def test_complete_json_artifact(answer: str | None, expected: Any, score: int) -
         (QUERY.replace("after: $after", "after: null"), 0),
         (QUERY.replace("$after: String", "$after: String!"), 0),
         (QUERY.replace("$after", "$cursor"), 0),
+        (QUERY.replace("id name", "id name @skip(if: true)"), 0),
+        (QUERY.replace("id name", "id name @include(if: false)"), 0),
+        (QUERY.replace("id name", "id name @include(if: true)"), 1),
+        (
+            QUERY.replace(
+                "node { id name }", "node { ... on Project @skip(if: true) { id name } }"
+            ),
+            0,
+        ),
+        (
+            QUERY.replace("node { id name }", "node { ...ProjectFields @skip(if: true) }")
+            + " fragment ProjectFields on Project { id name }",
+            0,
+        ),
+        (QUERY.replace("$after: String", '$after: String = "invalid-cursor"'), 0),
+        (QUERY.replace("$after: String", "$after: String = null"), 1),
         (QUERY + " query Other { projects { edges { node { id } } } }", 0),
         ("query {", 0),
         ("", 0),

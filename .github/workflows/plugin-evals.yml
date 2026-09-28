@@ -18,6 +18,10 @@ on:
       - "evals/skill_coverage.yaml"
       - "evals/skill_regression.py"
       - "evals/report_plugin_experiment.py"
+      - "evals/harbor/pxi/**"
+      - "tests/unit/harbor/**"
+      - "src/phoenix/server/agents/prompts/skills/**"
+      - "js/app/schema.graphql"
       - ".github/workflows/plugin-evals.yml"
   workflow_dispatch:
 
@@ -29,6 +33,28 @@ permissions:
   contents: read
 
 jobs:
+  contracts:
+    name: Skill coverage and grader contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # No model credentials: contributors and forks can validate the harness.
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+      - name: Install test dependencies
+        run: |
+          uv sync --frozen --python 3.13
+          uv pip install --override evals/harbor/environments/overrides.txt 'harbor==0.21.0' 'harbor-rewardkit==0.2.1'
+      - name: Validate inventory, graders, and regression policy
+        env:
+          # Preserve the supplemental Harbor test tools without changing uv.lock.
+          UV_NO_SYNC: "true"
+        run: make skill-evals-test
+
   evals:
     strategy:
       fail-fast: false

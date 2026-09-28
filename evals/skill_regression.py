@@ -32,6 +32,79 @@ def plugin_cases(suite: str) -> list[str]:
     )
 
 
+def plugin_contract(name: str) -> tuple[str, list[dict[str, Any]]]:
+    """Read the committed case, normalizing Claude's YAML and Markdown formats."""
+    path = PLUGIN_CASES / name
+    if (path / "case.yaml").is_file():
+        case = yaml.safe_load((path / "case.yaml").read_text(encoding="utf-8"))
+        prompt = case["execution"]["prompt"]
+        graders = case["graders"]
+    else:
+        prompt = (path / "prompt.md").read_text(encoding="utf-8").split("---", 2)[2].strip()
+        graders = []
+        for file in sorted((path / "graders").glob("*.md")):
+            _, header, body = file.read_text(encoding="utf-8").split("---", 2)
+            grader = yaml.safe_load(header)
+            grader["name"] = file.stem
+            if grader["type"] in {"regex", "llm"}:
+                grader["pattern" if grader["type"] == "regex" else "criteria"] = body.strip()
+            graders.append(grader)
+    definitions = []
+    for grader in graders:
+        config = {k: v for k, v in grader.items() if k not in {"name", "type", "weight"}}
+        if grader["type"] == "regex":
+            config.setdefault("flags", "")
+        if grader["type"] == "tool_order":
+            for key in ("before", "after"):
+                if isinstance(config[key], str):
+                    config[key] = {"tool": config[key]}
+        definitions.append(
+            {
+                "name": grader["name"],
+                "type": grader["type"],
+                "weight": grader.get("weight", 1),
+                "config": config,
+            }
+        )
+    return prompt, definitions
+
+
+def plugin_contract_errors(result: dict[str, Any], suite: str) -> list[str]:
+    """A stale or truncated report must not redefine what counts as coverage."""
+    cases = result.get("cases", [])
+    names = [case["name"] for case in cases]
+    if sorted(names) != plugin_cases(suite):
+        return ["missing, duplicate, or unexpected cases"]
+    failures = []
+    for case in cases:
+        prompt, definitions = plugin_contract(case["name"])
+        # Claude preserves some YAML source line wraps that PyYAML folds.
+        if case.get("promptMarkdown", "").split() != prompt.split():
+            failures.append(
+                f"case={case['name']} grader=case_contract: prompt differs from checkout"
+            )
+        observed = [
+            {key: grader.get(key) for key in ("name", "type", "weight", "config")}
+            for grader in case.get("graders", [])
+        ]
+        # Markdown reports retain CRLF on Windows; normalize line endings only.
+        serialized = json.dumps(observed, sort_keys=True).replace(r"\r\n", r"\n")
+        # Order is not part of the contract; grader names are unique.
+        normalized = json.loads(serialized)
+        for graders in (normalized, definitions):
+            for grader in graders:
+                config = grader.get("config") or {}
+                if "criteria" in config:
+                    config["criteria"] = " ".join(config["criteria"].split())
+        if sorted(normalized, key=lambda g: g["name"]) != sorted(
+            definitions, key=lambda g: g["name"]
+        ):
+            failures.append(
+                f"case={case['name']} grader=case_contract: grader definitions differ from checkout"
+            )
+    return failures
+
+
 def check_plugin(result: dict[str, Any], suite: str, model: str) -> list[str]:
     inventory = coverage()
     policy = inventory["policy"]
@@ -43,9 +116,7 @@ def check_plugin(result: dict[str, Any], suite: str, model: str) -> list[str]:
     if result.get("partial") or result.get("suite", {}).get("ablation") != "with-without":
         failures.append(f"{prefix}: a complete with/without run is required")
     cases = result.get("cases", [])
-    names = [case["name"] for case in cases]
-    if sorted(names) != plugin_cases(suite):
-        failures.append(f"{prefix}: missing, duplicate, or unexpected cases")
+    failures.extend(f"{prefix} {error}" for error in plugin_contract_errors(result, suite))
     deltas: list[float] = []
     for case in cases:
         location = f"{prefix} case={case['name']}"
@@ -138,9 +209,20 @@ def check_harbor(job_dir: Path, tasks_dir: Path) -> list[str]:
         )
     if not expected:
         return ["harness=harbor: no compiled skill tasks found"]
+    if not (job_dir / "config.json").is_file():
+        return ["harness=harbor grader=job_contract: missing job config.json"]
+    job = json.loads((job_dir / "config.json").read_text(encoding="utf-8"))
+    models = [agent.get("model_name") for agent in job.get("agents", [])]
+    if not models or not all(models) or len(models) != len(set(models)):
+        return [
+            "harness=harbor grader=job_contract: require one agent configuration per named model"
+        ]
+    planned_runs = job.get("n_attempts", 1)
     failures: list[str] = []
+    if planned_runs < policy["minimum_runs"]:
+        failures.append("harness=harbor grader=job_contract: too few planned attempts")
     groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
-    seen: set[str] = set()
+    trial_names: set[str] = set()
     for path in job_dir.glob("*/result.json"):
         result = json.loads(path.read_text(encoding="utf-8"))
         task = result["task_name"]
@@ -150,15 +232,32 @@ def check_harbor(job_dir: Path, tasks_dir: Path) -> list[str]:
         if not model:
             failures.append(f"harness=harbor case={task}: missing model")
             continue
+        if model not in models:
+            failures.append(
+                f"harness=harbor case={task} model={model} grader=job_contract: unexpected model"
+            )
+        if result["trial_name"] in trial_names:
+            failures.append(
+                f"harness=harbor case={task} model={model} grader=job_contract: duplicate trial"
+            )
+            continue
+        trial_names.add(result["trial_name"])
         groups[task, model].append(result)
-        seen.add(task)
-    for task in sorted(expected.keys() - seen):
-        failures.append(f"harness=harbor skill={expected[task][0]} case={task}: missing trials")
+    for task in sorted(expected):
+        for model in models:
+            if (task, model) not in groups:
+                failures.append(
+                    f"harness=harbor skill={expected[task][0]} case={task} model={model} grader=job_contract: missing trials"
+                )
     for (task, model), trials in sorted(groups.items()):
         skill, graders = expected[task]
         prefix = f"harness=harbor skill={skill} case={task} model={model}"
         if len(trials) < policy["minimum_runs"]:
             failures.append(f"{prefix}: too few trials ({len(trials)})")
+        if len(trials) != planned_runs:
+            failures.append(
+                f"{prefix} grader=job_contract: expected {planned_runs} trials, got {len(trials)}"
+            )
         for trial in trials:
             rewards = (trial.get("verifier_result") or {}).get("rewards") or {}
             if (

@@ -11,11 +11,13 @@ from typing import Any
 
 from graphql import GraphQLError, GraphQLSchema, build_schema, parse, validate
 from graphql.language import (
+    BooleanValueNode,
     FieldNode,
     FragmentDefinitionNode,
     FragmentSpreadNode,
     InlineFragmentNode,
     NamedTypeNode,
+    NullValueNode,
     OperationDefinitionNode,
     SelectionSetNode,
     VariableNode,
@@ -117,6 +119,16 @@ def graphql_query_valid(output: Any, expected: Any) -> dict[str, Any]:
 
     def visit(selection_set: SelectionSetNode, prefix: str = "") -> None:
         for node in selection_set.selections:
+            # Required fields must be returned for every cursor value. A field
+            # hidden by @skip/@include is not a usable pagination artifact.
+            if any(
+                not isinstance(argument.value, BooleanValueNode)
+                or argument.value.value != (directive.name.value == "include")
+                for directive in node.directives or ()
+                if directive.name.value in {"skip", "include"}
+                for argument in directive.arguments
+            ):
+                continue
             # Schema validation above rejects undefined and cyclic fragments.
             if isinstance(node, FragmentSpreadNode):
                 visit(fragments[node.name.value].selection_set, prefix)
@@ -162,6 +174,9 @@ def graphql_query_valid(output: Any, expected: Any) -> dict[str, Any]:
             variable.variable.name.value == "after"
             and isinstance(variable.type, NamedTypeNode)
             and variable.type.name.value == "String"
+            and (
+                variable.default_value is None or isinstance(variable.default_value, NullValueNode)
+            )
             for variable in operations[0].variable_definitions or ()
         )
     )

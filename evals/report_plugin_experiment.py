@@ -9,14 +9,14 @@ from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from evals.skill_regression import coverage, plugin_cases
+from evals.skill_regression import coverage, plugin_contract_errors
 
 
 def report(client: Any, result: dict[str, Any], suite: str, model: str) -> list[str]:
     if result.get("schemaVersion") != 1 or result.get("partial") or not result.get("cases"):
         raise ValueError("Only complete schemaVersion=1 reports can be published")
-    if sorted(case["name"] for case in result["cases"]) != plugin_cases(suite):
-        raise ValueError("Report must contain exactly the selected suite's cases")
+    if errors := plugin_contract_errors(result, suite):
+        raise ValueError("; ".join(errors))
     for case in result["cases"]:
         for arm in ("with", "without"):
             if not case.get("arms", {}).get(arm):
@@ -41,7 +41,12 @@ def report(client: Any, result: dict[str, Any], suite: str, model: str) -> list[
         ],
         dataset_description="Claude plugin skill eval cases. Stable IDs; grader definitions are versioned with the dataset.",
     )
-    example_ids = {example["input"]["case"]: example["id"] for example in dataset.examples}
+    # Dataset UUIDs preserve identity across imports; run APIs require Relay node IDs.
+    # Older servers returned the node ID in "id", before adding "node_id".
+    example_ids = {
+        example["input"]["case"]: example.get("node_id") or example["id"]
+        for example in dataset.examples
+    }
     experiments = []
     for arm in ("with", "without"):
         repetitions = max(len(case.get("arms", {}).get(arm, [])) for case in result["cases"])

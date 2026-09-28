@@ -115,6 +115,7 @@ help: ## Show this help message
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
 	@echo -e "  skill-evals-test          - Check skill coverage contracts and deterministic graders"
 	@echo -e "  skill-evals-capture-mcp   - Refresh the remote MCP fixtures"
+	@echo -e "  skill-evals-reporting-test - Verify experiment reporting against a disposable server"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + TypeScript workspace)"
@@ -557,6 +558,9 @@ skill-evals-test: ## Run deterministic skill-evaluation contract and grader test
 
 skill-evals-capture-mcp: ## Refresh plugin mocks from the production MCP tool builder
 	LITELLM_LOCAL_MODEL_COST_MAP=True $(UV) run python -m evals.capture_mcp_fixtures
+
+skill-evals-reporting-test: ## Verify reporting against SKILL_EVALS_TEST_ENDPOINT (disposable server)
+	LITELLM_LOCAL_MODEL_COST_MAP=True $(UV) run python -m pytest --confcutdir=tests/integration/harbor -q tests/integration/harbor/test_skill_reporting.py
 
 #=============================================================================
 # Cleanup

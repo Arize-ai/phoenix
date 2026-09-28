@@ -50,12 +50,29 @@ It tests that workflow, not general code-mode execution.
 
 ## Run and report
 
-With repository development dependencies installed:
+Use Python 3.13 for the Harbor compiler and install its supplemental test tools:
 
 ```sh
-make skill-evals-test
+uv sync --frozen --python 3.13
+uv pip install --override evals/harbor/environments/overrides.txt 'harbor==0.21.0' 'harbor-rewardkit==0.2.1'
+UV_NO_SYNC=true make skill-evals-test
 make skill-evals-capture-mcp
 ```
+
+`UV_NO_SYNC` keeps the supplemental Harbor tools installed for this command
+without changing the repository lockfile.
+
+To verify experiment ingestion, start a disposable Phoenix server and run:
+
+```sh
+SKILL_EVALS_TEST_ENDPOINT=http://localhost:6006 make skill-evals-reporting-test
+```
+
+This integration test writes synthetic reporting records and reads them back
+through Phoenix APIs. It verifies both arms, repetitions, errors, named grades,
+and stable example IDs across imports. It makes no model calls and does not
+establish an agent baseline. Use a disposable server because it writes to the
+same stable suite dataset names as the real reporter.
 
 Capture uses the production MCP builder, checked-in OpenAPI schema, and shared
 skill files. It calls `tools/list`, `load_skill`, and discovery without accessing
@@ -109,7 +126,11 @@ PXI verifier logs also retain structured grader explanations and metadata.
 PXI CI retains its overall 0.9 reward gate and adds per-case checks for the new
 skill tasks. Plugin CI runs four separate suites and reports to Phoenix when
 configured. Fork plugin jobs skip because secrets are unavailable. Deterministic
-unit and contract tests need no paid APIs.
+unit and contract tests run in a separate CI job, including on forks, and need
+no paid APIs. Plugin gates compare report prompts and grader definitions with
+the checkout, so stale reports cannot silently omit a check. Harbor gates read
+the saved job configuration and require the planned trials for every task and
+model; a missing model's results cannot disappear into the suite average.
 
 Only the imported CLI suite has a measured uplift baseline and a 0.15 delta
 floor. Other suites report delta without claiming a calibrated threshold.
@@ -117,6 +138,19 @@ Their pass-rate floors are initial acceptance policy, not measured baselines.
 Before setting a baseline, run at least three complete jobs with fixed models,
 dependencies, fixtures, and case IDs. Inspect misses, retain reports, and agree
 thresholds with maintainers. Model or fixture changes require recalibration.
+
+## Completion evidence
+
+The inventory and committed cases cover the issue's positive, boundary, and
+outcome requirements. The remaining gaps in the table describe possible deeper
+workflow coverage; the issue does not require every skill to mutate server or
+browser state. Existing stateful error-analysis tasks use the Harbor environment.
+
+Before claiming #16512 or its related issues complete, retain successful repeated
+agent reports for all suites, publish those results to Phoenix, and record the
+measured baselines and their model/fixture provenance. The PXI examples also need
+the independent annotation review prescribed by the dataset authoring skill.
+These are pending external validation, not passes inferred from unit tests.
 
 ## Add coverage
 
