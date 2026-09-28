@@ -1,10 +1,11 @@
 import { useMemo } from "react";
-import { useLocation, useResolvedPath } from "react-router";
+import { useLocation, useParams, useResolvedPath } from "react-router";
 
 import {
   PROJECT_EVALUATOR_COMPARE_PARAM,
   PROJECT_EVALUATOR_COMPARE_SELECTION_PARAM,
   PROJECT_EVALUATOR_GALLERY_CATEGORY_PARAM,
+  SPAN_FILTER_CONDITION_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
@@ -54,8 +55,11 @@ export function useProjectEvaluatorPaths() {
   // between them carries the list's URL state -- above all a custom time
   // range, which would otherwise be dropped on the way in and again on the
   // way out. Params scoped to a sub-view (the compare selection, the gallery
-  // category) are dropped so they do not follow the user out of it.
+  // category) are dropped so they do not follow the user out of it. The span
+  // filter is shared with the project's Spans tab but an evaluator's page
+  // filters its own trace project, so it only carries within that page.
   const { search } = useLocation();
+  const { projectEvaluatorId: currentProjectEvaluatorId } = useParams();
   return useMemo(() => {
     const list = projectEvaluatorsPath(rootPath);
     const gallery = `${list}/gallery`;
@@ -65,6 +69,12 @@ export function useProjectEvaluatorPaths() {
         searchParams.delete(PROJECT_EVALUATOR_GALLERY_CATEGORY_PARAM);
       }
     );
+    const evaluatorSearch = (projectEvaluatorId: string) =>
+      projectEvaluatorId === currentProjectEvaluatorId
+        ? listSearch
+        : withSearchParams(listSearch, (searchParams) => {
+            searchParams.delete(SPAN_FILTER_CONDITION_PARAM);
+          });
     return {
       list: `${list}${listSearch}`,
       compare: ({ a, b }: { a: string; b: string }) =>
@@ -83,11 +93,11 @@ export function useProjectEvaluatorPaths() {
           }
         })}`,
       details: (projectEvaluatorId: string) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}${listSearch}`,
+        `${list}/${encodeURIComponent(projectEvaluatorId)}${evaluatorSearch(projectEvaluatorId)}`,
       edit: (projectEvaluatorId: string) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}/edit${listSearch}`,
+        `${list}/${encodeURIComponent(projectEvaluatorId)}/edit${evaluatorSearch(projectEvaluatorId)}`,
     };
-  }, [rootPath, search]);
+  }, [rootPath, search, currentProjectEvaluatorId]);
 }
 
 /**
