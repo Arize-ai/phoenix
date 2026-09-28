@@ -1159,7 +1159,7 @@ type Dataset implements Node {
     filterIds: [ID!]
 
     """
-    When provided, return only the experiments with the given 1-based per-dataset sequence numbers — a membership lookup that avoids paging the whole connection to reach an experiment by its user-facing number.
+    When provided, return only the experiments with the given 1-based per-dataset sequence numbers.
     """
     sequenceNumbers: [Int!]
     sort: ExperimentSort
