@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-  ExpandableContent,
   Flex,
   Heading,
   Icon,
@@ -1183,17 +1182,11 @@ function CodeCustomEvaluatorDetails({
           Code
         </Text>
         <div css={codePreviewWellCSS}>
-          <ExpandableContent
-            height={CODE_PREVIEW_COLLAPSED_HEIGHT}
-            expandedBehavior="grow"
-            overlayBackgroundColor="var(--global-background-color-100)"
-          >
-            {evaluator.language === "PYTHON" ? (
-              <PythonBlockWithCopy value={evaluator.sourceCode} />
-            ) : (
-              <TypeScriptBlockWithCopy value={evaluator.sourceCode} />
-            )}
-          </ExpandableContent>
+          {evaluator.language === "PYTHON" ? (
+            <PythonBlockWithCopy value={evaluator.sourceCode} />
+          ) : (
+            <TypeScriptBlockWithCopy value={evaluator.sourceCode} />
+          )}
         </div>
       </Flex>
       <EvaluatorDetailsAction
@@ -1221,24 +1214,18 @@ function EvaluatorPromptPreview({
         Prompt
       </Text>
       <div css={[detailsSectionWellCSS, promptPreviewWellCSS]}>
-        <ExpandableContent
-          height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
-          expandedBehavior="grow"
-          overlayBackgroundColor="var(--global-color-gray-100)"
-        >
-          <Flex direction="column" gap="size-150">
-            {messages.map((message) => (
-              <Flex key={message.id} direction="column" gap="size-25">
-                <Text size="XS" color="text-500" weight="heavy">
-                  {capitalize(message.role)}
-                </Text>
-                <Text size="S" css={promptPreviewMessageCSS}>
-                  {message.content}
-                </Text>
-              </Flex>
-            ))}
-          </Flex>
-        </ExpandableContent>
+        <Flex direction="column" gap="size-150">
+          {messages.map((message) => (
+            <Flex key={message.id} direction="column" gap="size-25">
+              <Text size="XS" color="text-500" weight="heavy">
+                {capitalize(message.role)}
+              </Text>
+              <Text size="S" css={promptPreviewMessageCSS}>
+                {message.content}
+              </Text>
+            </Flex>
+          ))}
+        </Flex>
       </div>
     </Flex>
   );
@@ -1332,9 +1319,6 @@ const stickyUseTemplateFooterCSS = css`
     var(--project-evaluator-gallery-column-padding);
   background-color: var(--global-background-color-default);
 `;
-
-const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
-const CODE_PREVIEW_COLLAPSED_HEIGHT = 240;
 
 const detailsSectionWellCSS = css`
   background-color: var(--global-background-color-100);
