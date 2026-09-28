@@ -408,6 +408,40 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
     assert not exception_attributes
 
 
+async def test_wrap_tool_execute_marks_span_error_when_classifier_reports_error(
+    add_tool_def: ToolDefinition,
+    in_memory_span_exporter: InMemorySpanExporter,
+    tracer: Tracer,
+    make_ctx: Callable[..., RunContext[None]],
+) -> None:
+    wrapper = OpenInferenceCapabilityWrapper[None](
+        wrapped=_NoOpCapability(),
+        tracer=tracer,
+        get_error_by_tool_name={"add": lambda result: "sum is odd" if result % 2 else None},
+    )
+
+    async def handler(args: dict[str, Any]) -> int:
+        a: int = args["a"]
+        b: int = args["b"]
+        return a + b
+
+    for tool_args in ({"a": 2, "b": 2}, {"a": 2, "b": 3}):
+        ctx = make_ctx(tool_call_id="call_42", tool_name="add")
+        call = ToolCallPart(tool_name="add", args=tool_args, tool_call_id="call_42")
+        result = await wrapper.wrap_tool_execute(
+            ctx, call=call, tool_def=add_tool_def, args=tool_args, handler=handler
+        )
+        assert result == tool_args["a"] + tool_args["b"]
+
+    even_span, odd_span = in_memory_span_exporter.get_finished_spans()
+    assert even_span.status.status_code == StatusCode.OK
+    # A classified error marks the span without raising, and keeps the output.
+    assert odd_span.status.status_code == StatusCode.ERROR
+    assert odd_span.status.description == "sum is odd"
+    assert dict(odd_span.attributes or {})[OUTPUT_VALUE] == "5"
+    assert not odd_span.events
+
+
 # OpenInference attribute keys
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 TOOL_NAME = SpanAttributes.TOOL_NAME
