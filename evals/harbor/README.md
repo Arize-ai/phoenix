@@ -123,12 +123,6 @@ The agent phase runs as an unprivileged user that cannot open `/data/phoenix.db`
 must access the data through Phoenix. PXI runs inside the server and uses the server's
 database access. This difference is part of the PXI condition.
 
-Claude Code uses the Anthropic API, and Codex uses the OpenAI API. The job file therefore
-sets a model for each agent. The image contains Claude Code and Codex at the versions
-the Dockerfile pins, each readable only by root until its own condition starts, so a
-condition sees only the CLI it runs. The CLI agents access Phoenix only through `px`. PXI
-is a separate condition and is not available to the other agents.
-
 ## The TRAIL benchmark
 
 The TRAIL benchmark contains questions about the `research-assistant` project. Each

@@ -5,10 +5,6 @@
 #
 # Each condition uses the same image and TRAIL fixture. The plugin records all results in
 # the trail-benchmark-dev Phoenix dataset.
-#
-# The environment allows the Phoenix documentation hosts. Each agent allows its model
-# provider. The image includes Claude Code and Codex because their installers require
-# hosts that the network policy blocks.
 datasets:
   - path: evals/harbor/tasks/trail-benchmark-dev
 agents:
