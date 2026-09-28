@@ -17,6 +17,7 @@ from sqlalchemy import and_, case, func, or_, select, type_coerce, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
@@ -117,9 +118,7 @@ class DbEvalWorkCoordinator:
             self._target_row_column = models.EvalTraceWorkUnit.trace_rowid
             self._target_model = models.Trace
         else:
-            raise ValueError(
-                f"Online evaluation work coordination does not support {evaluation_target}"
-            )
+            assert_never(evaluation_target)
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
         work_unit_model = self._work_unit_model
