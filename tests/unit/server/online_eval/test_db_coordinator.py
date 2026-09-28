@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
-from phoenix.db.helpers import delete_traces
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import db_coordinator as db_coordinator_module
@@ -172,6 +171,28 @@ async def _seed_trace_work_units(
             None if parent_session is None else parent_session.id,
             sorted(unit.id for unit in units),
         )
+
+
+async def _seed_one_unit(
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+    *,
+    project_session: bool = False,
+) -> int:
+    if evaluation_target == "SPAN":
+        (unit_id,) = await _seed_work_units(db, 1, project_session=project_session)
+    elif evaluation_target == "SESSION":
+        _, (unit_id,) = await _seed_session_work_units(db, 1)
+    else:
+        _, _, (unit_id,) = await _seed_trace_work_units(db, 1, project_session=project_session)
+    return unit_id
+
+
+_TARGET_MODELS = {
+    "SPAN": (models.Span, models.SpanAnnotation, "span_rowid"),
+    "SESSION": (models.ProjectSession, models.ProjectSessionAnnotation, "project_session_id"),
+    "TRACE": (models.Trace, models.TraceAnnotation, "trace_rowid"),
+}
 
 
 async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
@@ -792,12 +813,15 @@ async def test_trace_claim_lifecycle(db: DbSessionFactory) -> None:
 
 
 @pytest.mark.postgres_only
-async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
+@pytest.mark.parametrize("evaluation_target", ["SPAN", "SESSION", "TRACE"])
+async def test_publish_refuses_a_target_deleted_under_the_fence(
     postgresql_engine: AsyncEngine,
+    evaluation_target: models.EvaluationTarget,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    trace_rowid, _, (unit_id,) = await _seed_trace_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="TRACE")
+    unit_id = await _seed_one_unit(db, evaluation_target)
+    target_model, _, _ = _TARGET_MODELS[evaluation_target]
+    coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     wrote = asyncio.Event()
 
@@ -805,7 +829,9 @@ async def test_trace_publish_refuses_a_trace_deleted_under_the_fence(
         wrote.set()
 
     async with db() as deleting_session:
-        await delete_traces(deleting_session, models.Trace.id == trace_rowid)
+        await deleting_session.execute(
+            delete(target_model).where(target_model.id == claim.target_rowid)
+        )
         publication = asyncio.create_task(
             coordinator.publish(
                 work_unit_id=unit_id,
@@ -828,17 +854,8 @@ async def test_target_delete_waits_for_publication(
     evaluation_target: models.EvaluationTarget,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    if evaluation_target == "SPAN":
-        (unit_id,) = await _seed_work_units(db, 1)
-    elif evaluation_target == "SESSION":
-        _, (unit_id,) = await _seed_session_work_units(db, 1)
-    else:
-        _, _, (unit_id,) = await _seed_trace_work_units(db, 1)
-    target_model, annotation_model, target_column = {
-        "SPAN": (models.Span, models.SpanAnnotation, "span_rowid"),
-        "SESSION": (models.ProjectSession, models.ProjectSessionAnnotation, "project_session_id"),
-        "TRACE": (models.Trace, models.TraceAnnotation, "trace_rowid"),
-    }[evaluation_target]
+    unit_id = await _seed_one_unit(db, evaluation_target)
+    target_model, annotation_model, target_column = _TARGET_MODELS[evaluation_target]
     coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     fenced = asyncio.Event()
@@ -891,12 +908,7 @@ async def test_publish_does_not_wait_on_ingest_or_sweeper_row_locks(
 ) -> None:
     """The sweepers lock evaluator rows; span ingest updates session and trace rows."""
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    if evaluation_target == "SPAN":
-        (unit_id,) = await _seed_work_units(db, 1, project_session=True)
-    elif evaluation_target == "SESSION":
-        _, (unit_id,) = await _seed_session_work_units(db, 1)
-    else:
-        _, _, (unit_id,) = await _seed_trace_work_units(db, 1, project_session=True)
+    unit_id = await _seed_one_unit(db, evaluation_target, project_session=True)
     coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     wrote = asyncio.Event()
