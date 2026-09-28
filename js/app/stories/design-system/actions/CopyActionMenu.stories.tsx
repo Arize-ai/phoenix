@@ -1,6 +1,7 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import { userEvent, within } from "storybook/test";
 
+import type { CopyActionMenuProps } from "@phoenix/components";
 import { CopyActionMenu, View } from "@phoenix/components";
 
 const meta: Meta = {
@@ -14,7 +15,7 @@ const meta: Meta = {
 
 export default meta;
 
-export const Default = {
+export const Default: StoryObj<CopyActionMenuProps> = {
   args: {
     items: [
       { name: "Project Name", value: "my-project", iconKey: "Text" },
@@ -56,7 +57,7 @@ export const ManyItems: StoryFn = () => (
 );
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
-export const Thumbnail: StoryObj = {
+export const Thumbnail: StoryObj<CopyActionMenuProps> = {
   tags: ["!dev", "!autodocs"],
   args: Default.args,
   render: (args) => (
