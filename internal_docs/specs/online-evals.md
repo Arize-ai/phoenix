@@ -389,8 +389,9 @@ preserved for audit not by the annotation row (overwritten) but by the run recor
 
 ## Run Records and Audit
 
-The upsert-by-`identifier` mechanism in [Output](#output) is intentionally destructive: a re-run
-overwrites its own prior annotation. SESSION filter and sampling declines are durable terminal
+The upsert-by-`identifier` mechanism in [Output](#output) would overwrite a prior annotation, but
+each work unit publishes at most once, so a project evaluator writes its annotations for a target
+at most once. SESSION filter and sampling declines are durable terminal
 work-unit states, but other decisions that produce *no* annotation (including span filter/sample
 misses) still lack a complete cross-target run history. Several requirements in this spec
 presuppose a durable record that the annotation tables cannot provide:
