@@ -1,0 +1,36 @@
+schema_version: '1.1'
+name: tracing-session-context
+tags:
+- tracing
+- phoenix-tracing
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Our Python Phoenix chatbot handles multiple turns per conversation. Show how to attach
+    session ID chat-42 and user ID user-7 to all spans created during a turn, with context propagation
+    rather than manually setting each child span.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+- name: context
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The code uses OpenInference context
+    managers such as using_attributes, using_session, or using_user to propagate the identifiers.
+    PASS if it holds; FAIL if it is absent, contradicted, or the response is empty. Ignore unrelated
+    claims.'
+- name: correct-ids
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The code assigns chat-42 to the session
+    and user-7 to the user, keeping their roles distinct. PASS if it holds; FAIL if it is absent,
+    contradicted, or the response is empty. Ignore unrelated claims.'

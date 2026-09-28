@@ -1,0 +1,36 @@
+schema_version: '1.1'
+name: mcp-narrow-dimensions
+runs: 3
+tags:
+- mcp
+- phoenix-error-analysis
+- positive
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: 'Review this proposed Phoenix error-analysis taxonomy before we write anything: one
+    annotation failure_mode with values wrong_tool, unsupported_answer, timeout, success. We already
+    have open-coding notes showing that one trace can both choose a wrong tool and invent an answer.
+    Recommend a better annotation structure without fetching or modifying data.'
+graders:
+- name: outcome
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade one claim: The response proposes separate narrow dimensions for tool selection
+    and answer faithfulness so both failures can be recorded on the same entity. PASS if true;
+    FAIL if absent, false or the response is empty.'
+- name: skill-fired
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__load_skill
+  input_match: '"skill_name"\s*:\s*"phoenix-error-analysis"'
+  arm: with-only
+- name: no-data-access
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__execute
+  min: 0
+  max: 0
+  arm: both

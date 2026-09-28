@@ -253,6 +253,10 @@ def _name_task(
     config.metadata.update(
         pxi_dataset=dataset, pxi_example=example_id, pxi_splits=list(example["splits"])
     )
+    for key in ("skill", "polarity"):
+        if key in example.get("metadata", {}):
+            config.metadata[key] = example["metadata"][key]
+    config.metadata["harness"] = "harbor"
     config.agent.timeout_sec = agent_timeout_sec
     config_path.write_text(config.model_dump_toml())
 

@@ -1,0 +1,63 @@
+schema_version: '1.1'
+name: mcp-neg-local-arithmetic
+runs: 3
+tags:
+- mcp
+- phoenix-error-analysis
+- negative
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: What is 12 plus 3? Answer from the numbers here; no application data is needed.
+graders:
+- name: outcome
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade one claim: The final answer is 15. PASS if true; FAIL if absent, false or the
+    response is empty.'
+- name: no-load_skill
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__load_skill
+  min: 0
+  max: 0
+  arm: both
+- name: no-execute
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__execute
+  min: 0
+  max: 0
+  arm: both
+- name: no-search
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__search
+  min: 0
+  max: 0
+  arm: both
+- name: no-get_schema
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__get_schema
+  min: 0
+  max: 0
+  arm: both
+- name: no-list_tools
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__list_tools
+  min: 0
+  max: 0
+  arm: both
+- name: no-tags
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__tags
+  min: 0
+  max: 0
+  arm: both
+- name: no-load_skill_reference
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__load_skill_reference
+  min: 0
+  max: 0
+  arm: both

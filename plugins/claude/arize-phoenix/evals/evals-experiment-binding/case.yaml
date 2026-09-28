@@ -1,0 +1,37 @@
+schema_version: '1.1'
+name: evals-experiment-binding
+tags:
+- evals
+- phoenix-evals
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: 'Show a Python Phoenix experiment task for a dataset whose input is {"question": "What
+    is our refund window?"} and expected output is {"answer": "30 days"}. Use a stub answer_question(question)
+    function. The task must receive each example question; do not call any real service.'
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+- name: task-binding
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The task extracts question from the
+    example input and passes it to answer_question, without substituting the expected answer.
+    PASS if it holds; FAIL if it is absent, contradicted, or the response is empty. Ignore unrelated
+    claims.'
+- name: experiment-api
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The code uses the Phoenix experiment
+    runner with the dataset and task, rather than manually executing only a single hard-coded
+    example. PASS if it holds; FAIL if it is absent, contradicted, or the response is empty. Ignore
+    unrelated claims.'

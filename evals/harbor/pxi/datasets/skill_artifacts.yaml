@@ -1,0 +1,174 @@
+dataset_name: skill_artifacts
+description: Built-in PXI skill selection and complete structured-answer artifacts. No target
+  skill is preloaded. Persistent error-analysis outcomes are covered by the separate multi-step
+  Harbor task.
+evaluators:
+- correct_tools_called
+- tool_call_args_match
+- assistant_json_match
+examples:
+- id: datasets-reference-provenance-and-bindings
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: 'We are preparing a Phoenix dataset for an experiment. Its saved outputs came directly
+        from an unreviewed model run. The prompt uses {{customer_message}}, but the example has
+        input.message. We also have a held-out test split. Give a review as JSON only with these
+        keys: output_role ("reference" or "golden"), required_input_key, tune_on_test (boolean).
+        Do not change any application data.'
+  expected:
+    assistant_json:
+      output_role: reference
+      required_input_key: customer_message
+      tune_on_test: false
+    tools:
+      required:
+      - load_skill
+    tool_call_args:
+      load_skill:
+        skill_name: datasets
+  metadata:
+    skill: datasets
+    harness: harbor
+    polarity: positive
+    category: artifact
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: evaluators-deterministic-empty-output-spec
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: Refine a Phoenix evaluator design for detecting empty answers. Empty means empty
+        or whitespace-only output. Use the simplest appropriate evaluator kind, call the failing
+        label "empty" and the passing label "non_empty", and use binary scores optimized upward.
+        Return only JSON with kind ("code" or "llm"), optimization_direction ("maximize" or "minimize"),
+        labels (a label-to-score object), and preview_scores for outputs ["", "hello", "   "]
+        in that order. This is a design review; do not edit an evaluator form.
+  expected:
+    assistant_json:
+      kind: code
+      optimization_direction: maximize
+      labels:
+        empty: 0
+        non_empty: 1
+      preview_scores:
+      - 0
+      - 1
+      - 0
+    tools:
+      required:
+      - load_skill
+    tool_call_args:
+      load_skill:
+        skill_name: evaluators
+  metadata:
+    skill: evaluators
+    harness: harbor
+    polarity: positive
+    category: artifact
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: experiments-compare-quality-latency-cost
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: 'Compare two completed Phoenix experiments on the same two-example dataset version.
+        Both finished without errors. Baseline: example a fails, b passes; mean latency 200 ms,
+        total cost 0.03 USD. Candidate: a passes, b fails; mean latency 300 ms, total cost 0.02
+        USD. Use these supplied results; no additional reads or writes are needed. Return JSON
+        only: quality_improved (boolean), regressed_ids (list), faster (boolean), cheaper (boolean),
+        recommend_unconditionally (boolean). A tradeoff is not an unconditional improvement.'
+  expected:
+    assistant_json:
+      quality_improved: false
+      regressed_ids:
+      - b
+      faster: false
+      cheaper: true
+      recommend_unconditionally: false
+    tools:
+      required:
+      - load_skill
+    tool_call_args:
+      load_skill:
+        skill_name: experiments
+  metadata:
+    skill: experiments
+    harness: harbor
+    polarity: positive
+    category: artifact
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: playground-rewrite-preserving-template
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: 'Help author a prompt for the Phoenix playground, but return a proposed artifact
+        instead of changing the UI. Current messages: system "You answer briefly." and user "Answer
+        {{question}} using {{context}}". Append exactly " Return valid JSON." to the system content
+        and preserve the user content and both roles. Return only JSON with a messages array of
+        role/content objects.'
+  expected:
+    assistant_json:
+      messages:
+      - role: system
+        content: You answer briefly. Return valid JSON.
+      - role: user
+        content: Answer {{question}} using {{context}}
+    tools:
+      required:
+      - load_skill
+    tool_call_args:
+      load_skill:
+        skill_name: playground
+  metadata:
+    skill: playground
+    harness: harbor
+    polarity: positive
+    category: artifact
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: phoenix-error-analysis-session-unit-and-phase-order
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: 'Plan an error analysis for Phoenix traffic: the chatbot loses a preference stated
+        three turns earlier. Each session has at least four traces, and each trace is one user
+        turn. No observations have been recorded yet. We want categories grounded in this traffic,
+        not invented labels. Do not write anything yet. Return only JSON: unit ("span", "trace",
+        or "session"), first_phase ("open_coding" or "axial_coding"), create_categories_before_notes
+        (boolean), persist_notes (boolean).'
+  expected:
+    assistant_json:
+      unit: session
+      first_phase: open_coding
+      create_categories_before_notes: false
+      persist_notes: true
+    tools:
+      required:
+      - load_skill
+    tool_call_args:
+      load_skill:
+        skill_name: phoenix-error-analysis
+  metadata:
+    skill: phoenix-error-analysis
+    harness: harbor
+    polarity: positive
+    category: artifact
+    annotation:
+      method: hand-authored
+      cross_model_review: pending

@@ -1,0 +1,40 @@
+schema_version: '1.1'
+name: evals-custom-judge
+tags:
+- evals
+- phoenix-evals
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Write a Phoenix Python LLM judge for whether a support answer follows the supplied refund
+    policy. I want a reusable binary classification evaluator, not a one-off chat call. Include
+    input, output and policy context in its prompt.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+- name: binary-judge
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The artifact uses ClassificationEvaluator
+    with explicit passing and failing labels mapped to 1 and 0. PASS if it holds; FAIL if it is
+    absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: context
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The judge prompt includes the user
+    input, candidate output, and refund policy context. PASS if it holds; FAIL if it is absent,
+    contradicted, or the response is empty. Ignore unrelated claims.'
+- name: classification-api
+  type: regex
+  target: last_message
+  match: contains
+  pattern: ClassificationEvaluator

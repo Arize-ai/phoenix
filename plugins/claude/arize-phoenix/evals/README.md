@@ -1,6 +1,6 @@
 # Plugin evals
 
-Behavioral tests for the `phoenix-cli` skill, run with `claude plugin eval`. Cases are
+Behavioral tests for Phoenix skills, run with `claude plugin eval`. The original CLI cases are
 agent-troubleshooting prompts (pasted `px trace get` output, symptom descriptions, one
 script-writing task) plus two should-not-fire negatives. Every input runs twice, with the
 plugin and without, so the headline number is Δ (with-plugin score minus without-plugin
@@ -62,5 +62,16 @@ Copy an existing directory to `NN-<slug>/`, write `prompt.md` and `graders/`. Re
 where the skill fired and the answer was wrong are the best inputs; they are the only thing that
 will move the with-plugin arm off its current ceiling.
 
-The `mocks/phoenix/` agent mock covers the plugin's MCP server so no case can reach a real
-Phoenix. No current case calls it.
+The `mocks/phoenix/` fixed mocks cover the plugin's MCP server. Tools and the shared
+skill are captured by `make skill-evals-capture-mcp`; project data is synthetic.
+The MCP cases call these tools, while the CLI cases do not require them.
+
+## Additional suites
+
+Use `--case 'evals-*'`, `--case 'tracing-*'`, or `--case 'mcp-*'` for the new
+eight-case suites. Each has six positives and two boundaries, with three runs
+per arm. The CLI suite remains selectable with `--case '0*'`.
+
+The CLI baseline above applies only to its original cases. New suites await
+credentialed calibration. See [the coverage inventory](../../../../evals/README.md)
+for outcome checks, repeated-run gates, Phoenix reporting, and remaining gaps.

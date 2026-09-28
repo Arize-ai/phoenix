@@ -1,0 +1,30 @@
+schema_version: '1.1'
+name: tracing-neg-python-stacktrace
+tags:
+- tracing
+- phoenix-tracing
+- negative
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: 'Explain this ordinary Python exception: int("abc") raises ValueError: invalid literal
+    for int() with base 10. Show a simple way to handle invalid input; no telemetry setup is needed.'
+graders:
+- name: skill-not-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+  min: 0
+  max: 0
+  arm: both
+- name: value-error
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The answer handles or validates the
+    nonnumeric input and explains the ValueError. PASS if it holds; FAIL if it is absent, contradicted,
+    or the response is empty. Ignore unrelated claims.'

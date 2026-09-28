@@ -1,0 +1,30 @@
+schema_version: '1.1'
+name: evals-neg-sql-count
+tags:
+- evals
+- phoenix-evals
+- negative
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Write a SQL query that counts orders per customer from orders(customer_id, order_id).
+    No AI or evaluation framework is involved.
+graders:
+- name: skill-not-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+  min: 0
+  max: 0
+  arm: both
+- name: query
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The SQL groups by customer_id and
+    counts orders. PASS if it holds; FAIL if it is absent, contradicted, or the response is empty.
+    Ignore unrelated claims.'

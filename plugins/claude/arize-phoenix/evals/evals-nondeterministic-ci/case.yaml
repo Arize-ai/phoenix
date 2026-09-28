@@ -1,0 +1,36 @@
+schema_version: '1.1'
+name: evals-nondeterministic-ci
+tags:
+- evals
+- phoenix-evals
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Our Phoenix CI currently fails the whole release if a single LLM judge gives one low
+    score. The same frozen examples sometimes pass on rerun. Propose a replacement policy while
+    preserving deterministic JSON-format checks as hard requirements.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+- name: hard-invariants
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The proposal keeps deterministic JSON-format
+    assertions as hard failures. PASS if it holds; FAIL if it is absent, contradicted, or the
+    response is empty. Ignore unrelated claims.'
+- name: aggregate-signal
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The proposal aggregates repeated model
+    evaluations or a pass rate rather than treating one stochastic verdict as sufficient evidence
+    of regression. PASS if it holds; FAIL if it is absent, contradicted, or the response is empty.
+    Ignore unrelated claims.'

@@ -49,7 +49,11 @@ class PxiEvalAgent(PhoenixChatAgent):
         if result.return_code != 0:
             raise RuntimeError(result.stderr or result.stdout or "seeding the PXI session failed")
         plan = json.loads(result.stdout)
-        self._seed = {"example": plan["example"], "scoring": plan["scoring"]}
+        self._seed = {
+            "example": plan["example"],
+            "scoring": plan["scoring"],
+            "model": self.model_name,
+        }
         request = json.dumps(plan["request"])
         await self._run_chat_client(environment, [f"--request {shlex.quote(request)}"])
 

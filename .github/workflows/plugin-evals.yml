@@ -12,6 +12,12 @@ on:
       - ".agents/skills/phoenix-evals/**"
       - ".agents/skills/phoenix-tracing/**"
       - "plugins/claude/arize-phoenix/**"
+      - "src/phoenix/server/mcp/skills/**"
+      - "src/phoenix/server/mcp_server.py"
+      - "schemas/openapi.json"
+      - "evals/skill_coverage.yaml"
+      - "evals/skill_regression.py"
+      - "evals/report_plugin_experiment.py"
       - ".github/workflows/plugin-evals.yml"
   workflow_dispatch:
 
@@ -24,6 +30,18 @@ permissions:
 
 jobs:
   evals:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: cli
+            cases: "0*"
+          - suite: evals
+            cases: "evals-*"
+          - suite: tracing
+            cases: "tracing-*"
+          - suite: mcp
+            cases: "mcp-*"
     # Secrets are not available to forks; skip rather than fail.
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
@@ -38,6 +56,10 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
 
       - name: Install subprocess isolation deps
         run: |
@@ -62,6 +84,8 @@ jobs:
         run: |
           mkdir -p evals/results
           claude plugin eval . \
+            --case '${{ matrix.cases }}' \
+            --runs 3 \
             --trust-plugin \
             --ablation with-without \
             --json evals/results/ci-results.json \
@@ -75,31 +99,33 @@ jobs:
             --max-cost-usd 25 \
             -j 3
 
-      - name: Gate on uplift (Δ)
-        working-directory: plugins/claude/arize-phoenix
-        # Δ = with-plugin score minus without-plugin score. Should-not-fire
-        # cases (neg-*) score 1.0 in both arms by design, so they are left out
-        # of the mean. Baseline for the fire cases is about +0.25 (Sep 2026);
-        # 0.15 leaves room for run-to-run noise while catching a real drop.
+      - name: Gate repeated grader results and calibrated uplift
+        if: ${{ !cancelled() && hashFiles('plugins/claude/arize-phoenix/evals/results/ci-results.json') != '' }}
+        run: >-
+          uv run --no-project --with pyyaml python -m evals.skill_regression plugin
+          plugins/claude/arize-phoenix/evals/results/ci-results.json
+          --suite '${{ matrix.suite }}' --model claude-sonnet-5
+
+      - name: Record Phoenix experiments
+        if: ${{ !cancelled() && hashFiles('plugins/claude/arize-phoenix/evals/results/ci-results.json') != '' }}
         env:
-          MIN_DELTA: "0.15"
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         run: |
-          printf 'case\twith\twithout\tdelta\n' > /tmp/delta-table.tsv
-          jq -r '.cases[] | "\(.name)\t\(.aggregates.score)\t\(.aggregates.scoreWithout)\t\(.aggregates.delta)"' \
-            evals/results/ci-results.json >> /tmp/delta-table.tsv
-          column -t -s $'\t' /tmp/delta-table.tsv
-          delta=$(jq -r '[.cases[] | select(.name | test("-neg-") | not) | .aggregates.delta] | add / length' \
-            evals/results/ci-results.json)
-          echo "mean Δ over fire cases: ${delta} (minimum ${MIN_DELTA})"
-          awk -v d="${delta}" -v m="${MIN_DELTA}" 'BEGIN { exit !(d+0 >= m+0) }' \
-            || { echo "::error::mean Δ ${delta} is below ${MIN_DELTA}; the plugin adds less uplift than it used to"; exit 1; }
+          if [ -n "$PHOENIX_COLLECTOR_ENDPOINT" ]; then
+            uv run --no-project --with ./packages/phoenix-client --with pyyaml \
+              python -m evals.report_plugin_experiment \
+              plugins/claude/arize-phoenix/evals/results/ci-results.json \
+              --suite '${{ matrix.suite }}' --model claude-sonnet-5
+          else
+            echo "Phoenix reporting is not configured; JSON and HTML remain CI artifacts."
+          fi
 
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: plugin-eval-results
+          name: plugin-eval-results-${{ matrix.suite }}
           if-no-files-found: ignore
           path: |
-            plugins/claude/arize-phoenix/evals/results/ci-results.json
-            plugins/claude/arize-phoenix/evals/results/**/report.html
+            plugins/claude/arize-phoenix/evals/results/

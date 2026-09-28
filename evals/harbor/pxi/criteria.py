@@ -65,6 +65,7 @@ def evaluator_output(ui_messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Render UI messages as the Pydantic AI message dump the evaluators read."""
     messages: list[dict[str, Any]] = []
     texts: list[str] = []
+    final_texts: list[str] = []
     for message in ui_messages:
         if message.get("role") != "assistant":
             continue
@@ -74,8 +75,10 @@ def evaluator_output(ui_messages: list[dict[str, Any]]) -> dict[str, Any]:
             if part_type == "text":
                 text = str(part.get("text", ""))
                 texts.append(text)
+                final_texts.append(text)
                 parts.append({"part_kind": "text", "content": text})
             elif part_type == "dynamic-tool" or part_type.startswith(_TOOL_PREFIX):
+                final_texts.clear()
                 args = part.get("input")
                 parts.append(
                     {
@@ -88,6 +91,7 @@ def evaluator_output(ui_messages: list[dict[str, Any]]) -> dict[str, Any]:
         messages.append({"kind": "response", "parts": parts})
     return {
         "assistant_text": "\n".join(texts) if texts else None,
+        "final_answer": "\n".join(final_texts) if final_texts else None,
         "messages": messages,
         "raw_output_type": "AgentSessionTurn",
     }
@@ -110,6 +114,7 @@ def run_evaluators(example: dict[str, Any], output: dict[str, Any]) -> dict[str,
             "score": float(score.score or 0.0) if score is not None else 0.0,
             "label": getattr(score, "label", None),
             "explanation": getattr(score, "explanation", None),
+            "metadata": getattr(score, "metadata", None),
         }
     return results
 
@@ -154,7 +159,21 @@ def _turn_results(trajectory_path: Path, base_url: str) -> dict[str, dict[str, A
     seed = read_seed(trajectory_path)
     transcript = fetch_session_messages(base_url, seed["session_id"])
     output = evaluator_output(scored_messages(transcript, seed["scoring"]))
-    return run_evaluators(seed["example"], output)
+    results = run_evaluators(seed["example"], output)
+    # Reward Kit retains stdout in verifier logs; expose context and the individual
+    # explanations even though reward.json contains only numeric dimensions.
+    print(
+        json.dumps(
+            {
+                "harness": "harbor",
+                "skill": seed["example"].get("metadata", {}).get("skill"),
+                "case": seed["example"]["id"],
+                "model": seed.get("model"),
+                "graders": results,
+            }
+        )
+    )
+    return results
 
 
 def evaluator_score(

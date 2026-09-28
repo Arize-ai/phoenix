@@ -113,6 +113,8 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
+	@echo -e "  skill-evals-test          - Check skill coverage contracts and deterministic graders"
+	@echo -e "  skill-evals-capture-mcp   - Refresh the remote MCP fixtures"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + TypeScript workspace)"
@@ -548,6 +550,13 @@ harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HA
 
 harbor-view: ## Browse Harbor job results in a local web viewer
 	$(HARBOR) view jobs
+
+.PHONY: skill-evals-test skill-evals-capture-mcp
+skill-evals-test: ## Run deterministic skill-evaluation contract and grader tests
+	LITELLM_LOCAL_MODEL_COST_MAP=True $(UV) run pytest --confcutdir=tests/unit/harbor -q tests/unit/harbor/pxi tests/unit/harbor/test_skill_coverage.py tests/unit/harbor/test_skill_regression.py
+
+skill-evals-capture-mcp: ## Refresh plugin mocks from the production MCP tool builder
+	LITELLM_LOCAL_MODEL_COST_MAP=True $(UV) run python -m evals.capture_mcp_fixtures
 
 #=============================================================================
 # Cleanup

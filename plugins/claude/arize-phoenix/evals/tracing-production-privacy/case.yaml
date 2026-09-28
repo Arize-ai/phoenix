@@ -1,0 +1,42 @@
+schema_version: '1.1'
+name: tracing-production-privacy
+tags:
+- tracing
+- phoenix-tracing
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Prepare Phoenix Python tracing for production. Prompts and responses contain personal
+    data; tool definitions also contain sensitive schemas. Show configuration that hides those
+    values while retaining spans and useful timing metadata.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+- name: mask-input-output
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The configuration hides both input
+    and output content rather than merely excluding one span name. PASS if it holds; FAIL if it
+    is absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: mask-tools
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The configuration also hides LLM tool
+    definitions, either explicitly or through documented input masking behavior. PASS if it holds;
+    FAIL if it is absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: retain-observability
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The response retains tracing and timing
+    instead of disabling the tracer globally. PASS if it holds; FAIL if it is absent, contradicted,
+    or the response is empty. Ignore unrelated claims.'

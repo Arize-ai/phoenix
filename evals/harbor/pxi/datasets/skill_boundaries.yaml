@@ -1,0 +1,146 @@
+dataset_name: skill_boundaries
+description: Built-in PXI skill boundaries with structured final-answer checks. The target skill
+  remains available but must not be selected.
+evaluators:
+- forbidden_tool_call_args_match
+- assistant_json_match
+examples:
+- id: datasets-negative-prompt-only
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: For a standalone prompt, replace the word terse with concise in "Be terse.". No
+        dataset is involved. Return only JSON with the key prompt.
+  expected:
+    assistant_json:
+      prompt: Be concise.
+    forbidden_tool_call_args:
+      load_skill:
+        skill_name: datasets
+  metadata:
+    skill: datasets
+    harness: harbor
+    polarity: negative
+    category: boundary
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: evaluators-negative-read-existing-score
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: An existing Phoenix evaluator gave this run label "pass" and score 1. Copy those
+        two facts into a JSON object with label and score. I am not asking to create, change,
+        or validate an evaluator.
+  expected:
+    assistant_json:
+      label: pass
+      score: 1
+    forbidden_tool_call_args:
+      load_skill:
+        skill_name: evaluators
+  metadata:
+    skill: evaluators
+    harness: harbor
+    polarity: negative
+    category: boundary
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: experiments-negative-prompt-drafting
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: Draft a standalone prompt that says exactly "Translate {{text}} into French.".
+        No dataset, experiment, comparison, or evaluation is in scope. Return only JSON with the
+        key prompt.
+  expected:
+    assistant_json:
+      prompt: Translate {{text}} into French.
+    forbidden_tool_call_args:
+      load_skill:
+        skill_name: experiments
+  metadata:
+    skill: experiments
+    harness: harbor
+    polarity: negative
+    category: boundary
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: playground-negative-dataset-provenance
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: A Phoenix dataset contains outputs imported from an unreviewed model. Does their
+        presence alone make this a golden dataset? Do not draft or edit prompts. Return only JSON
+        with the boolean key golden.
+  expected:
+    assistant_json:
+      golden: false
+    forbidden_tool_call_args:
+      load_skill:
+        skill_name: playground
+  metadata:
+    skill: playground
+    harness: harbor
+    polarity: negative
+    category: boundary
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: phoenix-error-analysis-negative-closed-form-count
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: A report lists 12 successful traces and 3 failed traces. I only need the total
+        count, not diagnosis, notes, or categories. Return only JSON with the key total.
+  expected:
+    assistant_json:
+      total: 15
+    forbidden_tool_call_args:
+      load_skill:
+        skill_name: phoenix-error-analysis
+  metadata:
+    skill: phoenix-error-analysis
+    harness: harbor
+    polarity: negative
+    category: boundary
+    annotation:
+      method: hand-authored
+      cross_model_review: pending
+- id: phoenix-graphql-negative-python-transform
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: In plain Python, [x * 2 for x in [1, 2, 3]] evaluates to what? No API integration
+        or Phoenix data access is involved. Return only JSON with the key result.
+  expected:
+    assistant_json:
+      result:
+      - 2
+      - 4
+      - 6
+    forbidden_tool_call_args:
+      load_skill:
+        skill_name: phoenix-graphql
+  metadata:
+    skill: phoenix-graphql
+    harness: harbor
+    polarity: negative
+    category: boundary
+    annotation:
+      method: hand-authored
+      cross_model_review: pending

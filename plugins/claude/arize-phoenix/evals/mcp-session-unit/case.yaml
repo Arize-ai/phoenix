@@ -1,0 +1,35 @@
+schema_version: '1.1'
+name: mcp-session-unit
+runs: 3
+tags:
+- mcp
+- phoenix-error-analysis
+- positive
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: We are planning error analysis for a Phoenix chatbot that loses preferences from earlier
+    turns. Each conversation spans multiple traces. Do not fetch data or write notes yet. Choose
+    the review unit and explain why.
+graders:
+- name: outcome
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade one claim: The response chooses the whole session or conversation as the review
+    unit because earlier turns supply necessary context. PASS if true; FAIL if absent, false or
+    the response is empty.'
+- name: skill-fired
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__load_skill
+  input_match: '"skill_name"\s*:\s*"phoenix-error-analysis"'
+  arm: with-only
+- name: no-data-access
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__execute
+  min: 0
+  max: 0
+  arm: both

@@ -1,0 +1,33 @@
+schema_version: '1.1'
+name: tracing-shutdown-flush
+tags:
+- tracing
+- phoenix-tracing
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: A short-lived Python batch job instruments an LLM with Phoenix. With batch export enabled,
+    the process exits before its last spans arrive. Show how to finish the job so those spans
+    are exported without adding an arbitrary sleep.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+- name: flush
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The code calls force_flush or shutdown
+    on the tracer provider after the work and before process exit. PASS if it holds; FAIL if it
+    is absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: flush-api
+  type: regex
+  target: last_message
+  match: contains
+  pattern: force_flush\(|shutdown\(

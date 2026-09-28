@@ -1,0 +1,30 @@
+schema_version: '1.1'
+name: tracing-neg-elixir-router
+tags:
+- tracing
+- phoenix-tracing
+- negative
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: In the Elixir Phoenix web framework, how do I add a GET /health route that returns plain
+    text ok? Show the router and controller snippets.
+graders:
+- name: skill-not-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+  min: 0
+  max: 0
+  arm: both
+- name: elixir
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The response supplies an Elixir Phoenix
+    route and controller action for the health response. PASS if it holds; FAIL if it is absent,
+    contradicted, or the response is empty. Ignore unrelated claims.'

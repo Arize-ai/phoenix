@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from evals.harbor.pxi.evaluators.artifacts import assistant_json_match, graphql_query_valid
 from evals.harbor.pxi.evaluators.links import in_app_links_valid
 from evals.harbor.pxi.evaluators.text import assistant_text_substrings_match
 from evals.harbor.pxi.evaluators.tools import (
@@ -19,6 +20,8 @@ from evals.harbor.pxi.evaluators.tools import (
 # into ``client.experiments.run_experiment``. Keep in sync with the
 # ``@create_evaluator`` decorators in this package.
 EVALUATORS_BY_NAME: dict[str, Any] = {
+    "assistant_json_match": assistant_json_match,
+    "graphql_query_valid": graphql_query_valid,
     "assistant_text_substrings_match": assistant_text_substrings_match,
     "bash_command_substrings_match": bash_command_substrings_match,
     "correct_tools_called": correct_tools_called,
@@ -29,6 +32,8 @@ EVALUATORS_BY_NAME: dict[str, Any] = {
 }
 
 __all__ = [
+    "assistant_json_match",
+    "graphql_query_valid",
     "EVALUATORS_BY_NAME",
     "assistant_text_substrings_match",
     "bash_command_substrings_match",

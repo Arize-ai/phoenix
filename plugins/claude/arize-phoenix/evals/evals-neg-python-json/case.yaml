@@ -1,0 +1,30 @@
+schema_version: '1.1'
+name: evals-neg-python-json
+tags:
+- evals
+- phoenix-evals
+- negative
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Using only the Python standard library, how do I parse a JSON string into a dictionary?
+    Show a minimal example. I am not evaluating an AI application.
+graders:
+- name: skill-not-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+  min: 0
+  max: 0
+  arm: both
+- name: stdlib
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The response gives a working json.loads
+    example. PASS if it holds; FAIL if it is absent, contradicted, or the response is empty. Ignore
+    unrelated claims.'

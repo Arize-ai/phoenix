@@ -1,0 +1,35 @@
+schema_version: '1.1'
+name: evals-reference-provenance
+tags:
+- evals
+- phoenix-evals
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: I exported unreviewed outputs from my production agent into a Phoenix dataset. Can I
+    use those outputs as golden answers for evaluating a new agent? Explain how I should prepare
+    this dataset before using it as a quality benchmark.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+- name: not-golden
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The response treats unreviewed model
+    outputs as reference or observed outputs, not trusted ground truth. PASS if it holds; FAIL
+    if it is absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: human-review
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: It proposes human review or validation
+    before using the outputs as correctness labels. PASS if it holds; FAIL if it is absent, contradicted,
+    or the response is empty. Ignore unrelated claims.'

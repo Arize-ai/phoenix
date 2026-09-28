@@ -1,0 +1,34 @@
+dataset_name: graphql_skill_artifact
+description: PXI generates a schema-valid paginated project query for an external integration.
+  The negative skill case is in skill_boundaries.
+evaluators:
+- correct_tools_called
+- tool_call_args_match
+- graphql_query_valid
+examples:
+- id: paginated-project-query
+  splits:
+  - regression
+  input:
+    messages:
+    - role: user
+      content: Write a Phoenix GraphQL query for my integration. Fetch project IDs and names,
+        two projects per page. Use a nullable $after cursor variable and return hasNextPage
+        and endCursor so my client can request the next page. Return only the query, optionally
+        in one graphql code fence; do not execute it.
+  expected:
+    tools:
+      required:
+      - load_skill
+    tool_call_args:
+      load_skill:
+        skill_name: phoenix-graphql
+    graphql_query: paginated_projects
+  metadata:
+    skill: phoenix-graphql
+    harness: harbor
+    polarity: positive
+    category: artifact
+    annotation:
+      method: hand-authored
+      cross_model_review: pending

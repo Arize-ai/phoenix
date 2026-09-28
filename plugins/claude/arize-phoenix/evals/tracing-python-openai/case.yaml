@@ -1,0 +1,41 @@
+schema_version: '1.1'
+name: tracing-python-openai
+tags:
+- tracing
+- phoenix-tracing
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Instrument my Python OpenAI chat application so its traces appear in my local Phoenix
+    instance at http://localhost:6006. Show the packages and startup code. Use current Phoenix
+    OpenTelemetry and OpenInference APIs.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+- name: provider
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The code obtains a tracer provider
+    from phoenix.otel.register and passes that provider to OpenAIInstrumentor.instrument. PASS
+    if it holds; FAIL if it is absent, contradicted, or the response is empty. Ignore unrelated
+    claims.'
+- name: endpoint
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The endpoint and transport agree:
+    HTTP uses /v1/traces at port 6006, or gRPC uses port 4317. PASS if it holds; FAIL if it is
+    absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: instrumentor
+  type: regex
+  target: last_message
+  match: contains
+  pattern: OpenAIInstrumentor

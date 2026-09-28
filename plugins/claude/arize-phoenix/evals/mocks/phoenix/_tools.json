@@ -1,18 +1,12 @@
 {
   "tools": [
     {
-      "_meta": {
-        "fastmcp": {
-          "tags": []
-        }
-      },
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
+      "name": "search",
+      "title": "Search",
       "description": "Search for available tools by query.\n\nReturns matching tools ranked by relevance.",
       "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "query": {
             "description": "Search query to find available tools",
@@ -30,7 +24,8 @@
                 "type": "null"
               }
             ],
-            "default": null
+            "default": null,
+            "description": "Filter to tools with any of these tags before searching"
           },
           "detail": {
             "default": "brief",
@@ -51,16 +46,14 @@
                 "type": "null"
               }
             ],
-            "default": null
+            "default": null,
+            "description": "Maximum number of results to return"
           }
         },
         "required": [
           "query"
-        ],
-        "type": "object",
-        "additionalProperties": false
+        ]
       },
-      "name": "search",
       "outputSchema": {
         "properties": {
           "result": {
@@ -73,21 +66,24 @@
         "type": "object",
         "x-fastmcp-wrap-result": true
       },
-      "title": "Search"
-    },
-    {
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
       "_meta": {
         "fastmcp": {
           "tags": []
         }
-      },
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
+      }
+    },
+    {
+      "name": "get_schema",
+      "title": "Get Schema",
       "description": "Get parameter schemas for specific tools.\n\nUse after searching to get the detail needed to call a tool.",
       "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "tools": {
             "description": "List of tool names to get schemas for",
@@ -109,11 +105,8 @@
         },
         "required": [
           "tools"
-        ],
-        "type": "object",
-        "additionalProperties": false
+        ]
       },
-      "name": "get_schema",
       "outputSchema": {
         "properties": {
           "result": {
@@ -126,21 +119,24 @@
         "type": "object",
         "x-fastmcp-wrap-result": true
       },
-      "title": "Get Schema"
-    },
-    {
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
       "_meta": {
         "fastmcp": {
           "tags": []
         }
-      },
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
+      }
+    },
+    {
+      "name": "tags",
+      "title": "Tags",
       "description": "List available tool tags.\n\nUse to browse available tools by tag before searching.",
       "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "detail": {
             "default": "brief",
@@ -151,11 +147,8 @@
             ],
             "type": "string"
           }
-        },
-        "type": "object",
-        "additionalProperties": false
+        }
       },
-      "name": "tags",
       "outputSchema": {
         "properties": {
           "result": {
@@ -168,21 +161,24 @@
         "type": "object",
         "x-fastmcp-wrap-result": true
       },
-      "title": "Tags"
-    },
-    {
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
       "_meta": {
         "fastmcp": {
           "tags": []
         }
-      },
-      "annotations": {
-        "destructiveHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": true
-      },
+      }
+    },
+    {
+      "name": "list_tools",
+      "title": "List Tools",
       "description": "List all available tools.\n\nUse to see the full catalog before searching or calling tools.",
       "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "detail": {
             "default": "brief",
@@ -194,11 +190,8 @@
             ],
             "type": "string"
           }
-        },
-        "type": "object",
-        "additionalProperties": false
+        }
       },
-      "name": "list_tools",
       "outputSchema": {
         "properties": {
           "result": {
@@ -211,16 +204,24 @@
         "type": "object",
         "x-fastmcp-wrap-result": true
       },
-      "title": "List Tools"
-    },
-    {
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
       "_meta": {
         "fastmcp": {
           "tags": []
         }
-      },
-      "description": "Chain `await call_tool(...)` calls in one Python block; prefer returning the final answer from a single block.\nUse `return` to produce output.\nOnly `call_tool(tool_name: str, params: dict) -> Any` is available in scope.",
+      }
+    },
+    {
+      "name": "execute",
+      "title": "Execute",
+      "description": "Chain `await call_tool(...)` calls in one Python block; prefer returning the final answer from a single block.\nUse `return` to produce output.\nOnly `call_tool(tool_name: str, params: dict) -> Any` is available in scope.\n`call_tool` can only invoke the tools `search` and `list_tools` describe. It cannot invoke the direct tools `search`, `get_schema`, `tags`, `list_tools`, `load_skill`, `load_skill_reference`; call those as MCP tools.",
       "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "code": {
             "description": "Python async code to execute tool calls via call_tool(name, arguments)",
@@ -229,12 +230,86 @@
         },
         "required": [
           "code"
-        ],
-        "type": "object",
-        "additionalProperties": false
+        ]
       },
-      "name": "execute",
-      "title": "Execute"
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      }
+    },
+    {
+      "name": "load_skill",
+      "title": "Load Skill",
+      "description": "Load a Phoenix skill's instructions. Call this before working in a skill's domain, once per skill per conversation, and follow what it returns.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "skill_name": {
+            "description": "Exact name of the skill to load.",
+            "type": "string",
+            "enum": [
+              "phoenix-error-analysis"
+            ]
+          }
+        },
+        "required": [
+          "skill_name"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "_meta": {
+        "fastmcp": {
+          "tags": [
+            "phoenix-mcp-skills"
+          ]
+        }
+      }
+    },
+    {
+      "name": "load_skill_reference",
+      "title": "Load Skill Reference",
+      "description": "Load a reference file of a skill already loaded with `load_skill`, using the exact skill and reference names that load listed.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "skill_name": {
+            "description": "Skill the reference belongs to.",
+            "type": "string",
+            "enum": [
+              "phoenix-error-analysis"
+            ]
+          },
+          "reference_name": {
+            "description": "Reference name exactly as listed by `load_skill`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "skill_name",
+          "reference_name"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "_meta": {
+        "fastmcp": {
+          "tags": [
+            "phoenix-mcp-skills"
+          ]
+        }
+      }
     }
   ]
 }

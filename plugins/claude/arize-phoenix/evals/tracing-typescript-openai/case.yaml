@@ -1,0 +1,39 @@
+schema_version: '1.1'
+name: tracing-typescript-openai
+tags:
+- tracing
+- phoenix-tracing
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Show a TypeScript startup module that sends OpenAI application traces to Phoenix using
+    @arizeai/phoenix-otel and OpenInference instrumentation. Include required packages and how
+    the tracer provider reaches the instrumentor.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+- name: typescript-provider
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The snippet registers the OpenAI instrumentation
+    with the provider returned by the Phoenix TypeScript OTEL setup, using compatible APIs. PASS
+    if it holds; FAIL if it is absent, contradicted, or the response is empty. Ignore unrelated
+    claims.'
+- name: phoenix-package
+  type: regex
+  target: last_message
+  match: contains
+  pattern: '@arizeai/phoenix-otel'
+- name: instrumentation-package
+  type: regex
+  target: last_message
+  match: contains
+  pattern: '@arizeai/openinference-instrumentation-openai'

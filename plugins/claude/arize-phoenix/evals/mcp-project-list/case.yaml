@@ -1,0 +1,34 @@
+schema_version: '1.1'
+name: mcp-project-list
+runs: 3
+tags:
+- mcp
+- phoenix-error-analysis
+- positive
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Use the connected Phoenix MCP server to list project names. Discover the project-list
+    tool and invoke it with its default arguments in a single execute call returning its result.
+    Do not use the CLI or invent names.
+graders:
+- name: outcome
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade one claim: The final response lists default, support-bot and checkout-agent
+    as the three returned projects, with no invented projects. PASS if true; FAIL if absent, false
+    or the response is empty.'
+- name: discovered-before-execution
+  type: tool_order
+  before: mcp__plugin_arize-phoenix_phoenix__get_schema
+  after: mcp__plugin_arize-phoenix_phoenix__execute
+  arm: with-only
+- name: project-tool
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__execute
+  input_match: getProjects
+  arm: with-only

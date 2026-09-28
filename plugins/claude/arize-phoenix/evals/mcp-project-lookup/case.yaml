@@ -1,0 +1,33 @@
+schema_version: '1.1'
+name: mcp-project-lookup
+runs: 3
+tags:
+- mcp
+- phoenix-error-analysis
+- positive
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Use the connected Phoenix MCP server to check whether support-bot exists. Retrieve the
+    project list with default arguments in one execute call returning its result, then report
+    its exact ID. Do not create a project or use the CLI.
+graders:
+- name: outcome
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade one claim: The final response confirms support-bot exists and gives its exact
+    returned ID UHJvamVjdDoy. PASS if true; FAIL if absent, false or the response is empty.'
+- name: discovered-before-execution
+  type: tool_order
+  before: mcp__plugin_arize-phoenix_phoenix__get_schema
+  after: mcp__plugin_arize-phoenix_phoenix__execute
+  arm: with-only
+- name: project-tool
+  type: tool_used
+  tool: mcp__plugin_arize-phoenix_phoenix__execute
+  input_match: getProjects
+  arm: with-only

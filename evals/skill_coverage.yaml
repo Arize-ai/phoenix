@@ -1,0 +1,69 @@
+# Stable names: changing a case's meaning requires a new ID.
+version: 1
+builtins:
+  datasets:
+    surface: PXI
+    positive: skill_artifacts/datasets-reference-provenance-and-bindings
+    negative: skill_boundaries/datasets-negative-prompt-only
+    outcome: assistant_json_match
+  evaluators:
+    surface: PXI
+    positive: skill_artifacts/evaluators-deterministic-empty-output-spec
+    negative: skill_boundaries/evaluators-negative-read-existing-score
+    outcome: assistant_json_match
+  experiments:
+    surface: PXI
+    positive: skill_artifacts/experiments-compare-quality-latency-cost
+    negative: skill_boundaries/experiments-negative-prompt-drafting
+    outcome: assistant_json_match
+  playground:
+    surface: PXI
+    positive: skill_artifacts/playground-rewrite-preserving-template
+    negative: skill_boundaries/playground-negative-dataset-provenance
+    outcome: assistant_json_match
+  phoenix-graphql:
+    surface: PXI
+    positive: graphql_skill_artifact/paginated-project-query
+    negative: skill_boundaries/phoenix-graphql-negative-python-transform
+    outcome: graphql_query_valid
+  phoenix-error-analysis:
+    surface: both
+    positive: skill_artifacts/phoenix-error-analysis-session-unit-and-phase-order
+    negative: skill_boundaries/phoenix-error-analysis-negative-closed-form-count
+    outcome: assistant_json_match
+    stateful_task: evals/harbor/tasks/error-analysis/task.toml
+    plugin_suite: mcp
+plugin_suites:
+  cli:
+    skill: phoenix-cli
+    cases: '0*'
+    minimum_positive: 6
+    minimum_negative: 2
+    minimum_delta: 0.15
+    baseline: 'Imported CLI suite: September 2026, three runs, mean positive-case delta +0.25. See plugin README.'
+  evals:
+    skill: phoenix-evals
+    cases: 'evals-*'
+    minimum_positive: 6
+    minimum_negative: 2
+    minimum_delta: null
+    baseline: pending credentialed calibration
+  tracing:
+    skill: phoenix-tracing
+    cases: 'tracing-*'
+    minimum_positive: 6
+    minimum_negative: 2
+    minimum_delta: null
+    baseline: pending credentialed calibration
+  mcp:
+    skill: phoenix-error-analysis
+    cases: 'mcp-*'
+    minimum_positive: 6
+    minimum_negative: 2
+    minimum_delta: null
+    baseline: pending credentialed calibration
+policy:
+  minimum_runs: 3
+  minimum_grader_pass_rate: 0.6666666666666666
+  minimum_plugin_score: 0.8
+  # Initial acceptance floors, not measured baselines. Calibrate using repeated jobs.

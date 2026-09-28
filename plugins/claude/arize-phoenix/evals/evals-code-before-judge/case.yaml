@@ -1,0 +1,40 @@
+schema_version: '1.1'
+name: evals-code-before-judge
+tags:
+- evals
+- phoenix-evals
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Build a Phoenix evaluator in Python that passes only when the response is valid JSON.
+    Return a complete code snippet using the current Phoenix evaluator API; no server calls are
+    needed.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+- name: deterministic
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The evaluator parses the output as
+    JSON and returns a failing score when parsing fails, without calling an LLM. PASS if it holds;
+    FAIL if it is absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: binding
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The evaluator accepts the task output
+    as its output parameter and uses create_evaluator with kind="code". PASS if it holds; FAIL
+    if it is absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: evaluator-api
+  type: regex
+  target: last_message
+  match: contains
+  pattern: from phoenix\.evals import[^\n]*create_evaluator

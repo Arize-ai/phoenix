@@ -1,0 +1,36 @@
+schema_version: '1.1'
+name: evals-judge-validation
+tags:
+- evals
+- phoenix-evals
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: My Phoenix LLM judge agrees with 95 of 100 human labels. There are 95 human passes and
+    five failures, and the judge predicts pass for every example. Is this ready to gate releases?
+    Give the failure-detection result and a validation plan.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-evals"'
+- name: missed-failures
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The answer states that the judge detects
+    none of the five failures, despite 95% overall agreement. PASS if it holds; FAIL if it is
+    absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: release-decision
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The answer rejects using this judge
+    as a release gate until validation includes both classes and measures them separately. PASS
+    if it holds; FAIL if it is absent, contradicted, or the response is empty. Ignore unrelated
+    claims.'

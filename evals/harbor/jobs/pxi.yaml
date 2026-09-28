@@ -11,7 +11,7 @@ environment:
   kwargs:
     auto_stop_interval_mins: 30
     auto_delete_interval_mins: 30
-n_attempts: 1
+n_attempts: 3
 n_concurrent_trials: 200
 retry:
   max_retries: 1

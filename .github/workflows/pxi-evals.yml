@@ -27,7 +27,12 @@ jobs:
             pxi:
               - ".github/workflows/pxi-evals.yml"
               - "evals/harbor/**"
+              - "evals/skill_coverage.yaml"
+              - "evals/skill_regression.py"
               - "src/phoenix/server/agents/**"
+              - "src/phoenix/server/mcp/skills/**"
+              - "src/phoenix/server/mcp_server.py"
+              - "js/app/schema.graphql"
 
   turn-evals:
     name: PXI Turn Evals (Daytona)
@@ -69,16 +74,15 @@ jobs:
       - name: Build the Phoenix wheel and stage the PXI tasks
         run: HARBOR_PXI_ARGS="--splits regression" HARBOR_CLI=0 make harbor-prepare
 
-      # The agent is nondeterministic and the regression split tolerates about one miss
-      # per dataset. The bar is the mean step reward across tasks; tighten it once there
-      # is a pass-rate history for this runner. The label lets the cleanup step below find
-      # this run's sandboxes.
+      # Three attempts retain the existing mean-reward gate and add per-grader
+      # pass rates for skill cases. The label identifies this run's sandboxes.
       - name: Run the PXI datasets
         env:
           CI_RUN: ${{ github.run_id }}
         run: |
           make harbor-run HARBOR_JOB=evals/harbor/jobs/pxi.yaml \
             HARBOR_ARGS="--ek labels='{\"ci_run\": \"$CI_RUN\"}'"
+          uv run --no-project --with pyyaml python -m evals.skill_regression harbor
           python3 evals/harbor/scripts/check_job_reward.py --min-reward 0.9
 
       # A cancelled run, for example when a newer commit arrives, kills `harbor run`

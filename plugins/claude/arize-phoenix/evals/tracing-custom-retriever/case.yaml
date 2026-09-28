@@ -1,0 +1,40 @@
+schema_version: '1.1'
+name: tracing-custom-retriever
+tags:
+- tracing
+- phoenix-tracing
+- positive
+runs: 3
+execution:
+  max_turns: 12
+  timeout_seconds: 300
+  allowed_tools:
+  - Skill
+  - Read
+  prompt: Show Python manual instrumentation for a retriever in Phoenix. It returns two documents
+    with IDs d1 and d2 and scores 0.9 and 0.7. Include each document content and make the span
+    appear as a retriever using OpenInference conventions.
+graders:
+- name: skill-fired
+  type: tool_used
+  tool: Skill
+  input_match: '"skill"\s*:\s*"(?:[\w-]+:)?phoenix-tracing"'
+- name: retriever-kind
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: The span is assigned OpenInference
+    RETRIEVER kind. PASS if it holds; FAIL if it is absent, contradicted, or the response is empty.
+    Ignore unrelated claims.'
+- name: indexed-documents
+  type: llm
+  focus: last_message
+  weight: 0.5
+  criteria: 'Grade this one claim about the final response: Retrieval document attributes use
+    distinct indices 0 and 1 and preserve both document IDs and scores. PASS if it holds; FAIL
+    if it is absent, contradicted, or the response is empty. Ignore unrelated claims.'
+- name: retrieval-attributes
+  type: regex
+  target: last_message
+  match: contains
+  pattern: retrieval\.documents|RETRIEVAL_DOCUMENTS
