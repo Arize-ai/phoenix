@@ -447,6 +447,20 @@ export function ProjectEvaluatorsTable({
         size: 40,
       }),
       {
+        id: "enabled",
+        header: "enabled",
+        size: 90,
+        cell: ({ row }) => (
+          <StopPropagation>
+            <ProjectEvaluatorEnabledSwitch
+              projectEvaluatorId={row.original.id}
+              name={row.original.name}
+              enabled={row.original.enabled}
+            />
+          </StopPropagation>
+        ),
+      },
+      {
         header: "name",
         size: 200,
         accessorKey: "name",
@@ -461,7 +475,10 @@ export function ProjectEvaluatorsTable({
         header: "status",
         size: 130,
         cell: ({ row }) => (
-          <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
+          <ProjectEvaluatorStatusCell
+            enabled={row.original.enabled}
+            runSummary={row.original.runSummary}
+          />
         ),
       },
       {
@@ -627,20 +644,6 @@ export function ProjectEvaluatorsTable({
         cell: TimestampCell,
       },
       {
-        id: "enabled",
-        header: "enabled",
-        size: 90,
-        cell: ({ row }) => (
-          <StopPropagation>
-            <ProjectEvaluatorEnabledSwitch
-              projectEvaluatorId={row.original.id}
-              name={row.original.name}
-              enabled={row.original.enabled}
-            />
-          </StopPropagation>
-        ),
-      },
-      {
         id: ACTIONS_COLUMN_ID,
         header: "actions",
         size: 150,
@@ -718,8 +721,8 @@ export function ProjectEvaluatorsTable({
     data: tableData,
     state: {
       columnPinning: {
-        ...CHECKBOX_COLUMN_PINNING,
-        right: ["enabled", ACTIONS_COLUMN_ID],
+        left: [...CHECKBOX_COLUMN_PINNING.left, "enabled"],
+        right: [ACTIONS_COLUMN_ID],
       },
       columnSizing,
       columnVisibility,
