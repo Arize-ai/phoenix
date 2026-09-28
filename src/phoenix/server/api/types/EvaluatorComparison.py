@@ -121,9 +121,7 @@ class EvaluatorComparisonSummary:
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Distribution of this evaluator's primary result over the entities in range "
-            "evaluated by both evaluators (coverage.evaluatedByBoth), whether or not both "
-            "results are binnable. Shaped like ProjectEvaluator.distribution, which covers "
-            "every entity this evaluator annotated."
+            "that both evaluators annotated, whether or not both results are binnable."
         )
     )
     async def shared_distribution(self, info: Info[Context, None]) -> EvaluatorDistribution:

@@ -168,8 +168,7 @@ async def get_evaluator_distribution(
     """Summarize an evaluator's results in the selected target time range.
 
     With `shared_with_annotation_name`, only targets that also carry an
-    annotation under that name in range count: the same "evaluated by both"
-    population a comparison's coverage reports.
+    annotation under that name in range count.
     """
     population = latest_evaluator_annotations(
         project_rowid=project_rowid,
