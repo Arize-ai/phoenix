@@ -418,10 +418,6 @@ class Dataset(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         dataset_id = self.id
-        # Compute the sequence number in a subquery so it stays the true, stable
-        # per-dataset ordinal (oldest = 1) regardless of the membership filters
-        # applied to the outer query below. Ephemeral experiments are scoped here
-        # so the ordinal matches the visible set.
         sequence_stmt = select(
             models.Experiment.id.label("experiment_id"),
             func.row_number().over(order_by=models.Experiment.id).label("row_number"),
