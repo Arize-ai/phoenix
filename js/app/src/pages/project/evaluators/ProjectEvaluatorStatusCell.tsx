@@ -15,11 +15,13 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export function ProjectEvaluatorStatusCell({
+  enabled,
   runSummary,
 }: {
+  enabled: boolean;
   runSummary: ProjectEvaluatorRunSummary;
 }) {
-  const status = getProjectEvaluatorStatus({ runSummary });
+  const status = getProjectEvaluatorStatus({ enabled, runSummary });
   const counts = formatProjectEvaluatorRunCounts(runSummary);
   return (
     <TooltipTrigger delay={0}>
