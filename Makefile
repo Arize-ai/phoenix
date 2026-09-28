@@ -506,11 +506,10 @@ HARBOR_ARGS ?=
 # harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
 # HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
 HARBOR_CLI ?= 1
-# The arize-phoenix plugin records tasks, trials, scores, and traces. Jobs that define
-# `datasets:` use the task directory name as the dataset name. Other jobs use
-# pxi-benchmark by default. HARBOR_DATASET overrides the name. Set HARBOR_PLUGIN to an
-# empty value to disable recording.
-HARBOR_DATASET ?= $(if $(shell grep -l '^datasets:' $(HARBOR_JOB) 2>/dev/null),,pxi-benchmark)
+# The arize-phoenix plugin records tasks, trials, scores, and traces under a dataset
+# named after the job's task directory. HARBOR_DATASET overrides the name. Set
+# HARBOR_PLUGIN to an empty value to disable recording.
+HARBOR_DATASET ?=
 HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
 # This client package provides the arize-phoenix Harbor plugin.

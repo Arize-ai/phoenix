@@ -1,8 +1,8 @@
 # Run every agent on every task with `make harbor-run`. Pass options such as
 # `-e docker -k 1` through HARBOR_ARGS, or create a reduced job file for a subset.
-tasks:
-  - path: evals/harbor/tasks/error-analysis
-  - path: evals/harbor/tasks/prompt-hill-climb
+# The plugin records all results in the pxi-regression Phoenix dataset.
+datasets:
+  - path: evals/harbor/tasks/pxi-regression
 agents:
   - name: phoenix-chat-agent
     import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent

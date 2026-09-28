@@ -8,7 +8,7 @@ compare the conditions in the Phoenix UI.
 
 | Job file | Question it answers | Tasks | Phoenix dataset |
 | --- | --- | --- | --- |
-| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/error-analysis`, `tasks/prompt-hill-climb` | `pxi-benchmark` |
+| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/pxi-regression/*` | `pxi-regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
@@ -16,7 +16,7 @@ compare the conditions in the Phoenix UI.
 | `agents/` | PXI and the Claude Code or Codex configurations for the MCP server and px |
 | `environments/` | The shared Dockerfile and the fixture script for each database |
 | `jobs/` | One configuration file for each benchmark |
-| `tasks/` | The `error-analysis/` and `prompt-hill-climb/` tasks and the tasks under `trail-benchmark-dev/` |
+| `tasks/` | One directory per benchmark: the tasks under `pxi-regression/` and under `trail-benchmark-dev/` |
 | `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
@@ -44,7 +44,7 @@ Phoenix wheel, creates the fixture databases and task build contexts, and builds
 archive for the CLI agents:
 
 ```bash
-# Stage error-analysis only.
+# Stage the PXI regression tasks only.
 make harbor-stage
 # Also seed the TRAIL fixture and stage its tasks.
 HF_TOKEN=... make harbor-stage
@@ -63,7 +63,7 @@ Run a job file after staging. `HARBOR_JOB` selects the file, and `HARBOR_ARGS` p
 arguments to `harbor run`:
 
 ```bash
-# Run the PXI benchmark as CI runs it.
+# Run the PXI regression benchmark as CI runs it.
 make harbor-run
 # Run one attempt with local Docker.
 make harbor-run HARBOR_ARGS='-e docker -k 1'
@@ -94,9 +94,9 @@ The plugin reads `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY` from the env
 A local Phoenix instance on the default port needs neither variable. If the plugin cannot
 reach Phoenix, the job fails before any trial starts.
 
-The plugin records one experiment per condition on the dataset in the table above. Every
-copy of `trail-benchmark-dev.yaml` records to `trail-benchmark-dev`, so subset and full
-runs use the same dataset. Set `HARBOR_DATASET=<name>` to select another dataset. Set
+The plugin records one experiment per condition on the dataset in the table above. The
+dataset takes the name of the job's task directory, so every copy of a job file, subset
+or full, records to the same dataset. Set `HARBOR_DATASET=<name>` to select another dataset. Set
 `HARBOR_PLUGIN=` to run without recording results in Phoenix.
 
 Each run includes `reward` and the other verifier measurements. The TRAIL verifier
@@ -194,9 +194,9 @@ uv run pytest tests/unit/harbor
 Use an oracle run to test the task environment, reference solutions, and verifiers
 together.
 
-## The PXI benchmark
+## The PXI regression benchmark
 
-`tasks/error-analysis` is a two-step scenario on a hand-prepared database. The agent
+`tasks/pxi-regression/error-analysis` is a two-step scenario on a hand-prepared database. The agent
 open-codes a project's traces into notes, then axial-codes them into per-dimension
 annotation configurations. Its verifier lives with the task under `tests/` and reads the
 database and the agent's sidecars directly. `jobs/benchmark.yaml` runs it with two
@@ -211,7 +211,7 @@ gcloud storage cp --cache-control=no-store phoenix.db \
 RESEED=1 make harbor-stage HARBOR_CLI=0
 ```
 
-`tasks/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
+`tasks/pxi-regression/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
 dataset, `banking_saas_dataset_clean` (28 examples, half of them expecting a `REFUSED:`
 string). The agent writes an exact-match evaluator and attaches it to the dataset, runs the
 empty prompt as a baseline experiment and iterates until an experiment passes all 28
@@ -231,7 +231,7 @@ uv build --wheel packages/phoenix-client
 CLIENT_WHEEL=$(ls dist/arize_phoenix_client-*.whl)
 PYTHONPATH=. uvx --python 3.13 --from 'harbor[daytona]==0.21.0' --with "$CLIENT_WHEEL" \
   harbor run -c evals/harbor/jobs/benchmark.yaml -e docker -k 1 \
-  --plugin arize-phoenix --plugin-kwarg dataset=pxi-benchmark --yes
+  --plugin arize-phoenix --yes
 ```
 
 ## Name experiments
