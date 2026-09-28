@@ -189,9 +189,14 @@ async def _seed_one_unit(
 
 
 _TARGET_MODELS = {
-    "SPAN": (models.Span, models.SpanAnnotation, "span_rowid"),
-    "SESSION": (models.ProjectSession, models.ProjectSessionAnnotation, "project_session_id"),
-    "TRACE": (models.Trace, models.TraceAnnotation, "trace_rowid"),
+    "SPAN": (models.Span, models.EvalWorkUnit, models.SpanAnnotation, "span_rowid"),
+    "SESSION": (
+        models.ProjectSession,
+        models.EvalSessionWorkUnit,
+        models.ProjectSessionAnnotation,
+        "project_session_id",
+    ),
+    "TRACE": (models.Trace, models.EvalTraceWorkUnit, models.TraceAnnotation, "trace_rowid"),
 }
 
 
@@ -820,7 +825,7 @@ async def test_publish_refuses_a_target_deleted_under_the_fence(
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     unit_id = await _seed_one_unit(db, evaluation_target)
-    target_model, _, _ = _TARGET_MODELS[evaluation_target]
+    target_model, _, _, _ = _TARGET_MODELS[evaluation_target]
     coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     wrote = asyncio.Event()
@@ -855,30 +860,33 @@ async def test_target_delete_waits_for_publication(
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     unit_id = await _seed_one_unit(db, evaluation_target)
-    target_model, annotation_model, target_column = _TARGET_MODELS[evaluation_target]
+    target_model, work_unit_model, annotation_model, target_column = _TARGET_MODELS[
+        evaluation_target
+    ]
     coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     fenced = asyncio.Event()
     release = asyncio.Event()
+    annotation_ids: list[int] = []
 
     async def _write(session: AsyncSession) -> None:
         fenced.set()
         await release.wait()
-        session.add(
-            annotation_model(
-                **{target_column: claim.target_rowid},
-                name="quality",
-                label=None,
-                score=1.0,
-                explanation=None,
-                metadata_={},
-                annotator_kind="LLM",
-                identifier=claim.identifier,
-                source="API",
-                user_id=None,
-            )
+        annotation = annotation_model(
+            **{target_column: claim.target_rowid},
+            name="quality",
+            label=None,
+            score=1.0,
+            explanation=None,
+            metadata_={},
+            annotator_kind="LLM",
+            identifier=claim.identifier,
+            source="API",
+            user_id=None,
         )
+        session.add(annotation)
         await session.flush()
+        annotation_ids.append(annotation.id)
 
     async def _delete_target() -> None:
         async with db() as session:
@@ -898,6 +906,11 @@ async def test_target_delete_waits_for_publication(
     release.set()
     await publication
     await deletion
+
+    (annotation_id,) = annotation_ids
+    async with db() as session:
+        assert await session.get(annotation_model, annotation_id) is None
+        assert await session.get(work_unit_model, unit_id) is None
 
 
 @pytest.mark.postgres_only
