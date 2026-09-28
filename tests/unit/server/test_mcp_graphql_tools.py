@@ -48,15 +48,21 @@ class Query:
         raise ValueError("resolver failed")
 
 
+DELETED_DATASET_IDS: list[str] = []
+
+
 @strawberry.type
 class Mutation:
     @strawberry.mutation
     async def delete_dataset(self, dataset_id: strawberry.ID) -> bool:
+        """Records its argument, so a test can tell whether it ran."""
+        DELETED_DATASET_IDS.append(dataset_id)
         return True
 
 
 @pytest.fixture
 def schema() -> strawberry.Schema:
+    DELETED_DATASET_IDS.clear()
     return strawberry.Schema(query=Query, mutation=Mutation)
 
 
@@ -177,8 +183,15 @@ async def test_variable_values_do_not_count_toward_the_size_limit(graphql_mcp: F
     assert result.structured_content == {"data": {"dataset": {"name": "rag-eval"}}, "errors": []}
 
 
+@pytest.mark.parametrize(
+    "tool,arguments",
+    [
+        ("executeGraphqlQuery", {"query": "{ datasets { name } }"}),
+        ("executeGraphqlMutation", {"mutation": 'mutation { deleteDataset(datasetId: "1") }'}),
+    ],
+)
 async def test_runs_as_the_authenticated_principal(
-    app: Any, monkeypatch: pytest.MonkeyPatch
+    app: Any, monkeypatch: pytest.MonkeyPatch, tool: str, arguments: dict[str, Any]
 ) -> None:
     """Resolvers judge permissions against whoever the MCP request authenticated as."""
     principal = object()
@@ -188,8 +201,8 @@ async def test_runs_as_the_authenticated_principal(
         phoenix.server.mcp.graphql.tools, "_current_mcp_principal", lambda: principal
     )
     mcp = FastMCP("test")
-    register_graphql_tools(mcp, app=app)
-    await mcp.call_tool("executeGraphqlQuery", {"query": "{ datasets { name } }"})
+    register_graphql_tools(mcp, app=app, allow_mutations=True)
+    await mcp.call_tool(tool, arguments)
     assert seen == [principal]
 
 
@@ -327,3 +340,156 @@ class TestRegistration:
         register_graphql_tools(mcp, app=app)
         text = _text(await mcp.call_tool("describeGraphqlSchema", {"names": ["deleteDataset"]}))
         assert "Mutations are disabled" in text
+
+
+class TestMutationTool:
+    """The write surface, and what stands in for approval on it.
+
+    Nothing here can reach a person to ask. The gates are the caller's own
+    permissions, enforced by the same resolvers the GraphQL endpoint runs, and a
+    destructive annotation that tells the client to confirm. A read-only
+    deployment does not register the tool at all.
+    """
+
+    @pytest.fixture
+    def mutating_mcp(self, app: Any) -> FastMCP:
+        mcp = FastMCP("test")
+        register_graphql_tools(mcp, app=app, allow_mutations=True)
+        return mcp
+
+    async def test_absent_unless_asked_for(self, app: Any) -> None:
+        mcp = FastMCP("test")
+        register_graphql_tools(mcp, app=app)
+        assert "executeGraphqlMutation" not in {tool.name for tool in await mcp.list_tools()}
+
+    async def test_present_when_it_does(self, mutating_mcp: FastMCP) -> None:
+        assert "executeGraphqlMutation" in {tool.name for tool in await mutating_mcp.list_tools()}
+
+    async def test_annotated_destructive_so_the_client_confirms(
+        self, mutating_mcp: FastMCP
+    ) -> None:
+        """The only approval available on this transport is the client's own."""
+        tool = next(
+            tool
+            for tool in await mutating_mcp.list_tools()
+            if tool.name == "executeGraphqlMutation"
+        )
+        assert tool.annotations is not None
+        assert tool.annotations.destructive_hint is True
+        assert tool.annotations.read_only_hint is False
+
+    async def test_read_tool_stays_annotated_read_only(self, mutating_mcp: FastMCP) -> None:
+        """Enabling writes must not relax the annotation on the tool that only reads."""
+        tool = next(
+            tool for tool in await mutating_mcp.list_tools() if tool.name == "executeGraphqlQuery"
+        )
+        assert tool.annotations is not None
+        assert tool.annotations.read_only_hint is True
+
+    async def test_runs_a_mutation(self, mutating_mcp: FastMCP) -> None:
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation",
+            {"mutation": 'mutation { deleteDataset(datasetId: "1") }'},
+        )
+        assert result.structured_content == {"data": {"deleteDataset": True}, "errors": []}
+        assert DELETED_DATASET_IDS == ["1"]
+
+    async def test_refuses_several_operations_rather_than_running_the_first(
+        self, mutating_mcp: FastMCP
+    ) -> None:
+        both = (
+            'mutation A { deleteDataset(datasetId: "1") } '
+            'mutation B { deleteDataset(datasetId: "2") }'
+        )
+        result = await mutating_mcp.call_tool("executeGraphqlMutation", {"mutation": both})
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.AMBIGUOUS_OPERATION.value
+        assert DELETED_DATASET_IDS == []
+
+    async def test_states_the_size_limit(self, mutating_mcp: FastMCP) -> None:
+        """The description spells the limit out, so it must match the one enforced."""
+        tools = {tool.name: tool for tool in await mutating_mcp.list_tools()}
+        description = tools["executeGraphqlMutation"].description or ""
+        assert f"{MAX_QUERY_BYTES // 1024} KiB" in description
+
+    async def test_validate_only_still_enforces_the_size_limit(self, mutating_mcp: FastMCP) -> None:
+        oversized = 'mutation { deleteDataset(datasetId: "1") } #' + "x" * MAX_QUERY_BYTES
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": oversized, "validate_only": True}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.QUERY_TOO_LARGE.value
+
+    async def test_refuses_a_read_only_document(self, mutating_mcp: FastMCP) -> None:
+        """A query sent here is a mistake worth naming, not something to silently run."""
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": "{ datasets { name } }"}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.NOT_A_MUTATION.value
+
+    async def test_validate_only_does_not_run_the_mutation(self, mutating_mcp: FastMCP) -> None:
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation",
+            {"mutation": 'mutation { deleteDataset(datasetId: "1") }', "validate_only": True},
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["valid"] is True
+        assert "data" not in content
+        assert DELETED_DATASET_IDS == []
+
+    async def test_a_malformed_document_reports_its_syntax_error(
+        self, mutating_mcp: FastMCP
+    ) -> None:
+        broken = 'mutation { deleteDataset(datasetId: "1" }'
+        checked = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": broken, "validate_only": True}
+        )
+        content = checked.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.PARSE_ERROR.value
+        ran = await mutating_mcp.call_tool("executeGraphqlMutation", {"mutation": broken})
+        content = ran.structured_content
+        assert content is not None
+        assert content["data"] is None
+        assert "Syntax Error" in content["errors"][0]["message"]
+
+    async def test_a_subscription_is_refused_as_such(self, mutating_mcp: FastMCP) -> None:
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": "subscription { anything }"}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.SUBSCRIPTION_NOT_SUPPORTED.value
+
+    async def test_validate_only_still_refuses_a_read_only_document(
+        self, mutating_mcp: FastMCP
+    ) -> None:
+        result = await mutating_mcp.call_tool(
+            "executeGraphqlMutation", {"mutation": "{ datasets { name } }", "validate_only": True}
+        )
+        content = result.structured_content
+        assert content is not None
+        assert content["error"]["code"] == GraphQLRefusalCode.NOT_A_MUTATION.value
+
+    def test_a_read_only_deployment_never_registers_it(self) -> None:
+        """Registering it there would advertise a write the resolvers would refuse."""
+        source = Path(phoenix.server.mcp_server.__file__).read_text()
+        assert "graphql_mutations=not read_only," in source
+
+    def test_pxi_never_registers_it(self) -> None:
+        """PXI's writes go through `phoenix-gql`, which asks the user first.
+
+        Its call site leaves the flag at its default, so the default must stay off.
+        """
+        source = Path(phoenix.server.app.__file__).read_text()
+        start = source.index("pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(")
+        call_site = source[start : source.index("\n        )", start)]
+        assert "graphql_tools=" in call_site
+        assert "graphql_mutations=" not in call_site
+        signature = inspect.signature(phoenix.server.mcp_server.build_phoenix_mcp_server)
+        assert signature.parameters["graphql_mutations"].default is False
