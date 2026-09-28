@@ -1,1 +1,1 @@
-"""Shared Harbor task verifiers and reference-solution helpers."""
+"""Query helpers for the reference solutions in the Harbor task images."""

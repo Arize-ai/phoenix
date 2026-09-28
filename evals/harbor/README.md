@@ -17,7 +17,7 @@ compare the conditions in the Phoenix UI.
 | `environments/` | The shared Dockerfile and the fixture script for each database |
 | `jobs/` | One configuration file for each benchmark |
 | `tasks/` | The `error-analysis/` task and the tasks under `trail-benchmark-dev/` |
-| `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
+| `verifiers/` | Query helpers for the reference solutions |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
 ## Prerequisites
@@ -99,10 +99,9 @@ copy of `trail-benchmark-dev.yaml` records to `trail-benchmark-dev`, so subset a
 runs use the same dataset. Set `HARBOR_DATASET=<name>` to select another dataset. Set
 `HARBOR_PLUGIN=` to run without recording results in Phoenix.
 
-Each run includes `reward` and the other verifier measurements. The TRAIL verifier
-adds `tool_call_count` and `agent_turn_count`, which do not affect the reward. The plugin
-adds Harbor's token counts, cost, and latency, an `infra_ok` score that is `0` when
-Harbor reports an exception, and the agent's full trace. Run `make harbor-view` to open
+Each run includes `reward` and the other verifier scores. The plugin adds Harbor's token
+counts, cost, and latency, an `infra_ok` score that is `0` when Harbor reports an
+exception, and the agent's full trace. Run `make harbor-view` to open
 Harbor's results viewer.
 
 ## Benchmark conditions
@@ -131,26 +130,41 @@ through `px`. PXI is a separate condition and is not available to the other agen
 ## The TRAIL benchmark
 
 The TRAIL benchmark contains questions about the `research-assistant` project. Each
-condition answers every question in its final reply, and the verifier grades that reply.
+condition answers every question in its final reply, and the verifier grades that reply
+with [Reward Kit](https://github.com/laude-institute/harbor-rewardkit). `tests/test.sh`
+runs `reply.py`, which writes the last agent message from the ATIF trajectory to
+`/logs/verifier/reply.txt`, then runs `rewardkit /tests`. An oracle run has no
+trajectory, so `reply.py` uses the `/app/answer.txt` file that the reference solution
+writes.
 
-The `tests/expected.json` file in each task selects one of two grading methods:
+Reward Kit grades the reply with the criteria files in `tests/`. Most tasks hold one
+`judge.toml`:
 
-```json
-{"exact": "ok", "source": "fixed reply requested by the instruction"}
-{"reference": "117 traces", "notes": "...", "source": "solution/solve.sh against the seeded fixture"}
+```toml
+[judge]
+judge = "openai/gpt-5-nano"
+files = ["/logs/verifier/reply.txt"]
+prompt_template = "grading_prompt.md"
+
+[[criterion]]
+name = "matches_reference"
+description = "The reply's conclusion matches the reference answer: \"117 traces\"."
+type = "binary"
+
+[criterion.annotations]
+source = "solution/solve.sh against the seeded fixture"
 ```
 
-`exact` compares the reply with a fixed string and ignores Markdown emphasis, letter case,
-and final punctuation. `reference` asks an LLM judge whether the reply gives the same
-answer as the reference. Different wording, additional correct context, and rounding to
-the reference precision are acceptable. A different value, multiple candidate answers,
-or an answer to a different question fails. `notes` provides extra guidance to the judge,
-such as "page_down is the same tool." `source` records how the reference value was
-derived.
+`grading_prompt.md` tells the judge that different wording, additional correct context,
+and rounding to the reference precision are acceptable, and that a different value,
+multiple candidate answers, or an answer to a different question fails. Append `Grading
+notes:` to the description for task-specific guidance, such as "page_down is the same
+tool." `source` records how the reference value was derived. To use another judge model,
+change `judge` and add the provider host to the task's `[verifier]` table.
 
-The judge uses a `phoenix.evals` classifier with `gpt-5-nano`. Set
-`PHOENIX_EVAL_JUDGE_MODEL` and `PHOENIX_EVAL_JUDGE_PROVIDER` to use another model. Add
-the provider host to the task's `[verifier]` table.
+`noop-surface-cost` asks for a fixed reply and grades it with a `check.py` that calls the
+`file_contains_regex` built-in. Reward Kit writes `reward.json` with one `reward` key and
+`reward-details.json` with the judge's reasoning.
 
 ### Add a task
 
@@ -160,25 +174,26 @@ tasks/trail-benchmark-dev/<name>/
   task.toml                      [task] name and description, then a shared block
   .gitignore                     identical across tasks
   tests/test.sh                  identical across tasks
-  tests/expected.json            the reference answer
+  tests/reply.py                 identical across tasks
+  tests/grading_prompt.md        identical across tasks
+  tests/judge.toml               the reference answer
   solution/solve.sh              a reference solution, run by the oracle
 ```
 
 Copy an existing task and change `instruction.md`, the `[task]` table, the solution,
-and `expected.json`. A unit test checks that the shared files stay identical and that
-`expected.json` is well formed.
+and `judge.toml`. A unit test checks that the shared files stay identical and that
+`judge.toml` is well formed.
 
 Write a solution that calculates the reference value from the running Phoenix instance.
 Use `evals.harbor.verifiers.phoenix_api` to read spans and annotations through the Phoenix
 client and per-span costs through GraphQL. Stage the task, run the oracle, and copy its
-answer into `expected.json`. Use `source` to describe how the solution calculated the
-answer.
+answer into the `judge.toml` description. Use `source` to describe how the solution
+calculated the answer.
 
-For a task that changes Phoenix state instead of answering a question, write a custom
-`test.sh`. Query Phoenix at `http://127.0.0.1:6006` or read `/data/phoenix.db`. The
-verifier runs as root. Calculate the reward, and call
-`evals.harbor.verifiers.verify.write_reward(reward, **extra)` to include the trajectory
-measurements.
+For a task that changes Phoenix state instead of answering a question, replace
+`judge.toml` with Reward Kit criteria that query Phoenix at `http://127.0.0.1:6006` or
+read `/data/phoenix.db`. The verifier runs as root. Reward Kit's built-ins cover files,
+commands, SQLite queries, and HTTP; a `@criterion` function covers the rest.
 
 ### Add a condition
 

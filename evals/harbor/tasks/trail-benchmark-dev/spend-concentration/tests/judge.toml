@@ -1,0 +1,12 @@
+[judge]
+judge = "openai/gpt-5-nano"
+files = ["/logs/verifier/reply.txt"]
+prompt_template = "grading_prompt.md"
+
+[[criterion]]
+name = "matches_reference"
+description = "The reply's conclusion matches the reference answer: \"45.3% of the total cost comes from the most expensive 10% of traces (12 traces)\". Grading notes: The exact share is 45.32%; accept any rounding of it, such as 45% or 45.3%."
+type = "binary"
+
+[criterion.annotations]
+source = "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; the top 12 traces (10% of 117, rounded up) of $16.00 total"

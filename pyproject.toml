@@ -340,7 +340,8 @@ files = [
 exclude = [
   "api_reference",
   "dist/",
-  # Staging copies evals.harbor.verifiers to /opt/verifier for task solutions to import.
+  # Staging copies evals.harbor.verifiers to /opt/verifier for task solutions to import;
+  # the task tests run under Reward Kit in the image, not in this environment.
   "evals/harbor/tasks/[^/]+/environment/",
   "evals/harbor/tasks/trail-benchmark-dev/",
   "examples/",

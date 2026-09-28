@@ -1,5 +1,5 @@
-# Build the shared Harbor task image from this checkout, the task fixture, the verifier,
-# and the agent runtime. scripts/stage_harbor_environments.sh assembles the build context.
+# Build the shared Harbor task image from this checkout, the task fixture, the verifier
+# runtime, and the agent runtime. scripts/stage_harbor_environments.sh assembles the build context.
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 # Node 22 for the coding agents and the px CLI. Copied from the official image because
 # Debian bookworm ships Node 18.
@@ -19,8 +19,15 @@ RUN npm install -g "@openai/codex@${CODEX_VERSION}"
 # Harbor runs the agent and the reference solution from the image's working directory.
 WORKDIR /app
 RUN chown agent:agent /app
+# requirements.txt locks Reward Kit and its dependencies with hashes; it runs the task
+# verifiers, and the sandbox has no route to PyPI at verify time. --no-deps installs the
+# locked set as is instead of re-resolving it. The Phoenix wheel is constrained to the same
+# versions so the two installs cannot drift.
+COPY requirements.txt /requirements.txt
 COPY wheels/ /wheels/
-RUN uv pip install --system --no-cache /wheels/*.whl
+RUN uv pip install --system --no-cache --require-hashes --no-deps -r /requirements.txt \
+  && uv pip install --system --no-cache --constraint /requirements.txt /wheels/*.whl
+# Reference solutions import evals.harbor.verifiers.phoenix_api from here.
 COPY verifier/ /opt/verifier/
 COPY container_assets/ /opt/phoenix-eval/
 COPY data/ /data/

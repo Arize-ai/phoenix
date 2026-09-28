@@ -1,0 +1,12 @@
+[judge]
+judge = "openai/gpt-5-nano"
+files = ["/logs/verifier/reply.txt"]
+prompt_template = "grading_prompt.md"
+
+[[criterion]]
+name = "matches_reference"
+description = "The reply's conclusion matches the reference answer: \"Yes. Short traces (fewer than 15 spans): 0.8% of their spans errored. Long traces (40 or more spans): 14.6%.\". Grading notes: The exact rates are 0.79% and 14.61%; accept any rounding of them. Each rate must be attached to the right group, so reversed rates do not match."
+type = "binary"
+
+[criterion.annotations]
+source = "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; short (<15 spans) 5/629 ERROR spans, long (>=40 spans) 312/2136"

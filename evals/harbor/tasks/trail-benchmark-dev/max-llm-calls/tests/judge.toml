@@ -1,0 +1,12 @@
+[judge]
+judge = "openai/gpt-5-nano"
+files = ["/logs/verifier/reply.txt"]
+prompt_template = "grading_prompt.md"
+
+[[criterion]]
+name = "matches_reference"
+description = "The reply's conclusion matches the reference answer: \"78 LLM calls\"."
+type = "binary"
+
+[criterion.annotations]
+source = "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows"

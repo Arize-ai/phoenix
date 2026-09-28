@@ -1,4 +1,0 @@
-{
-  "reference": "117 traces",
-  "source": "solution/solve.sh against the seeded fixture, cross-checked against the TRAIL rows; matches the seed summary traceCount"
-}

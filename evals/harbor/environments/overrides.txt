@@ -1,0 +1,5 @@
+# Mirrors [tool.uv].override-dependencies in the root pyproject: Phoenix needs openai 3
+# through pydantic-ai, and litellm (a Reward Kit dependency) still declares openai<3
+# while never reaching the code paths that bound guards. The lock is compiled with this
+# override; the image installs the lock with --no-deps, so it is not re-resolved there.
+openai>=3.1.0,<4
