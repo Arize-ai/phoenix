@@ -3720,9 +3720,11 @@ class ProjectEvaluator(HasId):
 
 
 class EvalWorkLease(HasId):
-    """A named lease that keeps one replica at a time running an online-eval materializer,
-    so replicas do not repeat each other's queries. It is held while heartbeat_at stays
-    fresh; once it goes stale another replica may take it."""
+    """A named lease that normally keeps one replica at a time doing an online-eval
+    materializer's work, so replicas do not repeat each other's queries. It is held while
+    heartbeat_at stays fresh; once it goes stale another replica may take it. The lease is
+    advisory: correctness rests on the unique work-unit keys and on positions that only move
+    forward."""
 
     __tablename__ = "eval_work_leases"
     name: Mapped[str] = mapped_column(String, nullable=False)
