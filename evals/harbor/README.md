@@ -124,9 +124,11 @@ must access the data through Phoenix. PXI runs inside the server and uses the se
 database access. This difference is part of the PXI condition.
 
 Claude Code uses the Anthropic API, and Codex uses the OpenAI API. The job file therefore
-sets a model for each agent. Harbor installs Claude Code when the trial starts. The image
-contains the Codex version pinned in the job file. The CLI agents access Phoenix only
-through `px`. PXI is a separate condition and is not available to the other agents.
+sets a model for each agent. The image contains Claude Code and Codex at the versions
+pinned in the job file, each readable only by root until its own condition starts, so a
+condition sees only the CLI it runs. `make harbor-run` refuses a job whose pins differ
+from the Dockerfile. The CLI agents access Phoenix only through `px`. PXI is a separate
+condition and is not available to the other agents.
 
 ## The TRAIL benchmark
 
@@ -265,7 +267,7 @@ dataset version.
 | --- | --- | --- | --- |
 | Task | `[environment]` in `task.toml` | the whole trial | nothing |
 | Verifier | `[verifier]` in `task.toml` | verification only | the judge's provider |
-| Job | `environment.extra_allowed_hosts` in the job file | every agent in the job | the Phoenix docs hosts and `downloads.claude.ai` for the Claude Code install |
+| Job | `environment.extra_allowed_hosts` in the job file | every agent in the job | the Phoenix docs hosts |
 | Agent | `extra_allowed_hosts` on an agent entry | that agent's run | the agent's LLM provider |
 
 For a sealed run, remove the allowed hosts from the job and agent configurations. Agent

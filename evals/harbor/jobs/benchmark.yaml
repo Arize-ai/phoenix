@@ -29,7 +29,7 @@ agents:
       - .agents/skills/phoenix-tracing
 environment:
   type: daytona
-  extra_allowed_hosts: [downloads.claude.ai, arizeai-433a7140.mintlify.app, arize.com]
+  extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]
   # Delete sandboxes left by interrupted runs so they do not consume the organization quota.
   kwargs:
     auto_stop_interval_mins: 30
