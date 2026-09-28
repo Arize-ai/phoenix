@@ -429,8 +429,7 @@ class Dataset(Node):
             sequence_subq, models.Experiment.id == sequence_subq.c.experiment_id
         )
         if sort:
-            # For now assume the column names match 1:1 with the enum values
-            sort_col = getattr(models.Experiment, sort.col.value)
+            sort_col = sort.col.orm_expression
             if sort.dir is SortDir.desc:
                 query = query.order_by(sort_col.desc(), models.Experiment.id.desc())
             else:
