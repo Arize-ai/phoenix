@@ -75,18 +75,18 @@ export const CodeEvaluatorSourceEditor = ({
   );
   const evaluatorMappingSource = evaluatorMappingSourceState.source;
   const evaluationContext = useMemo(() => {
-    const grain = evaluatorMappingSourceState.grain;
-    return grain === "dataset"
+    const recordKind = evaluatorMappingSourceState.recordKind;
+    return recordKind === "dataset"
       ? null
       : materializeEvaluatorContext({
-          grain,
+          recordKind,
           evaluatorMappingSource: evaluatorMappingSourceState,
           inputMapping,
         });
   }, [evaluatorMappingSourceState, inputMapping]);
 
-  // The footer names what `evaluate` receives, so for a project grain it reads
-  // the mapping applied rather than the record as it arrived — the same
+  // The footer names what `evaluate` receives, so for a project record kind it
+  // reads the mapping applied rather than the record as it arrived — the same
   // context the autocomplete offers from. A dataset example is bound by name
   // and has no such gap.
   const typeFooter = useMemo(
@@ -197,7 +197,7 @@ export const CodeEvaluatorSourceEditor = ({
               onChange(
                 getDefaultCodeEvaluatorSource(
                   language,
-                  evaluatorMappingSourceState.grain
+                  evaluatorMappingSourceState.recordKind
                 )
               )
             }
