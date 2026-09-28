@@ -13,7 +13,7 @@ example_ids = {e.rowid for e in examples}
 first, last = (experiments[0], experiments[-1]) if experiments else (None, None)
 
 # The empty prompt goes first, so the baseline cannot already be perfect.
-baseline_ok = len(experiments) >= 2 and first.mean_score < 1.0
+baseline_ok = len(experiments) >= 2 and experiments[0].mean_score < 1.0
 # Every experiment ran the whole dataset and the evaluator scored it.
 complete_ok = bool(experiments) and all(
     set(x.scores) == example_ids and x.scored_count == len(example_ids) for x in experiments

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import inspect
 import json
@@ -8,7 +9,7 @@ import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 DATA_DIR = Path(os.environ.get("PHOENIX_EVAL_DATA_DIR", "/data"))
 AGENT_LOGS_DIR = Path(os.environ.get("PHOENIX_EVAL_AGENT_LOGS_DIR", "/logs/agent"))
@@ -199,10 +200,12 @@ def _call_code_evaluator(source: str, mapping: dict[str, Any], context: dict[str
     kwargs = {name: available[name] for name in parameters if name in available}
     result = evaluate(**kwargs)
     if inspect.isawaitable(result):
-        import asyncio
-
-        result = asyncio.run(result)
+        result = asyncio.run(_resolve(result))
     return _as_score(result)
+
+
+async def _resolve(value: Awaitable[Any]) -> Any:
+    return await value
 
 
 def _as_score(result: Any) -> float:
@@ -235,7 +238,7 @@ def probe_evaluator(
     every probe agrees with expectation under at least one shape."""
     if evaluator.kind == "LLM":
         return False, {"reason": "an LLM judge is not an exact-match check"}
-    shapes = {
+    shapes: dict[str, Callable[[str], Any]] = {
         "text": lambda text: text,
         "messages": lambda text: {"messages": [{"role": "assistant", "content": text}]},
     }
