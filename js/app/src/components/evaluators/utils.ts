@@ -6,7 +6,6 @@ import type {
 } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import type { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
-import { normalizeInputMapping } from "@phoenix/components/evaluators/inputMappingUtils";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
@@ -18,6 +17,26 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
+
+/** Returns whether a mapping value survives persistence. */
+export function hasMappingValue(value: unknown): boolean {
+  return value != null && value !== "";
+}
+
+/** Removes paths shadowed by literal mappings, matching server precedence. */
+export function normalizeInputMapping(
+  mapping: EvaluatorInputMapping
+): EvaluatorInputMapping {
+  const pathMapping = { ...mapping.pathMapping };
+
+  for (const [name, value] of Object.entries(mapping.literalMapping)) {
+    if (hasMappingValue(value)) {
+      delete pathMapping[name];
+    }
+  }
+
+  return { ...mapping, pathMapping };
+}
 
 // Single source of judge tools, shared by Save and preview so the two can't diverge.
 export const buildJudgeToolFunctions = ({

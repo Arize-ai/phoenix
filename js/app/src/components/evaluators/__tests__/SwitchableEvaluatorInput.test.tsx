@@ -4,11 +4,11 @@ import { createRoot } from "react-dom/client";
 import { useForm } from "react-hook-form";
 import { userEvent } from "storybook/test";
 
-import { hasMappingValue } from "../inputMappingUtils";
 import {
   resolveMappingMode,
   SwitchableEvaluatorInput,
 } from "../SwitchableEvaluatorInput";
+import { hasMappingValue } from "../utils";
 
 type MappingForm = {
   pathMapping: Record<string, string>;

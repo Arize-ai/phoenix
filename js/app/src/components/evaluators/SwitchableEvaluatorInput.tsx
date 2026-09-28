@@ -29,7 +29,7 @@ import {
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import type { SizingProps } from "@phoenix/components/core/types";
-import { hasMappingValue } from "@phoenix/components/evaluators/inputMappingUtils";
+import { hasMappingValue } from "@phoenix/components/evaluators/utils";
 
 export type MappingMode = "path" | "literal";
 

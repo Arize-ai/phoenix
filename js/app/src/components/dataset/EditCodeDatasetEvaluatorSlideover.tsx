@@ -21,8 +21,10 @@ import {
   createDefaultFreeformOutputConfig,
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
-import { normalizeInputMapping } from "@phoenix/components/evaluators/inputMappingUtils";
-import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
+import {
+  buildOutputConfigsInput,
+  normalizeInputMapping,
+} from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import {
