@@ -320,13 +320,18 @@ def _run_one_tick(sweeper: EvalSweeper, monkeypatch: pytest.MonkeyPatch) -> asyn
 
 
 @pytest.mark.postgres_only
-async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
+@pytest.mark.parametrize("deleted_row", ["project_evaluator", "session"])
+async def test_row_deleted_mid_tick_rolls_the_tick_back(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
+    deleted_row: str,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    project_id, deleted_session_id, _ = await _add_session_liveness(db, age_seconds=600)
+    _, surviving_session_id, _ = await _add_session_liveness(
+        db, age_seconds=600, project_id=project_id
+    )
     _, deleted_project_evaluator_id = await _seed_criteria(
         db,
         project_id,
@@ -337,6 +342,18 @@ async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
         project_id,
         evaluation_target="SESSION",
     )
+    if deleted_row == "project_evaluator":
+        deletion = delete(models.ProjectEvaluator).where(
+            models.ProjectEvaluator.id == deleted_project_evaluator_id
+        )
+        project_evaluator_ids = {surviving_project_evaluator_id}
+        session_ids = {deleted_session_id, surviving_session_id}
+    else:
+        deletion = delete(models.ProjectSession).where(
+            models.ProjectSession.id == deleted_session_id
+        )
+        project_evaluator_ids = {deleted_project_evaluator_id, surviving_project_evaluator_id}
+        session_ids = {surviving_session_id}
     # The tick must still be waiting when the delete commits, so its foreign key check fails.
     monkeypatch.setattr(sweeper_module, "_LOCK_TIMEOUT_MILLISECONDS", 10_000)
     sweeper = EvalSweeper(
@@ -360,15 +377,21 @@ async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
                     return
             await asyncio.sleep(0)
 
+    async def swept_through_at() -> set[datetime | None]:
+        async with db() as session:
+            return set(
+                await session.scalars(
+                    select(models.ProjectEvaluator.swept_through_at).where(
+                        models.ProjectEvaluator.id.in_(project_evaluator_ids)
+                    )
+                )
+            )
+
     with caplog.at_level(logging.WARNING, logger=sweeper_module.__name__):
         async with db() as deletion_session:
             deletion_backend_pid = await deletion_session.scalar(select(func.pg_backend_pid()))
             assert deletion_backend_pid is not None
-            await deletion_session.execute(
-                delete(models.ProjectEvaluator).where(
-                    models.ProjectEvaluator.id == deleted_project_evaluator_id
-                )
-            )
+            await deletion_session.execute(deletion)
             run = _run_one_tick(sweeper, monkeypatch)
             await asyncio.wait_for(wait_until_blocked_by(deletion_backend_pid), timeout=5)
         await asyncio.wait_for(run, timeout=5)
@@ -383,30 +406,27 @@ async def test_evaluator_deleted_mid_tick_rolls_the_tick_back(
         assert (
             await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
         )
-        assert (
-            await session.scalar(
-                select(models.ProjectEvaluator.swept_through_at).where(
-                    models.ProjectEvaluator.id == surviving_project_evaluator_id
-                )
-            )
-            is None
-        )
+    assert await swept_through_at() == {None}
 
     await tick()
 
     async with db() as session:
-        scheduled_project_evaluator_ids = list(
-            await session.scalars(select(models.EvalSessionWorkUnit.project_evaluator_id))
-        )
-        assert (
-            await session.scalar(
-                select(models.ProjectEvaluator.swept_through_at).where(
-                    models.ProjectEvaluator.id == surviving_project_evaluator_id
+        scheduled_pairs = set(
+            (
+                await session.execute(
+                    select(
+                        models.EvalSessionWorkUnit.project_evaluator_id,
+                        models.EvalSessionWorkUnit.project_session_rowid,
+                    )
                 )
-            )
-            is not None
+            ).tuples()
         )
-    assert scheduled_project_evaluator_ids == [surviving_project_evaluator_id]
+    assert scheduled_pairs == {
+        (project_evaluator_id, session_id)
+        for project_evaluator_id in project_evaluator_ids
+        for session_id in session_ids
+    }
+    assert None not in await swept_through_at()
 
 
 @pytest.mark.postgres_only
