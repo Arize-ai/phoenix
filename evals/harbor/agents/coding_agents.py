@@ -20,7 +20,6 @@ _CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
 
 
 class PreinstalledAgentMixin(BaseInstalledAgent):
-
     PREINSTALLED_PACKAGE_DIR: ClassVar[str]
 
     async def install(self, environment: BaseEnvironment) -> None:
