@@ -1,4 +1,4 @@
-import { ONE_DAY_MS } from "@phoenix/constants/timeConstants";
+import { ONE_DAY_MS, ONE_MINUTE_MS } from "@phoenix/constants/timeConstants";
 
 import { getBrushGestureTimeRange } from "../TimeRangeChartBrush";
 
@@ -23,6 +23,27 @@ describe("getBrushGestureTimeRange", () => {
     ).toEqual({
       start: new Date(binStartMs),
       end: new Date(binStartMs + ONE_DAY_MS),
+    });
+  });
+
+  it("selects every unit of a multi-unit bin for a stationary click", () => {
+    expect(
+      getBrushGestureTimeRange({
+        selection: {
+          start: binStartMs,
+          end: binStartMs,
+          startX: 20,
+          endX: 20,
+          plotArea,
+        },
+        scale: "MINUTE",
+        interval: 5,
+        utcOffsetMinutes: 0,
+        clickMaxDragPx: 4,
+      })
+    ).toEqual({
+      start: new Date(binStartMs),
+      end: new Date(binStartMs + 5 * ONE_MINUTE_MS),
     });
   });
 
