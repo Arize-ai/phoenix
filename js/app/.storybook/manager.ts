@@ -219,7 +219,7 @@ const THEME_OPTIONS = [
 function ThemeToolbar() {
   const [globals, updateGlobals] = useGlobals();
   const api = useStorybookApi();
-  const currentTheme = globals.theme ?? "auto";
+  const currentTheme = globals.theme ?? "both";
 
   const applyManagerTheme = useCallback(
     (mode: string) => {
@@ -314,7 +314,7 @@ installRootHeadings({
   themeAttribute: SIDEBAR_THEME_ATTRIBUTE,
   textColor: { light: lightTheme.textColor, dark: darkTheme.textColor },
 });
-applySidebarTheme("auto");
+applySidebarTheme("both");
 installSearchDocsTitles();
 
 addons.setConfig({
@@ -326,7 +326,7 @@ addons.setConfig({
 addons.register("phoenix-subject-overviews", installSubjectOverviews);
 
 addons.register("phoenix-manager-options", (api) => {
-  const mode = api.getGlobals()?.theme ?? "auto";
+  const mode = api.getGlobals()?.theme ?? "both";
   applySidebarTheme(mode);
   api.setOptions({
     enableShortcuts: false,
@@ -338,7 +338,7 @@ addons.register("phoenix-manager-options", (api) => {
 addons.register("phoenix-auto-theme", (api) => {
   const channel = addons.getChannel();
 
-  const getThemeMode = () => api.getGlobals()?.theme ?? "auto";
+  const getThemeMode = () => api.getGlobals()?.theme ?? "both";
 
   channel.on(THEME_CHANGE_EVENT, (scheme: string) => {
     const mode = getThemeMode();

@@ -350,7 +350,7 @@ function useDocsThemeMode(): string {
     return (
       getThemeModeFromGlobals(channel.last(GLOBALS_UPDATED)?.[0]) ??
       getThemeModeFromGlobals(channel.last(SET_GLOBALS)?.[0]) ??
-      "auto"
+      "both"
     );
   });
 
@@ -723,11 +723,11 @@ const preview: Preview = {
     },
   },
   initialGlobals: {
-    theme: "auto",
+    theme: "both",
   },
   decorators: [
     (Story, { globals, parameters, name }) => {
-      const themeMode = globals.theme ?? "auto";
+      const themeMode = globals.theme ?? "both";
       const { resolvedThemes, systemTheme } = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
       const isThumbnail = name === THUMBNAIL_STORY_NAME;
