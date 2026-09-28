@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-  ExpandableContent,
   Flex,
   Heading,
   Icon,
@@ -1152,7 +1151,7 @@ function LlmCustomEvaluatorDetails({
           ]
         : [];
   return (
-    <Flex direction="column" gap="size-300" height="100%">
+    <Flex direction="column" gap="size-300" minHeight="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
@@ -1174,7 +1173,7 @@ function CodeCustomEvaluatorDetails({
   onDuplicateEvaluator: () => void;
 }) {
   return (
-    <Flex direction="column" gap="size-300" height="100%">
+    <Flex direction="column" gap="size-300" minHeight="100%">
       <CustomEvaluatorDetailsHeader evaluator={evaluator} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
@@ -1183,17 +1182,11 @@ function CodeCustomEvaluatorDetails({
           Code
         </Text>
         <div css={codePreviewWellCSS}>
-          <ExpandableContent
-            height={CODE_PREVIEW_COLLAPSED_HEIGHT}
-            expandedBehavior="grow"
-            overlayBackgroundColor="var(--global-background-color-100)"
-          >
-            {evaluator.language === "PYTHON" ? (
-              <PythonBlockWithCopy value={evaluator.sourceCode} />
-            ) : (
-              <TypeScriptBlockWithCopy value={evaluator.sourceCode} />
-            )}
-          </ExpandableContent>
+          {evaluator.language === "PYTHON" ? (
+            <PythonBlockWithCopy value={evaluator.sourceCode} />
+          ) : (
+            <TypeScriptBlockWithCopy value={evaluator.sourceCode} />
+          )}
         </div>
       </Flex>
       <EvaluatorDetailsAction
@@ -1221,24 +1214,18 @@ function EvaluatorPromptPreview({
         Prompt
       </Text>
       <div css={[detailsSectionWellCSS, promptPreviewWellCSS]}>
-        <ExpandableContent
-          height={PROMPT_PREVIEW_COLLAPSED_HEIGHT}
-          expandedBehavior="grow"
-          overlayBackgroundColor="var(--global-color-gray-100)"
-        >
-          <Flex direction="column" gap="size-150">
-            {messages.map((message) => (
-              <Flex key={message.id} direction="column" gap="size-25">
-                <Text size="XS" color="text-500" weight="heavy">
-                  {capitalize(message.role)}
-                </Text>
-                <Text size="S" css={promptPreviewMessageCSS}>
-                  {message.content}
-                </Text>
-              </Flex>
-            ))}
-          </Flex>
-        </ExpandableContent>
+        <Flex direction="column" gap="size-150">
+          {messages.map((message) => (
+            <Flex key={message.id} direction="column" gap="size-25">
+              <Text size="XS" color="text-500" weight="heavy">
+                {capitalize(message.role)}
+              </Text>
+              <Text size="S" css={promptPreviewMessageCSS}>
+                {message.content}
+              </Text>
+            </Flex>
+          ))}
+        </Flex>
       </div>
     </Flex>
   );
@@ -1257,15 +1244,15 @@ function EvaluatorDetailsAction({
   };
 }) {
   return (
-    <Flex direction="column" gap="size-100" css={stickyUseTemplateFooterCSS}>
-      <Button variant="primary" onPress={onPress}>
-        {children}
-      </Button>
+    <Flex direction="row" gap="size-100" css={stickyUseTemplateFooterCSS}>
       {secondaryAction ? (
         <Button onPress={secondaryAction.onPress}>
           {secondaryAction.label}
         </Button>
       ) : null}
+      <Button variant="primary" onPress={onPress}>
+        {children}
+      </Button>
     </Flex>
   );
 }
@@ -1281,7 +1268,7 @@ function EvaluatorTemplateDetails({
   const messages = getProjectEvaluatorTemplateMessages(template);
   const category = getGalleryCategory(template.category);
   return (
-    <Flex direction="column" gap="size-300" height="100%">
+    <Flex direction="column" gap="size-300" minHeight="100%">
       <Flex direction="column" gap="size-50">
         <Flex direction="column" gap="size-25">
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -1317,24 +1304,25 @@ function EvaluatorTemplateDetails({
   );
 }
 
-// Bleeds out to the edges of the details column's own padding/gap (both
-// `var(--global-dimension-size-200)`) and re-adds that same space as padding
-// inside this element's own background, so nothing scrolls behind it.
+// `margin-top: auto` rests the footer at the bottom of the column when the
+// details are short. The side and bottom margins bleed out to the column's
+// padding and re-add it inside this element's own background, so nothing
+// scrolls behind it.
 const stickyUseTemplateFooterCSS = css`
   position: sticky;
   bottom: calc(-1 * var(--project-evaluator-gallery-column-padding));
   z-index: 1;
-  margin: calc(-1 * var(--global-dimension-size-200))
-    calc(-1 * var(--project-evaluator-gallery-column-padding))
+  margin: auto calc(-1 * var(--project-evaluator-gallery-column-padding))
     calc(-1 * var(--project-evaluator-gallery-column-padding));
   padding: var(--global-dimension-size-200)
     var(--project-evaluator-gallery-column-padding)
     var(--project-evaluator-gallery-column-padding);
   background-color: var(--global-background-color-default);
-`;
 
-const PROMPT_PREVIEW_COLLAPSED_HEIGHT = 160;
-const CODE_PREVIEW_COLLAPSED_HEIGHT = 240;
+  & > * {
+    flex: 1 1 0;
+  }
+`;
 
 const detailsSectionWellCSS = css`
   background-color: var(--global-background-color-100);
