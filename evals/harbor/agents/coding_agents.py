@@ -20,9 +20,6 @@ _CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
 
 
 class PreinstalledAgentMixin(BaseInstalledAgent):
-    """The image installs this CLI under a directory only root can read, so conditions
-    that do not run it cannot reach it. Install opens the directory; Harbor's installer
-    then finds the CLI on PATH and skips the network."""
 
     PREINSTALLED_PACKAGE_DIR: ClassVar[str]
 
