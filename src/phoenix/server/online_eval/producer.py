@@ -8,8 +8,11 @@ inserts. Each tick takes the lease and deletes aged terminal work rows. When a f
 is due and the admission gate is open, it also scans the lag-gated span id window per
 project evaluator and inserts surviving work units. A slow-cadence backstop sweep
 re-covers a bounded id window behind the watermark to catch spans that became visible
-after their window was scanned; it rolls back if the cursor moved while it ran, because
-the cursor's new holder may have reaped terminal work in that window.
+after their window was scanned.
+
+Every cursor write is compare-and-set on the position it read, and a scan (frontier or
+backstop) commits only if the position it scanned against is still current, so the
+position only moves forward, except when clamped to the live span high water.
 """
 
 from __future__ import annotations
