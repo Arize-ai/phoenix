@@ -9,7 +9,7 @@ Every post-claim write (heartbeat / publish / fail / expire / release) is fenced
 ``claimed_by == <the claim's token> AND status == 'RUNNING'``. Publication writes the
 results and marks the unit DONE in its fenced transaction; a transition that misses the
 fence returns False, unless the unit is DONE under the same token, which counts as
-success.
+success so that a write racing its own claim's publication doesn't report a lost claim.
 """
 
 from __future__ import annotations

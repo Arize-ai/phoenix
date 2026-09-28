@@ -84,7 +84,8 @@ class EvalWorkCoordinator(Protocol):
     """Coordinates online-eval work across replicas behind a swappable backend.
 
     Heartbeat, fail, expire and release return False once the claim is lost, and True,
-    changing nothing, when the claim's own publication already finished the unit."""
+    changing nothing, when the claim's own publication already finished the unit, so a
+    call that raced that publication doesn't report a lost claim."""
 
     async def claim(
         self,
@@ -107,8 +108,9 @@ class EvalWorkCoordinator(Protocol):
         work_unit_id: int,
         claimed_by: str,
     ) -> bool:
-        """Renew the lease on a claimed unit. Returns False if the claim was lost —
-        never silent success."""
+        """Renew the lease on a claimed unit. Returns False once the claim is lost, and True
+        without renewing when the claim's own publication already finished the unit, so a
+        heartbeat that waited on that publication doesn't report a lost claim."""
         ...
 
     async def publish(
