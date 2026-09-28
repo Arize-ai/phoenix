@@ -349,7 +349,7 @@ class Concatenation(_HasTmpSuffix, Projection):
                     )
                 )
                 .add_columns(*columns)
-                .group_by(*stmt.columns.keys())
+                .group_by(*stmt.selected_columns.keys())
             )
             return stmt
         else:
