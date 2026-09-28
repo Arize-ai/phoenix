@@ -8,8 +8,9 @@
  * mechanical guard on the story set and it carries more weight than a lint
  * rule normally would.
  *
- * Run: `pnpm lint:stories`, or `pnpm lint`, which runs it after oxlint and is
- * what CI runs.
+ * Run: `pnpm lint:storybook`. It is kept out of `pnpm lint`; CI runs it through
+ * `.github/workflows/storybook-CI.yml` when a pull request touches stories,
+ * Storybook configuration or components.
  *
  * @see js/app/stories/_meta/taxonomy.ts
  * @see js/app/stories/_meta/tags.ts
@@ -755,7 +756,9 @@ function main() {
   checkStatesCrossOtherOptions(managed);
 
   if (problems.length > 0) {
-    process.stderr.write(`\nlint:stories — ${problems.length} problem(s):\n\n`);
+    process.stderr.write(
+      `\nlint:storybook — ${problems.length} problem(s):\n\n`
+    );
     for (const p of problems) process.stderr.write(`  ${p}\n`);
     process.stderr.write(
       `\nConventions: .agents/skills/phoenix-storybook/SKILL.md (from the repository root)\n\n`
@@ -763,7 +766,7 @@ function main() {
     process.exit(1);
   }
   process.stdout.write(
-    `lint:stories — ok. ${managed.length} file(s) in the taxonomy.
+    `lint:storybook — ok. ${managed.length} file(s) in the taxonomy.
 `
   );
 }

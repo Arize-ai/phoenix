@@ -1,7 +1,7 @@
 # Tags
 
 Tags keep the health of the story set visible in the sidebar. The vocabulary
-lives in `js/app/stories/_meta/tags.ts`; `pnpm lint:stories` enforces it and
+lives in `js/app/stories/_meta/tags.ts`; `pnpm lint:storybook` enforces it and
 the sidebar chips render it (see [storybook-config](storybook-config.md)).
 
 ## Contents
@@ -49,7 +49,7 @@ a boolean flag with no `used` counterpart — "used" is the normal case, and a
 chip saying so everywhere would be noise. It is the deliberate exception to
 tagging both sides, and it is safe because it is derived, not asserted:
 
-`pnpm lint:stories` resolves each file's `meta.component` to an `@phoenix/…`
+`pnpm lint:storybook` resolves each file's `meta.component` to an `@phoenix/…`
 import and searches `src/` for any reference other than its declaration,
 imports and re-exports (the declaring file counts, since many components are
 rendered only by their own module). It fails when an unrendered component

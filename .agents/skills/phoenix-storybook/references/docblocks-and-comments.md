@@ -3,7 +3,7 @@
 Story files repeat the same few mechanisms (tags, controls, parameters)
 across dozens of files and invite the same comment every time. A restating
 comment or docblock is a conspicuous, clichéd failure mode. Neither
-`pnpm lint:stories` nor any other check catches it, so reread every docblock
+`pnpm lint:storybook` nor any other check catches it, so reread every docblock
 and comment you wrote before finishing.
 
 ## Story docblocks are content

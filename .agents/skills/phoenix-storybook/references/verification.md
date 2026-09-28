@@ -1,6 +1,6 @@
 # Verifying stories in a browser
 
-`pnpm lint:stories` checks structure; it cannot see layout, theming, or
+`pnpm lint:storybook` checks structure; it cannot see layout, theming, or
 overflow. Use the repo's Playwright against the running dev Storybook (its
 port is `STORYBOOK_PORT` in `js/app/.env`, default 6007) for the checks
 below. Computed styles and bounding boxes in a screenshot-free probe are

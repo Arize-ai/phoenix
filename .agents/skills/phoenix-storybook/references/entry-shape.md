@@ -20,7 +20,7 @@ each story is an isolated canvas. With one story it is duplication.
 
 So a file with exactly one sidebar story tags that story `!dev`; the Docs
 page becomes the only entry and Storybook draws it as a single leaf.
-`pnpm lint:stories` enforces this. A file that gains a second story drops the
+`pnpm lint:storybook` enforces this. A file that gains a second story drops the
 `!dev` again.
 
 ## Prefer the Docs page as the only entry

@@ -624,7 +624,7 @@ const preview: Preview = {
       // read `options.storySort` — it never evaluates it — so an imported
       // constant fails the build with "Unexpected '<identifier>'".
       // `stories/_meta/taxonomy.ts` stays the declarative source of truth and
-      // `pnpm lint:stories` asserts this array agrees with it.
+      // `pnpm lint:storybook` asserts this array agrees with it.
       storySort: {
         order: [
           "Design System",

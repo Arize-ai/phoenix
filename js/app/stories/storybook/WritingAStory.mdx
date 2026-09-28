@@ -34,7 +34,7 @@ stories next, composition guidance last.
 `Design System/Overlays/Popover` lives at
 `stories/design-system/overlays/Popover.stories.tsx`. Directories are the
 kebab-case slug of the leading title segments; the file keeps the component's
-own casing. `pnpm lint:stories` enforces this, so a title and its location
+own casing. `pnpm lint:storybook` enforces this, so a title and its location
 cannot drift apart. Never put an ampersand in a title segment — it becomes a
 directory name, and `&` is hostile to globs and shell commands.
 
@@ -67,7 +67,7 @@ components duplicates every component's own story and rots.
 **Every sidebar entry shows something no other entry shows.** A file's Docs
 page renders all of its stories, so a file with a single story would show it
 twice. Tag a lone story `!dev`: the Docs page becomes the file's one entry, and
-the sidebar draws it as a single leaf. `pnpm lint:stories` enforces this.
+the sidebar draws it as a single leaf. `pnpm lint:storybook` enforces this.
 
 **Open layered content and keep it open.** A tooltip, popover, menu, or dialog
 story is about the content, not the launch. Hold it open through the
@@ -98,7 +98,7 @@ export const Thumbnail: Story = {
 - **Author it to fit the frame.** It is a picture, not a demo: one
   representative state, compact content, overlays opened on mount.
 - **Tag it `!dev` and `!autodocs`.** It stays out of the sidebar and the docs
-  page; `pnpm lint:stories` enforces both.
+  page; `pnpm lint:storybook` enforces both.
 - **Wrong size at 1:1?** `parameters: { thumbnail: { scale: 0.5 } }` lays the
   frame out twice as large and photographs it at half the pixel density, so a
   drawer or table fits; a scale above 1 enlarges a small component.

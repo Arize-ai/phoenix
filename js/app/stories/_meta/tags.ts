@@ -16,12 +16,12 @@
  * too, because the parser then no longer sees an array expression.
  *
  * So this module is not imported by stories. It is the vocabulary for the
- * linter and the sidebar chips, and `pnpm lint:stories` is what catches a
+ * linter and the sidebar chips, and `pnpm lint:storybook` is what catches a
  * misspelled tag — which also checks axis cardinality, something types could
  * not do anyway.
  *
  * @see js/app/.storybook/manager.ts for the sidebar chips these drive
- * @see js/app/scripts/lint-stories.ts for the rules that enforce them
+ * @see js/app/scripts/lint-storybook.ts for the rules that enforce them
  */
 
 /** Did this story exist before the Storybook reorganization? */
@@ -66,7 +66,7 @@ export const review = {
  * component, and absent otherwise. It is the one exception to tagging both
  * sides, because "used" is the normal case for every component and a
  * `used` chip on nearly every entry would be noise. The absence is still
- * never ambiguous: `pnpm lint:stories` derives callers from `src/` for every
+ * never ambiguous: `pnpm lint:storybook` derives callers from `src/` for every
  * file whose `meta.component` it can resolve, and fails when the tag and the
  * code disagree in either direction.
  */

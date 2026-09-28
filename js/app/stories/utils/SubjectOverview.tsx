@@ -41,7 +41,7 @@ type OverviewChild = {
  * A thumbnail sits beside the story file whose `Thumbnail` story it was
  * photographed from, as `<Name>.thumbnail.<theme>.png`, so it moves and
  * renames with the story. `pnpm storybook:thumbnails` writes them;
- * `pnpm lint:stories` rejects one with no `Thumbnail` story behind it.
+ * `pnpm lint:storybook` rejects one with no `Thumbnail` story behind it.
  *
  * @see app/stories/_meta/thumbnail.ts
  */

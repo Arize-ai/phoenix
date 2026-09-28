@@ -2,7 +2,7 @@
 
 Where an entry goes. The declarative source of truth is
 `js/app/stories/_meta/taxonomy.ts` (roots, design-system subjects, domain
-surfaces); `pnpm lint:stories` checks titles and `storySort` against it. File
+surfaces); `pnpm lint:storybook` checks titles and `storySort` against it. File
 paths, titles, and Overview pages are in [files-and-titles](files-and-titles.md).
 
 ## Contents

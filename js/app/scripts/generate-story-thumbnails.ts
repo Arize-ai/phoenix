@@ -36,7 +36,7 @@ import {
 import type { ThumbnailTheme } from "../stories/_meta/thumbnail";
 
 // tsx runs this as CommonJS (no `import.meta`), and pnpm runs package
-// scripts from the package directory, as lint-stories.ts also assumes.
+// scripts from the package directory, as lint-storybook.ts also assumes.
 const APP_DIR = process.cwd();
 
 /**

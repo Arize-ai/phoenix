@@ -46,7 +46,7 @@ Apply it alongside `phoenix-frontend`, `phoenix-design`, and
    have no styling.
 7. **States are their own axis,** crossed with other options in small
    pairwise `OptionGrid`s — never appended as one more column beside content
-   or variant options. `pnpm lint:stories` rejects the mixed form.
+   or variant options. `pnpm lint:storybook` rejects the mixed form.
 8. **Layers are shown open.** A menu, popover, tooltip, or dialog story shows
    the opened content, held open and non-dismissible; launch behavior gets
    exactly one separate `Interaction` story.
@@ -57,7 +57,7 @@ Apply it alongside `phoenix-frontend`, `phoenix-design`, and
     description. A `//` comment must say something the file cannot.
 11. **Removal goes through review.** Propose each deletion or consolidation
     in writing and get an explicit ruling first; no bulk pruning.
-12. **Run `pnpm lint:stories`** (from `js/app`) after any story change. It
+12. **Run `pnpm lint:storybook`** (from `js/app`) after any story change. It
     enforces titles, paths, tags, `!dev`, `unused`, Overview naming, and the
     state-axis rule. Passing it is necessary, not sufficient.
 
@@ -97,7 +97,7 @@ Copy this checklist and work through it:
 - [ ] Content-length and layer stories if the component has them
 - [ ] Tags on all three axes; `!dev` per entry-shape
 - [ ] Reread every docblock and comment you wrote; delete restatements
-- [ ] `pnpm lint:stories` passes
+- [ ] `pnpm lint:storybook` passes
 - [ ] Check `Both` mode for horizontal scroll and layer themes (verification)
 ```
 

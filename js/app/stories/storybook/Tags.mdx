@@ -62,7 +62,7 @@ not look alike — you cannot act on the first without knowing which one you are
 looking at.
 
 The `unused` flag gets the same guarantee a different way: its absence is
-never a guess, because `pnpm lint:stories` works it out from `src/`. For every
+never a guess, because `pnpm lint:storybook` works it out from `src/`. For every
 file whose `meta.component` is an imported Phoenix component, the lint fails
 when the flag is missing from an unrendered component or present on a
 rendered one.
@@ -80,7 +80,7 @@ repeated per file.
 
 ## Where this is enforced
 
-`pnpm lint:stories` checks that each story carries exactly one value from each
+`pnpm lint:storybook` checks that each story carries exactly one value from each
 required axis, that no unknown tag has crept in, that no axis contradicts
 itself, and that `unused` agrees with the code. The vocabulary itself lives in
 `stories/_meta/tags.ts`.

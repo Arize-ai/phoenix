@@ -14,7 +14,7 @@ const OVERVIEW_STYLE_ELEMENT_ID = "phoenix-sidebar-overview-styles";
 /**
  * The docs id of a folder's `Overview` page (`<Folder>/Overview.mdx`). The
  * page is named after its folder (`<Meta name="<Folder>" />`, enforced by
- * `pnpm lint:stories`) so search lists it by subject rather than as "Docs",
+ * `pnpm lint:storybook`) so search lists it by subject rather than as "Docs",
  * and Storybook derives the id's story part from that name.
  */
 function overviewIdFor(api: API, folderId: string) {

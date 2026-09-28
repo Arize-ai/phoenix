@@ -43,5 +43,5 @@ actionable; "needs more stories" is not.
 - [ ] No restating docblocks or comments (docblocks-and-comments)
 - [ ] No horizontal scroll in `Both` mode (themes)
 - [ ] Deletions each have a ruling (merging-and-removal)
-- [ ] `pnpm lint:stories` passes
+- [ ] `pnpm lint:storybook` passes
 ```

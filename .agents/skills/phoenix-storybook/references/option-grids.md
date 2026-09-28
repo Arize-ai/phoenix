@@ -67,7 +67,7 @@ shortcut` and `Icon only` shows disabled on plain content only, and a
 disabled button with a shortcut is never rendered. The same goes for a
 `description` row among the states, or a `No label` column beside `Disabled`.
 
-`pnpm lint:stories` rejects an axis (an array literal of object literals)
+`pnpm lint:storybook` rejects an axis (an array literal of object literals)
 that sets a state prop beside any other option, reading through a `...NAME`
 spread of a `const` array in the same file, so `[...SIZES, Disabled]` fails
 too. A state entry may carry the data that makes it show (a value, an error

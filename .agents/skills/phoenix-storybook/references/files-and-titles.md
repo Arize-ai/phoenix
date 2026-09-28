@@ -22,7 +22,7 @@ kebab-case slug of the title's leading segments:
 so paths stay safe for globs and shell commands; only the leaf file keeps the
 component's casing.
 
-`pnpm lint:stories` checks `slug(title)` equals the file's directory. Do not
+`pnpm lint:storybook` checks `slug(title)` equals the file's directory. Do not
 hand-write a title that disagrees with its path, and do not add a story
 outside this layout — a file flat in `stories/` fails, with no allowlist. Two
 files must never claim the same title.
@@ -51,7 +51,7 @@ code through `@phoenix/…`, never `../src/…`, so imports survive a move.
 - Never name a story export `Docs`: its id collides with the autodocs page
   (`…--docs`) and the index drops the story without an error.
 - When removing or renaming a story export, search MDX for `<Canvas of={…}>`
-  references to it. `pnpm lint:stories` fails on a reference that no longer
+  references to it. `pnpm lint:storybook` fails on a reference that no longer
   resolves.
 
 ## Overview pages
@@ -69,7 +69,7 @@ folder's own title. Name it after the folder:
 ```
 
 The title ends in `Overview`, which keeps it the folder's entry point; the
-name is what a reader searches for. `pnpm lint:stories` enforces the name,
+name is what a reader searches for. `pnpm lint:storybook` enforces the name,
 and the sidebar derives the page id from it, so a mismatch also breaks the
 folder's click-to-open.
 
@@ -77,7 +77,7 @@ folder's click-to-open.
 
 `options.storySort` in `js/app/.storybook/preview.tsx` must be an inline
 literal: Storybook reads it statically and fails on an imported constant.
-`pnpm lint:stories` asserts it agrees with `taxonomy.ts`.
+`pnpm lint:storybook` asserts it agrees with `taxonomy.ts`.
 
 List a subfolder and its entries in the subject's nested array, with
 `"Overview"` first. Entries the order does not name fall back to index order,

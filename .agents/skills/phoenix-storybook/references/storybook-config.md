@@ -23,7 +23,7 @@ Storybook server restarts.
 | `preview.tsx` | theme frame (`ThemedStory`), portal hosts, `DocsPage`, global `autodocs` tag, `storySort` |
 | `stories/_meta/taxonomy.ts` | roots, subjects, surfaces |
 | `stories/_meta/tags.ts` | tag vocabulary |
-| `scripts/lint-stories.ts` | `pnpm lint:stories` rules |
+| `scripts/lint-storybook.ts` | `pnpm lint:storybook` rules |
 
 ## Sidebar tag chips
 

@@ -3,7 +3,7 @@
  * surfaces beneath them.
  *
  * This is the single source of truth. `.storybook/preview.tsx` builds its
- * `storySort` order from it and `scripts/lint-stories.ts` enforces that every
+ * `storySort` order from it and `scripts/lint-storybook.ts` enforces that every
  * title and file path agrees with it, so the sidebar cannot drift from the
  * files on disk.
  *
@@ -91,7 +91,7 @@ export const STORYBOOK_PAGES = [
  * the module, so an imported constant fails the build with
  * `Unexpected '<identifier>'`.
  *
- * The order therefore lives inline in preview.tsx, and `pnpm lint:stories`
+ * The order therefore lives inline in preview.tsx, and `pnpm lint:storybook`
  * parses that literal and asserts it mentions every root, Storybook page, subject
  * and surface declared above. That is a stronger guarantee than sharing a
  * constant would give, because it also catches a hand-edit to preview.tsx that
