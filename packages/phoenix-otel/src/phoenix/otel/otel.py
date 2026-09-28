@@ -334,7 +334,7 @@ class TracerProvider(_TracerProvider):
                         processor_name = span_processor.__class__.__name__
                         endpoint = exporter._endpoint
                         transport = _exporter_transport(exporter)
-                        headers = _printable_headers(exporter._headers)
+                        headers = _printable_headers(_exporter_headers(exporter))
                 else:
                     processor_name = "Multiple Span Processors"
                     endpoint = "Multiple Span Exporters"
@@ -723,6 +723,40 @@ def _exporter_transport(exporter: SpanExporter) -> str:
         return "gRPC"
     else:
         return exporter.__class__.__name__
+
+
+# Headers the OTLP HTTP exporter sends with every request on its own
+_OTLP_HTTP_EXPORTER_DEFAULT_HEADERS = frozenset({"content-encoding", "content-type", "user-agent"})
+
+
+def _exporter_headers(exporter: SpanExporter) -> Union[List[Tuple[str, str]], Dict[str, str]]:
+    """
+    Get the headers configured on an OTLP span exporter.
+
+    opentelemetry-exporter-otlp-proto-http v1.45.0+ keeps the headers on its internal HTTP client
+    instead of on the exporter itself, merged with the headers the exporter sends on its own.
+    Those are left out so that only the configured headers are returned, as with older versions.
+    https://github.com/open-telemetry/opentelemetry-python/pull/5389
+
+    Args:
+        exporter (SpanExporter): The span exporter to read headers from.
+
+    Returns:
+        Union[List[Tuple[str, str]], Dict[str, str]]: The exporter's configured headers, or an
+            empty dictionary if none are set.
+    """
+    headers: Optional[Union[List[Tuple[str, str]], Dict[str, str]]] = getattr(
+        exporter, "_headers", None
+    )
+    if headers is not None:
+        return headers
+    client = getattr(exporter, "_client", None)
+    client_headers: Dict[str, str] = getattr(client, "_headers", None) or {}
+    return {
+        key: value
+        for key, value in client_headers.items()
+        if key.lower() not in _OTLP_HTTP_EXPORTER_DEFAULT_HEADERS
+    }
 
 
 def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
