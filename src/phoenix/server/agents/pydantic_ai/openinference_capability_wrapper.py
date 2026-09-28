@@ -40,7 +40,7 @@ class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixi
 
     _: KW_ONLY
     tracer: Tracer
-    tool_error_classifiers: Mapping[str, Callable[[Any], str | None]] = field(default_factory=dict)
+    get_error_by_tool_name: Mapping[str, Callable[[Any], str | None]] = field(default_factory=dict)
 
     async def wrap_tool_execute(
         self,
