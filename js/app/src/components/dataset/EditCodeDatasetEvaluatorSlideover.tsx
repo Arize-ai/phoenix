@@ -367,7 +367,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       selectedSplitIds: [],
     },
     evaluatorMappingSource: {
-      grain: "dataset",
+      recordKind: "dataset",
       source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
     },
     showPromptPreview: false,

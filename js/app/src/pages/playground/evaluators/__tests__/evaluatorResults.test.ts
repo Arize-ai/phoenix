@@ -34,7 +34,7 @@ describe("evaluator results", () => {
     });
     expect(context).not.toHaveProperty("reference");
   });
-  it("offers an example's context as a dataset-grain mapping source, wrapping primitive fields", () => {
+  it("offers an example's context as a dataset mapping source, wrapping primitive fields", () => {
     expect(
       createEvaluatorMappingSource({
         evaluationContext: {

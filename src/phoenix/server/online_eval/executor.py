@@ -165,7 +165,7 @@ class HydrationFailure:
     @property
     def terminal_status(self) -> RetiredWorkStatus:
         """The status the unit is retired with. Two lifecycle reasons get their own, on
-        every grain: the configuration moved under the unit, or the subject had no
+        every evaluation target: the configuration moved under the unit, or the subject had no
         content left to evaluate by the time it was hydrated."""
         if self.reason is HydrationFailureReason.CONFIG_FINGERPRINT_MISMATCH:
             return "SUPERSEDED"
