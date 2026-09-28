@@ -131,7 +131,6 @@ if TYPE_CHECKING:
         Response,
         ResponseInputItemParam,
     )
-    from opentelemetry.util.types import AttributeValue
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
     from types_aiobotocore_bedrock_runtime.type_defs import (
         ContentBlockTypeDef,
@@ -141,6 +140,8 @@ if TYPE_CHECKING:
         MessageOutputTypeDef,
         MessageTypeDef,
     )
+
+    from phoenix.trace.attributes import AttributeValue
 
 # TypeVar for generic client type
 ClientT = TypeVar("ClientT")

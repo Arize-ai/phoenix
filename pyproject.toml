@@ -224,14 +224,14 @@ container = [
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
-  # released on the same date (e.g., 1.43.0/0.64b0) to ensure compatibility.
-  "opentelemetry-sdk==1.43.0",
-  "opentelemetry-proto==1.43.0",
-  "opentelemetry-exporter-otlp==1.43.0",
-  "opentelemetry-semantic-conventions==0.64b0",
-  "opentelemetry-instrumentation-fastapi==0.64b0",
-  "opentelemetry-instrumentation-sqlalchemy==0.64b0",
-  "opentelemetry-instrumentation-grpc==0.64b0",
+  # released on the same date (e.g., 1.45.0/0.66b0) to ensure compatibility.
+  "opentelemetry-sdk==1.45.0",
+  "opentelemetry-proto==1.45.0",
+  "opentelemetry-exporter-otlp==1.45.0",
+  "opentelemetry-semantic-conventions==0.66b0",
+  "opentelemetry-instrumentation-fastapi==0.66b0",
+  "opentelemetry-instrumentation-sqlalchemy==0.66b0",
+  "opentelemetry-instrumentation-grpc==0.66b0",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.327.7",
   "uvloop; platform_system != 'Windows'",
