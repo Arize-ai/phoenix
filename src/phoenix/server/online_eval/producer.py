@@ -2,12 +2,13 @@
 
 Materializes span-level eval work units from enabled project evaluators.
 The producer runs on every replica. The ``eval_work_cursors`` lease keeps one replica
-scanning at a time so scans aren't repeated; correctness rests on the unique
-(span, evaluator, config) work-unit key, which absorbs duplicate inserts. Each tick:
-renew the lease, reap expired/aged work rows, scan the lag-gated span id window per
-project evaluator, and insert surviving work units. A slow-cadence
-backstop sweep re-covers a bounded id window behind the watermark to catch spans
-that became visible after their window was scanned.
+scanning at a time so scans aren't repeated. The unique (span, evaluator, config)
+work-unit key absorbs duplicate inserts, and the lease checks keep a producer that lost
+its lease from committing a scan or moving the cursor. Each tick renews the lease and
+reaps expired/aged work rows. When a frontier is due and the admission gate is open, it
+also scans the lag-gated span id window per project evaluator and inserts surviving
+work units. A slow-cadence backstop sweep re-covers a bounded id window behind the
+watermark to catch spans that became visible after their window was scanned.
 """
 
 from __future__ import annotations
@@ -121,8 +122,11 @@ class _ActiveProjectEvaluator:
 class OnlineEvalProducer(DaemonTask):
     """Materialize SPAN evaluation work from the span arrival log.
 
-    ``produced_through_id`` is a position in that log: every span at or below it has
-    been offered to every enabled SPAN project evaluator. Session and trace work are
+    ``produced_through_id`` is a scan position in that log: spans above it are still to be
+    scanned, and spans at or below it were scanned for the SPAN project evaluators active
+    when the position passed them. It starts at the newest span, so older spans, and spans
+    an evaluator missed because it was enabled later, are reached only by the backstop's
+    lookback (``backstop_lookback_span_ids``). Session and trace work are
     materialized from entity state instead, by ``EvalSweeper`` — a session or trace
     becomes eligible when it goes quiet, which no position in an arrival log can express.
     """
