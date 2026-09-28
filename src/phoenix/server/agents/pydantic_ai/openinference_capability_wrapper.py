@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import KW_ONLY, dataclass
+from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
 from openinference.instrumentation import (
     get_input_attributes,
@@ -39,6 +40,7 @@ class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixi
 
     _: KW_ONLY
     tracer: Tracer
+    tool_error_classifiers: Mapping[str, Callable[[Any], str | None]] = field(default_factory=dict)
 
     async def wrap_tool_execute(
         self,
@@ -53,6 +55,7 @@ class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixi
             tool_def=tool_def,
             tool_args=args,
             tool_call_id=call.tool_call_id,
+            get_error=self.tool_error_classifiers.get(tool_def.name),
         ) as set_output:
             result = await super().wrap_tool_execute(
                 ctx, call=call, tool_def=tool_def, args=args, handler=handler

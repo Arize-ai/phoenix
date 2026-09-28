@@ -28,6 +28,7 @@ from typing_extensions import TypedDict
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema_search import cached_index, describe
 
+BASH_TOOL_NAME = "bash"
 WORKSPACE_ROOT = "/home/user/workspace"
 TMP_ROOT = "/tmp"
 
@@ -519,6 +520,18 @@ class BashToolResult(TypedDict):
     stderrTruncated: bool
 
 
+def get_bash_tool_error(result: Any) -> Optional[str]:
+    """Returns a span error description for a bash command that exited non-zero.
+
+    The tool returns normally whatever the exit code, so the model can read
+    stderr and react, but failing commands should still stand out in traces.
+    """
+    exit_code = result.get("exitCode") if isinstance(result, Mapping) else None
+    if isinstance(exit_code, int) and exit_code != 0:
+        return f"exit code {exit_code}"
+    return None
+
+
 def _make_custom_builtins(
     *,
     schema: strawberry.Schema,
@@ -640,6 +653,7 @@ class BashToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
                 Tool(
                     bash,
                     takes_ctx=True,
+                    name=BASH_TOOL_NAME,
                     description=_BASH_TOOL_DESCRIPTION,
                 )
             ]
