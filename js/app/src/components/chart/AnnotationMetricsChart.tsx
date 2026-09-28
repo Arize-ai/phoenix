@@ -55,9 +55,7 @@ import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
 const MEAN_SCORE_DATA_KEY = "meanScore";
 const LABEL_DATA_KEY_PREFIX = "fractions.";
 const OTHER_DATA_KEY = "otherFraction";
-/** Fill for the share of results in a bin that carry no label. */
-export const ANNOTATION_OTHER_COLOR = "var(--global-color-gray-500)";
-const OTHER_COLOR = ANNOTATION_OTHER_COLOR;
+const OTHER_COLOR = "var(--global-color-gray-500)";
 const MEAN_SCORE_SERIES_NAME = "mean score";
 const DISTRIBUTION_STACK_ID = "distribution";
 const BAR_SIZE = 10;
@@ -150,7 +148,6 @@ function renderLabelShareBars({
   dataKeyPrefix = "",
   hasOtherValues,
   isDataKeyHidden,
-  yAxisId,
 }: {
   segments: ReadonlyArray<AnnotationLabelSegment>;
   stackId: string;
@@ -158,9 +155,7 @@ function renderLabelShareBars({
   dataKeyPrefix?: string;
   hasOtherValues: boolean;
   isDataKeyHidden?: (dataKey: string) => boolean;
-  yAxisId?: string;
 }): ReactNode[] {
-  const axisProps = yAxisId == null ? {} : { yAxisId };
   const bars = segments.map((segment, position) => {
     const dataKey = getLabelDataKey(segment.index);
     return (
@@ -176,7 +171,6 @@ function renderLabelShareBars({
             ? STACK_TOP_RADIUS
             : SQUARE_RADIUS
         }
-        {...axisProps}
       />
     );
   });
@@ -190,7 +184,6 @@ function renderLabelShareBars({
         fill={OTHER_COLOR}
         legendType="none"
         radius={STACK_TOP_RADIUS}
-        {...axisProps}
       />
     );
   }

@@ -84,10 +84,16 @@ class EvaluatorComparisonStatistics:
     )
 
 
-@strawberry.type(description=f"One evaluator's numbers within a comparison. {_SHARED_POPULATION}")
+@strawberry.type(
+    description=(
+        "One evaluator's side of a comparison: the labels and threshold that bin its "
+        "results into the confusion matrix, and its distribution over the entities both "
+        "evaluators annotated."
+    )
+)
 class EvaluatorComparisonSummary:
     evaluator: ProjectEvaluator = strawberry.field(
-        description="The project evaluator these numbers describe."
+        description="The project evaluator on this side of the comparison."
     )
     annotation_name: str = strawberry.field(
         description=(
@@ -105,13 +111,6 @@ class EvaluatorComparisonSummary:
     )
     threshold: Optional[float] = strawberry.field(
         description="The flag threshold used to bin scores; null for categorical evaluators."
-    )
-    flagged_count: Optional[int] = strawberry.field(
-        description="Entities this evaluator flags, over the shared population."
-    )
-    flag_rate: Optional[float] = strawberry.field(description="flaggedCount over `populationSize`.")
-    mean_score: Optional[float] = strawberry.field(
-        description="Mean of this evaluator's non-null scores over the shared population."
     )
     project_rowid: strawberry.Private[int]
     evaluation_target: strawberry.Private[str]
@@ -180,9 +179,6 @@ def _to_gql_summary(
         annotation_name=summary.annotation_name,
         labels=list(summary.labels),
         threshold=summary.threshold,
-        flagged_count=summary.flagged_count,
-        flag_rate=summary.flag_rate,
-        mean_score=summary.mean_score,
         project_rowid=record.project_id,
         evaluation_target=record.evaluation_target,
         output_config=output_config,

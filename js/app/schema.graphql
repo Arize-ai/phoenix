@@ -2015,10 +2015,10 @@ type EvaluatorComparisonStatistics {
 }
 
 """
-One evaluator's numbers within a comparison. Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both.
+One evaluator's side of a comparison: the labels and threshold that bin its results into the confusion matrix, and its distribution over the entities both evaluators annotated.
 """
 type EvaluatorComparisonSummary {
-  """The project evaluator these numbers describe."""
+  """The project evaluator on this side of the comparison."""
   evaluator: ProjectEvaluator!
 
   """
@@ -2035,15 +2035,6 @@ type EvaluatorComparisonSummary {
   The flag threshold used to bin scores; null for categorical evaluators.
   """
   threshold: Float
-
-  """Entities this evaluator flags, over the shared population."""
-  flaggedCount: Int
-
-  """flaggedCount over `populationSize`."""
-  flagRate: Float
-
-  """Mean of this evaluator's non-null scores over the shared population."""
-  meanScore: Float
 
   """
   Distribution of this evaluator's primary result over the entities in range evaluated by both evaluators (coverage.evaluatedByBoth), whether or not both results are binnable. Shaped like ProjectEvaluator.distribution, which covers every entity this evaluator annotated.

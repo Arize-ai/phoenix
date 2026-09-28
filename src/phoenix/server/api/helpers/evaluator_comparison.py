@@ -151,9 +151,6 @@ class SideSummary:
     annotation_name: str
     labels: tuple[str, ...]
     threshold: Optional[float]
-    flagged_count: Optional[int]
-    flag_rate: Optional[float]
-    mean_score: Optional[float]
 
 
 @dataclass(frozen=True)
@@ -193,10 +190,6 @@ class ComparisonAccumulator:
         self._binning_a = binning_a
         self._binning_b = binning_b
         self._cell_counts: Counter[tuple[str, str]] = Counter()
-        self._score_sum_a = 0.0
-        self._score_count_a = 0
-        self._score_sum_b = 0.0
-        self._score_count_b = 0
         self._collect_score_pairs = binning_a.is_thresholded and binning_b.is_thresholded
         self._score_pairs: list[tuple[float, float]] = []
 
@@ -214,12 +207,6 @@ class ComparisonAccumulator:
         if bin_a is None or bin_b is None:
             return
         self._cell_counts[(bin_a, bin_b)] += 1
-        if score_a is not None:
-            self._score_sum_a += score_a
-            self._score_count_a += 1
-        if score_b is not None:
-            self._score_sum_b += score_b
-            self._score_count_b += 1
         if (
             self._collect_score_pairs
             and score_a is not None
@@ -272,46 +259,16 @@ class ComparisonAccumulator:
             cohens_kappa=kappa,
             spearman_rho=spearman,
             disagreement_count=disagreements,
-            side_a=self._side_summary(
-                self._binning_a,
-                labels_a,
-                marginals_a,
-                n,
-                self._score_sum_a,
-                self._score_count_a,
-            ),
-            side_b=self._side_summary(
-                self._binning_b,
-                labels_b,
-                marginals_b,
-                n,
-                self._score_sum_b,
-                self._score_count_b,
-            ),
+            side_a=self._side_summary(self._binning_a, labels_a),
+            side_b=self._side_summary(self._binning_b, labels_b),
         )
 
     @staticmethod
-    def _side_summary(
-        binning: SideBinning,
-        labels: tuple[str, ...],
-        marginal: Counter[str],
-        n: int,
-        score_sum: float,
-        score_count: int,
-    ) -> SideSummary:
-        flagged_count: Optional[int] = None
-        flag_rate: Optional[float] = None
-        raw_flagged = binning.flagged_label_set
-        if raw_flagged is not None:
-            flagged_count = sum(count for label, count in marginal.items() if label in raw_flagged)
-            flag_rate = flagged_count / n if n else None
+    def _side_summary(binning: SideBinning, labels: tuple[str, ...]) -> SideSummary:
         return SideSummary(
             annotation_name=binning.annotation_name,
             labels=labels,
             threshold=binning.threshold if binning.is_thresholded else None,
-            flagged_count=flagged_count,
-            flag_rate=flag_rate,
-            mean_score=score_sum / score_count if score_count else None,
         )
 
 
