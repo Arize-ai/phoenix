@@ -253,10 +253,12 @@ class DbEvalWorkCoordinator:
         claimed_by: str,
         write: PublicationWrite,
     ) -> None:
+        """Lock the target row ``FOR KEY SHARE``, then the work unit ``FOR UPDATE``: the
+        order a target delete takes as it cascades to the work unit. The project evaluator
+        is read without a lock."""
         work_unit_model = self._work_unit_model
         target_model = self._target_model
         async with self._db() as session:
-            # Deletes lock the target, then cascade to the work unit; lock in the same order.
             await session.execute(
                 select(target_model.id)
                 .where(
