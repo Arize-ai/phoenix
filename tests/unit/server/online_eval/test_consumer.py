@@ -2943,6 +2943,60 @@ async def test_llm_execution_deadline_retries_without_counting_attempt(
     assert row.error.startswith("PROVIDER_DEADLINE_EXCEEDED:")
 
 
+async def test_lost_claim_cancels_the_evaluation_without_a_transition(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
+    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
+    coordinator = consumer._coordinator
+    (unit,) = await coordinator.claim(claimed_by="owner", limit=1)
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(claimed_by="another-claim")
+        )
+    cancelled = asyncio.Event()
+    writes: list[str] = []
+    retry_transition = consumer._retry_transition
+    publish = coordinator.publish
+
+    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
+        return _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
+
+    async def _never_resolves(*_: Any, **__: Any) -> None:
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    async def _record_transition(*, action: str, **kwargs: Any) -> bool:
+        writes.append(action)
+        return await retry_transition(action=action, **kwargs)
+
+    async def _record_publish(**kwargs: Any) -> None:
+        writes.append("publish")
+        await publish(**kwargs)
+
+    monkeypatch.setattr(consumer_module, "HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
+    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _never_resolves)
+    monkeypatch.setattr(consumer, "_retry_transition", _record_transition)
+    monkeypatch.setattr(coordinator, "publish", _record_publish)
+
+    await asyncio.wait_for(consumer._process_unit(unit), timeout=5)
+
+    assert cancelled.is_set()
+    assert writes == []
+    row = await _get_unit(db, unit_id)
+    assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", "another-claim", unit.attempts)
+
+
 async def test_sandbox_payload_limit_is_terminal_without_counting_attempt(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

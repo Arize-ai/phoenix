@@ -340,7 +340,8 @@ class OnlineEvalConsumer(DaemonTask):
                     )
                 return
             hydrated_work_unit = hydrated
-            await self._evaluate_with_heartbeat(unit, hydrated)
+            if not await self._evaluate_with_heartbeat(unit, hydrated):
+                return
         except OnlineEvalStoragePaused:
             released = await self._retry_transition(
                 action="pause",
@@ -461,9 +462,10 @@ class OnlineEvalConsumer(DaemonTask):
         self,
         unit: ClaimedWorkUnit,
         hydrated: HydratedWorkUnit,
-    ) -> None:
+    ) -> bool:
+        """Run the evaluation while renewing the claim. Returns False, with the evaluation
+        cancelled, once a heartbeat finds the claim lost."""
         eval_task = asyncio.create_task(self._executor.evaluate_and_annotate(unit, hydrated))
-        heartbeat_enabled = True
         deadline_at = asyncio.get_running_loop().time() + self._execution_deadline_seconds
         try:
             while True:
@@ -494,24 +496,22 @@ class OnlineEvalConsumer(DaemonTask):
                         ),
                         deadline_seconds=self._execution_deadline_seconds,
                     ) from None
-                # A lost claim does not cancel the eval immediately. Publication
-                # requires current RUNNING ownership and rejects this result if the
-                # claim stays lost.
-                if not heartbeat_enabled:
-                    continue
                 try:
                     heartbeat_succeeded = await self._heartbeat(unit)
-                    if not heartbeat_succeeded:
-                        logger.warning(
-                            f"Online-eval work unit {unit.work_unit_id} heartbeat stopped after "
-                            "its claim was lost"
-                        )
-                        heartbeat_enabled = False
                 except Exception:
                     logger.exception(
                         f"Heartbeat failed for online-eval work unit {unit.work_unit_id}"
                     )
+                    continue
+                if not heartbeat_succeeded:
+                    await _cancel_and_await(eval_task)
+                    logger.warning(
+                        f"Online-eval work unit {unit.work_unit_id} lost its claim; its "
+                        "evaluation was cancelled"
+                    )
+                    return False
         finally:
             if not eval_task.done():
                 await _cancel_and_await(eval_task)
         await eval_task
+        return True
