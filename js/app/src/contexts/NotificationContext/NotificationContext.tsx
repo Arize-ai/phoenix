@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import type { ReactNode } from "react";
+import { createContext, useCallback, useContext } from "react";
 import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
 
 /**
@@ -43,17 +44,50 @@ export type NotificationParams = {
     | React.ReactNode;
 };
 
-export const toastQueue = new ToastQueue<NotificationParams>({
-  maxVisibleToasts: MAX_VISIBLE_TOASTS,
-});
+export type NotificationQueue = ToastQueue<NotificationParams>;
+
+export const createToastQueue = (): NotificationQueue =>
+  new ToastQueue<NotificationParams>({
+    maxVisibleToasts: MAX_VISIBLE_TOASTS,
+  });
+
+export const toastQueue = createToastQueue();
+
+const ToastQueueContext = createContext<NotificationQueue>(toastQueue);
+
+/**
+ * Scopes the notification hooks and `ToastRegion` beneath it to `queue`
+ * instead of the app-wide queue, so a region only shows the toasts raised
+ * within the same provider.
+ */
+export function ToastQueueProvider({
+  queue,
+  children,
+}: {
+  queue: NotificationQueue;
+  children: ReactNode;
+}) {
+  return (
+    <ToastQueueContext.Provider value={queue}>
+      {children}
+    </ToastQueueContext.Provider>
+  );
+}
+
+/**
+ * The queue the notification hooks add to: the nearest
+ * `ToastQueueProvider`'s, or the app-wide queue.
+ */
+export const useToastQueue = () => useContext(ToastQueueContext);
 
 export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
   /**
    * Duration in milliseconds before the notification expires.
    *
    * A good rule of thumb is to allow 5000ms to pass before dismissing the notification.
-   * If the toast is hovered or focused, the toast will not be dismissed, and the timer will restart
-   * when focus/hover is lost.
+   * The timer starts when the toast becomes visible. While the toast region is hovered or
+   * focused, every visible toast's timer is paused, and it resumes with the time that was
+   * left when hover and focus leave.
    *
    * Pass null to unset the expiration timer.
    *
@@ -70,13 +104,14 @@ export type NotificationHookParams = Omit<NotificationParams, "variant"> & {
  * The callback returns a key that can be later used to programmatically dismiss the notification.
  */
 export const useNotify = () => {
+  const queue = useToastQueue();
   return useCallback(
     ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-      toastQueue.add(
+      queue.add(
         { ...params },
         expireMs === null ? undefined : { timeout: expireMs }
       ),
-    []
+    [queue]
   );
 };
 
@@ -89,23 +124,24 @@ export const useNotify = () => {
  * const notifySuccess = useNotifySuccess();
  * notifySuccess({ title: "Success", message: "Operation completed successfully.", expireMs: 5000 });
  * @example // Programmatic dismissal
- * const queue = useNotificationQueue();
+ * const queue = useToastQueue();
  * const notifySuccess = useNotifySuccess();
  * const key = notifySuccess({ title: "Success", message: "Operation completed successfully." });
  * // later on...
- * queue.dismiss(key);
+ * queue.close(key);
  */
 export const useNotifySuccess = () => {
+  const queue = useToastQueue();
   return useCallback(
     ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-      toastQueue.add(
+      queue.add(
         {
           ...params,
           variant: "success",
         },
         expireMs === null ? undefined : { timeout: expireMs }
       ),
-    []
+    [queue]
   );
 };
 
@@ -116,15 +152,16 @@ export const useNotifySuccess = () => {
  * @returns A callback that triggers a notification. The callback returns a key that can be later used to programmatically dismiss the notification.
  */
 export const useNotifyError = () => {
+  const queue = useToastQueue();
   return useCallback(
     ({ expireMs = DEFAULT_EXPIRY, ...params }: NotificationHookParams) =>
-      toastQueue.add(
+      queue.add(
         {
           ...params,
           variant: "error",
         },
         expireMs === null ? undefined : { timeout: expireMs }
       ),
-    []
+    [queue]
   );
 };
