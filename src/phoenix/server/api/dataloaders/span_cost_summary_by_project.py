@@ -111,11 +111,11 @@ class SpanCostSummaryByProjectDataLoader(DataLoader[Key, Result]):
 def _get_stmt(
     segment: Segment,
     *params: Param,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     project_rowids = params
     (start_time, end_time), filter_condition, session_filter_condition = segment
 
-    stmt: Select[Any] = (
+    stmt: Select[*tuple[Any, ...]] = (
         select(
             models.Trace.project_rowid,
             coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),

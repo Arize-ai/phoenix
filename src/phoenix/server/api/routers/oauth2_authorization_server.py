@@ -452,7 +452,7 @@ async def _exchange_authorization_code(request: Request, form: Any) -> JSONRespo
         # PKCE work) rather than racing to that delete. SQLite has no row locks, so
         # an immediate write transaction stands in for FOR UPDATE; it must be the
         # first statement in this session, before any implicit read transaction opens.
-        if session.bind is not None and session.bind.dialect.name == "sqlite":
+        if session.bind is not None and session.get_bind().dialect.name == "sqlite":
             await session.execute(sa.text("BEGIN IMMEDIATE"))
         authorization_code = await session.scalar(
             sa.select(models.OAuth2AuthorizationCode)

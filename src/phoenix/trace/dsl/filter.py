@@ -1126,10 +1126,10 @@ def _compile_condition(
 
 
 def _join_annotations(
-    stmt: Select[typing.Any],
+    stmt: Select[*tuple[typing.Any, ...]],
     bindings: _FilterBindings,
     aliased_annotation_relations: typing.Iterable[AliasedAnnotationRelation],
-) -> Select[typing.Any]:
+) -> Select[*tuple[typing.Any, ...]]:
     """Outer-join each aliased annotation relation to its entity and matching name.
 
     E.g. for ``evals["Hallucination"].score > 0.5`` an alias ``A`` is generated and
@@ -1159,9 +1159,9 @@ def _join_annotations(
 
 
 def _join_span_cost(
-    stmt: Select[typing.Any],
+    stmt: Select[*tuple[typing.Any, ...]],
     members: typing.AbstractSet[str],
-) -> tuple[Select[typing.Any], typing.Any, dict[str, typing.Any]]:
+) -> tuple[Select[*tuple[typing.Any, ...]], typing.Any, dict[str, typing.Any]]:
     """Join the filtered span's cost row and bind referenced cost scalars.
 
     The alias avoids collisions with caller-owned joins. The join is added only when the
@@ -1339,7 +1339,7 @@ class SpanFilter:
             compiled_condition.referenced_deferred_numbers,
         )
 
-    def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
+    def __call__(self, select: Select[*tuple[typing.Any, ...]]) -> Select[*tuple[typing.Any, ...]]:
         if not self.condition:
             return select
         # `parent_span is None` / `parent_span is not None` select spans whose parent span does

@@ -1,7 +1,7 @@
 from collections.abc import Callable, Collection, Hashable, Iterable
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Literal, Optional, Sequence, TypeVar, TypeVarTuple, Union, cast
 
 import sqlalchemy as sa
 from sqlalchemy import (
@@ -64,7 +64,7 @@ async def latest_code_evaluator_versions_by_evaluator_id(
     if not code_evaluator_ids:
         return {}
     distinct_ids = list(set(code_evaluator_ids))
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     if dialect == SupportedSQLDialect.POSTGRESQL:
         stmt = _latest_code_evaluator_versions_postgresql_stmt(distinct_ids)
     else:
@@ -104,7 +104,7 @@ async def code_evaluator_with_latest_version(
     )
 
 
-def _latest_code_evaluator_versions_postgresql_stmt(keys: list[int]) -> Select[Any]:
+def _latest_code_evaluator_versions_postgresql_stmt(keys: list[int]) -> Select[*tuple[Any, ...]]:
     keys_vals = (
         Values(column("code_evaluator_id", models.CodeEvaluatorVersion.code_evaluator_id.type))
         .data([(key,) for key in keys])
@@ -126,7 +126,7 @@ def _latest_code_evaluator_versions_postgresql_stmt(keys: list[int]) -> Select[A
     )
 
 
-def _latest_code_evaluator_versions_sqlite_stmt(keys: list[int]) -> Select[Any]:
+def _latest_code_evaluator_versions_sqlite_stmt(keys: list[int]) -> Select[*tuple[Any, ...]]:
     ranked = (
         select(
             models.CodeEvaluatorVersion.id,
@@ -147,7 +147,7 @@ def _latest_code_evaluator_versions_sqlite_stmt(keys: list[int]) -> Select[Any]:
     )
 
 
-def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[str]]]:
+def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
     return (
         select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
@@ -157,7 +157,7 @@ def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[
     )
 
 
-def get_project_names_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[str]]]:
+def get_project_names_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
     return (
         select(distinct(models.Experiment.project_name))
         .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
@@ -165,7 +165,7 @@ def get_project_names_for_datasets(*dataset_ids: int) -> Select[tuple[Optional[s
     )
 
 
-def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[tuple[Optional[str]]]:
+def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
     return (
         select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
@@ -174,7 +174,7 @@ def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[tuple[Opt
     )
 
 
-def get_project_names_for_experiments(*experiment_ids: int) -> Select[tuple[Optional[str]]]:
+def get_project_names_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
     return (
         select(distinct(models.Experiment.project_name))
         .where(models.Experiment.id.in_(set(experiment_ids)))
@@ -210,7 +210,7 @@ def _build_ranked_revisions_query(
     *,
     dataset_id: Optional[int] = None,
     example_ids: Optional[Union[Sequence[int], InElementRole]] = None,
-) -> Select[tuple[int]]:
+) -> Select[int]:
     """
     Build a query that ranks revisions per example within a dataset version.
 
@@ -261,7 +261,7 @@ def get_dataset_example_revisions(
     example_ids: Optional[Union[Sequence[int], InElementRole]] = None,
     split_ids: Optional[Union[Sequence[int], InElementRole]] = None,
     split_names: Optional[Union[Sequence[str], InElementRole]] = None,
-) -> Select[tuple[models.DatasetExampleRevision]]:
+) -> Select[models.DatasetExampleRevision]:
     """
     Get the latest revisions for all dataset examples within a specific dataset version.
 
@@ -403,12 +403,12 @@ async def insert_experiment_with_examples_snapshot(
     await session.execute(insert_stmt)
 
 
-_AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])
+_Ts = TypeVarTuple("_Ts")
 
 
 def exclude_experiment_projects(
-    stmt: Select[_AnyTuple],
-) -> Select[_AnyTuple]:
+    stmt: Select[*_Ts],
+) -> Select[*_Ts]:
     return stmt.outerjoin(
         models.Experiment,
         and_(
@@ -419,8 +419,8 @@ def exclude_experiment_projects(
 
 
 def exclude_dataset_evaluator_projects(
-    stmt: Select[_AnyTuple],
-) -> Select[_AnyTuple]:
+    stmt: Select[*_Ts],
+) -> Select[*_Ts]:
     return stmt.outerjoin(
         models.DatasetEvaluators,
         models.Project.id == models.DatasetEvaluators.project_id,
@@ -534,7 +534,7 @@ def _date_trunc_for_sqlite(
     return func.time_fmt_datetime(t)
 
 
-def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
+def get_ancestor_span_rowids(parent_id: str) -> Select[int]:
     """
     Get all ancestor span IDs for a given parent_id using recursive CTE.
 
@@ -707,7 +707,7 @@ def get_incomplete_repetitions_query(
     dialect: SupportedSQLDialect,
     expected_runs_cte: Any,
     experiment_id: int,
-) -> Select[tuple[Any, Any, Any]]:
+) -> Select[Any, Any, Any]:
     """
     Build a query that finds incomplete repetitions for partially complete examples.
 
@@ -778,7 +778,7 @@ def get_incomplete_runs_with_revisions_query(
     *,
     cursor_example_rowid: Optional[int] = None,
     limit: Optional[int] = None,
-) -> Select[tuple[models.DatasetExampleRevision, Any, Any]]:
+) -> Select[models.DatasetExampleRevision, Any, Any]:
     """
     Build the main query that joins incomplete runs with dataset example revisions.
 
@@ -837,7 +837,7 @@ def get_successful_experiment_runs_query(
     *,
     cursor_run_rowid: Optional[int] = None,
     limit: Optional[int] = None,
-) -> Select[tuple[models.ExperimentRun, int]]:
+) -> Select[models.ExperimentRun, int]:
     """
     Build a query for successful experiment runs with their dataset example revision IDs.
 
@@ -896,7 +896,7 @@ def get_successful_experiment_runs_query(
 def get_experiment_run_annotations_query(
     run_ids: Sequence[int],
     evaluation_names: Sequence[str],
-) -> Select[tuple[int, str, Optional[str]]]:
+) -> Select[int, str, Optional[str]]:
     """
     Build a query to get annotations for specific runs and evaluation names.
 
@@ -948,7 +948,7 @@ def get_runs_with_incomplete_evaluations_query(
     cursor_run_rowid: Optional[int] = None,
     limit: Optional[int] = None,
     include_annotations_and_revisions: bool = False,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     """
     Get experiment runs that have incomplete evaluations.
 
@@ -1076,7 +1076,7 @@ def get_experiment_incomplete_runs_query(
     *,
     cursor_example_rowid: Optional[int] = None,
     limit: Optional[int] = None,
-) -> Select[tuple[models.DatasetExampleRevision, Any, Any]]:
+) -> Select[models.DatasetExampleRevision, Any, Any]:
     """
     High-level helper to build a complete query for incomplete runs in an experiment.
 
@@ -1114,7 +1114,7 @@ def get_experiment_incomplete_runs_query(
         .. code-block:: python
 
             experiment = session.get(models.Experiment, experiment_id)
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             query = get_experiment_incomplete_runs_query(
                 experiment, dialect, cursor_example_rowid=100, limit=50
             )
@@ -1203,7 +1203,7 @@ def get_experiment_incomplete_runs_query(
 # The per-session sibling lives in `phoenix.db.session_aggregates`.
 
 
-def token_counts_by_trace(keys: Collection[int]) -> Select[Any]:
+def token_counts_by_trace(keys: Collection[int]) -> Select[*tuple[Any, ...]]:
     """Sum leaf-LLM token counts, grouped by trace rowid.
 
     Columns: `id_` (trace_rowid), `prompt`, `completion`.

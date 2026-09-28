@@ -1658,7 +1658,7 @@ async def _upsert_project_sessions(
     if not project_sessions_by_session_id:
         return {}
 
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     records = [
         {
             "session_id": project_session.session_id,
@@ -2246,7 +2246,7 @@ async def _refresh_and_load_agent_session(
     if await session.scalar(statement) is None:
         raise HTTPException(status_code=404, detail="Session not found")
     # Bumping updated_at slides an ephemeral session's TTL window.
-    refreshed_agent_session = await session.scalar(
+    refreshed_agent_session: models.AgentSession | None = await session.scalar(
         update(models.AgentSession)
         .where(models.AgentSession.id == agent_session_rowid)
         .values(updated_at=func.now())
@@ -2506,7 +2506,7 @@ async def _upsert_agent_session_snapshot(
                 "bashkit_snapshot": bashkit_snapshot,
             },
             table=models.AgentSessionSnapshot,
-            dialect=SupportedSQLDialect(session.bind.dialect.name),
+            dialect=SupportedSQLDialect(session.get_bind().dialect.name),
             unique_by=("agent_session_id",),
             on_conflict=OnConflict.DO_UPDATE,
             set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},

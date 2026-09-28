@@ -4101,7 +4101,7 @@ async def _create_span_in_db(
                 )
                 .returning(models.Trace.id)
             )
-        span_rowid = await session.scalar(
+        span_rowid: int | None = await session.scalar(
             insert(models.Span)
             .values(
                 trace_rowid=trace_rowid,
