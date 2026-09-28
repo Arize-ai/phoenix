@@ -38,7 +38,7 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
     try:
         producer = OnlineEvalProducer(db)
         await producer._admission_budget()
-        await producer._reap(datetime.now(timezone.utc), produced_through_id=0)
+        await producer._reap(datetime.now(timezone.utc))
         for sweep_target in ("SESSION", "TRACE"):
             sweeper = EvalSweeper(db, evaluation_target=sweep_target, max_outstanding=10)
             async with db() as session:
