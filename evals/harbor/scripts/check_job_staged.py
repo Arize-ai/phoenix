@@ -27,10 +27,6 @@ STAGED = ("Dockerfile", "wheels", "verifier", "container_assets", "data/phoenix.
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
 
 
-def agent_class(agent: dict[str, Any]) -> str:
-    return str(agent.get("import_path", "")).rsplit(":", 1)[-1]
-
-
 def job_tasks(job: dict[str, Any]) -> list[Path]:
     tasks = [Path(task["path"]) for task in job.get("tasks") or [] if task.get("path")]
     for dataset in job.get("datasets") or []:
@@ -57,8 +53,10 @@ def main() -> int:
         missing = [part for part in STAGED if not (task / "environment" / part).exists()]
         if missing:
             failures.append(f"{task}/environment/ is missing {', '.join(missing)}")
-    agents = [] if args.agents_replaced else job.get("agents") or []
-    needs_cli = any(agent_class(agent).endswith("CliAgent") for agent in agents)
+    agents = job.get("agents") or []
+    needs_cli = not args.agents_replaced and any(
+        str(agent.get("import_path", "")).endswith("CliAgent") for agent in agents
+    )
     if needs_cli and not CLI_ARCHIVE.is_file():
         failures.append(f"{CLI_ARCHIVE} is missing")
     if failures:
