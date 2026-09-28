@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -57,3 +57,17 @@ async def test_lease_is_exclusive_while_held_and_taken_over_once_stale(
 
     await rival.release()
     assert await holder.acquire()
+
+
+@pytest.mark.postgres_only
+async def test_acquiring_a_lease_held_elsewhere_draws_no_new_id(db: DbSessionFactory) -> None:
+    holder = MaterializerLease(db, name="span-producer", holder="replica-1")
+    rival = MaterializerLease(db, name="span-producer", holder="replica-2")
+    last_id = text("SELECT last_value FROM eval_work_leases_id_seq")
+
+    assert await holder.acquire()
+    async with db() as session:
+        before = await session.scalar(last_id)
+    assert not await rival.acquire()
+    async with db() as session:
+        assert await session.scalar(last_id) == before

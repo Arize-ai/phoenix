@@ -61,15 +61,20 @@ class MaterializerLease:
                 .returning(models.EvalWorkLease.id)
             )
             if lease_id is None and not self._db.should_not_insert_or_update:
-                lease_id = await session.scalar(
-                    insert_on_conflict(
-                        {"name": self.name, "holder": self.holder, "heartbeat_at": now},
-                        table=models.EvalWorkLease,
-                        dialect=self._db.dialect,
-                        unique_by=("name",),
-                        on_conflict=OnConflict.DO_NOTHING,
-                    ).returning(models.EvalWorkLease.id)
+                # A conflicting insert still draws an id from the PostgreSQL sequence.
+                lease_row_id = await session.scalar(
+                    select(models.EvalWorkLease.id).where(models.EvalWorkLease.name == self.name)
                 )
+                if lease_row_id is None:
+                    lease_id = await session.scalar(
+                        insert_on_conflict(
+                            {"name": self.name, "holder": self.holder, "heartbeat_at": now},
+                            table=models.EvalWorkLease,
+                            dialect=self._db.dialect,
+                            unique_by=("name",),
+                            on_conflict=OnConflict.DO_NOTHING,
+                        ).returning(models.EvalWorkLease.id)
+                    )
         self._held = lease_id is not None
         return self._held
 
