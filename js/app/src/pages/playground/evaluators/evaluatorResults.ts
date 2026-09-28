@@ -38,8 +38,8 @@ export function createEvaluatorContext(example: EvaluatorContextExample) {
 
 /**
  * The evaluator context of an example as the mapping editor's sample, at
- * dataset grain. A primitive field is wrapped so it still offers a path to
- * map a variable to.
+ * dataset record kind. A primitive field is wrapped so it still offers a path
+ * to map a variable to.
  */
 export function createEvaluatorMappingSource(
   example: EvaluatorContextExample

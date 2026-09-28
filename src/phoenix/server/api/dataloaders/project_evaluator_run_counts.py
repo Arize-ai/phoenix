@@ -29,7 +29,7 @@ _DROPPED = "DROPPED"
 class ProjectEvaluatorRunCounts:
     """How much evaluation work a project evaluator has produced, and when.
 
-    Counts cover every evaluation grain and reach back only as far as the online-eval
+    Counts cover every evaluation target and reach back only as far as the online-eval
     retention window, after which completed work is reaped.
     """
 
@@ -98,7 +98,7 @@ def _outcome(model: _WorkUnitModel) -> sa.Case[Optional[str]]:
 
 
 def _outcome_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
-    def grain(model: _WorkUnitModel) -> sa.Select[Any]:
+    def outcome_counts(model: _WorkUnitModel) -> sa.Select[Any]:
         outcome = _outcome(model)
         return (
             sa.select(
@@ -111,20 +111,20 @@ def _outcome_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
             .group_by(model.project_evaluator_id, outcome)
         )
 
-    grains = sa.union_all(
-        grain(models.EvalWorkUnit),
-        grain(models.EvalSessionWorkUnit),
-        grain(models.EvalTraceWorkUnit),
+    outcomes = sa.union_all(
+        outcome_counts(models.EvalWorkUnit),
+        outcome_counts(models.EvalSessionWorkUnit),
+        outcome_counts(models.EvalTraceWorkUnit),
     ).subquery()
     return (
         sa.select(
-            grains.c.project_evaluator_id,
-            grains.c.outcome,
-            sa.func.sum(grains.c.count),
-            sa.func.max(grains.c.latest),
+            outcomes.c.project_evaluator_id,
+            outcomes.c.outcome,
+            sa.func.sum(outcomes.c.count),
+            sa.func.max(outcomes.c.latest),
         )
-        .where(grains.c.outcome.is_not(None))
-        .group_by(grains.c.project_evaluator_id, grains.c.outcome)
+        .where(outcomes.c.outcome.is_not(None))
+        .group_by(outcomes.c.project_evaluator_id, outcomes.c.outcome)
     )
 
 
@@ -138,7 +138,7 @@ def _last_error_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
     and bounds the ranked partition to given-up work.
     """
 
-    def grain(model: _WorkUnitModel) -> sa.Select[Any]:
+    def failed_errors(model: _WorkUnitModel) -> sa.Select[Any]:
         return sa.select(
             model.project_evaluator_id.label("project_evaluator_id"),
             model.error.label("error"),
@@ -149,16 +149,16 @@ def _last_error_stmt(project_evaluator_ids: list[Key]) -> sa.Select[Any]:
             _failed(model),
         )
 
-    grains = sa.union_all(
-        grain(models.EvalWorkUnit),
-        grain(models.EvalSessionWorkUnit),
-        grain(models.EvalTraceWorkUnit),
+    errors = sa.union_all(
+        failed_errors(models.EvalWorkUnit),
+        failed_errors(models.EvalSessionWorkUnit),
+        failed_errors(models.EvalTraceWorkUnit),
     ).subquery()
     ranked = sa.select(
-        grains.c.project_evaluator_id,
-        grains.c.error,
+        errors.c.project_evaluator_id,
+        errors.c.error,
         sa.func.row_number()
-        .over(partition_by=grains.c.project_evaluator_id, order_by=grains.c.updated_at.desc())
+        .over(partition_by=errors.c.project_evaluator_id, order_by=errors.c.updated_at.desc())
         .label("row_num"),
     ).subquery()
     return sa.select(ranked.c.project_evaluator_id, ranked.c.error).where(ranked.c.row_num == 1)
