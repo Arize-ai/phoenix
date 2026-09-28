@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9b38b2e98d07dc5da1c58f5777c7fde5>>
+ * @generated SignedSource<<2688bc84c1ec872671acdd56e7fa6bf9>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,7 @@ export type ProjectEvaluatorRunStatus = "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNN
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;
+  readonly enabled: boolean;
   readonly evaluationTarget: EvaluationTarget;
   readonly evaluator: {
     readonly kind: EvaluatorKind;
@@ -62,6 +63,13 @@ return {
       "args": null,
       "kind": "ScalarField",
       "name": "createdAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "enabled",
       "storageKey": null
     },
     {
@@ -180,6 +188,6 @@ return {
 };
 })();
 
-(node as any).hash = "25bb14ad8a6acf10fd19699d02866397";
+(node as any).hash = "c1f10eab7d3a50359d3d024916da01dc";
 
 export default node;
