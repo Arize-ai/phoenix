@@ -14,7 +14,10 @@ from typing import Any, Mapping
 import pytest
 
 from phoenix.db import models
-from phoenix.server.api.helpers.dataset_helpers import get_span_annotations_by_name
+from phoenix.server.api.helpers.dataset_helpers import (
+    get_span_annotations_by_name,
+    span_eval_context,
+)
 from phoenix.server.online_eval import bound_variables
 from phoenix.server.online_eval.bound_variables import (
     SESSION_BOUND_VARIABLE_NAMES,
@@ -25,7 +28,6 @@ from phoenix.server.online_eval.bound_variables import (
     TRACE_BOUND_VARIABLE_NAMES,
     TRACE_METADATA_FIELD_NAMES,
 )
-from phoenix.server.online_eval.executor import span_eval_context
 from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS
 
 

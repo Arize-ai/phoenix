@@ -24,6 +24,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_metadata,
     get_dataset_example_output,
+    span_eval_context,
 )
 from phoenix.server.api.input_types.AnnotationFilter import (
     AnnotationFilter,
@@ -290,8 +291,6 @@ class Span(Node):
         self,
         info: Info[Context, None],
     ) -> JSON:
-        from phoenix.server.online_eval.executor import span_eval_context
-
         span = (
             self.db_record
             if self.db_record

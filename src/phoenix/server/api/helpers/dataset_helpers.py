@@ -11,6 +11,8 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm.interfaces import LoaderOption
 from strawberry.relay.types import GlobalID
 from typing_extensions import NotRequired
 
@@ -109,6 +111,31 @@ def get_dataset_example_metadata(
         "attributes": span.attributes,
         "events": span.events,
         "annotations": get_span_annotations_by_name(annotations),
+    }
+
+
+SPAN_EVAL_CONTEXT_LOAD_OPTIONS: Sequence[LoaderOption] = (
+    joinedload(Span.trace),
+    selectinload(Span.span_annotations).selectinload(SpanAnnotation.user),
+)
+"""What ``span_eval_context`` reads beyond the span row: its trace and its annotations
+with their annotators. Online evaluation and span-to-dataset export both load spans
+with these options, so neither can drift to a context the other would not build."""
+
+
+def span_eval_context(
+    span: Span,
+    *,
+    trace_id: str,
+    annotations: Sequence[SpanAnnotation],
+) -> dict[str, Any]:
+    """The context an evaluator binds against for a span, and the fields of the dataset
+    example made from it, so an evaluator sees the same values on a span and on its
+    example."""
+    return {
+        "input": get_dataset_example_input(span),
+        "output": get_dataset_example_output(span),
+        "metadata": get_dataset_example_metadata(span, trace_id=trace_id, annotations=annotations),
     }
 
 
