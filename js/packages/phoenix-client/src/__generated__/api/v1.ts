@@ -3335,6 +3335,11 @@ export interface components {
              */
             description: string | null;
             /**
+             * Sequence Number
+             * @description The 1-based sequence number of the experiment within its dataset, in creation order (the oldest experiment is 1), matching the number shown in the UI
+             */
+            sequence_number: number;
+            /**
              * Repetitions
              * @description Number of times the experiment is repeated
              */
@@ -9383,6 +9388,10 @@ export interface operations {
                 cursor?: string | null;
                 /** @description The max number of experiments to return at a time. */
                 limit?: number;
+                /** @description Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page. */
+                sort_dir?: "asc" | "desc";
+                /** @description When provided, return only the experiments with these 1-based per-dataset sequence numbers, resolving an experiment by its user-facing number without paging. */
+                sequence_numbers?: number[] | null;
             };
             header?: never;
             path: {
