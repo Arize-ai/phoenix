@@ -13,8 +13,6 @@ from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any
 
-from phoenix.db.eval_work import MAX_ATTEMPTS as MAX_ATTEMPTS
-
 _IDENTIFIER_PREFIX = "online:"
 _IDENTIFIER_FINGERPRINT_CHARS = 16
 
