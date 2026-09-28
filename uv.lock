@@ -719,7 +719,7 @@ requires-dist = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "snowballstemmer", specifier = ">=3.1" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.46,<3" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.46,<2.1" },
     { name = "sqlglot", specifier = "==30.18.0" },
     { name = "starlette", specifier = ">=0.37.0" },
     { name = "strawberry-graphql", specifier = "==0.327.7" },
