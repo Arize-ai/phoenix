@@ -2,8 +2,8 @@
 
 js/app/src/pages/project/evaluators/evaluatorBoundVariables.ts repeats the names
 in phoenix.server.online_eval.bound_variables so the evaluator editor can order
-and describe them without asking the server. The frontend's per-grain lookup
-tables decide what gets checked, so a name, or a whole grain, added on one side
+and describe them without asking the server. The frontend's per-record-kind lookup
+tables decide what gets checked, so a name, or a whole record kind, added on one side
 fails here until the other side is edited to match. Because the check spans
 both languages, it runs as its own CI job, not inside the Python unit test
 suite, which must never depend on js/ sources.
@@ -27,10 +27,11 @@ MIRROR = (
     / "evaluatorBoundVariables.ts"
 )
 
-# Each grain a lookup table routes is paired with the `<GRAIN>_<suffix>` server constant.
-GRAIN_TABLES = (
-    ("BOUND_VARIABLES_BY_GRAIN", "BOUND_VARIABLE_NAMES"),
-    ("METADATA_FIELDS_BY_GRAIN", "METADATA_FIELD_NAMES"),
+# Each record kind a lookup table routes is paired with the `<RECORD_KIND>_<suffix>` server
+# constant.
+RECORD_KIND_TABLES = (
+    ("BOUND_VARIABLES_BY_RECORD_KIND", "BOUND_VARIABLE_NAMES"),
+    ("METADATA_FIELDS_BY_RECORD_KIND", "METADATA_FIELD_NAMES"),
 )
 
 STRING_ARRAYS = (
@@ -61,7 +62,7 @@ def mirrored_string_array(source: str, declaration: str) -> set[str]:
     return set(re.findall(r'"([^"]+)"', block))
 
 
-def mirrored_grain_table(source: str, declaration: str) -> dict[str, str]:
+def mirrored_record_kind_table(source: str, declaration: str) -> dict[str, str]:
     block = _block(source, rf"const {declaration}: Record<.*?> = \{{(.*?)^\}};", declaration)
     return dict(re.findall(r"^\s*(\w+):\s*(\w+),", block, re.MULTILINE))
 
@@ -82,12 +83,12 @@ def main() -> int:
 
     source = MIRROR.read_text(encoding="utf-8")
     pairs: list[tuple[str, str]] = [
-        (f"{grain.upper()}_{suffix}", ts_declaration)
-        for table, suffix in GRAIN_TABLES
-        for grain, ts_declaration in mirrored_grain_table(source, table).items()
+        (f"{record_kind.upper()}_{suffix}", ts_declaration)
+        for table, suffix in RECORD_KIND_TABLES
+        for record_kind, ts_declaration in mirrored_record_kind_table(source, table).items()
     ]
     if not pairs:
-        print(f"No grains found in the lookup tables of {MIRROR} — check the regex.")
+        print(f"No record kinds found in the lookup tables of {MIRROR} — check the regex.")
         return 1
 
     failures: list[str] = []
@@ -95,7 +96,7 @@ def main() -> int:
         server_names = getattr(bound_variables, server_constant, None)
         if server_names is None:
             failures.append(
-                f"`{ts_declaration}` is routed for a grain with no `{server_constant}` in "
+                f"`{ts_declaration}` is routed for a record kind with no `{server_constant}` in "
                 "phoenix.server.online_eval.bound_variables."
             )
         else:

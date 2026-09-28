@@ -7,12 +7,12 @@ import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorFor
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import type {
-  ProjectEvaluatorMappingSourceGrain,
+  ProjectEvaluatorRecordKind,
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   formatEvaluationTargetPlural,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /** Scope-editing props shared by every left definition panel. */
@@ -74,7 +74,7 @@ export const ProjectLlmEvaluatorFormSections = (
       <LLMEvaluatorForm
         inputMappingSection={
           <ProjectEvaluatorInputMappingSection
-            grain={toEvaluatorMappingSourceGrain(scopeProps.scope.targetType)}
+            recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
           />
         }
       />
@@ -83,16 +83,16 @@ export const ProjectLlmEvaluatorFormSections = (
 };
 
 const ProjectEvaluatorInputMappingSection = ({
-  grain,
+  recordKind,
 }: {
-  grain: ProjectEvaluatorMappingSourceGrain;
+  recordKind: ProjectEvaluatorRecordKind;
 }) => {
   return (
     <Flex direction="column" gap="size-200" marginTop="size-200">
       <Flex direction="column" gap="size-100">
         <EvaluatorSectionHeader
           title="Evaluator Inputs"
-          description={`Each input reads a path on the ${grain}.`}
+          description={`Each input reads a path on the ${recordKind}.`}
         />
         <View
           borderRadius="medium"
@@ -103,7 +103,10 @@ const ProjectEvaluatorInputMappingSection = ({
         >
           {/* Keyed so the rows rebuild against the new record kind rather than
               carrying the previous one's paths forward. */}
-          <ProjectEvaluatorInputMapping key={grain} grain={grain} />
+          <ProjectEvaluatorInputMapping
+            key={recordKind}
+            recordKind={recordKind}
+          />
         </View>
       </Flex>
     </Flex>
@@ -163,7 +166,7 @@ export const ProjectCodeEvaluatorFormSections = ({
       <ProjectEvaluatorScopeSection {...scopeProps} />
       {codeDefinition}
       <ProjectEvaluatorInputMappingSection
-        grain={toEvaluatorMappingSourceGrain(scopeProps.scope.targetType)}
+        recordKind={toEvaluatorRecordKind(scopeProps.scope.targetType)}
       />
     </>
   );

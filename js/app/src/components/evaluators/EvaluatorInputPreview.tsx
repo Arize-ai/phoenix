@@ -120,19 +120,19 @@ const EvaluatorInputPreviewContent = () => {
   // this value is the one that will actually be used when testing an evaluator
   const setEvaluatorInputObject = useEffectEvent(setEvaluatorMappingSource);
   useEffect(() => {
-    setEvaluatorInputObject({ grain: "dataset", source: defaultValue });
+    setEvaluatorInputObject({ recordKind: "dataset", source: defaultValue });
   }, [defaultValue]);
 
-  if (evaluatorMappingSource.grain !== "dataset") {
+  if (evaluatorMappingSource.recordKind !== "dataset") {
     return null;
   }
 
   return (
     <EvaluatorMappingSourceEditor
-      grain="dataset"
+      recordKind="dataset"
       value={evaluatorMappingSource.source}
       onFieldChange={(field, value) =>
-        setEvaluatorMappingSourceField({ grain: "dataset", field, value })
+        setEvaluatorMappingSourceField({ recordKind: "dataset", field, value })
       }
       editorKeyPrefix={`${datasetId}-${exampleId}`}
     />

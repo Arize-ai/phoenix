@@ -3,7 +3,7 @@ import type { EvaluatorMappingSource } from "@phoenix/types";
 /**
  * Mirrors the server's `session_eval_context()`. A project with no recorded
  * sessions yet still needs something to author a mapping against, the same way
- * the span grain has a sample span.
+ * the span record kind has a sample span.
  */
 export type SampleSessionEvaluationContext = {
   context: EvaluatorMappingSource<"session">;

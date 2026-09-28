@@ -43,7 +43,7 @@ describe("the binding preview", () => {
         >
           <BindingPreview
             context={getSampleSpanEvaluationContext().context}
-            grain="span"
+            recordKind="span"
             inputMapping={{
               pathMapping: { input: "metadata.name" },
               literalMapping: {},
@@ -78,7 +78,7 @@ describe("the binding preview", () => {
         >
           <BindingPreview
             context={getSampleTraceEvaluationContext().context}
-            grain="trace"
+            recordKind="trace"
             inputMapping={{
               pathMapping: { input: "missing.key", metadata: "nope" },
               literalMapping: {},
@@ -126,7 +126,7 @@ describe("the binding preview", () => {
         >
           <BindingPreview
             context={getSampleSpanEvaluationContext().context}
-            grain="span"
+            recordKind="span"
             inputMapping={{
               pathMapping: {
                 // A wildcard is the server's to resolve, so this side can only

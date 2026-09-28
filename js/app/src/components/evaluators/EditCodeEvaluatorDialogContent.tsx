@@ -326,7 +326,7 @@ export const EditCodeEvaluatorDialogContent = ({
         JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
       ) {
         state.setEvaluatorMappingSource({
-          grain: state.evaluatorMappingSource.grain,
+          recordKind: state.evaluatorMappingSource.recordKind,
           source: next.testPayload,
         });
       }

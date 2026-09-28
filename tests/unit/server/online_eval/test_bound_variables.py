@@ -1,4 +1,4 @@
-"""The grain vocabularies and everything that has to agree with them.
+"""The evaluation target vocabularies and everything that has to agree with them.
 
 An evaluation context reads the span names straight off the span document, and
 nothing generates one list from another, so these tests hold them together.
@@ -92,7 +92,7 @@ def test_no_record_field_name_collides_with_a_vocabulary_name(
     record_fields: frozenset[str],
 ) -> None:
     assert not vocabulary & record_fields, (
-        "Record fields share `metadata` with the grain vocabulary flat, so a "
+        "Record fields share `metadata` with the evaluation target vocabulary flat, so a "
         "vocabulary name spelled like a record field would shadow it. Rename "
         "the new name."
     )
