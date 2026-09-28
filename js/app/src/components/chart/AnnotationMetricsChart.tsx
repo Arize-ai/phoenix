@@ -49,6 +49,7 @@ import {
   compactLegendProps,
   defaultCartesianGridProps,
   defaultTooltipProps,
+  stackedBarSeparatorProps,
 } from "./defaults";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
 
@@ -164,6 +165,7 @@ function renderLabelShareBars({
         dataKey={`${dataKeyPrefix}${dataKey}`}
         name={segment.label}
         stackId={stackId}
+        {...stackedBarSeparatorProps}
         fill={segment.color}
         hide={isDataKeyHidden?.(dataKey)}
         radius={
@@ -181,6 +183,7 @@ function renderLabelShareBars({
         dataKey={`${dataKeyPrefix}${OTHER_DATA_KEY}`}
         name="other"
         stackId={stackId}
+        {...stackedBarSeparatorProps}
         fill={OTHER_COLOR}
         legendType="none"
         radius={STACK_TOP_RADIUS}
