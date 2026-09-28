@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 from sqlalchemy import delete, select, update
@@ -204,7 +204,11 @@ _TARGET_MODELS = {
 }
 
 
-async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
+async def _write_nothing(session: AsyncSession) -> None:
+    return None
+
+
+async def test_claim_and_publish_happy_path(db: DbSessionFactory) -> None:
     unit_ids = await _seed_work_units(db, 2)
     coordinator = DbEvalWorkCoordinator(db)
     before = datetime.now(timezone.utc)
@@ -227,9 +231,29 @@ async def test_claim_and_complete_happy_path(db: DbSessionFactory) -> None:
     assert await coordinator.heartbeat(work_unit_id=unit_ids[0], claimed_by="consumer-1")
 
     for unit_id in unit_ids:
-        assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
+        await coordinator.publish(
+            work_unit_id=unit_id, claimed_by="consumer-1", write=_write_nothing
+        )
         assert (await _get_unit(db, unit_id)).status == "DONE"
-    assert await coordinator.complete(work_unit_id=unit_ids[0], claimed_by="consumer-1")
+    finished = await _get_unit(db, unit_ids[0])
+    for claimed_by, held in (("consumer-1", True), ("consumer-2", False)):
+        late: dict[str, Any] = {"work_unit_id": unit_ids[0], "claimed_by": claimed_by}
+        assert await coordinator.heartbeat(**late) is held
+        assert await coordinator.fail(**late, error="late") is held
+        assert await coordinator.expire(**late, error="late") is held
+        assert await coordinator.release(**late) is held
+    row = await _get_unit(db, unit_ids[0])
+    assert (row.status, row.claimed_by, row.attempts, row.error, row.updated_at) == (
+        "DONE",
+        "consumer-1",
+        0,
+        None,
+        finished.updated_at,
+    )
+    with pytest.raises(PublicationClaimLostError):
+        await coordinator.publish(
+            work_unit_id=unit_ids[0], claimed_by="consumer-1", write=_write_nothing
+        )
 
 
 async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(
@@ -448,7 +472,6 @@ async def test_transitions_return_false_after_lapsed_lease_is_reclaimed(
     assert reclaimed[0].attempts == 1
 
     assert not await coordinator.heartbeat(work_unit_id=unit_id, claimed_by="consumer-1")
-    assert not await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-1")
     assert not await coordinator.fail(work_unit_id=unit_id, claimed_by="consumer-1", error="late")
     assert not await coordinator.expire(
         work_unit_id=unit_id,
@@ -460,7 +483,7 @@ async def test_transitions_return_false_after_lapsed_lease_is_reclaimed(
     assert row.status == "RUNNING"
     assert row.claimed_by == "consumer-2"
     assert row.attempts == 1
-    assert await coordinator.complete(work_unit_id=unit_id, claimed_by="consumer-2")
+    assert await coordinator.heartbeat(work_unit_id=unit_id, claimed_by="consumer-2")
 
 
 async def test_lapsed_lease_with_exhausted_attempts_is_not_claimable(
@@ -638,9 +661,10 @@ async def test_session_claim_lifecycle_and_lag(db: DbSessionFactory) -> None:
         work_unit_id=claimed.work_unit_id,
         claimed_by="session-consumer",
     )
-    assert await coordinator.complete(
+    await coordinator.publish(
         work_unit_id=claimed.work_unit_id,
         claimed_by="session-consumer",
+        write=_write_nothing,
     )
 
     now = datetime.now(timezone.utc)
@@ -766,8 +790,11 @@ async def test_session_publish_holds_work_lock_against_reclaim(
     assert await competitor.claim(claimed_by="competitor", limit=1) == []
     release.set()
     await publication
-    (reclaimed,) = await competitor.claim(claimed_by="competitor", limit=1)
-    assert reclaimed.work_unit_id == unit_id
+    assert await competitor.claim(claimed_by="competitor", limit=1) == []
+    async with db() as session:
+        unit = await session.get(models.EvalSessionWorkUnit, unit_id)
+        assert unit is not None
+        assert unit.status == "DONE"
 
 
 async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory) -> None:
@@ -807,9 +834,10 @@ async def test_trace_claim_lifecycle(db: DbSessionFactory) -> None:
         work_unit_id=claimed.work_unit_id,
         claimed_by="trace-consumer",
     )
-    assert await coordinator.complete(
+    await coordinator.publish(
         work_unit_id=claimed.work_unit_id,
         claimed_by="trace-consumer",
+        write=_write_nothing,
     )
 
     lag = await coordinator.lag()

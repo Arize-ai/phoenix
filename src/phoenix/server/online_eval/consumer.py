@@ -6,10 +6,10 @@ to the claim batch size, and claims again as soon as a permit frees up. The
 evaluator semaphore is shared across every target's consumers, so it bounds the
 work units a replica runs at once; a shared database semaphore bounds
 database-phase concurrency. Each unit is hydrated with its project evaluator's
-current configuration, evaluated with lease heartbeats, annotated, then
-completed — or failed with a cooldown. Shutdown stops claiming, gives in-flight
-units a grace period, then cancels stragglers before sandbox
-teardown.
+current configuration, evaluated with lease heartbeats, then annotated and
+completed in one transaction — or failed with a cooldown. Shutdown stops
+claiming, gives in-flight units a grace period, then cancels stragglers before
+sandbox teardown.
 """
 
 from __future__ import annotations
@@ -407,20 +407,6 @@ class OnlineEvalConsumer(DaemonTask):
                 logger.warning(
                     f"Online-eval work unit {unit.work_unit_id} failure was not recorded "
                     "after its claim was lost"
-                )
-        else:
-            completed = await self._retry_transition(
-                action="complete",
-                unit=unit,
-                transition=lambda: self._coordinator.complete(
-                    work_unit_id=unit.work_unit_id,
-                    claimed_by=unit.claimed_by,
-                ),
-            )
-            if completed is False:
-                logger.warning(
-                    f"Online-eval work unit {unit.work_unit_id} finished after its claim "
-                    "was lost; the annotation write is idempotent"
                 )
 
     async def _retry_transition(

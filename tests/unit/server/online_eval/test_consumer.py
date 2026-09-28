@@ -773,7 +773,7 @@ async def _session_annotations(
         return list(await session.scalars(select(models.ProjectSessionAnnotation)))
 
 
-async def test_session_publication_then_exhaustion_does_not_rematerialize(
+async def test_session_publication_finishes_its_unit_before_a_crash_can_lose_it(
     db: DbSessionFactory,
 ) -> None:
     scheduled_at = datetime.now(timezone.utc) - timedelta(minutes=10)
@@ -841,7 +841,7 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
     }
 
     stored = await _get_session_unit(db, unit_id)
-    assert stored.status == "RUNNING"
+    assert stored.status == "DONE"
     assert stored.evaluated_through == scheduled_at
     (annotation,) = await _session_annotations(db)
     assert annotation.identifier == annotation_identifier(fingerprint)
@@ -870,9 +870,8 @@ async def test_session_publication_then_exhaustion_does_not_rematerialize(
                 )
             )
         )
-    assert len(units) == 1
-    assert units[0].status == "FAILED"
-    assert units[0].attempts == MAX_ATTEMPTS
+    assert [(unit.status, unit.attempts) for unit in units] == [("DONE", MAX_ATTEMPTS - 1)]
+    assert len(await _session_annotations(db)) == 1
 
 
 async def test_a_stale_claim_cannot_write_to_its_unit_re_offered_to_the_same_consumer(
@@ -1995,90 +1994,6 @@ async def test_session_publication_preserves_the_ingest_watermark(
     unit = await _get_session_unit(db, unit_id)
     assert unit.status == "DONE"
     assert unit.evaluated_through == start_time + timedelta(seconds=5)
-
-
-async def test_reclaimed_session_publication_pairs_annotation_with_reloaded_content(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    first_event_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    first_ingest_time = first_event_time + timedelta(minutes=2)
-    second_event_time = first_event_time + timedelta(minutes=1)
-    second_ingest_time = first_ingest_time + timedelta(minutes=1)
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(
-            session,
-            project,
-            start_time=first_event_time,
-        )
-        trace = await _add_trace(
-            session,
-            project,
-            project_session,
-            start_time=first_event_time,
-        )
-        await _add_span(session, trace, span_kind="CHAIN", start_time=first_event_time)
-        project_session.last_span_ingested_at = first_ingest_time
-    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
-        db,
-        project.id,
-        evaluation_target="SESSION",
-    )
-    unit_id, _ = await _materialize_session_unit(
-        db,
-        project_session.id,
-        evaluator_id,
-        project_evaluator_id,
-    )
-    _patch_playground_client(monkeypatch, _StubLLMClient())
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
-    executor = _executor(db, evaluation_target="SESSION")
-
-    (first_claim,) = await coordinator.claim(claimed_by="attempt-a", limit=1)
-    first_hydrated = await executor.hydrate(first_claim)
-    assert isinstance(first_hydrated, HydratedWorkUnit)
-    await executor.evaluate_and_annotate(first_claim, first_hydrated)
-
-    async with db() as session:
-        second_trace = await _add_trace(
-            session,
-            project,
-            project_session,
-            start_time=second_event_time,
-        )
-        await _add_span(
-            session,
-            second_trace,
-            span_kind="CHAIN",
-            start_time=second_event_time,
-        )
-        await session.execute(
-            update(models.ProjectSession)
-            .where(models.ProjectSession.id == project_session.id)
-            .values(last_span_ingested_at=second_ingest_time)
-        )
-        await session.execute(
-            update(models.EvalSessionWorkUnit)
-            .where(models.EvalSessionWorkUnit.id == unit_id)
-            .values(
-                claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
-            )
-        )
-
-    (second_claim,) = await coordinator.claim(claimed_by="attempt-b", limit=1)
-    second_hydrated = await executor.hydrate(second_claim)
-    assert isinstance(second_hydrated, HydratedWorkUnit)
-    await executor.evaluate_and_annotate(second_claim, second_hydrated)
-    assert await coordinator.complete(
-        work_unit_id=unit_id,
-        claimed_by=second_claim.claimed_by,
-    )
-
-    unit = await _get_session_unit(db, unit_id)
-    (annotation,) = await _session_annotations(db)
-    policy = annotation.metadata_["phoenix.online_eval.session_policy"]
-    assert policy["last_loaded_event_time"] == second_event_time.isoformat()
-    assert unit.evaluated_through == first_ingest_time
 
 
 async def test_cross_project_session_unit_expires_before_evaluator_call(
@@ -3279,9 +3194,6 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
     async def _hydrate_batch(units: Sequence[ClaimedWorkUnit]) -> list[HydratedWorkUnit]:
         return [hydrated for _ in units]
 
-    async def _complete(**_: Any) -> bool:
-        return True
-
     claims = {
         span_consumer: AsyncMock(return_value=[_claimed_unit(1, work_unit_id=1)]),
         session_consumer: AsyncMock(return_value=[_claimed_session_unit(1, work_unit_id=2)]),
@@ -3290,7 +3202,6 @@ async def test_shared_evaluator_limit_applies_across_target_consumers(
         monkeypatch.setattr(consumer._coordinator, "claim", claim)
         monkeypatch.setattr(consumer._executor, "hydrate_configuration_snapshots", _hydrate_batch)
         monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
-        monkeypatch.setattr(consumer._coordinator, "complete", _complete)
 
     await asyncio.gather(
         _cycle_to_completion(span_consumer), _cycle_to_completion(session_consumer)
@@ -3321,20 +3232,20 @@ async def test_consumer_claims_new_work_while_a_unit_is_blocked(
     )
     blocked = asyncio.Event()
     completed = asyncio.Event()
-    coordinator_complete = consumer._coordinator.complete
+
+    async def _write_nothing(_: Any) -> None:
+        return None
 
     async def _evaluate(unit: ClaimedWorkUnit, _: HydratedWorkUnit) -> None:
         if unit.work_unit_id == blocked_unit_id:
             blocked.set()
             await asyncio.Event().wait()
-
-    async def _complete(**kwargs: Any) -> bool:
-        done = await coordinator_complete(**kwargs)
+        await consumer._coordinator.publish(
+            work_unit_id=unit.work_unit_id, claimed_by=unit.claimed_by, write=_write_nothing
+        )
         completed.set()
-        return done
 
     monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
-    monkeypatch.setattr(consumer._coordinator, "complete", _complete)
 
     try:
         await asyncio.wait_for(consumer._cycle(), timeout=5)
@@ -3397,14 +3308,14 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
         return None
 
     async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
-        return _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
-
-    async def _evaluate(*_: Any, **__: Any) -> None:
-        return None
+        return _hydrated_stub(
+            results=[_evaluation_result("criterion")],
+            evaluator_kind="LLM",
+            output_configs=[_output_config("criterion")],
+        )
 
     monkeypatch.setattr(consumer, "_process_unit", _start)
     monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
-    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
     await _cycle_to_completion(consumer)
     lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
     async with db() as session:
@@ -3422,7 +3333,6 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
     assert not await consumer._heartbeat(first)
     with pytest.raises(PublicationClaimLostError):
         await coordinator.publish(**stale, write=_write_nothing)
-    assert not await coordinator.complete(**stale)
     assert not await coordinator.fail(**stale, error="stale")
     assert not await coordinator.expire(**stale, error="stale")
     assert not await coordinator.release(**stale)
@@ -3431,50 +3341,7 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
 
     await process_unit(second)
     assert (await _get_unit(db, unit_id)).status == "DONE"
-
-
-async def test_complete_retries_after_ambiguous_commit(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-    consumer = OnlineEvalConsumer(db, decrypt=lambda value: value)
-    (unit,) = await consumer._coordinator.claim(
-        claimed_by=consumer._consumer_id,
-        limit=1,
-    )
-    hydrated = _hydrated_stub(results=[], evaluator_kind="BUILTIN", output_configs=[])
-
-    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
-        return hydrated
-
-    async def _evaluate(*_: Any, **__: Any) -> None:
-        return None
-
-    original_complete = consumer._coordinator.complete
-    complete_calls = 0
-
-    async def _ambiguous_complete(**kwargs: Any) -> bool:
-        nonlocal complete_calls
-        complete_calls += 1
-        completed = await original_complete(**kwargs)
-        if complete_calls == 1:
-            raise ConnectionError("commit acknowledgement lost")
-        return completed
-
-    monkeypatch.setattr(consumer_module, "_TRANSITION_RETRY_DELAYS_SECONDS", (0.0, 0.0, 0.0))
-    monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
-    monkeypatch.setattr(consumer._executor, "evaluate_and_annotate", _evaluate)
-    monkeypatch.setattr(consumer._coordinator, "complete", _ambiguous_complete)
-
-    await consumer._process_unit(unit)
-
-    assert complete_calls == 1
-    assert (await _get_unit(db, unit_id)).status == "DONE"
+    assert len(await _annotations(db)) == 1
 
 
 async def test_failure_transition_retries_raised_exceptions(

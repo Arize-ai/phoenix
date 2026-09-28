@@ -5,9 +5,11 @@ LOCKED`` so competing consumers never block on each other's candidates; SQLite (
 locks) claims each candidate with a per-id compare-and-swap and keeps only the rows
 whose update landed. Each claim first fails lapsed work with no attempts left, in the
 same transaction; while such rows exist, a claim can wait on another claim's reap.
-Every post-claim write (heartbeat / publish / complete / fail / expire / release) is
-fenced by ``claimed_by == <the claim's token> AND status == 'RUNNING'``; the
-transitions report a lost claim as False via the update rowcount.
+Every post-claim write (heartbeat / publish / fail / expire / release) is fenced by
+``claimed_by == <the claim's token> AND status == 'RUNNING'``. Publication writes the
+results and marks the unit DONE in its fenced transaction; a transition that misses the
+fence returns False, unless the unit is DONE under the same token, which counts as
+success.
 """
 
 from __future__ import annotations
@@ -232,20 +234,6 @@ class DbEvalWorkCoordinator:
             claimed_at=_DATABASE_NOW,
         )
 
-    async def complete(
-        self,
-        *,
-        work_unit_id: int,
-        claimed_by: str,
-    ) -> bool:
-        """Complete a claimed unit, treating an already-DONE row as success."""
-        return await self._fenced_transition(
-            work_unit_id=work_unit_id,
-            claim_owner=claimed_by,
-            already_status="DONE",
-            status="DONE",
-        )
-
     async def publish(
         self,
         *,
@@ -292,6 +280,11 @@ class DbEvalWorkCoordinator:
                     f"work unit {work_unit_id} project evaluator is disabled or missing"
                 )
             await write(session)
+            await session.execute(
+                update(work_unit_model)
+                .where(work_unit_model.id == work_unit_id)
+                .values(status="DONE")
+            )
 
     async def fail(
         self,
@@ -359,7 +352,6 @@ class DbEvalWorkCoordinator:
         *,
         work_unit_id: int,
         claim_owner: str,
-        already_status: Optional[str] = None,
         **values: Any,
     ) -> bool:
         work_unit_model = self._work_unit_model
@@ -377,11 +369,14 @@ class DbEvalWorkCoordinator:
             )
             rowcount = result.rowcount  # type: ignore[attr-defined]
             transitioned = bool(rowcount == 1)
-            if not transitioned and already_status is not None:
+            if not transitioned:
                 status = await session.scalar(
-                    select(work_unit_model.status).where(work_unit_model.id == work_unit_id)
+                    select(work_unit_model.status).where(
+                        work_unit_model.id == work_unit_id,
+                        work_unit_model.claimed_by == claim_owner,
+                    )
                 )
-                transitioned = status == already_status
+                transitioned = status == "DONE"
             await session.commit()
             return transitioned
 

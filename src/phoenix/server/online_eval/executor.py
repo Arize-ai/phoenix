@@ -1101,11 +1101,12 @@ class OnlineEvalExecutor:
     async def evaluate_and_annotate(
         self, unit: ClaimedWorkUnit, hydrated: HydratedWorkUnit
     ) -> None:
-        """Run the eval and publish successful results as target annotations under
-        the hydrated configuration's identifier. Span results are first-write-wins;
-        session results replace a prior attempt so the annotation stays paired with its
-        coverage. Raises before writing unless the evaluator returns one complete,
-        error-free result set. No DB session is open while the evaluator runs."""
+        """Run the eval, then publish successful results as target annotations under
+        the hydrated configuration's identifier and finish the work unit in the same
+        transaction. Span results are first-write-wins; session results replace a prior
+        attempt so the annotation stays paired with its coverage. Raises before writing
+        unless the evaluator returns one complete, error-free result set. No DB session
+        is open while the evaluator runs."""
         tracer = (
             marked_evaluator_tracer(
                 self._tracer_factory(),
