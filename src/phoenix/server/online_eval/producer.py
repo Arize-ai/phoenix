@@ -2,8 +2,8 @@
 
 Materializes span-level eval work units from enabled project evaluators.
 The producer runs on every replica. The ``span-producer`` lease is advisory: it keeps
-one replica scanning at a time so scans aren't repeated, but the producer's writes
-don't check it. The unique (span, evaluator, config) work-unit key absorbs duplicate
+one replica scanning at a time so scans aren't repeated, but no write is fenced on it.
+The unique (span, evaluator, config) work-unit key absorbs duplicate
 inserts. Each tick takes the lease and deletes aged terminal work rows. When a frontier
 is due and the admission gate is open, it also scans the lag-gated span id window per
 project evaluator and inserts surviving work units. A slow-cadence backstop sweep

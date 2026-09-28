@@ -1,9 +1,8 @@
 """Advisory leases that normally keep one replica at a time doing each online-eval
-materializer's work.
+materializer's work, so replicas don't repeat each other's queries.
 
-A holder that stalls past the TTL keeps writing after another replica takes the lease over.
-Correctness rests on the unique work-unit keys and on positions that only move forward, not
-on the lease.
+No write is fenced on a lease: a holder that stalls past the TTL keeps writing after
+another replica takes the lease over.
 """
 
 from __future__ import annotations
