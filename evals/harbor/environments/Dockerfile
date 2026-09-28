@@ -11,7 +11,7 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && apt-get install -y --no-install-recommends ca-certificates curl git jq procps ripgrep \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash agent
-# The coding agents are baked in because Harbor's installers need hosts that the
+# The coding agents are preinstalled because Harbor's installers need hosts that the
 # allowlist blocks. Their package directories are readable by root only, and each agent
 # class opens its own at trial start, so a condition sees only the CLI it runs.
 ARG CLAUDE_CODE_VERSION=2.1.267

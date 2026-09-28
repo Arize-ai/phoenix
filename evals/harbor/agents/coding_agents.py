@@ -19,36 +19,36 @@ _CLI_INSTALL_SCRIPT = Path(__file__).with_name("install_phoenix_cli.sh")
 _CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
 
 
-class BakedAgentMixin(BaseInstalledAgent):
+class PreinstalledAgentMixin(BaseInstalledAgent):
     """The image installs this CLI under a directory only root can read, so conditions
-    that do not run it cannot reach it. Install opens the directory and checks the baked
+    that do not run it cannot reach it. Install opens the directory and checks the preinstalled
     version against the job's pin before Harbor's installer would try the network."""
 
-    BAKED_PACKAGE_DIR: ClassVar[str]
+    PREINSTALLED_PACKAGE_DIR: ClassVar[str]
 
     async def install(self, environment: BaseEnvironment) -> None:
         pinned = self.version()
         if pinned is None:
-            raise RuntimeError(f"{self.name()} needs kwargs.version to match the baked CLI")
-        await self.exec_as_root(environment, f"chmod 755 {self.BAKED_PACKAGE_DIR}")
+            raise RuntimeError(f"{self.name()} needs kwargs.version to match the preinstalled CLI")
+        await self.exec_as_root(environment, f"chmod 755 {self.PREINSTALLED_PACKAGE_DIR}")
         version_command = self.get_version_command()
         assert version_command is not None
         result = await self.exec_as_agent(environment, version_command)
-        baked = self.parse_version(result.stdout or "")
-        if baked != pinned:
+        preinstalled = self.parse_version(result.stdout or "")
+        if preinstalled != pinned:
             raise RuntimeError(
-                f"The image has {self.name()} {baked} but the job pins {pinned}; "
+                f"The image has {self.name()} {preinstalled} but the job pins {pinned}; "
                 "update the Dockerfile ARG or kwargs.version"
             )
         await super().install(environment)
 
 
-class BakedClaudeCode(BakedAgentMixin, ClaudeCode):
-    BAKED_PACKAGE_DIR = "/usr/local/lib/node_modules/@anthropic-ai"
+class PreinstalledClaudeCode(PreinstalledAgentMixin, ClaudeCode):
+    PREINSTALLED_PACKAGE_DIR = "/usr/local/lib/node_modules/@anthropic-ai"
 
 
-class BakedCodex(BakedAgentMixin, Codex):
-    BAKED_PACKAGE_DIR = "/usr/local/lib/node_modules/@openai"
+class PreinstalledCodex(PreinstalledAgentMixin, Codex):
+    PREINSTALLED_PACKAGE_DIR = "/usr/local/lib/node_modules/@openai"
 
 
 class PhoenixMcpMixin(BaseInstalledAgent):
@@ -104,13 +104,13 @@ class AgentLogsOwnershipMixin(BaseInstalledAgent):
         await super().run(instruction, environment, context)
 
 
-class ClaudeCodeMcpAgent(AgentLogsOwnershipMixin, PhoenixMcpMixin, BakedClaudeCode):
+class ClaudeCodeMcpAgent(AgentLogsOwnershipMixin, PhoenixMcpMixin, PreinstalledClaudeCode):
     @staticmethod
     def name() -> str:
         return "claude-code-mcp"
 
 
-class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, BakedClaudeCode):
+class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, PreinstalledClaudeCode):
     ENV_VARS = [
         *ClaudeCode.ENV_VARS,
         EnvVar("phoenix_endpoint", env="PHOENIX_ENDPOINT", type="str", default=PHOENIX_URL),
@@ -121,13 +121,13 @@ class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, BakedClaudeCo
         return "claude-code-cli"
 
 
-class CodexMcpAgent(PhoenixMcpMixin, BakedCodex):
+class CodexMcpAgent(PhoenixMcpMixin, PreinstalledCodex):
     @staticmethod
     def name() -> str:
         return "codex-mcp"
 
 
-class CodexCliAgent(PhoenixCliMixin, BakedCodex):
+class CodexCliAgent(PhoenixCliMixin, PreinstalledCodex):
     @staticmethod
     def name() -> str:
         return "codex-cli"

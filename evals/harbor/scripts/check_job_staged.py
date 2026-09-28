@@ -11,7 +11,7 @@ image without its fixture. Usage::
 
 Use ``--agents-replaced`` when the run passes ``-a``. That option replaces the agents in
 the job file, so the run does not require the px archive used by its CLI agents, and the
-baked Claude Code and Codex versions are not compared with the job's pins.
+preinstalled Claude Code and Codex versions are not compared with the job's pins.
 """
 
 from __future__ import annotations
@@ -28,10 +28,10 @@ import yaml
 STAGED = ("Dockerfile", "wheels", "verifier", "container_assets", "data/phoenix.db")
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
 DOCKERFILE = Path("evals/harbor/environments/Dockerfile")
-BAKED_VERSION_ARG = {"ClaudeCode": "CLAUDE_CODE_VERSION", "Codex": "CODEX_VERSION"}
+PREINSTALLED_VERSION_ARG = {"ClaudeCode": "CLAUDE_CODE_VERSION", "Codex": "CODEX_VERSION"}
 
 
-def baked_versions() -> dict[str, str]:
+def preinstalled_versions() -> dict[str, str]:
     """The agent versions the Dockerfile installs, keyed by ARG name."""
     return dict(re.findall(r"^ARG (\w+_VERSION)=(\S+)$", DOCKERFILE.read_text(), re.MULTILINE))
 
@@ -41,17 +41,17 @@ def agent_class(agent: dict[str, Any]) -> str:
 
 
 def version_mismatches(agents: list[dict[str, Any]]) -> list[str]:
-    baked = baked_versions()
+    preinstalled = preinstalled_versions()
     failures = []
     for agent in agents:
-        for prefix, arg in BAKED_VERSION_ARG.items():
+        for prefix, arg in PREINSTALLED_VERSION_ARG.items():
             if not agent_class(agent).startswith(prefix):
                 continue
             pinned = str((agent.get("kwargs") or {}).get("version", ""))
-            if pinned != baked.get(arg):
+            if pinned != preinstalled.get(arg):
                 failures.append(
                     f"{agent.get('name')} pins version {pinned!r} but the Dockerfile "
-                    f"has {arg}={baked.get(arg)!r}"
+                    f"has {arg}={preinstalled.get(arg)!r}"
                 )
     return failures
 
