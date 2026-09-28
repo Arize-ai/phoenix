@@ -8,7 +8,7 @@ compare the conditions in the Phoenix UI.
 
 | Job file | Question it answers | Tasks | Phoenix dataset |
 | --- | --- | --- | --- |
-| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/pxi-regression/*` | `pxi-regression` |
+| `jobs/benchmark.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
 
 | Path | Contents |
@@ -16,7 +16,7 @@ compare the conditions in the Phoenix UI.
 | `agents/` | PXI and the Claude Code or Codex configurations for the MCP server and px |
 | `environments/` | The shared Dockerfile and the fixture script for each database |
 | `jobs/` | One configuration file for each benchmark |
-| `tasks/` | One directory per benchmark: the tasks under `pxi-regression/` and under `trail-benchmark-dev/` |
+| `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
 | `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
@@ -44,7 +44,7 @@ Phoenix wheel, creates the fixture databases and task build contexts, and builds
 archive for the CLI agents:
 
 ```bash
-# Stage the PXI regression tasks only.
+# Stage the regression tasks only.
 make harbor-stage
 # Also seed the TRAIL fixture and stage its tasks.
 HF_TOKEN=... make harbor-stage
@@ -63,7 +63,7 @@ Run a job file after staging. `HARBOR_JOB` selects the file, and `HARBOR_ARGS` p
 arguments to `harbor run`:
 
 ```bash
-# Run the PXI regression benchmark as CI runs it.
+# Run the regression benchmark as CI runs it.
 make harbor-run
 # Run one attempt with local Docker.
 make harbor-run HARBOR_ARGS='-e docker -k 1'
@@ -194,9 +194,9 @@ uv run pytest tests/unit/harbor
 Use an oracle run to test the task environment, reference solutions, and verifiers
 together.
 
-## The PXI regression benchmark
+## The regression benchmark
 
-`tasks/pxi-regression/error-analysis` is a two-step scenario on a hand-prepared database. The agent
+`tasks/regression/error-analysis` is a two-step scenario on a hand-prepared database. The agent
 open-codes a project's traces into notes, then axial-codes them into per-dimension
 annotation configurations. Its verifier lives with the task under `tests/` and reads the
 database and the agent's sidecars directly. `jobs/benchmark.yaml` runs it with two
@@ -211,7 +211,7 @@ gcloud storage cp --cache-control=no-store phoenix.db \
 RESEED=1 make harbor-stage HARBOR_CLI=0
 ```
 
-`tasks/pxi-regression/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
+`tasks/regression/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
 dataset, `banking_saas_dataset_clean` (28 examples, half of them expecting a `REFUSED:`
 string). The agent writes an exact-match evaluator and attaches it to the dataset, runs the
 empty prompt as a baseline experiment and iterates until an experiment passes all 28
