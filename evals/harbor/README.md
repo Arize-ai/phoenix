@@ -18,7 +18,7 @@ compare the conditions in the Phoenix UI.
 | `jobs/` | One configuration file for each benchmark |
 | `tasks/` | The `error-analysis/` task and the tasks under `trail-benchmark-dev/` |
 | `verifiers/` | The reply grader, LLM judge, and reference-solution query helpers |
-| `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
+| `scripts/` | Scripts for staging, building the px and Codex archives, selecting job subsets, and checking CI rewards |
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ compare the conditions in the Phoenix UI.
 
 From the repository root, stage the tasks before you run a benchmark. Staging builds the
 Phoenix wheel, creates the fixture databases and task build contexts, and builds the px
-archive for the CLI agents:
+archive for the CLI agents and the Codex archive for the Codex agents:
 
 ```bash
 # Stage error-analysis only.
@@ -50,12 +50,15 @@ make harbor-stage
 HF_TOKEN=... make harbor-stage
 ```
 
-The px archive requires Docker and takes a few minutes to build. If the job has no CLI
-agent, set `HARBOR_CLI=0` to skip the archive. Use `HARBOR_CLI_PLATFORM` to change the
-target from `linux/amd64`. Restage after changing the server, `verifiers/`,
-`environments/`, or a fixture because the image contains copies of these files.
-`RESEED=1` also rebuilds the fixtures. `make harbor-run` refuses to start a job whose
-tasks are not staged.
+The archives require Docker. The px archive takes a few minutes to build. If the job has
+no CLI agent, set `HARBOR_CLI=0` to skip it. If the job has no Codex agent, set
+`HARBOR_CODEX=0`. `HARBOR_CODEX_VERSION` selects the Codex version and must match
+`kwargs.version` on the Codex agents in the job file. The Codex archive is built for both
+Linux architectures, so it works on Daytona and on local Docker for Apple silicon. Use
+`HARBOR_CLI_PLATFORM` to change the px target from `linux/amd64`. Restage after changing
+the server, `verifiers/`, `environments/`, or a fixture because the image contains copies
+of these files. `RESEED=1` also rebuilds the fixtures. `make harbor-run` refuses to start
+a job whose tasks are not staged.
 
 ### 2. Run a job
 
@@ -124,8 +127,9 @@ must access the data through Phoenix. PXI runs inside the server and uses the se
 database access. This difference is part of the PXI condition.
 
 Claude Code uses the Anthropic API, and Codex uses the OpenAI API. The job file therefore
-sets a model for each agent. Harbor installs Claude Code when the trial starts. The image
-contains the Codex version pinned in the job file. The CLI agents access Phoenix only
+sets a model for each agent. Harbor installs Claude Code when the trial starts. The Codex
+agents upload the archive for the version pinned in the job file, because Harbor's Codex
+installer requires hosts that the allowlist blocks. The CLI agents access Phoenix only
 through `px`. PXI is a separate condition and is not available to the other agents.
 
 ## The TRAIL benchmark

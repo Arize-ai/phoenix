@@ -109,7 +109,7 @@ help: ## Show this help message
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px and Codex archives (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 or HARBOR_CODEX=0 to skip an archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -504,8 +504,12 @@ gh-comment-watch: ## Start the GitHub comment watcher
 HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
 HARBOR_ARGS ?=
 # harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
-# HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
+# HF_TOKEN is set, and builds the px and Codex archives. Set HARBOR_CLI=0 or
+# HARBOR_CODEX=0 to skip an archive. HARBOR_CODEX_VERSION must match `kwargs.version`
+# on the Codex agents in the job file.
 HARBOR_CLI ?= 1
+HARBOR_CODEX ?= 1
+HARBOR_CODEX_VERSION ?= 0.154.0
 # The arize-phoenix plugin records tasks, trials, scores, and traces. Jobs that define
 # `datasets:` use the task directory name as the dataset name. Other jobs use
 # pxi-benchmark by default. HARBOR_DATASET overrides the name. Set HARBOR_PLUGIN to an
@@ -528,11 +532,13 @@ define check-harbor-staged
 	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,)
 endef
 
-harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=...)
+harbor-stage: ## Build the Phoenix wheel, produce each fixture, stage each task environment, and build the px and Codex archives (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CODEX=0, HARBOR_CODEX_VERSION=..., HARBOR_CLI_PLATFORM=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_environments.sh
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
 	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
+	$(if $(filter 0,$(HARBOR_CODEX)),@echo -e "$(YELLOW)Skipping the Codex archive (HARBOR_CODEX=0)$(NC)",\
+	./evals/harbor/scripts/build_codex_archive.sh $(HARBOR_CODEX_VERSION))
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix

@@ -15,8 +15,36 @@ from harbor.models.trial.paths import EnvironmentPaths
 PHOENIX_URL = "http://127.0.0.1:6006"
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _CLI_ARCHIVE = _REPO_ROOT / "dist" / "phoenix-cli" / "phoenix-cli.tar.gz"
-_CLI_INSTALL_SCRIPT = Path(__file__).with_name("install_phoenix_cli.sh")
-_CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
+_CODEX_ARCHIVE_DIR = _REPO_ROOT / "dist" / "codex"
+_INSTALL_SCRIPT = Path(__file__).with_name("install_node_archive.sh")
+
+
+async def _install_node_archive(
+    environment: BaseEnvironment, archive: Path, name: str, *bins: str
+) -> None:
+    """Upload a host-built node_modules archive and link its bins onto PATH.
+
+    Runs as root because the script links into ``/usr/local/bin``.
+    """
+    if not archive.is_file():
+        raise RuntimeError(f"No {name} archive at {archive}; run `make harbor-stage`")
+    upload_dir = f"/installed-agent/{name}"
+    remote_archive = f"{upload_dir}/{archive.name}"
+    remote_script = f"{upload_dir}/{_INSTALL_SCRIPT.name}"
+    await _exec_as_root(environment, f"mkdir -p {upload_dir}")
+    await environment.upload_file(archive, remote_archive)
+    await environment.upload_file(_INSTALL_SCRIPT, remote_script)
+    await _exec_as_root(
+        environment, f"sh {remote_script} {remote_archive} /opt/{name} {' '.join(bins)}"
+    )
+
+
+async def _exec_as_root(environment: BaseEnvironment, command: str) -> None:
+    result = await environment.exec(command, user="root")
+    if result.return_code != 0:
+        raise RuntimeError(
+            f"`{command}` exited {result.return_code}\n{result.stdout}\n{result.stderr}"
+        )
 
 
 class PhoenixMcpMixin(BaseInstalledAgent):
@@ -32,22 +60,35 @@ class PhoenixMcpMixin(BaseInstalledAgent):
 
 
 class PhoenixCliMixin(BaseInstalledAgent):
-    """Keep px outside the task image so only CLI agents can access it.
-
-    Installation requires root access because the script links px into ``/usr/local/bin``.
-    """
+    """Keep px outside the task image so only CLI agents can access it."""
 
     async def install(self, environment: BaseEnvironment) -> None:
         await super().install(environment)
-        if not _CLI_ARCHIVE.is_file():
-            raise RuntimeError(f"No px CLI archive at {_CLI_ARCHIVE}")
-        archive = f"{_CLI_UPLOAD_DIR}/{_CLI_ARCHIVE.name}"
-        script = f"{_CLI_UPLOAD_DIR}/{_CLI_INSTALL_SCRIPT.name}"
-        await environment.exec(f"mkdir -p {_CLI_UPLOAD_DIR}", user="root")
-        await environment.upload_file(_CLI_ARCHIVE, archive)
-        await environment.upload_file(_CLI_INSTALL_SCRIPT, script)
-        await environment.exec(f"sh {script} {archive}", user="root")
+        await _install_node_archive(environment, _CLI_ARCHIVE, "phoenix-cli", "phoenix-cli", "px")
         await self.exec_as_agent(environment, "px --version")
+
+
+class CodexArchiveMixin(Codex):
+    """Install Codex from the archive that ``make harbor-stage`` builds.
+
+    Harbor's installer downloads nvm and Node from hosts the job allowlist blocks. The
+    archive for the sandbox's architecture is uploaded instead, and Harbor's installer
+    then finds the pinned version and does nothing.
+    """
+
+    async def install(self, environment: BaseEnvironment) -> None:
+        if self.version() is None:
+            raise RuntimeError("Codex agents need kwargs.version to select the archive")
+        machine = (await environment.exec("uname -m")).stdout.strip()
+        arch = {"x86_64": "x64", "aarch64": "arm64"}[machine]
+        archive = _CODEX_ARCHIVE_DIR / f"codex-{self.version()}-linux-{arch}.tar.gz"
+        await _install_node_archive(environment, archive, "codex", "codex")
+        result = await environment.exec(self._INSTALL_VERSION_COMMAND)
+        if result.return_code != 0:
+            raise RuntimeError(
+                f"codex --version exited {result.return_code}\n{result.stdout}\n{result.stderr}"
+            )
+        await super().install(environment)
 
 
 class AgentLogsOwnershipMixin(BaseInstalledAgent):
@@ -89,13 +130,13 @@ class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, ClaudeCode):
         return "claude-code-cli"
 
 
-class CodexMcpAgent(PhoenixMcpMixin, Codex):
+class CodexMcpAgent(PhoenixMcpMixin, CodexArchiveMixin):
     @staticmethod
     def name() -> str:
         return "codex-mcp"
 
 
-class CodexCliAgent(PhoenixCliMixin, Codex):
+class CodexCliAgent(PhoenixCliMixin, CodexArchiveMixin):
     @staticmethod
     def name() -> str:
         return "codex-cli"

@@ -10,7 +10,8 @@ image without its fixture. Usage::
     uv run --script evals/harbor/scripts/check_job_staged.py JOB.yaml [--agents-replaced]
 
 Use ``--agents-replaced`` when the run passes ``-a``. That option replaces the agents in
-the job file, so the run does not require the px archive used by its CLI agents.
+the job file, so the run does not require the px archive used by its CLI agents or the
+Codex archive used by its Codex agents.
 """
 
 from __future__ import annotations
@@ -25,6 +26,21 @@ import yaml
 
 STAGED = ("Dockerfile", "wheels", "verifier", "container_assets", "data/phoenix.db")
 CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
+CODEX_ARCHIVE_DIR = Path("dist/codex")
+
+
+def agent_class(agent: dict[str, Any]) -> str:
+    return str(agent.get("import_path", "")).rsplit(":", 1)[-1]
+
+
+def codex_versions(agents: list[dict[str, Any]]) -> list[str]:
+    return sorted(
+        {
+            str((agent.get("kwargs") or {}).get("version", ""))
+            for agent in agents
+            if agent_class(agent).startswith("Codex")
+        }
+    )
 
 
 def job_tasks(job: dict[str, Any]) -> list[Path]:
@@ -53,12 +69,13 @@ def main() -> int:
         missing = [part for part in STAGED if not (task / "environment" / part).exists()]
         if missing:
             failures.append(f"{task}/environment/ is missing {', '.join(missing)}")
-    agents = job.get("agents") or []
-    needs_cli = not args.agents_replaced and any(
-        str(agent.get("import_path", "")).endswith("CliAgent") for agent in agents
-    )
+    agents = [] if args.agents_replaced else job.get("agents") or []
+    needs_cli = any(agent_class(agent).endswith("CliAgent") for agent in agents)
     if needs_cli and not CLI_ARCHIVE.is_file():
         failures.append(f"{CLI_ARCHIVE} is missing")
+    for version in codex_versions(agents):
+        if not any(CODEX_ARCHIVE_DIR.glob(f"codex-{version}-linux-*.tar.gz")):
+            failures.append(f"{CODEX_ARCHIVE_DIR}/codex-{version}-linux-*.tar.gz is missing")
     if failures:
         print("\n".join(failures), file=sys.stderr)
         print(
