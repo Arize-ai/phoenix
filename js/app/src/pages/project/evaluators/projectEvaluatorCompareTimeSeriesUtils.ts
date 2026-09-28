@@ -101,3 +101,9 @@ export function getCompareLabelSegments({
     color: getShadeColor({ hue, shade }),
   }));
 }
+
+/**
+ * The most bins the paired label bars stay full width at: two 10px bars and
+ * the 1px gap between them need 21px per bin, and the chart sits in half a row.
+ */
+export const MAX_COMPARE_TIME_BINS = 20;

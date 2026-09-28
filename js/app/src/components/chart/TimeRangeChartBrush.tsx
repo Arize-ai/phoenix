@@ -64,6 +64,11 @@ type TimeRangeChartBrushProps = {
    * provided, clicking narrows the selected time range to the clicked bin.
    */
   scale?: TimeBinScale;
+  /**
+   * Must match the `timeBinConfig.interval` used to query the chart, so a
+   * clicked bin spans the same number of `scale` units. Defaults to 1.
+   */
+  interval?: number;
 };
 
 type BrushSelection = {
@@ -173,17 +178,20 @@ function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
  * @param params - completed gesture parameters
  * @param params.selection - snapped timestamps and clamped pointer positions
  * @param params.scale - chart query scale, if bin clicking is enabled
+ * @param params.interval - chart query bin width in `scale` units
  * @param params.utcOffsetMinutes - fixed UTC offset used for chart binning
  * @param params.clickMaxDragPx - maximum pointer movement treated as a click
  */
 export function getBrushGestureTimeRange({
   selection,
   scale,
+  interval,
   utcOffsetMinutes,
   clickMaxDragPx = CLICK_MAX_DRAG_PX,
 }: {
   selection: BrushSelection;
   scale?: TimeBinScale;
+  interval?: number;
   utcOffsetMinutes: number;
   clickMaxDragPx?: number;
 }): TimeRange | null {
@@ -192,6 +200,7 @@ export function getBrushGestureTimeRange({
     return getTimeBinRange({
       binStartMs: selection.end,
       scale,
+      interval,
       utcOffsetMinutes,
     });
   }
@@ -213,6 +222,7 @@ export function TimeRangeChartBrush({
   children,
   onTimeRangeSelected,
   scale,
+  interval,
 }: TimeRangeChartBrushProps) {
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const [selection, setSelection] = useState<BrushSelection | null>(null);
@@ -309,6 +319,7 @@ export function TimeRangeChartBrush({
       const timeRange = getBrushGestureTimeRange({
         selection: nextSelection,
         scale,
+        interval,
         utcOffsetMinutes,
       });
       if (timeRange) {
