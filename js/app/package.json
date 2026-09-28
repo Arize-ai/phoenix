@@ -165,6 +165,7 @@
     "playwright": "^1.63.0",
     "relay-compiler": "^21.0.1",
     "rollup-plugin-visualizer": "^7.1.1",
+    "sharp": "^0.35.4",
     "storybook": "^10.6.0",
     "ts-plugin-sort-import-suggestions": "^1.0.4",
     "tsx": "^4.23.13",

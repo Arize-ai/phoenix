@@ -6,7 +6,7 @@
  * The preview renders that story inside a fixed frame of exactly
  * `THUMBNAIL_SIZE`, and `pnpm storybook:thumbnails` screenshots the frame at
  * `THUMBNAIL_SCALE` in each docs theme, writing
- * `<Name>.thumbnail.<light|dark>.png` beside the story file. The story is the
+ * `<Name>.thumbnail.<light|dark>.webp` beside the story file. The story is the
  * source of truth; the images are regenerated from it, never edited.
  *
  * Overlays the story opens render inside the frame, not against the window,
@@ -75,10 +75,49 @@ export function thumbnailPixelSize() {
 }
 
 /**
- * A PNG's pixel size, read from its IHDR chunk: the width and height are the
- * big-endian 32-bit integers at bytes 16 and 20 of every PNG.
+ * A WebP's pixel size and whether its image data is lossless, read from its
+ * RIFF header without decoding it. A simple lossless file is one `VP8L`
+ * chunk with 14-bit dimensions; an extended (`VP8X`) file stores 24-bit
+ * dimensions and holds its image in a later chunk.
+ *
+ * @see https://developers.google.com/speed/webp/docs/riff_container
  */
-export function pngSize(png: Uint8Array): { width: number; height: number } {
-  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
-  return { width: view.getUint32(16), height: view.getUint32(20) };
+export function webpInfo(
+  webp: Uint8Array
+): { width: number; height: number; lossless: boolean } | null {
+  const view = new DataView(webp.buffer, webp.byteOffset, webp.byteLength);
+  const fourcc = (at: number) =>
+    String.fromCharCode(...webp.subarray(at, at + 4));
+  if (webp.byteLength < 30 || fourcc(0) !== "RIFF" || fourcc(8) !== "WEBP") {
+    return null;
+  }
+  switch (fourcc(12)) {
+    case "VP8L": {
+      const bits = view.getUint32(21, true);
+      return {
+        width: (bits & 0x3fff) + 1,
+        height: ((bits >>> 14) & 0x3fff) + 1,
+        lossless: true,
+      };
+    }
+    case "VP8 ":
+      return {
+        width: view.getUint16(26, true) & 0x3fff,
+        height: view.getUint16(28, true) & 0x3fff,
+        lossless: false,
+      };
+    case "VP8X": {
+      const uint24 = (at: number) =>
+        view.getUint16(at, true) | (webp[at + 2] << 16);
+      let lossless = false;
+      for (let at = 12; at + 8 <= webp.byteLength;) {
+        if (fourcc(at) === "VP8L") lossless = true;
+        const size = view.getUint32(at + 4, true);
+        at += 8 + size + (size & 1);
+      }
+      return { width: uint24(24) + 1, height: uint24(27) + 1, lossless };
+    }
+    default:
+      return null;
+  }
 }

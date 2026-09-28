@@ -39,7 +39,7 @@ type OverviewChild = {
  * Every committed thumbnail, keyed by its path beneath `stories/`.
  *
  * A thumbnail sits beside the story file whose `Thumbnail` story it was
- * photographed from, as `<Name>.thumbnail.<theme>.png`, so it moves and
+ * photographed from, as `<Name>.thumbnail.<theme>.webp`, so it moves and
  * renames with the story. `pnpm storybook:thumbnails` writes them;
  * `pnpm lint:storybook` rejects one with no `Thumbnail` story behind it.
  *
@@ -47,7 +47,7 @@ type OverviewChild = {
  */
 const THUMBNAILS: Record<string, string> = Object.fromEntries(
   Object.entries(
-    import.meta.glob<string>("../**/*.thumbnail.{light,dark}.png", {
+    import.meta.glob<string>("../**/*.thumbnail.{light,dark}.webp", {
       eager: true,
       query: "?url",
       import: "default",
@@ -74,7 +74,7 @@ function thumbnailFor(
   for (const importPath of importPaths) {
     const path = storiesRelativePath(importPath);
     const base = path?.replace(/\.(stories\.[jt]sx?|mdx)$/, "");
-    const url = base && THUMBNAILS[`${base}.thumbnail.${theme}.png`];
+    const url = base && THUMBNAILS[`${base}.thumbnail.${theme}.webp`];
     if (url) {
       return url;
     }

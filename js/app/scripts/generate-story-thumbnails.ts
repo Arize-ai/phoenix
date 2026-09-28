@@ -4,9 +4,10 @@
  *
  * Every story named `Thumbnail` renders inside the preview's fixed thumbnail
  * frame. This photographs that frame in each docs theme and writes it beside
- * the story file as `<Name>.thumbnail.<light|dark>.png`. The frame fixes the
- * size, so the only input is the story: rerun after a component or its
- * `Thumbnail` story changes, and review the PNG diff.
+ * the story file as `<Name>.thumbnail.<light|dark>.webp`, losslessly encoded
+ * by `sharp`. The frame fixes the size, so the only input is the story: rerun
+ * after a component or its `Thumbnail` story changes, and review the image
+ * diff.
  *
  * Reads from a running Storybook rather than starting one: `STORYBOOK_URL`,
  * else `http://localhost:$STORYBOOK_PORT` (from the environment or `.env`),
@@ -21,6 +22,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
+import sharp from "sharp";
 
 import {
   THUMBNAIL_FRAME_TEST_ID,
@@ -30,8 +32,8 @@ import {
   THUMBNAIL_SIZE,
   THUMBNAIL_STORY_NAME,
   THUMBNAIL_THEMES,
-  pngSize,
   thumbnailPixelSize,
+  webpInfo,
 } from "../stories/_meta/thumbnail";
 import type { ThumbnailTheme } from "../stories/_meta/thumbnail";
 
@@ -182,11 +184,18 @@ async function capture(
         ...size,
       }
     );
-    writeFileSync(path, Buffer.from(cropped, "base64"));
-    const written = pngSize(readFileSync(path));
-    if (written.width !== size.width || written.height !== size.height) {
+    // Chromium's own WebP encoder is lossless at quality 1 but writes files
+    // larger than the PNG, so the crop leaves the page as PNG.
+    writeFileSync(
+      path,
+      await sharp(Buffer.from(cropped, "base64"))
+        .webp({ lossless: true })
+        .toBuffer()
+    );
+    const written = webpInfo(readFileSync(path));
+    if (written?.width !== size.width || written?.height !== size.height) {
       throw new Error(
-        `wrote ${written.width}×${written.height}, expected ${size.width}×${size.height}`
+        `wrote ${written ? `${written.width}×${written.height}` : "an unreadable WebP"}, expected ${size.width}×${size.height}`
       );
     }
   } finally {
@@ -237,7 +246,7 @@ async function main() {
         continue;
       }
       for (const theme of THUMBNAIL_THEMES) {
-        const path = `${base}.thumbnail.${theme}.png`;
+        const path = `${base}.thumbnail.${theme}.webp`;
         try {
           await capture(browser, baseUrl, story, theme, path);
           process.stdout.write(`  ${relative(APP_DIR, path)}\n`);

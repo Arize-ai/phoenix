@@ -41,8 +41,8 @@ import {
   THUMBNAIL_REQUIRED_TAGS,
   THUMBNAIL_STORY_NAME,
   THUMBNAIL_THEMES,
-  pngSize,
   thumbnailPixelSize,
+  webpInfo,
 } from "../stories/_meta/thumbnail";
 
 const STORIES_DIR = "stories";
@@ -628,7 +628,7 @@ function thumbnailStoryTags(src: string): string[] | null {
 
 /**
  * Thumbnails are photographs of a `Thumbnail` story, written beside its file
- * as `<Name>.thumbnail.<theme>.png`, one per docs theme, and found by that
+ * as `<Name>.thumbnail.<theme>.webp`, one per docs theme, and found by that
  * shared base name. So each image needs the story it is regenerated from,
  * and each such story must stay out of the sidebar and the docs page.
  *
@@ -662,9 +662,9 @@ function checkThumbnails(files: StoryFile[]) {
     .filter((f) => f.includes(".thumbnail."));
   const imageSet = new Set(images);
   for (const rel of images) {
-    const m = rel.match(/^(.+)\.thumbnail\.(light|dark)\.png$/);
+    const m = rel.match(/^(.+)\.thumbnail\.(light|dark)\.webp$/);
     if (!m) {
-      fail(rel, "thumbnails are named `<Name>.thumbnail.<light|dark>.png`");
+      fail(rel, "thumbnails are named `<Name>.thumbnail.<light|dark>.webp`");
       continue;
     }
     const [, base, theme] = m;
@@ -674,8 +674,18 @@ function checkThumbnails(files: StoryFile[]) {
         `no ${THUMBNAIL_STORY_NAME} story in a story file beside it shares its name; it cannot be regenerated`
       );
     }
-    const size = pngSize(readFileSync(join(STORIES_DIR, rel)));
+    const size = webpInfo(readFileSync(join(STORIES_DIR, rel)));
     const want = thumbnailPixelSize();
+    if (!size) {
+      fail(rel, "is not a WebP; regenerate with `pnpm storybook:thumbnails`");
+      continue;
+    }
+    if (!size.lossless) {
+      fail(
+        rel,
+        "is lossy WebP; regenerate with `pnpm storybook:thumbnails`, which encodes losslessly"
+      );
+    }
     if (size.width !== want.width || size.height !== want.height) {
       fail(
         rel,
@@ -683,7 +693,7 @@ function checkThumbnails(files: StoryFile[]) {
       );
     }
     const other = THUMBNAIL_THEMES.find((t) => t !== theme);
-    if (!imageSet.has(`${base}.thumbnail.${other}.png`)) {
+    if (!imageSet.has(`${base}.thumbnail.${other}.webp`)) {
       fail(
         rel,
         `missing its ${other} counterpart; regenerate with \`pnpm storybook:thumbnails\``
