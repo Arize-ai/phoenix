@@ -3,6 +3,9 @@ import {
   getComparedOutputName,
   getFlagThresholdOperators,
   getKappaGloss,
+  getLabelOptimalities,
+  getLabelOptimalityColor,
+  NEUTRAL_LABEL_COLOR,
   toConfusionMatrixData,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
 
@@ -122,5 +125,77 @@ describe("project evaluator compare utils", () => {
     ).toBe(
       "5 sessions evaluated by both · A flagged at score ≤ 0.5 · B flagged at score ≥ 0.75"
     );
+  });
+
+  describe("getLabelOptimalities", () => {
+    it("ranks a binary pair by direction", () => {
+      expect(
+        getLabelOptimalities({ direction: "MAXIMIZE", scores: [1, 0] })
+      ).toEqual([1, 0]);
+      expect(
+        getLabelOptimalities({ direction: "MINIMIZE", scores: [1, 0] })
+      ).toEqual([0, 1]);
+    });
+
+    it("spaces distinct scores evenly regardless of their values", () => {
+      expect(
+        getLabelOptimalities({
+          direction: "MAXIMIZE",
+          scores: [0, 0.9, 1, 0.9],
+        })
+      ).toEqual([0, 0.5, 1, 0.5]);
+    });
+
+    it("leaves unscored labels null", () => {
+      expect(
+        getLabelOptimalities({ direction: "MAXIMIZE", scores: [1, null, 0] })
+      ).toEqual([1, null, 0]);
+    });
+
+    it("ranks a lone label on the configured scale", () => {
+      expect(
+        getLabelOptimalities({
+          direction: "MINIMIZE",
+          scores: [0],
+          referenceScores: [1, 0],
+        })
+      ).toEqual([1]);
+      expect(
+        getLabelOptimalities({
+          direction: "MINIMIZE",
+          scores: [1],
+          referenceScores: [1, 0],
+        })
+      ).toEqual([0]);
+    });
+
+    it("returns null without a direction or two distinct scores", () => {
+      expect(
+        getLabelOptimalities({ direction: "NONE", scores: [1, 0] })
+      ).toBeNull();
+      expect(
+        getLabelOptimalities({ direction: null, scores: [1, 0] })
+      ).toBeNull();
+      expect(
+        getLabelOptimalities({ direction: "MAXIMIZE", scores: [1, 1, null] })
+      ).toBeNull();
+    });
+  });
+
+  describe("getLabelOptimalityColor", () => {
+    it("keeps the full color for the best label and fades the worst", () => {
+      expect(getLabelOptimalityColor({ color: "red", optimality: 1 })).toBe(
+        `color-mix(in oklch, red 100%, ${NEUTRAL_LABEL_COLOR})`
+      );
+      expect(getLabelOptimalityColor({ color: "red", optimality: 0 })).toBe(
+        `color-mix(in oklch, red 30%, ${NEUTRAL_LABEL_COLOR})`
+      );
+    });
+
+    it("is neutral for a label without a score", () => {
+      expect(getLabelOptimalityColor({ color: "red", optimality: null })).toBe(
+        NEUTRAL_LABEL_COLOR
+      );
+    });
   });
 });

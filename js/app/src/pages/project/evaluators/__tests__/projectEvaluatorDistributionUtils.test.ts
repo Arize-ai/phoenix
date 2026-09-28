@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   getDistributionRows,
+  getDistributionScope,
   getDistributionThresholdPosition,
   getDistributionView,
+  getScoreRowOptimalities,
+  orderLabelRowsByOptimality,
   type DistributionSide,
 } from "../projectEvaluatorDistributionUtils";
 
@@ -89,5 +92,85 @@ describe("evaluator distribution chart data", () => {
     expect(getDistributionRows({ side: labels, view: "labels" })).toEqual(
       labels.labelCounts
     );
+  });
+});
+
+describe("orderLabelRowsByOptimality", () => {
+  const rows = [
+    { label: "hallucinated", score: 1, count: 6 },
+    { label: "grounded", score: 0, count: 15 },
+    { label: "unscored", score: null, count: 1 },
+    { label: "Other labels (grouped)", isOther: true, count: 2 },
+  ];
+
+  it("puts the most optimal label first and Other last", () => {
+    const ordered = orderLabelRowsByOptimality({
+      rows,
+      direction: "MINIMIZE",
+    });
+    expect(ordered.rows.map(({ label }) => label)).toEqual([
+      "grounded",
+      "hallucinated",
+      "unscored",
+      "Other labels (grouped)",
+    ]);
+    expect(ordered.optimalities).toEqual([1, 0, null, null]);
+  });
+
+  it("keeps the original order without a direction", () => {
+    const ordered = orderLabelRowsByOptimality({ rows, direction: "NONE" });
+    expect(ordered.rows).toEqual(rows);
+    expect(ordered.optimalities).toBeNull();
+  });
+});
+
+describe("getScoreRowOptimalities", () => {
+  it("ranks exact scores along the direction without reordering", () => {
+    const rows = [
+      { label: "0", score: 0, count: 13 },
+      { label: "1", score: 1, count: 5 },
+    ];
+    expect(getScoreRowOptimalities({ rows, direction: "MINIMIZE" })).toEqual([
+      1, 0,
+    ]);
+    expect(getScoreRowOptimalities({ rows, direction: "MAXIMIZE" })).toEqual([
+      0, 1,
+    ]);
+  });
+
+  it("ranks histogram bins by midpoint", () => {
+    const rows = [
+      { label: "0–0.5", count: 1, lowerBound: 0, upperBound: 0.5 },
+      { label: "0.5–1", count: 1, lowerBound: 0.5, upperBound: 1 },
+    ];
+    expect(getScoreRowOptimalities({ rows, direction: "MAXIMIZE" })).toEqual([
+      0, 1,
+    ]);
+  });
+
+  it("is null without a direction", () => {
+    expect(
+      getScoreRowOptimalities({
+        rows: [{ label: "0", score: 0, count: 1 }],
+        direction: "NONE",
+      })
+    ).toBeNull();
+  });
+});
+
+describe("getDistributionScope", () => {
+  it("defaults to overlap and honors a request for all", () => {
+    expect(getDistributionScope({ requested: null, evaluatedByBoth: 3 })).toBe(
+      "overlap"
+    );
+    expect(getDistributionScope({ requested: "all", evaluatedByBoth: 3 })).toBe(
+      "all"
+    );
+  });
+
+  it("falls back to all when nothing overlaps", () => {
+    expect(
+      getDistributionScope({ requested: "overlap", evaluatedByBoth: 0 })
+    ).toBe("all");
   });
 });

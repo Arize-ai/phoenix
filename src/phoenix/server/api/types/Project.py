@@ -2642,6 +2642,9 @@ class Project(Node):
             result=result,
             record_a=record_a,
             record_b=record_b,
+            config_a=config_a,
+            config_b=config_b,
+            time_range=time_range,
         )
 
     @strawberry.field

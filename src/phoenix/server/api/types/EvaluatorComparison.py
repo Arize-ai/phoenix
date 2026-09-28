@@ -3,13 +3,19 @@
 from typing import Optional
 
 import strawberry
+from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import OutputConfigType
+from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.evaluator_comparison import (
     ComparisonResult,
     SideSummary,
 )
+from phoenix.server.api.helpers.evaluator_distribution import resolve_evaluator_distribution
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
+from phoenix.server.api.types.EvaluatorDistribution import EvaluatorDistribution
 
 _SHARED_POPULATION = (
     "Computed over the shared population: entities in the selected time range "
@@ -107,6 +113,30 @@ class EvaluatorComparisonSummary:
     mean_score: Optional[float] = strawberry.field(
         description="Mean of this evaluator's non-null scores over the shared population."
     )
+    project_rowid: strawberry.Private[int]
+    evaluation_target: strawberry.Private[str]
+    output_config: strawberry.Private[Optional[OutputConfigType]]
+    other_annotation_name: strawberry.Private[str]
+    time_range: strawberry.Private[TimeRange]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Distribution of this evaluator's primary result over the entities in range "
+            "evaluated by both evaluators (coverage.evaluatedByBoth), whether or not both "
+            "results are binnable. Shaped like ProjectEvaluator.distribution, which covers "
+            "every entity this evaluator annotated."
+        )
+    )
+    async def shared_distribution(self, info: Info[Context, None]) -> EvaluatorDistribution:
+        return await resolve_evaluator_distribution(
+            db=info.context.db,
+            project_rowid=self.project_rowid,
+            evaluation_target=self.evaluation_target,
+            annotation_name=self.annotation_name,
+            config=self.output_config,
+            time_range=self.time_range,
+            shared_with_annotation_name=self.other_annotation_name,
+        )
 
 
 @strawberry.type(
@@ -139,7 +169,11 @@ class ProjectEvaluatorComparison:
 
 
 def _to_gql_summary(
-    summary: SideSummary, record: models.ProjectEvaluator
+    summary: SideSummary,
+    record: models.ProjectEvaluator,
+    output_config: Optional[OutputConfigType],
+    other_annotation_name: str,
+    time_range: TimeRange,
 ) -> EvaluatorComparisonSummary:
     return EvaluatorComparisonSummary(
         evaluator=ProjectEvaluator(id=record.id, db_record=record),
@@ -149,6 +183,11 @@ def _to_gql_summary(
         flagged_count=summary.flagged_count,
         flag_rate=summary.flag_rate,
         mean_score=summary.mean_score,
+        project_rowid=record.project_id,
+        evaluation_target=record.evaluation_target,
+        output_config=output_config,
+        other_annotation_name=other_annotation_name,
+        time_range=time_range,
     )
 
 
@@ -158,13 +197,20 @@ def to_gql_comparison(
     result: ComparisonResult,
     record_a: models.ProjectEvaluator,
     record_b: models.ProjectEvaluator,
+    config_a: Optional[OutputConfigType],
+    config_b: Optional[OutputConfigType],
+    time_range: TimeRange,
 ) -> ProjectEvaluatorComparison:
     return ProjectEvaluatorComparison(
         evaluation_target=evaluation_target,
         coverage=coverage,
         population_size=result.n,
-        a=_to_gql_summary(result.side_a, record_a),
-        b=_to_gql_summary(result.side_b, record_b),
+        a=_to_gql_summary(
+            result.side_a, record_a, config_a, result.side_b.annotation_name, time_range
+        ),
+        b=_to_gql_summary(
+            result.side_b, record_b, config_b, result.side_a.annotation_name, time_range
+        ),
         confusion_matrix=[list(row) for row in result.matrix],
         statistics=EvaluatorComparisonStatistics(
             agreement=result.agreement,

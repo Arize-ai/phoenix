@@ -14,9 +14,15 @@ from phoenix.db.types.annotation_configs import (
     FreeformOutputConfig,
     OutputConfigType,
 )
-from phoenix.server.api.helpers.evaluator_results import latest_evaluator_annotations
+from phoenix.server.api.helpers.evaluator_comparison import make_side_binning
+from phoenix.server.api.helpers.evaluator_results import (
+    EVALUATOR_RESULT_LEVELS,
+    evaluator_annotation_rows,
+    latest_evaluator_annotations,
+)
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.EvaluatorDistribution import (
+    EvaluatorDistribution,
     EvaluatorLabelCount,
     EvaluatorScoreValueCount,
 )
@@ -157,14 +163,33 @@ async def get_evaluator_distribution(
     annotation_name: str,
     config: Optional[OutputConfigType],
     time_range: TimeRange,
+    shared_with_annotation_name: Optional[str] = None,
 ) -> DistributionSummary:
-    """Summarize an evaluator's results in the selected target time range."""
+    """Summarize an evaluator's results in the selected target time range.
+
+    With `shared_with_annotation_name`, only targets that also carry an
+    annotation under that name in range count: the same "evaluated by both"
+    population a comparison's coverage reports.
+    """
     population = latest_evaluator_annotations(
         project_rowid=project_rowid,
         evaluation_target=evaluation_target,
         annotation_names=[annotation_name],
         time_range=time_range,
     )
+    if shared_with_annotation_name is not None:
+        shared_entity_ids = evaluator_annotation_rows(
+            EVALUATOR_RESULT_LEVELS[evaluation_target].entity_id,
+            project_rowid=project_rowid,
+            evaluation_target=evaluation_target,
+            annotation_names=[shared_with_annotation_name],
+            time_range=time_range,
+        )
+        population = (
+            select(population)
+            .where(population.c.entity_id.in_(shared_entity_ids))
+            .subquery("shared_evaluator_annotations")
+        )
     score, label = population.c.score, population.c.label
     finite_score = case((score.between(-sys.float_info.max, sys.float_info.max), score))
     async with db.read() as session:
@@ -197,3 +222,35 @@ async def get_evaluator_distribution(
         async for row in await session.stream(select(label, score)):
             accumulator.add(row.label, row.score)
     return accumulator.result()
+
+
+async def resolve_evaluator_distribution(
+    *,
+    db: DbSessionFactory,
+    project_rowid: int,
+    evaluation_target: str,
+    annotation_name: str,
+    config: Optional[OutputConfigType],
+    time_range: TimeRange,
+    shared_with_annotation_name: Optional[str] = None,
+) -> EvaluatorDistribution:
+    """Summarize an evaluator's results as the GraphQL distribution type."""
+    summary = await get_evaluator_distribution(
+        db=db,
+        project_rowid=project_rowid,
+        evaluation_target=evaluation_target,
+        annotation_name=annotation_name,
+        config=config,
+        time_range=time_range,
+        shared_with_annotation_name=shared_with_annotation_name,
+    )
+    binning = make_side_binning(annotation_name, config, None)
+    return EvaluatorDistribution(
+        evaluated_count=summary.evaluated_count,
+        threshold=binning.threshold if binning.is_thresholded else None,
+        mean_score=summary.mean_score,
+        score_bin_edges=summary.score_bin_edges,
+        score_bin_counts=summary.score_bin_counts,
+        score_value_counts=summary.score_value_counts,
+        label_counts=summary.label_counts,
+    )

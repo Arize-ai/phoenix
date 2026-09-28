@@ -2,14 +2,35 @@ import type { AnnotationMetricsView } from "@phoenix/components/chart/annotation
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import type { ProjectEvaluatorCompareDistributions_side$data } from "./__generated__/ProjectEvaluatorCompareDistributions_side.graphql";
+import { getLabelOptimalities } from "./projectEvaluatorCompareUtils";
 
 export type DistributionSide = Omit<
   ProjectEvaluatorCompareDistributions_side$data,
   " $fragmentType"
 >;
+/** Which targets a distribution covers: those both evaluators scored, or every one each scored. */
+export type DistributionScope = "overlap" | "all";
+
+/**
+ * Overlap by default, since Agreement and Coverage describe the same shared
+ * targets. Falls back to all when nothing overlaps, where the overlap choice
+ * is unavailable and would only chart empty distributions.
+ */
+export function getDistributionScope({
+  requested,
+  evaluatedByBoth,
+}: {
+  requested: string | null;
+  evaluatedByBoth: number;
+}): DistributionScope {
+  if (evaluatedByBoth === 0) return "all";
+  return requested === "all" ? "all" : "overlap";
+}
+
 export type DistributionChartRow = {
   label: string;
   count: number;
+  isOther?: boolean;
   lowerBound?: number | null;
   upperBound?: number | null;
   score?: number | null;
@@ -97,4 +118,73 @@ export function getDistributionThresholdPosition({
     0.5 +
     (threshold - row.lowerBound) / (row.upperBound - row.lowerBound)
   );
+}
+
+/**
+ * Puts label rows most optimal first, by mapped score and optimization
+ * direction, so every evaluator's bars read best to worst from the left.
+ * Unscored labels and the grouped Other row follow in their original order.
+ * Without a direction the rows keep their order (configured, then
+ * alphabetical) and optimalities are null.
+ */
+export function orderLabelRowsByOptimality({
+  rows,
+  direction,
+  referenceScores,
+}: {
+  rows: ReadonlyArray<DistributionChartRow>;
+  direction: string | null | undefined;
+  /** The evaluator's configured label scores; see getLabelOptimalities. */
+  referenceScores?: ReadonlyArray<number | null | undefined>;
+}): {
+  rows: DistributionChartRow[];
+  optimalities: ReadonlyArray<number | null> | null;
+} {
+  const optimalities = getLabelOptimalities({
+    direction,
+    scores: rows.map((row) => (row.isOther ? null : row.score)),
+    referenceScores,
+  });
+  if (optimalities == null) {
+    return { rows: [...rows], optimalities: null };
+  }
+  const ranked = rows.map((row, index) => ({
+    row,
+    optimality: optimalities[index] ?? null,
+  }));
+  // Stable, so ties and unscored rows keep their original order.
+  ranked.sort(
+    (left, right) => (right.optimality ?? -1) - (left.optimality ?? -1)
+  );
+  return {
+    rows: ranked.map(({ row }) => row),
+    optimalities: ranked.map(({ optimality }) => optimality),
+  };
+}
+
+/**
+ * Ranks score rows from least (0) to most (1) optimal along the evaluator's
+ * optimization direction: exact values by score, histogram bins by midpoint.
+ * Rows keep their numeric order; only their shading follows. Null without a
+ * direction or fewer than two distinct scores.
+ */
+export function getScoreRowOptimalities({
+  rows,
+  direction,
+  referenceScores,
+}: {
+  rows: ReadonlyArray<DistributionChartRow>;
+  direction: string | null | undefined;
+  /** The evaluator's configured score scale; see getLabelOptimalities. */
+  referenceScores?: ReadonlyArray<number | null | undefined>;
+}): ReadonlyArray<number | null> | null {
+  return getLabelOptimalities({
+    direction,
+    referenceScores,
+    scores: rows.map((row) =>
+      row.lowerBound != null && row.upperBound != null
+        ? (row.lowerBound + row.upperBound) / 2
+        : row.score
+    ),
+  });
 }

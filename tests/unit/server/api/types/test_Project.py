@@ -7329,6 +7329,7 @@ class TestEvaluatorComparison:
                             flaggedCount
                             flagRate
                             meanScore
+                            sharedDistribution { ...DistributionFields }
                         }
                         b {
                             evaluator {
@@ -7341,6 +7342,7 @@ class TestEvaluatorComparison:
                             flaggedCount
                             flagRate
                             meanScore
+                            sharedDistribution { ...DistributionFields }
                         }
                         confusionMatrix
                         statistics {
@@ -7732,6 +7734,29 @@ class TestEvaluatorComparison:
         # distribution's mean covers every in-range result.
         assert comparison["a"]["meanScore"] == pytest.approx(0.5)
         assert distribution_a["meanScore"] == pytest.approx(4 / 6)
+
+    async def test_shared_distributions_cover_only_entities_evaluated_by_both(
+        self, _comparison_data: dict[str, Any], gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables=self._variables(_comparison_data, "correctness", "toxicity"),
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        comparison = data["node"]["evaluatorComparison"]
+        evaluated_by_both = comparison["coverage"]["evaluatedByBoth"]
+        shared_a = comparison["a"]["sharedDistribution"]
+        shared_b = comparison["b"]["sharedDistribution"]
+        # The exclusive results the independent distributions include drop out.
+        assert shared_a["evaluatedCount"] == evaluated_by_both
+        assert shared_b["evaluatedCount"] == evaluated_by_both
+        assert shared_a["evaluatedCount"] < data["evaluatorA"]["distribution"]["evaluatedCount"]
+        assert shared_b["evaluatedCount"] < data["evaluatorB"]["distribution"]["evaluatedCount"]
+        assert sum(point["count"] for point in shared_a["labelCounts"]) == evaluated_by_both
+        # A shared result with a null score is evaluated but not binnable.
+        assert sum(shared_b["scoreBinCounts"]) == evaluated_by_both - 1
+        assert shared_a["threshold"] == data["evaluatorA"]["distribution"]["threshold"]
 
     @pytest.mark.parametrize("target", ["SPAN", "TRACE", "SESSION"])
     async def test_distribution_membership_is_independent_of_value_eligibility(

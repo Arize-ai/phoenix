@@ -2044,6 +2044,11 @@ type EvaluatorComparisonSummary {
 
   """Mean of this evaluator's non-null scores over the shared population."""
   meanScore: Float
+
+  """
+  Distribution of this evaluator's primary result over the entities in range evaluated by both evaluators (coverage.evaluatedByBoth), whether or not both results are binnable. Shaped like ProjectEvaluator.distribution, which covers every entity this evaluator annotated.
+  """
+  sharedDistribution: EvaluatorDistribution!
 }
 
 """A connection to a list of items."""
