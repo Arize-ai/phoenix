@@ -4,7 +4,7 @@ import re
 import warnings
 from enum import Enum
 from importlib.metadata import entry_points
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, Literal, Optional, Tuple, Type, Union
 from urllib.parse import ParseResult, urlparse
 
 from openinference.instrumentation import TracerProvider as _TracerProvider
@@ -725,54 +725,30 @@ def _exporter_transport(exporter: SpanExporter) -> str:
         return exporter.__class__.__name__
 
 
-# Headers the OTLP HTTP exporter sends with every request on its own
-_OTLP_HTTP_EXPORTER_DEFAULT_HEADERS = frozenset({"content-encoding", "content-type", "user-agent"})
+_OTLP_HTTP_EXPORTER_OWN_HEADERS = frozenset({"content-encoding", "content-type", "user-agent"})
 
 
-def _exporter_headers(exporter: SpanExporter) -> Union[List[Tuple[str, str]], Dict[str, str]]:
+def _exporter_headers(exporter: SpanExporter) -> Dict[str, str]:
     """
-    Get the headers configured on an OTLP span exporter.
-
-    opentelemetry-exporter-otlp-proto-http v1.45.0+ keeps the headers on its internal HTTP client
-    instead of on the exporter itself, merged with the headers the exporter sends on its own.
-    Those are left out so that only the configured headers are returned, as with older versions.
-    https://github.com/open-telemetry/opentelemetry-python/pull/5389
-
-    Args:
-        exporter (SpanExporter): The span exporter to read headers from.
-
-    Returns:
-        Union[List[Tuple[str, str]], Dict[str, str]]: The exporter's configured headers, or an
-            empty dictionary if none are set.
+    Get the headers configured on an OTLP span exporter, without the ones the HTTP exporter
+    adds on its own.
     """
-    headers: Optional[Union[List[Tuple[str, str]], Dict[str, str]]] = getattr(
-        exporter, "_headers", None
-    )
-    if headers is not None:
-        return headers
-    client = getattr(exporter, "_client", None)
-    client_headers: Dict[str, str] = getattr(client, "_headers", None) or {}
-    return {
-        key: value
-        for key, value in client_headers.items()
-        if key.lower() not in _OTLP_HTTP_EXPORTER_DEFAULT_HEADERS
-    }
+    if isinstance(exporter, _HTTPSpanExporter):
+        return {
+            key: value
+            for key, value in exporter._client._headers.items()
+            if key.lower() not in _OTLP_HTTP_EXPORTER_OWN_HEADERS
+        }
+    if isinstance(exporter, _GRPCSpanExporter):
+        headers = exporter._headers
+        if isinstance(headers, (dict, list, tuple)):
+            return dict(headers)
+    return {}
 
 
-def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
-    """
-    Mask header values for safe printing/logging.
-
-    Args:
-        headers (Union[List[Tuple[str, str]], Dict[str, str]]): Headers as either
-            a list of key-value tuples or a dictionary.
-
-    Returns:
-        Dict[str, str]: Dictionary with header keys preserved but values masked as "****".
-    """
-    if isinstance(headers, dict):
-        return {key: "****" for key, _ in headers.items()}
-    return {key: "****" for key, _ in headers}
+def _printable_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Mask header values for safe printing/logging."""
+    return {key: "****" for key in headers}
 
 
 def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:

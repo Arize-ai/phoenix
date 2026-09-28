@@ -130,7 +130,7 @@ async def test_wrap_tool_execute_emits_tool_span(
     assert span.status.status_code == StatusCode.OK
     assert span.parent is None
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "add"
     assert attributes.pop(TOOL_DESCRIPTION) == "Add two integers."
@@ -191,14 +191,14 @@ async def test_wrap_tool_execute_records_exception_when_handler_raises(
     assert len(span.events) == 1
     (exception_event,) = span.events
     assert exception_event.name == "exception"
-    exception_attributes = dict(exception_event.attributes or {})
+    exception_attributes: dict[str, Any] = dict(exception_event.attributes or {})
     assert exception_attributes.pop("exception.type") == "RuntimeError"
     assert exception_attributes.pop("exception.message") == "boom: kaboom"
     assert isinstance(exception_attributes.pop("exception.stacktrace"), str)
     assert exception_attributes.pop("exception.escaped") == "False"
     assert not exception_attributes
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "explode"
     assert attributes.pop(TOOL_DESCRIPTION) == "Always raises with the given reason."
@@ -271,7 +271,7 @@ async def test_after_model_request_emits_native_tool_span_for_call_and_return(
     assert span.status.description is None
     assert span.events == ()
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "web_search"
     assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
@@ -323,7 +323,7 @@ async def test_after_model_request_emits_native_tool_span_without_return_part(
     assert span.status.description is None
     assert span.events == ()
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "web_search"
     assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
@@ -381,7 +381,7 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
     assert span.status.status_code == StatusCode.ERROR
     assert span.status.description is None
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "web_search"
     assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
@@ -398,7 +398,7 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
 
     (exception_event,) = span.events
     assert exception_event.name == "exception"
-    exception_attributes = dict(exception_event.attributes or {})
+    exception_attributes: dict[str, Any] = dict(exception_event.attributes or {})
     assert exception_attributes.pop("exception.type") == "Exception"
     assert exception_attributes.pop("exception.message") == "rate limit exceeded"
     stacktrace = exception_attributes.pop("exception.stacktrace")

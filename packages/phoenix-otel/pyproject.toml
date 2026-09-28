@@ -24,6 +24,7 @@ version = "0.17.1"
 dependencies = [
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
+  "opentelemetry-exporter-otlp-proto-http>=1.45.0",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk",
   "openinference-semantic-conventions>=0.1.17",

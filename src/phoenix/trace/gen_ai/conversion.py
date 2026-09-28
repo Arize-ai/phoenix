@@ -24,9 +24,9 @@ from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import (
     GenAiOutputTypeValues,
     GenAiProviderNameValues,
 )
-from opentelemetry.util.types import AttributeValue
 from pydantic import RootModel, ValidationError
 
+from phoenix.trace.attributes import AttributeValue
 from phoenix.trace.gen_ai.__generated__.models import (
     BlobPart,
     ChatMessage,

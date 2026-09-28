@@ -13,11 +13,12 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.trace.attributes import (
     JSON_STRING_ATTRIBUTES,
+    Attributes,
+    AttributeValue,
     flatten,
     get_attribute_value,
     has_mapping,
