@@ -302,6 +302,28 @@ class TestAnnotationDataFrameChunking:
         assert annotation["document_position"] == 2
         assert isinstance(annotation["document_position"], int)
 
+    def test_missing_values_are_skipped(self) -> None:
+        """Test that NaN and pd.NA cells are dropped instead of sent as values."""
+        df = pd.DataFrame(
+            {
+                "span_id": ["span1", "span2", "span3"],
+                "label": ["good", float("nan"), pd.NA],
+                "score": [float("nan"), 0.0, 0.5],
+                "explanation": [None, float("nan"), "ok"],
+            }
+        )
+        chunks = list(
+            _chunk_span_annotations_dataframe(
+                dataframe=df, annotation_name="quality", annotator_kind="HUMAN"
+            )
+        )
+
+        assert [annotation.get("result") for annotation in chunks[0]] == [
+            {"label": "good"},
+            {"score": 0.0},
+            {"score": 0.5, "explanation": "ok"},
+        ]
+
     def test_fallback_column_usage(self) -> None:
         """Test that fallback columns are used when primary columns are missing."""
         df = pd.DataFrame(
