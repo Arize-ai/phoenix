@@ -1,6 +1,6 @@
 import type {
   CodeEvaluatorLanguage,
-  EvaluatorMappingSourceGrain,
+  EvaluatorRecordKind,
 } from "@phoenix/types";
 
 const PYTHON_INDENT = "    ";
@@ -14,17 +14,17 @@ const TYPESCRIPT_INDENT = "  ";
  *
  * A dataset example carries a `reference` beside the three every evaluator
  * receives; a span or a session does not, and its footer declares no
- * `EvaluatorParams` to annotate against — so the project grains open on the
- * three names they are actually handed, unannotated.
+ * `EvaluatorParams` to annotate against — so the project record kinds open on
+ * the three names they are actually handed, unannotated.
  *
  * Kept apart from the CodeMirror-backed utilities so state modules can build
  * a draft without pulling the editor into their import graph.
  */
 export function getDefaultCodeEvaluatorSource(
   language: CodeEvaluatorLanguage,
-  grain: EvaluatorMappingSourceGrain
+  recordKind: EvaluatorRecordKind
 ): string {
-  const isDataset = grain === "dataset";
+  const isDataset = recordKind === "dataset";
 
   if (language === "PYTHON") {
     const parameters = isDataset

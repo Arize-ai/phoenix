@@ -28,7 +28,7 @@ import { ProjectCodeEvaluatorFormSections } from "@phoenix/pages/project/evaluat
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
   toEvaluationDelayInput,
-  toEvaluatorMappingSourceGrain,
+  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
@@ -99,14 +99,14 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     data.sandboxBackends
   );
 
-  const grain = toEvaluatorMappingSourceGrain(scope.targetType);
+  const recordKind = toEvaluatorRecordKind(scope.targetType);
   const [language, setLanguage] = useState<CodeEvaluatorLanguage>(
     initialValues?.language ?? "PYTHON"
   );
   const [sourceCode, setSourceCode] = useState(
     () =>
       initialValues?.sourceCode ??
-      getDefaultCodeEvaluatorSource("PYTHON", grain)
+      getDefaultCodeEvaluatorSource("PYTHON", recordKind)
   );
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
     initialValues?.sandboxConfigId ?? null

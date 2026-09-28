@@ -57,7 +57,7 @@ export function EvaluatorTaskMappingSource({
 
   useEffect(() => {
     store.getState().setEvaluatorMappingSource({
-      grain: "dataset",
+      recordKind: "dataset",
       source: revision
         ? createEvaluatorMappingSource(revision)
         : EVALUATOR_MAPPING_SOURCE_DEFAULT,
