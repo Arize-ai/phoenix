@@ -5,10 +5,10 @@ import { Meta } from "@storybook/addon-docs/blocks";
 # Tags
 
 Every story declares where it stands on three independent axes, and one flag
-marks components production never renders. The chips beside each entry in the
-sidebar show all of them, and each value is a single tag,
-so the **Tag filters** menu in the sidebar toolbar can narrow the tree by any
-one of them.
+marks components production never renders. Each value is a single tag, so the
+**Tag filters** menu in the sidebar toolbar can narrow the tree by any one of
+them. Only `unused` is drawn as a chip beside the entry; the three axes are not
+shown in the sidebar.
 
 The axes are independent: a `legacy` story can be `complete`, and an `updated`
 one can still be `unreviewed`.

@@ -9,7 +9,7 @@ import {
 import { themes } from "storybook/theming";
 import { create } from "storybook/theming/create";
 
-import { completeness, provenance, review, usage } from "../stories/_meta/tags";
+import { usage } from "../stories/_meta/tags";
 import { installRootHeadings } from "./sidebar/rootHeadings";
 import { installSearchDocsTitles } from "./sidebar/searchDocsTitles";
 import { installSubjectOverviews } from "./sidebar/subjectOverviews";
@@ -26,30 +26,19 @@ const PHOENIX_BACKGROUND = {
 } as const;
 
 /**
- * Sidebar chip colors, as `r, g, b` triples per manager theme.
+ * Chip colors, as `r, g, b` triples per manager theme.
  *
  * The manager runs in its own iframe and cannot read the Phoenix CSS custom
- * properties, which are defined in the preview. So each role is hardcoded here
- * per theme, mirroring the Phoenix token it comes from — the same approach
- * PHOENIX_BACKGROUND above already takes.
+ * properties, which are defined in the preview, so the color is hardcoded per
+ * theme, mirroring the Phoenix token it comes from.
  *
- * Each role uses its palette's `1000` step. The Phoenix ramps invert between
- * themes, which means `1000` is consistently the step with good contrast
- * against its own theme's background: darkest in light, lightest in dark. One
- * triple therefore serves as both the chip text color and, at low alpha, its
- * fill.
+ * `1000` is the step with good contrast against its own theme's background
+ * because the ramps invert between themes, so one triple serves as both the
+ * chip text color and, at low alpha, its fill.
  *
  * @see app/src/GlobalStyles.tsx
  */
 const CHIP_COLORS = {
-  // --global-color-gray-700
-  neutral: { light: "70, 70, 70", dark: "208, 208, 208" },
-  // --global-color-blue-1000 (light #0054b6)
-  info: { light: "0, 84, 182", dark: "124, 189, 250" },
-  // --global-color-green-1000 (light #00653e)
-  success: { light: "0, 101, 62", dark: "75, 205, 149" },
-  // --global-color-orange-1000 (light #953d00)
-  warning: { light: "149, 61, 0", dark: "255, 162, 59" },
   // --global-color-red-1000 (light #b40000)
   danger: { light: "180, 0, 0", dark: "255, 158, 140" },
 } as const;
@@ -69,34 +58,14 @@ const CHIP_ON_SOLID = {
 } as const;
 
 /**
- * Tag to chip role. `complete`/`reviewed` deliberately share success and
- * `incomplete`/`unreviewed` share warning, so the axes read "good / not yet"
- * at a glance. That makes the two success chips distinguishable only by their
- * text, which is why chip labels are the tag value verbatim.
+ * Only `unused` is chipped. The provenance, completeness and review axes stay
+ * queryable through the Tag filters menu but are not drawn in the sidebar.
  */
 const CHIP_ROLE_BY_TAG: Readonly<Record<string, ChipRole>> = {
-  [provenance.legacy]: "neutral",
-  [provenance.updated]: "info",
-  [completeness.complete]: "success",
-  [completeness.incomplete]: "warning",
-  [review.reviewed]: "success",
-  [review.unreviewed]: "warning",
   [usage.unused]: "danger",
 };
 
-/**
- * Axis order, so chips always appear in the same sequence. `unused` leads:
- * it is the one flag that questions whether the entry belongs here at all.
- */
-const CHIP_TAG_ORDER: readonly string[] = [
-  usage.unused,
-  provenance.legacy,
-  provenance.updated,
-  completeness.complete,
-  completeness.incomplete,
-  review.reviewed,
-  review.unreviewed,
-];
+const CHIP_TAG_ORDER: readonly string[] = [usage.unused];
 
 const CHIP_STYLE_ELEMENT_ID = "phoenix-sidebar-chip-styles";
 const SIDEBAR_THEME_ATTRIBUTE = "data-phoenix-sidebar-theme";
@@ -172,7 +141,7 @@ function applySidebarTheme(mode: string) {
  * uses `minHeight: 28` with `align-items: start` and `word-break: break-word`,
  * and sets no `white-space: nowrap` or `text-overflow` — so long names wrap
  * rather than truncate and a taller row is expected. Stacking the chips below
- * the name means nothing has to shrink and all three stay legible at any
+ * the name means nothing has to shrink and the chips stay legible at any
  * sidebar width.
  *
  * Only leaf entries are chipped. `renderLabel` is also invoked for root and
