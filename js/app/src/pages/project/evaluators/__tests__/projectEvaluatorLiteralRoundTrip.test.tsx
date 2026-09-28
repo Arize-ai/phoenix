@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
-import { dropOtherGrainEntityPathMappings } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { dropOtherRecordKindPathMappings } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorStoreInstance } from "@phoenix/store/evaluatorStore";
 
 /**
@@ -26,7 +26,7 @@ function PathOnlyMappingForm({
   const { control } = useEvaluatorInputMappingControlsForm({
     pruneEmptyEntries: true,
     filterInitialMapping: (inputMapping) =>
-      dropOtherGrainEntityPathMappings(inputMapping, "span"),
+      dropOtherRecordKindPathMappings(inputMapping, "span"),
   });
   return (
     <Controller
