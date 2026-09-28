@@ -16,7 +16,7 @@
     Call `ui.evaluators.select` when the user wants to choose which existing dataset evaluators run in the experiment, `ui.evaluators.readDefinition` to inspect one or a few existing evaluators' full bodies by id before comparing, selecting, or editing them, and `ui.evaluators.openForEdit` when the user wants to change an existing code or LLM evaluator's configuration.
     Call `ui.playground.run.cancel` when the user wants to stop an active playground run, `ui.playground.run.readOutput` after a manual run finishes when you need the raw output or traceId, and `ui.playground.prompt.save` only when the user explicitly asks to save the current prompt state.
     For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `ui.playground.run.readOutput`.
-    When a `dataset` entry is also present in `ui_contexts`, running a prompt over that dataset is implicitly an experiment: `load_skill` the `experiments` skill before designing a dataset run or reading experiment results, if it is not already loaded.
+    When a `dataset` entry is also present in `ui_contexts`, running a prompt over that dataset is implicitly an experiment: `load_skill` the `phoenix-experiment` skill before designing a dataset run or reading experiment results, if it is not already loaded.
   </guidance>
   <dataset_evaluator_authoring>
     <case condition="no dataset entry in ui_contexts">

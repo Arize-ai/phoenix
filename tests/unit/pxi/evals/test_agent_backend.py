@@ -168,7 +168,7 @@ async def test_shared_mcp_server_supports_concurrent_examples(
         if any(isinstance(part, ToolReturnPart) for message in messages for part in message.parts):
             return ModelResponse(parts=[TextPart(content="Loaded.")])
         return ModelResponse(
-            parts=[ToolCallPart(tool_name="load_skill", args={"skill_name": "experiments"})]
+            parts=[ToolCallPart(tool_name="load_skill", args={"skill_name": "phoenix-experiment"})]
         )
 
     async def build_model() -> FunctionModel:

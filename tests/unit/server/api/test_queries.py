@@ -2821,10 +2821,9 @@ async def test_available_agent_skills_returns_the_whole_catalog(
     # any page.
     assert names == [
         "phoenix-error-analysis",
-        "phoenix-experiment-analyzer",
+        "phoenix-experiment",
         "datasets",
         "evaluators",
-        "experiments",
         "phoenix-graphql",
         "playground",
     ]

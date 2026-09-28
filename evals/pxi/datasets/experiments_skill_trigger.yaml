@@ -1,7 +1,7 @@
 dataset_name: experiments_skill_trigger
 description: >-
   PXI server-side eval suite for experiments skill trigger correctness.
-  Tests whether the agent calls load_skill(skill_name="experiments") when the
+  Tests whether the agent calls load_skill(skill_name="phoenix-experiment") when the
   user, with a dataset mounted, asks to run, compare, or read back
   dataset-backed experiments (positive cases), and correctly avoids triggering
   the skill for pure prompt iteration, trace diagnosis, evaluator authoring,
@@ -38,7 +38,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: compare_experiments
       difficulty: obvious
@@ -64,7 +64,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: run_experiment
       difficulty: obvious
@@ -90,7 +90,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: regression_check
       difficulty: moderate
@@ -116,7 +116,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: review_results
       difficulty: moderate
@@ -142,7 +142,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: iterate_loop
       difficulty: moderate
@@ -169,7 +169,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: tradeoff_compare
       difficulty: moderate
@@ -228,7 +228,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: workflow_transition
       difficulty: moderate
@@ -259,7 +259,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: load_order
       difficulty: tricky
@@ -337,7 +337,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       negative: true
       category: negative_prompt_iteration
@@ -362,7 +362,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       negative: true
       category: negative_trace_diagnosis
@@ -388,7 +388,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       negative: true
       category: negative_evaluator_authoring
@@ -415,7 +415,7 @@ examples:
         required: [load_skill]
       tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       category: experiment_result_read
       difficulty: tricky
@@ -441,7 +441,7 @@ examples:
     expected:
       forbidden_tool_call_args:
         load_skill:
-          skill_name: experiments
+          skill_name: phoenix-experiment
     metadata:
       negative: true
       category: negative_dataset_metadata

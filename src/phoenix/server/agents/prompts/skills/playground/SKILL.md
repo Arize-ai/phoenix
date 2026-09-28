@@ -60,7 +60,7 @@ dataset-backed evaluation loop is in scope.
 
 Use this workflow when the user wants evidence that a prompt is improving across a dataset, or when
 they are comparing prompt variants using evaluator results. Running a prompt over a dataset is
-implicitly an experiment: consult the `experiments` skill before designing the run, not only after
+implicitly an experiment: consult the `phoenix-experiment` skill before designing the run, not only after
 results arrive — it owns the iteration methodology end to end (what to stage at creation, how to
 read and compare results, when an evaluator is warranted), and the `evaluators` skill owns designing
 the evaluators that score them. This workflow covers only the playground mechanics of setting up and
@@ -85,7 +85,7 @@ starting a recorded run.
 5. Run the playground over the dataset. When recording is enabled, each prompt instance run over a
    dataset is captured as an experiment, with outputs and evaluator annotations available for
    review.
-6. To read the experiment results and decide whether a change helped, follow the `experiments`
+6. To read the experiment results and decide whether a change helped, follow the `phoenix-experiment`
    skill; to create the next candidate, use `ui.playground.prompt.edit`, `ui.playground.instance.add`,
    or `ui.playground.instance.clone` (`ui.playground.instance.add` starts from the default prompt
    messages, `ui.playground.instance.clone` from existing prompt content), then rerun.
