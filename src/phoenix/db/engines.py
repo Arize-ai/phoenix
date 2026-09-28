@@ -5,7 +5,8 @@ import logging
 from enum import Enum
 from sqlite3 import Connection
 from threading import Thread
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Mapping, Optional
+from urllib.parse import urlencode
 
 import aiosqlite
 import numpy as np
@@ -133,6 +134,16 @@ def get_async_db_url(connection_str: str) -> URL:
 SQLiteAccessMode = Literal["ro", "rw", "rwc", "memory"]
 
 
+def _sqlite_target(database: Optional[str], query: Mapping[str, Any]) -> str:
+    """The name SQLite opens, with the URL's query string reattached.
+
+    Assembled from the URL's parts rather than its rendered form, which
+    SQLAlchemy 2.1 percent-encodes: `:memory:` renders as `%3Amemory%3A`.
+    """
+    name = (database or ":memory:").removeprefix("file:")
+    return f"{name}?{urlencode(query, doseq=True)}" if query else name
+
+
 def sqlite_connection_factory(
     database: str,
     *,
@@ -221,9 +232,9 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
     None for in-memory databases: a second connection to `:memory:` opens a
     different, empty database.
     """
-    if (url.database or ":memory:").startswith(":memory:"):
+    database = _sqlite_target(url.database, url.query)
+    if database.startswith(":memory:"):
         return None
-    database = url.render_as_string().partition("///")[-1]
 
     # Persistent connections, not one per checkout: each open spawns an
     # aiosqlite worker thread, whose cost dominates a short read.
@@ -289,12 +300,9 @@ def aio_sqlite_engine(
     log_to_stdout: bool = False,
     log_migrations: bool = True,
 ) -> AsyncEngine:
-    database = url.database or ":memory:"
-    if database.startswith("file:"):
-        database = database[5:]
+    database = _sqlite_target(url.database, url.query)
     if database.startswith(":memory:") and shared_cache:
-        url = url.set(query={**url.query, "cache": "shared"}, database=":memory:")
-    database = url.render_as_string().partition("///")[-1]
+        database = _sqlite_target(":memory:", {**url.query, "cache": "shared"})
 
     engine = create_async_engine(
         url=url,
