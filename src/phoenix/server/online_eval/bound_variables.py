@@ -1,6 +1,6 @@
 """The scalar values an evaluation context carries under ``metadata``.
 
-The vocabulary is the filter language's own scalar names for each grain, so a
+The vocabulary is the filter language's own scalar names for each evaluation target, so a
 name that works in a project's filter condition also names a value the
 evaluator receives. Values come from the same builders the filter language
 compiles against, which is what keeps a preview, a filter, and an evaluation
