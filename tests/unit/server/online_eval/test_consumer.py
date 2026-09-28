@@ -3244,6 +3244,33 @@ async def test_consumer_claims_new_work_while_a_unit_is_blocked(
         await consumer.stop()
 
 
+async def test_idle_consumer_publishes_gauges_while_other_work_holds_every_permit(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    evaluator_semaphore = asyncio.Semaphore(1)
+    await evaluator_semaphore.acquire()
+    consumer = OnlineEvalConsumer(
+        db,
+        decrypt=lambda value: value,
+        evaluator_semaphore=evaluator_semaphore,
+        tick_interval_seconds=0.01,
+    )
+    consumer._publish_metrics = True
+    published = asyncio.Event()
+
+    async def _publish() -> None:
+        published.set()
+
+    monkeypatch.setattr(consumer, "_publish_queue_metrics", _publish)
+
+    await consumer.start()
+    try:
+        await asyncio.wait_for(published.wait(), timeout=5)
+    finally:
+        await consumer.stop()
+    assert evaluator_semaphore.locked()
+
+
 async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_claim(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

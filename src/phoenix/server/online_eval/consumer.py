@@ -198,6 +198,8 @@ class OnlineEvalConsumer(DaemonTask):
         if self._db.should_not_insert_or_update:
             return False
         permits = await self._acquire_permits()
+        if not permits:
+            return False
         # This consumer may reclaim its own lapsed unit while the first attempt still
         # runs; a token per claim keeps that attempt's writes from passing the fence.
         claimed_by = f"{self._consumer_id}:{token_hex(4)}"
@@ -229,9 +231,13 @@ class OnlineEvalConsumer(DaemonTask):
                 self._evaluator_semaphore.release()
 
     async def _acquire_permits(self) -> int:
-        """Wait for one evaluator permit, then take any others that are free without
-        waiting, up to the claim batch size."""
-        await self._evaluator_semaphore.acquire()
+        """Wait up to one tick for an evaluator permit, then take any others that are
+        free without waiting, up to the claim batch size. Returns 0 on timeout, so an
+        idle consumer still publishes its gauges while other work holds every permit."""
+        try:
+            await asyncio.wait_for(self._evaluator_semaphore.acquire(), self._tick_interval_seconds)
+        except asyncio.TimeoutError:
+            return 0
         permits = 1
         while permits < self._claim_batch_size and not self._evaluator_semaphore.locked():
             await self._evaluator_semaphore.acquire()
