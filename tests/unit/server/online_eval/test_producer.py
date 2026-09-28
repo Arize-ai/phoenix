@@ -1188,6 +1188,45 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
     assert sorted(await _work_unit_span_rowids(db)) == [span.id]
 
 
+async def test_tick_that_loses_its_lease_keeps_its_work_without_moving_the_cursor(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    cursor_id = await _seed_cursor(
+        db,
+        produced_through_id=span.id - 1,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    insert_work_units = producer._insert_work_units
+
+    async def _insert_then_lose_lease(
+        session: Any,
+        project_evaluator: Any,
+        span_ids: list[int],
+    ) -> None:
+        await insert_work_units(session, project_evaluator, span_ids)
+        await session.execute(
+            update(models.EvalWorkCursor)
+            .where(models.EvalWorkCursor.id == cursor_id)
+            .values(claimed_by="rival-producer")
+        )
+
+    monkeypatch.setattr(producer, "_insert_work_units", _insert_then_lose_lease)
+    await producer._tick()
+
+    assert await _work_unit_span_rowids(db) == [span.id]
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == span.id - 1
+
+
 @pytest.mark.postgres_only
 async def test_backstop_rolls_back_when_the_cursor_moves_while_it_runs(
     db: DbSessionFactory,
