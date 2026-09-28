@@ -6,7 +6,7 @@ import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddPr
 /**
  * The selectable columns of {@link ProjectEvaluatorsTable}, in their natural
  * order. The pinned enabled and actions columns are excluded: they stay put
- * on the table's right edge.
+ * on the table's edges.
  */
 const PROJECT_EVALUATOR_COLUMNS = [
   { id: "name", label: "name", isVisibilityToggleDisabled: true },
