@@ -77,12 +77,12 @@ describe("getCompareLabelSegments", () => {
   it("steps through the same shades in display order without a direction", () => {
     const segments = getCompareLabelSegments({
       labels: ["y", "x"],
-      hue: "purple",
+      hue: "orange",
       config: { annotationType: "CATEGORICAL", optimizationDirection: "NONE" },
     });
     expect(segments).toEqual([
-      { label: "x", index: 1, color: "var(--global-color-purple-900)" },
-      { label: "y", index: 0, color: "var(--global-color-purple-400)" },
+      { label: "x", index: 1, color: "var(--global-color-orange-900)" },
+      { label: "y", index: 0, color: "var(--global-color-orange-400)" },
     ]);
   });
 });

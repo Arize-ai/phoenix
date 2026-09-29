@@ -196,8 +196,8 @@ describe("project evaluator compare utils", () => {
       expect(getLabelOptimalityColor({ hue: "blue", optimality: 1 })).toBe(
         "var(--global-color-blue-900)"
       );
-      expect(getLabelOptimalityColor({ hue: "purple", optimality: 0 })).toBe(
-        "var(--global-color-purple-400)"
+      expect(getLabelOptimalityColor({ hue: "orange", optimality: 0 })).toBe(
+        "var(--global-color-orange-400)"
       );
     });
 

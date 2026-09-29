@@ -14,7 +14,7 @@ import { formatInt } from "@phoenix/utils/numberFormatUtils";
  */
 export const EVALUATOR_COMPARE_HUES = {
   a: "blue",
-  b: "purple",
+  b: "orange",
 } as const;
 
 export type EvaluatorCompareHue =
