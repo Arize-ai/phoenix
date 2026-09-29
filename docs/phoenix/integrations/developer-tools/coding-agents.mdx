@@ -1,8 +1,10 @@
 ---
 title: "Arize Phoenix for Agents"
-sidebarTitle: "Set Up Your Agent"
+sidebarTitle: "Connect Your Coding Agent"
 description: Connect your coding agent to Phoenix so it can instrument your app, read the traces that come back, and act on what it finds.
 ---
+
+import AgentAssistedOnboardingPrereq from "../../../snippets/agent-assisted-onboarding-prereq.mdx";
 
 Connect Claude Code, Codex, Cursor, or any other coding agent to Phoenix. It can add tracing to your app, read the traces that come back, and act on what it finds. You ask in plain language:
 
@@ -18,9 +20,11 @@ Pull my rag-pipeline prompt and suggest improvements based on recent trace failu
 This connects your coding agent **to** Phoenix. To have Phoenix **record your coding agent's own work** as traces (its turns, tool calls, and token costs), see [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code).
 </Note>
 
+<AgentAssistedOnboardingPrereq />
+
 ## Connect your agent
 
-Pick your row. Each path gives the agent the same three pieces: the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli), the [MCP server](/docs/phoenix/integrations/mcp), and [skills](/docs/phoenix/integrations/developer-tools/skills).
+The steps to connect depend on your agent. Find yours in the table.
 
 | Agent | Setup |
 | --- | --- |
