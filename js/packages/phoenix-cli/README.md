@@ -446,6 +446,78 @@ px dataset get my-dataset --file dataset.json
 
 ---
 
+### `px dataset evaluator list <dataset-identifier>`
+
+List the evaluators bound to a dataset. Requires Phoenix server >= 21.0.0.
+
+```bash
+px dataset evaluator list golden-questions
+px dataset evaluator list golden-questions --format raw --no-progress | jq -r '.[].id'
+```
+
+---
+
+### `px dataset evaluator get <dataset-evaluator-id>`
+
+Show a single binding. Output is a single record.
+
+```bash
+px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format json
+```
+
+---
+
+### `px dataset evaluator create <dataset-identifier>`
+
+Bind an evaluator to a dataset, creating the evaluator if needed. A binding registers the evaluator to run against the dataset's experiments; it does not run an experiment. Exactly one of `--evaluator-id`, `--evaluator`, or `--evaluator-file` selects the evaluator. Existing code and built-in evaluators are bound by ID; LLM evaluators are created with the binding because each one is tied to its own prompt. A new LLM evaluator names its prompt source with either `prompt_version` (content for a new prompt) or `prompt_version_id` (an existing version), not both, and its `description` must equal the description of its prompt's tool function.
+
+```bash
+px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
+px dataset evaluator create golden-questions --name toxicity --evaluator-file toxicity.json --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
+```
+
+| Option                    | Description                                                                                                                           | Default  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `--name <name>`           | Binding name, unique within the dataset (required)                                                                                    | —        |
+| `--input-mapping <json>`  | JSON object with `literal_mapping` and `path_mapping` (required)                                                                      | —        |
+| `--evaluator-id <id>`     | Bind an existing code or built-in evaluator                                                                                           | —        |
+| `--evaluator <json>`      | Inline JSON for a new evaluator with `type` of `llm` or `code`; a code evaluator needs at least one `output_configs` entry            | —        |
+| `--evaluator-file <path>` | Read the new evaluator JSON from a file                                                                                               | —        |
+| `--description <text>`    | Description override for this binding; for LLM evaluators it must equal the prompt tool's description                                 | —        |
+| `--output-configs <json>` | JSON array of at least one output configuration that overrides the definition's (LLM evaluators: must match the prompt's tool schema) | —        |
+| `--format <format>`       | `pretty`, `json`, or `raw`                                                                                                            | `pretty` |
+
+---
+
+### `px dataset evaluator update <dataset-evaluator-id>`
+
+Update a binding. Only the flags you pass are sent; omitted fields keep their values.
+
+```bash
+px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Runs against the nightly golden set"
+px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output.text"}}'
+```
+
+Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as in `create`. `--inherit-description` and `--inherit-output-configs` drop the binding's overrides so it inherits the shared definition's values again.
+
+---
+
+### `px dataset evaluator delete <dataset-evaluator-id...>`
+
+Delete one or more bindings and their evaluator traces. The shared definition is deleted once nothing else references it; an LLM evaluator's prompt is kept unless `--delete-prompt` is passed. Several IDs are deleted atomically. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+```bash
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox --yes
+px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --delete-prompt --yes
+```
+
+| Option            | Description                                                         | Default |
+| ----------------- | ------------------------------------------------------------------- | ------- |
+| `--delete-prompt` | Also delete the prompt of an LLM evaluator deleted with the binding | —       |
+| `-y, --yes`       | Skip the confirmation prompt                                        | —       |
+
+---
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset.
@@ -509,15 +581,15 @@ px evaluator list
 px evaluator list --name exact-match --format raw --no-progress | jq -r '.[0].id'
 ```
 
-| Option               | Description                             | Default |
-| -------------------- | --------------------------------------- | ------- |
-| `--type <llm\|code>` | Only one kind of evaluator              | all     |
-| `--name <name>`      | Only the evaluator with this exact name | —       |
-| `--limit <number>`   | Maximum number of evaluators to fetch   | all     |
+| Option                        | Description                             | Default |
+| ----------------------------- | --------------------------------------- | ------- |
+| `--type <llm\|code\|builtin>` | Only one kind of evaluator              | all     |
+| `--name <name>`               | Only the evaluator with this exact name | —       |
+| `--limit <number>`            | Maximum number of evaluators to fetch   | all     |
 
 ### `px evaluator get <evaluator-id>`
 
-Show a shared evaluator definition. Output is a single record; `type` is `llm` or `code`. Requires Phoenix server >= 21.0.0.
+Show a shared evaluator definition. Output is a single record; `type` is `llm`, `code`, or `builtin`. Built-in definitions are read-only. Requires Phoenix server >= 21.0.0.
 
 ```bash
 px evaluator get Q29kZUV2YWx1YXRvcjoy
