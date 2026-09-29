@@ -51,16 +51,18 @@ const COLORS = [
 const Tokens = ({
   count = LABELS.length,
   boxless = false,
+  size = "M",
 }: {
   count?: number;
   boxless?: boolean;
+  size?: "S" | "M";
 }) => (
   <>
     {LABELS.slice(0, count).map((label, index) => {
       const Wrapper = boxless ? StopPropagation : Fragment;
       return (
         <Wrapper key={label}>
-          <Token color={COLORS[index % COLORS.length]} size="M">
+          <Token color={COLORS[index % COLORS.length]} size={size}>
             {label}
           </Token>
         </Wrapper>
@@ -118,6 +120,29 @@ export const Widths: StoryFn = () => (
 );
 Widths.tags = ["!dev"];
 Widths.parameters = { themeLayout: "column" };
+
+const SIZES = [
+  { label: "M", code: true, size: "M" },
+  { label: "S", code: true, size: "S" },
+] as const;
+
+/**
+ * The "+N" badge takes the size of the items it follows, and the row
+ * reserves only the room that badge needs.
+ */
+export const Sizes: StoryFn = () => (
+  <OptionGrid
+    rows={SIZES}
+    renderCell={(row) => (
+      <Frame width={320}>
+        <OverflowRow size={row.size}>
+          <Tokens size={row.size} />
+        </OverflowRow>
+      </Frame>
+    )}
+  />
+);
+Sizes.tags = ["!dev"];
 
 /**
  * Items may sit behind wrappers that lay out no box of their own, such as the

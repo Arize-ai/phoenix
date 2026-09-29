@@ -25,6 +25,18 @@ export interface Annotation {
 
 export type AnnotationTargetType = "span" | "trace" | "session";
 
+/**
+ * The per-name summary the API reports for a span, trace or session: the
+ * mean of its scores and how its labels are split.
+ */
+export type AnnotationSummary = {
+  name: string;
+  meanScore?: number | null;
+  labelFractions: readonly { label: string; fraction: number }[];
+  /** How many annotations carry this name. Absent where the API omits it. */
+  count?: number | null;
+};
+
 export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
   annotation?: Annotation;
   annotationConfig: T;

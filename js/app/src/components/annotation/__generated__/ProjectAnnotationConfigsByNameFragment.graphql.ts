@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<98e09211ff7ece1c811bbc1a4dc49736>>
+ * @generated SignedSource<<717c6dfc315ed91600d9c1c6535c5116>>
  * @lightSyntaxTransform
  */
 
@@ -12,7 +12,7 @@ export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectAnnotationConfigsByNameFragment$data = {
-  readonly annotationConfigs: {
+  readonly configsByName: {
     readonly edges: ReadonlyArray<{
       readonly config: {
         readonly annotationType?: AnnotationType;
@@ -75,7 +75,7 @@ return {
   "name": "ProjectAnnotationConfigsByNameFragment",
   "selections": [
     {
-      "alias": null,
+      "alias": "configsByName",
       "args": [
         {
           "kind": "Variable",
@@ -205,6 +205,6 @@ return {
 };
 })();
 
-(node as any).hash = "b1c00003a8bedaa32abff3d944e1d7f6";
+(node as any).hash = "d9fa1bdc0d24ab1e2e99ec8c93c3041d";
 
 export default node;

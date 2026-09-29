@@ -27,6 +27,16 @@ type OverflowState = FirstLine & {
 };
 
 const overflowRowCSS = css`
+  // The "+N" badge's type and inset, and the room reserved for it, match the
+  // items it follows: annotation pills by default, one-line badges at "S"
+  --overflow-row-badge-font-size: var(--global-font-size-s);
+  --overflow-row-badge-padding-x: var(--global-dimension-size-100);
+  --overflow-row-badge-reserve: var(--global-dimension-size-600);
+  &[data-size="S"] {
+    --overflow-row-badge-font-size: var(--global-font-size-xs);
+    --overflow-row-badge-padding-x: var(--global-dimension-size-75);
+    --overflow-row-badge-reserve: var(--global-dimension-size-400);
+  }
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -47,7 +57,7 @@ const overflowRowCSS = css`
   &.overflow-row--overflowing {
     height: var(--overflow-row-line-height);
     // room for the badge, which sits out of flow at the end of the first line
-    padding-right: var(--global-dimension-size-600);
+    padding-right: var(--overflow-row-badge-reserve);
   }
 
   // Not even the first item fits. The items stay in flow so they can still be
@@ -55,7 +65,7 @@ const overflowRowCSS = css`
   // boxless wrappers; visibility inherits through those, so hiding the
   // children reaches them.
   &.overflow-row--badge-only {
-    min-width: var(--global-dimension-size-600);
+    min-width: var(--overflow-row-badge-reserve);
     > *:not(.${BADGE_SLOT_CLASS}) {
       visibility: hidden;
     }
@@ -75,11 +85,11 @@ const overflowRowCSS = css`
     transform: translateY(-50%);
     box-sizing: border-box;
     height: var(--overflow-row-line-height);
-    padding: 0 var(--global-dimension-size-100);
+    padding: 0 var(--overflow-row-badge-padding-x);
     background-color: transparent;
     color: var(--global-text-color-700);
     font-family: inherit;
-    font-size: var(--global-font-size-s);
+    font-size: var(--overflow-row-badge-font-size);
     line-height: normal;
     &:hover {
       color: var(--global-text-color-900);
@@ -341,9 +351,16 @@ function OverflowRowPopoverItems({
 export function OverflowRow({
   children,
   isExpanded = false,
+  size = "M",
 }: PropsWithChildren<{
   /** Whether the row wraps all of its items rather than clipping to one line */
   isExpanded?: boolean;
+  /**
+   * The size of the items, which the "+N" badge matches: `M` for annotation
+   * pills, `S` for one-line badges.
+   * @default "M"
+   */
+  size?: "S" | "M";
 }>) {
   const containerRef = useRef<HTMLDivElement>(null);
   const remeasureRef = useRef<(() => void) | null>(null);
@@ -426,6 +443,7 @@ export function OverflowRow({
     <div
       ref={containerRef}
       css={overflowRowCSS}
+      data-size={size}
       className={classNames("overflow-row", {
         "overflow-row--collapsed": !isExpanded,
         "overflow-row--overflowing": !isExpanded && overflow !== null,

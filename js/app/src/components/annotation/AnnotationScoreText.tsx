@@ -12,14 +12,32 @@ type AnnotationScoreTextProps = Omit<TextProps, "children" | "color"> & {
    * - undefined/null: renders with inherited color
    */
   positiveOptimization?: boolean | null;
+  /**
+   * `compact` trims the tinted chip to fit inside a one-line pill.
+   * @default "default"
+   */
+  density?: "default" | "compact";
+  /**
+   * Keeps the chip's inset without a direction, so plain values line up with
+   * tinted ones in a column.
+   * @default false
+   */
+  reserveInset?: boolean;
   children: ReactNode;
 };
 
 const directionCSS = css`
-  // only apply padding and border radius if there is a direction
-  &[data-direction] {
+  // only apply padding and border radius if there is a direction, unless
+  // the caller reserves the inset to keep a column aligned
+  &[data-direction],
+  &[data-reserve-inset] {
     padding: var(--global-dimension-size-25) var(--global-dimension-size-100);
     border-radius: var(--global-rounding-small);
+  }
+  &[data-density="compact"] {
+    padding: 0 var(--global-dimension-size-50);
+    border-radius: var(--global-rounding-xsmall);
+    line-height: calc(var(--global-line-height-xs) - 4px);
   }
   &[data-direction="positive"] {
     color: var(--global-color-optimization-direction-positive);
@@ -51,6 +69,8 @@ const directionCSS = css`
  */
 export function AnnotationScoreText({
   positiveOptimization,
+  density = "default",
+  reserveInset = false,
   children,
   ...textProps
 }: AnnotationScoreTextProps) {
@@ -62,7 +82,13 @@ export function AnnotationScoreText({
         : undefined;
 
   return (
-    <Text {...textProps} data-direction={direction} css={directionCSS}>
+    <Text
+      {...textProps}
+      data-direction={direction}
+      data-density={density}
+      data-reserve-inset={reserveInset || undefined}
+      css={directionCSS}
+    >
       {direction && (
         <VisuallyHidden>
           {direction === "positive"

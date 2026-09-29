@@ -13,7 +13,12 @@ export function useProjectAnnotationConfigsByName(
         annotationConfigNames: { type: "[String!]" }
         first: { type: "Int", defaultValue: 100 }
       ) {
-        annotationConfigs(first: $first, names: $annotationConfigNames) {
+        # Aliased so mutations can return this beside fragments that read
+        # the unfiltered list on the same project
+        configsByName: annotationConfigs(
+          first: $first
+          names: $annotationConfigNames
+        ) {
           edges {
             config: node {
               ... on AnnotationConfigBase {
@@ -46,7 +51,7 @@ export function useProjectAnnotationConfigsByName(
     project
   );
   const configsByName = new Map<string, AnnotationOptimizationConfig>();
-  data?.annotationConfigs.edges.forEach(({ config }) => {
+  data?.configsByName.edges.forEach(({ config }) => {
     if (config.name == null || config.annotationType == null) {
       return;
     }

@@ -8,38 +8,15 @@ import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { SpanPreviewTooltip } from "@phoenix/components/trace/SpanPreviewTooltip";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 
-const TRACE_START = Date.parse("2026-09-22T09:53:23.284Z");
+import {
+  annotationConfigsByName,
+  buildSpanAnnotationRecords,
+  spanAnnotationsBySpanId,
+  summarizeSpanAnnotations,
+} from "../../constants/annotationFixtures";
+import { buildSpan } from "../../constants/spanFixtures";
 
-/**
- * Builds a span as the trace tree holds it. Offsets are relative to the
- * trace start; a `null` latency leaves the span open.
- */
-function span(
-  overrides: Partial<ISpanItem> & {
-    id: string;
-    name: string;
-    spanKind: string;
-    startOffsetMs: number;
-    latencyMs: number | null;
-  }
-): ISpanItem {
-  const { startOffsetMs, latencyMs, ...rest } = overrides;
-  const start = new Date(TRACE_START + startOffsetMs);
-  return {
-    spanId: rest.id,
-    parentId: null,
-    statusCode: "OK",
-    startTime: start.toISOString(),
-    endTime:
-      latencyMs == null
-        ? null
-        : new Date(start.getTime() + latencyMs).toISOString(),
-    latencyMs,
-    ...rest,
-  };
-}
-
-const llmSpan = span({
+const llmSpan = buildSpan({
   id: "llm-call",
   name: "LLM call 1: claude-fable-5-1",
   spanKind: "llm",
@@ -49,7 +26,7 @@ const llmSpan = span({
   costSummary: { total: { cost: 1.49 } },
 });
 
-const toolSpan = span({
+const toolSpan = buildSpan({
   id: "tool-call",
   name: "Bash",
   spanKind: "tool",
@@ -57,7 +34,7 @@ const toolSpan = span({
   latencyMs: 6767,
 });
 
-const openSpan = span({
+const openSpan = buildSpan({
   id: "open-span",
   name: "agent-loop",
   spanKind: "agent",
@@ -65,7 +42,7 @@ const openSpan = span({
   latencyMs: null,
 });
 
-const errorSpan = span({
+const errorSpan = buildSpan({
   id: "error-span",
   name: "retrieve",
   spanKind: "retriever",
@@ -74,7 +51,7 @@ const errorSpan = span({
   statusCode: "ERROR",
 });
 
-const longNameSpan = span({
+const longNameSpan = buildSpan({
   id: "long-name",
   name: "a-very-long-span-name-that-keeps-going-until-the-card-has-to-truncate-it",
   spanKind: "chain",
@@ -82,7 +59,7 @@ const longNameSpan = span({
   latencyMs: 4900,
 });
 
-const unpricedSpan = span({
+const unpricedSpan = buildSpan({
   id: "unpriced",
   name: "local-model (no pricing)",
   spanKind: "llm",
@@ -91,13 +68,56 @@ const unpricedSpan = span({
   tokenCountTotal: 812,
 });
 
+/** The draft answer from the RAG trace after its evals ran. */
+const annotatedSpan = buildSpan({
+  id: "llm-draft",
+  name: "gpt-5.5 · draft",
+  spanKind: "llm",
+  startOffsetMs: 2215,
+  latencyMs: 2980,
+  tokenCountTotal: 4821,
+  costSummary: { total: { cost: 0.0212 } },
+  spanAnnotationSummaries: summarizeSpanAnnotations(
+    spanAnnotationsBySpanId["llm-draft"] ?? []
+  ),
+});
+
 /**
  * The breakdown the tooltip loads for the LLM span: a prompt/completion
  * split with cache reads and writes, priced. The unpriced span answers with
  * tokens alone; every other span has no breakdown.
  */
 function buildSpanDetails(nodeId: string) {
-  const base = { __typename: "Span", id: nodeId };
+  const base = {
+    __typename: "Span",
+    id: nodeId,
+    previewSpanAnnotations: buildSpanAnnotationRecords(nodeId),
+  };
+  if (nodeId === annotatedSpan.id) {
+    return {
+      ...base,
+      tokenCountTotal: 4821,
+      tokenCountPrompt: 3471,
+      tokenCountCompletion: 1350,
+      costSummary: {
+        total: { cost: 0.0212 },
+        prompt: { cost: 0.0087 },
+        completion: { cost: 0.0125 },
+      },
+      costDetailSummaryEntries: [
+        {
+          tokenType: "input",
+          isPrompt: true,
+          value: { tokens: 3471, cost: 0.0087 },
+        },
+        {
+          tokenType: "output",
+          isPrompt: false,
+          value: { tokens: 1350, cost: 0.0125 },
+        },
+      ],
+    };
+  }
   if (nodeId === llmSpan.id) {
     return {
       ...base,
@@ -207,7 +227,10 @@ function OpenPreview({ span }: { span: ISpanItem }) {
             <Text>{span.name}</Text>
           </div>
         </Focusable>
-        <SpanPreviewTooltip span={span} />
+        <SpanPreviewTooltip
+          span={span}
+          annotationConfigsByName={annotationConfigsByName}
+        />
       </TooltipTrigger>
     </div>
   );
@@ -215,11 +238,12 @@ function OpenPreview({ span }: { span: ISpanItem }) {
 
 /**
  * The tooltip each trace tree row opens on hover or focus. It names the
- * span and shows when it ran, which every span has, and for spans with
- * usage lazily loads the token and cost breakdown, holding its place with a
- * skeleton around the totals the row already knows until it arrives. A
- * canned Relay environment answers
- * the breakdown after a short delay; no requests leave the story.
+ * span, repeats the row's annotation badges, and shows when it ran, which
+ * every span has. Once it has settled it loads the span's details in one
+ * request: the annotator and explanation behind each badge, and for spans
+ * with usage the token and cost breakdown, which a skeleton around the
+ * row's totals holds a place for until it arrives. A canned Relay
+ * environment answers after a short delay; no requests leave the story.
  */
 const meta: Meta<typeof SpanPreviewTooltip> = {
   title: "Domains/Tracing/Span Preview Tooltip",
@@ -244,6 +268,15 @@ type Story = StoryObj<typeof SpanPreviewTooltip>;
 /** An LLM span: timing, then the token and cost breakdown once loaded. */
 export const LLMSpan: Story = {
   render: () => <OpenPreview span={llmSpan} />,
+};
+
+/**
+ * An evaluated span: its badges open the card, unfavorable first, and the
+ * explanations and annotators fill in under them once the details load.
+ * `faithfulness` was scored twice, so it shows its count.
+ */
+export const WithAnnotations: Story = {
+  render: () => <OpenPreview span={annotatedSpan} />,
 };
 
 /** A local model: tokens are counted but nothing is priced. */

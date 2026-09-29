@@ -12,12 +12,14 @@ import {
   Text,
   TooltipTrigger,
 } from "@phoenix/components";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { classNames } from "@phoenix/utils/classNames";
 
+import { SpanAnnotationBadges } from "./SpanAnnotationBadges";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanMetricsRow } from "./SpanMetricsRow";
 import { SpanPreviewTooltip } from "./SpanPreviewTooltip";
@@ -31,6 +33,7 @@ import {
 import {
   nestingLevelStyle,
   spanControlsCSS,
+  spanNodeAnnotationsCSS,
   spanNodeContentCSS,
   spanNodeIconCSS,
   spanNodeWrapCSS,
@@ -46,7 +49,18 @@ export type TraceTreeProps = {
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
   scrollSelectedSpanIntoView?: boolean;
+  /**
+   * The project's annotation configs by name. They decide whether a span's
+   * annotation badges read as favorable or unfavorable; without them every
+   * badge is neutral.
+   */
+  annotationConfigsByName?: ReadonlyMap<string, AnnotationOptimizationConfig>;
 };
+
+const EMPTY_ANNOTATION_CONFIGS: ReadonlyMap<
+  string,
+  AnnotationOptimizationConfig
+> = new Map();
 
 export { TraceTreeProvider } from "./TraceTreeContext";
 
@@ -56,6 +70,7 @@ export function TraceTree(props: TraceTreeProps) {
     onSpanClick,
     selectedSpanNodeId,
     scrollSelectedSpanIntoView = true,
+    annotationConfigsByName = EMPTY_ANNOTATION_CONFIGS,
   } = props;
   const { searchQuery } = useTraceTree();
   const spanTree = createSpanTree(spans);
@@ -106,6 +121,7 @@ export function TraceTree(props: TraceTreeProps) {
             onSpanClick={onSpanClick}
             selectedSpanNodeId={selectedSpanNodeId}
             scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+            annotationConfigsByName={annotationConfigsByName}
           />
         ))}
       </ul>
@@ -161,6 +177,7 @@ interface SpanTreeItemProps<TSpan extends ISpanItem> {
   scrollSelectedSpanIntoView: boolean;
   overallTimeRange: TimeRange;
   onSpanClick?: (span: ISpanItem) => void;
+  annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
   /**
    * How deep the item is nested in the tree. Starts at 0.
    * @default 0
@@ -178,6 +195,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     onSpanClick,
     nestingLevel = 0,
     overallTimeRange,
+    annotationConfigsByName,
   } = props;
   const childNodes = node.children;
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -207,8 +225,14 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     setIsCollapsed(treeIsCollapsed);
   }, [treeIsCollapsed]);
 
-  const { name, latencyMs, statusCode, tokenCountTotal, costSummary } =
-    node.span;
+  const {
+    name,
+    latencyMs,
+    statusCode,
+    tokenCountTotal,
+    costSummary,
+    spanAnnotationSummaries,
+  } = node.span;
   return (
     <div ref={itemRef}>
       {/* The row is the tooltip's trigger: hover or focus it and the span's
@@ -298,10 +322,18 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                   />
                 ) : null}
               </div>
+              <SpanAnnotationBadges
+                css={spanNodeAnnotationsCSS}
+                summaries={spanAnnotationSummaries}
+                annotationConfigsByName={annotationConfigsByName}
+              />
             </SpanNodeWrap>
           </div>
         </Focusable>
-        <SpanPreviewTooltip span={node.span} />
+        <SpanPreviewTooltip
+          span={node.span}
+          annotationConfigsByName={annotationConfigsByName}
+        />
       </TooltipTrigger>
       {childNodes.length ? (
         <ul
@@ -333,6 +365,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                   onSpanClick={onSpanClick}
                   selectedSpanNodeId={selectedSpanNodeId}
                   scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+                  annotationConfigsByName={annotationConfigsByName}
                   nestingLevel={nestingLevel + 1}
                 />
               </li>

@@ -77,7 +77,9 @@ export const richTooltipCSS = css`
   color: var(--global-text-color-900);
   forced-color-adjust: none;
   outline: none;
-  padding: var(--global-dimension-size-200);
+  /* Published so content can bleed a rule to the tooltip's edges */
+  --rich-tooltip-padding-x: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-200) var(--rich-tooltip-padding-x);
   min-width: 200px;
   font-size: var(--global-font-size-s);
   /* fixes FF gap */

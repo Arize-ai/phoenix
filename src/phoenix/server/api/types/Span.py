@@ -656,8 +656,12 @@ class Span(Node):
             metrics.score_sum += annotation.score or 0
             metrics.score_count += int(annotation.score is not None)
 
+        # Ordered by name, not by however the loader returned the annotations:
+        # summaries have no id, so clients cache them by position, and two
+        # queries that listed a span's summaries in different orders would
+        # leave one query's fields on the other's summary.
         result: list[AnnotationSummary] = []
-        for name, label_metrics in summaries.items():
+        for name, label_metrics in sorted(summaries.items()):
             rows = [{"label": label, **asdict(metrics)} for label, metrics in label_metrics.items()]
             result.append(AnnotationSummary(name=name, df=pd.DataFrame(rows), simple_avg=True))
         return result

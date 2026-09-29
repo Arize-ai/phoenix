@@ -1,3 +1,5 @@
+import type { AnnotationSummary } from "@phoenix/components/annotation/types";
+
 /**
  * A generic interface for a span to be re-used as a constraint
  */
@@ -16,6 +18,11 @@ export interface ISpanItem {
   costSummary?: {
     total?: { cost?: number | null } | null;
   } | null;
+  /**
+   * One summary per annotation name on the span, notes excluded. What the
+   * tree shows as badges and the preview opens with before details load.
+   */
+  spanAnnotationSummaries?: readonly AnnotationSummary[] | null;
   [otherKeys: string]: unknown;
 }
 
