@@ -18,6 +18,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers import dataset_evaluator_service, evaluator_service
 from phoenix.server.api.helpers.evaluator_prompt_source import (
+    CreatePromptSource,
     EditCurrentPrompt,
     FromPromptVersion,
     NewPrompt,
@@ -378,15 +379,10 @@ class EvaluatorMutationMixin:
     async def create_project_llm_evaluator(
         self, info: Info[Context, None], input: CreateProjectLLMEvaluatorInput
     ) -> ProjectEvaluatorMutationPayload:
-        content = _prompt_version_from_input(input.prompt_version)
         command = evaluator_service.CreateProjectLLMEvaluatorInput(
             project_id=input.project_id,
             name=input.name,
-            prompt_source=(
-                FromPromptVersion(prompt_version_id=input.prompt_version_id, content=content)
-                if input.prompt_version_id
-                else NewPrompt(content=content)
-            ),
+            prompt_source=_prompt_source_from_input(input.prompt_version_id, input.prompt_version),
             output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
@@ -587,8 +583,7 @@ class EvaluatorMutationMixin:
             dataset_id=input.dataset_id,
             name=input.name,
             description=input.description,
-            prompt_version_id=input.prompt_version_id,
-            prompt_version=_prompt_version_from_input(input.prompt_version),
+            prompt_source=_prompt_source_from_input(input.prompt_version_id, input.prompt_version),
             output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
@@ -612,8 +607,7 @@ class EvaluatorMutationMixin:
             dataset_id=input.dataset_id,
             name=input.name,
             description=input.description,
-            prompt_version_id=input.prompt_version_id,
-            prompt_version=_prompt_version_from_input(input.prompt_version),
+            prompt_source=_prompt_source_from_input(input.prompt_version_id, input.prompt_version),
             output_configs=convert_output_config_inputs_to_pydantic(input.output_configs)
             if input.output_configs is not None and input.output_configs is not UNSET
             else input.output_configs,
@@ -808,6 +802,16 @@ class EvaluatorMutationMixin:
             was_created=was_created,
             query=Query(),
         )
+
+
+def _prompt_source_from_input(
+    prompt_version_id: Optional[GlobalID], prompt_version: ChatPromptVersionInput
+) -> CreatePromptSource:
+    """Start from the selected version when there is one, otherwise a new prompt."""
+    content = _prompt_version_from_input(prompt_version)
+    if prompt_version_id:
+        return FromPromptVersion(prompt_version_id=prompt_version_id, content=content)
+    return NewPrompt(content=content)
 
 
 def _prompt_version_from_input(prompt_version: ChatPromptVersionInput) -> models.PromptVersion:

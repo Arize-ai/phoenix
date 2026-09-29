@@ -50,10 +50,10 @@ async def get_prompt_version(
     session: AsyncSession, prompt_version_id: GlobalID
 ) -> models.PromptVersion:
     try:
-        row_id = from_global_id_with_expected_type(prompt_version_id, "PromptVersion")
+        version_id = from_global_id_with_expected_type(prompt_version_id, "PromptVersion")
     except ValueError as error:
-        raise BadRequest(str(error)) from error
-    version = await session.get(models.PromptVersion, row_id)
+        raise BadRequest(f"Invalid prompt version id: {prompt_version_id}") from error
+    version = await session.get(models.PromptVersion, version_id)
     if version is None:
         raise NotFound(f"Prompt version not found: {prompt_version_id}")
     return version
