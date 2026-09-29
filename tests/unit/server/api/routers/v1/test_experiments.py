@@ -341,50 +341,6 @@ async def test_listing_experiments_by_dataset(
     assert str(experiment_gid_0) == experiment_gids[1], "experiments are listed newest first"
 
 
-async def test_listing_experiments_includes_sequence_number(
-    httpx_client: httpx.AsyncClient,
-    dataset_with_experiments_without_runs: Any,
-) -> None:
-    dataset_gid = GlobalID("Dataset", "1")
-    response = await httpx_client.get(f"v1/datasets/{dataset_gid}/experiments")
-    assert response.status_code == 200
-    experiments = response.json()["data"]
-    sequence_number_by_id = {exp["id"]: exp["sequence_number"] for exp in experiments}
-    assert sequence_number_by_id[str(GlobalID("Experiment", "0"))] == 1
-    assert sequence_number_by_id[str(GlobalID("Experiment", "1"))] == 2
-
-
-async def test_listing_experiments_sort_dir_asc_returns_oldest_first(
-    httpx_client: httpx.AsyncClient,
-    dataset_with_experiments_without_runs: Any,
-) -> None:
-    dataset_gid = GlobalID("Dataset", "1")
-    response = await httpx_client.get(
-        f"v1/datasets/{dataset_gid}/experiments", params={"sort_dir": "asc"}
-    )
-    assert response.status_code == 200
-    experiments = response.json()["data"]
-    assert [exp["sequence_number"] for exp in experiments] == [1, 2]
-    assert experiments[0]["id"] == str(GlobalID("Experiment", "0"))
-    assert experiments[1]["id"] == str(GlobalID("Experiment", "1"))
-
-
-async def test_listing_experiments_filtered_by_sequence_numbers(
-    httpx_client: httpx.AsyncClient,
-    dataset_with_experiments_without_runs: Any,
-) -> None:
-    dataset_gid = GlobalID("Dataset", "1")
-    response = await httpx_client.get(
-        f"v1/datasets/{dataset_gid}/experiments",
-        params={"sequence_numbers": [1]},
-    )
-    assert response.status_code == 200
-    experiments = response.json()["data"]
-    assert len(experiments) == 1
-    assert experiments[0]["id"] == str(GlobalID("Experiment", "0"))
-    assert experiments[0]["sequence_number"] == 1
-
-
 async def test_deleting_dataset_also_deletes_experiments(
     httpx_client: httpx.AsyncClient,
     dataset_with_experiments_runs_and_evals: Any,

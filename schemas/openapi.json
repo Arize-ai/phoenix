@@ -3669,43 +3669,6 @@
               "title": "Limit"
             },
             "description": "The max number of experiments to return at a time."
-          },
-          {
-            "name": "sort_dir",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
-              "type": "string",
-              "description": "Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page.",
-              "default": "desc",
-              "title": "Sort Dir"
-            },
-            "description": "Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page."
-          },
-          {
-            "name": "sequence_numbers",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "integer"
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers.",
-              "title": "Sequence Numbers"
-            },
-            "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers."
           }
         ],
         "responses": {
@@ -13646,11 +13609,6 @@
             "title": "Description",
             "description": "The description of the experiment"
           },
-          "sequence_number": {
-            "type": "integer",
-            "title": "Sequence Number",
-            "description": "The 1-based sequence number of the experiment within its dataset, in creation order."
-          },
           "repetitions": {
             "type": "integer",
             "exclusiveMinimum": 0.0,
@@ -13715,7 +13673,6 @@
           "dataset_version_id",
           "name",
           "description",
-          "sequence_number",
           "repetitions",
           "metadata",
           "project_name",
