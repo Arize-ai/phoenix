@@ -3336,7 +3336,7 @@ export interface components {
             description: string | null;
             /**
              * Sequence Number
-             * @description The 1-based sequence number of the experiment within its dataset, in creation order.
+             * @description The 1-based position of the experiment within its dataset, in creation order (oldest is 1). This is a derived positional ordinal computed at read time, not a stored value or a stable identifier: it can shift when earlier experiments are deleted. Use the experiment ID for a durable reference.
              */
             sequence_number: number;
             /**
@@ -9390,7 +9390,7 @@ export interface operations {
                 limit?: number;
                 /** @description Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page. */
                 sort_dir?: "asc" | "desc";
-                /** @description When provided, return only the experiments with these 1-based per-dataset sequence numbers. */
+                /** @description When provided, return only the experiments with these 1-based per-dataset sequence numbers. The sequence number is a derived positional ordinal, not a stored value or a stable identifier, and can shift when earlier experiments are deleted. */
                 sequence_numbers?: number[] | null;
             };
             header?: never;

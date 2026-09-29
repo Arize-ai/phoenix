@@ -62,8 +62,10 @@ class Experiment(V1RoutesBaseModel):
     name: str = Field(description="The name of the experiment")
     description: Optional[str] = Field(description="The description of the experiment")
     sequence_number: int = Field(
-        description="The 1-based sequence number of the experiment within its dataset, in "
-        "creation order."
+        description="The 1-based position of the experiment within its dataset, in creation "
+        "order (oldest is 1). This is a derived positional ordinal computed at read time, not a "
+        "stored value or a stable identifier: it can shift when earlier experiments are deleted. "
+        "Use the experiment ID for a durable reference."
     )
     repetitions: int = Field(description="Number of times the experiment is repeated", gt=0)
     metadata: dict[str, Any] = Field(description="Metadata of the experiment")
@@ -822,7 +824,8 @@ async def list_experiments(
     sequence_numbers: Optional[list[int]] = Query(
         default=None,
         description="When provided, return only the experiments with these 1-based per-dataset "
-        "sequence numbers.",
+        "sequence numbers. The sequence number is a derived positional ordinal, not a stored "
+        "value or a stable identifier, and can shift when earlier experiments are deleted.",
     ),
 ) -> ListExperimentsResponseBody:
     try:

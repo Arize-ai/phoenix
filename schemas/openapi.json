@@ -3702,10 +3702,10 @@
                   "type": "null"
                 }
               ],
-              "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers.",
+              "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers. The sequence number is a derived positional ordinal, not a stored value or a stable identifier, and can shift when earlier experiments are deleted.",
               "title": "Sequence Numbers"
             },
-            "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers."
+            "description": "When provided, return only the experiments with these 1-based per-dataset sequence numbers. The sequence number is a derived positional ordinal, not a stored value or a stable identifier, and can shift when earlier experiments are deleted."
           }
         ],
         "responses": {
@@ -13649,7 +13649,7 @@
           "sequence_number": {
             "type": "integer",
             "title": "Sequence Number",
-            "description": "The 1-based sequence number of the experiment within its dataset, in creation order."
+            "description": "The 1-based position of the experiment within its dataset, in creation order (oldest is 1). This is a derived positional ordinal computed at read time, not a stored value or a stable identifier: it can shift when earlier experiments are deleted. Use the experiment ID for a durable reference."
           },
           "repetitions": {
             "type": "integer",
