@@ -143,7 +143,7 @@ in a few concise bullet points that are easy for beginners to understand.
 prompt = client.prompts.create(
     name="article-bullet-summarizer",
     version=PromptVersion(
-        messages=[{"role": "user", "content": content}],
+        [{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points",
@@ -166,6 +166,23 @@ oai_client = OpenAI()
 resp = oai_client.chat.completions.create(**formatted_prompt)
 print(resp.choices[0].message.content)
 ```
+
+Pass `custom_provider_id` to send a version to a custom model provider configured in Phoenix. `model_provider` still selects the invocation parameter format, so the provider's SDK must be able to serve it; Phoenix refuses an incompatible provider with 422 and an unknown one with 404:
+
+```python
+prompt = client.prompts.create(
+    name="article-bullet-summarizer",
+    version=PromptVersion(
+        [{"role": "user", "content": content}],
+        model_name="gpt-4o-mini",
+        model_provider="OPENAI",
+        custom_provider_id="R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+    ),
+)
+print(prompt.custom_provider_id)
+```
+
+Creating a version with `custom_provider_id` requires Phoenix server >= 21.0.0. The client checks the server version first and raises against an older server, which would ignore the field and silently store the version with the built-in provider. Versions without it are not checked.
 
 ### Datasets
 
@@ -538,10 +555,11 @@ definition = client.evaluators.create_code(
 
 # Deploy new code together with the outputs it produces; refuse to deploy over a
 # version somebody else pushed in the meantime
+[current] = client.evaluators.list_code_versions(evaluator_id=definition["id"], limit=1)
 version = client.evaluators.create_code_version(
     evaluator_id=definition["id"],
     source_code=open("evaluator.py").read(),
-    expected_current_version_id=definition["current_version_id"],
+    expected_current_version_id=current["id"],
     output_configs=[{"type": "FREEFORM", "name": "notes"}],
 )
 print(version["id"], version["was_created"])

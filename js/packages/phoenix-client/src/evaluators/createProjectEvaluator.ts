@@ -53,9 +53,10 @@ export type CreateProjectEvaluatorParams = ClientFn & {
    */
   inputMapping?: EvaluatorInputMapping;
   /**
-   * For `TRACE` and `SESSION` targets, how long the trace or session must be
-   * quiet before it is evaluated. Defaults to the server's setting for the
-   * target. Rejected for `SPAN` targets, which evaluate spans as they arrive.
+   * For `TRACE` and `SESSION` targets, how many seconds the trace or session
+   * must be quiet before it is evaluated: at least 10, and 300 when omitted.
+   * Rejected for `SPAN` targets, which evaluate spans as they arrive and store
+   * a delay of 0.
    */
   evaluationDelaySeconds?: number;
 };
@@ -73,7 +74,7 @@ export type CreateProjectEvaluatorParams = ClientFn & {
  * @param params.filterCondition - Optional filter expression in the language of the evaluation target.
  * @param params.enabled - Optional; defaults to enabled.
  * @param params.inputMapping - Optional input mapping.
- * @param params.evaluationDelaySeconds - Optional quiet-period delay for `TRACE` and `SESSION` targets.
+ * @param params.evaluationDelaySeconds - Optional quiet-period delay in seconds for `TRACE` and `SESSION` targets: at least 10, default 300.
  * @param params.client - An optional Phoenix client instance.
  * @returns The created binding. `evaluation_delay_seconds` is `0` for `SPAN`
  * targets. A name the project already uses is refused with 409; the thrown
