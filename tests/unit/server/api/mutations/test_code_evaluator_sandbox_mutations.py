@@ -450,6 +450,7 @@ mutation PatchCodeEvaluator($input: PatchCodeEvaluatorInput!) {
     patchCodeEvaluator(input: $input) {
         evaluator {
             id
+            updatedAt
             ... on CodeEvaluator {
                 name
                 description
@@ -637,7 +638,7 @@ class TestCodeEvaluatorSandboxMutationIds:
     ) -> None:
         """Sandboxed validation must run outside the metadata transaction.
 
-        `_validate_code_evaluator_sandbox_config` reads the config in a short
+        `validate_code_evaluator_sandbox_config` reads the config in a short
         `async with db()` block, closes it, and only then calls the adapter.
         Validation waits on sandbox worker capacity, and SQLite serves every
         writer from one connection, so holding the session across that call
