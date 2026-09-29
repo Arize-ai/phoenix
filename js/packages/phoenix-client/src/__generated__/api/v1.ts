@@ -5364,7 +5364,7 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /**
              * Custom Provider Id
-             * @description GlobalID of a custom model provider to send this version to. Null uses the built-in provider. The provider's SDK must be able to serve model_provider, for example an OpenAI-compatible provider for an OPENAI version. Requires Phoenix server 21.0.0 or later; older servers ignore unknown fields, so check the server version before relying on it.
+             * @description GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider.
              */
             custom_provider_id?: string | null;
             /** Id */
@@ -5398,7 +5398,7 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /**
              * Custom Provider Id
-             * @description GlobalID of a custom model provider to send this version to. Null uses the built-in provider. The provider's SDK must be able to serve model_provider, for example an OpenAI-compatible provider for an OPENAI version. Requires Phoenix server 21.0.0 or later; older servers ignore unknown fields, so check the server version before relying on it.
+             * @description GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider.
              */
             custom_provider_id?: string | null;
         };
