@@ -28,6 +28,9 @@ export function ProjectTabs({ children }: { children?: ReactNode }) {
   const { search, hash } = useLocation();
   const tabPath = (id: ProjectTab) =>
     `${rootPath}/${id}${clearSelectionScopedParams(search)}${hash}`;
+  // The selected tab stays a plain tab (no href): clicking it was a no-op, and
+  // as a link it would navigate and close the selected trace/span.
+  const tabHref = (id: ProjectTab) => (id === tab ? undefined : tabPath(id));
   return (
     <Tabs
       // Clicks follow the tab's link; arrow-key selection does not, so it
@@ -43,19 +46,19 @@ export function ProjectTabs({ children }: { children?: ReactNode }) {
       selectedKey={tab}
     >
       <TabList>
-        <Tab id="spans" href={tabPath("spans")}>
+        <Tab id="spans" href={tabHref("spans")}>
           Spans
         </Tab>
-        <Tab id="traces" href={tabPath("traces")}>
+        <Tab id="traces" href={tabHref("traces")}>
           Traces
         </Tab>
-        <Tab id="sessions" href={tabPath("sessions")}>
+        <Tab id="sessions" href={tabHref("sessions")}>
           Sessions
         </Tab>
-        <Tab id="metrics" href={tabPath("metrics")}>
+        <Tab id="metrics" href={tabHref("metrics")}>
           Metrics
         </Tab>
-        <Tab id="config" href={tabPath("config")}>
+        <Tab id="config" href={tabHref("config")}>
           Config
         </Tab>
       </TabList>

@@ -85,7 +85,7 @@ describe("project page tabs", () => {
   const currentLocation = () =>
     container.querySelector('[data-testid="location"]')?.textContent;
 
-  it.each(cases)(
+  it.each(otherTabs)(
     "$label tab is a link to its URL so mod/middle-click can open it in a new tab",
     ({ label, tab }) => {
       render();
@@ -96,6 +96,14 @@ describe("project page tabs", () => {
       );
     }
   );
+
+  it("clicking the selected tab does nothing: it stays put and keeps the selected span", () => {
+    render();
+    const traces = getTab("Traces");
+    expect(traces.tagName).toBe("DIV");
+    act(() => traces.click());
+    expect(currentLocation()).toBe(INITIAL_ENTRY);
+  });
 
   it("tab links keep the app's basename when Phoenix is served under a path prefix", () => {
     render({ basename: "/phoenix" });
