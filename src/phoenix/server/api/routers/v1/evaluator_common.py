@@ -3,10 +3,12 @@
 from contextlib import contextmanager
 from typing import Annotated, Any, Iterator, Literal, Optional, Sequence, Union
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from starlette.requests import Request
 from strawberry.relay import GlobalID
+from typing_extensions import Self
 
+from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     ContinuousOutputConfig,
@@ -15,8 +17,14 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
     as_output_configs,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers import evaluator_service as service
+from phoenix.server.api.helpers.evaluator_prompt_source import (
+    CreatePromptSource,
+    FromPromptVersion,
+    NewPrompt,
+)
 from phoenix.server.api.routers.v1.annotation_config_models import (
     CategoricalAnnotationConfigData,
     ContinuousAnnotationConfigData,
@@ -128,6 +136,71 @@ class EvaluatorRequest(V1RoutesBaseModel):
         if prompt_version.template.type != "chat":
             raise ValueError("LLM evaluators require a chat prompt")
         return prompt_version
+
+
+class NewLLMEvaluator(EvaluatorRequest):
+    type: Literal["llm"]
+    description: Optional[str] = Field(
+        default=None,
+        description="Must equal the description of the prompt's tool function.",
+    )
+    prompt_version: Optional[PromptVersionData] = Field(
+        default=None,
+        description=(
+            "Chat prompt content for a new prompt created for this evaluator. Content only: a "
+            "version id inside this object is rejected. Exactly one of prompt_version and "
+            "prompt_version_id is required."
+        ),
+    )
+    prompt_version_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "GlobalID of an existing prompt version for the evaluator to run; the evaluator "
+            "attaches to that version's prompt. New content for an existing prompt is created "
+            "through the prompts API first. Exactly one of prompt_version and prompt_version_id "
+            "is required."
+        ),
+    )
+    output_configs: list[CategoricalAnnotationConfigData] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def require_one_prompt_source(self) -> Self:
+        if (self.prompt_version is None) == (self.prompt_version_id is None):
+            raise ValueError("Exactly one of prompt_version and prompt_version_id is required")
+        return self
+
+
+def new_llm_prompt_source(definition: NewLLMEvaluator) -> CreatePromptSource:
+    """Inline content becomes a new prompt; a selected version is reused as it is."""
+    if definition.prompt_version is not None:
+        return NewPrompt(content=definition.prompt_version.to_orm())
+    assert definition.prompt_version_id is not None
+    return FromPromptVersion(prompt_version_id=GlobalID.from_id(definition.prompt_version_id))
+
+
+class NewCodeEvaluator(EvaluatorRequest):
+    type: Literal["code"]
+    description: Optional[str] = None
+    source_code: str
+    language: models.LanguageName
+    sandbox_config_id: str
+    input_mapping: InputMapping
+    output_configs: list[EvaluatorOutputConfig] = Field(
+        min_length=1, description="Outputs the code produces."
+    )
+
+
+class ExistingEvaluator(EvaluatorRequest):
+    """Attach an evaluator definition that already exists instead of creating one."""
+
+    type: Literal["reference"]
+    evaluator_id: str = Field(
+        description=(
+            "GlobalID of an existing evaluator definition. Datasets accept code and built-in "
+            "evaluators; projects accept code evaluators. LLM definitions belong to the binding "
+            "that created them and cannot be referenced."
+        )
+    )
 
 
 @contextmanager
