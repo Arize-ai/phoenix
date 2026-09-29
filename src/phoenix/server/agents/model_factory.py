@@ -83,10 +83,6 @@ def _build_openai_codex_model(
     model_name: str,
     request_credentials: Mapping[str, SecretStr],
 ) -> "PydanticAIModel":
-    """The refresh token stays in the browser, so the provider is handed an empty
-    one: a mid-turn 401 surfaces as an error instead of a server-side refresh
-    that would invalidate the browser's single-use refresh token.
-    """
     access_token = resolve_codex_access_token(request_credentials)
     if access_token is None:
         raise ProviderCredentialsError(
