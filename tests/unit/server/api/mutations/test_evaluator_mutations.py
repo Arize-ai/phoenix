@@ -1121,6 +1121,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
         updateDatasetLlmEvaluator(input: $input) {
           evaluator {
             id
+            updatedAt
             name
             outputConfigs {
               ... on CategoricalAnnotationConfig {
@@ -2817,6 +2818,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
         updateDatasetBuiltinEvaluator(input: $input) {
           evaluator {
             id
+            updatedAt
             name
             evaluator {
               ... on BuiltInEvaluator {
@@ -4610,3 +4612,72 @@ class TestMultiOutputEvaluators:
             assert len(builtin_evaluator.output_configs) >= 1
             config_types = {c.name: c.type for c in builtin_evaluator.output_configs}
             assert config_types.get(base_config_name) == "CONTINUOUS"
+
+
+class TestUpdateDatasetCodeEvaluatorMutation:
+    _UPDATE_MUTATION = """
+      mutation($input: UpdateDatasetCodeEvaluatorInput!) {
+        updateDatasetCodeEvaluator(input: $input) {
+          evaluator {
+            id
+            updatedAt
+            name
+            description
+            inputMapping { literalMapping pathMapping }
+          }
+          query { __typename }
+        }
+      }
+    """
+
+    async def test_update_returns_the_stored_binding(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        """The response reads the updated row, including its server-generated timestamp."""
+        async with db() as session:
+            code_evaluator = models.CodeEvaluator(
+                name=IdentifierModel.model_validate(f"code-{token_hex(4)}"),
+                description="code evaluator",
+                metadata_={},
+                language=sandbox_config.language,
+                sandbox_config_id=sandbox_config.id,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                versions=[
+                    models.CodeEvaluatorVersion(
+                        source_code="def evaluate(output):\n    return {'score': 1.0}"
+                    )
+                ],
+            )
+            binding = models.DatasetEvaluators(
+                dataset_id=empty_dataset.id,
+                evaluator=code_evaluator,
+                name=IdentifierModel.model_validate(f"binding-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name=f"code-binding-project-{token_hex(4)}"),
+            )
+            session.add(binding)
+            await session.flush()
+            binding_id = binding.id
+
+        result = await gql_client.execute(
+            self._UPDATE_MUTATION,
+            {
+                "input": {
+                    "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", str(binding_id))),
+                    "name": "renamed-binding",
+                    "description": "override",
+                    "inputMapping": {"literalMapping": {"k": "v"}, "pathMapping": {}},
+                }
+            },
+        )
+        assert result.data and not result.errors, result.errors
+        evaluator = result.data["updateDatasetCodeEvaluator"]["evaluator"]
+        assert evaluator["name"] == "renamed-binding"
+        assert evaluator["description"] == "override"
+        assert evaluator["inputMapping"]["literalMapping"] == {"k": "v"}
+        assert evaluator["updatedAt"]
