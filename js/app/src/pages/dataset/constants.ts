@@ -10,6 +10,8 @@ export const EXPERIMENT_METRIC_CHART_KEYS = [
   "latency",
   "cost",
   "tokens",
+  "prompt_token_details",
+  "completion_token_details",
   "error_rate",
 ] as const;
 
