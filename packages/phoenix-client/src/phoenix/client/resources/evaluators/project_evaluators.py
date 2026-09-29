@@ -175,9 +175,10 @@ class ProjectEvaluators:
                 evaluators have none, so their template variables bind to record
                 fields of the same name.
             evaluation_delay_seconds (int): For TRACE and SESSION targets, how
-                long the trace or session must be quiet before it is evaluated.
-                Defaults to the server's setting for the target. Rejected for
-                SPAN targets, which evaluate spans as they arrive.
+                many seconds the trace or session must be quiet before it is
+                evaluated: at least 10, and 300 when omitted. Rejected for SPAN
+                targets, which evaluate spans as they arrive and store a delay
+                of 0.
 
         Returns:
             The created binding. ``evaluation_delay_seconds`` is ``0`` for SPAN
@@ -303,9 +304,10 @@ class ProjectEvaluators:
             enabled (bool): Enable or disable the binding.
             input_mapping (Optional[v1.InputMapping]): A new input mapping, or
                 ``None`` to use the shared definition's mapping again.
-            evaluation_delay_seconds (Optional[int]): A new quiet-period delay for
-                TRACE and SESSION targets, or ``None`` to restore the server's
-                default. Rejected for SPAN targets.
+            evaluation_delay_seconds (Optional[int]): A new quiet-period delay in
+                seconds for TRACE and SESSION targets, at least 10, or ``None``
+                to restore the default of 300. A number is rejected for SPAN
+                targets, which keep a delay of 0.
 
         Returns:
             The updated binding.
@@ -456,9 +458,10 @@ class AsyncProjectEvaluators:
                 evaluators have none, so their template variables bind to record
                 fields of the same name.
             evaluation_delay_seconds (int): For TRACE and SESSION targets, how
-                long the trace or session must be quiet before it is evaluated.
-                Defaults to the server's setting for the target. Rejected for
-                SPAN targets, which evaluate spans as they arrive.
+                many seconds the trace or session must be quiet before it is
+                evaluated: at least 10, and 300 when omitted. Rejected for SPAN
+                targets, which evaluate spans as they arrive and store a delay
+                of 0.
 
         Returns:
             The created binding. ``evaluation_delay_seconds`` is ``0`` for SPAN
@@ -563,9 +566,10 @@ class AsyncProjectEvaluators:
             enabled (bool): Enable or disable the binding.
             input_mapping (Optional[v1.InputMapping]): A new input mapping, or
                 ``None`` to use the shared definition's mapping again.
-            evaluation_delay_seconds (Optional[int]): A new quiet-period delay for
-                TRACE and SESSION targets, or ``None`` to restore the server's
-                default. Rejected for SPAN targets.
+            evaluation_delay_seconds (Optional[int]): A new quiet-period delay in
+                seconds for TRACE and SESSION targets, at least 10, or ``None``
+                to restore the default of 300. A number is rejected for SPAN
+                targets, which keep a delay of 0.
 
         Returns:
             The updated binding.
