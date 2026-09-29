@@ -88,9 +88,8 @@ function getSpanMetricsDetailsProps(
 }
 
 /**
- * The plain breakdown values for a span whose data the parent holds, for a
- * surface that renders `TokenDetailsBreakdown` itself. `null` until there is
- * a span to read.
+ * Reads `SpanMetricsDetails_span` into `TokenDetailsBreakdown` props, for
+ * surfaces that pass plain data down instead of a fragment key.
  */
 export function useSpanMetricsDetailsProps(
   span: SpanMetricsDetails_span$key | null | undefined

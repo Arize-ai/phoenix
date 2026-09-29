@@ -108,11 +108,7 @@ export const TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH = 380;
  */
 const SPLIT_SUMMARY_FIXED_CHARS = " prompt → ".length + " completion".length;
 
-/**
- * Inside a rich tooltip the rule runs to the tooltip's edges, so it divides
- * the whole card rather than a column of it. Elsewhere it spans the
- * breakdown.
- */
+/** Runs to the edges of an enclosing rich tooltip; spans the breakdown elsewhere. */
 const breakdownDividerCSS = css`
   width: auto;
   margin-inline: calc(-1 * var(--rich-tooltip-padding-x, 0px));

@@ -30,7 +30,6 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
         cursor: { type: "String", defaultValue: null }
       ) {
         numSpans
-        # Once per trace: the configs that color every row's annotation badges
         project {
           ...ProjectAnnotationConfigsByNameFragment
         }
@@ -53,7 +52,6 @@ export function ConnectedTraceTree(props: ConnectedTraceTreeProps) {
                   cost
                 }
               }
-              # Notes are prose, not verdicts, so they stay off the badges
               spanAnnotationSummaries(
                 filter: { exclude: { names: ["note"] } }
               ) {

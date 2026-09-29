@@ -205,8 +205,7 @@ const ProjectAnnotationConfigCardContent = (
       @refetchable(
         queryName: "ProjectAnnotationConfigCardContentProjectAnnotationsQuery"
       ) {
-        # Every mutation that returns this list also refreshes the one the
-        # trace tree and tables color annotations by
+        # Keeps annotation colors in the trace tree and tables current after config changes
         ...ProjectAnnotationConfigsByNameFragment
         annotationConfigs {
           edges {

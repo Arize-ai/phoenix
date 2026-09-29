@@ -182,8 +182,7 @@ export function NewAnnotationButton(props: NewAnnotationButtonProps) {
             }
           ) {
             query {
-              # Every surface that colors annotations by the project's
-              # configs, such as the trace tree, reads this list
+              # Keeps annotation colors in the trace tree and tables current
               projectNode: node(id: $projectId) {
                 ... on Project {
                   id

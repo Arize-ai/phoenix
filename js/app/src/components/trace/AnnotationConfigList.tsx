@@ -86,8 +86,7 @@ export function AnnotationConfigList(props: {
     useFragment<AnnotationConfigListProjectAnnotationConfigFragment$key>(
       graphql`
         fragment AnnotationConfigListProjectAnnotationConfigFragment on Project {
-          # Every mutation that returns this list also refreshes the one the
-          # trace tree and tables color annotations by
+          # Keeps annotation colors in the trace tree and tables current after config changes
           ...ProjectAnnotationConfigsByNameFragment
           annotationConfigs {
             edges {
@@ -357,9 +356,7 @@ export function AnnotationConfigList(props: {
         aria-label="Annotation Configs"
         items={allAnnotationConfigs}
         selectionMode="multiple"
-        // The selection is the project's saved configs, so Escape must close
-        // the menu rather than clear the selection, which would unlink every
-        // config from the project
+        // Clearing the selection would unlink every config from the project
         escapeKeyBehavior="none"
         selectedKeys={annotationConfigIdsInProject}
         onSelectionChange={handleSelectionChange}

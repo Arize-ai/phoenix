@@ -331,8 +331,7 @@ class ProjectSession(Node):
             metrics.score_sum += annotation.score or 0
             metrics.score_count += int(annotation.score is not None)
 
-        # Ordered by name so clients, which cache summaries by position, see
-        # the same order from every query (see Span.span_annotation_summaries)
+        # Stable order for position-keyed client caches; see Span.span_annotation_summaries
         result: list[AnnotationSummary] = []
         for name, label_metrics in sorted(summaries.items()):
             rows = [{"label": label, **asdict(metrics)} for label, metrics in label_metrics.items()]

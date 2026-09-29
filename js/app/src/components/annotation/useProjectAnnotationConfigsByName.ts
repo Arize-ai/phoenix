@@ -13,8 +13,8 @@ export function useProjectAnnotationConfigsByName(
         annotationConfigNames: { type: "[String!]" }
         first: { type: "Int", defaultValue: 100 }
       ) {
-        # Aliased so mutations can return this beside fragments that read
-        # the unfiltered list on the same project
+        # Aliased: Relay rejects the same field with different arguments on
+        # one parent, and config mutations also select the unfiltered list
         configsByName: annotationConfigs(
           first: $first
           names: $annotationConfigNames

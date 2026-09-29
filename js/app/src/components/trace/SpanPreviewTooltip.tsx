@@ -19,10 +19,7 @@ import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "./TokenDetailsBreakdown";
  */
 const DETAILS_SETTLE_MS = 150;
 
-/**
- * Everything the preview loads lazily, in one round trip: the annotations
- * behind the badges and the token and cost breakdown.
- */
+/** The preview's lazy details, annotations and token breakdown, in one round trip. */
 const SpanPreviewTooltipDetailsQuery = graphql`
   query SpanPreviewTooltipDetailsQuery($nodeId: ID!) {
     node(id: $nodeId) {
@@ -61,8 +58,8 @@ export type SpanPreviewTooltipProps = Pick<
 >;
 
 /**
- * The trace tree row's rich tooltip: a {@link SpanPreviewCard} for the span,
- * filled in with the details it loads.
+ * The trace tree row's tooltip: a {@link SpanPreviewCard} that loads its own
+ * details.
  *
  * @remarks
  * Render it as the tooltip of a `TooltipTrigger` around the row, which
@@ -72,11 +69,9 @@ export type SpanPreviewTooltipProps = Pick<
  * tree whatever the nesting, and the arrow and the row's hover fill, which
  * reaches that same edge, tie the two together.
  *
- * The card renders at once from what the row already holds. The details
- * behind it, the explanation of each annotation and the token breakdown, are
- * fetched together only once the tooltip has stayed open a moment, so a
- * scrub down the tree fetches details for the rows the pointer rests on and
- * no others.
+ * The card renders at once from the row's data. Details are fetched only
+ * once the tooltip has stayed open a moment, so scrubbing down the tree
+ * fetches nothing for the rows the pointer passes over.
  */
 export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
   return (
@@ -93,7 +88,7 @@ export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
   );
 }
 
-/** The card from the row's data, then from the loaded details. */
+/** Row data until the tooltip settles, then the loaded details. */
 function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
   const hasSettled = useSettled(DETAILS_SETTLE_MS);
   const placeholder = <SpanPreviewCard {...props} />;
@@ -109,7 +104,6 @@ function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
   );
 }
 
-/** Loads the span's details and hands them to the card as plain data. */
 function LoadedSpanPreviewCard(props: SpanPreviewTooltipProps) {
   const data = useLazyLoadQuery<SpanPreviewTooltipDetailsQueryType>(
     SpanPreviewTooltipDetailsQuery,

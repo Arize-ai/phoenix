@@ -42,9 +42,7 @@ const cardCSS = css`
     gap: var(--global-dimension-size-200);
     white-space: nowrap;
   }
-  /* Sections follow one another under a rule; the first sits under the
-     header without one. Each rule runs to the tooltip's edges, with the
-     section's content kept at the tooltip's inset. */
+  /* Dividers between sections run to the tooltip's edges while content keeps its inset */
   .span-preview__header ~ * + * {
     margin-inline: calc(-1 * var(--rich-tooltip-padding-x, 0px));
     padding-inline: var(--rich-tooltip-padding-x, 0px);
@@ -55,34 +53,18 @@ const cardCSS = css`
 `;
 
 export type SpanPreviewCardProps = {
-  /** The span as the trace tree holds it. */
   span: ISpanItem;
-  /**
-   * Project annotation configs by name, which color the span's annotation
-   * badges. An empty map leaves every badge plain.
-   */
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
-  /**
-   * The annotations behind the span's badges. `null` or absent while they
-   * load: the badges then stand alone.
-   */
+  /** Omit while loading; the annotations table then shows values only. */
   annotations?: readonly SpanPreviewAnnotation[] | null;
-  /**
-   * The span's token and cost breakdown. `null` or absent while it loads: a
-   * skeleton then holds its place around the totals the span already has.
-   */
+  /** Omit while loading; a skeleton then surrounds the span's known totals. */
   metricsDetails?: TokenDetailsBreakdownProps | null;
 };
 
 /**
- * What the trace tree's span preview says about one span, in a fixed order:
- * its name and status, when it ran and for how long, the annotations on it,
- * then its token and cost breakdown.
- *
- * @remarks
- * `SpanPreviewTooltip` renders it in the row's tooltip and fills in
- * `annotations` and `metricsDetails` once they load. Inside a rich tooltip
- * its section rules run to the tooltip's edges; elsewhere they span the card.
+ * The content of a trace tree row's preview: header, timing, annotations,
+ * then tokens and cost. Pure, so every state renders from plain data;
+ * `SpanPreviewTooltip` loads the details and passes them in.
  */
 export function SpanPreviewCard({
   span,

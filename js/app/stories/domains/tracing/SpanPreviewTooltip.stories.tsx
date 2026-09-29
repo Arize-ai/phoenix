@@ -237,13 +237,10 @@ function OpenPreview({ span }: { span: ISpanItem }) {
 }
 
 /**
- * The tooltip each trace tree row opens on hover or focus. It names the
- * span, repeats the row's annotation badges, and shows when it ran, which
- * every span has. Once it has settled it loads the span's details in one
- * request: the annotator and explanation behind each badge, and for spans
- * with usage the token and cost breakdown, which a skeleton around the
- * row's totals holds a place for until it arrives. A canned Relay
- * environment answers after a short delay; no requests leave the story.
+ * The connected tooltip each trace tree row opens: a `Span Preview Card`
+ * that loads its annotation explanations and token breakdown once it has
+ * settled. A canned Relay environment answers after a short delay; no
+ * requests leave the story.
  */
 const meta: Meta<typeof SpanPreviewTooltip> = {
   title: "Domains/Tracing/Span Preview Tooltip",
@@ -270,11 +267,7 @@ export const LLMSpan: Story = {
   render: () => <OpenPreview span={llmSpan} />,
 };
 
-/**
- * An evaluated span: its badges open the card, unfavorable first, and the
- * explanations and annotators fill in under them once the details load.
- * `faithfulness` was scored twice, so it shows its count.
- */
+/** An evaluated span; explanations fill in once the details load. */
 export const WithAnnotations: Story = {
   render: () => <OpenPreview span={annotatedSpan} />,
 };

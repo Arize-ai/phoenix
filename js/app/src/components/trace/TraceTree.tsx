@@ -49,11 +49,7 @@ export type TraceTreeProps = {
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
   scrollSelectedSpanIntoView?: boolean;
-  /**
-   * The project's annotation configs by name. They decide whether a span's
-   * annotation badges read as favorable or unfavorable; without them every
-   * badge is neutral.
-   */
+  /** Decides whether annotation badges are tinted favorable or unfavorable. */
   annotationConfigsByName?: ReadonlyMap<string, AnnotationOptimizationConfig>;
 };
 

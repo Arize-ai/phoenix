@@ -401,20 +401,14 @@ function TraceTreeFrame({
  * latency | tokens | cost. Metrics a span lacks are dropped from its footer,
  * so rows differ in height, and the tree edges end at each row's own center.
  *
- * A span with annotations (notes aside) carries a third line of badges,
- * one per annotation name, colored by the project's annotation config:
- * red where the result is unfavorable, green where it is favorable, plain
- * where the config gives no direction. Unfavorable badges come first, and
- * whatever the row is too narrow for is clipped behind a "+N" badge that
- * opens the rest, so a narrow tree still points at the flagged spans.
+ * A span with annotations (notes aside) gets a line of badges under the row,
+ * unfavorable first, tinted by the project's annotation config. Badges that
+ * do not fit collapse into "+N".
  *
- * Every row is the trigger of a rich tooltip beside the tree that names
- * the span, repeats its badges, and shows when it ran, then its token and
- * cost breakdown. The explanation behind each badge and the breakdown are
- * fetched together only when a tooltip opens, with what the row already
- * knows standing in until they arrive. In these stories a canned Relay
- * environment answers that load after a short delay. Scrub the pointer
- * down a tree: after the first tooltip, each row's opens at once.
+ * Every row opens the `Span Preview Tooltip`, whose details load only once
+ * it settles; here a canned Relay environment answers after a short delay.
+ * Scrub the pointer down a tree: after the first tooltip, each row's opens
+ * at once.
  *
  * While a trace loads, `TraceTreeSkeleton` stands in for the tree. Its rows
  * share the tree's layout styles and edges, so it responds to the same width

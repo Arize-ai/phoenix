@@ -18,10 +18,7 @@ export interface ISpanItem {
   costSummary?: {
     total?: { cost?: number | null } | null;
   } | null;
-  /**
-   * One summary per annotation name on the span, notes excluded. What the
-   * tree shows as badges and the preview opens with before details load.
-   */
+  /** Per-name annotation summaries, notes excluded. */
   spanAnnotationSummaries?: readonly AnnotationSummary[] | null;
   [otherKeys: string]: unknown;
 }

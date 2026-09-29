@@ -18,22 +18,15 @@ import {
 } from "@phoenix/components/core/utility/Truncate";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-/**
- * One annotation behind a summary, as the preview's details load it:
- * enough to show why the latest result came out the way it did.
- */
+/** One annotation behind a summary, as the preview's lazy details query returns it. */
 export type SpanPreviewAnnotation = {
   readonly name: string;
   readonly explanation?: string | null;
-  /** ISO timestamp; the newest annotation of a name is the one explained. */
+  /** ISO timestamp; the newest annotation of each name supplies the explanation. */
   readonly createdAt: string;
 };
 
-/*
- * Laid out like the token breakdown table under it: uppercase XS headings,
- * a word-color swatch before each name, and values set to the right in the
- * tinted chips of the large annotation label.
- */
+/* Mirrors the token breakdown table beneath it in the preview */
 const tableCSS = css`
   width: 100%;
   border-collapse: collapse;
@@ -44,8 +37,6 @@ const tableCSS = css`
     padding: 0;
     vertical-align: middle;
   }
-  /* The title heads the name column, so it shares a line with the column
-     headings */
   thead th {
     font-weight: normal;
     text-align: right;
@@ -62,12 +53,9 @@ const tableCSS = css`
     gap: var(--global-dimension-size-100);
     white-space: nowrap;
   }
-  /* Every row after the first opens with the same gap, whether or not an
-     explanation sits above it */
   tbody tr.span-preview-annotation:not(:first-of-type) > * {
     padding-top: var(--global-dimension-size-100);
   }
-  /* The name column takes the slack so the values stay tight */
   .span-preview-annotation__name {
     width: 100%;
     max-width: 0;
@@ -96,15 +84,14 @@ const tableCSS = css`
     max-width: 16ch;
     vertical-align: middle;
   }
-  /* Plain and missing values take the tinted chips' inset, so every value
-     in a column ends at the same edge */
+  /* Matches the tinted chip's inset so a column's values end at one edge */
   .span-preview-annotation__value:not([data-direction]) {
     padding-inline: var(--global-dimension-size-100);
   }
   .span-preview-annotation__value[data-unrecorded] {
     color: var(--global-text-color-300);
   }
-  /* The caption sits under the name, past the swatch */
+  /* Aligns with the name: swatch width plus gap */
   .span-preview-annotation__explanation td {
     padding-top: var(--global-dimension-size-25);
     padding-left: calc(8px + var(--global-dimension-size-100));
@@ -112,22 +99,16 @@ const tableCSS = css`
 `;
 
 export type SpanPreviewAnnotationsProps = {
-  /** The span's summaries as the trace tree row holds them. */
   summaries: readonly AnnotationSummary[] | null | undefined;
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>;
-  /**
-   * The span's annotations, in any order. `null` or absent while they load:
-   * the table then shows each summary's values without an explanation.
-   */
+  /** Omit while loading; rows then show values without explanations. */
   annotations?: readonly SpanPreviewAnnotation[] | null;
 };
 
 /**
- * The span's annotations for its preview, as a small table: each name with
- * its label and score, unfavorable first, colored by whether the result is
- * favorable under the project's config, and the explanation behind the
- * latest one under it. The values render from what the tree row already
- * holds; the explanations arrive with the preview's details.
+ * The span preview's annotations table: label and score per annotation name,
+ * unfavorable first, each with its latest explanation. Values come from the
+ * tree row's summaries, so the table renders before the details load.
  */
 export function SpanPreviewAnnotations({
   summaries,
@@ -154,8 +135,7 @@ export function SpanPreviewAnnotations({
     (row) => row.positiveOptimization === false
   ).length;
   return (
-    // A block around the table: the card's section rules pad it, and a
-    // collapsed-border table takes no padding of its own
+    // The card pads its sections, and a collapsed-border table ignores padding
     <div className="span-preview__annotations">
       <table
         className="span-preview-annotations-table"
@@ -191,8 +171,8 @@ export function SpanPreviewAnnotations({
         </thead>
         <tbody>
           {rows.flatMap(({ summary, positiveOptimization, annotations }) => {
-            // Newest first, so this is the annotation the summary most reflects
-            const explanation = annotations[0]?.explanation;
+            const [latestAnnotation] = annotations;
+            const explanation = latestAnnotation?.explanation;
             const count = summary.count ?? annotations.length;
             const label = getAnnotationSummaryTopLabel(summary);
             const score =
@@ -259,11 +239,7 @@ export function SpanPreviewAnnotations({
   );
 }
 
-/**
- * A label or score in the tinted chip of the large annotation label, or a
- * muted dash when the annotation did not record it. A dash is not a result,
- * so it is never tinted.
- */
+/** A label or score, or a muted untinted dash when the annotation lacks one. */
 function AnnotationValue({
   children,
   positiveOptimization,

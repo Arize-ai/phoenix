@@ -54,11 +54,8 @@ const widths = [
 ];
 
 /**
- * The line of annotation badges under a trace tree row's metrics, one per
- * annotation name, unfavorable first. What the row has no room for is
- * clipped whole behind a "+N" badge that opens the rest in a popover, so a
- * narrow tree still shows the result that flagged the span. A pure view of
- * the summaries and configs it is given; `Trace Tree` shows it in rows.
+ * A trace tree row's annotation badges, unfavorable first, collapsing into
+ * "+N" when the row runs out of room. `Trace Tree` shows it in rows.
  */
 const meta: Meta<typeof SpanAnnotationBadges> = {
   title: "Domains/Tracing/Span Annotation Badges",

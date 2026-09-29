@@ -3,8 +3,8 @@ import { getPositiveOptimizationFromConfig } from "./optimizationUtils";
 import type { AnnotationSummary } from "./types";
 
 /**
- * Whether a summary's mean score is favorable under its config: `true` or
- * `false`, or `null` for label-only summaries and configs with no direction.
+ * Whether the summary's mean score is favorable under its config. `null` when
+ * there is no score or the config sets no optimization direction.
  */
 export function getAnnotationSummaryPositiveOptimization({
   summary,
@@ -19,7 +19,7 @@ export function getAnnotationSummaryPositiveOptimization({
   });
 }
 
-/** The label most of the summary's annotations carry, if any carry one. */
+/** The most frequent label, or `null` when no annotation has a label. */
 export function getAnnotationSummaryTopLabel(
   summary: Pick<AnnotationSummary, "labelFractions">
 ): string | null {
@@ -33,15 +33,13 @@ export function getAnnotationSummaryTopLabel(
 }
 
 /**
- * Orders summaries for a troubleshooting scan: unfavorable results first,
- * then everything else by name. A row that clips its badges thus hides the
- * favorable ones, never the one that flags a problem.
+ * Unfavorable summaries first, then by name, so a row that clips its badges
+ * never hides the one that flags a problem.
  */
 export function sortAnnotationSummariesForTriage(
   summaries: readonly AnnotationSummary[],
   annotationConfigsByName: ReadonlyMap<string, AnnotationOptimizationConfig>
 ): AnnotationSummary[] {
-  // Judged once per summary, not once per comparison
   const isUnfavorable = new Map(
     summaries.map((summary) => [
       summary,

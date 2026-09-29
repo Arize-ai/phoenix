@@ -186,7 +186,7 @@ const manyEvals = loadedCard({
   ],
 });
 
-/** The row's own data only: badges alone and a skeleton of the breakdown. */
+/** Only the tree row's data, before the details load. */
 const loading: SpanPreviewCardProps = {
   ...draft,
   annotations: null,
@@ -221,14 +221,10 @@ function Stack({ children }: { children: ReactNode }) {
 }
 
 /**
- * The content of the trace tree's span preview: name and status, timing,
- * the span's annotations, then its token and cost breakdown. It is a pure
- * view of the values it is given, so every state here is composed from
- * plain fixtures with no data layer. `Span Preview Tooltip` shows the
- * connected tooltip that loads these values for a tree row.
- *
- * Cases render inline at tooltip width, where section rules span the card.
- * Inside the tooltip they run to its edges; `In Tooltip` shows that.
+ * The content of a trace tree row's preview, rendered from plain fixtures.
+ * `Span Preview Tooltip` shows the connected version that loads this data.
+ * Cases render inline at tooltip width; `In Tooltip` shows the dividers
+ * running to the tooltip's edges.
  */
 const meta: Meta<typeof SpanPreviewCard> = {
   title: "Domains/Tracing/Span Preview Card",
@@ -289,10 +285,9 @@ export const ContentLength: Story = {
 };
 
 /**
- * Before the details arrive the card shows what the tree row already holds:
- * each annotation's badge without its annotator or explanation, and the
- * totals inside a skeleton of the breakdown. The loaded card follows for
- * comparison, so the jump between the two is visible.
+ * Before the details load, annotations show values without explanations and
+ * a skeleton surrounds the known totals. The loaded card follows for
+ * comparison.
  */
 export const Loading: Story = {
   tags: ["!dev"],
@@ -310,8 +305,8 @@ export const Loading: Story = {
 };
 
 /**
- * The card in the rich tooltip the tree row opens, held open. The tooltip
- * publishes its padding, so each section rule runs to its edges.
+ * Held open in the rich tooltip a tree row opens, where dividers run to the
+ * tooltip's edges.
  */
 export const InTooltip: Story = {
   name: "In Tooltip",

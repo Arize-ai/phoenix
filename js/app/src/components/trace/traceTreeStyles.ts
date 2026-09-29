@@ -105,9 +105,8 @@ export const traceTreeListCSS = css`
 
 /**
  * A row of the tree. Its children anchor to the title line; a metrics footer
- * hangs below without moving them, and a full-width line of annotations
- * ({@link spanNodeAnnotationsCSS}) wraps below everything. Expects
- * {@link nestingLevelStyle}.
+ * hangs below without moving them, and {@link spanNodeAnnotationsCSS} wraps
+ * onto a line of its own. Expects {@link nestingLevelStyle}.
  */
 export const spanNodeWrapCSS = css`
   position: relative;
@@ -117,7 +116,6 @@ export const spanNodeWrapCSS = css`
   flex-wrap: wrap;
   align-items: flex-start;
   column-gap: var(--global-dimension-size-100);
-  /* Matches the gap between the title and the metrics footer */
   row-gap: var(--global-dimension-size-25);
   padding-right: var(--global-dimension-size-100);
   padding-top: var(--trace-tree-row-padding-y);
@@ -153,18 +151,15 @@ export const spanNodeContentCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-25);
-  /* A zero basis: the row wraps, and a long name must shrink into the space
-     beside the timing bar rather than push the bar to a line of its own */
+  /* A content-sized basis would let a long name wrap the timing bar */
   flex: 1 1 0%;
   min-width: 0;
   overflow: hidden;
 `;
 
 /**
- * The row's annotations, on a line of their own under the title, metrics
- * and timing bar. It spans the row from the name's left edge to its right
- * padding, so the width the timing column and controls take on the lines
- * above is free for more annotations here.
+ * The row's annotation line, aligned with the name and spanning under the
+ * timing bar, where it has more room than the name column.
  */
 export const spanNodeAnnotationsCSS = css`
   flex: 1 0 100%;

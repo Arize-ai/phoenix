@@ -21,12 +21,10 @@ const badgeCSS = css(
     gap: var(--global-dimension-size-75);
     box-sizing: border-box;
     height: var(--global-line-height-xs);
-    /* Whole or not at all: in a row that runs out of room the badge moves
-       behind the row's "+N" rather than squeezing its name to a fragment.
-       Only a badge wider than the row itself truncates, to the row. */
+    /* A badge never shrinks, so an overflowing row clips whole badges behind
+       its "+N" instead of truncating names */
     flex: none;
     max-width: 100%;
-    /* The chip sits inside the badge's right end, one pixel from its edge */
     padding: 0 1px 0 var(--global-dimension-size-75);
     color: var(--global-text-color-700);
     font-size: var(--global-font-size-xs);
@@ -51,23 +49,15 @@ const badgeCSS = css(
 
 export interface AnnotationSummaryBadgeProps {
   summary: AnnotationSummary;
-  /**
-   * The config for the summary's annotation name. Without one the badge has
-   * no direction to judge by and its value stays plain.
-   */
+  /** Decides whether the value is tinted favorable or unfavorable; omit for a plain value. */
   annotationConfig?: AnnotationOptimizationConfig;
 }
 
 /**
- * The large annotation label at a size that fits one short line: a neutral
- * outlined badge with the annotation's word-color swatch and name, then its
- * most common label, or its mean score, in the tinted chip of
- * `AnnotationScoreText`. Only the chip carries the verdict, so a line of
- * these stays quiet and an unfavorable result stands out. Made for dense
- * surfaces such as trace tree rows.
- *
- * The badge is not interactive; put it inside a tooltip or popover trigger
- * when details are wanted.
+ * A one-line annotation label for dense surfaces such as trace tree rows.
+ * It shows the summary's most common label, else its mean score, and only
+ * the value is tinted, so unfavorable results stand out in a quiet row.
+ * Not interactive; wrap it in a trigger for details.
  */
 export function AnnotationSummaryBadge({
   summary,

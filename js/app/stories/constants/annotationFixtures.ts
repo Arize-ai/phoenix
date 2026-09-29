@@ -2,8 +2,8 @@ import type { AnnotationOptimizationConfig } from "@phoenix/components/annotatio
 import type { AnnotationSummary } from "@phoenix/components/annotation/types";
 
 /**
- * A project's annotation configs: each eval's direction, which is what
- * turns a badge green or red. `tone` has no direction, so it stays plain.
+ * Configs for the fixture evals. `tone` sets no optimization direction, so
+ * its values stay untinted.
  */
 export const annotationConfigsByName = new Map<
   string,
