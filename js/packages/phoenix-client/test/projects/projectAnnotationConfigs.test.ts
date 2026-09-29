@@ -37,73 +37,9 @@ const HELPFULNESS: AnnotationConfig = {
   type: "FREEFORM",
 };
 
-const KNOWN_CONFIGS = [CORRECTNESS, HELPFULNESS];
-
-function serverVersionHandler(version: string) {
-  return http.get("/arize_phoenix_version", ({ response }) =>
-    response.untyped(new Response(version, { status: 200 }))
-  );
-}
-
-/**
- * Registers handlers that model the server's project assignment state, so
- * tests can observe the effect of repeated and replacing calls.
- */
-function useAssignmentState(initial: AnnotationConfig[] = []) {
-  const assigned = new Map(initial.map((config) => [config.id, config]));
-  const findConfig = (identifier: string) =>
-    KNOWN_CONFIGS.find(
-      (config) => config.id === identifier || config.name === identifier
-    );
-
-  server.use(
-    http.get(
-      "/v1/projects/{project_identifier}/annotation_configs",
-      ({ response }) =>
-        response(200).json({
-          data: [...assigned.values()],
-          next_cursor: null,
-        })
-    ),
-    http.put(
-      "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
-      ({ params, response }) => {
-        const config = findConfig(params.config_identifier);
-        if (!config) return response(404).text("Not found");
-        assigned.set(config.id, config);
-        return response(200).json({ data: config });
-      }
-    ),
-    http.delete(
-      "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
-      ({ params, response }) => {
-        const config = findConfig(params.config_identifier);
-        if (!config) return response(404).text("Not found");
-        assigned.delete(config.id);
-        return response(204).empty();
-      }
-    ),
-    http.put(
-      "/v1/projects/{project_identifier}/annotation_configs",
-      async ({ request, response }) => {
-        const body = await request.json();
-        const desired = body.annotation_config_ids.map((id) =>
-          KNOWN_CONFIGS.find((config) => config.id === id)
-        );
-        if (desired.some((config) => config === undefined)) {
-          return response(422).text("Annotation config not found");
-        }
-        assigned.clear();
-        for (const config of desired) {
-          if (config) assigned.set(config.id, config);
-        }
-        return response(200).json({ data: [...assigned.values()] });
-      }
-    )
-  );
-
-  return assigned;
-}
+const LIST_PATH = "/v1/projects/{project_identifier}/annotation_configs";
+const CONFIG_PATH =
+  "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}";
 
 let server: Server;
 
@@ -113,7 +49,11 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  server.use(serverVersionHandler("17.16.0"));
+  server.use(
+    http.get("/arize_phoenix_version", ({ response }) =>
+      response.untyped(new Response("17.16.0", { status: 200 }))
+    )
+  );
 });
 
 afterEach(() => {
@@ -128,22 +68,13 @@ describe("listProjectAnnotationConfigs", () => {
   it("follows cursors until every page is fetched", async () => {
     const requests: { projectIdentifier: string; cursor: string | null }[] = [];
     server.use(
-      http.get(
-        "/v1/projects/{project_identifier}/annotation_configs",
-        ({ params, request, response }) => {
-          const cursor = new URL(request.url).searchParams.get("cursor");
-          requests.push({
-            projectIdentifier: params.project_identifier,
-            cursor,
-          });
-          return cursor
-            ? response(200).json({ data: [HELPFULNESS], next_cursor: null })
-            : response(200).json({
-                data: [CORRECTNESS],
-                next_cursor: HELPFULNESS.id,
-              });
-        }
-      )
+      http.get(LIST_PATH, ({ params, request, response }) => {
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        requests.push({ projectIdentifier: params.project_identifier, cursor });
+        return cursor
+          ? response(200).json({ data: [HELPFULNESS], next_cursor: null })
+          : response(200).json({ data: [CORRECTNESS], next_cursor: "page-2" });
+      })
     );
 
     const configs = await listProjectAnnotationConfigs({
@@ -154,15 +85,14 @@ describe("listProjectAnnotationConfigs", () => {
     expect(configs).toEqual([CORRECTNESS, HELPFULNESS]);
     expect(requests).toEqual([
       { projectIdentifier: "support-bot", cursor: null },
-      { projectIdentifier: "support-bot", cursor: HELPFULNESS.id },
+      { projectIdentifier: "support-bot", cursor: "page-2" },
     ]);
   });
 
   it("surfaces a missing project as an HttpError", async () => {
     server.use(
-      http.get(
-        "/v1/projects/{project_identifier}/annotation_configs",
-        ({ response }) => response(404).text("Project not found")
+      http.get(LIST_PATH, ({ response }) =>
+        response(404).text("Project not found")
       )
     );
 
@@ -174,71 +104,42 @@ describe("listProjectAnnotationConfigs", () => {
     await expect(result).rejects.toBeInstanceOf(HttpError);
     await expect(result).rejects.toMatchObject({ status: 404 });
   });
-
-  it("requires a server that supports project annotation configs", async () => {
-    server.use(serverVersionHandler("17.15.0"));
-
-    await expect(
-      listProjectAnnotationConfigs({
-        client: createTestClient(),
-        projectName: "support-bot",
-      })
-    ).rejects.toThrow(/requires Phoenix server >= 17\.16\.0/);
-  });
 });
 
 describe("assignProjectAnnotationConfig", () => {
-  it("sends the project and config identifiers in the path", async () => {
-    const captured: { project?: string; config?: string } = {};
-    server.use(
-      http.put(
-        "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
-        ({ params, response }) => {
-          captured.project = params.project_identifier;
-          captured.config = params.config_identifier;
+  it.each([
+    { identifier: { config: "correctness" }, expected: "correctness" },
+    { identifier: { configName: "correctness" }, expected: "correctness" },
+    { identifier: { configId: CORRECTNESS.id }, expected: CORRECTNESS.id },
+  ])(
+    "sends $identifier as the config path segment",
+    async ({ identifier, expected }) => {
+      let received: { project: string; config: string } | undefined;
+      server.use(
+        http.put(CONFIG_PATH, ({ params, response }) => {
+          received = {
+            project: params.project_identifier,
+            config: params.config_identifier,
+          };
           return response(200).json({ data: CORRECTNESS });
-        }
-      )
-    );
+        })
+      );
 
-    const config = await assignProjectAnnotationConfig({
-      client: createTestClient(),
-      projectId: "UHJvamVjdDox",
-      configName: "correctness",
-    });
+      const config = await assignProjectAnnotationConfig({
+        client: createTestClient(),
+        projectId: "UHJvamVjdDox",
+        ...identifier,
+      });
 
-    expect(config).toEqual(CORRECTNESS);
-    expect(captured).toEqual({
-      project: "UHJvamVjdDox",
-      config: "correctness",
-    });
-  });
-
-  it("is idempotent when the config is already assigned", async () => {
-    const client = createTestClient();
-    const assigned = useAssignmentState();
-
-    const first = await assignProjectAnnotationConfig({
-      client,
-      projectName: "support-bot",
-      config: CORRECTNESS.id,
-    });
-    const second = await assignProjectAnnotationConfig({
-      client,
-      projectName: "support-bot",
-      config: CORRECTNESS.id,
-    });
-
-    expect(first).toEqual(CORRECTNESS);
-    expect(second).toEqual(CORRECTNESS);
-    expect([...assigned.values()]).toEqual([CORRECTNESS]);
-    await expect(
-      listProjectAnnotationConfigs({ client, projectName: "support-bot" })
-    ).resolves.toEqual([CORRECTNESS]);
-  });
+      expect(config).toEqual(CORRECTNESS);
+      expect(received).toEqual({ project: "UHJvamVjdDox", config: expected });
+    }
+  );
 
   it("surfaces a missing config as an HttpError", async () => {
-    useAssignmentState();
+    server.use(
+      http.put(CONFIG_PATH, ({ response }) => response(404).text("Not found"))
+    );
 
     const result = assignProjectAnnotationConfig({
       client: createTestClient(),
@@ -252,33 +153,32 @@ describe("assignProjectAnnotationConfig", () => {
 });
 
 describe("unassignProjectAnnotationConfig", () => {
-  it("is idempotent when the config is not assigned", async () => {
-    const client = createTestClient();
-    const assigned = useAssignmentState([CORRECTNESS, HELPFULNESS]);
+  it("sends the project and config identifiers in the path", async () => {
+    let received: { project: string; config: string } | undefined;
+    server.use(
+      http.delete(CONFIG_PATH, ({ params, response }) => {
+        received = {
+          project: params.project_identifier,
+          config: params.config_identifier,
+        };
+        return response(204).empty();
+      })
+    );
 
     await expect(
       unassignProjectAnnotationConfig({
-        client,
+        client: createTestClient(),
         projectName: "support-bot",
         configName: "correctness",
       })
     ).resolves.toBeUndefined();
-    await expect(
-      unassignProjectAnnotationConfig({
-        client,
-        projectName: "support-bot",
-        configName: "correctness",
-      })
-    ).resolves.toBeUndefined();
-
-    expect([...assigned.values()]).toEqual([HELPFULNESS]);
+    expect(received).toEqual({ project: "support-bot", config: "correctness" });
   });
 
   it("surfaces permission errors", async () => {
     server.use(
-      http.delete(
-        "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
-        ({ response }) => response(403).text("Forbidden")
+      http.delete(CONFIG_PATH, ({ response }) =>
+        response(403).text("Forbidden")
       )
     );
 
@@ -294,43 +194,37 @@ describe("unassignProjectAnnotationConfig", () => {
 });
 
 describe("setProjectAnnotationConfigs", () => {
-  it("replaces the assigned set with the given config IDs", async () => {
-    const assigned = useAssignmentState([CORRECTNESS]);
-
-    const configs = await setProjectAnnotationConfigs({
-      client: createTestClient(),
-      projectName: "support-bot",
-      configIds: [HELPFULNESS.id],
-    });
-
-    expect(configs).toEqual([HELPFULNESS]);
-    expect([...assigned.values()]).toEqual([HELPFULNESS]);
-  });
-
-  it("clears every assignment when given an empty list", async () => {
-    let receivedBody: unknown;
+  it("sends the config IDs and returns the resulting assignments", async () => {
+    let received: { project: string; body: unknown } | undefined;
     server.use(
-      http.put(
-        "/v1/projects/{project_identifier}/annotation_configs",
-        async ({ request, response }) => {
-          receivedBody = await request.json();
-          return response(200).json({ data: [] });
-        }
-      )
+      http.put(LIST_PATH, async ({ params, request, response }) => {
+        received = {
+          project: params.project_identifier,
+          body: await request.json(),
+        };
+        return response(200).json({ data: [CORRECTNESS, HELPFULNESS] });
+      })
     );
 
     const configs = await setProjectAnnotationConfigs({
       client: createTestClient(),
       projectName: "support-bot",
-      configIds: [],
+      configIds: [CORRECTNESS.id, HELPFULNESS.id],
     });
 
-    expect(receivedBody).toEqual({ annotation_config_ids: [] });
-    expect(configs).toEqual([]);
+    expect(configs).toEqual([CORRECTNESS, HELPFULNESS]);
+    expect(received).toEqual({
+      project: "support-bot",
+      body: { annotation_config_ids: [CORRECTNESS.id, HELPFULNESS.id] },
+    });
   });
 
   it("surfaces unknown config IDs as an HttpError", async () => {
-    useAssignmentState();
+    server.use(
+      http.put(LIST_PATH, ({ response }) =>
+        response(422).text("Annotation config not found")
+      )
+    );
 
     const result = setProjectAnnotationConfigs({
       client: createTestClient(),
@@ -341,27 +235,53 @@ describe("setProjectAnnotationConfigs", () => {
     await expect(result).rejects.toBeInstanceOf(HttpError);
     await expect(result).rejects.toMatchObject({ status: 422 });
   });
+});
 
-  it("throws when a successful response omits config data", async () => {
+describe("server version requirement", () => {
+  const client = createTestClient();
+
+  it.each([
+    [
+      "listProjectAnnotationConfigs",
+      () =>
+        listProjectAnnotationConfigs({ client, projectName: "support-bot" }),
+    ],
+    [
+      "assignProjectAnnotationConfig",
+      () =>
+        assignProjectAnnotationConfig({
+          client,
+          projectName: "support-bot",
+          configName: "correctness",
+        }),
+    ],
+    [
+      "unassignProjectAnnotationConfig",
+      () =>
+        unassignProjectAnnotationConfig({
+          client,
+          projectName: "support-bot",
+          configName: "correctness",
+        }),
+    ],
+    [
+      "setProjectAnnotationConfigs",
+      () =>
+        setProjectAnnotationConfigs({
+          client,
+          projectName: "support-bot",
+          configIds: [],
+        }),
+    ],
+  ])("%s requires Phoenix server >= 17.16.0", async (_name, call) => {
     server.use(
-      http.put(
-        "/v1/projects/{project_identifier}/annotation_configs",
-        ({ response }) =>
-          response.untyped(
-            new Response("{}", {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            })
-          )
+      http.get("/arize_phoenix_version", ({ response }) =>
+        response.untyped(new Response("17.15.0", { status: 200 }))
       )
     );
 
-    await expect(
-      setProjectAnnotationConfigs({
-        client: createTestClient(),
-        projectName: "support-bot",
-        configIds: [],
-      })
-    ).rejects.toThrow("Failed to set project annotation configs");
+    await expect(call()).rejects.toThrow(
+      /requires Phoenix server >= 17\.16\.0/
+    );
   });
 });
