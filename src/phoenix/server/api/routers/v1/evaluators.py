@@ -796,8 +796,8 @@ class CreateProjectEvaluatorRequest(EvaluatorRequest):
     input_mapping: Optional[InputMapping] = Field(
         default=None,
         description=(
-            "Required when evaluator is a new LLM evaluator. Null lets a code binding inherit "
-            "the definition's mapping."
+            "Null uses the evaluator's mapping. LLM evaluators have none, so template "
+            "variables bind to context keys of the same name."
         ),
     )
     evaluation_delay_seconds: Optional[int] = Field(
@@ -813,12 +813,6 @@ class CreateProjectEvaluatorRequest(EvaluatorRequest):
         Union[NewLLMEvaluator, NewCodeEvaluator, ExistingEvaluator], Field(discriminator="type")
     ]
 
-    @model_validator(mode="after")
-    def require_llm_mapping(self) -> Self:
-        if isinstance(self.evaluator, NewLLMEvaluator) and self.input_mapping is None:
-            raise ValueError("input_mapping is required for LLM evaluators")
-        return self
-
 
 class PatchProjectEvaluatorRequest(EvaluatorRequest):
     model_config = ConfigDict(json_schema_extra={"minProperties": 1})
@@ -829,7 +823,9 @@ class PatchProjectEvaluatorRequest(EvaluatorRequest):
     enabled: bool = Field(default=UNDEFINED)
     input_mapping: Optional[InputMapping] = Field(
         default=UNDEFINED,
-        description="Omit to preserve. Null restores inheritance for code bindings.",
+        description=(
+            "Omit to preserve. Null clears the binding's mapping, so the evaluator's applies."
+        ),
     )
     evaluation_delay_seconds: Optional[int] = Field(
         default=UNDEFINED,
@@ -878,8 +874,8 @@ class ProjectEvaluator(V1RoutesBaseModel):
     enabled: bool
     input_mapping: Optional[InputMapping] = Field(
         description=(
-            "The binding's input mapping; null means a code binding inherits the "
-            "evaluator's mapping."
+            "The binding's own input mapping; null means the evaluator's mapping applies "
+            "(LLM evaluators have none)."
         )
     )
     evaluation_delay_seconds: int = Field(
@@ -1003,7 +999,6 @@ async def create_project_evaluator(
                 ),
             )
         else:
-            assert body.input_mapping is not None
             row = await service.create_project_llm_evaluator(
                 context,
                 service.CreateProjectLLMEvaluatorInput(

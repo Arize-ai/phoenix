@@ -93,7 +93,7 @@ class CreateProjectLLMEvaluatorInput:
     name: Identifier
     prompt_source: CreatePromptSource
     output_configs: list[OutputConfigType]
-    input_mapping: InputMapping
+    input_mapping: Optional[InputMapping]
     sampling_rate: float
     evaluation_target: models.EvaluationTarget
     description: Optional[str] = None
@@ -1391,12 +1391,6 @@ async def patch_project_evaluator(
                 assert patch.enabled is not None
                 values["enabled"] = patch.enabled
             if patch.input_mapping is not UNSET:
-                if patch.input_mapping is None:
-                    kind = await session.scalar(
-                        select(models.Evaluator.kind).where(models.Evaluator.id == row.evaluator_id)
-                    )
-                    if kind != "CODE":
-                        raise BadRequest("input_mapping cannot be null for LLM evaluators")
                 values["input_mapping"] = patch.input_mapping
             if patch.evaluation_delay_seconds is not UNSET:
                 values["evaluation_delay_seconds"] = materialize_project_evaluator_evaluation_delay(
