@@ -822,7 +822,7 @@ async def list_experiments(
     sequence_numbers: Optional[list[int]] = Query(
         default=None,
         description="When provided, return only the experiments with these 1-based per-dataset "
-        "sequence numbers, resolving an experiment by its user-facing number without paging.",
+        "sequence numbers.",
     ),
 ) -> ListExperimentsResponseBody:
     try:

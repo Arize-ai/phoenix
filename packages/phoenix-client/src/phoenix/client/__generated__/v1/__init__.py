@@ -270,6 +270,7 @@ class Experiment(TypedDict):
     dataset_version_id: str
     name: str
     description: Optional[str]
+    sequence_number: int
     repetitions: int
     metadata: Mapping[str, Any]
     project_name: Optional[str]

@@ -9390,7 +9390,7 @@ export interface operations {
                 limit?: number;
                 /** @description Order by creation: 'desc' (default) returns newest experiments first, 'asc' returns oldest first so the lowest sequence numbers are on the first page. */
                 sort_dir?: "asc" | "desc";
-                /** @description When provided, return only the experiments with these 1-based per-dataset sequence numbers, resolving an experiment by its user-facing number without paging. */
+                /** @description When provided, return only the experiments with these 1-based per-dataset sequence numbers. */
                 sequence_numbers?: number[] | null;
             };
             header?: never;
