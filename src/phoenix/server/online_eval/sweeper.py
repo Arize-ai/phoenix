@@ -317,6 +317,8 @@ def _reoffer_values(excluded: Any) -> dict[str, Any]:
 
 
 def _reofferable(work_unit: Any, activity_through: Any) -> ColumnElement[bool]:
+    """A failed, expired, or content-lost session or trace is retried when new spans arrive
+    after it failed; spans that arrived while it was running might not trigger a retry."""
     reofferable: ColumnElement[bool] = and_(
         work_unit.status.in_(SESSION_REOFFERED_STATUSES),
         work_unit.evaluated_through < activity_through,
