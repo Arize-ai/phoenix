@@ -282,8 +282,6 @@ export function useAgentChat({
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
     setCompactionStatus(null);
-    // A ChatGPT token about to expire is rotated before the turn starts so
-    // the token riding this request outlives the request.
     await ensureFreshCodexAuth(store);
     if (isDraft) {
       createSessionAndSendMessage(...args);
