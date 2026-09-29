@@ -54,6 +54,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
+from phoenix.db.models import CODEX_SUBSCRIPTION_MODEL_PROVIDER
 from phoenix.db.types.data_stream_protocol import (
     MessageMetadata,
     PhoenixUIMessage,
@@ -5273,3 +5274,153 @@ async def test_the_persisted_user_message_records_the_turns_ui_state(
     phoenix_metadata = user_message["metadata"]["phoenix"]
     assert phoenix_metadata["uiContexts"]["project"]["projectNodeId"] == "UHJvamVjdDox"
     assert phoenix_metadata["editPermission"] == "bypass"
+
+
+_CODEX_MODEL_BODY = {"providerType": "codex", "modelName": "gpt-5.4"}
+_CODEX_TOKEN_CREDENTIAL = {"key": "OPENAI_CODEX_ACCESS_TOKEN", "value": "eyJ.codex.token"}
+
+
+async def _create_codex_agent_session_row(db: DbSessionFactory) -> str:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            model_provider=CODEX_SUBSCRIPTION_MODEL_PROVIDER,
+            model_name="gpt-5.4",
+            user_id=None,
+            title="",
+            project_name=get_env_phoenix_agents_assistant_project_name(),
+        )
+        session.add(agent_session)
+        await session.flush()
+        session.add_all(
+            models.AgentSessionMessage(
+                agent_session_id=agent_session.id,
+                message=PhoenixUIMessage.model_validate(message),
+            )
+            for message in [
+                _user_message("Hello", message_id=_message_uuid("user-1")),
+                {
+                    "id": _message_uuid("assistant-1"),
+                    "role": "assistant",
+                    "parts": [{"type": "text", "text": "Hi there."}],
+                },
+            ]
+        )
+        return str(GlobalID("AgentSession", str(agent_session.id)))
+
+
+async def _assert_turn_lock_released(db: DbSessionFactory, agent_session_id: str) -> None:
+    global_id = GlobalID.from_id(agent_session_id)
+    async with db() as session:
+        agent_session = await session.get(models.AgentSession, int(global_id.node_id))
+        assert agent_session is not None
+        assert agent_session.heartbeat_at is None
+
+
+async def test_chat_on_a_codex_session_without_a_token_is_forbidden(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The ChatGPT token lives in the browser, so a Codex session cannot run
+    without it on the request. 401 is reserved for Phoenix's own auth."""
+    built_selections = []
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> TestModel:
+        built_selections.append(selection)
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_codex_agent_session_row(db)
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(
+            "11111111-1111-4111-8111-111111111111",
+            _user_message("hello", message_id=_message_uuid("user-2")),
+            model=_CODEX_MODEL_BODY,
+            lastMessageId=_message_uuid("assistant-1"),
+        ),
+    )
+
+    assert response.status_code == 403
+    assert "not signed in to ChatGPT" in response.text
+    assert built_selections == []
+    await _assert_turn_lock_released(db, agent_session_id)
+
+
+async def test_compact_on_a_codex_session_without_a_token_is_forbidden(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    built_selections = []
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> TestModel:
+        built_selections.append(selection)
+        return TestModel(call_tools=[])
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_codex_agent_session_row(db)
+
+    response = await httpx_client.post(
+        _compact_url(agent_session_id),
+        json={"model": _CODEX_MODEL_BODY},
+    )
+
+    assert response.status_code == 403
+    assert "not signed in to ChatGPT" in response.text
+    assert built_selections == []
+    await _assert_turn_lock_released(db, agent_session_id)
+
+
+async def test_codex_token_on_the_request_reaches_the_model_factory(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only the Codex token is forwarded, as its own argument, not the whole
+    credential list."""
+    received_kwargs: list[dict[str, Any]] = []
+
+    def compact_function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="conversation_checkpoint",
+                    args={
+                        "objectives": [],
+                        "constraints_and_preferences": [],
+                        "decisions": [],
+                        "completed_work": [],
+                        "active_work": [],
+                        "blockers": [],
+                        "next_steps": [],
+                        "important_details": [],
+                    },
+                )
+            ]
+        )
+
+    async def _fake_build_model(selection: object, **kwargs: object) -> FunctionModel:
+        received_kwargs.append(dict(kwargs))
+        return FunctionModel(function=compact_function)
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+    agent_session_id = await _create_codex_agent_session_row(db)
+
+    response = await httpx_client.post(
+        _compact_url(agent_session_id),
+        json={
+            "model": _CODEX_MODEL_BODY,
+            "credentials": [
+                {"key": "GITHUB_PERSONAL_ACCESS_TOKEN", "value": "ghp_unrelated"},
+                _CODEX_TOKEN_CREDENTIAL,
+            ],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert len(received_kwargs) == 1
+    token = received_kwargs[0]["codex_access_token"]
+    assert token.get_secret_value() == _CODEX_TOKEN_CREDENTIAL["value"]
+    assert "request_credentials" not in received_kwargs[0]

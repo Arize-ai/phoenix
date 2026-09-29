@@ -7,6 +7,7 @@ import pytest
 from pydantic import SecretStr
 
 from phoenix.server.agents import codex
+from phoenix.server.agents.exceptions import ProviderCredentialsError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import CodexSubscriptionModelSelection
 from phoenix.server.types import DbSessionFactory
@@ -57,7 +58,7 @@ class TestDeviceCode:
 
 
 class TestBuildCodexModel:
-    async def test_requires_request_credential(
+    async def test_requires_access_token(
         self,
         db: DbSessionFactory,
         monkeypatch: pytest.MonkeyPatch,
@@ -68,9 +69,8 @@ class TestBuildCodexModel:
             provider_type="codex",
             model_name="gpt-5.4",
         )
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ProviderCredentialsError):
             await build_model(params, db=db, decrypt=lambda value: value)
-        assert "not signed in to ChatGPT" in str(exc_info.value)
 
     async def test_builds_responses_model_on_codex_backend(
         self,
@@ -84,7 +84,7 @@ class TestBuildCodexModel:
             params,
             db=db,
             decrypt=lambda value: value,
-            request_credentials={codex.CODEX_ACCESS_TOKEN_SECRET_KEY: SecretStr(ACCESS_TOKEN)},
+            codex_access_token=SecretStr(ACCESS_TOKEN),
         )
         inner: Any = model.wrapped if hasattr(model, "wrapped") else model
         provider = inner._provider
@@ -108,9 +108,7 @@ class TestBuildCodexModel:
                 params,
                 db=db,
                 decrypt=lambda value: value,
-                request_credentials={
-                    codex.CODEX_ACCESS_TOKEN_SECRET_KEY: SecretStr(_jwt({"sub": "x"}))
-                },
+                codex_access_token=SecretStr(_jwt({"sub": "x"})),
             )
         assert "account id" in str(exc_info.value)
 

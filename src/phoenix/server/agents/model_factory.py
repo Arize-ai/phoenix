@@ -20,7 +20,7 @@ from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     ModelProvider,
 )
-from phoenix.server.agents.codex import account_id_from_token, resolve_codex_access_token
+from phoenix.server.agents.codex import account_id_from_token
 from phoenix.server.agents.exceptions import (
     ProviderConfigError,
     ProviderCredentialsError,
@@ -81,14 +81,8 @@ def _build_openai_model(
 def _build_openai_codex_model(
     *,
     model_name: str,
-    request_credentials: Mapping[str, SecretStr],
+    access_token: SecretStr,
 ) -> "PydanticAIModel":
-    access_token = resolve_codex_access_token(request_credentials)
-    if access_token is None:
-        raise ProviderCredentialsError(
-            "This chat uses a ChatGPT subscription, but this browser is not signed in to "
-            "ChatGPT. Sign in under Settings > Assistant, or pick another model."
-        )
     token = access_token.get_secret_value()
     account_id = account_id_from_token(token)
     if not account_id:
@@ -204,7 +198,7 @@ async def build_model(
     db: DbSessionFactory,
     decrypt: Callable[[bytes], bytes],
     tracer_provider: TracerProvider | None = None,
-    request_credentials: Mapping[str, SecretStr] | None = None,
+    codex_access_token: SecretStr | None = None,
 ) -> OpenInferenceModelWrapper:
     """Build a ``pydantic_ai`` model."""
     if isinstance(model, CustomProviderModelSelection):
@@ -227,9 +221,11 @@ async def build_model(
             credentials=credentials,
         )
     elif isinstance(model, CodexSubscriptionModelSelection):
+        if codex_access_token is None:
+            raise ProviderCredentialsError("Codex sessions require a ChatGPT access token")
         pydantic_ai_model = _build_openai_codex_model(
             model_name=model.model_name,
-            request_credentials=request_credentials or {},
+            access_token=codex_access_token,
         )
     else:
         # See ``_build_openai_model`` for why ``assert_never`` and ``raise``

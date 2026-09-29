@@ -126,6 +126,7 @@ from phoenix.db.types.data_stream_protocol import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.agents.agent_factory import build_agent, build_agent_tracer
 from phoenix.server.agents.capabilities import get_external_tool_definition
+from phoenix.server.agents.codex import CODEX_ACCESS_TOKEN_SECRET_KEY
 from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.context import (
     AppContext,
@@ -141,7 +142,10 @@ from phoenix.server.agents.github import (
     resolve_github_mcp_config,
 )
 from phoenix.server.agents.model_factory import build_model
-from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.model_selection import (
+    AgentModelSelection,
+    CodexSubscriptionModelSelection,
+)
 from phoenix.server.agents.prompts import UI_STATE_TEMPLATE, AgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
 from phoenix.server.agents.session_titles import (
@@ -499,6 +503,29 @@ class ChatRequestCredential(_CamelBaseModel):
 
     key: ChatRequestCredentialKey = Field(description="The credential's secret-key name.")
     value: SecretStr
+
+
+def _get_codex_access_token_if_configured(
+    session_model: AgentModelSelection,
+    credentials: Sequence[ChatRequestCredential],
+) -> SecretStr | None:
+    """Pick the ChatGPT token off the request when the session runs on Codex.
+
+    Returns ``None`` for every other model; 401 is reserved for Phoenix's own
+    auth (the browser refreshes its session and redirects on it), so a Codex
+    session without a token is a 403.
+    """
+    if not isinstance(session_model, CodexSubscriptionModelSelection):
+        return None
+    for credential in credentials:
+        if credential.key == CODEX_ACCESS_TOKEN_SECRET_KEY and credential.value.get_secret_value():
+            return credential.value
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "This chat uses a ChatGPT subscription, but this client is not signed in to ChatGPT."
+        ),
+    )
 
 
 class ChatRequestBody(_CamelBaseModel):
@@ -2993,6 +3020,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             )
             agent_session_rowid = agent_session.id
             session_model = get_agent_session_model(agent_session)
+            codex_access_token = _get_codex_access_token_if_configured(
+                session_model, request_body.credentials
+            )
             await _claim_agent_session_turn_lock_for_model(
                 session,
                 agent_session_rowid=agent_session_rowid,
@@ -3029,9 +3059,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 session_model,
                 db=db_session_factory,
                 decrypt=request.app.state.decrypt,
-                request_credentials={
-                    credential.key: credential.value for credential in request_body.credentials
-                },
+                codex_access_token=codex_access_token,
             )
             summary_messages = _to_pydantic_ai_messages(messages_to_summarize)
             summary = await summarize_messages_for_compaction(
@@ -3222,6 +3250,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 )
                 transcript_messages = merged_transcript.messages
                 session_model = get_agent_session_model(agent_session)
+                codex_access_token = _get_codex_access_token_if_configured(
+                    session_model, body.credentials
+                )
                 await _claim_agent_session_turn_lock_for_model(
                     session,
                     agent_session_rowid=agent_session.id,
@@ -3281,9 +3312,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     db=db_session_factory,
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
-                    request_credentials={
-                        credential.key: credential.value for credential in body.credentials
-                    },
+                    codex_access_token=codex_access_token,
                 )
             except AgentError as exc:
                 raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc

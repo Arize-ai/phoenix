@@ -10,7 +10,6 @@ from typing import Any, Literal
 from urllib.parse import urlencode
 
 import httpx
-from pydantic import SecretStr
 
 CODEX_ACCESS_TOKEN_SECRET_KEY: Literal["OPENAI_CODEX_ACCESS_TOKEN"] = "OPENAI_CODEX_ACCESS_TOKEN"
 
@@ -122,13 +121,6 @@ def start_browser_auth() -> CodexBrowserAuthStart:
         code_verifier=code_verifier,
         redirect_uri=CODEX_BROWSER_REDIRECT_URI,
     )
-
-
-def resolve_codex_access_token(request_credentials: Mapping[str, SecretStr]) -> SecretStr | None:
-    token = request_credentials.get(CODEX_ACCESS_TOKEN_SECRET_KEY)
-    if token is not None and token.get_secret_value():
-        return token
-    return None
 
 
 def jwt_payload(token: str) -> dict[str, Any] | None:
