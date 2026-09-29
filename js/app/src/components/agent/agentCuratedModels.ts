@@ -1,4 +1,4 @@
-import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import type { AgentModelMenuValue } from "./agentModelTypes";
 
 export type AgentBuiltInModelSelection = {
   provider: ModelProvider;
@@ -49,7 +49,7 @@ export function getCuratedBuiltInModels(
 }
 
 export function isAgentCuratedModelSelection(
-  model: ModelMenuValue | null | undefined
+  model: AgentModelMenuValue | null | undefined
 ): boolean {
   if (!model || model.customProvider || model.codexSubscription) {
     return false;

@@ -2,8 +2,9 @@ import { css } from "@emotion/react";
 import { Link as RouterLink } from "react-router";
 
 import { Alert, Text } from "@phoenix/components";
-import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+
+import type { AgentModelMenuValue } from "./agentModelTypes";
 
 const bannerCSS = css`
   padding: 0 var(--global-dimension-size-100) var(--global-dimension-size-100);
@@ -17,7 +18,7 @@ const bannerCSS = css`
 export function AgentCodexSignInBanner({
   modelMenuValue,
 }: {
-  modelMenuValue: ModelMenuValue;
+  modelMenuValue: AgentModelMenuValue;
 }) {
   const isSignedIn = useAgentContext((state) => state.codexAuth != null);
   if (!modelMenuValue.codexSubscription || isSignedIn) {

@@ -62,12 +62,6 @@ export type ModelMenuValue = {
    * Reference to custom provider if using one
    */
   customProvider?: CustomProviderRef;
-  /**
-   * Assistant only: the model runs on the user's ChatGPT (Codex) subscription
-   * with a browser-held token rather than on the `provider`'s server-side
-   * credentials. `provider` is then `OPENAI`, for display purposes.
-   */
-  codexSubscription?: boolean;
 };
 
 /**

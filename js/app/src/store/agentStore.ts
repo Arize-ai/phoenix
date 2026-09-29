@@ -34,6 +34,17 @@ import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 import type { ModelConfig } from "./playground/types";
 
 /**
+ * The assistant's model configuration. Extends the playground's
+ * {@link ModelConfig} with the ChatGPT (Codex) subscription flag, which only
+ * the assistant can use: the turn then runs on the browser's ChatGPT sign-in
+ * rather than on server-side OpenAI credentials, and `provider` is `OPENAI`
+ * for display purposes.
+ */
+export type AgentModelConfig = ModelConfig & {
+  codexSubscription?: boolean;
+};
+
+/**
  * Layout position of the agent panel.
  * - "detached": floating overlay panel
  * - "pinned": docked to the side of the viewport
@@ -240,7 +251,7 @@ export function selectIsSessionOccupied(
  */
 export const DRAFT_SESSION_ID = "pxi:draft-session";
 
-const DEFAULT_MODEL_CONFIG: ModelConfig = {
+const DEFAULT_MODEL_CONFIG: AgentModelConfig = {
   provider: "ANTHROPIC",
   modelName: "claude-opus-4-6",
   invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
@@ -366,7 +377,7 @@ export interface AgentProps {
    */
   defaultTemporaryChat: boolean;
   /** Default model configuration applied to newly created sessions. */
-  defaultModelConfig: ModelConfig;
+  defaultModelConfig: AgentModelConfig;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
@@ -404,7 +415,7 @@ export interface AgentState extends AgentProps {
    * Session identity and transcripts live in Relay, not here.
    */
   clearSessionEphemeralState: (sessionId: string) => void;
-  setDefaultModelConfig: (config: ModelConfig) => void;
+  setDefaultModelConfig: (config: AgentModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
   setAgentsConfig: (

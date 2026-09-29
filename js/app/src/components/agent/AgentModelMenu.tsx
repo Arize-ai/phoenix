@@ -15,10 +15,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import type {
-  ModelMenuProps,
-  ModelMenuValue,
-} from "@phoenix/components/generative/ModelMenu";
+import type { ModelMenuProps } from "@phoenix/components/generative/ModelMenu";
 import { ProviderModelMenuItems } from "@phoenix/components/generative/ModelMenu";
 import {
   getModelsByProvider,
@@ -34,6 +31,7 @@ import {
   getCuratedBuiltInModels,
   isAgentCuratedBuiltInModel,
 } from "./agentCuratedModels";
+import type { AgentModelMenuValue } from "./agentModelTypes";
 
 const menuWidthCSS = css`
   min-width: 350px;
@@ -54,8 +52,8 @@ function AgentModelItem({
   model,
   onChange,
 }: {
-  model: ModelMenuValue;
-  onChange?: (model: ModelMenuValue) => void;
+  model: AgentModelMenuValue;
+  onChange?: (model: AgentModelMenuValue) => void;
 }) {
   return (
     <MenuItem
@@ -76,7 +74,7 @@ function AgentModelItem({
 function CodexModelMenuSection({
   onChange,
 }: {
-  onChange?: (model: ModelMenuValue) => void;
+  onChange?: (model: AgentModelMenuValue) => void;
 }) {
   const isSignedIn = useAgentContext((state) => state.codexAuth != null);
   const { models, isLoading, error } = useCodexModels();
@@ -116,11 +114,11 @@ function CuratedAndOtherModelMenuSections({
   modelProviders,
   onChange,
 }: {
-  curatedBuiltInModels: ModelMenuValue[];
+  curatedBuiltInModels: AgentModelMenuValue[];
   modelsByProvider: Map<string, string[]>;
   customProviders: CustomProviderInfo[];
   modelProviders: readonly ModelProviderInfo[];
-  onChange?: (model: ModelMenuValue) => void;
+  onChange?: (model: AgentModelMenuValue) => void;
 }) {
   return (
     <>
@@ -163,7 +161,9 @@ export function AgentModelMenu({
   shouldFlip,
   variant = "default",
   limitToCuratedModels = true,
-}: Omit<ModelMenuProps, "isDisabled"> & {
+}: Omit<ModelMenuProps, "isDisabled" | "value" | "onChange"> & {
+  value?: AgentModelMenuValue | null;
+  onChange?: (model: AgentModelMenuValue) => void;
   limitToCuratedModels?: boolean;
 }) {
   const isDisabled = useAgentContext((state) =>
@@ -182,7 +182,7 @@ export function AgentModelMenu({
   );
 
   const handleModelChange = useCallback(
-    (model: ModelMenuValue) => {
+    (model: AgentModelMenuValue) => {
       if (model.provider === "AWS" && awsBedrockModelPrefix) {
         onChange?.({
           ...model,

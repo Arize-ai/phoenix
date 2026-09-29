@@ -5,7 +5,7 @@ import { createOperationDescriptor, getRequest } from "relay-runtime";
 
 import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
-import type { ModelConfig } from "@phoenix/store/playground/types";
+import type { AgentModelConfig } from "@phoenix/store/agentStore";
 
 import { getProviderKeyForGenerativeModelSDK } from "../generative/modelProviderUtils";
 import type { CustomProviderInfo } from "../generative/useModelMenuData";
@@ -66,7 +66,7 @@ export type PersistedAgentModel = Exclude<
 >;
 
 /**
- * Rebuilds a store {@link ModelConfig} from a session's persisted model.
+ * Rebuilds a store {@link AgentModelConfig} from a session's persisted model.
  *
  * @param params - resolution inputs
  * @param params.model - the session's persisted model selection
@@ -79,7 +79,7 @@ export function resolvePersistedAgentModel({
 }: {
   model: PersistedAgentModel;
   customProviders: readonly CustomProviderInfo[];
-}): ModelConfig {
+}): AgentModelConfig {
   if (model.__typename === "AgentCustomProviderModelSelection") {
     const customProvider = customProviders.find(
       (provider) => provider.id === model.providerId
@@ -113,13 +113,13 @@ export function resolvePersistedAgentModel({
 }
 
 /**
- * Canonical {@link ModelConfig} → wire model selection converter. Every path
+ * Canonical {@link AgentModelConfig} → wire model selection converter. Every path
  * that asserts or persists a session's model (sends, compaction, session
  * creation, model changes) derives its selection here so the asserted model
  * can never drift from the config the UI renders.
  */
 export function toAgentModelSelection(
-  config: ModelConfig
+  config: AgentModelConfig
 ): AgentModelSelection {
   if (config.customProvider) {
     return {
@@ -211,14 +211,14 @@ export function readAgentSessionModelSelection({
 }
 
 /**
- * Resolves a session fragment's persisted model into the {@link ModelConfig}
+ * Resolves a session fragment's persisted model into the {@link AgentModelConfig}
  * shape the picker renders. Reactive: the key must come from a subscribed
  * Relay read (`useLazyLoadQuery`/`useFragment`), so optimistic and server
  * updates re-render through it.
  */
 export function useAgentSessionModelConfig(
   sessionKey: agentSessionModel_session$key | null
-): ModelConfig | undefined {
+): AgentModelConfig | undefined {
   const { customProviders } = useModelMenuData({
     fetchPolicy: "store-or-network",
   });
